@@ -142,6 +142,13 @@ namespace tik4net.Objects
         /// <summary><see cref="Value"/> when present, <paramref name="fallback"/> when absent or unparsed.</summary>
         public T ValueOrDefault(T fallback) => _state == TikValueState.Present ? _value : fallback;
 
+        /// <summary>
+        /// This value, or <paramref name="fallback"/> when this one is <see cref="TikValueState.Absent"/> — the field-level
+        /// "the source says nothing, keep what is there" of a merge:
+        /// <c>.Field(e =&gt; e.Comment, (expected, current) =&gt; expected.IfAbsent(current))</c>.
+        /// </summary>
+        public TikValue<T> IfAbsent(TikValue<T> fallback) => _state == TikValueState.Absent ? fallback : this;
+
         /// <summary>True, with the value, when <see cref="State"/> is <see cref="TikValueState.Present"/>.</summary>
         public bool TryGetValue(out T value)
         {

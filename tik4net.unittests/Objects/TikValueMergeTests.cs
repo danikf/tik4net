@@ -37,6 +37,51 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
+        public void AnAbsentExpectedValue_UnsetsTheField_ByDefault()
+        {
+            var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["comment"] = "keep" });
+            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+
+            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x" } }, original)
+                .WithKey(b => b.Name.ToString())
+                .Field(b => b.Comment)
+                .Save();
+
+            Assert.IsTrue(connection.SentCommands.Any(c => c.First() == "/box/unset" && c.Contains("=value-name=comment")));
+        }
+
+        [TestMethod]
+        public void AFieldMerge_IfAbsent_KeepsTheCurrentValue_AndTheRowIsUnchanged()
+        {
+            var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["comment"] = "keep" });
+            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+            var logged = new List<TikListMerge<TikValueMapperTests.Box>.MergeOperation>();
+
+            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x" } }, original)
+                .WithKey(b => b.Name.ToString())
+                .Field(b => b.Comment, (expected, current) => expected.IfAbsent(current))
+                .WithDmlLogCallback((op, oldE, newE) => logged.Add(op))
+                .Save();
+
+            Assert.IsFalse(connection.SentCommands.Any(c => c.First() == "/box/set" || c.First() == "/box/unset"));
+            Assert.AreEqual(0, logged.Count, "the merged value equals the current one, so the row is not an update");
+        }
+
+        [TestMethod]
+        public void AFieldMerge_StillTakesAPresentExpectedValue()
+        {
+            var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["comment"] = "old" });
+            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+
+            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x", Comment = "new" } }, original)
+                .WithKey(b => b.Name.ToString())
+                .Field(b => b.Comment, (expected, current) => expected.IfAbsent(current))
+                .Save();
+
+            Assert.IsTrue(connection.SentCommands.Any(c => c.First() == "/box/set" && c.Contains("=comment=new")));
+        }
+
+        [TestMethod]
         public void EqualValues_SendNothing()
         {
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["mode"] = "false" });

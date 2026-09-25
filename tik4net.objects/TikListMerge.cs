@@ -52,6 +52,8 @@ namespace tik4net.Objects
         private Func<MergeOperation, TEntity?, TEntity?, bool> _filterCallback = (operation, oldE, newE) => true; //default filter - process all
         private readonly List<MemberExpression> _fields = new List<MemberExpression>();
         private readonly List<MemberExpression> _justForInsertFields = new List<MemberExpression>();
+        // Field (property name) -> (expected value, current value) -> the value the row gets.
+        private readonly Dictionary<string, Func<object?, object?, object?>> _fieldMergers = new Dictionary<string, Func<object?, object?, object?>>();
 
         internal TikListMerge(ITikConnection connection, IEnumerable<TEntity> expected, IEnumerable<TEntity> original)
         {
@@ -120,6 +122,40 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// Defines a merged field whose value the row gets from <paramref name="merge"/> — <c>(expected, current) =&gt;
+        /// result</c> — instead of from the expected row as it is. It decides the comparison too: a row whose merged value
+        /// equals its current one is not updated.
+        /// </summary>
+        /// <remarks>
+        /// By default a field takes the expected value, so an expected row that does not carry a field
+        /// (<see cref="TikValueState.Absent"/>) unsets it on the router. When the expected rows come from another RouterOS
+        /// version, which may simply lack the field, keep the current value instead:
+        /// <code>.Field(e =&gt; e.Comment, (expected, current) =&gt; expected.IfAbsent(current))</code>
+        /// </remarks>
+        /// <typeparam name="TProperty">Field property.</typeparam>
+        /// <param name="fieldExpression">Field extraction expression. example: (entity=}entity.Name)</param>
+        /// <param name="merge">The value the row gets, from the expected and the current value.</param>
+        /// <returns>this (fluent like API)</returns>
+        public TikListMerge<TEntity> Field<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression,
+            Func<TProperty, TProperty, TProperty> merge)
+        {
+            var member = EnsureBodyIsMemberExpression(fieldExpression);
+            _fields.Add(member);
+            _fieldMergers[member.Member.Name] = (expected, current) => merge((TProperty)expected!, (TProperty)current!);
+
+            return this;
+        }
+
+        // The value field `propInfo` gets on `current` from `expected`: the expected value, or what the field's merge makes of it.
+        private object? MergedValue(PropertyInfo propInfo, TEntity current, TEntity expected)
+        {
+            object? expectedValue = propInfo.GetValue(expected);
+            return _fieldMergers.TryGetValue(propInfo.Name, out var merge)
+                ? merge(expectedValue, propInfo.GetValue(current))
+                : expectedValue;
+        }
+
+        /// <summary>
         /// Defines field that will be used just when creating new instance of entity (<see cref="MergeOperation.Insert"/>) (not used for update and compare).
         /// </summary>
         /// <typeparam name="TProperty">Field property.</typeparam>
@@ -149,8 +185,7 @@ namespace tik4net.Objects
             foreach (var field in _fields)
             {
                 PropertyInfo propInfo = ((PropertyInfo)field.Member);
-                object? sourceValue = propInfo.GetValue(source);
-                propInfo.SetValue(destination, sourceValue);
+                propInfo.SetValue(destination, MergedValue(propInfo, destination, source));
             }
         }
 
@@ -160,16 +195,16 @@ namespace tik4net.Objects
             {
                 PropertyInfo propInfo = ((PropertyInfo)field.Member);
 
+                // entity1 is the row as it is, entity2 the expected one: compare what the row would get.
                 object? val1 = propInfo.GetValue(entity1);
-                object? val2 = propInfo.GetValue(entity2);
+                object? val2 = MergedValue(propInfo, entity1, entity2);
 
                 // A TikValue<T> compares by state and by the form the router is sent: its ToString renders Absent,
                 // Present("") and Present(null) alike, and a merge that sees them as equal never updates the target.
                 if (val1 is ITikValue wrapped1 && val2 is ITikValue wrapped2)
                 {
                     var accessor = WrappedAccessor(propInfo);
-                    if (wrapped1.State != wrapped2.State
-                        || accessor.GetEntityValue(entity1!) != accessor.GetEntityValue(entity2!))
+                    if (wrapped1.State != wrapped2.State || accessor.FormatWrapped(val1) != accessor.FormatWrapped(val2))
                         return false;
                     continue;
                 }
@@ -217,7 +252,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Performs update operations on mikrotik router.
         /// Items which are present in 'expected' and are not present in 'original' will be created on mikrotik router.
-        /// Items which are present in both 'expected' and 'original' will be compared and updated (if are different - see <see cref="Field"/>, <see cref="WithKey"/>).
+        /// Items which are present in both 'expected' and 'original' will be compared and updated (if are different - see <see cref="Field{TProperty}(Expression{Func{TEntity, TProperty}})"/>, <see cref="WithKey"/>).
         /// Items which are not present in 'expected' and are present in 'original' will be deleted from mikrotik router.
         /// </summary>
         /// <returns>List of final entities on mikrotik router after save operation (with ids).</returns>
@@ -330,7 +365,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Calculate update operations on mikrotik router.
         /// Items which are present in 'expected' and are not present in 'original' will be counted as created.
-        /// Items which are present in both 'expected' and 'original' will be compared and counted as updated (if are different - see <see cref="Field"/>, <see cref="WithKey"/>).
+        /// Items which are present in both 'expected' and 'original' will be compared and counted as updated (if are different - see <see cref="Field{TProperty}(Expression{Func{TEntity, TProperty}})"/>, <see cref="WithKey"/>).
         /// Items which are not present in 'expected' and are present in 'original' will be counted as deleted.
         /// </summary>
         /// <param name="insertCnt">Number of items to be created.</param>
@@ -356,7 +391,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Calculate update operations on mikrotik router.
         /// Items which are present in 'expected' and are not present in 'original' will be counted as created.
-        /// Items which are present in both 'expected' and 'original' will be compared and counted as updated (if are different - see <see cref="Field"/>, <see cref="WithKey"/>).
+        /// Items which are present in both 'expected' and 'original' will be compared and counted as updated (if are different - see <see cref="Field{TProperty}(Expression{Func{TEntity, TProperty}})"/>, <see cref="WithKey"/>).
         /// Items which are not present in 'expected' and are present in 'original' will be counted as deleted.
         /// </summary>
         /// <param name="insertCnt">Number of items to be created.</param>

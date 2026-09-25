@@ -402,6 +402,26 @@ namespace tik4net.Objects
                 SetEntityValue(target, GetEntityValue(source));
         }
 
+        /// <summary>
+        /// The wire form of a boxed <see cref="TikValue{T}"/> of this property: <c>null</c> for Absent (it has none), the
+        /// router's own word for Unparsed, the formatted value — with a <c>[Flags]</c> value's unknown words — for Present.
+        /// </summary>
+        internal string? FormatWrapped(object boxedTikValue)
+        {
+            var wrapped = (ITikValue)boxedTikValue;
+            if (wrapped.State == TikValueState.Absent)
+                return null;
+            if (wrapped.State == TikValueState.Unparsed)
+                return wrapped.RawValue;
+            if (wrapped.BoxedValue == null)
+                return null;
+            string? known = ConvertToString(wrapped.BoxedValue);
+            if (wrapped.UnknownFlagWords == null)
+                return known;
+            // The router's words the enum does not know go back with the known ones, as it printed them.
+            return string.IsNullOrEmpty(known) ? wrapped.UnknownFlagWords : known + "," + wrapped.UnknownFlagWords;
+        }
+
         /// <summary>The <see cref="TikValue{T}"/> itself, boxed — only for a wrapped property.</summary>
         internal object GetWrapped(object entity)
             => (_getter != null ? _getter(entity) : PropertyInfo.GetValue(entity))!;
@@ -744,22 +764,7 @@ namespace tik4net.Objects
             object? propValue = _getter != null ? _getter(entity) : PropertyInfo.GetValue(entity);
 
             if (IsWrapped)
-            {
-                // Absent has no wire form; Unparsed is written back as the router's own word; Present goes through
-                // the ordinary formatting below (and a present null, like any null, has none).
-                var wrapped = (ITikValue)propValue!;
-                if (wrapped.State == TikValueState.Absent)
-                    return null;
-                if (wrapped.State == TikValueState.Unparsed)
-                    return wrapped.RawValue;
-                if (wrapped.UnknownFlagWords != null && wrapped.BoxedValue != null)
-                {
-                    // The router's words the enum does not know go back with the known ones, as it printed them.
-                    string known = ConvertToString(wrapped.BoxedValue) ?? string.Empty;
-                    return known.Length == 0 ? wrapped.UnknownFlagWords : known + "," + wrapped.UnknownFlagWords;
-                }
-                propValue = wrapped.BoxedValue;
-            }
+                return FormatWrapped(propValue!);
 
             // A null NULLABLE property means "nothing was said about this field", and that has to survive to
             // the caller as null so the save path can leave the field out. A null reference property keeps the
