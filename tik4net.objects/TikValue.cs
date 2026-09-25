@@ -66,6 +66,9 @@ namespace tik4net.Objects
     /// </para>
     /// </remarks>
     [DebuggerDisplay("{DebuggerText,nq}")]
+#if NET8_0_OR_GREATER
+    [global::System.Text.Json.Serialization.JsonConverter(typeof(TikValueJsonConverterFactory))]
+#endif
     public readonly struct TikValue<T> : IEquatable<TikValue<T>>, IComparable<TikValue<T>>, IComparable, ITikValue
     {
         private readonly T _value;
