@@ -60,7 +60,7 @@ namespace tik4net.Objects.Interface.Tunnel
         public bool? AllowFastPath { get; set; }
 
         /// <summary>ipsec-secret — Pre-shared key for dynamic IPsec peer at the remote address.</summary>
-        [TikProperty("ipsec-secret", DefaultValue = "")]
+        [TikProperty("ipsec-secret", DefaultValue = "", IsSensitive = true)]
         public string? IpsecSecret { get; set; }
 
         /// <summary>running — Whether the tunnel is running (read-only).</summary>

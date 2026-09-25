@@ -152,7 +152,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// auth-key — authentication key/password string for OSPF packet authentication.
         /// </summary>
-        [TikProperty("auth-key")]
+        [TikProperty("auth-key", IsSensitive = true)]
         public string? AuthKey { get; set; }
 
         /// <summary>

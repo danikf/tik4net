@@ -65,7 +65,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// auth-key — the authentication key in use by this SA (sensitive field).
         /// Only populated when the print is executed with <c>show-sensitive</c>.
         /// </summary>
-        [TikProperty("auth-key", IsReadOnly = true)]
+        [TikProperty("auth-key", IsReadOnly = true, IsSensitive = true)]
         public string? AuthKey { get; private set; }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// enc-key — the encryption key in use by this SA (sensitive field).
         /// Only populated when the print is executed with <c>show-sensitive</c>.
         /// </summary>
-        [TikProperty("enc-key", IsReadOnly = true)]
+        [TikProperty("enc-key", IsReadOnly = true, IsSensitive = true)]
         public string? EncKey { get; private set; }
 
         /// <summary>

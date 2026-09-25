@@ -828,9 +828,33 @@ namespace tik4net.Cli
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
             bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
 
-            IList<TikRecordSentence> records = await RunPrintQueryAsync(descriptor, wantJson,
-                (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from),
-                cancellationToken).ConfigureAwait(false);
+            // show-sensitive: RouterOS 7 hides secrets from a terminal print unless asked. RouterOS 6 has no such
+            // word ("expected end of command", 6.49.13) and prints them anyway, so a menu that refuses it is read
+            // without it — and not asked again on this connection. Remembered only once the plain read succeeds:
+            // a syntax error the word did not cause fails that read too, and is the caller's to see.
+            bool wantSensitive = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliSensitive);
+            if (wantSensitive && _showSensitiveRefused.Contains(descriptor.CommandText))
+            {
+                descriptor = WithoutParameter(descriptor, TikSpecialProperties.CliSensitive);
+                wantSensitive = false;
+            }
+
+            IList<TikRecordSentence> records;
+            try
+            {
+                records = await RunPrintQueryAsync(descriptor, wantJson,
+                    (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (TikCommandTrapException ex) when (wantSensitive && SyntaxErrorLine.IsMatch(ex.Message.Trim()))
+            {
+                var plain = WithoutParameter(descriptor, TikSpecialProperties.CliSensitive);
+                records = await RunPrintQueryAsync(plain, wantJson,
+                    (pars, from) => CliCommandBuilder.BuildPrintExpression(plain.CommandText, pars, from),
+                    cancellationToken).ConfigureAwait(false);
+                _showSensitiveRefused.Add(descriptor.CommandText);
+                descriptor = plain;
+            }
 
             if (needStats)
             {
@@ -890,6 +914,12 @@ namespace tik4net.Cli
         /// <c>null</c> = not established yet. See <see cref="AsValueOmitsFlagsAsync"/>.
         /// </summary>
         private bool? _asValueOmitsFlags;
+
+        /// <summary>Menus (print command texts) whose print refused <c>show-sensitive</c> on this connection.</summary>
+        private readonly HashSet<string> _showSensitiveRefused = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static TikCommandDescriptor WithoutParameter(TikCommandDescriptor descriptor, string name)
+            => new TikCommandDescriptor(descriptor.CommandText, descriptor.Parameters.Where(p => p.Name != name).ToList());
 
         /// <summary>The flag names each menu knows, per requested list — see <see cref="KnownFlagFieldsAsync"/>.</summary>
         private readonly Dictionary<string, string[]> _knownFlagFields =

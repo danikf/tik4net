@@ -191,7 +191,7 @@ namespace tik4net.Objects.CapsMan
         /// Leave empty to use the interface passphrase (default).
         /// WinBox: "Private Passphrase"
         /// </summary>
-        [TikProperty("private-passphrase", DefaultValue = "")]
+        [TikProperty("private-passphrase", DefaultValue = "", IsSensitive = true)]
         public string? PrivatePassphrase { get; set; }
 
         /// <summary>

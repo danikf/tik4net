@@ -73,5 +73,18 @@ namespace tik4net
         /// </para>
         /// </summary>
         public const string CliJson = ".cli-json";
+
+        /// <summary>
+        /// CLI-only marker — the read adds <c>show-sensitive</c> to its <c>print</c>. RouterOS 7 leaves secrets
+        /// (<c>/radius</c> <c>secret</c>, wireless keys, …) out of a terminal <c>print</c> unless asked, while
+        /// the binary API and REST return them; with the marker the CLI transports read the same values.
+        /// <para>
+        /// Added by the O/R mapper for every entity with a sensitive property (see
+        /// <c>TikPropertyAttribute.IsSensitive</c>). RouterOS 6 has no such word and prints secrets without it
+        /// ("expected end of command"): a menu that refuses it is read without it, and remembered per connection.
+        /// API, REST and WinBox-native transports silently ignore this parameter.
+        /// </para>
+        /// </summary>
+        public const string CliSensitive = ".cli-sensitive";
     }
 }

@@ -82,7 +82,7 @@ namespace tik4net.Objects.Radius
         /// <summary>
         /// secret — the shared secret of the RADIUS server used to authenticate the client.
         /// </summary>
-        [TikProperty("secret")]
+        [TikProperty("secret", IsSensitive = true)]
         public string? Secret { get; set; }
 
         /// <summary>

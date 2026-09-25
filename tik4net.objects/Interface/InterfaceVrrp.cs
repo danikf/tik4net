@@ -70,7 +70,7 @@ namespace tik4net.Objects.Interface
         public AuthenticationMode Authentication { get; set; }
 
         /// <summary>password — Password used for VRRP packet authentication.</summary>
-        [TikProperty("password", DefaultValue = "")]
+        [TikProperty("password", DefaultValue = "", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>arp — the Address Resolution Protocol setting for the VRRP interface.</summary>

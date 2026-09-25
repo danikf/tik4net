@@ -115,7 +115,7 @@ namespace tik4net.Objects.Snmp
         /// Only used when <see cref="Security"/> is <see cref="SecurityLevel.Authorized"/>
         /// or <see cref="SecurityLevel.Private"/>.
         /// </summary>
-        [TikProperty("authentication-password", DefaultValue = "")]
+        [TikProperty("authentication-password", DefaultValue = "", IsSensitive = true)]
         public string? AuthenticationPassword { get; set; }
 
         /// <summary>
@@ -131,7 +131,7 @@ namespace tik4net.Objects.Snmp
         /// encryption-password — passphrase for SNMPv3 encryption (min. 8 chars).
         /// Only used when <see cref="Security"/> == <see cref="SecurityLevel.Private"/>.
         /// </summary>
-        [TikProperty("encryption-password", DefaultValue = "")]
+        [TikProperty("encryption-password", DefaultValue = "", IsSensitive = true)]
         public string? EncryptionPassword { get; set; }
 
         /// <summary>

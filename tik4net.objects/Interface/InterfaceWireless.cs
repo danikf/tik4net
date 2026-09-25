@@ -525,7 +525,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// nv2-preshared-key: 
         /// </summary>
-        [TikProperty("nv2-preshared-key")]
+        [TikProperty("nv2-preshared-key", IsSensitive = true)]
         public string? Nv2PresharedKey { get; set; }
 
         /// <summary>

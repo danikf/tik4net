@@ -129,6 +129,16 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// True when at least one property is a secret (<see cref="TikPropertyAttribute.IsSensitive"/>), so the entity
+        /// is read with <c>show-sensitive</c> on CLI transports, which otherwise leave secrets out.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.IsSensitive"/>
+        public bool HasSensitiveProperties
+        {
+            get { return Properties.Any(p => p.IsSensitive); }
+        }
+
+        /// <summary>
         /// The field names of the entity's flags — <c>disabled</c> and every read-only <c>bool</c> property
         /// (<c>dynamic</c>, <c>running</c>, <c>invalid</c>, …). RouterOS before 7.20 leaves them out of the CLI's
         /// <c>print as-value</c>; the list goes to the CLI transports as <see cref="TikSpecialProperties.CliFlags"/>

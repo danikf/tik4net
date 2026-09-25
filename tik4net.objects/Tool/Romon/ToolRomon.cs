@@ -25,7 +25,7 @@ namespace tik4net.Objects.Tool.Romon
         public string?/*MAC*/ Id { get; set; }
 
         /// <summary>secrets — comma-separated list of shared secrets used to authenticate RoMON peers. Empty string disables authentication.</summary>
-        [TikProperty("secrets", DefaultValue = "")]
+        [TikProperty("secrets", DefaultValue = "", IsSensitive = true)]
         public string? Secrets { get; set; }
 
         /// <summary>current-id — the RoMON id in effect: <see cref="Id"/> when set, otherwise the MAC the router

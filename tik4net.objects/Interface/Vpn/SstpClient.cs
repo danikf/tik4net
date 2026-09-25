@@ -65,7 +65,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// password — password for PPP authentication.
         /// </summary>
-        [TikProperty("password")]
+        [TikProperty("password", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>

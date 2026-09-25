@@ -63,7 +63,7 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// password: Password used for authentication
         /// </summary>
-        [TikProperty("password")]
+        [TikProperty("password", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>

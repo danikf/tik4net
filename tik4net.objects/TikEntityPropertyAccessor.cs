@@ -135,6 +135,12 @@ namespace tik4net.Objects
         /// <seealso cref="TikPropertyAttribute.ChangesOnItsOwn"/>
         public bool ChangesOnItsOwn { get; private set; }
 
+        /// <summary>
+        /// If the field is a secret RouterOS 7 hides from a terminal print unless asked with <c>show-sensitive</c>.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.IsSensitive"/>
+        public bool IsSensitive { get; private set; }
+
         private PropertyInfo PropertyInfo { get; set; }
 
         private readonly Func<object, object?>? _getter;
@@ -230,6 +236,7 @@ namespace tik4net.Objects
             IsFreeText = propertyAttribute.IsFreeText;
             IsPresenceFlag = propertyAttribute.IsPresenceFlag;
             ChangesOnItsOwn = propertyAttribute.ChangesOnItsOwn;
+            IsSensitive = propertyAttribute.IsSensitive;
         }
 
         /// <summary>

@@ -55,7 +55,7 @@ namespace tik4net.Objects.Interface
         public string? Name { get; set; }
 
         /// <summary>password — Password used for PPP authentication.</summary>
-        [TikProperty("password")]
+        [TikProperty("password", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>profile — PPP profile applied to this connection.</summary>

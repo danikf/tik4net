@@ -46,7 +46,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// The private key associated with the local device
         /// </summary>
-        [TikProperty("private-key")]
+        [TikProperty("private-key", IsSensitive = true)]
         public string? PrivateKey { get; set; }
 
         /// <summary>

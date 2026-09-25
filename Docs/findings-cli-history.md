@@ -52,6 +52,15 @@ was ALSO wrong").
 
 ---
 
+### Secrets were documented as write-only over the CLI — the router had a modifier for them
+
+Until 2026-09-25 this file said a secret field was write-only over a terminal, "the router's decision, not a
+gap in this client", and the consequence recorded was that a CLI read of a secret is `null` and cannot be told
+apart from an empty one. The measurement was right — `print detail as-value` does leave the field out — but the
+conclusion skipped a question: does the menu's `print` take anything else? Tab completion on `/radius print `
+lists `show-sensitive`, and with it the value arrives. The V2 canonical-form sweep (every entity, every
+transport, against the API) found the gap as ten fields reading `null` on all five CLI transports only.
+
 ## Measurement traps
 
 ### A login refusal that timed out for 30 seconds looked like it was testing the right thing

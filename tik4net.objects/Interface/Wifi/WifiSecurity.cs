@@ -162,7 +162,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// 8–63 characters for WPA2; no minimum for WPA3-SAE.
         /// WinBox: "Passphrase"
         /// </summary>
-        [TikProperty("passphrase")]
+        [TikProperty("passphrase", IsSensitive = true)]
         public string? Passphrase { get; set; }
 
         // ── WPS ───────────────────────────────────────────────────────────────
@@ -315,7 +315,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// eap-password — password used for PEAP/TTLS EAP authentication.
         /// WinBox: "EAP Password"
         /// </summary>
-        [TikProperty("eap-password")]
+        [TikProperty("eap-password", IsSensitive = true)]
         public string? EapPassword { get; set; }
 
         /// <summary>

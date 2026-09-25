@@ -398,6 +398,9 @@ namespace tik4net.Objects
             // text, which the unescaped as-value format cannot represent unambiguously (P2.17).
             if (metadata.HasFreeTextProperties)
                 command.AddParameter(TikSpecialProperties.CliJson, "", TikCommandParameterFormat.NameValue);
+            // CLI-only marker: 'print show-sensitive', because RouterOS 7 leaves secrets out of a terminal print.
+            if (metadata.HasSensitiveProperties)
+                command.AddParameter(TikSpecialProperties.CliSensitive, "", TikCommandParameterFormat.NameValue);
             // CLI-only marker: the flag fields, which RouterOS before 7.20 leaves out of 'print as-value'. The CLI
             // transports then ask for them by name; every other transport drops the marker. Not for a singleton: its
             // plain print as-value carries its flags on every version, it takes no proplist= at all (7.19.6 refuses the

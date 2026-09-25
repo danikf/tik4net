@@ -148,6 +148,19 @@ namespace tik4net.Objects
         public bool ChangesOnItsOwn { get; set; }
 
         /// <summary>
+        /// Marks a field RouterOS treats as <b>sensitive</b> — a secret, a password, a pre-shared key.
+        /// <para>
+        /// RouterOS 7 leaves such values out of a terminal <c>print</c> unless it is given <c>show-sensitive</c>,
+        /// while the binary API and REST return them. An entity with a sensitive property is therefore read with
+        /// <c>show-sensitive</c> on the CLI transports (<c>Telnet</c>/<c>Ssh</c>/<c>MacTelnet</c>/<c>WinboxCli</c>/
+        /// <c>WinboxCliMac</c>), which then read the same value as every other transport. RouterOS 6 has no such
+        /// word and prints secrets without it; a menu that refuses the word is read without it. Other transports
+        /// are unaffected. What the router returns still depends on the user's <c>sensitive</c> policy.
+        /// </para>
+        /// </summary>
+        public bool IsSensitive { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="fieldName">Name of the property (on mikrotik).</param>

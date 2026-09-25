@@ -81,6 +81,10 @@ namespace tik4net.Cli
             // (e.g. /interface omits default-name, mtu, rx-byte…); 'print detail as-value' returns all.
             if (HasNameValueFlag(parameters, "detail"))
                 sb.Append(" detail");
+            // RouterOS 7 leaves secrets out of a terminal print unless asked; the API returns them. The connection
+            // drops the marker for a menu that refused the word (RouterOS 6 has none and prints secrets anyway).
+            if (HasNameValueFlag(parameters, TikSpecialProperties.CliSensitive))
+                sb.Append(" show-sensitive");
             // NOTE: '.cli-stats' is a CLI-layer signal — it is not a print modifier and must be
             // ignored here (it never becomes a CLI word or a where-clause predicate).
 
@@ -844,6 +848,7 @@ namespace tik4net.Cli
         ///   <c>.cli-stats</c> — CLI-layer signal that triggers the two-query stats merge (<see cref="CliConnectionBase"/>).
         ///   <c>.cli-json</c>  — CLI-layer signal that switches the read to <c>:serialize to=json</c> (same class).
         ///   <c>.cli-flags</c> — the entity's flag fields, read separately on a pre-7.20 router (same class).
+        ///   <c>.cli-sensitive</c> — becomes the <c>show-sensitive</c> print word in <see cref="BuildPrintExpression"/>.
         /// NOTE: this is the "dropped" set. <c>detail</c> / <c>once</c> / <c>numbers</c> are a DIFFERENT
         /// category — "consumed flags" that <see cref="BuildPrint"/> translates into print modifiers
         /// (via <see cref="HasNameValueFlag"/> / <see cref="FindNameValueParam"/>), not dropped.
@@ -853,7 +858,8 @@ namespace tik4net.Cli
             || name == TikSpecialProperties.Tag
             || name == TikSpecialProperties.CliStats
             || name == TikSpecialProperties.CliJson
-            || name == TikSpecialProperties.CliFlags;
+            || name == TikSpecialProperties.CliFlags
+            || name == TikSpecialProperties.CliSensitive;
 
         /// <summary>
         /// Returns true when a non-Filter "consumed flag" parameter with the given name is present
