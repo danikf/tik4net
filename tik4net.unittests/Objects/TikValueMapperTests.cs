@@ -237,5 +237,41 @@ namespace tik4net.unittests.Objects
             [TikProperty("port")]
             public TikValue<int> Port { get; set; }
         }
+
+        [TestMethod]
+        public void IsMandatoryOnATikValue_IsRefused()
+        {
+            var ex = Assert.ThrowsException<ArgumentException>(() => TikEntityMetadataCache.GetMetadata<MandatoryBox>());
+            StringAssert.Contains(ex.Message, "IsMandatory");
+        }
+
+        [TestMethod]
+        public void UnsetOnDefaultOnATikValue_IsRefused()
+        {
+            var ex = Assert.ThrowsException<ArgumentException>(() => TikEntityMetadataCache.GetMetadata<UnsetBox>());
+            StringAssert.Contains(ex.Message, "UnsetOnDefault");
+        }
+
+        [TestMethod]
+        public void ARowWithoutAFieldTheEntityRelied_OnStillLoads()
+        {
+            // The C1 case: a field that was IsMandatory on the plain property. Absent, and the load succeeds.
+            var box = Router(new Dictionary<string, string> { [".id"] = "*1" }).LoadAll<Box>().Single();
+            Assert.AreEqual(TikValueState.Absent, box.Name.State);
+        }
+
+        [TikEntity("/bad")]
+        public class MandatoryBox
+        {
+            [TikProperty("name", IsMandatory = true)]
+            public TikValue<string?> Name { get; set; }
+        }
+
+        [TikEntity("/bad")]
+        public class UnsetBox
+        {
+            [TikProperty("comment", UnsetOnDefault = true)]
+            public TikValue<string?> Comment { get; set; }
+        }
     }
 }

@@ -37,6 +37,11 @@ namespace tik4net.Objects
         /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
         /// </summary>
         /// <value><c>true</c> if mandatory; otherwise, <c>false</c>.</value>
+        /// <remarks>
+        /// Not allowed on a <see cref="TikValue{T}"/> property: a load must not fail because a row lacks a field (another
+        /// RouterOS version, another row type) — the field reads <see cref="TikValueState.Absent"/> instead — and what an
+        /// add sends is what the caller assigned. The router refuses an add that lacks a field it requires.
+        /// </remarks>
         public bool IsMandatory { get; set; }
 
         /// <summary>
@@ -74,12 +79,21 @@ namespace tik4net.Objects
         /// none. (A reference type counts as nullable when it is annotated so; one compiled without nullable
         /// annotations reads <c>""</c>.)
         /// </para>
+        /// <para>
+        /// <b>On a <see cref="TikValue{T}"/> property it is documentation only</b> — the router's default, for the
+        /// reader and the entity catalog. It is never read into the property (a field the row lacks is
+        /// <see cref="TikValueState.Absent"/>) and never compared on a save (an add sends what was assigned).
+        /// </para>
         /// </remarks>
         public string? DefaultValue { get; set; }
 
         /// <summary>
         /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).
         /// </summary>
+        /// <remarks>
+        /// Not allowed on a <see cref="TikValue{T}"/> property: assigning <c>null</c> to a loaded value unsets it, and an
+        /// Absent value — which "equals the default" to this rule — must never be unset on the strength of silence.
+        /// </remarks>
         public bool UnsetOnDefault { get; set; }
 
         /// <summary>

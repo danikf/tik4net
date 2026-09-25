@@ -239,6 +239,14 @@ namespace tik4net.Objects
             _isReadOnly =
                 (propertyInfo.SetMethod == null)
                 || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
+            if (IsWrapped && (propertyAttribute.IsMandatory || propertyAttribute.UnsetOnDefault))
+                // Both would act on Absent: IsMandatory fails the load of a row that lacks the field (another RouterOS
+                // version), UnsetOnDefault unsets it (Absent "equals the default"). Refused rather than ignored, so an
+                // entity converted from a plain property cannot carry either over silently.
+                throw new ArgumentException(string.Format(
+                    "{0}.{1}: a TikValue<T> property cannot declare {2}. A field the row lacks reads Absent, and an unset is an assigned null.",
+                    propertyInfo.DeclaringType?.Name, propertyInfo.Name,
+                    propertyAttribute.IsMandatory ? "IsMandatory" : "UnsetOnDefault"), nameof(propertyInfo));
             IsMandatory = propertyAttribute.IsMandatory;
             if (IsWrapped)
                 // A TikValue<T> property has no runtime default: a field the row lacks is Absent, and what an add
