@@ -31,5 +31,21 @@ namespace System.Diagnostics.CodeAnalysis
 
         public string? Url { get; set; }
     }
+
+    [AttributeUsage(AttributeTargets.All, Inherited = false, AllowMultiple = true)]
+    internal sealed class UnconditionalSuppressMessageAttribute : Attribute
+    {
+        public UnconditionalSuppressMessageAttribute(string category, string checkId)
+        {
+            Category = category;
+            CheckId = checkId;
+        }
+
+        public string Category { get; }
+
+        public string CheckId { get; }
+
+        public string? Justification { get; set; }
+    }
 }
 #endif
