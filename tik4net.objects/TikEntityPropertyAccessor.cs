@@ -201,8 +201,30 @@ namespace tik4net.Objects
             //From property code
             PropertyName = propertyInfo.Name;
             PropertyType = propertyInfo.PropertyType;
-            ValueType = Nullable.GetUnderlyingType(PropertyType) ?? PropertyType;
-            IsNullable = ValueType != PropertyType;
+            if (PropertyType.GetTypeInfo().IsGenericType && PropertyType.GetGenericTypeDefinition() == typeof(TikValue<>))
+            {
+                // TikValue<T>: the value type is T's, and the property is nullable by construction - a field the row
+                // lacks is Absent, and "unset" is an assigned null.
+                Type inner = PropertyType.GetTypeInfo().GenericTypeArguments[0];
+                if (inner.GetTypeInfo().IsValueType && Nullable.GetUnderlyingType(inner) == null)
+                    throw new ArgumentException(string.Format(
+                        "{0}.{1}: TikValue<{2}> must use the nullable form TikValue<{2}?>, so that assigning null compiles.",
+                        propertyInfo.DeclaringType?.Name, propertyInfo.Name, inner.Name), nameof(propertyInfo));
+                IsWrapped = true;
+                ValueType = Nullable.GetUnderlyingType(inner) ?? inner;
+                IsNullable = true;
+                var factories = typeof(TikEntityPropertyAccessor).GetTypeInfo().GetDeclaredMethod(nameof(MakeWrappers))!
+                    .MakeGenericMethod(inner);
+                var pair = ((Func<object?, object>, Func<string, object>))factories.Invoke(null, null)!;
+                _wrapPresent = pair.Item1;
+                _wrapUnparsed = pair.Item2;
+                _absent = Activator.CreateInstance(PropertyType)!;
+            }
+            else
+            {
+                ValueType = Nullable.GetUnderlyingType(PropertyType) ?? PropertyType;
+                IsNullable = ValueType != PropertyType;
+            }
             // Before DefaultValue below, which formats the CLR default through ConvertToString.
             if (ValueType.GetTypeInfo().IsEnum)
                 _enumMetadata = TikEnumMetadata.Get(ValueType);
@@ -218,7 +240,11 @@ namespace tik4net.Objects
                 (propertyInfo.SetMethod == null)
                 || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
             IsMandatory = propertyAttribute.IsMandatory;
-            if (propertyAttribute.DefaultValue != null)
+            if (IsWrapped)
+                // A TikValue<T> property has no runtime default: a field the row lacks is Absent, and what an add
+                // sends is what the caller assigned. A declared DefaultValue documents the router's default only.
+                DefaultValue = null;
+            else if (propertyAttribute.DefaultValue != null)
                 DefaultValue = NormalizeDefaultValue(propertyAttribute.DefaultValue);
             else if (IsNullable || IsNullableReference(propertyInfo))
                 // A nullable property that declares no default HAS no default: its unset state is null, and
@@ -336,6 +362,40 @@ namespace tik4net.Objects
                 // receiver and cannot be bound to Func<TEntity,TValue> at all).
                 return null;
             }
+        }
+
+        /// <summary>
+        /// True when the property is a <see cref="TikValue{T}"/>: it carries whether the field was printed and whether
+        /// it could be read, and <see cref="ValueType"/> is its <c>T</c>'s.
+        /// </summary>
+        public bool IsWrapped { get; private set; }
+
+        private readonly Func<object?, object>? _wrapPresent;
+        private readonly Func<string, object>? _wrapUnparsed;
+        private readonly object? _absent;
+
+        private static (Func<object?, object>, Func<string, object>) MakeWrappers<T>()
+            => (value => (TikValue<T>)(T)value!, raw => TikValue<T>.FromUnparsed(raw));
+
+        /// <summary>
+        /// Copies this property from <paramref name="source"/> to <paramref name="target"/> as it is - for a
+        /// <see cref="TikValue{T}"/> its state too, so an assigned <c>null</c> stays an intent to unset rather than
+        /// becoming Absent on the way through its string form.
+        /// </summary>
+        internal void CopyEntityValue(object source, object target)
+        {
+            if (IsWrapped)
+                SetRaw(target, _getter != null ? _getter(source) : PropertyInfo.GetValue(source));
+            else
+                SetEntityValue(target, GetEntityValue(source));
+        }
+
+        private void SetRaw(object entity, object? value)
+        {
+            if (_setter != null)
+                _setter(entity, value!);
+            else
+                PropertyInfo.SetValue(entity, value);
         }
 
         private static Func<object, object?> MakeGetter<TEntity, TValue>(MethodInfo getMethod)
@@ -581,6 +641,12 @@ namespace tik4net.Objects
         /// <param name="propValue">New property value.</param>
         public void SetEntityValue(object entity, string? propValue)
         {
+            if (IsWrapped)
+            {
+                SetRaw(entity, Wrap(entity, propValue));
+                return;
+            }
+
             object? value = ConvertFromString(propValue, out string? unknownWord);
             if (_enumMetadata?.UnknownMember != null)
             {
@@ -598,6 +664,50 @@ namespace tik4net.Objects
                 PropertyInfo.SetValue(entity, value);
         }
 
+        private static bool IsBoolWord(string value)
+            => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "no", StringComparison.OrdinalIgnoreCase);
+
+        // The TikValue<T> read: null is Absent; a value the type cannot hold - a format error, or a word a plain enum
+        // does not know - is Unparsed with the router's word; everything else is Present. A [Flags] enum with an
+        // Unknown member keeps its known parts and remembers the unknown words, as a plain property does, so a
+        // save appends them.
+        private object Wrap(object entity, string? propValue)
+        {
+            if (propValue == null)
+                return _absent!;
+
+            // A plain bool reads every word but true/yes as false; a TikValue<bool?> knows the four the router
+            // prints (and a presence flag's empty value), and anything else is a value it cannot hold.
+            if (ValueType == typeof(bool) && !(IsPresenceFlag && propValue.Length == 0) && !IsBoolWord(propValue))
+                return _wrapUnparsed!(propValue);
+
+            object? value;
+            string? unknownWord;
+            try
+            {
+                value = ConvertFromString(propValue, out unknownWord);
+            }
+            catch (FormatException)
+            {
+                return _wrapUnparsed!(propValue);
+            }
+
+            if (_enumMetadata != null)
+            {
+                if (unknownWord != null && !_enumMetadata.IsFlags)
+                    return _wrapUnparsed!(propValue);
+                if (_enumMetadata.UnknownMember != null)
+                {
+                    if (unknownWord != null)
+                        TikEntityNotes.UnknownWords.Record(entity, FieldName, unknownWord);
+                    else
+                        TikEntityNotes.UnknownWords.Forget(entity, FieldName);
+                }
+            }
+            return _wrapPresent!(value);
+        }
+
         /// <summary>
         /// Gets the value of accesed property from given <paramref name="entity"/>.
         /// </summary>
@@ -606,6 +716,18 @@ namespace tik4net.Objects
         public string? GetEntityValue(object entity)
         {
             object? propValue = _getter != null ? _getter(entity) : PropertyInfo.GetValue(entity);
+
+            if (IsWrapped)
+            {
+                // Absent has no wire form; Unparsed is written back as the router's own word; Present goes through
+                // the ordinary formatting below (and a present null, like any null, has none).
+                var wrapped = (ITikValue)propValue!;
+                if (wrapped.State == TikValueState.Absent)
+                    return null;
+                if (wrapped.State == TikValueState.Unparsed)
+                    return wrapped.RawValue;
+                propValue = wrapped.BoxedValue;
+            }
 
             // A null NULLABLE property means "nothing was said about this field", and that has to survive to
             // the caller as null so the save path can leave the field out. A null reference property keeps the

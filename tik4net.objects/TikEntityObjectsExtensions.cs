@@ -47,7 +47,7 @@ namespace tik4net.Objects
             {
                 // entity: TEntity is unconstrained (only `new()`), so its nullability is oblivious to the
                 // compiler; the loop never receives a null instance in practice.
-                property.SetEntityValue(result, property.GetEntityValue(entity!));
+                property.CopyEntityValue(entity!, result!);
                 // The name the original was read under, so the clone saves to the same router the same way.
                 if (property.AlternateNames.Count > 0
                     && TikEntityNotes.NamesRead.Get(entity!, property.FieldName) is string nameRead)
