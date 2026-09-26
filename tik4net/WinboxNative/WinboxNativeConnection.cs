@@ -1884,6 +1884,35 @@ namespace tik4net.WinboxNative
         /// declares its own field keys, so a resolver that only knew the handler could not tell EoIP's
         /// 'Remote Address' from GRE's.
         /// </summary>
+        /// <summary>
+        /// Diagnostics for audits (the DefaultValue / applicability probe): how this router's catalog sees the fields of
+        /// <paramref name="apiPath"/> — each API name the resolver decodes, its <c>.jg</c> field, and a decoder that
+        /// renders one M2 value of that field as the API prints it. <c>null</c> when the path has no handler.
+        /// </summary>
+        internal IReadOnlyList<(string ApiName, WinboxJgField Field, Func<object, string?> Render)>? DescribeFields(string apiPath)
+        {
+            int[]? handler = _handlerMap.Resolve(apiPath);
+            if (handler == null)
+                return null;
+            var resolver = MakeResolver(apiPath, handler);
+            var names = resolver.BuildKeyToApiName();
+            var fields = resolver.BuildKeyToField();
+            var codec = new WinboxRecordCodec(null, _catalog);
+            var result = new List<(string, WinboxJgField, Func<object, string?>)>();
+            foreach (var pair in fields)
+            {
+                if (!names.TryGetValue(pair.Key, out string? apiName))
+                    continue;
+                var field = pair.Value;
+                result.Add((apiName, field, value =>
+                {
+                    var rec = new Dictionary<int, Tuple<string, object>> { [field.Key] = Tuple.Create(field.WireType, value) };
+                    return codec.DecodeRecord(rec, names, fields).TryGetValue(apiName, out string? text) ? text : null;
+                }));
+            }
+            return result;
+        }
+
         private WinboxFieldResolver MakeResolver(string apiPath, int[] handler)
             => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
                                        _handlerMap.ResolveDerivedKey(apiPath));
