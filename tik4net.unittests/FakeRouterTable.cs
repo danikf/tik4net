@@ -39,6 +39,12 @@ namespace tik4net.unittests
         /// </summary>
         public Func<string, string> BeforeWrite { get; set; }
 
+        /// <summary>
+        /// Whether the router leaves a field out of a row it prints — <c>(row, field) =&gt; true</c> hides it, as RouterOS
+        /// hides mangle <c>passthrough</c> on a <c>jump</c> rule that was added with it. The row keeps the value.
+        /// </summary>
+        public Func<IReadOnlyDictionary<string, string>, string, bool> HidesField { get; set; }
+
         /// <summary>Router path of the emulated menu (e.g. <c>/ip/firewall/mangle</c>).</summary>
         public string Path => _metadata.EntityPath;
 
@@ -75,7 +81,9 @@ namespace tik4net.unittests
             connection.WithResponse(
                 rows => rows.First() == Path + _metadata.LoadCommand,
                 _ => _rows
-                    .Select(r => (ITikSentence)new TikFakeReSentence(new Dictionary<string, string>(r)))
+                    .Select(r => (ITikSentence)new TikFakeReSentence(r
+                        .Where(f => HidesField == null || !HidesField(r, f.Key))
+                        .ToDictionary(f => f.Key, f => f.Value)))
                     .Concat(new ITikSentence[] { new TikFakeDoneSentence() })
                     .ToList());
 

@@ -36,7 +36,6 @@ namespace tik4net.unittests
             Action = FirewallMangle.ActionType.Accept,
             Comment = comment,
             Disabled = true,
-            Passthrough = true,
         };
 
         private static FirewallMangle Jump(string subnet, bool upload) => new FirewallMangle
@@ -46,7 +45,6 @@ namespace tik4net.unittests
             DstAddress = upload ? null : subnet,
             Action = FirewallMangle.ActionType.Jump,
             JumpTarget = ChainName(subnet, upload),
-            Passthrough = true,
         };
 
         private static FirewallMangle Mark(string subnet, string customerIp, string packetMark, bool upload) => new FirewallMangle
@@ -63,7 +61,6 @@ namespace tik4net.unittests
         {
             Chain = ChainName(subnet, upload),
             Action = FirewallMangle.ActionType.Return,
-            Passthrough = true,
         };
 
         private static string ChainName(string subnet, bool upload)
@@ -83,6 +80,14 @@ namespace tik4net.unittests
             BurstLimit = 0,
             BurstThreshold = 0,
             BurstTime = (TikDuration)TimeSpan.Zero,
+        };
+
+        // The router prints passthrough only where it means something: not on jump, return or accept, even when the
+        // rule was added with it. In 5.0 such a field reads Absent, so an expected rule must not assign it.
+        private static FakeRouterTable<FirewallMangle> MangleTable() => new FakeRouterTable<FirewallMangle>
+        {
+            HidesField = (row, field) => field == "passthrough"
+                && row.TryGetValue("action", out string action) && (action == "jump" || action == "return" || action == "accept"),
         };
 
         // ── Merge builders — the exact fluent setup the shaper uses ───────────
@@ -158,7 +163,7 @@ namespace tik4net.unittests
                 new[] { Mark("10.43.101.0/24", "10.43.101.5", "PM-5", true), Mark("10.43.101.0/24", "10.43.101.5", "PM-5", false) },
                 new[] { Return("10.43.101.0/24", false), Return("10.43.101.0/24", true) });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(section.ToArray());
+            var table = MangleTable().Seed(section.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
             var actual = table.Load(conn);
 
@@ -201,7 +206,7 @@ namespace tik4net.unittests
                     Return("10.43.101.0/24", false), Return("10.43.101.0/24", true),
                 });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
 
             int insertCnt, updateCnt, deleteCnt, moveCnt;
@@ -236,7 +241,7 @@ namespace tik4net.unittests
                 new[] { Mark("10.43.101.0/24", "10.43.101.5", "PM-NEW", true) },
                 new[] { Return("10.43.101.0/24", true) });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
             string[] idsBefore = table.Ids.ToArray();
 
@@ -268,7 +273,7 @@ namespace tik4net.unittests
             var before = Section(new[] { disabledByOperator });
             var after = Section(new[] { Mark("10.43.101.0/24", "10.43.101.5", "PM-NEW", true) });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
 
             MangleMerge(conn, after, table.Load(conn)).Save();
@@ -297,7 +302,7 @@ namespace tik4net.unittests
                 new[] { Mark("10.43.101.0/24", "10.43.101.5", "PM-5", true) },
                 new[] { Return("10.43.101.0/24", true) });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
 
             int insertCnt, updateCnt, deleteCnt, moveCnt;
@@ -328,7 +333,7 @@ namespace tik4net.unittests
             var before = Section(new[] { markA, markB, markC });
             var after = Section(new[] { markC, markA, markB });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
 
             int insertCnt, updateCnt, deleteCnt, moveCnt;
@@ -377,7 +382,7 @@ namespace tik4net.unittests
             var before = section(new[] { "10.43.101.11", "10.43.101.12", "10.43.101.13" });
             var after = section(new[] { "10.43.101.13", "10.43.101.11", "10.43.101.12" });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
 
             MangleMerge(conn, after, table.Load(conn)).Save();
@@ -405,7 +410,7 @@ namespace tik4net.unittests
                 new[] { Jump("10.43.102.0/24", true) },
                 new[] { Mark("10.43.102.0/24", "10.43.102.9", "PM-9", true) });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
             var actual = table.Load(conn);
             string[] stateBefore = table.Load(conn).Select(Describe).ToArray();
@@ -442,7 +447,7 @@ namespace tik4net.unittests
                     Mark("10.43.101.0/24", "10.43.101.7", "PM-7", true),     // insert (…6 deleted)
                 });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
 
             int insertCnt, updateCnt, deleteCnt, moveCnt;
@@ -473,7 +478,7 @@ namespace tik4net.unittests
                 new[] { Mark("10.43.101.0/24", "10.43.101.6", "PM-6", true) });
             var after = Section();
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
 
             int insertCnt, updateCnt, deleteCnt, moveCnt;
@@ -499,7 +504,7 @@ namespace tik4net.unittests
                 new[] { Mark("10.43.101.0/24", "10.43.101.5", "PM-NEW", true) },
                 new[] { Mark("10.43.101.0/24", "10.43.101.6", "PM-6", true) });
 
-            var table = new FakeRouterTable<FirewallMangle>().Seed(before.ToArray());
+            var table = MangleTable().Seed(before.ToArray());
             var conn = table.AttachTo(new TikFakeConnection());
 
             var simulatedDml = new List<string>();
@@ -648,7 +653,7 @@ namespace tik4net.unittests
         [TestMethod]
         public void ShaperRun_AppliedTwice_IsIdempotent()
         {
-            var mangleTable = new FakeRouterTable<FirewallMangle>().Seed(Section().ToArray());   // markers only
+            var mangleTable = MangleTable().Seed(Section().ToArray());   // markers only
             var queueTable = new FakeRouterTable<QueueTree>();
             var conn = new TikFakeConnection();
             mangleTable.AttachTo(conn);
