@@ -1273,6 +1273,14 @@ namespace tik4net.Winbox
                 kinds = selField.EnumMap;
             }
 
+            // A field one pane declares and others merely list as {name:'Passthrough',type:'alias'} is shown for every
+            // one of those panes: mangle's passthrough is declared in the mark-packet pane and aliased by
+            // mark-connection, mark-routing and the rest. Without the aliases the field would count as mark-packet's
+            // alone, and the decoder would drop it from every other kind's row, where the router does send it.
+            var outerAliases = _deckAliasValues;
+            _deckAliasValues = CollectDeckAliases(deck);
+            try
+            {
             if (deck.TryGetValue("panes", out var pv2) && pv2 is List<object> panes)
                 foreach (var p in panes)
                 {
@@ -1295,6 +1303,61 @@ namespace tik4net.Winbox
                         : null;
                     if (pd.TryGetValue("c", out var pc)) Walk(pc, owner, crumb, ctx);
                 }
+            }
+            finally { _deckAliasValues = outerAliases; }
+        }
+
+        // Normalized label -> the selector values of every pane of the deck being walked that lists it as an alias.
+        private Dictionary<string, List<int>>? _deckAliasValues;
+
+        private static Dictionary<string, List<int>>? CollectDeckAliases(Dictionary<string, object> deck)
+        {
+            Dictionary<string, List<int>>? result = null;
+            if (!(deck.TryGetValue("panes", out var pv) && pv is List<object> panes)) return null;
+            foreach (var p in panes)
+            {
+                if (!(p is Dictionary<string, object> pd)) continue;
+                var vals = new List<int>();
+                if (pd.TryGetValue("vals", out var vv) && vv is List<object> vl)
+                    foreach (var v in vl) if (v is int vi) vals.Add(vi);
+                if (vals.Count == 0 || !pd.TryGetValue("c", out var pc)) continue;
+                foreach (string name in AliasNames(pc))
+                {
+                    result ??= new Dictionary<string, List<int>>(StringComparer.Ordinal);
+                    string label = WinboxFieldResolver.NormalizeLabel(name);
+                    if (!result.TryGetValue(label, out var list)) result[label] = list = new List<int>();
+                    list.AddRange(vals);
+                }
+            }
+            return result;
+        }
+
+        // The names of the type:'alias' leaves under a pane's children (they may sit inside tabs or groups).
+        private static IEnumerable<string> AliasNames(object? node)
+        {
+            if (node is List<object> list)
+            {
+                foreach (var item in list)
+                    foreach (var name in AliasNames(item)) yield return name;
+            }
+            else if (node is Dictionary<string, object> dict)
+            {
+                if (dict.TryGetValue("type", out var tv) && tv as string == "alias"
+                    && dict.TryGetValue("name", out var nv) && nv is string name)
+                    yield return name;
+                else if (dict.TryGetValue("c", out var c) && !(dict.TryGetValue("type", out var t2) && t2 as string == "deck"))
+                    foreach (var n in AliasNames(c)) yield return n;
+            }
+        }
+
+        // A pane field's selector values: its own pane's, plus those of every pane of the same deck that aliases it.
+        private int[]? PaneValuesOf(string label, PaneContext? pane)
+        {
+            if (pane == null) return null;
+            if (_deckAliasValues == null
+                || !_deckAliasValues.TryGetValue(WinboxFieldResolver.NormalizeLabel(label), out var extra))
+                return pane.Values;
+            return pane.Values.Concat(extra).Distinct().ToArray();
         }
 
         // Build a derived menu-label path "/ip/firewall/connection" from the breadcrumb + this window's
@@ -1342,7 +1405,7 @@ namespace tik4net.Winbox
             enumMap = WinboxFieldResolver.AliasEnumMembers(apiName, enumMap);
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
                 refHandler, optKey, notKey, isRange, allow, def,
-                pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
+                pane?.Kind, pane?.SelectorKey ?? 0, PaneValuesOf(label, pane), offKey, isOptional, elementUiType, scale,
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
                 elementIsRange: elementIsRange, titleApiName: titleName,
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
@@ -1725,7 +1788,7 @@ namespace tik4net.Winbox
         /// Every member of a <c>union</c> after the first, as a field of its own — same API name, its own
         /// key, wire type, <c>maskid</c> and enum/reference metadata.
         /// </summary>
-        private static IReadOnlyList<WinboxJgField>? UnionAlternatives(string label,
+        private IReadOnlyList<WinboxJgField>? UnionAlternatives(string label,
             Dictionary<string, object> union, bool unionReadOnly, PaneContext? pane)
         {
             if (!(union.TryGetValue("c", out var cv) && cv is List<object> members)) return null;
@@ -1748,7 +1811,7 @@ namespace tik4net.Winbox
                     ExtractEnumMap(md), md.TryGetValue("type", out var tv) ? tv as string : null,
                     DecodedKeyOf(md, "maskid"), ExtractRefHandler(md),
                     def: ExtractDef(md),
-                    paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: pane?.Values,
+                    paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: PaneValuesOf(apiName, pane),
                     isOptional: IsOptionalAttr(union) || IsOptionalAttr(md),
                     scale: ScaleOf(md), relative: RelativeOf(md)));
             }
@@ -1831,7 +1894,7 @@ namespace tik4net.Winbox
                 extra.Add(new WinboxJgField(apiName, keys[i].Item1, keys[i].Item2, ro,
                     uiType: TupleUiType, optKey: optKey, elementParts: parts, elementSeparator: sep,
                     isOptional: IsOptionalAttr(tuple),
-                    paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: pane?.Values,
+                    paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: PaneValuesOf(label, pane),
                     prefix: prefix));
 
             AddField(handlerKey, label, keys[0].Item1, keys[0].Item2, ro, null,

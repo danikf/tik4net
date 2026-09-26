@@ -897,9 +897,16 @@ record's selector value is dropped, which is also what makes `/ip/ipsec/identity
 `my-id=auto` is what the mapper's default produces. A record that does not carry the selector at all keeps
 every pane: without the kind there is no honest way to say which one is live.
 
+A field one pane declares may be listed by others as `{name:'Passthrough',type:'alias'}` — the same field, shown
+for those panes too. Mangle `passthrough` is declared in the mark-packet pane and aliased by the other nine
+actions it applies to (IPv4 and IPv6 alike); IPsec identity aliases `certificate`, `remote-certificate`,
+`username`, `password` and `secret` across its auth methods. A field's pane values are its own pane's plus those of
+every pane of the same deck that aliases it; without the aliases the decoder dropped `passthrough` from every
+mark-connection rule (`0x3F1` is on the wire there, and the API prints it).
+
 **Coverage:** `QueueTypeTest` (four methods — including a window labelled 'Type Name' whose API field is
-`name`), plus `SystemLoggingActionTest` and `IpsecIdentityTest`; the pane rules are pinned router-free by
-`WinboxDeckPaneTests`.
+`name`), plus `SystemLoggingActionTest`, `IpsecIdentityTest` and `IpFirewallTest.ManglePassthrough_IsReadOnEveryActionItAppliesTo`;
+the pane rules, aliases included, are pinned router-free by `WinboxDeckPaneTests`.
 
 ---
 
