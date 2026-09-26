@@ -85,7 +85,7 @@ namespace tik4net.integrationtests
                     Connection.CreateParameter("comment", marker))
                     .Where(f => mine.Contains(f.Id)).ToList();
 
-                CollectionAssert.AreEquivalent(expectedMangle, mangle.Select(m => m.Action).ToList(),
+                CollectionAssert.AreEquivalent(expectedMangle, mangle.Select(m => m.Action.Value).ToList(),
                     "the probe rules must read back as the actions they were created with");
 
                 Assert.IsTrue(!filterFasttrack || filter.Any(f => f.Action == FirewallFilter.ActionType.FasttrackConnection),
@@ -125,6 +125,44 @@ namespace tik4net.integrationtests
                 absent.Add(path + " action=" + (i >= 0 && i + 1 < nameValuePairs.Length ? nameValuePairs[i + 1] : "?")
                            + " (" + ex.Message + ")");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// <c>passthrough</c> is printed on every mangle action it applies to, on every transport — not only on
+        /// <c>mark-packet</c>.
+        /// </summary>
+        /// <remarks>
+        /// WinBox declares the field once, in the mark-packet pane of the mangle window's action deck, and lists it in
+        /// the other panes (mark-connection, mark-routing, …) as <c>{name:'Passthrough',type:'alias'}</c>. WinBox native
+        /// drops a field that belongs to another kind's pane, so a catalog that ignores the aliases drops passthrough
+        /// from every mark-connection rule. Created over the command API (the entity does not map
+        /// <c>new-connection-mark</c>), disabled.
+        /// </remarks>
+        [TestMethod]
+        public void ManglePassthrough_IsReadOnEveryActionItAppliesTo()
+        {
+            const string marker = "t4n-passthroughprobe";
+            SweepProbeRows("/ip/firewall/mangle", marker);
+            var created = new List<string>();
+            try
+            {
+                created.Add(AddRule("/ip/firewall/mangle/add", "chain", "prerouting", "action", "mark-packet",
+                    "new-packet-mark", marker, "passthrough", "no", "disabled", "yes", "comment", marker));
+                created.Add(AddRule("/ip/firewall/mangle/add", "chain", "prerouting", "action", "mark-connection",
+                    "new-connection-mark", marker, "passthrough", "no", "disabled", "yes", "comment", marker));
+
+                foreach (string id in created)
+                {
+                    var rule = Connection.LoadById<FirewallMangle>(id);
+                    Assert.IsNotNull(rule, id);
+                    Assert.AreEqual(false, rule.Passthrough.Value, $"{rule.Action}: passthrough ({rule.Passthrough.State})");
+                }
+            }
+            finally
+            {
+                foreach (string id in created)
+                    Connection.CreateCommandAndParameters("/ip/firewall/mangle/remove", TikSpecialProperties.Id, id).ExecuteNonQuery();
             }
         }
 
