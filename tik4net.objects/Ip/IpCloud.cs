@@ -15,21 +15,21 @@ namespace tik4net.Objects.Ip
     {
         /// <summary>ddns-enabled — enables DDNS; if <c>auto</c>, activates only when Back To Home is enabled.</summary>
         /// <seealso cref="DdnsEnabledMode"/>
-        [TikProperty("ddns-enabled", DefaultValue = "auto")]
+        [TikProperty("ddns-enabled", DefaultValue = "auto", WinboxLabel = "DDNS Enabled")]
         public TikValue<DdnsEnabledMode?> DdnsEnabled { get; set; }
 
         /// <summary>ddns-update-interval — sets the interval for DDNS connection attempts; <c>none</c> lets the router check the IP internally.</summary>
-        [TikProperty("ddns-update-interval", DefaultValue = "none")]
+        [TikProperty("ddns-update-interval", DefaultValue = "none", WinboxLabel = "DDNS Update Interval")]
         public TikValue<TikDuration?> DdnsUpdateInterval { get; set; }
 
         /// <summary>update-time — synchronises the device clock with the cloud server when no NTP/SNTP client is enabled.</summary>
-        [TikProperty("update-time", DefaultValue = "yes")]
+        [TikProperty("update-time", DefaultValue = "yes", WinboxLabel = "Update Time")]
         public TikValue<bool?> UpdateTime { get; set; }
 
         // --- Read-only properties ---
 
         /// <summary>public-address — IPv4 address sent to the cloud server (visible after a successful request).</summary>
-        [TikProperty("public-address", IsReadOnly = true)]
+        [TikProperty("public-address", IsReadOnly = true, WinboxLabel = "Public Address")]
         public TikValue<string?> PublicAddress { get; private set; }
 
         /// <summary>public-address-ipv6 — IPv6 address sent to the cloud server (visible after a successful request).</summary>
@@ -37,7 +37,7 @@ namespace tik4net.Objects.Ip
         public TikValue<string?> PublicAddressIpv6 { get; private set; }
 
         /// <summary>dns-name — assigned DNS name in the form <c>&lt;12-char-serial&gt;.sn.mynetname.net</c>.</summary>
-        [TikProperty("dns-name", IsReadOnly = true)]
+        [TikProperty("dns-name", IsReadOnly = true, WinboxLabel = "DNS Name")]
         public TikValue<string?> DnsName { get; private set; }
 
         /// <summary>status — current cloud service state (e.g. updating, updated, error).</summary>

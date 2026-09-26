@@ -26,13 +26,13 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// address: IP address
         /// </summary>
-        [TikProperty("address")]
+        [TikProperty("address", WinboxLabel = "Address")]
         public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// interface: Interface name the IP address is assigned to
         /// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
@@ -44,7 +44,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// network: IP address for the network. For point-to-point links it should be the address of the remote end. Starting from v5RC6 this parameter is configurable only for addresses with /32 netmask (point to point links)
         /// </summary>
-        [TikProperty("network" )]
+        [TikProperty("network" , WinboxLabel = "Network")]
         public TikValue<string?> Network { get; set; }
 
         /// <summary>

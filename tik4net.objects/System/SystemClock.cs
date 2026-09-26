@@ -17,14 +17,14 @@ namespace tik4net.Objects.System
         /// time — current system time in HH:MM:SS format.
         /// This field is settable via /system/clock set time=...
         /// </summary>
-        [TikProperty("time", ChangesOnItsOwn = true)]
+        [TikProperty("time", ChangesOnItsOwn = true, WinboxLabel = "Time")]
         public TikValue<string?> Time { get; set; }
 
         /// <summary>
         /// date — current system date in mmm/DD/YYYY format (e.g. jun/18/2026).
         /// This field is settable via /system/clock set date=...
         /// </summary>
-        [TikProperty("date", ChangesOnItsOwn = true)]
+        [TikProperty("date", ChangesOnItsOwn = true, WinboxLabel = "Date")]
         public TikValue<string?> Date { get; set; }
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace tik4net.Objects.System
         /// to use a manually configured GMT offset. Default: manual.
         /// WinBox: "Time Zone Name"
         /// </summary>
-        [TikProperty("time-zone-name", DefaultValue = "manual")]
+        [TikProperty("time-zone-name", DefaultValue = "manual", WinboxLabel = "Time Zone Name")]
         public TikValue<string?> TimeZoneName { get; set; }
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace tik4net.Objects.System
         /// Default: yes.
         /// WinBox: "Time Zone Autodetect"
         /// </summary>
-        [TikProperty("time-zone-autodetect", DefaultValue = "yes")]
+        [TikProperty("time-zone-autodetect", DefaultValue = "yes", WinboxLabel = "Time Zone Autodetect")]
         public TikValue<bool?> TimeZoneAutodetect { get; set; }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace tik4net.Objects.System
         /// timezone offset and any active daylight saving time offset. Format: [+|-]HH:MM. Read-only.
         /// WinBox: "GMT Offset"
         /// </summary>
-        [TikProperty("gmt-offset", IsReadOnly = true)]
+        [TikProperty("gmt-offset", IsReadOnly = true, WinboxLabel = "GMT Offset")]
         public TikValue<string?> GmtOffset { get; private set; }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace tik4net.Objects.System
         /// Read-only.
         /// WinBox: "DST Active"
         /// </summary>
-        [TikProperty("dst-active", IsReadOnly = true)]
+        [TikProperty("dst-active", IsReadOnly = true, WinboxLabel = "DST Active")]
         public TikValue<bool?> DstActive { get; private set; }
 
         /// <summary>Returns a human-readable summary of the current clock state.</summary>

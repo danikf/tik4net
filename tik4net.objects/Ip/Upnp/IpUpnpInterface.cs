@@ -18,12 +18,12 @@ namespace tik4net.Objects.Ip.Upnp
         public string? Id { get; private set; }
 
         /// <summary>interface — name of the interface to assign. Must be an existing interface.</summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>type — role of this interface in the UPnP topology.
         /// <seealso cref="UpnpInterfaceType"/></summary>
-        [TikProperty("type")]
+        [TikProperty("type", WinboxLabel = "Type")]
         public TikValue<UpnpInterfaceType?> Type { get; set; }
 
         /// <summary>forced-ip — specific public IP to advertise when the external interface has multiple addresses. Leave empty to use the primary address.</summary>

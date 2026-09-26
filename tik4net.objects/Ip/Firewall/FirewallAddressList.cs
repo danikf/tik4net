@@ -20,7 +20,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// address
         /// </summary>
-        [TikProperty("address")]
+        [TikProperty("address", WinboxLabel = "Address")]
         public TikValue<string?> Address { get; set; }
 
         /// <summary>
@@ -44,13 +44,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// timeout  (00:00:00)
         /// </summary>
-        [TikProperty("timeout", DefaultValue = "00:00:00")]
+        [TikProperty("timeout", DefaultValue = "00:00:00", WinboxLabel = "Timeout")]
         public TikValue<TikDuration?> Timeout { get; set; }
 
         /// <summary>
         /// list
         /// </summary>
-        [TikProperty("list")]
+        [TikProperty("list", WinboxLabel = "List")]
         public TikValue<string?> List { get; set; }
     }
 }
