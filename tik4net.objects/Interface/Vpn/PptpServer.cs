@@ -23,21 +23,21 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: pap, chap, mschap1, mschap2.
         /// Default: mschap1,mschap2
         /// </summary>
-        [TikProperty("authentication", DefaultValue = "mschap1,mschap2")]
+        [TikProperty("authentication", DefaultValue = "mschap1,mschap2", WinboxLabel = "Authentication")]
         public TikValue<string?> Authentication { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new PPTP sessions.
         /// Default: default-encryption
         /// </summary>
-        [TikProperty("default-profile", DefaultValue = "default-encryption")]
+        [TikProperty("default-profile", DefaultValue = "default-encryption", WinboxLabel = "Default Profile")]
         public TikValue<string?> DefaultProfile { get; set; }
 
         /// <summary>
         /// enabled — when <c>true</c> the PPTP server accepts incoming connections.
         /// Default: no
         /// </summary>
-        [TikProperty("enabled", DefaultValue = "no")]
+        [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
         public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 30
         /// </summary>
         // router default 30; omitted on add when left 0
-        [TikProperty("keepalive-timeout")]
+        [TikProperty("keepalive-timeout", WinboxLabel = "Keepalive Timeout")]
         public TikValue<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1450
         /// </summary>
         // router default 1450; omitted on add when left 0
-        [TikProperty("max-mru")]
+        [TikProperty("max-mru", WinboxLabel = "Max MRU")]
         public TikValue<int?> MaxMru { get; set; }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1450
         /// </summary>
         // router default 1450; omitted on add when left 0
-        [TikProperty("max-mtu")]
+        [TikProperty("max-mtu", WinboxLabel = "Max MTU")]
         public TikValue<int?> MaxMtu { get; set; }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid integer range: 512..65535.
         /// Default: disabled
         /// </summary>
-        [TikProperty("mrru", DefaultValue = "disabled")]
+        [TikProperty("mrru", DefaultValue = "disabled", WinboxLabel = "MRRU")]
         public TikValue<string?> Mrru { get; set; }
 
         /// <summary>Human-readable summary of the PPTP server configuration.</summary>

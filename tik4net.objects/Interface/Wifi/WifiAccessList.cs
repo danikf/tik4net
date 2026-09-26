@@ -56,7 +56,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Action"
         /// <seealso cref="WifiAccessListAction"/>
         /// </summary>
-        [TikProperty("action", DefaultValue = "accept")]
+        [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
         public TikValue<WifiAccessListAction?> Action { get; set; }
 
         // ── MAC matchers ──────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Set to "00:00:00:00:00:00" to match any client (default).
         /// WinBox: "MAC Address"
         /// </summary>
-        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
+        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// exact match; shorter masks match entire vendor OUIs or subnets.
         /// WinBox: "MAC Address Mask"
         /// </summary>
-        [TikProperty("mac-address-mask", DefaultValue = "FF:FF:FF:FF:FF:FF")]
+        [TikProperty("mac-address-mask", DefaultValue = "FF:FF:FF:FF:FF:FF", WinboxLabel = "MAC Address Mask")]
         public TikValue<string?> MacAddressMask { get; set; }
 
         // ── Interface / SSID matchers ─────────────────────────────────────────
@@ -86,7 +86,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// which the rule is active.  Leave empty / "any" to match all interfaces.
         /// WinBox: "Interface"
         /// </summary>
-        [TikProperty("interface", DefaultValue = "")]
+        [TikProperty("interface", DefaultValue = "", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// network the client is connecting to.  Leave empty to match any SSID.
         /// WinBox: "SSID Regexp"
         /// </summary>
-        [TikProperty("ssid-regexp", DefaultValue = "")]
+        [TikProperty("ssid-regexp", DefaultValue = "", WinboxLabel = "SSID Regexp")]
         public TikValue<string?> SsidRegexp { get; set; }
 
         // ── Signal / time matchers ────────────────────────────────────────────
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: "-120..120" (any signal).
         /// WinBox: "Signal Range"
         /// </summary>
-        [TikProperty("signal-range", DefaultValue = "-120..120")]
+        [TikProperty("signal-range", DefaultValue = "-120..120", WinboxLabel = "Signal Range")]
         public TikValue<string?> SignalRange { get; set; }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// for disconnection.
         /// WinBox: "Allow Signal Out Of Range"
         /// </summary>
-        [TikProperty("allow-signal-out-of-range", DefaultValue = "always")]
+        [TikProperty("allow-signal-out-of-range", DefaultValue = "always", WinboxLabel = "Allow Signal Out Of Range")]
         public TikValue<TikDuration?> AllowSignalOutOfRange { get; set; }
 
         /// <summary>
@@ -128,7 +128,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to match at any time.
         /// WinBox: "Time"
         /// </summary>
-        [TikProperty("time", DefaultValue = "")]
+        [TikProperty("time", DefaultValue = "", WinboxLabel = "Time")]
         public TikValue<string?> Time { get; set; }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// (sending 0 would be rejected by the router as out of range).
         /// WinBox: "VLAN ID"
         /// </summary>
-        [TikProperty("vlan-id", DefaultValue = "0")]
+        [TikProperty("vlan-id", DefaultValue = "0", WinboxLabel = "VLAN ID")]
         public TikValue<int?> VlanId { get; set; }
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to use the interface passphrase (default).
         /// WinBox: "Passphrase"
         /// </summary>
-        [TikProperty("passphrase", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("passphrase", DefaultValue = "", IsSensitive = true, WinboxLabel = "Passphrase")]
         public TikValue<string?> Passphrase { get; set; }
 
         /// <summary>
@@ -167,7 +167,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// this client.  Leave empty for no group override.
         /// WinBox: "Multi Passphrase Group"
         /// </summary>
-        [TikProperty("multi-passphrase-group", DefaultValue = "")]
+        [TikProperty("multi-passphrase-group", DefaultValue = "", WinboxLabel = "Multi Passphrase Group")]
         public TikValue<string?> MultiPassphraseGroup { get; set; }
 
         /// <summary>
@@ -176,7 +176,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: no (false).
         /// WinBox: "RADIUS Accounting"
         /// </summary>
-        [TikProperty("radius-accounting", DefaultValue = "no")]
+        [TikProperty("radius-accounting", DefaultValue = "no", WinboxLabel = "Radius Accounting")]
         public TikValue<bool?> RadiusAccounting { get; set; }
 
         /// <summary>
@@ -185,7 +185,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: no (false).
         /// WinBox: "Client Isolation"
         /// </summary>
-        [TikProperty("client-isolation", DefaultValue = "no")]
+        [TikProperty("client-isolation", DefaultValue = "no", WinboxLabel = "Client Isolation")]
         public TikValue<bool?> ClientIsolation { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────

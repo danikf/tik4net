@@ -57,19 +57,19 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// mode
         /// </summary>
-        [TikProperty("mode")]
+        [TikProperty("mode", WinboxLabel = "Mode")]
         public TikValue<SecurityMode?> /* none, static-keys-optional, static-keys-required, dynamic-keys*/ Mode { get; set; }
 
         /// <summary>
         /// name
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// management-protection
         /// </summary>
-        [TikProperty("management-protection")]
+        [TikProperty("management-protection", WinboxLabel = "Management Protection")]
         public TikValue<bool?> ManagementProtection { get; set; }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// with <c>show-sensitive</c> (see <see cref="TikPropertyAttribute.IsSensitive"/>).
         /// </para>
         /// </summary>
-        [TikProperty("management-protection-key", IsSensitive = true)]
+        [TikProperty("management-protection-key", IsSensitive = true, WinboxLabel = "Management Protection Key")]
         public TikValue<string?> ManagementProtectionKey { get; set; }
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// with <c>show-sensitive</c> (see <see cref="TikPropertyAttribute.IsSensitive"/>).
         /// </para>
         /// </summary>
-        [TikProperty("wpa-pre-shared-key", IsSensitive = true)]
+        [TikProperty("wpa-pre-shared-key", IsSensitive = true, WinboxLabel = "WPA Pre-Shared Key")]
         public TikValue<string?> WpaPreSharedKey { get; set; }
 
         /// <summary>
@@ -99,40 +99,40 @@ namespace tik4net.Objects.Interface.Wireless
         /// with <c>show-sensitive</c> (see <see cref="TikPropertyAttribute.IsSensitive"/>).
         /// </para>
         /// </summary>
-        [TikProperty("wpa2-pre-shared-key", IsSensitive = true)]
+        [TikProperty("wpa2-pre-shared-key", IsSensitive = true, WinboxLabel = "WPA2 Pre-Shared Key")]
         public TikValue<string?> Wpa2PreSharedKey { get; set; }
 
         /// <summary>
         /// authentication-types
         /// Comma separated string
         /// </summary>
-        [TikProperty("authentication-types")]
+        [TikProperty("authentication-types", WinboxLabel = "Authentication Types")]
         public TikValue<string?> AuthenticationTypes { get; set; }
 
         /// <summary>
         /// group-ciphers
         /// Comma separated string
         /// </summary>
-        [TikProperty("group-ciphers")]
+        [TikProperty("group-ciphers", WinboxLabel = "Group Ciphers")]
         public TikValue<string?> /*tkip, aes-ccm*/ GroupCiphers { get; set; }
 
         /// <summary>
         /// unicast-ciphers
         /// Comma separated string
         /// </summary>
-        [TikProperty("unicast-ciphers")]
+        [TikProperty("unicast-ciphers", WinboxLabel = "Unicast Ciphers")]
         public TikValue<string?> /*tkip, aes-ccm*/ UnicastCiphers { get; set; }
 
         /// <summary>
         /// supplicant-identity
         /// </summary>
-        [TikProperty("supplicant-identity")]
+        [TikProperty("supplicant-identity", WinboxLabel = "Supplicant Identity")]
         public TikValue<string?> /*tkip, aes-ccm*/ SupplicantIdentiy { get; set; }
 
         /// <summary>
         /// group-key-update - (time interval in the 30s..1h range; default value: 5m) : Controls how often access point updates group key. This key is used to encrypt all broadcast and multicast frames.
         /// </summary>
-        [TikProperty("group-key-update")]
+        [TikProperty("group-key-update", WinboxLabel = "Group Key Update")]
         public TikValue<string?> GroupKeyUpdate { get; set; }
 
         // ── RADIUS (WinBox: the profile's "RADIUS" tab) ───────────────────────────────────────────
@@ -146,7 +146,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// allowed to connect, before any other authentication. Default: no.
         /// <para>WinBox: "MAC Authentication" (RADIUS tab).</para>
         /// </summary>
-        [TikProperty("radius-mac-authentication", DefaultValue = "no")]
+        [TikProperty("radius-mac-authentication", DefaultValue = "no", WinboxLabel = "MAC Authentication")]
         public TikValue<bool?> RadiusMacAuthentication { get; set; }
 
         /// <summary>
@@ -154,7 +154,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// Default: no.
         /// <para>WinBox: "MAC Accounting" (RADIUS tab).</para>
         /// </summary>
-        [TikProperty("radius-mac-accounting", DefaultValue = "no")]
+        [TikProperty("radius-mac-accounting", DefaultValue = "no", WinboxLabel = "MAC Accounting")]
         public TikValue<bool?> RadiusMacAccounting { get; set; }
 
         /// <summary>
@@ -162,7 +162,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// Default: no.
         /// <para>WinBox: "EAP Accounting" (RADIUS tab).</para>
         /// </summary>
-        [TikProperty("radius-eap-accounting", DefaultValue = "no")]
+        [TikProperty("radius-eap-accounting", DefaultValue = "no", WinboxLabel = "EAP Accounting")]
         public TikValue<bool?> RadiusEapAccounting { get; set; }
 
         /// <summary>
@@ -176,7 +176,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </para>
         /// <para>WinBox: "Interim Update" (RADIUS tab).</para>
         /// </summary>
-        [TikProperty("interim-update", DefaultValue = "0s")]
+        [TikProperty("interim-update", DefaultValue = "0s", WinboxLabel = "Interim Update")]
         public TikValue<TikDuration?> InterimUpdate { get; set; }
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </para>
         /// <para>WinBox: "MAC Format" (RADIUS tab).</para>
         /// </summary>
-        [TikProperty("radius-mac-format", DefaultValue = "XX:XX:XX:XX:XX:XX")]
+        [TikProperty("radius-mac-format", DefaultValue = "XX:XX:XX:XX:XX:XX", WinboxLabel = "MAC Format")]
         public TikValue<string?> RadiusMacFormat { get; set; }
 
         /// <summary>
@@ -215,7 +215,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "MAC Mode" (RADIUS tab).</para>
         /// </summary>
         /// <seealso cref="MacModeType"/>
-        [TikProperty("radius-mac-mode", DefaultValue = "as-username")]
+        [TikProperty("radius-mac-mode", DefaultValue = "as-username", WinboxLabel = "MAC Mode")]
         public TikValue<MacModeType?> RadiusMacMode { get; set; }
 
         /// <summary>
@@ -242,7 +242,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "Called ID Format" (RADIUS tab).</para>
         /// </summary>
         /// <seealso cref="CalledFormatType"/>
-        [TikProperty("radius-called-format", DefaultValue = "mac:ssid")]
+        [TikProperty("radius-called-format", DefaultValue = "mac:ssid", WinboxLabel = "Called ID Format")]
         public TikValue<CalledFormatType?> RadiusCalledFormat { get; set; }
 
         /// <summary>
@@ -255,7 +255,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </para>
         /// <para>WinBox: "MAC Caching Time" (RADIUS tab).</para>
         /// </summary>
-        [TikProperty("radius-mac-caching", DefaultValue = "disabled")]
+        [TikProperty("radius-mac-caching", DefaultValue = "disabled", WinboxLabel = "MAC Caching Time")]
         public TikValue<string?> /*disabled | time*/ RadiusMacCaching { get; set; }
 
         // ── Static (WEP) keys (WinBox: the profile's "Static Keys" tab) ───────────────────────────
@@ -385,7 +385,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "Transmit Key" (Static Keys tab).</para>
         /// </summary>
         /// <seealso cref="TransmitKeyType"/>
-        [TikProperty("static-transmit-key", DefaultValue = "key-0")]
+        [TikProperty("static-transmit-key", DefaultValue = "key-0", WinboxLabel = "Transmit Key")]
         public TikValue<TransmitKeyType?> StaticTransmitKey { get; set; }
 
         /// <summary>

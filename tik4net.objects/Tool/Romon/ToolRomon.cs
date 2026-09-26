@@ -17,20 +17,20 @@ namespace tik4net.Objects.Tool.Romon
     public class ToolRomon
     {
         /// <summary>enabled — activates the RoMON agent on this router. Default: no.</summary>
-        [TikProperty("enabled", DefaultValue = "no")]
+        [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
         public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>id — RoMON identifier (MAC address format). When set to 00:00:00:00:00:00 the router's own MAC is used. Default: 00:00:00:00:00:00.</summary>
-        [TikProperty("id", DefaultValue = "00:00:00:00:00:00")]
+        [TikProperty("id", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "ID")]
         public TikValue<string?> Id { get; set; }
 
         /// <summary>secrets — comma-separated list of shared secrets used to authenticate RoMON peers. Empty string disables authentication.</summary>
-        [TikProperty("secrets", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("secrets", DefaultValue = "", IsSensitive = true, WinboxLabel = "Secrets")]
         public TikValue<string?> Secrets { get; set; }
 
         /// <summary>current-id — the RoMON id in effect: <see cref="Id"/> when set, otherwise the MAC the router
         /// picked. This is what a RoMON neighbour's discover reports as its address. WinBox: "Current ID".</summary>
-        [TikProperty("current-id", IsReadOnly = true)]
+        [TikProperty("current-id", IsReadOnly = true, WinboxLabel = "Current ID")]
         public TikValue<string?> CurrentId { get; private set; }
 
         /// <summary>Returns a human-readable summary of RoMON settings.</summary>

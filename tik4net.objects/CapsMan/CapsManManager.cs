@@ -35,7 +35,7 @@ namespace tik4net.Objects.CapsMan
         /// enabled — enables or disables the CAPsMAN controller on this router.
         /// Default: no.
         /// </summary>
-        [TikProperty("enabled", DefaultValue = "no")]
+        [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
         public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace tik4net.Objects.CapsMan
         /// or "none" to use no certificate, or "auto" to auto-generate one.
         /// Default: none.
         /// </summary>
-        [TikProperty("certificate", DefaultValue = "none")]
+        [TikProperty("certificate", DefaultValue = "none", WinboxLabel = "Certificate")]
         public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace tik4net.Objects.CapsMan
         /// or "none" to skip CA validation, or "auto" to auto-generate one.
         /// Default: none.
         /// </summary>
-        [TikProperty("ca-certificate", DefaultValue = "none")]
+        [TikProperty("ca-certificate", DefaultValue = "none", WinboxLabel = "CA Certificate")]
         public TikValue<string?> CaCertificate { get; set; }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace tik4net.Objects.CapsMan
         /// certificate signed by the configured CA; unauthenticated CAPs are rejected.
         /// Default: no.
         /// </summary>
-        [TikProperty("require-peer-certificate", DefaultValue = "no")]
+        [TikProperty("require-peer-certificate", DefaultValue = "no", WinboxLabel = "Require Peer Certificate")]
         public TikValue<bool?> RequirePeerCertificate { get; set; }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace tik4net.Objects.CapsMan
         /// its own built-in packages for CAPs with the same CPU architecture.
         /// Default: "" (empty — use built-in packages).
         /// </summary>
-        [TikProperty("package-path", DefaultValue = "")]
+        [TikProperty("package-path", DefaultValue = "", WinboxLabel = "Package Path")]
         public TikValue<string?> PackagePath { get; set; }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: none.
         /// <seealso cref="UpgradePolicyType"/>
         /// </summary>
-        [TikProperty("upgrade-policy", DefaultValue = "none")]
+        [TikProperty("upgrade-policy", DefaultValue = "none", WinboxLabel = "Upgrade Policy")]
         public TikValue<UpgradePolicyType?> UpgradePolicy { get; set; }
 
         /// <summary>Human-readable summary of the CAPsMAN manager state.</summary>

@@ -20,67 +20,67 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// address: the network DHCP server(s) will lease addresses from
         /// </summary>
-        [TikProperty("address")]
+        [TikProperty("address", WinboxLabel = "Address")]
         public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// boot-file-name: Boot file name
         /// </summary>
-        [TikProperty("boot-file-name")]
+        [TikProperty("boot-file-name", WinboxLabel = "Boot File Name")]
         public TikValue<string?> BootFileName { get; set; }
 
         /// <summary>
         /// caps-manager: Comma-separated list of IP addresses for one or more CAPsMan system managers.
         /// </summary>
-        [TikProperty("caps-manager")]
+        [TikProperty("caps-manager", WinboxLabel = "CAPS Managers")]
         public TikValue<string?> CapsManager { get; set; }
 
         /// <summary>
         /// dhcp-option: Add additional DHCP options from  option list.
         /// </summary>
-        [TikProperty("dhcp-option")]
+        [TikProperty("dhcp-option", WinboxLabel = "DHCP Options")]
         public TikValue<string?> DhcpOption { get; set; }
 
         /// <summary>
         /// dns-server: the DHCP client will use these as the default DNS servers. Two comma-separated DNS servers can be specified to be used by the DHCP client as primary and secondary DNS servers
         /// </summary>
-        [TikProperty("dns-server")]
+        [TikProperty("dns-server", WinboxLabel = "DNS Servers")]
         public TikValue<string?> DnsServer { get; set; }
 
         /// <summary>
         /// domain: The DHCP client will use this as the 'DNS domain' setting for the network adapter.
         /// </summary>
-        [TikProperty("domain")]
+        [TikProperty("domain", WinboxLabel = "Domain")]
         public TikValue<string?> Domain { get; set; }
 
         /// <summary>
         /// gateway: The default gateway to be used by DHCP Client.
         /// </summary>
-        [TikProperty("gateway", DefaultValue = "0.0.0.0")]
+        [TikProperty("gateway", DefaultValue = "0.0.0.0", WinboxLabel = "Gateway")]
         public TikValue<string?> Gateway { get; set; }
 
         /// <summary>
         /// netmask: The actual network mask to be used by DHCP client. If set to '0' - netmask from network address will be used.
         /// </summary>
-        [TikProperty("netmask", DefaultValue = "0")]
+        [TikProperty("netmask", DefaultValue = "0", WinboxLabel = "Netmask")]
         public TikValue<string?> Netmask { get; set; }
 
         /// <summary>
         /// next-server: IP address of next server to use in bootstrap.
         /// </summary>
-        [TikProperty("next-server")]
+        [TikProperty("next-server", WinboxLabel = "Next Server")]
         public TikValue<string?> NextServer { get; set; }
 
         /// <summary>
         /// ntp-server: the DHCP client will use these as the default NTP servers. Two comma-separated NTP servers can be specified to be used by the DHCP client as primary and secondary NTP servers
         /// </summary>
-        [TikProperty("ntp-server")]
+        [TikProperty("ntp-server", WinboxLabel = "NTP Servers")]
         public TikValue<string?> NtpServer { get; set; }
 
         /// <summary>
         /// wins-server: The Windows DHCP client will use these as the default WINS servers. Two comma-separated WINS servers can be specified to be used by the DHCP client as primary and secondary WINS servers
         /// </summary>
-        [TikProperty("wins-server")]
+        [TikProperty("wins-server", WinboxLabel = "WINS Servers")]
         public TikValue<string?> WinsServer { get; set; }
 
         /// <summary>

@@ -15,15 +15,15 @@ namespace tik4net.Objects.Ip.Upnp
     public class IpUpnp
     {
         /// <summary>enabled — enables or disables the UPnP service.</summary>
-        [TikProperty("enabled", DefaultValue = "no")]
+        [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
         public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>allow-disable-external-interface — permits UPnP clients to disable the external interface without authentication (required by the UPnP standard). Default: yes.</summary>
-        [TikProperty("allow-disable-external-interface", DefaultValue = "yes")]
+        [TikProperty("allow-disable-external-interface", DefaultValue = "yes", WinboxLabel = "Allow To Disable External Interface")]
         public TikValue<bool?> AllowDisableExternalInterface { get; set; }
 
         /// <summary>show-dummy-rule — enables a workaround for broken UPnP implementations that mishandle an empty rule set. Default: yes.</summary>
-        [TikProperty("show-dummy-rule", DefaultValue = "yes")]
+        [TikProperty("show-dummy-rule", DefaultValue = "yes", WinboxLabel = "Show Dummy Rule")]
         public TikValue<bool?> ShowDummyRule { get; set; }
 
         /// <summary>Human-readable summary of UPnP settings.</summary>

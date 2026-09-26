@@ -30,7 +30,7 @@ namespace tik4net.Objects.Ip
         /// store-leases-disk - How frequently lease changes should be stored on disk
         /// </summary>
         /// <seealso cref="StoreLeasesDiskType"/>
-        [TikProperty("store-leases-disk")]
+        [TikProperty("store-leases-disk", WinboxLabel = "Store Leases On Disk")]
         public TikValue<string?> StoreLeasesDisk { get; set; }
     }
 }

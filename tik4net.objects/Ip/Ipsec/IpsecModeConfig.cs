@@ -29,7 +29,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// name — identifier for this mode-config entry; referenced from /ip/ipsec/peer.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -38,7 +38,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// configuration from the remote server.
         /// Default: no
         /// </summary>
-        [TikProperty("responder", DefaultValue = "no")]
+        [TikProperty("responder", DefaultValue = "no", WinboxLabel = "Responder")]
         public TikValue<bool?> Responder { get; set; }
 
         // --- Responder-side (server) fields ---
@@ -47,7 +47,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// address-pool — name of the IP pool (/ip/pool) from which addresses are assigned to
         /// initiators. Applicable when responder=yes.
         /// </summary>
-        [TikProperty("address-pool")]
+        [TikProperty("address-pool", WinboxLabel = "Address Pool")]
         public TikValue<string?> AddressPool { get; set; }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Document intent: a value of 0 means "not set" and the mapper omits the field on add.
         /// Applicable when responder=yes.
         /// </summary>
-        [TikProperty("address-prefix-length")]
+        [TikProperty("address-prefix-length", WinboxLabel = "Address Prefix Length")]
         public TikValue<int?> AddressPrefixLength { get; set; }
 
         /// <summary>
@@ -64,14 +64,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// client (split-tunnelling include list). Sent to the initiator as traffic-selectors.
         /// Applicable when responder=yes.
         /// </summary>
-        [TikProperty("split-include")]
+        [TikProperty("split-include", WinboxLabel = "Split Include")]
         public TikValue<string?> SplitInclude { get; set; }
 
         /// <summary>
         /// split-dns — list of DNS domain suffixes that the initiator should resolve using the
         /// VPN-assigned DNS servers rather than its local resolver. Applicable when responder=yes.
         /// </summary>
-        [TikProperty("split-dns")]
+        [TikProperty("split-dns", WinboxLabel = "Split DNS")]
         public TikValue<string?> SplitDns { get; set; }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// initiator as part of Mode Config. Cannot be used together with static-dns.
         /// Applicable when responder=yes.
         /// </summary>
-        [TikProperty("system-dns")]
+        [TikProperty("system-dns", WinboxLabel = "System DNS")]
         public TikValue<bool?> SystemDns { get; set; }
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// initiator via Mode Config. Cannot be used together with system-dns.
         /// Applicable when responder=yes.
         /// </summary>
-        [TikProperty("static-dns")]
+        [TikProperty("static-dns", WinboxLabel = "Static DNS")]
         public TikValue<string?> StaticDns { get; set; }
 
         // --- Initiator-side (client) fields ---
@@ -97,7 +97,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// address pool. When set the initiator proposes this specific address during Mode Config
         /// exchange. Applicable when responder=no.
         /// </summary>
-        [TikProperty("address")]
+        [TikProperty("address", WinboxLabel = "Address")]
         public TikValue<string?> Address { get; set; }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// dynamic source-NAT rules are generated so that traffic from those addresses is
         /// routed over the VPN tunnel. Applicable when responder=no.
         /// </summary>
-        [TikProperty("src-address-list")]
+        [TikProperty("src-address-list", WinboxLabel = "Src. Address List")]
         public TikValue<string?> SrcAddressList { get; set; }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="UseResponderDnsType"/>
         /// Applicable when responder=no.
         /// </summary>
-        [TikProperty("use-responder-dns", DefaultValue = "exclusively")]
+        [TikProperty("use-responder-dns", DefaultValue = "exclusively", WinboxLabel = "Use Responder DNS")]
         public TikValue<UseResponderDnsType?> UseResponderDns { get; set; }
 
         // --- Shared fields ---
@@ -127,7 +127,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// connection-mark — firewall connection mark to match. When set only connections with
         /// the specified mark are processed by this mode-config entry.
         /// </summary>
-        [TikProperty("connection-mark")]
+        [TikProperty("connection-mark", WinboxLabel = "Connection Mark")]
         public TikValue<string?> ConnectionMark { get; set; }
 
         // NOTE: /ip/ipsec/mode-config has no "comment" field on RouterOS (confirmed via

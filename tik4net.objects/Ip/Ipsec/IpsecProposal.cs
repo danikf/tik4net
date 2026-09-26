@@ -51,7 +51,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// name — proposal identifier; used to reference this entry from policies.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -60,7 +60,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Valid values: md5, sha1, sha256, sha512, null (no authentication, e.g. for GCM).
         /// Default: sha1
         /// </summary>
-        [TikProperty("auth-algorithms", DefaultValue = "sha1")]
+        [TikProperty("auth-algorithms", DefaultValue = "sha1", WinboxLabel = "Auth. Algorithms")]
         public TikValue<string?> AuthAlgorithms { get; set; }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace tik4net.Objects.Ip.Ipsec
         ///   blowfish, camellia-128, camellia-192, camellia-256, twofish.
         /// Default: aes-256-cbc,aes-192-cbc,aes-128-cbc
         /// </summary>
-        [TikProperty("enc-algorithms", DefaultValue = "aes-256-cbc,aes-192-cbc,aes-128-cbc")]
+        [TikProperty("enc-algorithms", DefaultValue = "aes-256-cbc,aes-192-cbc,aes-128-cbc", WinboxLabel = "Encr. Algorithms")]
         public TikValue<string?> EncAlgorithms { get; set; }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// renegotiated and replaced.
         /// Default: 30m
         /// </summary>
-        [TikProperty("lifetime", DefaultValue = "30m")]
+        [TikProperty("lifetime", DefaultValue = "30m", WinboxLabel = "Lifetime")]
         public TikValue<TikDuration?> Lifetime { get; set; }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: modp1024.
         /// <seealso cref="PfsGroupType"/>
         /// </summary>
-        [TikProperty("pfs-group", DefaultValue = "modp1024")]
+        [TikProperty("pfs-group", DefaultValue = "modp1024", WinboxLabel = "PFS Group")]
         public TikValue<PfsGroupType?> PfsGroup { get; set; }
 
         /// <summary>

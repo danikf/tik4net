@@ -17,7 +17,7 @@ namespace tik4net.Objects.System
 		/// <summary>
 		/// Gets a value indicating whether this hardware is a RouterBoard.
 		/// </summary>
-		[TikProperty("routerboard")]
+		[TikProperty("routerboard", WinboxLabel = "RouterBOARD")]
 		public TikValue<bool?> Routerboard { get; set; }
 
 		/// <summary>
@@ -29,19 +29,19 @@ namespace tik4net.Objects.System
 		/// <summary>
 		/// Gets the model of the board.
 		/// </summary>
-		[TikProperty("model")]
+		[TikProperty("model", WinboxLabel = "Model")]
 		public TikValue<string?> Model { get; set; }
 
 		/// <summary>
 		/// Gets the serial number of the board.
 		/// </summary>
-		[TikProperty("serial-number")]
+		[TikProperty("serial-number", WinboxLabel = "Serial Number")]
 		public TikValue<string?> SerialNumber { get; set; }
 
 		/// <summary>
 		/// Gets the firmware type of the board.
 		/// </summary>
-		[TikProperty("firmware-type")]
+		[TikProperty("firmware-type", WinboxLabel = "Firmware Type")]
 		public TikValue<string?> FirmwareType { get; set; }
 
 		/// <summary>
@@ -53,13 +53,13 @@ namespace tik4net.Objects.System
 		/// <summary>
 		/// Gets the firmware version that is currently running.
 		/// </summary>
-		[TikProperty("current-firmware")]
+		[TikProperty("current-firmware", WinboxLabel = "Current Firmware")]
 		public TikValue<string?> CurrentFirmware { get; set; }
 
 		/// <summary>
 		/// Gets the firmware version that is available for upgrade.
 		/// </summary>
-		[TikProperty("upgrade-firmware")]
+		[TikProperty("upgrade-firmware", WinboxLabel = "Upgrade Firmware")]
 		public TikValue<string?> UpgradeFirmware { get; set; }
 	}
 }

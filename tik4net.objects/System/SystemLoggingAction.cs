@@ -142,14 +142,14 @@ namespace tik4net.Objects.System
         /// name — unique action name; for the <c>memory</c> target this is also the name of the
         /// in-memory log buffer visible in /log print.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// target — storage destination for log entries.
         /// <seealso cref="LoggingTarget"/>
         /// </summary>
-        [TikProperty("target", DefaultValue = "memory")]
+        [TikProperty("target", DefaultValue = "memory", WinboxLabel = "Type")]
         public TikValue<LoggingTarget?> Target { get; set; }
 
         // ── memory target ─────────────────────────────────────────────────────
@@ -158,13 +158,13 @@ namespace tik4net.Objects.System
         /// memory-lines — maximum number of records kept in the in-memory buffer (memory target only).
         /// Oldest entries are dropped when the limit is reached (unless <see cref="MemoryStopOnFull"/> is set).
         /// </summary>
-        [TikProperty("memory-lines")] // router default 1000; omitted on add when left 0
+        [TikProperty("memory-lines", WinboxLabel = "memory: Lines")] // router default 1000; omitted on add when left 0
         public TikValue<int?> MemoryLines { get; set; }
 
         /// <summary>
         /// memory-stop-on-full — stop logging when the memory buffer is full (memory target only).
         /// </summary>
-        [TikProperty("memory-stop-on-full", DefaultValue = "no")]
+        [TikProperty("memory-stop-on-full", DefaultValue = "no", WinboxLabel = "memory: Stop on Full")]
         public TikValue<bool?> MemoryStopOnFull { get; set; }
 
         // ── disk target ───────────────────────────────────────────────────────
@@ -172,25 +172,25 @@ namespace tik4net.Objects.System
         /// <summary>
         /// disk-file-name — base name of the log file written to disk (disk target only).
         /// </summary>
-        [TikProperty("disk-file-name", DefaultValue = "log")]
+        [TikProperty("disk-file-name", DefaultValue = "log", WinboxLabel = "disk: File Name")]
         public TikValue<string?> DiskFileName { get; set; }
 
         /// <summary>
         /// disk-lines-per-file — maximum number of log lines per file before rotating (disk target only).
         /// </summary>
-        [TikProperty("disk-lines-per-file")] // router default 100; omitted on add when left 0
+        [TikProperty("disk-lines-per-file", WinboxLabel = "disk: Lines Per File")] // router default 100; omitted on add when left 0
         public TikValue<int?> DiskLinesPerFile { get; set; }
 
         /// <summary>
         /// disk-file-count — number of rotated log files to keep (disk target only).
         /// </summary>
-        [TikProperty("disk-file-count")] // router default 2; omitted on add when left 0
+        [TikProperty("disk-file-count", WinboxLabel = "disk: File Count")] // router default 2; omitted on add when left 0
         public TikValue<int?> DiskFileCount { get; set; }
 
         /// <summary>
         /// disk-stop-on-full — stop logging when all disk files are full (disk target only).
         /// </summary>
-        [TikProperty("disk-stop-on-full", DefaultValue = "no")]
+        [TikProperty("disk-stop-on-full", DefaultValue = "no", WinboxLabel = "disk: Stop on Full")]
         public TikValue<bool?> DiskStopOnFull { get; set; }
 
         // ── echo target ───────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ namespace tik4net.Objects.System
         /// <summary>
         /// remember — keep unread console messages highlighted until viewed (echo target only).
         /// </summary>
-        [TikProperty("remember")]
+        [TikProperty("remember", WinboxLabel = "echo: Save")]
         public TikValue<bool?> Remember { get; set; }
 
         // ── remote target ─────────────────────────────────────────────────────
@@ -206,47 +206,47 @@ namespace tik4net.Objects.System
         /// <summary>
         /// remote — IP address of the remote syslog server (remote target only).
         /// </summary>
-        [TikProperty("remote", DefaultValue = "0.0.0.0")]
+        [TikProperty("remote", DefaultValue = "0.0.0.0", WinboxLabel = "remote: Remote Address")]
         public TikValue<string?> Remote { get; set; }
 
         /// <summary>
         /// remote-port — UDP/TCP port on the remote syslog server (remote target only).
         /// </summary>
-        [TikProperty("remote-port")] // router default 514; omitted on add when left 0
+        [TikProperty("remote-port", WinboxLabel = "Remote Port")] // router default 514; omitted on add when left 0
         public TikValue<int?> RemotePort { get; set; }
 
         /// <summary>
         /// remote-protocol — transport protocol used to reach the remote syslog server (remote target only).
         /// <seealso cref="RemoteProtocolType"/>
         /// </summary>
-        [TikProperty("remote-protocol", DefaultValue = "udp")]
+        [TikProperty("remote-protocol", DefaultValue = "udp", WinboxLabel = "remote: Remote Log Protocol")]
         public TikValue<RemoteProtocolType?> RemoteProtocol { get; set; }
 
         /// <summary>
         /// remote-log-format — wire format of messages sent to the remote server (remote target only).
         /// <seealso cref="RemoteLogFormatType"/>
         /// </summary>
-        [TikProperty("remote-log-format", DefaultValue = "default")]
+        [TikProperty("remote-log-format", DefaultValue = "default", WinboxLabel = "Remote Log Format")]
         public TikValue<RemoteLogFormatType?> RemoteLogFormat { get; set; }
 
         /// <summary>
         /// src-address — source IP address used when connecting to the remote syslog server.
         /// 0.0.0.0 means the router selects the address automatically.
         /// </summary>
-        [TikProperty("src-address", DefaultValue = "0.0.0.0")]
+        [TikProperty("src-address", DefaultValue = "0.0.0.0", WinboxLabel = "Src. Address")]
         public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// vrf — VRF context used for remote syslog connections (RouterOS 7.19+).
         /// </summary>
-        [TikProperty("vrf", DefaultValue = "main")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
         public TikValue<string?> Vrf { get; set; }
 
         /// <summary>
         /// syslog-facility — RFC 3164 facility code included in syslog messages (remote target only).
         /// <seealso cref="SyslogFacilityType"/>
         /// </summary>
-        [TikProperty("syslog-facility", DefaultValue = "daemon")]
+        [TikProperty("syslog-facility", DefaultValue = "daemon", WinboxLabel = "Syslog Facility")]
         public TikValue<SyslogFacilityType?> SyslogFacility { get; set; }
 
         /// <summary>
@@ -254,7 +254,7 @@ namespace tik4net.Objects.System
         /// automatically (remote target only).
         /// <seealso cref="SyslogSeverityType"/>
         /// </summary>
-        [TikProperty("syslog-severity", DefaultValue = "auto")]
+        [TikProperty("syslog-severity", DefaultValue = "auto", WinboxLabel = "Syslog Severity")]
         public TikValue<SyslogSeverityType?> SyslogSeverity { get; set; }
 
         /// <summary>
@@ -269,7 +269,7 @@ namespace tik4net.Objects.System
         /// (remote target with <see cref="RemoteLogFormatType.Cef"/> only).
         /// Default is CRLF (<c>\r\n</c>).
         /// </summary>
-        [TikProperty("cef-event-delimiter")]
+        [TikProperty("cef-event-delimiter", WinboxLabel = "CEF Event Delimiter")]
         public TikValue<string?> CefEventDelimiter { get; set; }
 
         // ── email target ──────────────────────────────────────────────────────
@@ -277,13 +277,13 @@ namespace tik4net.Objects.System
         /// <summary>
         /// email-to — recipient e-mail address (email target only).
         /// </summary>
-        [TikProperty("email-to")]
+        [TikProperty("email-to", WinboxLabel = "email: Email")]
         public TikValue<string?> EmailTo { get; set; }
 
         /// <summary>
         /// email-start-tls — use STARTTLS when connecting to the SMTP relay (email target only).
         /// </summary>
-        [TikProperty("email-start-tls", DefaultValue = "no")]
+        [TikProperty("email-start-tls", DefaultValue = "no", WinboxLabel = "email: Start TLS")]
         public TikValue<bool?> EmailStartTls { get; set; }
 
         // ── read-only / meta ──────────────────────────────────────────────────

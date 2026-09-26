@@ -27,7 +27,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// ap-tx-limit: Limit rate of data transmission to this client. Value 0 means no limit. Value is in bits per second.
         /// integer [0..4294967295]
         /// </summary>
-        [TikProperty("ap-tx-limit", DefaultValue = "0")]
+        [TikProperty("ap-tx-limit", DefaultValue = "0", WinboxLabel = "AP Tx Limit")]
         public TikValue<long?> ApTxLimit { get; set; }
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace tik4net.Objects.Interface.Wireless
         ///  no - Client association will always fail.
         ///  yes - Use authentication procedure that is specified in the  security-profile of the interface.
         /// </summary>
-        [TikProperty("authentication", DefaultValue = "yes")]
+        [TikProperty("authentication", DefaultValue = "yes", WinboxLabel = "Authentication")]
         public TikValue<bool?> Authentication { get; set; }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// Value is in bits per second.
         /// integer [0..4294967295]
         /// </summary>
-        [TikProperty("client-tx-limit", DefaultValue = "0")]
+        [TikProperty("client-tx-limit", DefaultValue = "0", WinboxLabel = "Client Tx Limit")]
         public TikValue<long?> ClientTxLimit { get; set; }
 
         /// <summary>
@@ -67,25 +67,25 @@ namespace tik4net.Objects.Interface.Wireless
         ///  no - Client cannot send frames to other station that are connected to same access point.
         ///  yes - Client can send frames to other stations on the same access point.
         /// </summary>
-        [TikProperty("forwarding", DefaultValue = "yes")]
+        [TikProperty("forwarding", DefaultValue = "yes", WinboxLabel = "Forwarding")]
         public TikValue<bool?> Forwarding { get; set; }
 
         /// <summary>
         /// interface: Rules with interface=all are used for all wireless interfaces. To make rule that applies only to one wireless interface, specify that interface as a value of this property.
         /// </summary>
-        [TikProperty("interface", DefaultValue = "all")]
+        [TikProperty("interface", DefaultValue = "all", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// mac-address: Rule matches client with the specified MAC address. Value 00:00:00:00:00:00 matches always.
         /// </summary>
-        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
+        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
         /// management-protection-key: 
         /// </summary>
-        [TikProperty("management-protection-key", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("management-protection-key", DefaultValue = "", IsSensitive = true, WinboxLabel = "Management Protection Key")]
         public TikValue<string?> ManagementProtectionKey { get; set; }
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// private-pre-shared-key: Used in WPA PSK mode.
         /// </summary>
-        [TikProperty("private-pre-shared-key", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("private-pre-shared-key", DefaultValue = "", IsSensitive = true, WinboxLabel = "Private Pre Shared Key")]
         public TikValue<string?> PrivatePreSharedKey { get; set; }
 
         /// <summary>
@@ -121,7 +121,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// Both start and end time is expressed as time since midnight, 00:00.
         /// Rule will match only during specified days of the week.
         /// </summary>
-        [TikProperty("time")]
+        [TikProperty("time", WinboxLabel = "Time")]
         public TikValue<string?> Time { get; set; }
 
         /// <summary>

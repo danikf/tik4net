@@ -29,7 +29,7 @@ namespace tik4net.Objects.Ip.Dns
         /// address
         /// IP address to resolve domain name with
         /// </summary>
-        [TikProperty("address")]
+        [TikProperty("address", WinboxLabel = "Address")]
         public TikValue<string?> Address { get; set; }
 
         /// <summary>
@@ -37,7 +37,7 @@ namespace tik4net.Objects.Ip.Dns
         /// DNS name to be resolved to a given IP address. May be a regular expression
         /// REMARKS: either <see cref="Name"/> of <see cref="Regexp"/> must be filled.
         /// </summary>
-        [TikProperty("name", IsMandatory = false)]
+        [TikProperty("name", IsMandatory = false, WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -46,14 +46,14 @@ namespace tik4net.Objects.Ip.Dns
         /// REMARKS: either <see cref="Name"/> of <see cref="Regexp"/> must be filled.
         /// REMARKS: supported by 6.38 and higher. In Lower version true/false is used as value to determine <see cref="Name"/> format.
         /// </summary>
-        [TikProperty("regexp", IsMandatory = false, IsFreeText = true)]
+        [TikProperty("regexp", IsMandatory = false, IsFreeText = true, WinboxLabel = "Regexp")]
         public TikValue<string?> Regexp { get; set; }
 
         /// <summary>
         /// ttl
         /// time-to-live of the DNS record
         /// </summary>
-        [TikProperty("ttl")]
+        [TikProperty("ttl", WinboxLabel = "TTL")]
         public TikValue<TikDuration?> Ttl { get; set; }
 
         /// <summary>

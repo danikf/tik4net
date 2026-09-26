@@ -18,31 +18,31 @@ namespace tik4net.Objects.Ip.Hotspot
         public string? Id { get; private set; }
 
         /// <summary>action — what to do when the rule matches. Default: allow.</summary>
-        [TikProperty("action", DefaultValue = "allow")]
+        [TikProperty("action", DefaultValue = "allow", WinboxLabel = "Action")]
         public TikValue<WalledGardenAction?> Action { get; set; }
 
         /// <summary>server — HotSpot server name this rule applies to; empty means all servers.</summary>
-        [TikProperty("server", DefaultValue = "")]
+        [TikProperty("server", DefaultValue = "", WinboxLabel = "Server")]
         public TikValue<string?> Server { get; set; }
 
         /// <summary>src-address — source IP address or range of the unauthenticated client.</summary>
-        [TikProperty("src-address", DefaultValue = "")]
+        [TikProperty("src-address", DefaultValue = "", WinboxLabel = "Src. Address")]
         public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>dst-host — destination hostname or wildcard (e.g. *.example.com).</summary>
-        [TikProperty("dst-host", DefaultValue = "")]
+        [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host")]
         public TikValue<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match.</summary>
-        [TikProperty("dst-port", DefaultValue = "")]
+        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port")]
         public TikValue<string?> DstPort { get; set; }
 
         /// <summary>method — HTTP method to match (any/connect/delete/get/head/options/post/put/trace). Default: any.</summary>
-        [TikProperty("method", DefaultValue = "any")]
+        [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method")]
         public TikValue<string?> Method { get; set; }
 
         /// <summary>path — URL path pattern to match (without hostname, e.g. /images/*).</summary>
-        [TikProperty("path", DefaultValue = "")]
+        [TikProperty("path", DefaultValue = "", WinboxLabel = "Path")]
         public TikValue<string?> Path { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>

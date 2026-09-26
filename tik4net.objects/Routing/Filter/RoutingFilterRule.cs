@@ -25,7 +25,7 @@ namespace tik4net.Objects.Routing.Filter
         /// Multiple rules can share the same chain name; they are evaluated in order.
         /// Chain names are arbitrary strings referenced by protocol instance filter settings.
         /// </summary>
-        [TikProperty("chain")]
+        [TikProperty("chain", WinboxLabel = "Chain")]
         public TikValue<string?> Chain { get; set; }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace tik4net.Objects.Routing.Filter
         /// Actions modify attributes or terminate evaluation (accept, reject, return, …).
         /// Example: "if (dst == 192.168.0.0/16) { set bgp-local-pref 200; accept }"
         /// </summary>
-        [TikProperty("rule")]
+        [TikProperty("rule", WinboxLabel = "Rule")]
         public TikValue<string?> Rule { get; set; }
 
         /// <summary>

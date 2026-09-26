@@ -22,23 +22,23 @@ namespace tik4net.Objects.System
         public string? Id { get; private set; }
 
         /// <summary>name — package name (e.g. "routeros", "wireless", "user-manager").</summary>
-        [TikProperty("name", IsReadOnly = true)]
+        [TikProperty("name", IsReadOnly = true, WinboxLabel = "Name")]
         public TikValue<string?> Name { get; private set; }
 
         /// <summary>version — installed package version string (e.g. "7.21.4").</summary>
-        [TikProperty("version", IsReadOnly = true)]
+        [TikProperty("version", IsReadOnly = true, WinboxLabel = "Version")]
         public TikValue<string?> Version { get; private set; }
 
         /// <summary>build-time — date and time when this package was built. Read-only.</summary>
-        [TikProperty("build-time", IsReadOnly = true)]
+        [TikProperty("build-time", IsReadOnly = true, WinboxLabel = "Build Time")]
         public TikValue<string?> BuildTime { get; private set; }
 
         /// <summary>scheduled — action scheduled for this package at next reboot (e.g. "scheduled for uninstall"). Empty when nothing is scheduled. Read-only.</summary>
-        [TikProperty("scheduled", IsReadOnly = true)]
+        [TikProperty("scheduled", IsReadOnly = true, WinboxLabel = "Scheduled")]
         public TikValue<string?> Scheduled { get; private set; }
 
         /// <summary>size — installed package size in bytes. Read-only.</summary>
-        [TikProperty("size", IsReadOnly = true)]
+        [TikProperty("size", IsReadOnly = true, WinboxLabel = "Size")]
         public TikValue<string?> Size { get; private set; }
 
         /// <summary>available — when true a newer version is available for download. Read-only.</summary>

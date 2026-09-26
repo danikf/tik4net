@@ -15,19 +15,19 @@ namespace tik4net.Objects.User
 		/// <summary>
 		/// Gets or sets the group name.
 		/// </summary>
-		[TikProperty("name")]
+		[TikProperty("name", WinboxLabel = "Name")]
 		public TikValue<string?> Name { get; set; }
 
 		/// <summary>
 		/// Gets or sets the group's policies as comma-separated list. 
 		/// </summary>
-		[TikProperty("policy")]
+		[TikProperty("policy", WinboxLabel = "Policies")]
 		public TikValue<string?> Policy { get; set; }
 
 		/// <summary>
 		/// Gets or sets the the group's skin.
 		/// </summary>
-		[TikProperty("skin")]
+		[TikProperty("skin", WinboxLabel = "Skin")]
 		public TikValue<string?> Skin { get; set; }
 
 		/// <summary>

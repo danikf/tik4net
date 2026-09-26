@@ -14,36 +14,36 @@ namespace tik4net.Objects.Ip
     public class IpSsh
     {
         /// <summary>strong-crypto — enables stronger encryption algorithms and larger DH prime groups.</summary>
-        [TikProperty("strong-crypto", DefaultValue = "no")]
+        [TikProperty("strong-crypto", DefaultValue = "no", WinboxLabel = "Strong Crypto")]
         public TikValue<bool?> StrongCrypto { get; set; }
 
         /// <summary>ciphers — SSH cipher suite selection. Default: auto (lets RouterOS pick the best available).
         /// <seealso cref="SshCiphers"/></summary>
-        [TikProperty("ciphers", DefaultValue = "auto")]
+        [TikProperty("ciphers", DefaultValue = "auto", WinboxLabel = "Ciphers")]
         public TikValue<SshCiphers?> Ciphers { get; set; }
 
         /// <summary>forwarding-enabled — controls which SSH port-forwarding modes are permitted.
         /// <seealso cref="SshForwardingMode"/></summary>
-        [TikProperty("forwarding-enabled", DefaultValue = "no")]
+        [TikProperty("forwarding-enabled", DefaultValue = "no", WinboxLabel = "Forwarding Enabled")]
         public TikValue<SshForwardingMode?> ForwardingEnabled { get; set; }
 
         /// <summary>host-key-size — RSA host key size in bits, applied at next key regeneration. Default: 2048.</summary>
-        [TikProperty("host-key-size", DefaultValue = "2048")]
+        [TikProperty("host-key-size", DefaultValue = "2048", WinboxLabel = "Host Key Size")]
         public TikValue<int?> HostKeySize { get; set; }
 
         /// <summary>host-key-type — host key algorithm type.
         /// <seealso cref="SshHostKeyType"/></summary>
-        [TikProperty("host-key-type", DefaultValue = "rsa")]
+        [TikProperty("host-key-type", DefaultValue = "rsa", WinboxLabel = "Host Key Type")]
         public TikValue<SshHostKeyType?> HostKeyType { get; set; }
 
         /// <summary>password-authentication — controls whether password login is allowed alongside public-key auth.
         /// <seealso cref="SshPasswordAuth"/></summary>
-        [TikProperty("password-authentication", DefaultValue = "yes-if-no-key")]
+        [TikProperty("password-authentication", DefaultValue = "yes-if-no-key", WinboxLabel = "Password Authentication")]
         public TikValue<SshPasswordAuth?> PasswordAuthentication { get; set; }
 
         /// <summary>publickey-authentication-options — additional requirements for public-key authentication.
         /// <seealso cref="SshPubkeyOptions"/></summary>
-        [TikProperty("publickey-authentication-options", DefaultValue = "none")]
+        [TikProperty("publickey-authentication-options", DefaultValue = "none", WinboxLabel = "Publickey Authentication Options")]
         public TikValue<SshPubkeyOptions?> PublickeyAuthenticationOptions { get; set; }
 
         /// <summary>Human-readable SSH settings summary.</summary>

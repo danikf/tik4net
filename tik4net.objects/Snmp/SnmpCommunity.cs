@@ -60,7 +60,7 @@ namespace tik4net.Objects.Snmp
         /// name — community string identifier sent by the SNMP manager.
         /// This is the "username" equivalent for SNMPv1/v2c.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Snmp
         /// this community. Default: ::/0 (all hosts). Separate multiple with commas.
         /// WinBox: "Addresses"
         /// </summary>
-        [TikProperty("addresses", DefaultValue = "::/0")]
+        [TikProperty("addresses", DefaultValue = "::/0", WinboxLabel = "Addresses")]
         public TikValue<string?> Addresses { get; set; }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace tik4net.Objects.Snmp
         /// Use <see cref="SecurityLevel.None"/> for SNMPv1/v2c (no auth/encryption).
         /// </summary>
         /// <seealso cref="SecurityLevel"/>
-        [TikProperty("security", DefaultValue = "none")]
+        [TikProperty("security", DefaultValue = "none", WinboxLabel = "Security")]
         public TikValue<SecurityLevel?> Security { get; set; }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace tik4net.Objects.Snmp
         /// Default: yes (true).
         /// WinBox: "Read Access"
         /// </summary>
-        [TikProperty("read-access", DefaultValue = "yes")]
+        [TikProperty("read-access", DefaultValue = "yes", WinboxLabel = "Read Access")]
         public TikValue<bool?> ReadAccess { get; set; }
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace tik4net.Objects.Snmp
         /// Default: no (false). Enable only when required — write access is a security risk.
         /// WinBox: "Write Access"
         /// </summary>
-        [TikProperty("write-access", DefaultValue = "no")]
+        [TikProperty("write-access", DefaultValue = "no", WinboxLabel = "Write Access")]
         public TikValue<bool?> WriteAccess { get; set; }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace tik4net.Objects.Snmp
         /// Default: MD5.
         /// </summary>
         /// <seealso cref="AuthProtocol"/>
-        [TikProperty("authentication-protocol", DefaultValue = "MD5")]
+        [TikProperty("authentication-protocol", DefaultValue = "MD5", WinboxLabel = "Authentication Protocol")]
         public TikValue<AuthProtocol?> AuthenticationProtocol { get; set; }
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace tik4net.Objects.Snmp
         /// Only used when <see cref="Security"/> is <see cref="SecurityLevel.Authorized"/>
         /// or <see cref="SecurityLevel.Private"/>.
         /// </summary>
-        [TikProperty("authentication-password", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("authentication-password", DefaultValue = "", IsSensitive = true, WinboxLabel = "Authentication Password")]
         public TikValue<string?> AuthenticationPassword { get; set; }
 
         /// <summary>
@@ -118,14 +118,14 @@ namespace tik4net.Objects.Snmp
         /// AES available since RouterOS v6.16. Default: DES.
         /// </summary>
         /// <seealso cref="EncryptProtocol"/>
-        [TikProperty("encryption-protocol", DefaultValue = "DES")]
+        [TikProperty("encryption-protocol", DefaultValue = "DES", WinboxLabel = "Encryption Protocol")]
         public TikValue<EncryptProtocol?> EncryptionProtocol { get; set; }
 
         /// <summary>
         /// encryption-password — passphrase for SNMPv3 encryption (min. 8 chars).
         /// Only used when <see cref="Security"/> == <see cref="SecurityLevel.Private"/>.
         /// </summary>
-        [TikProperty("encryption-password", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("encryption-password", DefaultValue = "", IsSensitive = true, WinboxLabel = "Encryption Password")]
         public TikValue<string?> EncryptionPassword { get; set; }
 
         /// <summary>

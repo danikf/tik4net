@@ -18,11 +18,11 @@ namespace tik4net.Objects.Tool.Graphing
         public string? Id { get; private set; }
 
         /// <summary>allow-address — IP address or prefix allowed to retrieve the graph (e.g. "0.0.0.0/0"). Empty means unrestricted.</summary>
-        [TikProperty("allow-address")]
+        [TikProperty("allow-address", WinboxLabel = "Allow Address")]
         public TikValue<string?> AllowAddress { get; set; }
 
         /// <summary>store-on-disk — when yes, collected resource data is saved to the router's disk. Default: yes.</summary>
-        [TikProperty("store-on-disk", DefaultValue = "yes")]
+        [TikProperty("store-on-disk", DefaultValue = "yes", WinboxLabel = "Store on Disk")]
         public TikValue<bool?> StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>

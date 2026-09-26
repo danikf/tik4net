@@ -25,49 +25,49 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// mac-address: MAC address of the registered client
         /// </summary>
-        [TikProperty("mac-address", IsReadOnly = true)]
+        [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
         public TikValue<string?> MACAddress { get; set; }
 
         /// <summary>
         /// interface: Name of the wireless interface to which wireless client is associated
         /// </summary>
-        [TikProperty("interface", IsReadOnly = true)]
+        [TikProperty("interface", IsReadOnly = true, WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// uptime: time the client is associated with the access point
         /// </summary>
-        [TikProperty("uptime", IsReadOnly = true)]
+        [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
         public TikValue<TimeSpan?> Uptime { get; set; }
 
         /// <summary>
         /// ssid: SSID (service set identifier) is a name that identifies wireless network.
         /// </summary>
-        [TikProperty("ssid", IsReadOnly = true)]
+        [TikProperty("ssid", IsReadOnly = true, WinboxLabel = "SSID")]
         public TikValue<string?> SSID { get; set; }
 
         /// <summary>
         /// tx-rate: transmit data rate
         /// </summary>
-        [TikProperty("tx-rate", IsReadOnly = true)]
+        [TikProperty("tx-rate", IsReadOnly = true, WinboxLabel = "Tx Rate")]
         public TikValue<string?> TxRate { get; private set; }
 
         /// <summary>
         /// tx-rate-set: 
         /// </summary>
-        [TikProperty("tx-rate-set", IsReadOnly = true)]
+        [TikProperty("tx-rate-set", IsReadOnly = true, WinboxLabel = "Tx Rate Set")]
         public TikValue<string?> TxRateSet { get; private set; }
 
         /// <summary>
         /// rx-rate: receive data rate
         /// </summary>
-        [TikProperty("rx-rate", IsReadOnly = true)]
+        [TikProperty("rx-rate", IsReadOnly = true, WinboxLabel = "Rx Rate")]
         public TikValue<string?> RxRate { get; set; }
 
         /// <summary>
         /// signal-strength: average strength of the client signal recevied by the AP
         /// </summary>
-        [TikProperty("rx-signal", IsReadOnly = true)]
+        [TikProperty("rx-signal", IsReadOnly = true, WinboxLabel = "Rx Signal")]
         public TikValue<int?> Signal { get; set; }
 
         /// <summary>

@@ -108,7 +108,7 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// name — unique name for this configuration profile.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         // ── Network identity ──────────────────────────────────────────────────
@@ -116,7 +116,7 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// ssid — the wireless network name (ESSID) broadcast in beacon frames (0–32 characters).
         /// </summary>
-        [TikProperty("ssid")]
+        [TikProperty("ssid", WinboxLabel = "SSID")]
         public TikValue<string?> Ssid { get; set; }
 
         /// <summary>
@@ -124,14 +124,14 @@ namespace tik4net.Objects.CapsMan
         /// Default: ap.
         /// <seealso cref="OperatingMode"/>
         /// </summary>
-        [TikProperty("mode", DefaultValue = "ap")]
+        [TikProperty("mode", DefaultValue = "ap", WinboxLabel = "Mode")]
         public TikValue<OperatingMode?> Mode { get; set; }
 
         /// <summary>
         /// hide-ssid — when true the SSID is omitted from beacon frames and probe responses.
         /// Default: no (SSID visible).
         /// </summary>
-        [TikProperty("hide-ssid", DefaultValue = "no")]
+        [TikProperty("hide-ssid", DefaultValue = "no", WinboxLabel = "Hide SSID")]
         public TikValue<bool?> HideSsid { get; set; }
 
         // ── Sub-profile references ────────────────────────────────────────────
@@ -143,20 +143,20 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// channel — name of the /caps-man/channel profile to apply, or empty for inline channel settings.
         /// </summary>
-        [TikProperty("channel")]
+        [TikProperty("channel", WinboxLabel = "Channel")]
         public TikValue<string?> Channel { get; set; }
 
         /// <summary>
         /// datapath — name of the /caps-man/datapath profile to apply, or empty for inline datapath settings.
         /// </summary>
-        [TikProperty("datapath")]
+        [TikProperty("datapath", WinboxLabel = "Datapath")]
         public TikValue<string?> Datapath { get; set; }
 
         /// <summary>
         /// security — name of the /caps-man/security profile to apply, or empty for inline security settings.
         /// Default: none (open network).
         /// </summary>
-        [TikProperty("security")]
+        [TikProperty("security", WinboxLabel = "Security")]
         public TikValue<string?> Security { get; set; }
 
         /// <summary>
@@ -422,14 +422,14 @@ namespace tik4net.Objects.CapsMan
         /// Default: none.
         /// <seealso cref="HwProtectionModeType"/>
         /// </summary>
-        [TikProperty("hw-protection-mode", DefaultValue = "none")]
+        [TikProperty("hw-protection-mode", DefaultValue = "none", WinboxLabel = "Hw. Protection Mode")]
         public TikValue<HwProtectionModeType?> HwProtectionMode { get; set; }
 
         /// <summary>
         /// hw-retries — number of times to retry sending a frame at the hardware level (0..15).
         /// DefaultValue="0" prevents sending 0 on add when unset.
         /// </summary>
-        [TikProperty("hw-retries", DefaultValue = "0")]
+        [TikProperty("hw-retries", DefaultValue = "0", WinboxLabel = "Hw. Retries")]
         public TikValue<int?> HwRetries { get; set; }
 
         // ── Client management ─────────────────────────────────────────────────
@@ -444,7 +444,7 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// load-balancing-group — tag to group overlapping CAP interfaces for load balancing.
         /// </summary>
-        [TikProperty("load-balancing-group")]
+        [TikProperty("load-balancing-group", WinboxLabel = "Load Balancing Group")]
         public TikValue<string?> LoadBalancingGroup { get; set; }
 
         /// <summary>
@@ -452,7 +452,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: enabled.
         /// <seealso cref="KeepaliveFramesMode"/>
         /// </summary>
-        [TikProperty("keepalive-frames", DefaultValue = "enabled")]
+        [TikProperty("keepalive-frames", DefaultValue = "enabled", WinboxLabel = "Keepalive Frames")]
         public TikValue<KeepaliveFramesMode?> KeepaliveFrames { get; set; }
 
         // ── Regulatory / environment ──────────────────────────────────────────
@@ -462,7 +462,7 @@ namespace tik4net.Objects.CapsMan
         /// Common values: "no_country_set", "latvia", "united states", etc.
         /// Default: no_country_set.
         /// </summary>
-        [TikProperty("country", DefaultValue = "no_country_set")]
+        [TikProperty("country", DefaultValue = "no_country_set", WinboxLabel = "Country")]
         public TikValue<string?> Country { get; set; }
 
         /// <summary>
@@ -470,14 +470,14 @@ namespace tik4net.Objects.CapsMan
         /// Default: any.
         /// <seealso cref="InstallationType"/>
         /// </summary>
-        [TikProperty("installation", DefaultValue = "any")]
+        [TikProperty("installation", DefaultValue = "any", WinboxLabel = "Installation")]
         public TikValue<InstallationType?> Installation { get; set; }
 
         /// <summary>
         /// distance — link distance hint: "indoors" or "dynamic" (auto ACK timeout).
         /// Leave empty for default behaviour.
         /// </summary>
-        [TikProperty("distance")]
+        [TikProperty("distance", WinboxLabel = "Distance")]
         public TikValue<string?> Distance { get; set; }
 
         // ── Frame / timing parameters ─────────────────────────────────────────
@@ -486,14 +486,14 @@ namespace tik4net.Objects.CapsMan
         /// frame-lifetime — maximum age of a queued frame before it is discarded (time value, e.g. "1ms").
         /// Empty = no limit.
         /// </summary>
-        [TikProperty("frame-lifetime")]
+        [TikProperty("frame-lifetime", WinboxLabel = "Frame Lifetime")]
         public TikValue<TikDuration?> FrameLifetime { get; set; }
 
         /// <summary>
         /// disconnect-timeout — how long to wait after the last keepalive failure before
         /// de-authenticating the client (time value, e.g. "3s").
         /// </summary>
-        [TikProperty("disconnect-timeout")]
+        [TikProperty("disconnect-timeout", WinboxLabel = "Disconnect Timeout")]
         public TikValue<TikDuration?> DisconnectTimeout { get; set; }
 
         // ── Multicast ─────────────────────────────────────────────────────────
@@ -503,7 +503,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: default.
         /// <seealso cref="MulticastHelperMode"/>
         /// </summary>
-        [TikProperty("multicast-helper", DefaultValue = "default")]
+        [TikProperty("multicast-helper", DefaultValue = "default", WinboxLabel = "Multicast Helper")]
         public TikValue<MulticastHelperMode?> MulticastHelper { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────

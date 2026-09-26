@@ -38,13 +38,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// name — unique interface name identifier (mandatory).
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// connect-to — remote IP or IPv6 address of the SSTP server to connect to.
         /// </summary>
-        [TikProperty("connect-to")]
+        [TikProperty("connect-to", WinboxLabel = "Connect To")]
         public TikValue<string?> ConnectTo { get; set; }
 
         /// <summary>
@@ -57,13 +57,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// user — username for PPP authentication.
         /// </summary>
-        [TikProperty("user")]
+        [TikProperty("user", WinboxLabel = "User")]
         public TikValue<string?> User { get; set; }
 
         /// <summary>
         /// password — password for PPP authentication.
         /// </summary>
-        [TikProperty("password", IsSensitive = true)]
+        [TikProperty("password", IsSensitive = true, WinboxLabel = "Password")]
         public TikValue<string?> Password { get; set; }
 
         /// <summary>
@@ -71,14 +71,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 443; router default 443, omitted on add when left 0.
         /// </summary>
         // router default 443; omitted on add when left 0
-        [TikProperty("port")]
+        [TikProperty("port", WinboxLabel = "Port")]
         public TikValue<int?> Port { get; set; }
 
         /// <summary>
         /// profile — PPP profile applied when the tunnel is established.
         /// Default: default
         /// </summary>
-        [TikProperty("profile", DefaultValue = "default")]
+        [TikProperty("profile", DefaultValue = "default", WinboxLabel = "Profile")]
         public TikValue<string?> Profile { get; set; }
 
         /// <summary>
@@ -93,14 +93,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// certificate — name of the client TLS certificate; <c>none</c> disables certificate-based auth.
         /// Default: none
         /// </summary>
-        [TikProperty("certificate", DefaultValue = "none")]
+        [TikProperty("certificate", DefaultValue = "none", WinboxLabel = "Certificate")]
         public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
         /// verify-server-certificate — when <c>true</c> the client validates the server TLS certificate.
         /// Default: no
         /// </summary>
-        [TikProperty("verify-server-certificate", DefaultValue = "no")]
+        [TikProperty("verify-server-certificate", DefaultValue = "no", WinboxLabel = "Verify Server Certificate")]
         public TikValue<bool?> VerifyServerCertificate { get; set; }
 
         /// <summary>
@@ -108,7 +108,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// against the CN or SAN in the server certificate.
         /// Default: yes
         /// </summary>
-        [TikProperty("verify-server-address-from-certificate", DefaultValue = "yes")]
+        [TikProperty("verify-server-address-from-certificate", DefaultValue = "yes", WinboxLabel = "Verify Server Address From Certificate")]
         public TikValue<bool?> VerifyServerAddressFromCertificate { get; set; }
 
         /// <summary>
@@ -116,7 +116,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: any
         /// </summary>
         /// <seealso cref="TlsVersionType"/>
-        [TikProperty("tls-version", DefaultValue = "any")]
+        [TikProperty("tls-version", DefaultValue = "any", WinboxLabel = "TLS Version")]
         public TikValue<TlsVersionType?> TlsVersion { get; set; }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: aes256-sha, aes256-gcm-sha384 (or a combination).
         /// Default: aes256-sha
         /// </summary>
-        [TikProperty("ciphers", DefaultValue = "aes256-sha")]
+        [TikProperty("ciphers", DefaultValue = "aes256-sha", WinboxLabel = "Ciphers")]
         public TikValue<string?> Ciphers { get; set; }
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: no, yes, required.
         /// Default: no
         /// </summary>
-        [TikProperty("pfs", DefaultValue = "no")]
+        [TikProperty("pfs", DefaultValue = "no", WinboxLabel = "PFS")]
         public TikValue<string?> Pfs { get; set; }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 443; router default 443, omitted on add when left 0.
         /// </summary>
         // router default 443; omitted on add when left 0
-        [TikProperty("proxy-port")]
+        [TikProperty("proxy-port", WinboxLabel = "Proxy Port")]
         public TikValue<int?> ProxyPort { get; set; }
 
         /// <summary>
@@ -155,14 +155,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 60; router default 60, omitted on add when left 0.
         /// </summary>
         // router default 60; omitted on add when left 0
-        [TikProperty("keepalive-timeout")]
+        [TikProperty("keepalive-timeout", WinboxLabel = "Keepalive Timeout")]
         public TikValue<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the SSTP remote address as a default route.
         /// Default: no
         /// </summary>
-        [TikProperty("add-default-route", DefaultValue = "no")]
+        [TikProperty("add-default-route", DefaultValue = "no", WinboxLabel = "Add Default Route")]
         public TikValue<bool?> AddDefaultRoute { get; set; }
 
         /// <summary>
@@ -170,14 +170,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// (only relevant when <see cref="AddDefaultRoute"/> is <c>true</c>).
         /// </summary>
         // router default 1; omitted on add when left 0
-        [TikProperty("default-route-distance")]
+        [TikProperty("default-route-distance", WinboxLabel = "Default Route Distance")]
         public TikValue<int?> DefaultRouteDistance { get; set; }
 
         /// <summary>
         /// dial-on-demand — when <c>true</c> the tunnel connects only when outbound traffic is generated.
         /// Default: no
         /// </summary>
-        [TikProperty("dial-on-demand", DefaultValue = "no")]
+        [TikProperty("dial-on-demand", DefaultValue = "no", WinboxLabel = "Dial On Demand")]
         public TikValue<bool?> DialOnDemand { get; set; }
 
         /// <summary>
@@ -185,7 +185,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1460 (wiki); router returns 1500 on fresh entry, omitted on add when left 0.
         /// </summary>
         // router default 1500; omitted on add when left 0
-        [TikProperty("max-mtu")]
+        [TikProperty("max-mtu", WinboxLabel = "Max MTU")]
         public TikValue<int?> MaxMtu { get; set; }
 
         /// <summary>
@@ -201,14 +201,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid range: 512–65535 or the literal string "disabled".
         /// Default: disabled
         /// </summary>
-        [TikProperty("mrru", DefaultValue = "disabled")]
+        [TikProperty("mrru", DefaultValue = "disabled", WinboxLabel = "MRRU")]
         public TikValue<string?> Mrru { get; set; }
 
         /// <summary>
         /// add-sni — when <c>true</c> the client sends the Server Name Indication TLS extension.
         /// Default: no
         /// </summary>
-        [TikProperty("add-sni", DefaultValue = "no")]
+        [TikProperty("add-sni", DefaultValue = "no", WinboxLabel = "Add SNI")]
         public TikValue<bool?> AddSni { get; set; }
 
         /// <summary>comment — optional description of the client interface entry.</summary>
@@ -220,7 +220,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// running — <c>true</c> when the SSTP tunnel is currently established and passing traffic.
         /// </summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>

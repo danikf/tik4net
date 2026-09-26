@@ -21,13 +21,13 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// list — name of the interface list this membership belongs to (see <see cref="InterfaceList.Name"/>).
         /// </summary>
-        [TikProperty("list")]
+        [TikProperty("list", WinboxLabel = "List")]
         public TikValue<string?> List { get; set; }
 
         /// <summary>
         /// interface — name of the interface added to the list.
         /// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>

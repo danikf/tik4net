@@ -70,7 +70,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Action"
         /// <seealso cref="WifiProvisioningAction"/>
         /// </summary>
-        [TikProperty("action", DefaultValue = "none")]
+        [TikProperty("action", DefaultValue = "none", WinboxLabel = "Action")]
         public TikValue<WifiProvisioningAction?> Action { get; set; }
 
         // ── Radio matchers ────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Set to "00:00:00:00:00:00" or leave empty to match any radio.
         /// WinBox: "Radio MAC"
         /// </summary>
-        [TikProperty("radio-mac", DefaultValue = "")]
+        [TikProperty("radio-mac", DefaultValue = "", WinboxLabel = "Radio MAC")]
         public TikValue<string?> RadioMac { get; set; }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// identity (from /system/identity name).  Leave empty to match any identity.
         /// WinBox: "Identity Regexp"
         /// </summary>
-        [TikProperty("identity-regexp", DefaultValue = "")]
+        [TikProperty("identity-regexp", DefaultValue = "", WinboxLabel = "Identity Regexp")]
         public TikValue<string?> IdentityRegexp { get; set; }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// common name found in /interface/wifi/radio.  Leave empty to match any CN.
         /// WinBox: "Common Name Regexp"
         /// </summary>
-        [TikProperty("common-name-regexp", DefaultValue = "")]
+        [TikProperty("common-name-regexp", DefaultValue = "", WinboxLabel = "Common Name Regexp")]
         public TikValue<string?> CommonNameRegexp { get; set; }
 
         /// <summary>
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to match any band combination.
         /// WinBox: "Supported Bands"
         /// </summary>
-        [TikProperty("supported-bands", DefaultValue = "")]
+        [TikProperty("supported-bands", DefaultValue = "", WinboxLabel = "Supported Bands")]
         public TikValue<string?> SupportedBands { get; set; }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to match any address.
         /// WinBox: "Address Ranges"
         /// </summary>
-        [TikProperty("address-ranges", DefaultValue = "")]
+        [TikProperty("address-ranges", DefaultValue = "", WinboxLabel = "Address Ranges")]
         public TikValue<string?> AddressRanges { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
@@ -130,7 +130,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// create-dynamic-enabled.
         /// WinBox: "Master Configuration"
         /// </summary>
-        [TikProperty("master-configuration", DefaultValue = "")]
+        [TikProperty("master-configuration", DefaultValue = "", WinboxLabel = "Master Configuration")]
         public TikValue<string?> MasterConfiguration { get; set; }
 
         /// <summary>
@@ -139,7 +139,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// the matched radio.  Leave empty for no slave interfaces.
         /// WinBox: "Slave Configurations"
         /// </summary>
-        [TikProperty("slave-configurations", DefaultValue = "")]
+        [TikProperty("slave-configurations", DefaultValue = "", WinboxLabel = "Slave Configurations")]
         public TikValue<string?> SlaveConfigurations { get; set; }
 
         // ── Naming ────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to use the router default ("cap-wifi").
         /// WinBox: "Name Format"
         /// </summary>
-        [TikProperty("name-format", DefaultValue = "")]
+        [TikProperty("name-format", DefaultValue = "", WinboxLabel = "Name Format")]
         public TikValue<string?> NameFormat { get; set; }
 
         /// <summary>
@@ -162,7 +162,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to use the router default.
         /// WinBox: "Slave Name Format"
         /// </summary>
-        [TikProperty("slave-name-format", DefaultValue = "")]
+        [TikProperty("slave-name-format", DefaultValue = "", WinboxLabel = "Slave Name Format")]
         public TikValue<string?> SlaveNameFormat { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────

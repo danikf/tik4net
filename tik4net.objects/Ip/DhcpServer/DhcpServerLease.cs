@@ -31,7 +31,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// address: Specify IP address (or ip pool) for static lease. If set to 0.0.0.0 - pool from server will be used
         /// </summary>
-        [TikProperty("address")]
+        [TikProperty("address", WinboxLabel = "Address")]
         public TikValue<string?> Address { get; set; }
 
         /// <summary>
@@ -43,37 +43,37 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// always-broadcast: Send all replies as broadcasts
         /// </summary>
-        [TikProperty("always-broadcast")]
+        [TikProperty("always-broadcast", WinboxLabel = "Always Broadcast")]
         public TikValue<bool?> AlwaysBroadcast { get; set; }
 
         /// <summary>
         /// block-access: Block access for this client
         /// </summary>
-        [TikProperty("block-access", DefaultValue = "no")]
+        [TikProperty("block-access", DefaultValue = "no", WinboxLabel = "Block Access")]
         public TikValue<bool?> BlockAccess { get; set; }
 
         /// <summary>
         /// client-id: If specified, must match DHCP 'client identifier' option of the request
         /// </summary>
-        [TikProperty("client-id")]
+        [TikProperty("client-id", WinboxLabel = "Client ID")]
         public TikValue<string?> ClientId { get; set; }
 
         /// <summary>
         /// lease-time: Time that the client may use the address. If set to TimeSpan.Min lease will never expire.
         /// </summary>
-        [TikProperty("lease-time", DefaultValue = "0s")]
+        [TikProperty("lease-time", DefaultValue = "0s", WinboxLabel = "Lease Time")]
         public TikValue<TimeSpan?> LeaseTime { get; set; }
 
         /// <summary>
         /// mac-address: If specified, must match the MAC address of the client
         /// </summary>
-        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
+        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
         /// src-mac-address: Source MAC address
         /// </summary>
-        [TikProperty("src-mac-address")]
+        [TikProperty("src-mac-address", WinboxLabel = "Src. MAC Address")]
         public TikValue<string?> SrcMacAddress { get; set; }
 
         /// <summary>
@@ -85,37 +85,37 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// active-address: Actual IP address for this lease
         /// </summary>
-        [TikProperty("active-address", IsReadOnly = true)]
+        [TikProperty("active-address", IsReadOnly = true, WinboxLabel = "Active Address")]
         public TikValue<string?> ActiveAddress { get; private set; }
 
         /// <summary>
         /// active-client-id: Actual client-id of the client
         /// </summary>
-        [TikProperty("active-client-id", IsReadOnly = true)]
+        [TikProperty("active-client-id", IsReadOnly = true, WinboxLabel = "Active Client ID")]
         public TikValue<string?> ActiveClientId { get; private set; }
 
         /// <summary>
         /// active-mac-address: Actual MAC address of the client
         /// </summary>
-        [TikProperty("active-mac-address", IsReadOnly = true)]
+        [TikProperty("active-mac-address", IsReadOnly = true, WinboxLabel = "Active MAC Address")]
         public TikValue<string?> ActiveMacAddress { get; private set; }
 
         /// <summary>
         /// active-server: Actual dhcp server, which serves this client
         /// </summary>
-        [TikProperty("active-server", IsReadOnly = true)]
+        [TikProperty("active-server", IsReadOnly = true, WinboxLabel = "Active Server")]
         public TikValue<string?> ActiveServer { get; private set; }
 
         /// <summary>
         /// agent-circuit-id: Circuit ID of DHCP relay agent. If each character should be valid ASCII text symbol or else this value is displayed as hex dump.
         /// </summary>
-        [TikProperty("agent-circuit-id", IsReadOnly = true)]
+        [TikProperty("agent-circuit-id", IsReadOnly = true, WinboxLabel = "Agent Circuit Id")]
         public TikValue<string?> AgentCircuitId { get; private set; }
 
         /// <summary>
         /// agent-remote-id: Remote ID, set by DHCP relay agent
         /// </summary>
-        [TikProperty("agent-remote-id", IsReadOnly = true)]
+        [TikProperty("agent-remote-id", IsReadOnly = true, WinboxLabel = "Agent Remote Id")]
         public TikValue<string?> AgentRemoteId { get; private set; }
 
         /// <summary>
@@ -127,7 +127,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// expires-after: Time until lease expires
         /// </summary>
-        [TikProperty("expires-after", IsReadOnly = true)]
+        [TikProperty("expires-after", IsReadOnly = true, WinboxLabel = "Expires After")]
         public TikValue<TimeSpan?> ExpiresAfter { get; private set; }
 
         /// <summary>
@@ -139,19 +139,19 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// radius: Shows if this dynamic lease is authenticated by RADIUS or not
         /// </summary>
-        [TikProperty("radius", IsReadOnly = true)]
+        [TikProperty("radius", IsReadOnly = true, WinboxLabel = "radius")]
         public TikValue<bool?> Radius { get; private set; }
 
         /// <summary>
         /// rate-limit: Sets rate limit for active lease. Format is: rx-rate[/tx-rate] [rx-burst-rate[/tx-burst-rate] [rx-burst-threshold[/tx-burst-threshold] [rx-burst-time[/tx-burst-time]]]]. All rates should be numbers with optional 'k' (1,000s) or 'M' (1,000,000s). If tx-rate is not specified, rx-rate is as tx-rate too. Same goes for tx-burst-rate and tx-burst-threshold and tx-burst-time. If both rx-burst-threshold and tx-burst-threshold are not specified (but burst-rate is specified), rx-rate and tx-rate is used as burst thresholds. If both rx-burst-time and tx-burst-time are not specified, 1s is used as default
         /// </summary>
-        [TikProperty("rate-limit", IsReadOnly = true)]
+        [TikProperty("rate-limit", IsReadOnly = true, WinboxLabel = "Rate Limit")]
         public TikValue<string?> RateLimit { get; private set; }
 
         /// <summary>
         /// server: Server name which serves this client
         /// </summary>
-        [TikProperty("server", IsReadOnly = true)]
+        [TikProperty("server", IsReadOnly = true, WinboxLabel = "Server")]
         public TikValue<string?> Server { get; private set; }
 
         /// <summary>
@@ -167,7 +167,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         ///        
         ///     
         /// </summary>
-        [TikProperty("status", IsReadOnly = true)]
+        [TikProperty("status", IsReadOnly = true, WinboxLabel = "Status")]
         public TikValue<string?> Status { get; private set; }
 
         /// <summary>

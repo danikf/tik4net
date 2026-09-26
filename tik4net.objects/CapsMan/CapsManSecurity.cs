@@ -58,7 +58,7 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// name — unique name for this security profile; referenced by /caps-man/configuration.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         // ── Authentication ────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ namespace tik4net.Objects.CapsMan
         /// Possible values: wpa-psk, wpa2-psk, wpa-eap, wpa2-eap.
         /// Empty string means open (no authentication).
         /// </summary>
-        [TikProperty("authentication-types")]
+        [TikProperty("authentication-types", WinboxLabel = "Authentication Type")]
         public TikValue<string?> AuthenticationTypes { get; set; }
 
         // ── Unicast encryption ────────────────────────────────────────────────
@@ -77,7 +77,7 @@ namespace tik4net.Objects.CapsMan
         /// encryption — comma-separated list of accepted unicast frame cipher algorithms.
         /// Possible values: aes-ccm, tkip. Empty means no explicit override.
         /// </summary>
-        [TikProperty("encryption")]
+        [TikProperty("encryption", WinboxLabel = "Encryption")]
         public TikValue<string?> Encryption { get; set; }
 
         // ── Group (broadcast/multicast) encryption ────────────────────────────
@@ -88,7 +88,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: aes-ccm.
         /// <seealso cref="GroupEncryptionType"/>
         /// </summary>
-        [TikProperty("group-encryption", DefaultValue = "aes-ccm")]
+        [TikProperty("group-encryption", DefaultValue = "aes-ccm", WinboxLabel = "Group Encryption")]
         public TikValue<GroupEncryptionType?> GroupEncryption { get; set; }
 
         // ── Key management ────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ namespace tik4net.Objects.CapsMan
         /// group-key-update — interval at which the group cipher key is rotated (30s..1h).
         /// Default: 5m.
         /// </summary>
-        [TikProperty("group-key-update", DefaultValue = "5m")]
+        [TikProperty("group-key-update", DefaultValue = "5m", WinboxLabel = "Group Key Update")]
         public TikValue<TikDuration?> GroupKeyUpdate { get; set; }
 
         // ── PSK ───────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ namespace tik4net.Objects.CapsMan
         /// passphrase — WPA/WPA2 pre-shared key (PSK) used with wpa-psk / wpa2-psk authentication.
         /// 8–63 ASCII characters, or 64 hex digits for a raw PMK.
         /// </summary>
-        [TikProperty("passphrase", IsSensitive = true)]
+        [TikProperty("passphrase", IsSensitive = true, WinboxLabel = "Passphrase")]
         public TikValue<string?> Passphrase { get; set; }
 
         // ── EAP ───────────────────────────────────────────────────────────────
@@ -116,14 +116,14 @@ namespace tik4net.Objects.CapsMan
         /// Possible values: eap-tls, passthrough (relay to RADIUS).
         /// Empty means no EAP (PSK only).
         /// </summary>
-        [TikProperty("eap-methods")]
+        [TikProperty("eap-methods", WinboxLabel = "EAP Methods")]
         public TikValue<string?> EapMethods { get; set; }
 
         /// <summary>
         /// eap-radius-accounting — when true, RADIUS accounting messages are sent for EAP-authenticated clients.
         /// Default: no.
         /// </summary>
-        [TikProperty("eap-radius-accounting", DefaultValue = "no")]
+        [TikProperty("eap-radius-accounting", DefaultValue = "no", WinboxLabel = "EAP Radius Accounting")]
         public TikValue<bool?> EapRadiusAccounting { get; set; }
 
         // ── TLS / certificates ────────────────────────────────────────────────
@@ -135,14 +135,14 @@ namespace tik4net.Objects.CapsMan
         /// Empty string means the field is not configured (use only when EAP-TLS is active).
         /// <seealso cref="TlsModeType"/>
         /// </summary>
-        [TikProperty("tls-mode")]
+        [TikProperty("tls-mode", WinboxLabel = "TLS Mode")]
         public TikValue<string?> TlsMode { get; set; }
 
         /// <summary>
         /// tls-certificate — name of the certificate (from /certificate) presented by the AP
         /// during EAP-TLS authentication. Use "none" to disable certificate use.
         /// </summary>
-        [TikProperty("tls-certificate")]
+        [TikProperty("tls-certificate", WinboxLabel = "TLS Certificate")]
         public TikValue<string?> TlsCertificate { get; set; }
 
         // ── PMKID ─────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ namespace tik4net.Objects.CapsMan
         /// prevents certain brute-force attacks against the 4-way handshake.
         /// Default: no.
         /// </summary>
-        [TikProperty("disable-pmkid", DefaultValue = "no")]
+        [TikProperty("disable-pmkid", DefaultValue = "no", WinboxLabel = "Disable PMKID")]
         public TikValue<bool?> DisablePmkid { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ namespace tik4net.Objects.System
         /// Kept as a plain string because MikroTik accepts composite values and topic names
         /// can vary by RouterOS version.
         /// </summary>
-        [TikProperty("topics")]
+        [TikProperty("topics", WinboxLabel = "Topics")]
         public TikValue<string?> Topics { get; set; }
 
         /// <summary>
@@ -34,21 +34,21 @@ namespace tik4net.Objects.System
         /// messages matching <see cref="Topics"/>. Common built-in action names: <c>memory</c>,
         /// <c>disk</c>, <c>echo</c>, <c>remote</c>.
         /// </summary>
-        [TikProperty("action")]
+        [TikProperty("action", WinboxLabel = "Action")]
         public TikValue<string?> Action { get; set; }
 
         /// <summary>
         /// prefix — text prepended to every log message that matches this rule.
         /// Empty string means no prefix.
         /// </summary>
-        [TikProperty("prefix", DefaultValue = "")]
+        [TikProperty("prefix", DefaultValue = "", WinboxLabel = "Prefix")]
         public TikValue<string?> Prefix { get; set; }
 
         /// <summary>
         /// regex — optional POSIX regular expression; only messages whose text matches
         /// this pattern are forwarded. Empty string disables filtering by regex.
         /// </summary>
-        [TikProperty("regex", DefaultValue = "")]
+        [TikProperty("regex", DefaultValue = "", WinboxLabel = "Regex")]
         public TikValue<string?> Regex { get; set; }
 
         /// <summary>

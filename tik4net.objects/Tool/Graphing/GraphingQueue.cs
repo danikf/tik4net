@@ -18,19 +18,19 @@ namespace tik4net.Objects.Tool.Graphing
         public string? Id { get; private set; }
 
         /// <summary>simple-queue — name of the simple queue to graph. Use "all" to graph every queue.</summary>
-        [TikProperty("simple-queue", DefaultValue = "all")]
+        [TikProperty("simple-queue", DefaultValue = "all", WinboxLabel = "Simple Queue")]
         public TikValue<string?> SimpleQueue { get; set; }
 
         /// <summary>allow-address — IP address or prefix allowed to retrieve the graph (e.g. "0.0.0.0/0"). Empty means unrestricted.</summary>
-        [TikProperty("allow-address")]
+        [TikProperty("allow-address", WinboxLabel = "Allow Address")]
         public TikValue<string?> AllowAddress { get; set; }
 
         /// <summary>allow-target — when yes, the queue target address range may also view the graph in addition to the allow-address. Default: yes.</summary>
-        [TikProperty("allow-target", DefaultValue = "yes")]
+        [TikProperty("allow-target", DefaultValue = "yes", WinboxLabel = "Allow Target")]
         public TikValue<bool?> AllowTarget { get; set; }
 
         /// <summary>store-on-disk — when yes, collected queue data is saved to the router's disk. Default: yes.</summary>
-        [TikProperty("store-on-disk", DefaultValue = "yes")]
+        [TikProperty("store-on-disk", DefaultValue = "yes", WinboxLabel = "Store on Disk")]
         public TikValue<bool?> StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>

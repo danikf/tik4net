@@ -125,8 +125,15 @@ namespace tik4net.integrationtests
                                 if (p.WinboxLabel == suggested) nLabelOk++;
                                 else
                                 {
+                                    // What the declared label does on THIS version: nothing (the catalog lacks it, so the
+                                    // heuristic decides), or a CONFLICT - it names another field, and the native
+                                    // transport would read and write that one instead.
+                                    var hint = WinboxFieldResolver.ParseLabelHints(p.FieldName + "=" + p.WinboxLabel);
+                                    string hinted = hint != null && hint.TryGetValue(p.FieldName, out string n) ? n : null;
+                                    bool conflict = hinted != null && byName.TryGetValue(hinted, out var other) && other.Field.Key != field.Key;
                                     nLabelIssue++;
-                                    labelIssues.AppendLine($"{label} {p.FieldName}: attribute label {Quote(p.WinboxLabel)}, catalog {Quote(suggested)}");
+                                    labelIssues.AppendLine($"{(conflict ? "CONFLICT" : "ignored")} {label} {p.FieldName}: attribute label "
+                                        + $"{Quote(p.WinboxLabel)}, catalog {Quote(suggested)}");
                                 }
                             }
                         }

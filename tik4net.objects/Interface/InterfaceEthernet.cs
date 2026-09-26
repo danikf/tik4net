@@ -26,7 +26,7 @@ namespace tik4net.Objects.Interface
         ///  proxy-arp - the interface will use the ARP proxy feature
         ///  reply-only - the interface will only reply to requests originated from matching IP address/MAC address combinations which are entered as static entries in the  ARP table. No dynamic entries will be automatically stored in the ARP table. Therefore for communications to be successful, a valid static entry must already exist.
         /// </summary>
-        [TikProperty("arp", DefaultValue = "enabled")]
+        [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
         public TikValue<string?> Arp { get; set; }
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace tik4net.Objects.Interface
         /// so this property carries the setting on every transport.
         /// </para>
         /// </summary>
-        [TikProperty("auto-negotiation", DefaultValue = "yes")]
+        [TikProperty("auto-negotiation", DefaultValue = "yes", WinboxLabel = "autoneg")]
         public TikValue<bool?> AutoNegotiation { get; set; }
 
         /// <summary>
@@ -119,7 +119,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// full-duplex: Defines whether the transmission of data appears in two directions simultaneously
         /// </summary>
-        [TikProperty("full-duplex", DefaultValue = "yes")]
+        [TikProperty("full-duplex", DefaultValue = "yes", WinboxLabel = "Full Duplex")]
         public TikValue<bool?> FullDuplex { get; set; }
 
         /// <summary>
@@ -127,13 +127,13 @@ namespace tik4net.Objects.Interface
         /// 
         /// integer [0..65536]
         /// </summary>
-        [TikProperty("l2mtu")]
+        [TikProperty("l2mtu", WinboxLabel = "L2 MTU")]
         public TikValue<int?> L2mtu { get; set; }
 
         /// <summary>
         /// mac-address: Media Access Control number of an interface.
         /// </summary>
-        [TikProperty("mac-address")]
+        [TikProperty("mac-address", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
@@ -153,13 +153,13 @@ namespace tik4net.Objects.Interface
         /// 
         /// integer [0..65536]
         /// </summary>
-        [TikProperty("mtu", DefaultValue = "1500")]
+        [TikProperty("mtu", DefaultValue = "1500", WinboxLabel = "MTU")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>
         /// name: Name of an interface
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -173,13 +173,13 @@ namespace tik4net.Objects.Interface
         /// 
         /// auto-on | forced-on | off
         /// </summary>
-        [TikProperty("poe-out", DefaultValue = "off")]
+        [TikProperty("poe-out", DefaultValue = "off", WinboxLabel = "PoE Out")]
         public TikValue<string?> PoeOut { get; set; }
 
         /// <summary>
         /// poe-priority: Poe Out settings.  Read more &gt;&gt;
         /// </summary>
-        [TikProperty("poe-priority")]
+        [TikProperty("poe-priority", WinboxLabel = "PoE Priority")]
         public TikValue<string?> PoePriority { get; set; }
 
         /// <summary>
@@ -193,103 +193,103 @@ namespace tik4net.Objects.Interface
         /// 
         /// 10Mbps | 10Gbps | 100Mbps | 1Gbps
         /// </summary>
-        [TikProperty("speed")]
+        [TikProperty("speed", WinboxLabel = "Speed")]
         public TikValue<string?> Speed { get; set; }
 
         /// <summary>
         /// running: Whether interface is running. Note that some interface does not have running check and they are always reported as "running"
         /// </summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>
         /// rx-1024-1518: Total count of received 1024 to 1518 byte packets
         /// </summary>
-        [TikProperty("rx-1024-1518", IsReadOnly = true)]
+        [TikProperty("rx-1024-1518", IsReadOnly = true, WinboxLabel = "Rx 1024-1518")]
         public TikValue<int?> Rx10241518 { get; private set; }
 
         /// <summary>
         /// rx-128-255: Total count of received 128 to 255 byte packets
         /// </summary>
-        [TikProperty("rx-128-255", IsReadOnly = true)]
+        [TikProperty("rx-128-255", IsReadOnly = true, WinboxLabel = "Rx 128-255")]
         public TikValue<int?> Rx128255 { get; private set; }
 
         /// <summary>
         /// rx-1519-max: Total count of received packets larger than 1519 bytes
         /// </summary>
-        [TikProperty("rx-1519-max", IsReadOnly = true)]
+        [TikProperty("rx-1519-max", IsReadOnly = true, WinboxLabel = "Rx 1519-max")]
         public TikValue<int?> Rx1519Max { get; private set; }
 
         /// <summary>
         /// rx-256-511: Total count of received 256 to 511 byte packets
         /// </summary>
-        [TikProperty("rx-256-511", IsReadOnly = true)]
+        [TikProperty("rx-256-511", IsReadOnly = true, WinboxLabel = "Rx 256-511")]
         public TikValue<int?> Rx256511 { get; private set; }
 
         /// <summary>
         /// rx-512-1023: Total count of received 512 to 1023 byte packets
         /// </summary>
-        [TikProperty("rx-512-1023", IsReadOnly = true)]
+        [TikProperty("rx-512-1023", IsReadOnly = true, WinboxLabel = "Rx 512-1023")]
         public TikValue<int?> Rx5121023 { get; private set; }
 
         /// <summary>
         /// rx-64: Total count of received 64 byte packets
         /// </summary>
-        [TikProperty("rx-64", IsReadOnly = true)]
+        [TikProperty("rx-64", IsReadOnly = true, WinboxLabel = "Rx 64")]
         public TikValue<int?> Rx64 { get; private set; }
 
         /// <summary>
         /// rx-65-127: Total count of received 65 to 127 byte packets
         /// </summary>
-        [TikProperty("rx-65-127", IsReadOnly = true)]
+        [TikProperty("rx-65-127", IsReadOnly = true, WinboxLabel = "Rx 65-127")]
         public TikValue<int?> Rx65127 { get; private set; }
 
         /// <summary>
         /// rx-align-error: Total count of received align error messages
         /// </summary>
-        [TikProperty("rx-align-error", IsReadOnly = true)]
+        [TikProperty("rx-align-error", IsReadOnly = true, WinboxLabel = "Rx Align Error")]
         public TikValue<int?> RxAlignError { get; private set; }
 
         /// <summary>
         /// rx-broadcast: Total count of received broadcast packets
         /// </summary>
-        [TikProperty("rx-broadcast", IsReadOnly = true)]
+        [TikProperty("rx-broadcast", IsReadOnly = true, WinboxLabel = "Rx Broadcast")]
         public TikValue<int?> RxBroadcast { get; private set; }
 
         /// <summary>
         /// rx-bytes: Total count of received bytes
         /// </summary>
-        [TikProperty("rx-bytes", IsReadOnly = true)]
+        [TikProperty("rx-bytes", IsReadOnly = true, WinboxLabel = "Rx Bytes")]
         public TikValue<long?> RxBytes { get; private set; }
 
         /// <summary>
         /// rx-fcs-error: Total count of received frames with incorrect checksum
         /// </summary>
-        [TikProperty("rx-fcs-error", IsReadOnly = true)]
+        [TikProperty("rx-fcs-error", IsReadOnly = true, WinboxLabel = "Rx FCS Error")]
         public TikValue<int?> RxFcsError { get; private set; }
 
         /// <summary>
         /// rx-fragment: Total count of received fragmented frames
         /// </summary>
-        [TikProperty("rx-fragment", IsReadOnly = true)]
+        [TikProperty("rx-fragment", IsReadOnly = true, WinboxLabel = "Rx Fragment")]
         public TikValue<int?> RxFragment { get; private set; }
 
         /// <summary>
         /// rx-multicast: Total count of received multicast packets
         /// </summary>
-        [TikProperty("rx-multicast", IsReadOnly = true)]
+        [TikProperty("rx-multicast", IsReadOnly = true, WinboxLabel = "Rx Multicast")]
         public TikValue<int?> RxMulticast { get; private set; }
 
         /// <summary>
         /// rx-overflow: Total count of received overflowed packets
         /// </summary>
-        [TikProperty("rx-overflow", IsReadOnly = true)]
+        [TikProperty("rx-overflow", IsReadOnly = true, WinboxLabel = "Rx Overflow")]
         public TikValue<int?> RxOverflow { get; private set; }
 
         /// <summary>
         /// rx-pause: Total count of received pause frames
         /// </summary>
-        [TikProperty("rx-pause", IsReadOnly = true)]
+        [TikProperty("rx-pause", IsReadOnly = true, WinboxLabel = "Rx Pause")]
         public TikValue<int?> RxPause { get; private set; }
 
         /// <summary>
@@ -303,13 +303,13 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// rx-too-long: Total count of received packets that were larger than the maximum packet size
         /// </summary>
-        [TikProperty("rx-too-long", IsReadOnly = true)]
+        [TikProperty("rx-too-long", IsReadOnly = true, WinboxLabel = "Rx Too Long")]
         public TikValue<int?> RxTooLong { get; private set; }
 
         /// <summary>
         /// slave: Whether interface is configured as a slave of another interface (for example Bonding)
         /// </summary>
-        [TikProperty("slave", IsReadOnly = true)]
+        [TikProperty("slave", IsReadOnly = true, WinboxLabel = "slave")]
         public TikValue<bool?> Slave { get; private set; }
 
         /// <summary>
@@ -321,43 +321,43 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// tx-1024-1518: Total count of transmitted 1024 to 1518 byte packets
         /// </summary>
-        [TikProperty("tx-1024-1518", IsReadOnly = true)]
+        [TikProperty("tx-1024-1518", IsReadOnly = true, WinboxLabel = "Tx 1024-1518")]
         public TikValue<int?> Tx10241518 { get; private set; }
 
         /// <summary>
         /// tx-128-255: Total count of transmitted 128 to 255 byte packets
         /// </summary>
-        [TikProperty("tx-128-255", IsReadOnly = true)]
+        [TikProperty("tx-128-255", IsReadOnly = true, WinboxLabel = "Tx 128-255")]
         public TikValue<int?> Tx128255 { get; private set; }
 
         /// <summary>
         /// tx-1519-max: Total count of transmitted packets larger than 1519 bytes
         /// </summary>
-        [TikProperty("tx-1519-max", IsReadOnly = true)]
+        [TikProperty("tx-1519-max", IsReadOnly = true, WinboxLabel = "Tx 1519-max")]
         public TikValue<int?> Tx1519Max { get; private set; }
 
         /// <summary>
         /// tx-256-511: Total count of transmitted 256 to 511 byte packets
         /// </summary>
-        [TikProperty("tx-256-511", IsReadOnly = true)]
+        [TikProperty("tx-256-511", IsReadOnly = true, WinboxLabel = "Tx 256-511")]
         public TikValue<int?> Tx256511 { get; private set; }
 
         /// <summary>
         /// tx-512-1023: Total count of transmitted 512 to 1023 byte packets
         /// </summary>
-        [TikProperty("tx-512-1023", IsReadOnly = true)]
+        [TikProperty("tx-512-1023", IsReadOnly = true, WinboxLabel = "Tx 512-1023")]
         public TikValue<int?> Tx5121023 { get; private set; }
 
         /// <summary>
         /// tx-64: Total count of transmitted 64 byte packets
         /// </summary>
-        [TikProperty("tx-64", IsReadOnly = true)]
+        [TikProperty("tx-64", IsReadOnly = true, WinboxLabel = "Tx 64")]
         public TikValue<int?> Tx64 { get; private set; }
 
         /// <summary>
         /// tx-65-127: Total count of transmitted 65 to 127 byte packets
         /// </summary>
-        [TikProperty("tx-65-127", IsReadOnly = true)]
+        [TikProperty("tx-65-127", IsReadOnly = true, WinboxLabel = "Tx 65-127")]
         public TikValue<int?> Tx65127 { get; private set; }
 
         /// <summary>
@@ -369,31 +369,31 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// tx-broadcast: Total count of transmitted broadcast packets
         /// </summary>
-        [TikProperty("tx-broadcast", IsReadOnly = true)]
+        [TikProperty("tx-broadcast", IsReadOnly = true, WinboxLabel = "Tx Broadcast")]
         public TikValue<int?> TxBroadcast { get; private set; }
 
         /// <summary>
         /// tx-bytes: Total count of transmitted bytes
         /// </summary>
-        [TikProperty("tx-bytes", IsReadOnly = true)]
+        [TikProperty("tx-bytes", IsReadOnly = true, WinboxLabel = "Tx Bytes")]
         public TikValue<long?> TxBytes { get; private set; }
 
         /// <summary>
         /// tx-fcs-error: Total count of transmitted frames with incorrect checksum
         /// </summary>
-        [TikProperty("tx-fcs-error", IsReadOnly = true)]
+        [TikProperty("tx-fcs-error", IsReadOnly = true, WinboxLabel = "Tx FCS Error")]
         public TikValue<int?> TxFcsError { get; private set; }
 
         /// <summary>
         /// tx-fragment: Total count of transmitted fragmented frames
         /// </summary>
-        [TikProperty("tx-fragment", IsReadOnly = true)]
+        [TikProperty("tx-fragment", IsReadOnly = true, WinboxLabel = "Tx Fragment")]
         public TikValue<int?> TxFragment { get; private set; }
 
         /// <summary>
         /// tx-multicast: Total count of transmitted multicast packets
         /// </summary>
-        [TikProperty("tx-multicast", IsReadOnly = true)]
+        [TikProperty("tx-multicast", IsReadOnly = true, WinboxLabel = "Tx Multicast")]
         public TikValue<int?> TxMulticast { get; private set; }
 
         /// <summary>
@@ -405,7 +405,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// tx-pause: Total count of transmitted pause frames
         /// </summary>
-        [TikProperty("tx-pause", IsReadOnly = true)]
+        [TikProperty("tx-pause", IsReadOnly = true, WinboxLabel = "Tx Pause")]
         public TikValue<int?> TxPause { get; private set; }
 
         /// <summary>

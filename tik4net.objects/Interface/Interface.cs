@@ -20,7 +20,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// name: interface identifier used in commands and configuration.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// mtu
         /// </summary>
-        [TikProperty("mtu")]
+        [TikProperty("mtu", WinboxLabel = "MTU")]
         public TikValue<string?> Mtu { get; set; }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace tik4net.Objects.Interface
         /// (<c>comment disabled l2mtu mtu name numbers</c>, RouterOS 7.23); most interface kinds report it
         /// read-only and refuse a change, which the router answers with a trap rather than silence.
         /// </summary>
-        [TikProperty("l2mtu")]
+        [TikProperty("l2mtu", WinboxLabel = "L2 MTU")]
         public TikValue<string?> L2Mtu { get; set; }
 
         /// <summary>
@@ -70,55 +70,55 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// rx-byte: total bytes received on the interface.
         /// </summary>
-        [TikProperty("rx-byte", IsReadOnly = true)]
+        [TikProperty("rx-byte", IsReadOnly = true, WinboxLabel = "Rx Bytes")]
         public TikValue<long?> RxByte { get; private set; }
 
         /// <summary>
         /// tx-byte: total bytes transmitted on the interface.
         /// </summary>
-        [TikProperty("tx-byte", IsReadOnly = true)]
+        [TikProperty("tx-byte", IsReadOnly = true, WinboxLabel = "Tx Bytes")]
         public TikValue<long?> TxByte { get; private set; }
 
         /// <summary>
         /// rx-packet: number of packets received on the interface.
         /// </summary>
-        [TikProperty("rx-packet", IsReadOnly = true)]
+        [TikProperty("rx-packet", IsReadOnly = true, WinboxLabel = "Rx Packets")]
         public TikValue<long?> RxPacket { get; private set; }
 
         /// <summary>
         /// tx-packet: total packets transmitted through the interface.
         /// </summary>
-        [TikProperty("tx-packet", IsReadOnly = true)]
+        [TikProperty("tx-packet", IsReadOnly = true, WinboxLabel = "Tx Packets")]
         public TikValue<long?> TxPacket { get; private set; }
 
         /// <summary>
         /// rx-drop
         /// </summary>
-        [TikProperty("rx-drop", IsReadOnly = true)]
+        [TikProperty("rx-drop", IsReadOnly = true, WinboxLabel = "Rx Drops")]
         public TikValue<long?> RxDrop { get; private set; }
 
         /// <summary>
         /// tx-drop: number of packets dropped by the interface transmit queue.
         /// </summary>
-        [TikProperty("tx-drop", IsReadOnly = true)]
+        [TikProperty("tx-drop", IsReadOnly = true, WinboxLabel = "Tx Drops")]
         public TikValue<long?> TxDrop { get; private set; }
 
         /// <summary>
         /// rx-error
         /// </summary>
-        [TikProperty("rx-error", IsReadOnly = true)]
+        [TikProperty("rx-error", IsReadOnly = true, WinboxLabel = "Rx Errors")]
         public TikValue<long?> RxError { get; private set; }
 
         /// <summary>
         /// tx-error
         /// </summary>
-        [TikProperty("tx-error", IsReadOnly = true)]
+        [TikProperty("tx-error", IsReadOnly = true, WinboxLabel = "Tx Errors")]
         public TikValue<long?> TxError { get; private set; }
 
         /// <summary>
         /// running: indicates whether the interface is currently active.
         /// </summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>
@@ -137,14 +137,14 @@ namespace tik4net.Objects.Interface
         /// Link last down time. (since 6.43 version) Read-only: it is a measurement, and
         /// <c>/interface set</c> does not accept it (verified by tab completion on RouterOS 7.23).
         /// </summary>
-        [TikProperty("last-link-down-time", IsReadOnly = true)]
+        [TikProperty("last-link-down-time", IsReadOnly = true, WinboxLabel = "Last Link Down Time")]
         public TikValue<string?> LastLinkDownTime { get; private set; }
 
         /// <summary>
         /// Link last up time (since 6.43 version) Read-only: it is a measurement, and
         /// <c>/interface set</c> does not accept it (verified by tab completion on RouterOS 7.23).
         /// </summary>
-        [TikProperty("last-link-up-time", IsReadOnly = true)]
+        [TikProperty("last-link-up-time", IsReadOnly = true, WinboxLabel = "Last Link Up Time")]
         public TikValue<string?> LastLinkUpTime { get; private set; }
     }
 

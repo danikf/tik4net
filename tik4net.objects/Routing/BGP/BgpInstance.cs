@@ -16,19 +16,19 @@ namespace tik4net.Objects.Routing.Bgp
         /// <summary>
         /// Gets or sets the name of this BGP instance.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// Gets or sets the autonomuous system that this instance belongs to.
         /// </summary>
-        [TikProperty("as")]
+        [TikProperty("as", WinboxLabel = "AS")]
         public TikValue<long?> As { get; set; }
 
         /// <summary>
         /// Gets or sets the ID of the router.
         /// </summary>
-        [TikProperty("router-id")]
+        [TikProperty("router-id", WinboxLabel = "IP")]
         public TikValue<string?> RouterId { get; set; }
 
         /// <summary>

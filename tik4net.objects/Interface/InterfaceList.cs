@@ -22,19 +22,19 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// name — name of the interface list.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// include — comma-separated list of other interface lists whose members are included in this list.
         /// </summary>
-        [TikProperty("include")]
+        [TikProperty("include", WinboxLabel = "Include")]
         public TikValue<string?> Include { get; set; }
 
         /// <summary>
         /// exclude — comma-separated list of other interface lists whose members are excluded from this list.
         /// </summary>
-        [TikProperty("exclude")]
+        [TikProperty("exclude", WinboxLabel = "Exclude")]
         public TikValue<string?> Exclude { get; set; }
 
         /// <summary>

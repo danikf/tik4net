@@ -17,85 +17,85 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// enabled: Allows to disable or enable connection tracking. Disabling connection tracking will cause several firewall features to stop working. See the  list of affected features. Starting from v6.0rc2 default value is auto. Which means that connection tracing is disabled until at least one firewall rule is added.
         /// </summary>
-        [TikProperty("enabled", DefaultValue = "auto")]
+        [TikProperty("enabled", DefaultValue = "auto", WinboxLabel = "Enabled")]
         public TikValue<string?> Enabled { get; set; }
 
         /// <summary>
         /// tcp-syn-sent-timeout: TCP SYN timeout.
         /// </summary>
-        [TikProperty("tcp-syn-sent-timeout", DefaultValue = "5s")]
+        [TikProperty("tcp-syn-sent-timeout", DefaultValue = "5s", WinboxLabel = "TCP Syn Sent Timeout")]
         public TikValue<TikDuration?> TcpSynSentTimeout { get; set; }
 
         /// <summary>
         /// tcp-syn-received-timeout: TCP SYN timeout.
         /// </summary>
-        [TikProperty("tcp-syn-received-timeout", DefaultValue = "5s")]
+        [TikProperty("tcp-syn-received-timeout", DefaultValue = "5s", WinboxLabel = "TCP Syn Received Timeout")]
         public TikValue<TikDuration?> TcpSynReceivedTimeout { get; set; }
 
         /// <summary>
         /// tcp-established-timeout: Time when established TCP connection times out.
         /// </summary>
-        [TikProperty("tcp-established-timeout", DefaultValue = "1d")]
+        [TikProperty("tcp-established-timeout", DefaultValue = "1d", WinboxLabel = "TCP Established Timeout")]
         public TikValue<TikDuration?> TcpEstablishedTimeout { get; set; }
 
         /// <summary>
         /// tcp-fin-wait-timeout: 
         /// </summary>
-        [TikProperty("tcp-fin-wait-timeout", DefaultValue = "10s")]
+        [TikProperty("tcp-fin-wait-timeout", DefaultValue = "10s", WinboxLabel = "TCP Fin Wait Timeout")]
         public TikValue<TikDuration?> TcpFinWaitTimeout { get; set; }
 
         /// <summary>
         /// tcp-close-wait-timeout: 
         /// </summary>
-        [TikProperty("tcp-close-wait-timeout", DefaultValue = "10s")]
+        [TikProperty("tcp-close-wait-timeout", DefaultValue = "10s", WinboxLabel = "TCP Close Wait Timeout")]
         public TikValue<TikDuration?> TcpCloseWaitTimeout { get; set; }
 
         /// <summary>
         /// tcp-last-ack-timeout: 
         /// </summary>
-        [TikProperty("tcp-last-ack-timeout", DefaultValue = "10s")]
+        [TikProperty("tcp-last-ack-timeout", DefaultValue = "10s", WinboxLabel = "TCP Last Ack Timeout")]
         public TikValue<TikDuration?> TcpLastAckTimeout { get; set; }
 
         /// <summary>
         /// tcp-time-wait-timeout: 
         /// </summary>
-        [TikProperty("tcp-time-wait-timeout", DefaultValue = "10s")]
+        [TikProperty("tcp-time-wait-timeout", DefaultValue = "10s", WinboxLabel = "TCP Time Wait")]
         public TikValue<TikDuration?> TcpTimeWaitTimeout { get; set; }
 
         /// <summary>
         /// tcp-close-timeout: 
         /// </summary>
-        [TikProperty("tcp-close-timeout", DefaultValue = "10s")]
+        [TikProperty("tcp-close-timeout", DefaultValue = "10s", WinboxLabel = "TCP Close")]
         public TikValue<TikDuration?> TcpCloseTimeout { get; set; }
 
         /// <summary>
         /// udp-timeout: 
         /// </summary>
-        [TikProperty("udp-timeout", DefaultValue = "10s")]
+        [TikProperty("udp-timeout", DefaultValue = "10s", WinboxLabel = "UDP Timeout")]
         public TikValue<TikDuration?> UdpTimeout { get; set; }
 
         /// <summary>
         /// udp-stream-timeout: 
         /// </summary>
-        [TikProperty("udp-stream-timeout", DefaultValue = "3m")]
+        [TikProperty("udp-stream-timeout", DefaultValue = "3m", WinboxLabel = "UDP Stream Timeout")]
         public TikValue<TikDuration?> UdpStreamTimeout { get; set; }
 
         /// <summary>
         /// icmp-timeout: 
         /// </summary>
-        [TikProperty("icmp-timeout", DefaultValue = "10s")]
+        [TikProperty("icmp-timeout", DefaultValue = "10s", WinboxLabel = "ICMP Timeout")]
         public TikValue<TikDuration?> IcmpTimeout { get; set; }
 
         /// <summary>
         /// generic-timeout: Timeout for all other connection entries
         /// </summary>
-        [TikProperty("generic-timeout", DefaultValue = "10m")]
+        [TikProperty("generic-timeout", DefaultValue = "10m", WinboxLabel = "Generic Timeout")]
         public TikValue<TikDuration?> GenericTimeout { get; set; }
 
         /// <summary>
         /// max-entries: Max amount of entries that connection tracking table can hold. This value depends on installed amount of RAM. Note that system does not create maximum size connection tracking table when it starts, maximum entry amount can increase if situation demands it and router still has free ram left.
         /// </summary>
-        [TikProperty("max-entries", IsReadOnly = true)]
+        [TikProperty("max-entries", IsReadOnly = true, WinboxLabel = "Max Entries")]
         public TikValue<int?> MaxEntries { get; private set; }
 
         /// <summary>

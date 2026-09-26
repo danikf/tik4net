@@ -30,7 +30,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// name — peer identifier; used to reference this entry from policies and scripts.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -38,14 +38,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// this prefix the peer configuration is applied.
         /// Default: 0.0.0.0/0 (match any remote address).
         /// </summary>
-        [TikProperty("address", DefaultValue = "0.0.0.0/0")]
+        [TikProperty("address", DefaultValue = "0.0.0.0/0", WinboxLabel = "Address")]
         public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// local-address — router's local IP/IPv6 address to which IKE Phase 1 is bound.
         /// Leave empty to use the address selected by the routing table.
         /// </summary>
-        [TikProperty("local-address")]
+        [TikProperty("local-address", WinboxLabel = "Local Address")]
         public TikValue<string?> LocalAddress { get; set; }
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default on the router is 500 (standard IKE port); 0 here means "not explicitly set"
         /// so the mapper omits the field on add and the router applies its own default.
         /// </summary>
-        [TikProperty("port")]
+        [TikProperty("port", WinboxLabel = "Port")]
         public TikValue<int?> Port { get; set; }
 
         /// <summary>
@@ -61,7 +61,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Phase 1 negotiation.
         /// Default: "default"
         /// </summary>
-        [TikProperty("profile", DefaultValue = "default")]
+        [TikProperty("profile", DefaultValue = "default", WinboxLabel = "Profile")]
         public TikValue<string?> Profile { get; set; }
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: main.
         /// <seealso cref="ExchangeModeType"/>
         /// </summary>
-        [TikProperty("exchange-mode", DefaultValue = "main")]
+        [TikProperty("exchange-mode", DefaultValue = "main", WinboxLabel = "Exchange Mode")]
         public TikValue<ExchangeModeType?> ExchangeMode { get; set; }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// remote side. Disable when the remote peer does not handle this correctly.
         /// Default: yes
         /// </summary>
-        [TikProperty("send-initial-contact", DefaultValue = "yes")]
+        [TikProperty("send-initial-contact", DefaultValue = "yes", WinboxLabel = "Send INITIAL_CONTACT")]
         public TikValue<bool?> SendInitialContact { get; set; }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// peer to initiate IKE; it will not start Phase 1 on its own.
         /// Default: no
         /// </summary>
-        [TikProperty("passive", DefaultValue = "no")]
+        [TikProperty("passive", DefaultValue = "no", WinboxLabel = "Passive")]
         public TikValue<bool?> Passive { get; set; }
 
         /// <summary>

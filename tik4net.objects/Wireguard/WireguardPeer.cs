@@ -20,7 +20,7 @@ namespace tik4net.Objects.Wireguard
         /// <summary>
         /// IP addresses or subnets that are allowed to communicate with that peer
         /// </summary>
-        [TikProperty("allowed-address")]
+        [TikProperty("allowed-address", WinboxLabel = "Allowed Address")]
         public TikValue<string?> AllowedAddress { get; set; }
 
         /// <summary>
@@ -38,31 +38,31 @@ namespace tik4net.Objects.Wireguard
         /// <summary>
         /// Specifies the local network interface that the peer is associated with
         /// </summary>
-        [TikProperty("interface", DefaultValue = "")]
+        [TikProperty("interface", DefaultValue = "", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// shared secret cryptographic key that is preconfigured between two peers
         /// </summary>
-        [TikProperty("preshared-key", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("preshared-key", DefaultValue = "", IsSensitive = true, WinboxLabel = "Preshared Key")]
         public TikValue<string?> PresharedKey { get; set; }
 
         /// <summary>
         /// The IP address and port number of the remote endpoint or server that the peer will connect to.
         /// </summary>
-        [TikProperty("endpoint-address")]
+        [TikProperty("endpoint-address", WinboxLabel = "Endpoint")]
         public TikValue<string?> EndpointAddress { get; set; }
 
         /// <summary>
         /// Specifies the specific port number on the remote endpoint or server that the peer will connect to.
         /// </summary>
-        [TikProperty("endpoint-port")]
+        [TikProperty("endpoint-port", WinboxLabel = "Endpoint Port")]
         public TikValue<int?> EndpointPort { get; set; }
 
         /// <summary>
         /// The public key associated with the remote peer
         /// </summary>
-        [TikProperty("public-key" )]
+        [TikProperty("public-key" , WinboxLabel = "Public Key")]
         public TikValue<string?> PublicKey { get; set; }
     }
 }

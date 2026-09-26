@@ -24,13 +24,13 @@
         /// <summary>
         /// Gets or sets the destination address of the route.
         /// </summary>
-        [TikProperty("dst-address")]
+        [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>
         /// Gets or sets the gateway IP address of the route.
         /// </summary>
-        [TikProperty("gateway")]
+        [TikProperty("gateway", WinboxLabel = "Gateway")]
         public TikValue<string?> Gateway { get; set; }
 
         /// <summary>
@@ -42,19 +42,19 @@
         /// <summary>
         /// Gets or sets the distance of this route in hops. 
         /// </summary>
-        [TikProperty("distance")]
+        [TikProperty("distance", WinboxLabel = "Distance")]
         public TikValue<long?> Distance { get; set; }
 
         /// <summary>
         /// Gets or sets the scope of this route.
         /// </summary>
-        [TikProperty("scope")]
+        [TikProperty("scope", WinboxLabel = "Scope")]
         public TikValue<long?> Scope { get; set; }
 
         /// <summary>
         /// Gets or sets the target scope of this route.
         /// </summary>
-        [TikProperty("target-scope")]
+        [TikProperty("target-scope", WinboxLabel = "Target Scope")]
         public TikValue<long?> TargetScope { get; set; }
 
         /// <summary>
@@ -118,7 +118,7 @@
         /// <summary>
         /// Gets the preferred source address of this route.
         /// </summary>
-        [TikProperty("pref-src", IsReadOnly = true)]
+        [TikProperty("pref-src", IsReadOnly = true, WinboxLabel = "Pref. Source")]
         public TikValue<string?> PrefSrc { get; private set; }
 
         /// <summary>

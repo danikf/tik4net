@@ -23,25 +23,25 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// name - Interface name
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// mtu - Layer3 Maximum transmission unit
         /// </summary>
-        [TikProperty("mtu")]
+        [TikProperty("mtu", WinboxLabel = "MTU")]
         public TikValue<string?> Mtu { get; set; }
 
         /// <summary>
         /// l2mtu - Layer2 MTU. For VLANS this value is not configurable.
         /// </summary>
-        [TikProperty("l2mtu", IsReadOnly = true)]
+        [TikProperty("l2mtu", IsReadOnly = true, WinboxLabel = "L2 MTU")]
         public TikValue<string?> L2Mtu { get; set; }
 
         /// <summary>
         /// mac-address
         /// </summary>
-        [TikProperty("mac-address")]
+        [TikProperty("mac-address", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
@@ -88,13 +88,13 @@ namespace tik4net.Objects.Interface
         ///          reply-only - the interface will only reply to requests originated from matching IP address/MAC address combinations which are entered as static entries in the "/ip arp" table. No dynamic entries will be automatically stored in the "/ip arp" table. Therefore for communications to be successful, a valid static entry must already exist.
         /// </summary>
         /// <seealso cref="ArpMode"/>
-        [TikProperty("arp", DefaultValue = "enabled")]
+        [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
         public TikValue<ArpMode?> Arp { get; set; }
 
         /// <summary>
         /// arp-timeout: how long the ARP record is kept in the ARP table after no packets are received from IP.
         /// </summary>
-        [TikProperty("arp-timeout")]
+        [TikProperty("arp-timeout", WinboxLabel = "ARP Timeout")]
         public TikValue<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>
@@ -125,31 +125,31 @@ namespace tik4net.Objects.Interface
         /// Address Resolution Protocol setting    
         /// </summary>
         /// <seealso cref="LoopProtectMode"/>
-        [TikProperty("loop-protect", DefaultValue = "default")]
+        [TikProperty("loop-protect", DefaultValue = "default", WinboxLabel = "Loop Protect")]
         public TikValue<LoopProtectMode?> LoopProtect { get; set; }
 
         /// <summary>
         /// loop-protect-status
         /// </summary>
-        [TikProperty("loop-protect-status", IsReadOnly = true)]
+        [TikProperty("loop-protect-status", IsReadOnly = true, WinboxLabel = "loop-protect: Status")]
         public TikValue<bool?> LoopProtectStatus { get; private set; }
 
         /// <summary>
         /// loop-protect-send-interval
         /// </summary>
-        [TikProperty("loop-protect-send-interval", DefaultValue = "00:00:05")]
+        [TikProperty("loop-protect-send-interval", DefaultValue = "00:00:05", WinboxLabel = "loop-protect: Send Interval")]
         public TikValue<TikDuration?> LoopProtectSendInterval { get; set; }
 
         /// <summary>
         /// loop-protect-disable-time
         /// </summary>
-        [TikProperty("loop-protect-disable-time", DefaultValue = "00:05:00")]
+        [TikProperty("loop-protect-disable-time", DefaultValue = "00:05:00", WinboxLabel = "loop-protect: Disable Time")]
         public TikValue<TikDuration?> LoopProtectDisableTime { get; set; }
 
         /// <summary>
         /// vlan-id: the VLAN tag (1–4094) carried on this interface's traffic.
         /// </summary>
-        [TikProperty("vlan-id")]
+        [TikProperty("vlan-id", WinboxLabel = "VLAN ID")]
         public TikValue<string?> VlanId { get; set; }
 
         /// <summary>
@@ -170,19 +170,19 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// interface
         /// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// use-service-tag: IEEE 802.1ad compatible Service Tag.
         /// </summary>
-        [TikProperty("use-service-tag")]
+        [TikProperty("use-service-tag", WinboxLabel = "Use Service Tag")]
         public TikValue<bool?> UseServiceTag { get; set; }
 
         /// <summary>
         /// running
         /// </summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>

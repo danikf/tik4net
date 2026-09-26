@@ -39,7 +39,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// name — unique name for this datapath profile.
         /// WinBox: "Name"
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         // ── Bridge settings ───────────────────────────────────────────────────
@@ -50,7 +50,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// as the corresponding master interface.
         /// WinBox: "Bridge"
         /// </summary>
-        [TikProperty("bridge")]
+        [TikProperty("bridge", WinboxLabel = "Bridge")]
         public TikValue<string?> Bridge { get; set; }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// does not send 0 to the router (which would be out of range).
         /// WinBox: "Bridge Cost"
         /// </summary>
-        [TikProperty("bridge-cost", DefaultValue = "0")]
+        [TikProperty("bridge-cost", DefaultValue = "0", WinboxLabel = "Bridge Cost")]
         public TikValue<int?> BridgeCost { get; set; }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: none.
         /// WinBox: "Bridge Horizon"
         /// </summary>
-        [TikProperty("bridge-horizon", DefaultValue = "none")]
+        [TikProperty("bridge-horizon", DefaultValue = "none", WinboxLabel = "Bridge Horizon")]
         public TikValue<string?> BridgeHorizon { get; set; }
 
         // ── Client settings ───────────────────────────────────────────────────
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: no.
         /// WinBox: "Client Isolation"
         /// </summary>
-        [TikProperty("client-isolation", DefaultValue = "no")]
+        [TikProperty("client-isolation", DefaultValue = "no", WinboxLabel = "Client Isolation")]
         public TikValue<bool?> ClientIsolation { get; set; }
 
         // ── Interface / VLAN ──────────────────────────────────────────────────
@@ -88,7 +88,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// interface-list — name of an interface list this datapath interface is a member of.
         /// WinBox: "Interface List"
         /// </summary>
-        [TikProperty("interface-list")]
+        [TikProperty("interface-list", WinboxLabel = "Interface List")]
         public TikValue<string?> InterfaceList { get; set; }
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: none.
         /// WinBox: "VLAN ID"
         /// </summary>
-        [TikProperty("vlan-id", DefaultValue = "none")]
+        [TikProperty("vlan-id", DefaultValue = "none", WinboxLabel = "VLAN ID")]
         public TikValue<string?> VlanId { get; set; }
 
         // ── OpenFlow ──────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to not use OpenFlow.
         /// WinBox: "OpenFlow Switch"
         /// </summary>
-        [TikProperty("openflow-switch")]
+        [TikProperty("openflow-switch", WinboxLabel = "OpenFlow Switch")]
         public TikValue<string?> OpenflowSwitch { get; set; }
 
         // ── CAPsMAN ───────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// <seealso cref="TrafficProcessingMode"/>
         /// WinBox: "Traffic Processing"
         /// </summary>
-        [TikProperty("traffic-processing", DefaultValue = "on-cap")]
+        [TikProperty("traffic-processing", DefaultValue = "on-cap", WinboxLabel = "Traffic Processing")]
         public TikValue<TrafficProcessingMode?> TrafficProcessing { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────

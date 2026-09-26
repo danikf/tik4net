@@ -20,25 +20,25 @@ namespace tik4net.Objects.Ip
 		/// <summary>
 		/// address: IP address to be mapped
 		/// </summary>
-		[TikProperty("address")]
+		[TikProperty("address", WinboxLabel = "IP Address")]
         public TikValue<string?> Address { get; set; }
 
 		/// <summary>
 		/// interface: Interface name the IP address is assigned to
 		/// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
 		/// <summary>
 		/// mac-address: MAC address to be mapped to
 		/// </summary>
-		[TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
+		[TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
 		/// <summary>
 		/// dhcp: Whether ARP entry is added by DHCP server
 		/// </summary>
-		[TikProperty("dhcp", IsReadOnly = true)]
+		[TikProperty("dhcp", IsReadOnly = true, WinboxLabel = "DHCP")]
         public TikValue<bool?> Dhcp { get; private set; }
 
 		/// <summary>

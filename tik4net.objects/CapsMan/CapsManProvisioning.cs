@@ -98,7 +98,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Action"
         /// <seealso cref="CapsManProvisioningAction"/>
         /// </summary>
-        [TikProperty("action", DefaultValue = "none")]
+        [TikProperty("action", DefaultValue = "none", WinboxLabel = "Action")]
         public TikValue<CapsManProvisioningAction?> Action { get; set; }
 
         // ── Radio matchers ────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ namespace tik4net.Objects.CapsMan
         /// Set to "00:00:00:00:00:00" to match any radio.
         /// WinBox: "Radio MAC"
         /// </summary>
-        [TikProperty("radio-mac", DefaultValue = "00:00:00:00:00:00")]
+        [TikProperty("radio-mac", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "Radio MAC")]
         public TikValue<string?> RadioMac { get; set; }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace tik4net.Objects.CapsMan
         /// Leave empty to match any hardware mode.
         /// WinBox: "Hw. Supported Modes"
         /// </summary>
-        [TikProperty("hw-supported-modes", DefaultValue = "")]
+        [TikProperty("hw-supported-modes", DefaultValue = "", WinboxLabel = "Hw. Supported Modes")]
         public TikValue<string?> HwSupportedModes { get; set; }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace tik4net.Objects.CapsMan
         /// identity (from /system/identity name).  Leave empty to match any identity.
         /// WinBox: "Identity Regexp"
         /// </summary>
-        [TikProperty("identity-regexp", DefaultValue = "")]
+        [TikProperty("identity-regexp", DefaultValue = "", WinboxLabel = "Identity Regexp")]
         public TikValue<string?> IdentityRegexp { get; set; }
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace tik4net.Objects.CapsMan
         /// common name.  Leave empty to match any common name.
         /// WinBox: "Common Name Regexp"
         /// </summary>
-        [TikProperty("common-name-regexp", DefaultValue = "")]
+        [TikProperty("common-name-regexp", DefaultValue = "", WinboxLabel = "Common Name Regexp")]
         public TikValue<string?> CommonNameRegexp { get; set; }
 
         /// <summary>
@@ -144,7 +144,7 @@ namespace tik4net.Objects.CapsMan
         /// Leave empty to match any address.
         /// WinBox: "IP Address Ranges"
         /// </summary>
-        [TikProperty("ip-address-ranges", DefaultValue = "")]
+        [TikProperty("ip-address-ranges", DefaultValue = "", WinboxLabel = "IP Address Ranges")]
         public TikValue<string?> IpAddressRanges { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
@@ -155,7 +155,7 @@ namespace tik4net.Objects.CapsMan
         /// Required when action is create-disabled, create-enabled, or create-dynamic-enabled.
         /// WinBox: "Master Configuration"
         /// </summary>
-        [TikProperty("master-configuration", DefaultValue = "")]
+        [TikProperty("master-configuration", DefaultValue = "", WinboxLabel = "Master Configuration")]
         public TikValue<string?> MasterConfiguration { get; set; }
 
         /// <summary>
@@ -164,7 +164,7 @@ namespace tik4net.Objects.CapsMan
         /// Leave empty for no slave interfaces.
         /// WinBox: "Slave Configurations"
         /// </summary>
-        [TikProperty("slave-configurations", DefaultValue = "")]
+        [TikProperty("slave-configurations", DefaultValue = "", WinboxLabel = "Slave Configuration")]
         public TikValue<string?> SlaveConfigurations { get; set; }
 
         // ── Naming ────────────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Name Format"
         /// <seealso cref="CapsManProvisioningNameFormat"/>
         /// </summary>
-        [TikProperty("name-format", DefaultValue = "cap")]
+        [TikProperty("name-format", DefaultValue = "cap", WinboxLabel = "Name Format")]
         public TikValue<CapsManProvisioningNameFormat?> NameFormat { get; set; }
 
         /// <summary>
@@ -183,7 +183,7 @@ namespace tik4net.Objects.CapsMan
         /// Leave empty when not used.
         /// WinBox: "Name Prefix"
         /// </summary>
-        [TikProperty("name-prefix", DefaultValue = "")]
+        [TikProperty("name-prefix", DefaultValue = "", WinboxLabel = "Name Prefix")]
         public TikValue<string?> NamePrefix { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────

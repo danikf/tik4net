@@ -20,19 +20,19 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// name: unique queue identifier used as a parent for other queues.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// target: IP address/netmask or interface used to identify traffic direction. Upload when source matches, download when destination matches.
         /// </summary>
-        [TikProperty("target")]
+        [TikProperty("target", WinboxLabel = "Target")]
         public TikValue<string?> Target { get; set; }
 
         /// <summary>
         /// parent: designates this queue as subordinate to another queue, enabling hierarchical structures.
         /// </summary>
-        [TikProperty("parent")]
+        [TikProperty("parent", WinboxLabel = "Parent")]
         public TikValue<string?> Parent { get; set; }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// total-bytes
         /// </summary>
-        [TikProperty("total-bytes", IsReadOnly = true)]
+        [TikProperty("total-bytes", IsReadOnly = true, WinboxLabel = "Total Bytes")]
         public TikValue<long?> TotalBytes { get; private set; }
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// total-packets
         /// </summary>
-        [TikProperty("total-packets", IsReadOnly = true)]
+        [TikProperty("total-packets", IsReadOnly = true, WinboxLabel = "Total Packets")]
         public TikValue<long?> TotalPackets { get; private set; }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// total-dropped
         /// </summary>
-        [TikProperty("total-dropped", IsReadOnly = true)]
+        [TikProperty("total-dropped", IsReadOnly = true, WinboxLabel = "Total Dropped")]
         public TikValue<long?> TotalDropped { get; private set; }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// total-rate
         /// </summary>
-        [TikProperty("total-rate", IsReadOnly = true)]
+        [TikProperty("total-rate", IsReadOnly = true, WinboxLabel = "Total Avg. Rate")]
         public TikValue<long?> TotalRate { get; private set; }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// total-packet-rate
         /// </summary>
-        [TikProperty("total-packet-rate", IsReadOnly = true)]
+        [TikProperty("total-packet-rate", IsReadOnly = true, WinboxLabel = "Total Avg. Packet Rate")]
         public TikValue<long?> TotalPacketRate { get; private set; }
 
         /// <summary>
@@ -162,7 +162,7 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// total-queued-packets
         /// </summary>
-        [TikProperty("total-queued-packets", IsReadOnly = true)]
+        [TikProperty("total-queued-packets", IsReadOnly = true, WinboxLabel = "Total Queued Packets")]
         public TikValue<long?> TotalQueuedPackets { get; private set; }
 
         /// <summary>
@@ -174,7 +174,7 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// total-queued-bytes
         /// </summary>
-        [TikProperty("total-queued-bytes", IsReadOnly = true)]
+        [TikProperty("total-queued-bytes", IsReadOnly = true, WinboxLabel = "Total Queued Bytes")]
         public TikValue<long?> TotalQueuedBytes { get; private set; }
 
         /// <summary>
@@ -204,7 +204,7 @@ namespace tik4net.Objects.Queue
         /// <summary>
         /// total-max-limit: maximal data rate for the global-total HTB queue.
         /// </summary>
-        [TikProperty("total-max-limit")]
+        [TikProperty("total-max-limit", WinboxLabel = "Total Max Limit")]
         public TikValue<long?> TotalMaxLimit { get; set; }
 
         /// <summary>

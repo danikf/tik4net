@@ -22,13 +22,13 @@ namespace tik4net.Objects.Ip.Hotspot
         /// <summary>
         /// address: The original IP address of the client
         /// </summary>
-        [TikProperty("address", DefaultValue = "")]
+        [TikProperty("address", DefaultValue = "", WinboxLabel = "Address")]
         public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// mac-address: MAC address of the client
         /// </summary>
-        [TikProperty("mac-address", DefaultValue = "")]
+        [TikProperty("mac-address", DefaultValue = "", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
@@ -36,13 +36,13 @@ namespace tik4net.Objects.Ip.Hotspot
         /// Name of the HotSpot server.
         ///  all - will be applied to all hotspot servers
         /// </summary>
-        [TikProperty("server", DefaultValue = "all")]
+        [TikProperty("server", DefaultValue = "all", WinboxLabel = "Server")]
         public TikValue<string?> Server { get; set; }
 
         /// <summary>
         /// to-address: New IP address of the client, translation occurs on the router (client does not know anything about the translation)
         /// </summary>
-        [TikProperty("to-address", DefaultValue = "")]
+        [TikProperty("to-address", DefaultValue = "", WinboxLabel = "To Address")]
         public TikValue<string?> ToAddress { get; set; }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace tik4net.Objects.Ip.Hotspot
         ///  bypassed - performs the translation, but excludes client from login to the HotSpot
         ///  blocked - translation is not performed and packets from host are dropped
         /// </summary>
-        [TikProperty("type", DefaultValue = "")]
+        [TikProperty("type", DefaultValue = "", WinboxLabel = "Type")]
         public TikValue<string?> Type { get; set; }
     }
 }

@@ -103,7 +103,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// allow-fast-path — when <c>true</c>, enables kernel fast-path packet forwarding bypass.
         /// Default: no
         /// </summary>
-        [TikProperty("allow-fast-path", DefaultValue = "no")]
+        [TikProperty("allow-fast-path", DefaultValue = "no", WinboxLabel = "Allow Fast Path")]
         public TikValue<bool?> AllowFastPath { get; set; }
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: pap, chap, mschap1, mschap2.
         /// Default: mschap1,mschap2
         /// </summary>
-        [TikProperty("authentication", DefaultValue = "mschap1,mschap2")]
+        [TikProperty("authentication", DefaultValue = "mschap1,mschap2", WinboxLabel = "Authentication")]
         public TikValue<string?> Authentication { get; set; }
 
         /// <summary>
@@ -119,28 +119,28 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: ip-address
         /// <seealso cref="CallerIdTypeValue"/>
         /// </summary>
-        [TikProperty("caller-id-type", DefaultValue = "ip-address")]
+        [TikProperty("caller-id-type", DefaultValue = "ip-address", WinboxLabel = "Caller ID Type")]
         public TikValue<CallerIdTypeValue?> CallerIdType { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new L2TP sessions.
         /// Default: default-encryption
         /// </summary>
-        [TikProperty("default-profile", DefaultValue = "default-encryption")]
+        [TikProperty("default-profile", DefaultValue = "default-encryption", WinboxLabel = "Default Profile")]
         public TikValue<string?> DefaultProfile { get; set; }
 
         /// <summary>
         /// enabled — when <c>true</c> the L2TP server accepts incoming connections.
         /// Default: no
         /// </summary>
-        [TikProperty("enabled", DefaultValue = "no")]
+        [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
         public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>
         /// ipsec-secret — pre-shared key used for IPSec encryption when <see cref="UseIpsec"/> is enabled.
         /// Leave empty to disable PSK-based IPSec.
         /// </summary>
-        [TikProperty("ipsec-secret", IsSensitive = true)]
+        [TikProperty("ipsec-secret", IsSensitive = true, WinboxLabel = "IPsec Secret")]
         public TikValue<string?> IpsecSecret { get; set; }
 
         /// <summary>
@@ -148,13 +148,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 30; router default 30, omitted on add when left 0.
         /// </summary>
         // router default 30; omitted on add when left 0
-        [TikProperty("keepalive-timeout")]
+        [TikProperty("keepalive-timeout", WinboxLabel = "Keepalive Timeout")]
         public TikValue<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// l2tpv3-circuit-id — virtual circuit identifier sent in L2TPv3 control channel AVPs.
         /// </summary>
-        [TikProperty("l2tpv3-circuit-id")]
+        [TikProperty("l2tpv3-circuit-id", WinboxLabel = "L2TPv3 Circuit ID")]
         public TikValue<string?> L2tpv3CircuitId { get; set; }
 
         /// <summary>
@@ -162,7 +162,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 0 (no cookie)
         /// <seealso cref="L2tpv3CookieLengthType"/>
         /// </summary>
-        [TikProperty("l2tpv3-cookie-length", DefaultValue = "0")]
+        [TikProperty("l2tpv3-cookie-length", DefaultValue = "0", WinboxLabel = "L2TPv3 Cookie Length")]
         public TikValue<L2tpv3CookieLengthType?> L2tpv3CookieLength { get; set; }
 
         /// <summary>
@@ -170,13 +170,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: md5
         /// <seealso cref="L2tpv3DigestHashType"/>
         /// </summary>
-        [TikProperty("l2tpv3-digest-hash", DefaultValue = "md5")]
+        [TikProperty("l2tpv3-digest-hash", DefaultValue = "md5", WinboxLabel = "L2TPv3 Digest Hash")]
         public TikValue<L2tpv3DigestHashType?> L2tpv3DigestHash { get; set; }
 
         /// <summary>
         /// l2tpv3-ether-interface-list — interface list whose members are bridged via L2TPv3 Ethernet pseudowires.
         /// </summary>
-        [TikProperty("l2tpv3-ether-interface-list")]
+        [TikProperty("l2tpv3-ether-interface-list", WinboxLabel = "L2TPv3 Ether Interface List")]
         public TikValue<string?> L2tpv3EtherInterfaceList { get; set; }
 
         /// <summary>
@@ -184,7 +184,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1450; router default 1450, omitted on add when left 0.
         /// </summary>
         // router default 1450; omitted on add when left 0
-        [TikProperty("max-mru")]
+        [TikProperty("max-mru", WinboxLabel = "Max MRU")]
         public TikValue<int?> MaxMru { get; set; }
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1450; router default 1450, omitted on add when left 0.
         /// </summary>
         // router default 1450; omitted on add when left 0
-        [TikProperty("max-mtu")]
+        [TikProperty("max-mtu", WinboxLabel = "Max MTU")]
         public TikValue<int?> MaxMtu { get; set; }
 
         /// <summary>
@@ -200,7 +200,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Accepts an integer limit or <c>unlimited</c>.
         /// Default: unlimited
         /// </summary>
-        [TikProperty("max-sessions", DefaultValue = "unlimited")]
+        [TikProperty("max-sessions", DefaultValue = "unlimited", WinboxLabel = "Max Sessions")]
         public TikValue<string?> MaxSessions { get; set; }
 
         /// <summary>
@@ -208,14 +208,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Set to <c>disabled</c> to turn off MRRU negotiation.
         /// Default: disabled
         /// </summary>
-        [TikProperty("mrru", DefaultValue = "disabled")]
+        [TikProperty("mrru", DefaultValue = "disabled", WinboxLabel = "MRRU")]
         public TikValue<string?> Mrru { get; set; }
 
         /// <summary>
         /// one-session-per-host — when <c>true</c>, each remote host is limited to a single active L2TP session.
         /// Default: no
         /// </summary>
-        [TikProperty("one-session-per-host", DefaultValue = "no")]
+        [TikProperty("one-session-per-host", DefaultValue = "no", WinboxLabel = "One Session Per Host")]
         public TikValue<bool?> OneSessionPerHost { get; set; }
 
         /// <summary>
@@ -224,7 +224,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// <seealso cref="UseIpsecType"/>
         /// </summary>
-        [TikProperty("use-ipsec", DefaultValue = "no")]
+        [TikProperty("use-ipsec", DefaultValue = "no", WinboxLabel = "Use IPsec")]
         public TikValue<UseIpsecType?> UseIpsec { get; set; }
 
         /// <summary>Human-readable summary of the L2TP server configuration.</summary>

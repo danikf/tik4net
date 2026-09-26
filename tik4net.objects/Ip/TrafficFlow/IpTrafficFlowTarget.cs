@@ -36,28 +36,28 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// dst-address — IP address of the host which receives Traffic-Flow statistic packets
         /// from the router.
         /// </summary>
-        [TikProperty("dst-address")]
+        [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>
         /// src-address — IP address used as the source when sending Traffic-Flow statistics.
         /// Default: 0.0.0.0 (router picks the outgoing interface address automatically).
         /// </summary>
-        [TikProperty("src-address", DefaultValue = "0.0.0.0")]
+        [TikProperty("src-address", DefaultValue = "0.0.0.0", WinboxLabel = "Src. Address")]
         public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// port — UDP port of the receiving host.
         /// Default: 2055
         /// </summary>
-        [TikProperty("port")] // router default 2055; omitted on add when left 0
+        [TikProperty("port", WinboxLabel = "Port")] // router default 2055; omitted on add when left 0
         public TikValue<int?> Port { get; set; }
 
         /// <summary>
         /// version — NetFlow/IPFIX format version to use when exporting records.
         /// <seealso cref="NetFlowVersion"/>
         /// </summary>
-        [TikProperty("version")]
+        [TikProperty("version", WinboxLabel = "Version")]
         public TikValue<NetFlowVersion?> Version { get; set; }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// re-sent to the receiving host. Applies only to NetFlow v9 and IPFIX.
         /// Default: 20
         /// </summary>
-        [TikProperty("v9-template-refresh")] // router default 20; omitted on add when left 0
+        [TikProperty("v9-template-refresh", WinboxLabel = "v9/IPFIX Template Refresh")] // router default 20; omitted on add when left 0
         public TikValue<int?> V9TemplateRefresh { get; set; }
 
         /// <summary>

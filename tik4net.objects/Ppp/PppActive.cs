@@ -26,7 +26,7 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// address: IP address the client got from the server
         /// </summary>
-        [TikProperty("address", IsReadOnly = true)]
+        [TikProperty("address", IsReadOnly = true, WinboxLabel = "Address")]
         public TikValue<string?> Address { get; private set; }
 
         /// <summary>
@@ -38,31 +38,31 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// caller-id: For  PPTP and  L2TP it is the IP address the client connected from. For  PPPoE it is the MAC address the client connected from.
         /// </summary>
-        [TikProperty("caller-id", IsReadOnly = true)]
+        [TikProperty("caller-id", IsReadOnly = true, WinboxLabel = "Caller ID")]
         public TikValue<string?> CallerId { get; private set; }
 
         /// <summary>
         /// encoding: Shows encryption and encoding (separated with '/' if asymmetric) being used in this connection
         /// </summary>
-        [TikProperty("encoding", IsReadOnly = true)]
+        [TikProperty("encoding", IsReadOnly = true, WinboxLabel = "Encoding")]
         public TikValue<string?> Encoding { get; private set; }
 
         /// <summary>
         /// limit-bytes-in: Maximal amount of bytes the user is allowed to send to the router.
         /// </summary>
-        [TikProperty("limit-bytes-in", IsReadOnly = true)]
+        [TikProperty("limit-bytes-in", IsReadOnly = true, WinboxLabel = "Limit Bytes In")]
         public TikValue<int?> LimitBytesIn { get; private set; }
 
         /// <summary>
         /// limit-bytes-out: Maximal amount of bytes the user is allowed to send to the client.
         /// </summary>
-        [TikProperty("limit-bytes-out", IsReadOnly = true)]
+        [TikProperty("limit-bytes-out", IsReadOnly = true, WinboxLabel = "Limit Bytes Out")]
         public TikValue<int?> LimitBytesOut { get; private set; }
 
         /// <summary>
         /// name: User name supplied at authentication stage
         /// </summary>
-        [TikProperty("name", IsReadOnly = true)]
+        [TikProperty("name", IsReadOnly = true, WinboxLabel = "Name")]
         public TikValue<string?> Name { get; private set; }
 
         /// <summary>
@@ -74,19 +74,19 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// service: Type of service the user is using.
         /// </summary>
-        [TikProperty("service", IsReadOnly = true)]
+        [TikProperty("service", IsReadOnly = true, WinboxLabel = "Service")]
         public TikValue<string?> Service { get; private set; }
 
         /// <summary>
         /// session-id: Shows unique client identifier.
         /// </summary>
-        [TikProperty("session-id", IsReadOnly = true)]
+        [TikProperty("session-id", IsReadOnly = true, WinboxLabel = "Session ID")]
         public TikValue<string?> SessionId { get; private set; }
 
         /// <summary>
         /// uptime: User's uptime
         /// </summary>
-        [TikProperty("uptime", IsReadOnly = true)]
+        [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
         public TikValue<TikDuration?> Uptime { get; private set; }
 
     }

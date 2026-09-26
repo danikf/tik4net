@@ -23,7 +23,7 @@ namespace tik4net.Objects.System
         /// type — LED trigger type; determines what event/state drives the LED.
         /// </summary>
         /// <seealso cref="LedType"/>
-        [TikProperty("type", DefaultValue = "off")]
+        [TikProperty("type", DefaultValue = "off", WinboxLabel = "Type")]
         public TikValue<LedType?> Type { get; set; }
 
         /// <summary>LED trigger type for <see cref="Type"/>.</summary>
@@ -72,16 +72,16 @@ namespace tik4net.Objects.System
         }
 
         /// <summary>leds — hardware LED identifier(s) controlled by this entry (hardware-specific names, e.g. "user-led").</summary>
-        [TikProperty("leds")]
+        [TikProperty("leds", WinboxLabel = "LEDs")]
         public TikValue<string?> Leds { get; set; }
 
         /// <summary>interface — name of the interface whose state/traffic drives the LED (used with interface-* and wireless-* types).</summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>modem-signal-threshold — RSSI threshold (dBm) for the modem-signal LED type; LED is on when signal is above this value. Real default: -70; 0 is the CLR sentinel (omitted on add).</summary>
         // Range e.g. -120..0; DefaultValue="0" so CLR default 0 is omitted on add.
-        [TikProperty("modem-signal-threshold", DefaultValue = "-91")]
+        [TikProperty("modem-signal-threshold", DefaultValue = "-91", WinboxLabel = "Modem Signal Threshold")]
         public TikValue<int?> ModemSignalThreshold { get; set; }
 
         /// <summary>disabled — when true this LED entry is disabled. Default: no.</summary>

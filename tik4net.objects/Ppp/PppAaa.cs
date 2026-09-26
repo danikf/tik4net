@@ -15,19 +15,19 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// accounting: Enable RADIUS accounting
         /// </summary>
-        [TikProperty("accounting", DefaultValue = "yes")]
+        [TikProperty("accounting", DefaultValue = "yes", WinboxLabel = "Accounting")]
         public TikValue<bool?> Accounting { get; set; }
 
         /// <summary>
         /// interim-update: Interim-Update time interval
         /// </summary>
-        [TikProperty("interim-update", DefaultValue = "0s")]
+        [TikProperty("interim-update", DefaultValue = "0s", WinboxLabel = "Interim Update")]
         public TikValue<TikDuration?> InterimUpdate { get; set; }
 
         /// <summary>
         /// use-radius: Enable user authentication via RADIUS. If entry in local secret database is not found, then client will be authenticated via RADIUS.
         /// </summary>
-        [TikProperty("use-radius", DefaultValue = "no")]
+        [TikProperty("use-radius", DefaultValue = "no", WinboxLabel = "Use Radius")]
         public TikValue<bool?> UseRadius { get; set; }
     }
 }

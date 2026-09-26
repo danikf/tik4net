@@ -15,19 +15,19 @@ namespace tik4net.Objects.User
 		/// <summary>
 		/// Gets or sets the user's name.
 		/// </summary>
-		[TikProperty("name")]
+		[TikProperty("name", WinboxLabel = "Name")]
 		public TikValue<string?> Name { get; set; }
 
 		/// <summary>
 		/// Gets or sets the group that the use is member of.
 		/// </summary>
-		[TikProperty("group")]
+		[TikProperty("group", WinboxLabel = "Group")]
 		public TikValue<string?> Group { get; set; }
 
 		/// <summary>
 		/// Gets the time when the user has last logged in.
 		/// </summary>
-		[TikProperty("last-logged-in", IsReadOnly = true)]
+		[TikProperty("last-logged-in", IsReadOnly = true, WinboxLabel = "Last Logged In")]
 		public TikValue<string?> LastLoggedIn { get; private set; }
 
 		/// <summary>

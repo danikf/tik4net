@@ -12,11 +12,11 @@ namespace tik4net.Objects.Routing.Bgp
         public string? Id { get; private set; }
 
         /// <summary>name — Name of the BGP connection.</summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>remote.address — Address (or address list) of the remote BGP peer.</summary>
-        [TikProperty("remote.address")]
+        [TikProperty("remote.address", WinboxLabel = "Remote Address")]
         public TikValue<string?> RemoteAddress { get; set; }
 
         /// <summary>remote.as — Autonomous System number of the remote BGP peer.</summary>
@@ -24,7 +24,7 @@ namespace tik4net.Objects.Routing.Bgp
         public TikValue<string?> RemoteAs { get; set; }
 
         /// <summary>local.role — Local BGP role used to negotiate the session (e.g. ibgp, ebgp).</summary>
-        [TikProperty("local.role")]
+        [TikProperty("local.role", WinboxLabel = "Local Role")]
         public TikValue<string?> LocalRole { get; set; }
 
         /// <summary>templates — Names of BGP templates applied to this connection (comma-separated).</summary>

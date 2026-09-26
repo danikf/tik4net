@@ -19,19 +19,19 @@ namespace tik4net.Objects.Interface
         public string? Id { get; private set; }
 
         /// <summary>name — Name of the bonding interface.</summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>mtu — Maximum Transmit Unit in bytes. Real default: 1500. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("mtu", DefaultValue = "1500")]
+        [TikProperty("mtu", DefaultValue = "1500", WinboxLabel = "MTU")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>mac-address — MAC address of the bonding interface (assigned from slaves).</summary>
-        [TikProperty("mac-address", IsReadOnly = true)]
+        [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; private set; }
 
         /// <summary>slaves — Ethernet-like interfaces to include in the bond (comma-separated). At least one required.</summary>
-        [TikProperty("slaves")]
+        [TikProperty("slaves", WinboxLabel = "Slaves")]
         public TikValue<string?> Slaves { get; set; }
 
         /// <summary>mode — the bonding policy that selects how slave interfaces are used together.</summary>
@@ -55,11 +55,11 @@ namespace tik4net.Objects.Interface
 
         /// <summary>mode — Bonding policy. Default: balance-rr.</summary>
         /// <seealso cref="BondingMode"/>
-        [TikProperty("mode", DefaultValue = "balance-rr")]
+        [TikProperty("mode", DefaultValue = "balance-rr", WinboxLabel = "Mode")]
         public TikValue<BondingMode?> Mode { get; set; }
 
         /// <summary>primary — Controls primary interface for active-backup, balance-tlb and balance-alb modes.</summary>
-        [TikProperty("primary", DefaultValue = "none")]
+        [TikProperty("primary", DefaultValue = "none", WinboxLabel = "Primary")]
         public TikValue<string?> Primary { get; set; }
 
         /// <summary>link-monitoring — the method used for monitoring slave link status.</summary>
@@ -75,7 +75,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>link-monitoring — Method used for monitoring link status. Default: mii.</summary>
         /// <seealso cref="LinkMonitoringMode"/>
-        [TikProperty("link-monitoring", DefaultValue = "mii")]
+        [TikProperty("link-monitoring", DefaultValue = "mii", WinboxLabel = "Link Monitoring")]
         public TikValue<LinkMonitoringMode?> LinkMonitoring { get; set; }
 
         /// <summary>mii-interval — How often to monitor link failures when link-monitoring=mii. Real default: 100ms.</summary>
@@ -108,27 +108,27 @@ namespace tik4net.Objects.Interface
 
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>
         /// <seealso cref="ArpMode"/>
-        [TikProperty("arp", DefaultValue = "enabled")]
+        [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
         public TikValue<ArpMode?> Arp { get; set; }
 
         /// <summary>arp-timeout — How long to keep ARP entries. Real default: auto.</summary>
-        [TikProperty("arp-timeout", DefaultValue = "auto")]
+        [TikProperty("arp-timeout", DefaultValue = "auto", WinboxLabel = "ARP Timeout")]
         public TikValue<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>down-delay — Time to disable interface after link failure is detected. Default: 0ms.</summary>
-        [TikProperty("down-delay", DefaultValue = "0ms")]
+        [TikProperty("down-delay", DefaultValue = "0ms", WinboxLabel = "Down Delay")]
         public TikValue<TikDuration?> DownDelay { get; set; }
 
         /// <summary>up-delay — Time to disable interface after a link is brought up. Default: 0ms.</summary>
-        [TikProperty("up-delay", DefaultValue = "0ms")]
+        [TikProperty("up-delay", DefaultValue = "0ms", WinboxLabel = "Up Delay")]
         public TikValue<TikDuration?> UpDelay { get; set; }
 
         /// <summary>min-links — Minimum number of active slave links required for bonding to be active. Default: 0 (disabled).</summary>
-        [TikProperty("min-links", DefaultValue = "0")]
+        [TikProperty("min-links", DefaultValue = "0", WinboxLabel = "Min. Links")]
         public TikValue<int?> MinLinks { get; set; }
 
         /// <summary>forced-mac-address — Static MAC address to use for the bond interface instead of deriving from slaves.</summary>
-        [TikProperty("forced-mac-address", DefaultValue = "")]
+        [TikProperty("forced-mac-address", DefaultValue = "", WinboxLabel = "Forced. MAC Address")]
         public TikValue<string?> ForcedMacAddress { get; set; }
 
         /// <summary>lacp-rate — the frequency of LACPDU exchange with bonding peers in 802.3ad mode.</summary>
@@ -142,7 +142,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>lacp-rate — Frequency of LACPDU exchange with bonding peers in 802.3ad mode. Default: 30secs.</summary>
         /// <seealso cref="LacpRateMode"/>
-        [TikProperty("lacp-rate", DefaultValue = "30secs")]
+        [TikProperty("lacp-rate", DefaultValue = "30secs", WinboxLabel = "LACP Rate")]
         public TikValue<LacpRateMode?> LacpRate { get; set; }
 
         /// <summary>lacp-mode — the LACP participation mode for ports in 802.3ad mode.</summary>
@@ -156,19 +156,19 @@ namespace tik4net.Objects.Interface
 
         /// <summary>lacp-mode — LACP participation mode for ports in 802.3ad mode. Default: active.</summary>
         /// <seealso cref="LacpParticipationMode"/>
-        [TikProperty("lacp-mode", DefaultValue = "active")]
+        [TikProperty("lacp-mode", DefaultValue = "active", WinboxLabel = "LACP Mode")]
         public TikValue<LacpParticipationMode?> LacpMode { get; set; }
 
         /// <summary>lacp-system-id — MAC address to use as the LACP system ID (overrides the default).</summary>
-        [TikProperty("lacp-system-id", DefaultValue = "")]
+        [TikProperty("lacp-system-id", DefaultValue = "", WinboxLabel = "LACP System Id")]
         public TikValue<string?> LacpSystemId { get; set; }
 
         /// <summary>lacp-system-priority — LACP system priority (1–65535). Real default: 65535. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("lacp-system-priority", DefaultValue = "65535")]
+        [TikProperty("lacp-system-priority", DefaultValue = "65535", WinboxLabel = "LACP System Priority")]
         public TikValue<int?> LacpSystemPriority { get; set; }
 
         /// <summary>lacp-user-key — Upper 10 bits of the LACP port key (0–1023). Default: 0.</summary>
-        [TikProperty("lacp-user-key", DefaultValue = "0")]
+        [TikProperty("lacp-user-key", DefaultValue = "0", WinboxLabel = "LACP User Key")]
         public TikValue<int?> LacpUserKey { get; set; }
 
         /// <summary>transmit-hash-policy — the hash policy used for slave selection in balance-xor and 802.3ad modes.</summary>
@@ -188,11 +188,11 @@ namespace tik4net.Objects.Interface
 
         /// <summary>transmit-hash-policy — Hash policy for slave selection in balance-xor and 802.3ad modes. Default: layer-2.</summary>
         /// <seealso cref="TransmitHashPolicyMode"/>
-        [TikProperty("transmit-hash-policy", DefaultValue = "layer-2")]
+        [TikProperty("transmit-hash-policy", DefaultValue = "layer-2", WinboxLabel = "Transmit Hash Policy")]
         public TikValue<TransmitHashPolicyMode?> TransmitHashPolicy { get; set; }
 
         /// <summary>running — Whether the bonding interface is running (read-only).</summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>disabled — Whether the interface is disabled.</summary>

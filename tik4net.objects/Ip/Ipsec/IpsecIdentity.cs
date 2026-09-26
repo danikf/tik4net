@@ -96,7 +96,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// peer — name of the IKE peer entry (/ip/ipsec/peer) this identity is linked to.
         /// The router requires a peer reference on add; it is treated as a mandatory field.
         /// </summary>
-        [TikProperty("peer")]
+        [TikProperty("peer", WinboxLabel = "Peer")]
         public TikValue<string?> Peer { get; set; }
 
         /// <summary>
@@ -104,14 +104,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: pre-shared-key.
         /// <seealso cref="AuthMethodType"/>
         /// </summary>
-        [TikProperty("auth-method", DefaultValue = "pre-shared-key")]
+        [TikProperty("auth-method", DefaultValue = "pre-shared-key", WinboxLabel = "Auth. Method")]
         public TikValue<AuthMethodType?> AuthMethod { get; set; }
 
         /// <summary>
         /// secret — pre-shared key string used when auth-method is pre-shared-key or
         /// pre-shared-key-xauth. Leave empty for certificate-based methods.
         /// </summary>
-        [TikProperty("secret", IsSensitive = true)]
+        [TikProperty("secret", IsSensitive = true, WinboxLabel = "Secret")]
         public TikValue<string?> Secret { get; set; }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no.
         /// <seealso cref="GeneratePolicyType"/>
         /// </summary>
-        [TikProperty("generate-policy", DefaultValue = "no")]
+        [TikProperty("generate-policy", DefaultValue = "no", WinboxLabel = "Generate Policy")]
         public TikValue<GeneratePolicyType?> GeneratePolicy { get; set; }
 
         /// <summary>
@@ -128,7 +128,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: remote-id.
         /// <seealso cref="MatchByType"/>
         /// </summary>
-        [TikProperty("match-by", DefaultValue = "remote-id")]
+        [TikProperty("match-by", DefaultValue = "remote-id", WinboxLabel = "Match By")]
         public TikValue<MatchByType?> MatchBy { get; set; }
 
         /// <summary>
@@ -144,7 +144,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// selectors when generate-policy is active.
         /// Default: "default"
         /// </summary>
-        [TikProperty("policy-template-group", DefaultValue = "default")]
+        [TikProperty("policy-template-group", DefaultValue = "default", WinboxLabel = "Policy Template Group")]
         public TikValue<string?> PolicyTemplateGroup { get; set; }
 
         /// <summary>
@@ -152,7 +152,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: auto.
         /// <seealso cref="MyIdType"/>
         /// </summary>
-        [TikProperty("my-id", DefaultValue = "auto")]
+        [TikProperty("my-id", DefaultValue = "auto", WinboxLabel = "My ID")]
         public TikValue<MyIdType?> MyId { get; set; }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: auto.
         /// <seealso cref="RemoteIdType"/>
         /// </summary>
-        [TikProperty("remote-id", DefaultValue = "auto")]
+        [TikProperty("remote-id", DefaultValue = "auto", WinboxLabel = "Remote ID")]
         public TikValue<RemoteIdType?> RemoteId { get; set; }
 
         /// <summary>
@@ -168,28 +168,28 @@ namespace tik4net.Objects.Ip.Ipsec
         /// this router to the remote peer when auth-method is rsa-signature, rsa-signature-hybrid,
         /// or digital-signature.
         /// </summary>
-        [TikProperty("certificate")]
+        [TikProperty("certificate", WinboxLabel = "Certificate")]
         public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
         /// remote-certificate — name of the certificate (from /certificate) used to authenticate
         /// the remote peer. When specified, the remote peer's certificate must match this entry.
         /// </summary>
-        [TikProperty("remote-certificate")]
+        [TikProperty("remote-certificate", WinboxLabel = "Remote Certificate")]
         public TikValue<string?> RemoteCertificate { get; set; }
 
         /// <summary>
         /// key — name of a local RSA private key (from /ip/ipsec/key) used when auth-method
         /// is rsa-key.
         /// </summary>
-        [TikProperty("key")]
+        [TikProperty("key", WinboxLabel = "Key")]
         public TikValue<string?> Key { get; set; }
 
         /// <summary>
         /// remote-key — name of the remote peer's RSA public key (from /ip/ipsec/key) used
         /// to verify the remote peer when auth-method is rsa-key.
         /// </summary>
-        [TikProperty("remote-key")]
+        [TikProperty("remote-key", WinboxLabel = "Remote Key")]
         public TikValue<string?> RemoteKey { get; set; }
 
         /// <summary>
@@ -197,21 +197,21 @@ namespace tik4net.Objects.Ip.Ipsec
         /// is eap or eap-radius (IKEv2 only).
         /// Default: eap-tls
         /// </summary>
-        [TikProperty("eap-methods")]
+        [TikProperty("eap-methods", WinboxLabel = "EAP Methods")]
         public TikValue<string?> EapMethods { get; set; }
 
         /// <summary>
         /// username — XAuth or EAP account name sent to the remote peer when auth-method is
         /// pre-shared-key-xauth, rsa-signature-hybrid, eap, or eap-radius.
         /// </summary>
-        [TikProperty("username")]
+        [TikProperty("username", WinboxLabel = "Username")]
         public TikValue<string?> Username { get; set; }
 
         /// <summary>
         /// password — XAuth or EAP credential sent to the remote peer when auth-method is
         /// pre-shared-key-xauth, rsa-signature-hybrid, eap, or eap-radius.
         /// </summary>
-        [TikProperty("password", IsSensitive = true)]
+        [TikProperty("password", IsSensitive = true, WinboxLabel = "Password")]
         public TikValue<string?> Password { get; set; }
 
         /// <summary>
@@ -219,7 +219,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// to bypass connection tracking for IPsec traffic matched by this identity.
         /// Leave empty to disable.
         /// </summary>
-        [TikProperty("notrack-chain")]
+        [TikProperty("notrack-chain", WinboxLabel = "Notrack Chain")]
         public TikValue<string?> NotrackChain { get; set; }
 
         /// <summary>

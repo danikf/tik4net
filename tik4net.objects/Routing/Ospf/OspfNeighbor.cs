@@ -45,13 +45,13 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// instance — name of the OSPF instance this neighbor belongs to.
         /// </summary>
-        [TikProperty("instance", IsReadOnly = true)]
+        [TikProperty("instance", IsReadOnly = true, WinboxLabel = "Instance")]
         public TikValue<string?> Instance { get; private set; }
 
         /// <summary>
         /// area — OSPF area this neighbor was discovered in.
         /// </summary>
-        [TikProperty("area", IsReadOnly = true)]
+        [TikProperty("area", IsReadOnly = true, WinboxLabel = "Area")]
         public TikValue<string?> Area { get; private set; }
 
         /// <summary>
@@ -63,69 +63,69 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// address — IP address of the neighbor's interface (next-hop address).
         /// </summary>
-        [TikProperty("address", IsReadOnly = true)]
+        [TikProperty("address", IsReadOnly = true, WinboxLabel = "Address")]
         public TikValue<string?> Address { get; private set; }
 
         /// <summary>
         /// router-id — OSPF router identifier of the neighbor (dotted-decimal IPv4 notation).
         /// </summary>
-        [TikProperty("router-id", IsReadOnly = true)]
+        [TikProperty("router-id", IsReadOnly = true, WinboxLabel = "Router ID")]
         public TikValue<string?> RouterId { get; private set; }
 
         /// <summary>
         /// state — current OSPF FSM state of the neighbor relationship.
         /// </summary>
         /// <seealso cref="OspfNeighborState"/>
-        [TikProperty("state", IsReadOnly = true)]
+        [TikProperty("state", IsReadOnly = true, WinboxLabel = "State")]
         public TikValue<OspfNeighborState?> State { get; private set; }
 
         /// <summary>
         /// state-changes — total number of OSPF FSM state transitions for this neighbor since discovery.
         /// </summary>
-        [TikProperty("state-changes", IsReadOnly = true)]
+        [TikProperty("state-changes", IsReadOnly = true, WinboxLabel = "State Changes")]
         public TikValue<int?> StateChanges { get; private set; }
 
         /// <summary>
         /// priority — neighbor's router priority used in DR/BDR election on multi-access networks.
         /// A value of 0 means the router is ineligible to become DR or BDR.
         /// </summary>
-        [TikProperty("priority", IsReadOnly = true)]
+        [TikProperty("priority", IsReadOnly = true, WinboxLabel = "Priority")]
         public TikValue<int?> Priority { get; private set; }
 
         /// <summary>
         /// dr — IP address of the Designated Router on the shared segment, as reported by this neighbor.
         /// </summary>
-        [TikProperty("dr", IsReadOnly = true)]
+        [TikProperty("dr", IsReadOnly = true, WinboxLabel = "DR")]
         public TikValue<string?> Dr { get; private set; }
 
         /// <summary>
         /// bdr — IP address of the Backup Designated Router on the shared segment.
         /// </summary>
-        [TikProperty("bdr", IsReadOnly = true)]
+        [TikProperty("bdr", IsReadOnly = true, WinboxLabel = "BDR")]
         public TikValue<string?> Bdr { get; private set; }
 
         /// <summary>
         /// ls-retransmits — number of LSAs in the retransmission queue waiting for acknowledgment.
         /// </summary>
-        [TikProperty("ls-retransmits", IsReadOnly = true)]
+        [TikProperty("ls-retransmits", IsReadOnly = true, WinboxLabel = "LS Retransmits")]
         public TikValue<int?> LsRetransmits { get; private set; }
 
         /// <summary>
         /// ls-requests — number of outstanding Link State Request packets still to be sent.
         /// </summary>
-        [TikProperty("ls-requests", IsReadOnly = true)]
+        [TikProperty("ls-requests", IsReadOnly = true, WinboxLabel = "LS Requests")]
         public TikValue<int?> LsRequests { get; private set; }
 
         /// <summary>
         /// db-summaries — number of Database Description packets still to be sent during Exchange state.
         /// </summary>
-        [TikProperty("db-summaries", IsReadOnly = true)]
+        [TikProperty("db-summaries", IsReadOnly = true, WinboxLabel = "DB Summaries")]
         public TikValue<int?> DbSummaries { get; private set; }
 
         /// <summary>
         /// adjacency — uptime of the full adjacency (available only when state=Full).
         /// </summary>
-        [TikProperty("adjacency", IsReadOnly = true)]
+        [TikProperty("adjacency", IsReadOnly = true, WinboxLabel = "Adjacency")]
         public TikValue<string?> Adjacency { get; private set; }
 
         /// <summary>

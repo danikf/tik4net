@@ -24,20 +24,20 @@ namespace tik4net.Objects.System
         /// name — file name (including path for files in sub-directories). Writable: renaming a file
         /// is done by setting a new name value.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "File Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// type — file type as reported by RouterOS (e.g. "directory", "package", ".txt file",
         /// "config file"). Read-only.
         /// </summary>
-        [TikProperty("type", IsReadOnly = true)]
+        [TikProperty("type", IsReadOnly = true, WinboxLabel = "Type")]
         public TikValue<string?> Type { get; private set; }
 
         /// <summary>
         /// size — file size in bytes. Read-only.
         /// </summary>
-        [TikProperty("size", IsReadOnly = true)]
+        [TikProperty("size", IsReadOnly = true, WinboxLabel = "Size")]
         public TikValue<long?> Size { get; private set; }
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace tik4net.Objects.System
         /// last-modified — date and time of file creation or most recent modification (RouterOS 7.16+).
         /// Read-only.
         /// </summary>
-        [TikProperty("last-modified", IsReadOnly = true)]
+        [TikProperty("last-modified", IsReadOnly = true, WinboxLabel = "Last Modified")]
         public TikValue<string?> LastModified { get; private set; }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace tik4net.Objects.System
         /// (measured on 7.23.2: 27 rows over the API, 1 over every CLI transport).
         /// </para>
         /// </summary>
-        [TikProperty("contents", IsFreeText = true)]
+        [TikProperty("contents", IsFreeText = true, WinboxLabel = "Contents")]
         public TikValue<string?> Contents { get; set; }
 
         /// <summary>

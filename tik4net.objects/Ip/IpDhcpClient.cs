@@ -50,7 +50,7 @@ namespace tik4net.Objects.Ip
         /// yes - adds classless route if received, if not then add default route(old behavior)
         /// special-classless - adds both classless route if received and default route(MS style)
 		/// </summary>
-		[TikProperty("add-default-route", DefaultValue = "yes")]
+		[TikProperty("add-default-route", DefaultValue = "yes", WinboxLabel = "Add Default Route")]
         public TikValue<AddDefaultRouteType?> AddDefaultRoute { get; set; }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// default-route-distance: Distance of default route. Applicable if add-default-route is set to yes.
         /// </summary>
-        [TikProperty("default-route-distance")]
+        [TikProperty("default-route-distance", WinboxLabel = "Default Route Distance")]
         public TikValue<string?> DefaultRouteDistance { get; set; }
 
         /// <summary>
@@ -86,43 +86,43 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// interface: Interface on which DHCP client will be running.
         /// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// use-peer-dns: Whether to accept the  DNS settings advertised by  DHCP Server. (Will override the settings put in the /ip dns submenu.
         /// </summary>
-        [TikProperty("use-peer-dns", DefaultValue = "yes")]
+        [TikProperty("use-peer-dns", DefaultValue = "yes", WinboxLabel = "Use Peer DNS")]
         public TikValue<bool?> UsePeerDns { get; set; }
 
         /// <summary>
         /// use-peer-ntp: Whether to accept the  NTP settings advertised by  DHCP Server. (Will override the settings put in the /system ntp client submenu)
         /// </summary>
-        [TikProperty("use-peer-ntp", DefaultValue = "yes")]
+        [TikProperty("use-peer-ntp", DefaultValue = "yes", WinboxLabel = "Use Peer NTP")]
         public TikValue<bool?> UsePeerNtp { get; set; }
 
         /// <summary>
         /// address: IP address and netmask, which is assigned to DHCP Client from the Server
         /// </summary>
-        [TikProperty("address", IsReadOnly = true)]
+        [TikProperty("address", IsReadOnly = true, WinboxLabel = "IP Address")]
         public TikValue<string?> Address { get; private set; }
 
         /// <summary>
         /// dhcp-server: IP address of the DHCP server.
         /// </summary>
-        [TikProperty("dhcp-server", IsReadOnly = true)]
+        [TikProperty("dhcp-server", IsReadOnly = true, WinboxLabel = "DHCP Server")]
         public TikValue<string?> DhcpServer { get; private set; }
 
         /// <summary>
         /// expires-after: Time when the lease expires (specified by the DHCP server).
         /// </summary>
-        [TikProperty("expires-after", IsReadOnly = true)]
+        [TikProperty("expires-after", IsReadOnly = true, WinboxLabel = "Expires After")]
         public TikValue<TikDuration?> ExpiresAfter { get; private set; }
 
         /// <summary>
         /// gateway: IP address of the gateway which is assigned by DHCP server
         /// </summary>
-        [TikProperty("gateway", IsReadOnly = true)]
+        [TikProperty("gateway", IsReadOnly = true, WinboxLabel = "Gateway")]
         public TikValue<string?> Gateway { get; private set; }
 
         /// <summary>
@@ -140,31 +140,31 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// primary-dns: IP address of the primary DNS server, assigned by the DHCP server
         /// </summary>
-        [TikProperty("primary-dns", IsReadOnly = true)]
+        [TikProperty("primary-dns", IsReadOnly = true, WinboxLabel = "Primary DNS")]
         public TikValue<string?> PrimaryDns { get; private set; }
 
         /// <summary>
         /// primary-ntp: IP address of the primary NTP server, assigned by the DHCP server
         /// </summary>
-        [TikProperty("primary-ntp", IsReadOnly = true)]
+        [TikProperty("primary-ntp", IsReadOnly = true, WinboxLabel = "Primary NTP")]
         public TikValue<string?> PrimaryNtp { get; private set; }
 
         /// <summary>
         /// secondary-dns: IP address of the secondary DNS server, assigned by the DHCP server
         /// </summary>
-        [TikProperty("secondary-dns", IsReadOnly = true)]
+        [TikProperty("secondary-dns", IsReadOnly = true, WinboxLabel = "Secondary DNS")]
         public TikValue<string?> SecondaryDns { get; private set; }
 
         /// <summary>
         /// secondary-ntp: IP address of the secondary NTP server, assigned by the DHCP server
         /// </summary>
-        [TikProperty("secondary-ntp", IsReadOnly = true)]
+        [TikProperty("secondary-ntp", IsReadOnly = true, WinboxLabel = "Secondary NTP")]
         public TikValue<string?> SecondaryNtp { get; private set; }
 
         /// <summary>
         /// status: Shows the status of DHCP Client
         /// </summary>
-        [TikProperty("status", IsReadOnly = true)]
+        [TikProperty("status", IsReadOnly = true, WinboxLabel = "Status")]
         public TikValue<string?> Status { get; private set; }
 
         /// <summary>

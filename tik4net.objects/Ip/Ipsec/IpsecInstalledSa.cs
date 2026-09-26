@@ -20,20 +20,20 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// src-address — the source address of this SA.
         /// </summary>
-        [TikProperty("src-address", IsReadOnly = true)]
+        [TikProperty("src-address", IsReadOnly = true, WinboxLabel = "Src. Address")]
         public TikValue<string?> SrcAddress { get; private set; }
 
         /// <summary>
         /// dst-address — the destination address of this SA.
         /// </summary>
-        [TikProperty("dst-address", IsReadOnly = true)]
+        [TikProperty("dst-address", IsReadOnly = true, WinboxLabel = "Dst. Address")]
         public TikValue<string?> DstAddress { get; private set; }
 
         /// <summary>
         /// spi — Security Parameter Index identification tag, uniquely identifies this SA
         /// together with the destination address and protocol.
         /// </summary>
-        [TikProperty("spi", IsReadOnly = true)]
+        [TikProperty("spi", IsReadOnly = true, WinboxLabel = "SPI")]
         public TikValue<string?> Spi { get; private set; }
 
         /// <summary>
@@ -58,14 +58,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// auth-algorithm — authentication algorithm negotiated for this SA
         /// (e.g. "md5", "sha1", "sha256", "null").
         /// </summary>
-        [TikProperty("auth-algorithm", IsReadOnly = true)]
+        [TikProperty("auth-algorithm", IsReadOnly = true, WinboxLabel = "Auth. Algorithm")]
         public TikValue<string?> AuthAlgorithm { get; private set; }
 
         /// <summary>
         /// auth-key — the authentication key in use by this SA (sensitive field).
         /// Only populated when the print is executed with <c>show-sensitive</c>.
         /// </summary>
-        [TikProperty("auth-key", IsReadOnly = true, IsSensitive = true)]
+        [TikProperty("auth-key", IsReadOnly = true, IsSensitive = true, WinboxLabel = "Auth. Key")]
         public TikValue<string?> AuthKey { get; private set; }
 
         /// <summary>
@@ -97,14 +97,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// replay — size of the anti-replay window in bytes for this SA.
         /// </summary>
-        [TikProperty("replay", IsReadOnly = true)]
+        [TikProperty("replay", IsReadOnly = true, WinboxLabel = "Replay")]
         public TikValue<int?> Replay { get; private set; }
 
         /// <summary>
         /// current-bytes — number of bytes processed by this SA since it was installed.
         /// Returned as a 64-bit integer by the router; stored as string to avoid overflow.
         /// </summary>
-        [TikProperty("current-bytes", IsReadOnly = true)]
+        [TikProperty("current-bytes", IsReadOnly = true, WinboxLabel = "Current Bytes")]
         public TikValue<string?> CurrentBytes { get; private set; }
 
         /// <summary>
@@ -112,7 +112,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// (e.g. "1h50m/2h"). The soft threshold triggers rekeying; the hard threshold
         /// causes the SA to be deleted.
         /// </summary>
-        [TikProperty("add-lifetime", IsReadOnly = true)]
+        [TikProperty("add-lifetime", IsReadOnly = true, WinboxLabel = "Add Lifetime")]
         public TikValue<string?> AddLifetime { get; private set; }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// expires-in — remaining time until this SA is rekeyed or expires.
         /// </summary>
-        [TikProperty("expires-in", IsReadOnly = true)]
+        [TikProperty("expires-in", IsReadOnly = true, WinboxLabel = "Expires In")]
         public TikValue<string?> ExpiresIn { get; private set; }
 
         /// <summary>Human-readable identity.</summary>

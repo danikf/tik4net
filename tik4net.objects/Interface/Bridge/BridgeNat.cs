@@ -121,7 +121,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// set-priority - set priority specified by the new- priority parameter on the packets sent out through a link that is capable of transporting priority(VLAN or WMM - enabled wireless interface). Read more>
         /// src-nat - change source MAC address of a packet(only valid in srcnat chain)            
         /// </summary>
-        [TikProperty("action", DefaultValue = "accept")]
+        [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
         public TikValue<ActionType?> Action { get; set; }
 
         /// <summary>

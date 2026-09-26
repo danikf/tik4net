@@ -46,7 +46,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: wifiN (automatically assigned).
         /// WinBox: "Name"
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         // ── Hardware binding ──────────────────────────────────────────────────
@@ -78,7 +78,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to use inline configuration or router defaults.
         /// WinBox: "Configuration"
         /// </summary>
-        [TikProperty("configuration")]
+        [TikProperty("configuration", WinboxLabel = "Configuration")]
         public TikValue<string?> Configuration { get; set; }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to use inline security settings or open authentication.
         /// WinBox: "Security"
         /// </summary>
-        [TikProperty("security")]
+        [TikProperty("security", WinboxLabel = "Security")]
         public TikValue<string?> Security { get; set; }
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Controls bridging, VLAN, and traffic-processing settings.
         /// WinBox: "Datapath"
         /// </summary>
-        [TikProperty("datapath")]
+        [TikProperty("datapath", WinboxLabel = "Datapath")]
         public TikValue<string?> Datapath { get; set; }
 
         /// <summary>
@@ -102,21 +102,21 @@ namespace tik4net.Objects.Interface.Wifi
         /// Controls frequency band, width and channel selection.
         /// WinBox: "Channel"
         /// </summary>
-        [TikProperty("channel")]
+        [TikProperty("channel", WinboxLabel = "Channel")]
         public TikValue<string?> Channel { get; set; }
 
         /// <summary>
         /// interworking — name of the /interface/wifi/interworking (Hotspot 2.0) profile.
         /// WinBox: "Interworking"
         /// </summary>
-        [TikProperty("interworking")]
+        [TikProperty("interworking", WinboxLabel = "Interworking")]
         public TikValue<string?> Interworking { get; set; }
 
         /// <summary>
         /// steering — name of the /interface/wifi/steering profile for 802.11k/v roaming hints.
         /// WinBox: "Steering"
         /// </summary>
-        [TikProperty("steering")]
+        [TikProperty("steering", WinboxLabel = "Steering")]
         public TikValue<string?> Steering { get; set; }
 
         // ── Inline AAA overrides ──────────────────────────────────────────────
@@ -127,7 +127,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// aaa — name of the AAA profile, OR inline override root; corresponds to the
         /// /interface/wifi aaa field which selects a named RADIUS profile.
         /// </summary>
-        [TikProperty("aaa")]
+        [TikProperty("aaa", WinboxLabel = "AAA")]
         public TikValue<string?> Aaa { get; set; }
 
         /// <summary>
@@ -187,7 +187,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: enabled.
         /// <seealso cref="ArpMode"/>
         /// </summary>
-        [TikProperty("arp", DefaultValue = "enabled")]
+        [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
         public TikValue<ArpMode?> Arp { get; set; }
 
         /// <summary>
@@ -195,7 +195,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: auto
         /// WinBox: "ARP Timeout"
         /// </summary>
-        [TikProperty("arp-timeout", DefaultValue = "auto")]
+        [TikProperty("arp-timeout", DefaultValue = "auto", WinboxLabel = "Arp Timeout")]
         public TikValue<string?> ArpTimeout { get; set; }
 
         /// <summary>
@@ -203,7 +203,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to use the radio's default MAC.
         /// WinBox: "MAC Address"
         /// </summary>
-        [TikProperty("mac-address")]
+        [TikProperty("mac-address", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: 1500
         /// WinBox: "MTU"
         /// </summary>
-        [TikProperty("mtu", DefaultValue = "1500")]
+        [TikProperty("mtu", DefaultValue = "1500", WinboxLabel = "MTU")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>
@@ -219,7 +219,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: 2290
         /// WinBox: "L2 MTU"
         /// </summary>
-        [TikProperty("l2mtu", DefaultValue = "2290")]
+        [TikProperty("l2mtu", DefaultValue = "2290", WinboxLabel = "L2MTU")]
         public TikValue<int?> L2Mtu { get; set; }
 
         /// <summary>
@@ -257,31 +257,31 @@ namespace tik4net.Objects.Interface.Wifi
         /// <summary>
         /// running — true when the interface has an active link (unless disable-running-check is set).
         /// </summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>
         /// bound — true when the interface is operational (bound to its radio and active).
         /// </summary>
-        [TikProperty("bound", IsReadOnly = true)]
+        [TikProperty("bound", IsReadOnly = true, WinboxLabel = "bound")]
         public TikValue<bool?> Bound { get; private set; }
 
         /// <summary>
         /// inactive — false when the interface is fully configured and operational.
         /// </summary>
-        [TikProperty("inactive", IsReadOnly = true)]
+        [TikProperty("inactive", IsReadOnly = true, WinboxLabel = "inactive")]
         public TikValue<bool?> Inactive { get; private set; }
 
         /// <summary>
         /// master — true for physical (radio-backed) interfaces; false for virtual BSSIDs.
         /// </summary>
-        [TikProperty("master", IsReadOnly = true)]
+        [TikProperty("master", IsReadOnly = true, WinboxLabel = "Master")]
         public TikValue<bool?> Master { get; private set; }
 
         /// <summary>
         /// cap — CAPsMAN controller info if this interface is controlled by a CAPsMAN manager.
         /// </summary>
-        [TikProperty("cap", IsReadOnly = true)]
+        [TikProperty("cap", IsReadOnly = true, WinboxLabel = "CAP")]
         public TikValue<string?> Cap { get; private set; }
 
         /// <summary>Human-readable identity.</summary>

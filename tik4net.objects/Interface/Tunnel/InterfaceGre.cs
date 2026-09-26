@@ -20,51 +20,51 @@ namespace tik4net.Objects.Interface.Tunnel
         public string? Id { get; private set; }
 
         /// <summary>name — Tunnel interface name.</summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>mtu — Layer3 MTU. Can be "auto" or a specific integer. Default: auto.</summary>
-        [TikProperty("mtu", DefaultValue = "auto")]
+        [TikProperty("mtu", DefaultValue = "auto", WinboxLabel = "MTU")]
         public TikValue<string?> Mtu { get; set; }
 
         /// <summary>actual-mtu — Effective MTU after overhead (read-only).</summary>
-        [TikProperty("actual-mtu", IsReadOnly = true)]
+        [TikProperty("actual-mtu", IsReadOnly = true, WinboxLabel = "Actual MTU")]
         public TikValue<string?> ActualMtu { get; private set; }
 
         /// <summary>local-address — Local tunnel endpoint IP address. 0.0.0.0 means use the outgoing interface address.</summary>
-        [TikProperty("local-address", DefaultValue = "0.0.0.0")]
+        [TikProperty("local-address", DefaultValue = "0.0.0.0", WinboxLabel = "Local Address")]
         public TikValue<string?> LocalAddress { get; set; }
 
         /// <summary>remote-address — Remote tunnel endpoint IP address. Required.</summary>
-        [TikProperty("remote-address")]
+        [TikProperty("remote-address", WinboxLabel = "Remote Address")]
         public TikValue<string?> RemoteAddress { get; set; }
 
         /// <summary>keepalive — Tunnel keepalive interval and retry count (e.g. "10s,10"). Default: 10s,10.</summary>
-        [TikProperty("keepalive", DefaultValue = "10s,10")]
+        [TikProperty("keepalive", DefaultValue = "10s,10", WinboxLabel = "Keepalive")]
         public TikValue<string?> Keepalive { get; set; }
 
         /// <summary>dscp — DSCP value for tunnel packets. "inherit" copies from encapsulated traffic, or 0–63.</summary>
-        [TikProperty("dscp", DefaultValue = "inherit")]
+        [TikProperty("dscp", DefaultValue = "inherit", WinboxLabel = "DSCP")]
         public TikValue<string?> Dscp { get; set; }
 
         /// <summary>dont-fragment — DF bit handling: "no" to fragment if needed; "inherit" copies from original packet.</summary>
-        [TikProperty("dont-fragment", DefaultValue = "no")]
+        [TikProperty("dont-fragment", DefaultValue = "no", WinboxLabel = "Dont Fragment")]
         public TikValue<string?> DontFragment { get; set; }
 
         /// <summary>clamp-tcp-mss — Adjust MSS for TCP SYN packets when they would exceed tunnel MTU. Default: yes.</summary>
-        [TikProperty("clamp-tcp-mss", DefaultValue = "yes")]
+        [TikProperty("clamp-tcp-mss", DefaultValue = "yes", WinboxLabel = "Clamp TCP MSS")]
         public TikValue<bool?> ClampTcpMss { get; set; }
 
         /// <summary>allow-fast-path — Allow FastPath processing. Must be disabled when using IPsec. Default: yes.</summary>
-        [TikProperty("allow-fast-path", DefaultValue = "yes")]
+        [TikProperty("allow-fast-path", DefaultValue = "yes", WinboxLabel = "Allow Fast Path")]
         public TikValue<bool?> AllowFastPath { get; set; }
 
         /// <summary>ipsec-secret — Pre-shared key for dynamic IPsec peer at the remote address.</summary>
-        [TikProperty("ipsec-secret", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("ipsec-secret", DefaultValue = "", IsSensitive = true, WinboxLabel = "IPsec Secret")]
         public TikValue<string?> IpsecSecret { get; set; }
 
         /// <summary>running — Whether the tunnel is running (read-only).</summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>disabled — Whether the interface is disabled.</summary>

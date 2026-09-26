@@ -72,7 +72,7 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// name — unique name for this channel profile; referenced from /caps-man/configuration.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         // ── Frequency band ────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ namespace tik4net.Objects.CapsMan
         /// Left as string because the available values depend on installed hardware and there is no
         /// fixed router default (blank = hardware capability).
         /// </summary>
-        [TikProperty("band", DefaultValue = "")]
+        [TikProperty("band", DefaultValue = "", WinboxLabel = "Band")]
         public TikValue<string?> Band { get; set; }
 
         // ── Frequency ─────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ namespace tik4net.Objects.CapsMan
         /// May be a comma-separated list of frequencies for scanning.
         /// Valid range: 0–4294967295 per field; left as string because comma-separated lists are valid.
         /// </summary>
-        [TikProperty("frequency", DefaultValue = "")]
+        [TikProperty("frequency", DefaultValue = "", WinboxLabel = "Frequency")]
         public TikValue<string?> Frequency { get; set; }
 
         // ── Channel width ─────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ namespace tik4net.Objects.CapsMan
         /// Values: 5mhz, 10mhz, 20mhz, 40mhz-turbo.
         /// Left as string because there is no fixed router default (blank = hardware decides).
         /// </summary>
-        [TikProperty("control-channel-width", DefaultValue = "")]
+        [TikProperty("control-channel-width", DefaultValue = "", WinboxLabel = "Control Channel Width")]
         public TikValue<string?> ControlChannelWidth { get; set; }
 
         // ── Extension channel ─────────────────────────────────────────────────
@@ -116,7 +116,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: disabled (20 MHz only, no extension channel).
         /// <seealso cref="ExtensionChannelType"/>
         /// </summary>
-        [TikProperty("extension-channel", DefaultValue = "disabled")]
+        [TikProperty("extension-channel", DefaultValue = "disabled", WinboxLabel = "Extension Channel")]
         public TikValue<ExtensionChannelType?> ExtensionChannel { get; set; }
 
         // ── Transmit power ────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ namespace tik4net.Objects.CapsMan
         /// hardware capabilities.  Valid range: -30..40.
         /// DefaultValue="0" prevents sending 0 on add (0 is the CLR sentinel, not a valid override).
         /// </summary>
-        [TikProperty("tx-power", DefaultValue = "0")]
+        [TikProperty("tx-power", DefaultValue = "0", WinboxLabel = "Tx Power")]
         public TikValue<int?> TxPower { get; set; }
 
         // ── Secondary frequency ───────────────────────────────────────────────
@@ -136,7 +136,7 @@ namespace tik4net.Objects.CapsMan
         /// "disabled" to disable 80+80 mode.
         /// Default: disabled.
         /// </summary>
-        [TikProperty("secondary-frequency", DefaultValue = "disabled")]
+        [TikProperty("secondary-frequency", DefaultValue = "disabled", WinboxLabel = "Secondary Frequency")]
         public TikValue<string?> SecondaryFrequency { get; set; }
 
         // ── Automatic channel re-selection ────────────────────────────────────
@@ -145,7 +145,7 @@ namespace tik4net.Objects.CapsMan
         /// reselect-interval — interval between automatic frequency re-optimisation scans
         /// (time value, e.g. "1h", "30m").  Empty = no automatic re-selection.
         /// </summary>
-        [TikProperty("reselect-interval", DefaultValue = "")]
+        [TikProperty("reselect-interval", DefaultValue = "", WinboxLabel = "Reselect Interval")]
         public TikValue<TikDuration?> ReselectInterval { get; set; }
 
         /// <summary>
@@ -154,7 +154,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: yes (true); DefaultValue="no" so a fresh (false) entity does not send "no"
         /// unnecessarily — the router applies its own default of yes.
         /// </summary>
-        [TikProperty("save-selected", DefaultValue = "no")]
+        [TikProperty("save-selected", DefaultValue = "no", WinboxLabel = "Save Selected")]
         public TikValue<bool?> SaveSelected { get; set; }
 
         // ── DFS ───────────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ namespace tik4net.Objects.CapsMan
         /// from automatic frequency selection to avoid mandatory radar-detection delays.
         /// Default: no (include DFS channels).
         /// </summary>
-        [TikProperty("skip-dfs-channels", DefaultValue = "no")]
+        [TikProperty("skip-dfs-channels", DefaultValue = "no", WinboxLabel = "Skip DFS Channels")]
         public TikValue<bool?> SkipDfsChannels { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────

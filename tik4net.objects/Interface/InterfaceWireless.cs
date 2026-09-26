@@ -361,7 +361,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// l2mtu: integer [0..65536]
         /// </summary>
-        [TikProperty("l2mtu", DefaultValue = "1600")]
+        [TikProperty("l2mtu", DefaultValue = "1600", WinboxLabel = "L2 MTU")]
         public TikValue<int?> L2mtu { get; set; }
 
         /// <summary>
@@ -476,7 +476,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// mtu: [0..65536]
         /// </summary>
-        [TikProperty("mtu", DefaultValue = "1500")]
+        [TikProperty("mtu", DefaultValue = "1500", WinboxLabel = "MTU")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>
@@ -492,7 +492,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// name: name of the interface
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>

@@ -85,7 +85,7 @@ namespace tik4net.Objects.Interface.Vpn
         // ---- Writable properties ----
 
         /// <summary>name — server interface name identifier.</summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// certificate — name of the TLS certificate the server uses; <c>none</c> disables certificate-based auth.
         /// Default: none
         /// </summary>
-        [TikProperty("certificate", DefaultValue = "none")]
+        [TikProperty("certificate", DefaultValue = "none", WinboxLabel = "Certificate")]
         public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
@@ -108,14 +108,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: null, aes128-cbc, aes128-gcm, aes192-cbc, aes192-gcm, aes256-cbc, aes256-gcm, blowfish128.
         /// Default: aes128-cbc,blowfish128
         /// </summary>
-        [TikProperty("cipher", DefaultValue = "aes128-cbc,blowfish128")]
+        [TikProperty("cipher", DefaultValue = "aes128-cbc,blowfish128", WinboxLabel = "Cipher")]
         public TikValue<string?> Cipher { get; set; }
 
         /// <summary>
         /// default-profile — default PPP profile applied when a client connects.
         /// Default: default
         /// </summary>
-        [TikProperty("default-profile", DefaultValue = "default")]
+        [TikProperty("default-profile", DefaultValue = "default", WinboxLabel = "Default Profile")]
         public TikValue<string?> DefaultProfile { get; set; }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// enable-tun-ipv6 — permits IPv6 IP tunneling over the server interface.
         /// Default: no
         /// </summary>
-        [TikProperty("enable-tun-ipv6", DefaultValue = "no")]
+        [TikProperty("enable-tun-ipv6", DefaultValue = "no", WinboxLabel = "Enable Tun IPv6")]
         public TikValue<bool?> EnableTunIpv6 { get; set; }
 
         /// <summary>
@@ -146,13 +146,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// Set to <c>disabled</c> to turn off keepalives (stored as string to accept "disabled").
         /// Default: 60
         /// </summary>
-        [TikProperty("keepalive-timeout", DefaultValue = "60")]
+        [TikProperty("keepalive-timeout", DefaultValue = "60", WinboxLabel = "Keepalive Timeout")]
         public TikValue<string?> KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// mac-address — MAC address assigned to the server virtual interface (auto-generated when not set).
         /// </summary>
-        [TikProperty("mac-address")]
+        [TikProperty("mac-address", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1500; router default 1500, omitted on add when left 0.
         /// </summary>
         // router default 1500; omitted on add when left 0
-        [TikProperty("max-mtu")]
+        [TikProperty("max-mtu", WinboxLabel = "Max MTU")]
         public TikValue<int?> MaxMtu { get; set; }
 
         /// <summary>
@@ -168,7 +168,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: ip
         /// <seealso cref="TunnelMode"/>
         /// </summary>
-        [TikProperty("mode", DefaultValue = "ip")]
+        [TikProperty("mode", DefaultValue = "ip", WinboxLabel = "Mode")]
         public TikValue<TunnelMode?> Mode { get; set; }
 
         /// <summary>
@@ -176,7 +176,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 24; router default 24, omitted on add when left 0.
         /// </summary>
         // router default 24; omitted on add when left 0
-        [TikProperty("netmask")]
+        [TikProperty("netmask", WinboxLabel = "Netmask")]
         public TikValue<int?> Netmask { get; set; }
 
         /// <summary>
@@ -184,7 +184,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1194; router default 1194, omitted on add when left 0.
         /// </summary>
         // router default 1194; omitted on add when left 0
-        [TikProperty("port")]
+        [TikProperty("port", WinboxLabel = "Port")]
         public TikValue<int?> Port { get; set; }
 
         /// <summary>
@@ -192,20 +192,20 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: tcp
         /// <seealso cref="ProtocolType"/>
         /// </summary>
-        [TikProperty("protocol", DefaultValue = "tcp")]
+        [TikProperty("protocol", DefaultValue = "tcp", WinboxLabel = "Protocol")]
         public TikValue<ProtocolType?> Protocol { get; set; }
 
         /// <summary>
         /// push-routes — comma-separated list of IPv4 routes pushed to connecting clients.
         /// Maximum 1400 characters (approximately 37 routes).
         /// </summary>
-        [TikProperty("push-routes")]
+        [TikProperty("push-routes", WinboxLabel = "Push Routes")]
         public TikValue<string?> PushRoutes { get; set; }
 
         /// <summary>
         /// push-routes-ipv6 — comma-separated list of IPv6 routes pushed to connecting clients.
         /// </summary>
-        [TikProperty("push-routes-ipv6")]
+        [TikProperty("push-routes-ipv6", WinboxLabel = "Push Routes IPv6")]
         public TikValue<string?> PushRoutesIpv6 { get; set; }
 
         /// <summary>
@@ -213,7 +213,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// <seealso cref="RedirectGatewayMode"/>
         /// </summary>
-        [TikProperty("redirect-gateway", DefaultValue = "disabled")]
+        [TikProperty("redirect-gateway", DefaultValue = "disabled", WinboxLabel = "Redirect Gateway")]
         public TikValue<RedirectGatewayMode?> RedirectGateway { get; set; }
 
         /// <summary>
@@ -229,7 +229,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// chain membership before allowing the connection.
         /// Default: no
         /// </summary>
-        [TikProperty("require-client-certificate", DefaultValue = "no")]
+        [TikProperty("require-client-certificate", DefaultValue = "no", WinboxLabel = "Require Client Certificate")]
         public TikValue<bool?> RequireClientCertificate { get; set; }
 
         /// <summary>
@@ -237,14 +237,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: any
         /// <seealso cref="TlsVersionType"/>
         /// </summary>
-        [TikProperty("tls-version", DefaultValue = "any")]
+        [TikProperty("tls-version", DefaultValue = "any", WinboxLabel = "TLS Version")]
         public TikValue<TlsVersionType?> TlsVersion { get; set; }
 
         /// <summary>
         /// tun-server-ipv6 — IPv6 address prefix assigned to the server-side tun interface.
         /// Default: :: (not set)
         /// </summary>
-        [TikProperty("tun-server-ipv6", DefaultValue = "::")]
+        [TikProperty("tun-server-ipv6", DefaultValue = "::", WinboxLabel = "Tun Server IPv6")]
         public TikValue<string?> TunServerIpv6 { get; set; }
 
         /// <summary>
@@ -259,7 +259,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// vrf — Virtual Routing and Forwarding instance the server connections are bound to.
         /// Leave empty to use the main routing table.
         /// </summary>
-        [TikProperty("vrf")]
+        [TikProperty("vrf", WinboxLabel = "VRF")]
         public TikValue<string?> Vrf { get; set; }
 
         /// <summary>comment — optional description of the server configuration.</summary>

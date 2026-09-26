@@ -23,7 +23,7 @@ namespace tik4net.Objects.System
         /// <summary>
         /// name — identifier for the script. Default auto-assigned as "Script[num]".
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -37,7 +37,7 @@ namespace tik4net.Objects.System
         /// at the first semicolon, with the remainder parsed as further fields.
         /// </para>
         /// </summary>
-        [TikProperty("source", IsFreeText = true)]
+        [TikProperty("source", IsFreeText = true, WinboxLabel = "Source")]
         public TikValue<string?> Source { get; set; }
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace tik4net.Objects.System
         /// (ftp, reboot, read, write, policy, test, password, sniff, sensitive, romon).
         /// Kept as string because it is a multi-value bitmask. Default: ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon.
         /// </summary>
-        [TikProperty("policy")]
+        [TikProperty("policy", WinboxLabel = "Policy")]
         public TikValue<string?> Policy { get; set; }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace tik4net.Objects.System
         // DefaultValue is the WIRE form ("no"/"yes"), not the C# literal — a bool serialises to "no"/"yes",
         // so DefaultValue="false" would never match and the field would be force-sent on every add/set
         // (which also makes the native WinBox M2 transport fail: it cannot resolve this field to an M2 key).
-        [TikProperty("dont-require-permissions", DefaultValue = "no")]
+        [TikProperty("dont-require-permissions", DefaultValue = "no", WinboxLabel = "Don't Require Permissions")]
         public TikValue<bool?> DontRequirePermissions { get; set; }
 
         /// <summary>
@@ -68,13 +68,13 @@ namespace tik4net.Objects.System
         /// <summary>
         /// owner — user who created the script (read-only).
         /// </summary>
-        [TikProperty("owner", IsReadOnly = true)]
+        [TikProperty("owner", IsReadOnly = true, WinboxLabel = "Owner")]
         public TikValue<string?> Owner { get; private set; }
 
         /// <summary>
         /// run-count — total number of times the script has been executed (read-only).
         /// </summary>
-        [TikProperty("run-count", IsReadOnly = true)]
+        [TikProperty("run-count", IsReadOnly = true, WinboxLabel = "Run Count")]
         public TikValue<int?> RunCount { get; private set; }
 
         /// <summary>

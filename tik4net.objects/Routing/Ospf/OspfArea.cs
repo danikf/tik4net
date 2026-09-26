@@ -40,7 +40,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// name — unique name for this OSPF area entry.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Must reference an existing /routing/ospf/instance entry.
         /// This field is mandatory — the router rejects add without it.
         /// </summary>
-        [TikProperty("instance")]
+        [TikProperty("instance", WinboxLabel = "Instance")]
         public TikValue<string?> Instance { get; set; }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Kept as string to accommodate all valid forms.
         /// Default: 0.0.0.0
         /// </summary>
-        [TikProperty("area-id", DefaultValue = "0.0.0.0")]
+        [TikProperty("area-id", DefaultValue = "0.0.0.0", WinboxLabel = "Area ID")]
         public TikValue<string?> AreaId { get; set; }
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: default
         /// </summary>
         /// <seealso cref="OspfAreaType"/>
-        [TikProperty("type", DefaultValue = "default")]
+        [TikProperty("type", DefaultValue = "default", WinboxLabel = "Type")]
         public TikValue<OspfAreaType?> Type { get; set; }
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// effectively making it a totally-stub or totally-NSSA area.
         /// Default: false
         /// </summary>
-        [TikProperty("no-summaries", DefaultValue = "no")]
+        [TikProperty("no-summaries", DefaultValue = "no", WinboxLabel = "No Summaries")]
         public TikValue<bool?> NoSummaries { get; set; }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Valid range: 1..16777214. DefaultValue="0" is a CLR-sentinel so the mapper omits it on add
         /// when left unset; set to a real value to override the router's built-in default.
         /// </summary>
-        [TikProperty("default-cost", DefaultValue = "0")]
+        [TikProperty("default-cost", DefaultValue = "0", WinboxLabel = "Default Cost")]
         public TikValue<int?> DefaultCost { get; set; }
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: candidate
         /// </summary>
         /// <seealso cref="NssaTranslatorMode"/>
-        [TikProperty("nssa-translator", DefaultValue = "candidate")]
+        [TikProperty("nssa-translator", DefaultValue = "candidate", WinboxLabel = "NSSA Translator")]
         public TikValue<NssaTranslatorMode?> NssaTranslator { get; set; }
 
         /// <summary>

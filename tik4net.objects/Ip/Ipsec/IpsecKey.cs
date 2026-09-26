@@ -23,7 +23,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// name — identifier for the key; referenced from <c>/ip/ipsec/identity</c> when
         /// using RSA-based authentication methods.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         // --- Read-only status properties ---
@@ -32,7 +32,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// key-size — size of the RSA key in bits (2048, 4096, or 8192).
         /// Set at generation time via <c>generate-key</c> and cannot be changed afterwards.
         /// </summary>
-        [TikProperty("key-size", IsReadOnly = true)]
+        [TikProperty("key-size", IsReadOnly = true, WinboxLabel = "Key Size")]
         public TikValue<string?> KeySize { get; private set; }
 
         /// <summary>
@@ -40,13 +40,13 @@ namespace tik4net.Objects.Ip.Ipsec
         /// generated locally or imported with a private-key file). false when only the public
         /// key is available (e.g. a peer's imported public key).
         /// </summary>
-        [TikProperty("private-key", IsReadOnly = true)]
+        [TikProperty("private-key", IsReadOnly = true, WinboxLabel = "private key")]
         public TikValue<bool?> PrivateKey { get; private set; }
 
         /// <summary>
         /// rsa — true when the key is in RSA format (always true for entries in this table).
         /// </summary>
-        [TikProperty("rsa", IsReadOnly = true)]
+        [TikProperty("rsa", IsReadOnly = true, WinboxLabel = "rsa")]
         public TikValue<bool?> Rsa { get; private set; }
 
         /// <summary>Human-readable identity.</summary>

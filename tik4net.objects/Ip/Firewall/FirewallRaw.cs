@@ -100,13 +100,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// action: Action to take if the packet is matched by the rule.
         /// <seealso cref="ActionType"/>
         /// </summary>
-        [TikProperty("action", DefaultValue = "accept")]
+        [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
         public TikValue<ActionType?> Action { get; set; }
 
         /// <summary>
         /// address-list: Name of the address list used when action is add-dst-to-address-list or add-src-to-address-list.
         /// </summary>
-        [TikProperty("address-list")]
+        [TikProperty("address-list", WinboxLabel = "Address List")]
         public TikValue<string?> AddressList { get; set; }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// chain: Specifies to which chain the rule is added. Use built-in prerouting/output or a custom name.
         /// <seealso cref="ChainType"/>
         /// </summary>
-        [TikProperty("chain")]
+        [TikProperty("chain", WinboxLabel = "Chain")]
         public TikValue<string?> Chain { get; set; }
 
         /// <summary>
@@ -132,43 +132,43 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// content: Match packets that contain the specified text.
         /// </summary>
-        [TikProperty("content")]
+        [TikProperty("content", WinboxLabel = "Content")]
         public TikValue<string?> Content { get; set; }
 
         /// <summary>
         /// dscp: Matches DSCP IP header field.
         /// </summary>
-        [TikProperty("dscp")]
+        [TikProperty("dscp", WinboxLabel = "DSCP")]
         public TikValue<int?> Dscp { get; set; }
 
         /// <summary>
         /// dst-address: Matches packets whose destination equals the specified IP or falls into the specified IP range.
         /// </summary>
-        [TikProperty("dst-address")]
+        [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>
         /// dst-address-list: Matches destination address of a packet against a user-defined address list.
         /// </summary>
-        [TikProperty("dst-address-list")]
+        [TikProperty("dst-address-list", WinboxLabel = "Dst. Address List")]
         public TikValue<string?> DstAddressList { get; set; }
 
         /// <summary>
         /// dst-address-type: Matches destination address type (unicast, local, broadcast, multicast).
         /// </summary>
-        [TikProperty("dst-address-type")]
+        [TikProperty("dst-address-type", WinboxLabel = "Dst. Address Type")]
         public TikValue<string?> DstAddressType { get; set; }
 
         /// <summary>
         /// dst-limit: Matches packets until a given rate (per-flow) is exceeded.
         /// </summary>
-        [TikProperty("dst-limit")]
+        [TikProperty("dst-limit", WinboxLabel = "Dst. Limit")]
         public TikValue<string?> DstLimit { get; set; }
 
         /// <summary>
         /// dst-port: List of destination port numbers or port number ranges. Applicable only if protocol is TCP or UDP.
         /// </summary>
-        [TikProperty("dst-port")]
+        [TikProperty("dst-port", WinboxLabel = "Dst. Port")]
         public TikValue<string?> DstPort { get; set; }
 
         /// <summary>
@@ -180,13 +180,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// hotspot: Matches packets in a HotSpot scenario by the specified attribute.
         /// </summary>
-        [TikProperty("hotspot")]
+        [TikProperty("hotspot", WinboxLabel = "Hotspot")]
         public TikValue<string?> Hotspot { get; set; }
 
         /// <summary>
         /// icmp-options: Matches ICMP type:code fields.
         /// </summary>
-        [TikProperty("icmp-options")]
+        [TikProperty("icmp-options", WinboxLabel = "ICMP Options")]
         public TikValue<string?> IcmpOptions { get; set; }
 
         /// <summary>
@@ -204,61 +204,61 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// in-interface: Interface the packet has entered the router.
         /// </summary>
-        [TikProperty("in-interface")]
+        [TikProperty("in-interface", WinboxLabel = "In. Interface")]
         public TikValue<string?> InInterface { get; set; }
 
         /// <summary>
         /// in-interface-list: Matches in-interface against a user-defined interface list.
         /// </summary>
-        [TikProperty("in-interface-list")]
+        [TikProperty("in-interface-list", WinboxLabel = "In. Interface List")]
         public TikValue<string?> InInterfaceList { get; set; }
 
         /// <summary>
         /// ingress-priority: Matches ingress priority of the packet (VLAN, WMM, MPLS EXP).
         /// </summary>
-        [TikProperty("ingress-priority")]
+        [TikProperty("ingress-priority", WinboxLabel = "Ingress Priority")]
         public TikValue<int?> IngressPriority { get; set; }
 
         /// <summary>
         /// ipsec-policy: Matches the policy used by IPsec. Format: direction,policy.
         /// </summary>
-        [TikProperty("ipsec-policy")]
+        [TikProperty("ipsec-policy", WinboxLabel = "IPsec Policy")]
         public TikValue<string?> IpsecPolicy { get; set; }
 
         /// <summary>
         /// ipv4-options: Matches IPv4 header options (any, loose-source-routing, record-route, router-alert, etc.).
         /// </summary>
-        [TikProperty("ipv4-options")]
+        [TikProperty("ipv4-options", WinboxLabel = "IPv4 Options")]
         public TikValue<string?> Ipv4Options { get; set; }
 
         /// <summary>
         /// jump-target: Name of the target chain to jump to. Applicable only if action=jump.
         /// </summary>
-        [TikProperty("jump-target")]
+        [TikProperty("jump-target", WinboxLabel = "Jump Target")]
         public TikValue<string?> JumpTarget { get; set; }
 
         /// <summary>
         /// limit: Matches packets at a limited rate. Parameters: count[/time],burst.
         /// </summary>
-        [TikProperty("limit")]
+        [TikProperty("limit", WinboxLabel = "Limit")]
         public TikValue<string?> Limit { get; set; }
 
         /// <summary>
         /// log: Whether to log matched packets (shorthand flag; use action=log for full log action).
         /// </summary>
-        [TikProperty("log", DefaultValue = "no")]
+        [TikProperty("log", DefaultValue = "no", WinboxLabel = "Log")]
         public TikValue<bool?> Log { get; set; }
 
         /// <summary>
         /// log-prefix: Adds specified text at the beginning of every log message. Applicable if action=log or log=yes.
         /// </summary>
-        [TikProperty("log-prefix")]
+        [TikProperty("log-prefix", WinboxLabel = "Log Prefix")]
         public TikValue<string?> LogPrefix { get; set; }
 
         /// <summary>
         /// nth: Matches every nth packet.
         /// </summary>
-        [TikProperty("nth")]
+        [TikProperty("nth", WinboxLabel = "Nth")]
         public TikValue<string?> Nth { get; set; }
 
         /// <summary>
@@ -276,13 +276,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// out-interface: Interface the packet is leaving the router through.
         /// </summary>
-        [TikProperty("out-interface")]
+        [TikProperty("out-interface", WinboxLabel = "Out. Interface")]
         public TikValue<string?> OutInterface { get; set; }
 
         /// <summary>
         /// out-interface-list: Matches out-interface against a user-defined interface list.
         /// </summary>
-        [TikProperty("out-interface-list")]
+        [TikProperty("out-interface-list", WinboxLabel = "Out. Interface List")]
         public TikValue<string?> OutInterfaceList { get; set; }
 
         /// <summary>
@@ -294,13 +294,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// packet-size: Matches packets of specified size or size range in bytes.
         /// </summary>
-        [TikProperty("packet-size")]
+        [TikProperty("packet-size", WinboxLabel = "Packet Size")]
         public TikValue<string?> PacketSize { get; set; }
 
         /// <summary>
         /// per-connection-classifier: PCC matcher divides traffic into equal streams.
         /// </summary>
-        [TikProperty("per-connection-classifier")]
+        [TikProperty("per-connection-classifier", WinboxLabel = "Per Connection Classifier")]
         public TikValue<string?> PerConnectionClassifier { get; set; }
 
         /// <summary>
@@ -312,92 +312,92 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// priority: Matches packet priority (VLAN or WMM priority tag).
         /// </summary>
-        [TikProperty("priority")]
+        [TikProperty("priority", WinboxLabel = "Priority")]
         public TikValue<string?> Priority { get; set; }
 
         /// <summary>
         /// protocol: Matches particular IP protocol specified by protocol name or number.
         /// </summary>
-        [TikProperty("protocol")]
+        [TikProperty("protocol", WinboxLabel = "Protocol")]
         public TikValue<string?> Protocol { get; set; }
 
         /// <summary>
         /// psd: Attempts to detect TCP and UDP port scans.
         /// Format: WeightThreshold, DelayThreshold, LowPortWeight, HighPortWeight.
         /// </summary>
-        [TikProperty("psd")]
+        [TikProperty("psd", WinboxLabel = "PSD")]
         public TikValue<string?> Psd { get; set; }
 
         /// <summary>
         /// random: Matches packets randomly with given probability.
         /// </summary>
-        [TikProperty("random")]
+        [TikProperty("random", WinboxLabel = "Random")]
         public TikValue<string?> Random { get; set; }
 
         /// <summary>
         /// src-address: Matches packets whose source equals the specified IP or falls into the specified IP range.
         /// </summary>
-        [TikProperty("src-address")]
+        [TikProperty("src-address", WinboxLabel = "Src. Address")]
         public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// src-address-list: Matches source address of a packet against a user-defined address list.
         /// </summary>
-        [TikProperty("src-address-list")]
+        [TikProperty("src-address-list", WinboxLabel = "Src. Address List")]
         public TikValue<string?> SrcAddressList { get; set; }
 
         /// <summary>
         /// src-address-type: Matches source address type (unicast, local, broadcast, multicast).
         /// </summary>
-        [TikProperty("src-address-type")]
+        [TikProperty("src-address-type", WinboxLabel = "Src. Address Type")]
         public TikValue<string?> SrcAddressType { get; set; }
 
         /// <summary>
         /// src-mac-address: Matches source MAC address of the packet.
         /// </summary>
-        [TikProperty("src-mac-address")]
+        [TikProperty("src-mac-address", WinboxLabel = "Src. MAC Address")]
         public TikValue<string?> SrcMacAddress { get; set; }
 
         /// <summary>
         /// src-port: List of source ports and ranges. Applicable only if protocol is TCP or UDP.
         /// </summary>
-        [TikProperty("src-port")]
+        [TikProperty("src-port", WinboxLabel = "Src. Port")]
         public TikValue<string?> SrcPort { get; set; }
 
         /// <summary>
         /// tcp-flags: Matches specified TCP flags (ack, cwr, ece, fin, psh, rst, syn, urg).
         /// </summary>
-        [TikProperty("tcp-flags")]
+        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags")]
         public TikValue<string?> TcpFlags { get; set; }
 
         /// <summary>
         /// tcp-mss: Matches TCP MSS value of an IP packet.
         /// </summary>
-        [TikProperty("tcp-mss")]
+        [TikProperty("tcp-mss", WinboxLabel = "TCP MSS")]
         public TikValue<string?> TcpMss { get; set; }
 
         /// <summary>
         /// time: Allows creating filter based on packet arrival time and date.
         /// </summary>
-        [TikProperty("time")]
+        [TikProperty("time", WinboxLabel = "Time")]
         public TikValue<string?> Time { get; set; }
 
         /// <summary>
         /// tls-host: Matches TLS SNI hostname (RouterOS 7+).
         /// </summary>
-        [TikProperty("tls-host")]
+        [TikProperty("tls-host", WinboxLabel = "TLS Host")]
         public TikValue<string?> TlsHost { get; set; }
 
         /// <summary>
         /// tos: Matches the ToS (Type of Service) field of IP header.
         /// </summary>
-        [TikProperty("tos")]
+        [TikProperty("tos", WinboxLabel = "TOS")]
         public TikValue<string?> Tos { get; set; }
 
         /// <summary>
         /// ttl: Matches packets TTL value.
         /// </summary>
-        [TikProperty("ttl")]
+        [TikProperty("ttl", WinboxLabel = "TTL")]
         public TikValue<string?> Ttl { get; set; }
 
         /// <summary>
@@ -421,13 +421,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// bytes: Statistics — total bytes matched by this rule (read-only).
         /// </summary>
-        [TikProperty("bytes", IsReadOnly = true)]
+        [TikProperty("bytes", IsReadOnly = true, WinboxLabel = "Bytes")]
         public TikValue<long?> Bytes { get; private set; }
 
         /// <summary>
         /// packets: Statistics — total packets matched by this rule (read-only).
         /// </summary>
-        [TikProperty("packets", IsReadOnly = true)]
+        [TikProperty("packets", IsReadOnly = true, WinboxLabel = "Packets")]
         public TikValue<long?> Packets { get; private set; }
 
         /// <summary>

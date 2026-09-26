@@ -16,7 +16,7 @@ namespace tik4net.Objects.Tool.MacServer
     public class ToolMacServerWinbox
     {
         /// <summary>allowed-interface-list — interface list whose members may reach the router via WinBox-over-MAC. Default: all.</summary>
-        [TikProperty("allowed-interface-list", DefaultValue = "all")]
+        [TikProperty("allowed-interface-list", DefaultValue = "all", WinboxLabel = "Allowed Interface List")]
         public TikValue<string?> AllowedInterfaceList { get; set; }
 
         /// <summary>Returns a human-readable summary of the MAC-WinBox settings.</summary>

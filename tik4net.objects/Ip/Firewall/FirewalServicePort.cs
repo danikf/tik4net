@@ -20,13 +20,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// name
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; private set; }
 
         /// <summary>
         /// name
         /// </summary>
-        [TikProperty("ports")]
+        [TikProperty("ports", WinboxLabel = "Ports")]
         public TikValue<string?> Ports { get; set; }
 
         /// <summary>

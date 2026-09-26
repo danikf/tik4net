@@ -37,19 +37,19 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// ap: Shows whether registered device is configured as access point.
         /// </summary>
-        [TikProperty("ap", IsReadOnly = true)]
+        [TikProperty("ap", IsReadOnly = true, WinboxLabel = "AP")]
         public TikValue<bool?> Ap { get; private set; }
 
         /// <summary>
         /// ap-tx-limit: transmit rate limit on the AP, in bits per second
         /// </summary>
-        [TikProperty("ap-tx-limit", IsReadOnly = true)]
+        [TikProperty("ap-tx-limit", IsReadOnly = true, WinboxLabel = "AP Tx Limit")]
         public TikValue<int?> ApTxLimit { get; private set; }
 
         /// <summary>
         /// authentication-type: authentication method used for the peer
         /// </summary>
-        [TikProperty("authentication-type", IsReadOnly = true)]
+        [TikProperty("authentication-type", IsReadOnly = true, WinboxLabel = "Authentication Type")]
         public TikValue<string?> AuthenticationType { get; private set; }
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// client-tx-limit: transmit rate limit on the AP, in bits per second
         /// </summary>
-        [TikProperty("client-tx-limit", IsReadOnly = true)]
+        [TikProperty("client-tx-limit", IsReadOnly = true, WinboxLabel = "Client Tx Limit")]
         public TikValue<int?> ClientTxLimit { get; private set; }
 
         /// <summary>
@@ -79,19 +79,19 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// compression: whether data compresson is used for this peer
         /// </summary>
-        [TikProperty("compression", IsReadOnly = true)]
+        [TikProperty("compression", IsReadOnly = true, WinboxLabel = "Compression")]
         public TikValue<bool?> Compression { get; private set; }
 
         /// <summary>
         /// distance: 
         /// </summary>
-        [TikProperty("distance", IsReadOnly = true)]
+        [TikProperty("distance", IsReadOnly = true, WinboxLabel = "Distance")]
         public TikValue<int?> Distance { get; private set; }
 
         /// <summary>
         /// encryption: unicast encryption algorithm used
         /// </summary>
-        [TikProperty("encryption", IsReadOnly = true)]
+        [TikProperty("encryption", IsReadOnly = true, WinboxLabel = "Encryption")]
         public TikValue<string?> Encryption { get; private set; }
 
         /// <summary>
@@ -127,25 +127,25 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// framing-current-size: current size of combined frames
         /// </summary>
-        [TikProperty("framing-current-size", IsReadOnly = true)]
+        [TikProperty("framing-current-size", IsReadOnly = true, WinboxLabel = "Framing Current Size")]
         public TikValue<int?> FramingCurrentSize { get; private set; }
 
         /// <summary>
         /// framing-limit: maximal size of combined frames
         /// </summary>
-        [TikProperty("framing-limit", IsReadOnly = true)]
+        [TikProperty("framing-limit", IsReadOnly = true, WinboxLabel = "Framing Limit")]
         public TikValue<int?> FramingLimit { get; private set; }
 
         /// <summary>
         /// framing-mode: the method how to combine frames
         /// </summary>
-        [TikProperty("framing-mode", IsReadOnly = true)]
+        [TikProperty("framing-mode", IsReadOnly = true, WinboxLabel = "Framing Mode")]
         public TikValue<string?> FramingMode { get; private set; }
 
         /// <summary>
         /// group-encryption: group encryption algorithm used
         /// </summary>
-        [TikProperty("group-encryption", IsReadOnly = true)]
+        [TikProperty("group-encryption", IsReadOnly = true, WinboxLabel = "Group Encryption")]
         public TikValue<string?> GroupEncryption { get; private set; }
 
         /// <summary>
@@ -163,25 +163,25 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// interface: Name of the wireless interface to which wireless client is associated
         /// </summary>
-        [TikProperty("interface", IsReadOnly = true)]
+        [TikProperty("interface", IsReadOnly = true, WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; private set; }
 
         /// <summary>
         /// last-activity: last interface data tx/rx activity
         /// </summary>
-        [TikProperty("last-activity", IsReadOnly = true)]
+        [TikProperty("last-activity", IsReadOnly = true, WinboxLabel = "Last Activity")]
         public TikValue<string?> LastActivity { get; private set; }
 
         /// <summary>
         /// last-ip: IP address found in the last IP packet received from the registered client
         /// </summary>
-        [TikProperty("last-ip", IsReadOnly = true)]
+        [TikProperty("last-ip", IsReadOnly = true, WinboxLabel = "Last IP")]
         public TikValue<string?> LastIp { get; private set; }
 
         /// <summary>
         /// mac-address: MAC address of the registered client
         /// </summary>
-        [TikProperty("mac-address", IsReadOnly = true)]
+        [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; private set; }
 
         /// <summary>
@@ -193,13 +193,13 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// nstreme: Shows whether nstreme is enabled
         /// </summary>
-        [TikProperty("nstreme", IsReadOnly = true)]
+        [TikProperty("nstreme", IsReadOnly = true, WinboxLabel = "Nstreme")]
         public TikValue<bool?> Nstreme { get; private set; }
 
         /// <summary>
         /// p-throughput: estimated approximate throughput that is expected to the given peer, taking into account the effective transmit rate and hardware retries. Calculated once in 5 seconds
         /// </summary>
-        [TikProperty("p-throughput", IsReadOnly = true)]
+        [TikProperty("p-throughput", IsReadOnly = true, WinboxLabel = "P Throughput")]
         public TikValue<int?> PThroughput { get; private set; }
 
         /// <summary>
@@ -223,25 +223,25 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// radio-name: radio name of the peer
         /// </summary>
-        [TikProperty("radio-name", IsReadOnly = true)]
+        [TikProperty("radio-name", IsReadOnly = true, WinboxLabel = "Radio Name")]
         public TikValue<string?> RadioName { get; private set; }
 
         /// <summary>
         /// routeros-version: RouterOS version of the registered client
         /// </summary>
-        [TikProperty("routeros-version", IsReadOnly = true)]
+        [TikProperty("routeros-version", IsReadOnly = true, WinboxLabel = "RouterOS Version")]
         public TikValue<string?> RouterosVersion { get; private set; }
 
         /// <summary>
         /// rx-ccq: Client Connection Quality (CCQ) for receive.  Read more &gt;&gt; 
         /// </summary>
-        [TikProperty("rx-ccq", IsReadOnly = true)]
+        [TikProperty("rx-ccq", IsReadOnly = true, WinboxLabel = "Rx CCQ")]
         public TikValue<string?> RxCcq { get; private set; }
 
         /// <summary>
         /// rx-rate: receive data rate
         /// </summary>
-        [TikProperty("rx-rate", IsReadOnly = true)]
+        [TikProperty("rx-rate", IsReadOnly = true, WinboxLabel = "Rx Rate")]
         public TikValue<string?> RxRate { get; private set; }
 
         /// <summary>
@@ -271,7 +271,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// signal-to-noise: 
         /// </summary>
-        [TikProperty("signal-to-noise", IsReadOnly = true)]
+        [TikProperty("signal-to-noise", IsReadOnly = true, WinboxLabel = "Signal To Noise")]
         public TikValue<string?> SignalToNoise { get; private set; }
 
         /// <summary>
@@ -289,7 +289,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// tdma-rx-size: 
         /// </summary>
-        [TikProperty("tdma-rx-size", IsReadOnly = true)]
+        [TikProperty("tdma-rx-size", IsReadOnly = true, WinboxLabel = "TDMA Rx Size")]
         public TikValue<string?> TdmaRxSize { get; private set; }
 
         /// <summary>
@@ -297,13 +297,13 @@ namespace tik4net.Objects.Interface.Wireless
         /// tdma-timing-offset is proportional to distance and is approximately two times the propagation delay.
         /// AP measures this so that it can tell clients what offset to use for their transmissions - clients then subtract this offset from their target transmission time such that propagation delay is accounted for and transmission arrives at AP when expected. You may occasionally see small negative value (like few usecs) there for close range clients because of additional unaccounted delay that may be produced in transmitter or receiver hardware that varies from chipset to chipset.
         /// </summary>
-        [TikProperty("tdma-timing-offset", IsReadOnly = true)]
+        [TikProperty("tdma-timing-offset", IsReadOnly = true, WinboxLabel = "TDMA Timing Offset")]
         public TikValue<string?> TdmaTimingOffset { get; private set; }
 
         /// <summary>
         /// tdma-tx-size: Value in bytes that specifies the size of data unit whose loss can be detected (data unit over which CRC is calculated) sent by device. In general - the bigger the better, because overhead is less. On the other hand, small value in this setting can not always be considered a signal that connection is poor - if device does not have enough pending data that would enable it to use bigger data units (e.g. if you are just pinging over link), this value will not go up.
         /// </summary>
-        [TikProperty("tdma-tx-size", IsReadOnly = true)]
+        [TikProperty("tdma-tx-size", IsReadOnly = true, WinboxLabel = "TDMA Tx Size")]
         public TikValue<int?> TdmaTxSize { get; private set; }
 
         /// <summary>
@@ -315,7 +315,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// tx-ccq: Client Connection Quality (CCQ) for transmit.  Read more &gt;&gt; 
         /// </summary>
-        [TikProperty("tx-ccq", IsReadOnly = true)]
+        [TikProperty("tx-ccq", IsReadOnly = true, WinboxLabel = "Tx CCQ")]
         public TikValue<string?> TxCcq { get; private set; }
 
         /// <summary>
@@ -345,49 +345,49 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// tx-rate: 
         /// </summary>
-        [TikProperty("tx-rate", IsReadOnly = true)]
+        [TikProperty("tx-rate", IsReadOnly = true, WinboxLabel = "Tx Rate")]
         public TikValue<string?> TxRate { get; private set; }
 
         /// <summary>
         /// tx-signal-strength: 
         /// </summary>
-        [TikProperty("tx-signal-strength", IsReadOnly = true)]
+        [TikProperty("tx-signal-strength", IsReadOnly = true, WinboxLabel = "Tx Signal Strength")]
         public TikValue<string?> TxSignalStrength { get; private set; }
 
         /// <summary>
         /// tx-signal-strength-ch0: 
         /// </summary>
-        [TikProperty("tx-signal-strength-ch0", IsReadOnly = true)]
+        [TikProperty("tx-signal-strength-ch0", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch0")]
         public TikValue<string?> TxSignalStrengthCh0 { get; private set; }
 
         /// <summary>
         /// tx-signal-strength-ch1: 
         /// </summary>
-        [TikProperty("tx-signal-strength-ch1", IsReadOnly = true)]
+        [TikProperty("tx-signal-strength-ch1", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch1")]
         public TikValue<string?> TxSignalStrengthCh1 { get; private set; }
 
         /// <summary>
         /// tx-signal-strength-ch2: 
         /// </summary>
-        [TikProperty("tx-signal-strength-ch2", IsReadOnly = true)]
+        [TikProperty("tx-signal-strength-ch2", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch2")]
         public TikValue<string?> TxSignalStrengthCh2 { get; private set; }
 
         /// <summary>
         /// uptime: time the client is associated with the access point
         /// </summary>
-        [TikProperty("uptime", IsReadOnly = true)]
+        [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
         public TikValue<TimeSpan?> Uptime { get; private set; }
 
         /// <summary>
         /// wds: whether the connected client is using wds or not
         /// </summary>
-        [TikProperty("wds", IsReadOnly = true)]
+        [TikProperty("wds", IsReadOnly = true, WinboxLabel = "WDS")]
         public TikValue<bool?> Wds { get; private set; }
 
         /// <summary>
         /// wmm-enabled: Shows whether  WMM is enabled.
         /// </summary>
-        [TikProperty("wmm-enabled", IsReadOnly = true)]
+        [TikProperty("wmm-enabled", IsReadOnly = true, WinboxLabel = "WMM Enabled")]
         public TikValue<bool?> WmmEnabled { get; private set; }
     }
 }

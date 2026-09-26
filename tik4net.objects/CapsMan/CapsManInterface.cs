@@ -44,26 +44,26 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// name — unique name of this CAPsMAN interface.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// mac-address — MAC address of the virtual wireless interface.
         /// </summary>
-        [TikProperty("mac-address")]
+        [TikProperty("mac-address", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
         /// radio-mac — MAC address of the physical CAP radio that bound to this interface entry.
         /// Used to match a specific CAP radio device.
         /// </summary>
-        [TikProperty("radio-mac")]
+        [TikProperty("radio-mac", WinboxLabel = "Radio MAC")]
         public TikValue<string?> RadioMac { get; set; }
 
         /// <summary>
         /// radio-name — identifier/name reported by the CAP device for this radio.
         /// </summary>
-        [TikProperty("radio-name")]
+        [TikProperty("radio-name", WinboxLabel = "Radio Name")]
         public TikValue<string?> RadioName { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
@@ -72,31 +72,31 @@ namespace tik4net.Objects.CapsMan
         /// master-interface — name of the master CAPsMAN interface this entry is subordinate to,
         /// or "none" for a master interface itself. Default: none.
         /// </summary>
-        [TikProperty("master-interface", DefaultValue = "none")]
+        [TikProperty("master-interface", DefaultValue = "none", WinboxLabel = "Master Interface")]
         public TikValue<string?> MasterInterface { get; set; }
 
         /// <summary>
         /// configuration — name of the /caps-man/configuration profile to apply to this interface.
         /// </summary>
-        [TikProperty("configuration")]
+        [TikProperty("configuration", WinboxLabel = "Configuration")]
         public TikValue<string?> Configuration { get; set; }
 
         /// <summary>
         /// channel — name of the /caps-man/channel profile to apply, or empty for no channel override.
         /// </summary>
-        [TikProperty("channel")]
+        [TikProperty("channel", WinboxLabel = "Channel")]
         public TikValue<string?> Channel { get; set; }
 
         /// <summary>
         /// datapath — name of the /caps-man/datapath profile to apply, or empty for no datapath override.
         /// </summary>
-        [TikProperty("datapath")]
+        [TikProperty("datapath", WinboxLabel = "Datapath")]
         public TikValue<string?> Datapath { get; set; }
 
         /// <summary>
         /// security — name of the /caps-man/security profile to apply, or empty for no security override.
         /// </summary>
-        [TikProperty("security")]
+        [TikProperty("security", WinboxLabel = "Security")]
         public TikValue<string?> Security { get; set; }
 
         /// <summary>
@@ -149,27 +149,27 @@ namespace tik4net.Objects.CapsMan
         /// arp — Address Resolution Protocol mode for this interface. Default: enabled.
         /// <seealso cref="ArpMode"/>
         /// </summary>
-        [TikProperty("arp", DefaultValue = "enabled")]
+        [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
         public TikValue<ArpMode?> Arp { get; set; }
 
         /// <summary>
         /// arp-timeout — timeout for ARP cache entries. Default: auto.
         /// </summary>
-        [TikProperty("arp-timeout", DefaultValue = "auto")]
+        [TikProperty("arp-timeout", DefaultValue = "auto", WinboxLabel = "ARP Timeout")]
         public TikValue<string?> ArpTimeout { get; set; }
 
         /// <summary>
         /// mtu — IP layer maximum transmission unit in bytes.
         /// DefaultValue="0" prevents sending 0 on add when unset.
         /// </summary>
-        [TikProperty("mtu", DefaultValue = "0")]
+        [TikProperty("mtu", DefaultValue = "0", WinboxLabel = "MTU")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>
         /// l2mtu — link-layer maximum transmission unit in bytes.
         /// DefaultValue="0" prevents sending 0 on add when unset.
         /// </summary>
-        [TikProperty("l2mtu", DefaultValue = "0")]
+        [TikProperty("l2mtu", DefaultValue = "0", WinboxLabel = "L2 MTU")]
         public TikValue<int?> L2Mtu { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
@@ -200,13 +200,13 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// running — whether the interface is currently running/operational (R flag). Read-only.
         /// </summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>
         /// master — whether this is a master interface (M flag). Read-only.
         /// </summary>
-        [TikProperty("master", IsReadOnly = true)]
+        [TikProperty("master", IsReadOnly = true, WinboxLabel = "master")]
         public TikValue<bool?> Master { get; private set; }
 
         /// <summary>
@@ -218,13 +218,13 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// bound — whether the interface is bound to a physical CAP radio (B flag). Read-only.
         /// </summary>
-        [TikProperty("bound", IsReadOnly = true)]
+        [TikProperty("bound", IsReadOnly = true, WinboxLabel = "bound")]
         public TikValue<bool?> Bound { get; private set; }
 
         /// <summary>
         /// inactive — whether the interface is inactive (I flag). Read-only.
         /// </summary>
-        [TikProperty("inactive", IsReadOnly = true)]
+        [TikProperty("inactive", IsReadOnly = true, WinboxLabel = "inactive")]
         public TikValue<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>

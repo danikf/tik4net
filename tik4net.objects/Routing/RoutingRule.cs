@@ -36,42 +36,42 @@ namespace tik4net.Objects.Routing
         /// Default: lookup (look up in the table named by <see cref="Table"/>).
         /// </summary>
         /// <seealso cref="ActionType"/>
-        [TikProperty("action", DefaultValue = "lookup")]
+        [TikProperty("action", DefaultValue = "lookup", WinboxLabel = "Action")]
         public TikValue<ActionType?> Action { get; set; }
 
         /// <summary>
         /// table — name of the routing table to use for lookup when action is lookup or lookup-only-in-table.
         /// References a table defined in /routing/table (or the built-in "main" table).
         /// </summary>
-        [TikProperty("table")]
+        [TikProperty("table", WinboxLabel = "Table")]
         public TikValue<string?> Table { get; set; }
 
         /// <summary>
         /// src-address — match packets whose source IP address falls within this prefix (e.g. 192.0.2.0/24).
         /// Leave empty to match any source address.
         /// </summary>
-        [TikProperty("src-address")]
+        [TikProperty("src-address", WinboxLabel = "Src. Address")]
         public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// dst-address — match packets whose destination IP address falls within this prefix (e.g. 198.51.100.0/24).
         /// Leave empty to match any destination address.
         /// </summary>
-        [TikProperty("dst-address")]
+        [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>
         /// interface — match packets arriving on this interface name.
         /// Leave empty to match all interfaces.
         /// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// routing-mark — match packets that carry this firewall routing mark (set by mangle rules).
         /// Leave empty to match unmarked packets / all packets.
         /// </summary>
-        [TikProperty("routing-mark")]
+        [TikProperty("routing-mark", WinboxLabel = "Routing Mark")]
         public TikValue<string?> RoutingMark { get; set; }
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace tik4net.Objects.Routing
         /// DefaultValue="0" makes the mapper skip this field on add when it is unset (CLR default 0),
         /// preventing a "value out of range" rejection from the router.
         /// </summary>
-        [TikProperty("min-prefix", DefaultValue = "0")]
+        [TikProperty("min-prefix", DefaultValue = "0", WinboxLabel = "Min Prefix")]
         public TikValue<int?> MinPrefix { get; set; }
 
         /// <summary>

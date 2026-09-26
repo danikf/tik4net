@@ -60,7 +60,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// name — profile identifier; referenced by /ip/ipsec/peer entries.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// SHA is stronger but slower. Default: sha1.
         /// <seealso cref="HashAlgorithmType"/>
         /// </summary>
-        [TikProperty("hash-algorithm", DefaultValue = "sha1")]
+        [TikProperty("hash-algorithm", DefaultValue = "sha1", WinboxLabel = "Hash Algorithms")]
         public TikValue<HashAlgorithmType?> HashAlgorithm { get; set; }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// camellia-192, camellia-256, des.
         /// Default: "aes-128,3des"
         /// </summary>
-        [TikProperty("enc-algorithm", DefaultValue = "aes-128,3des")]
+        [TikProperty("enc-algorithm", DefaultValue = "aes-128,3des", WinboxLabel = "Encryption Algorithm")]
         public TikValue<string?> EncAlgorithm { get; set; }
 
         /// <summary>
@@ -88,14 +88,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// modp6144, modp8192, ecp256, ecp384, ecp521.
         /// Default: "modp2048,modp1024"
         /// </summary>
-        [TikProperty("dh-group", DefaultValue = "modp2048,modp1024")]
+        [TikProperty("dh-group", DefaultValue = "modp2048,modp1024", WinboxLabel = "DH Group")]
         public TikValue<string?> DhGroup { get; set; }
 
         /// <summary>
         /// lifetime — how long the Phase 1 SA is considered valid before re-keying.
         /// Accepts RouterOS time format (e.g. "1d", "8h", "30m"). Default: "1d"
         /// </summary>
-        [TikProperty("lifetime", DefaultValue = "1d")]
+        [TikProperty("lifetime", DefaultValue = "1d", WinboxLabel = "Lifetime")]
         public TikValue<TikDuration?> Lifetime { get; set; }
 
         /// <summary>
@@ -103,14 +103,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// 0 means disabled (not set). Valid range: 0–4294967295.
         /// When 0 the mapper omits the field on add and the router uses its own default.
         /// </summary>
-        [TikProperty("lifebytes")]
+        [TikProperty("lifebytes", WinboxLabel = "Lifebytes")]
         public TikValue<long?> Lifebytes { get; set; }
 
         /// <summary>
         /// nat-traversal — enable Linux NAT-T (RFC 3947) to allow IPsec through NAT devices.
         /// Default: yes
         /// </summary>
-        [TikProperty("nat-traversal", DefaultValue = "yes")]
+        [TikProperty("nat-traversal", DefaultValue = "yes", WinboxLabel = "NAT Traversal")]
         public TikValue<bool?> NatTraversal { get; set; }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: "8s"
         /// When not set the mapper omits the field on add and the router uses its own default.
         /// </summary>
-        [TikProperty("dpd-interval")]
+        [TikProperty("dpd-interval", WinboxLabel = "DPD Interval")]
         // 'disable-dpd' is one of the words TikDuration keeps as a Token rather than flattening to zero.
         public TikValue<TikDuration?> DpdInterval { get; set; }
 
@@ -129,7 +129,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// is declared dead and the SA is torn down. Valid range: 1–100.
         /// When 0 the mapper omits the field on add and the router uses its own default (4).
         /// </summary>
-        [TikProperty("dpd-maximum-failures")]
+        [TikProperty("dpd-maximum-failures", WinboxLabel = "DPD Maximum Failures")]
         public TikValue<int?> DpdMaximumFailures { get; set; }
 
         /// <summary>
@@ -137,7 +137,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// initiator. Default: obey.
         /// <seealso cref="ProposalCheckType"/>
         /// </summary>
-        [TikProperty("proposal-check", DefaultValue = "obey")]
+        [TikProperty("proposal-check", DefaultValue = "obey", WinboxLabel = "Proposal Check")]
         public TikValue<ProposalCheckType?> ProposalCheck { get; set; }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// ppk — enable Post-quantum Preshared Key (PPK) support (IKEv2, RFC 8784).
         /// Default: no
         /// </summary>
-        [TikProperty("ppk", DefaultValue = "no")]
+        [TikProperty("ppk", DefaultValue = "no", WinboxLabel = "PPK")]
         public TikValue<bool?> Ppk { get; set; }
 
         // NOTE: /ip/ipsec/profile has no "comment" field on RouterOS (confirmed via

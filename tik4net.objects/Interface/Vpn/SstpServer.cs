@@ -45,14 +45,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: pap, chap, mschap1, mschap2.
         /// Default: pap,chap,mschap1,mschap2
         /// </summary>
-        [TikProperty("authentication", DefaultValue = "pap,chap,mschap1,mschap2")]
+        [TikProperty("authentication", DefaultValue = "pap,chap,mschap1,mschap2", WinboxLabel = "Authentication")]
         public TikValue<string?> Authentication { get; set; }
 
         /// <summary>
         /// certificate — name of the TLS server certificate; <c>none</c> disables certificate-based auth.
         /// Default: none
         /// </summary>
-        [TikProperty("certificate", DefaultValue = "none")]
+        [TikProperty("certificate", DefaultValue = "none", WinboxLabel = "Certificate")]
         public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
@@ -60,21 +60,21 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: aes256-sha, aes256-gcm-sha384.
         /// Default: aes256-sha,aes256-gcm-sha384
         /// </summary>
-        [TikProperty("ciphers", DefaultValue = "aes256-sha,aes256-gcm-sha384")]
+        [TikProperty("ciphers", DefaultValue = "aes256-sha,aes256-gcm-sha384", WinboxLabel = "Ciphers")]
         public TikValue<string?> Ciphers { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new SSTP sessions.
         /// Default: default
         /// </summary>
-        [TikProperty("default-profile", DefaultValue = "default")]
+        [TikProperty("default-profile", DefaultValue = "default", WinboxLabel = "Default Profile")]
         public TikValue<string?> DefaultProfile { get; set; }
 
         /// <summary>
         /// enabled — when <c>true</c> the SSTP server accepts incoming connections.
         /// Default: no
         /// </summary>
-        [TikProperty("enabled", DefaultValue = "no")]
+        [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
         public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 60; router default 60, omitted on add when left 0.
         /// </summary>
         // router default 60; omitted on add when left 0
-        [TikProperty("keepalive-timeout")]
+        [TikProperty("keepalive-timeout", WinboxLabel = "Keepalive Timeout")]
         public TikValue<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1500; router default 1500, omitted on add when left 0.
         /// </summary>
         // router default 1500; omitted on add when left 0
-        [TikProperty("max-mru")]
+        [TikProperty("max-mru", WinboxLabel = "Max MRU")]
         public TikValue<int?> MaxMru { get; set; }
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 1500; router default 1500, omitted on add when left 0.
         /// </summary>
         // router default 1500; omitted on add when left 0
-        [TikProperty("max-mtu")]
+        [TikProperty("max-mtu", WinboxLabel = "Max MTU")]
         public TikValue<int?> MaxMtu { get; set; }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Set to <c>disabled</c> to turn off MRRU negotiation. Valid integer range: 512..65535.
         /// Default: disabled
         /// </summary>
-        [TikProperty("mrru", DefaultValue = "disabled")]
+        [TikProperty("mrru", DefaultValue = "disabled", WinboxLabel = "MRRU")]
         public TikValue<string?> Mrru { get; set; }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// <seealso cref="PfsType"/>
         /// </summary>
-        [TikProperty("pfs", DefaultValue = "no")]
+        [TikProperty("pfs", DefaultValue = "no", WinboxLabel = "PFS")]
         public TikValue<PfsType?> Pfs { get; set; }
 
         /// <summary>
@@ -123,7 +123,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 443; router default 443, omitted on add when left 0.
         /// </summary>
         // router default 443; omitted on add when left 0
-        [TikProperty("port")]
+        [TikProperty("port", WinboxLabel = "Port")]
         public TikValue<int?> Port { get; set; }
 
         /// <summary>
@@ -131,7 +131,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: any
         /// <seealso cref="TlsVersionType"/>
         /// </summary>
-        [TikProperty("tls-version", DefaultValue = "any")]
+        [TikProperty("tls-version", DefaultValue = "any", WinboxLabel = "TLS Version")]
         public TikValue<TlsVersionType?> TlsVersion { get; set; }
 
         /// <summary>
@@ -139,7 +139,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// before allowing the connection.
         /// Default: no
         /// </summary>
-        [TikProperty("verify-client-certificate", DefaultValue = "no")]
+        [TikProperty("verify-client-certificate", DefaultValue = "no", WinboxLabel = "Verify Client Certificate")]
         public TikValue<bool?> VerifyClientCertificate { get; set; }
 
         /// <summary>Human-readable summary of the SSTP server configuration.</summary>

@@ -28,14 +28,14 @@ namespace tik4net.Objects.Ip.Dns
         /// name
         /// DNS name of the host
         /// </summary>
-        [TikProperty("name", IsReadOnly = true)]
+        [TikProperty("name", IsReadOnly = true, WinboxLabel = "Name")]
         public TikValue<string?> Name { get; private set; }
 
         /// <summary>
         /// ttl
         /// remaining time-to-live for the record
         /// </summary>
-        [TikProperty("ttl", IsReadOnly = true)]
+        [TikProperty("ttl", IsReadOnly = true, WinboxLabel = "TTL")]
         public TikValue<string?> Ttl { get; private set; }
 
         /// <summary>

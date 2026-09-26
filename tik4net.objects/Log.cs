@@ -20,19 +20,19 @@ namespace tik4net.Objects
         /// <summary>
         /// Row message property.
         /// </summary>
-        [TikProperty("message", IsReadOnly = true)]
+        [TikProperty("message", IsReadOnly = true, WinboxLabel = "Message")]
         public TikValue<string?> Message { get; private set; }
 
         /// <summary>
         /// Row time property.
         /// </summary>
-        [TikProperty("time", IsReadOnly = true)]
+        [TikProperty("time", IsReadOnly = true, WinboxLabel = "Time")]
         public TikValue<string?> Time { get; private set; }
 
         /// <summary>
         /// Row topics property.
         /// </summary>
-        [TikProperty("topics", IsReadOnly = true)]
+        [TikProperty("topics", IsReadOnly = true, WinboxLabel = "Topics")]
         public TikValue<string?> Topics { get; private set; }
 
         #region -- static methods --

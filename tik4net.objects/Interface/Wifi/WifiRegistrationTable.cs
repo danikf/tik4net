@@ -29,21 +29,21 @@ namespace tik4net.Objects.Interface.Wifi
         /// interface — name of the WiFi interface through which the peer is associated.
         /// WinBox: "Interface"
         /// </summary>
-        [TikProperty("interface", IsReadOnly = true)]
+        [TikProperty("interface", IsReadOnly = true, WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; private set; }
 
         /// <summary>
         /// mac-address — hardware (MAC) address of the associated peer device.
         /// WinBox: "MAC Address"
         /// </summary>
-        [TikProperty("mac-address", IsReadOnly = true)]
+        [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; private set; }
 
         /// <summary>
         /// ssid — SSID of the wireless network on which the client is connected.
         /// WinBox: "SSID"
         /// </summary>
-        [TikProperty("ssid", IsReadOnly = true)]
+        [TikProperty("ssid", IsReadOnly = true, WinboxLabel = "SSID")]
         public TikValue<string?> Ssid { get; private set; }
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// (e.g. "2ghz-ax", "5ghz-ac").
         /// WinBox: "Band"
         /// </summary>
-        [TikProperty("band", IsReadOnly = true)]
+        [TikProperty("band", IsReadOnly = true, WinboxLabel = "Band")]
         public TikValue<string?> Band { get; private set; }
 
         // ── Authentication ────────────────────────────────────────────────────
@@ -60,21 +60,21 @@ namespace tik4net.Objects.Interface.Wifi
         /// authorized — true when the peer has successfully completed authentication.
         /// WinBox: "Authorized"
         /// </summary>
-        [TikProperty("authorized", IsReadOnly = true)]
+        [TikProperty("authorized", IsReadOnly = true, WinboxLabel = "authorized")]
         public TikValue<bool?> Authorized { get; private set; }
 
         /// <summary>
         /// auth-type — authentication method used by this client (e.g. "wpa2-psk", "wpa3").
         /// WinBox: "Auth. Type"
         /// </summary>
-        [TikProperty("auth-type", IsReadOnly = true)]
+        [TikProperty("auth-type", IsReadOnly = true, WinboxLabel = "Auth Type")]
         public TikValue<string?> AuthType { get; private set; }
 
         /// <summary>
         /// vlan-id — VLAN assigned by the AP or RADIUS server for this peer's traffic.
         /// WinBox: "VLAN ID"
         /// </summary>
-        [TikProperty("vlan-id", IsReadOnly = true)]
+        [TikProperty("vlan-id", IsReadOnly = true, WinboxLabel = "VLAN ID")]
         public TikValue<string?> VlanId { get; private set; }
 
         // ── Timing ────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// uptime — time elapsed since the peer first associated with this interface.
         /// WinBox: "Uptime"
         /// </summary>
-        [TikProperty("uptime", IsReadOnly = true)]
+        [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
         public TikValue<string?> Uptime { get; private set; }
 
         /// <summary>
@@ -91,7 +91,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// with this peer.
         /// WinBox: "Last Activity"
         /// </summary>
-        [TikProperty("last-activity", IsReadOnly = true)]
+        [TikProperty("last-activity", IsReadOnly = true, WinboxLabel = "Last Activity")]
         public TikValue<string?> LastActivity { get; private set; }
 
         // ── Signal quality ────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// signal — signal strength received from the peer, in dBm.
         /// WinBox: "Signal"
         /// </summary>
-        [TikProperty("signal", IsReadOnly = true)]
+        [TikProperty("signal", IsReadOnly = true, WinboxLabel = "Signal")]
         public TikValue<string?> Signal { get; private set; }
 
         // ── Data rates ────────────────────────────────────────────────────────
@@ -109,14 +109,14 @@ namespace tik4net.Objects.Interface.Wifi
         /// rx-rate — bitrate string for data received from the peer (e.g. "144Mbps-HT20").
         /// WinBox: "Rx Rate"
         /// </summary>
-        [TikProperty("rx-rate", IsReadOnly = true)]
+        [TikProperty("rx-rate", IsReadOnly = true, WinboxLabel = "Rx Rate")]
         public TikValue<string?> RxRate { get; private set; }
 
         /// <summary>
         /// tx-rate — bitrate string for data transmitted to the peer (e.g. "144Mbps-HT20").
         /// WinBox: "Tx Rate"
         /// </summary>
-        [TikProperty("tx-rate", IsReadOnly = true)]
+        [TikProperty("tx-rate", IsReadOnly = true, WinboxLabel = "Tx Rate")]
         public TikValue<string?> TxRate { get; private set; }
 
         /// <summary>
@@ -140,7 +140,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// from it (e.g. "12345,67890").
         /// WinBox: "Bytes"
         /// </summary>
-        [TikProperty("bytes", IsReadOnly = true)]
+        [TikProperty("bytes", IsReadOnly = true, WinboxLabel = "Bytes")]
         public TikValue<string?> Bytes { get; private set; }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// received from it (e.g. "100,200").
         /// WinBox: "Packets"
         /// </summary>
-        [TikProperty("packets", IsReadOnly = true)]
+        [TikProperty("packets", IsReadOnly = true, WinboxLabel = "Packets")]
         public TikValue<string?> Packets { get; private set; }
 
         /// <summary>Human-readable identity: MAC address and signal strength.</summary>

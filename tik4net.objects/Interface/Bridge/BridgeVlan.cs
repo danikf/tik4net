@@ -24,7 +24,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// bridge: The bridge interface this VLAN entry belongs to.
         /// WinBox: "Bridge"
         /// </summary>
-        [TikProperty("bridge")]
+        [TikProperty("bridge", WinboxLabel = "Bridge")]
         public TikValue<string?> Bridge { get; set; }
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// or a range (e.g. <c>100-115,120,122</c>). Valid range: 1–4094.
         /// WinBox: "VLAN IDs"
         /// </summary>
-        [TikProperty("vlan-ids", DefaultValue = "1")]
+        [TikProperty("vlan-ids", DefaultValue = "1", WinboxLabel = "VLAN IDs")]
         public TikValue<string?> VlanIds { get; set; }
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// (trunk / tagged ports). Comma-separated interface names.
         /// WinBox: "Tagged"
         /// </summary>
-        [TikProperty("tagged")]
+        [TikProperty("tagged", WinboxLabel = "Tagged")]
         public TikValue<string?> Tagged { get; set; }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// VLAN IDs (access / untagged ports). Comma-separated interface names.
         /// WinBox: "Untagged"
         /// </summary>
-        [TikProperty("untagged")]
+        [TikProperty("untagged", WinboxLabel = "Untagged")]
         public TikValue<string?> Untagged { get; set; }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// Comma-separated interface names.
         /// WinBox: "MVRP Forbidden"
         /// </summary>
-        [TikProperty("mvrp-forbidden")]
+        [TikProperty("mvrp-forbidden", WinboxLabel = "MVRP Forbidden")]
         public TikValue<string?> MvrpForbidden { get; set; }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// including ports added dynamically (e.g. via PVID). Read-only.
         /// WinBox: "Current Tagged"
         /// </summary>
-        [TikProperty("current-tagged", IsReadOnly = true)]
+        [TikProperty("current-tagged", IsReadOnly = true, WinboxLabel = "Current Tagged")]
         public TikValue<string?> CurrentTagged { get; private set; }
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// including ports added dynamically. Read-only.
         /// WinBox: "Current Untagged"
         /// </summary>
-        [TikProperty("current-untagged", IsReadOnly = true)]
+        [TikProperty("current-untagged", IsReadOnly = true, WinboxLabel = "Current Untagged")]
         public TikValue<string?> CurrentUntagged { get; private set; }
 
         /// <summary>

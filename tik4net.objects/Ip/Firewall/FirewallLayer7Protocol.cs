@@ -22,7 +22,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// name — unique name for this layer 7 protocol definition.
         /// WinBox: "Name"
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// or 2048 bytes of a TCP/UDP connection payload. The match is case-insensitive.
         /// WinBox: "Regexp"
         /// </summary>
-        [TikProperty("regexp", IsFreeText = true)]
+        [TikProperty("regexp", IsFreeText = true, WinboxLabel = "Regexp")]
         public TikValue<string?> Regexp { get; set; }
 
         /// <summary>

@@ -18,7 +18,7 @@ namespace tik4net.Objects.Routing
         /// name — unique identifier for the routing table.
         /// Referenced by routing rules (/routing/rule) and firewall mangle rules.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace tik4net.Objects.Routing
         ///
         /// Writing is unaffected: Save() sends <c>=fib=yes</c>, which the router accepts.
         /// </summary>
-        [TikProperty("fib", DefaultValue = "no", IsPresenceFlag = true)]
+        [TikProperty("fib", DefaultValue = "no", IsPresenceFlag = true, WinboxLabel = "FIB")]
         public TikValue<bool?> Fib { get; set; }
 
         /// <summary>

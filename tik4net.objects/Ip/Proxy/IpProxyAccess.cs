@@ -19,11 +19,11 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>action — what to do when the rule matches.
         /// <seealso cref="ProxyAccessAction"/></summary>
-        [TikProperty("action", DefaultValue = "allow")]
+        [TikProperty("action", DefaultValue = "allow", WinboxLabel = "Action")]
         public TikValue<ProxyAccessAction?> Action { get; set; }
 
         /// <summary>action-data — URL to redirect to when action=deny (wiki: "redirect-to"). Only used with deny action.</summary>
-        [TikProperty("action-data", DefaultValue = "")]
+        [TikProperty("action-data", DefaultValue = "", WinboxLabel = "Action data")]
         public TikValue<string?> ActionData { get; set; }
 
         /// <summary>src-address — source IP address or range to match (e.g. 192.168.1.0/24).</summary>
@@ -35,24 +35,24 @@ namespace tik4net.Objects.Ip.Proxy
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>dst-host — destination hostname or IP to match (e.g. *.example.com).</summary>
-        [TikProperty("dst-host", DefaultValue = "")]
+        [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host")]
         public TikValue<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match (e.g. 80 or 80-90).</summary>
-        [TikProperty("dst-port", DefaultValue = "")]
+        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port")]
         public TikValue<string?> DstPort { get; set; }
 
         /// <summary>local-port — proxy listening port through which the request was received. 0 = not set.</summary>
-        [TikProperty("local-port", DefaultValue = "0")]
+        [TikProperty("local-port", DefaultValue = "0", WinboxLabel = "Local Port")]
         public TikValue<int?> LocalPort { get; set; }
 
         /// <summary>method — HTTP request method to match.
         /// <seealso cref="ProxyHttpMethod"/></summary>
-        [TikProperty("method", DefaultValue = "any")]
+        [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method")]
         public TikValue<ProxyHttpMethod?> Method { get; set; }
 
         /// <summary>path — requested URL path (without server name) to match (e.g. /ads/*).</summary>
-        [TikProperty("path", DefaultValue = "")]
+        [TikProperty("path", DefaultValue = "", WinboxLabel = "Path")]
         public TikValue<string?> Path { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
@@ -66,7 +66,7 @@ namespace tik4net.Objects.Ip.Proxy
         // --- Read-only ---
 
         /// <summary>hits — number of requests that matched this rule.</summary>
-        [TikProperty("hits", IsReadOnly = true)]
+        [TikProperty("hits", IsReadOnly = true, WinboxLabel = "Hits")]
         public TikValue<int?> Hits { get; private set; }
 
         /// <summary>Human-readable rule summary.</summary>

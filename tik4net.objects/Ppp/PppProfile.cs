@@ -21,13 +21,13 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// address-list:  Address list name to which ppp assigned address will be added.
         /// </summary>
-        [TikProperty("address-list")]
+        [TikProperty("address-list", WinboxLabel = "Address List")]
         public TikValue<string?> AddressList { get; set; }
 
         /// <summary>
         /// bridge: Name of the  bridge interface to which ppp interface will be added as slave port. Both tunnel end point (server and client) must be in bridge in order to make this work.
         /// </summary>
-        [TikProperty("bridge")]
+        [TikProperty("bridge", WinboxLabel = "Bridge")]
         public TikValue<string?> Bridge { get; set; }
 
         /// <summary>
@@ -37,7 +37,7 @@ namespace tik4net.Objects.Ppp
         ///  no - do not adjust connection MSS value 
         ///  default - derive this value from the interface default profile; same as no if this is the interface default profile
         /// </summary>
-        [TikProperty("change-tcp-mss", DefaultValue = "default")]
+        [TikProperty("change-tcp-mss", DefaultValue = "default", WinboxLabel = "Change TCP MSS")]
         public TikValue<string?> ChangeTcpMss { get; set; }
 
         /// <summary>
@@ -49,25 +49,25 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// dhcpv6-pd-pool: Name of the  IPv6 pool which will be used by dynamically created  DHCPv6-PD server when client connects.  Read more &gt;&gt;
         /// </summary>
-        [TikProperty("dhcpv6-pd-pool")]
+        [TikProperty("dhcpv6-pd-pool", WinboxLabel = "DHCPv6 PD Pool")]
         public TikValue<string?> Dhcpv6PdPool { get; set; }
 
         /// <summary>
         /// dns-server: IP address of the DNS server that is supplied to ppp clients
         /// </summary>
-        [TikProperty("dns-server")]
+        [TikProperty("dns-server", WinboxLabel = "DNS Server")]
         public TikValue<string?> DnsServer { get; set; }
 
         /// <summary>
         /// idle-timeout: Specifies the amount of time after which the link will be terminated if there are no activity present. Timeout is not set by default
         /// </summary>
-        [TikProperty("idle-timeout")]
+        [TikProperty("idle-timeout", WinboxLabel = "Idle Timeout")]
         public TikValue<TikDuration?> IdleTimeout { get; set; }
 
         /// <summary>
         /// incoming-filter: Firewall chain name for incoming packets. Specified chain gets control for each packet coming from the client. The ppp chain should be manually added and rules with action=jump jump-target=ppp should be added to other relevant chains in order for this feature to work. For more information look at the  examples section
         /// </summary>
-        [TikProperty("incoming-filter")]
+        [TikProperty("incoming-filter", WinboxLabel = "Incoming Filter")]
         public TikValue<string?> IncomingFilter { get; set; }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// name: PPP profile name
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -89,13 +89,13 @@ namespace tik4net.Objects.Ppp
         ///  no - the user is allowed to have more than one connection at a time 
         ///  default - derive this value from the interface default profile; same as no if this is the interface default profile
         /// </summary>
-        [TikProperty("only-one", DefaultValue = "default")]
+        [TikProperty("only-one", DefaultValue = "default", WinboxLabel = "Only One")]
         public TikValue<string?> OnlyOne { get; set; }
 
         /// <summary>
         /// outgoing-filter: Firewall chain name for outgoing packets. Specified chain gets control for each packet going to the client. The ppp chain should be manually added and rules with action=jump jump-target=ppp should be added to other relevant chains in order for this feature to work. For more information look at the Examples section.
         /// </summary>
-        [TikProperty("outgoing-filter")]
+        [TikProperty("outgoing-filter", WinboxLabel = "Outgoing Filter")]
         public TikValue<string?> OutgoingFilter { get; set; }
 
         /// <summary>
@@ -113,13 +113,13 @@ namespace tik4net.Objects.Ppp
         /// <summary>
         /// remote-ipv6-prefix-pool: Assign prefix from IPv6 pool to the client and install corresponding IPv6 route.
         /// </summary>
-        [TikProperty("remote-ipv6-prefix-pool", DefaultValue = "none")]
+        [TikProperty("remote-ipv6-prefix-pool", DefaultValue = "none", WinboxLabel = "Remote IPv6 Prefix Pool")]
         public TikValue<string?> RemoteIpv6PrefixPool { get; set; }
 
         /// <summary>
         /// session-timeout: Maximum time the connection can stay up. By default no time limit is set.
         /// </summary>
-        [TikProperty("session-timeout")]
+        [TikProperty("session-timeout", WinboxLabel = "Session Timeout")]
         public TikValue<TikDuration?> SessionTimeout { get; set; }
 
         /// <summary>
@@ -130,7 +130,7 @@ namespace tik4net.Objects.Ppp
         ///  default - derive this value from the interface default profile; same as no if this is the interface default profile 
         /// This setting does not affect OVPN tunnels.
         /// </summary>
-        [TikProperty("use-compression", DefaultValue = "default")]
+        [TikProperty("use-compression", DefaultValue = "default", WinboxLabel = "Use Compression")]
         public TikValue<string?> UseCompression { get; set; }
 
         /// <summary>
@@ -142,7 +142,7 @@ namespace tik4net.Objects.Ppp
         ///  require - explicitly requires encryption
         /// This setting does not work on OVPN and SSTP tunnels.
         /// </summary>
-        [TikProperty("use-encryption", DefaultValue = "default")]
+        [TikProperty("use-encryption", DefaultValue = "default", WinboxLabel = "Use Encryption")]
         public TikValue<string?> UseEncryption { get; set; }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace tik4net.Objects.Ppp
         ///  default - derive this value from the interface default profile; same as no if this is the interface default profile 
         ///  require - explicitly requires IPv6 support
         /// </summary>
-        [TikProperty("use-ipv6", DefaultValue = "yes")]
+        [TikProperty("use-ipv6", DefaultValue = "yes", WinboxLabel = "Use IPv6")]
         public TikValue<string?> UseIpv6 { get; set; }
 
         /// <summary>
@@ -164,7 +164,7 @@ namespace tik4net.Objects.Ppp
         ///  default - derive this value from the interface default profile; same as no if this is the interface default profile 
         ///  require - explicitly requires MPLS support
         /// </summary>
-        [TikProperty("use-mpls", DefaultValue = "default")]
+        [TikProperty("use-mpls", DefaultValue = "default", WinboxLabel = "Use MPLS")]
         public TikValue<string?> UseMpls { get; set; }
 
         /// <summary>
@@ -187,19 +187,19 @@ namespace tik4net.Objects.Ppp
         ///  called-id
         ///  interface
         /// </summary>
-        [TikProperty("on-up", IsFreeText = true)]
+        [TikProperty("on-up", IsFreeText = true, WinboxLabel = "On Up")]
         public TikValue<string?> OnUp { get; set; }
 
         /// <summary>
         /// on-down: Execute script on user logging off. See on-up for more details
         /// </summary>
-        [TikProperty("on-down", IsFreeText = true)]
+        [TikProperty("on-down", IsFreeText = true, WinboxLabel = "On Down")]
         public TikValue<string?> OnDown { get; set; }
 
         /// <summary>
         /// wins-server: IP address of the WINS server to supply to Windows clients
         /// </summary>
-        [TikProperty("wins-server")]
+        [TikProperty("wins-server", WinboxLabel = "WINS Server")]
         public TikValue<string?> WinsServer { get; set; }
     }
 

@@ -85,7 +85,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Action"
         /// <seealso cref="CapsManAccessListAction"/>
         /// </summary>
-        [TikProperty("action", DefaultValue = "accept")]
+        [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
         public TikValue<CapsManAccessListAction?> Action { get; set; }
 
         // ── MAC matchers ──────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ namespace tik4net.Objects.CapsMan
         /// Set to "00:00:00:00:00:00" to match any client (default).
         /// WinBox: "MAC Address"
         /// </summary>
-        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
+        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace tik4net.Objects.CapsMan
         /// Leave empty to match all CAP interfaces.
         /// WinBox: "Interface"
         /// </summary>
-        [TikProperty("interface", DefaultValue = "")]
+        [TikProperty("interface", DefaultValue = "", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
@@ -123,7 +123,7 @@ namespace tik4net.Objects.CapsMan
         /// network the client is connecting to.  Leave empty to match any SSID.
         /// WinBox: "SSID Regexp"
         /// </summary>
-        [TikProperty("ssid-regexp", DefaultValue = "")]
+        [TikProperty("ssid-regexp", DefaultValue = "", WinboxLabel = "SSID Regexp")]
         public TikValue<string?> SsidRegexp { get; set; }
 
         // ── Signal / time matchers ────────────────────────────────────────────
@@ -135,7 +135,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: "-120..120" (any signal).
         /// WinBox: "Signal Range"
         /// </summary>
-        [TikProperty("signal-range", DefaultValue = "-120..120")]
+        [TikProperty("signal-range", DefaultValue = "-120..120", WinboxLabel = "Signal Range")]
         public TikValue<string?> SignalRange { get; set; }
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace tik4net.Objects.CapsMan
         /// initial association matching, never for disconnection.
         /// WinBox: "Allow Signal Out Of Range"
         /// </summary>
-        [TikProperty("allow-signal-out-of-range", DefaultValue = "always")]
+        [TikProperty("allow-signal-out-of-range", DefaultValue = "always", WinboxLabel = "Allow Signal Out Of Range")]
         public TikValue<TikDuration?> AllowSignalOutOfRange { get; set; }
 
         /// <summary>
@@ -167,7 +167,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "VLAN Mode"
         /// <seealso cref="CapsManAccessListVlanMode"/>
         /// </summary>
-        [TikProperty("vlan-mode", DefaultValue = "no-tag")]
+        [TikProperty("vlan-mode", DefaultValue = "no-tag", WinboxLabel = "VLAN Mode")]
         public TikValue<CapsManAccessListVlanMode?> VlanMode { get; set; }
 
         /// <summary>
@@ -178,7 +178,7 @@ namespace tik4net.Objects.CapsMan
         /// (sending 0 would be rejected by the router as out of range).
         /// WinBox: "VLAN ID"
         /// </summary>
-        [TikProperty("vlan-id", DefaultValue = "0")]
+        [TikProperty("vlan-id", DefaultValue = "0", WinboxLabel = "VLAN ID")]
         public TikValue<int?> VlanId { get; set; }
 
         /// <summary>
@@ -187,7 +187,7 @@ namespace tik4net.Objects.CapsMan
         /// Leave empty to use the interface passphrase (default).
         /// WinBox: "Private Passphrase"
         /// </summary>
-        [TikProperty("private-passphrase", DefaultValue = "", IsSensitive = true)]
+        [TikProperty("private-passphrase", DefaultValue = "", IsSensitive = true, WinboxLabel = "Private Passphrase")]
         public TikValue<string?> PrivatePassphrase { get; set; }
 
         /// <summary>
@@ -196,7 +196,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (false).
         /// WinBox: "RADIUS Accounting"
         /// </summary>
-        [TikProperty("radius-accounting", DefaultValue = "no")]
+        [TikProperty("radius-accounting", DefaultValue = "no", WinboxLabel = "RADIUS Accounting")]
         public TikValue<bool?> RadiusAccounting { get; set; }
 
         /// <summary>
@@ -205,7 +205,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (false).
         /// WinBox: "Client To Client Forwarding"
         /// </summary>
-        [TikProperty("client-to-client-forwarding", DefaultValue = "no")]
+        [TikProperty("client-to-client-forwarding", DefaultValue = "no", WinboxLabel = "Client To Client Forwarding")]
         public TikValue<bool?> ClientToClientForwarding { get; set; }
 
         /// <summary>
@@ -214,7 +214,7 @@ namespace tik4net.Objects.CapsMan
         /// DefaultValue="0" makes the mapper omit this field on add when unset.
         /// WinBox: "AP TX Limit"
         /// </summary>
-        [TikProperty("ap-tx-limit", DefaultValue = "0")]
+        [TikProperty("ap-tx-limit", DefaultValue = "0", WinboxLabel = "AP Tx Limit")]
         public TikValue<int?> ApTxLimit { get; set; }
 
         /// <summary>
@@ -224,7 +224,7 @@ namespace tik4net.Objects.CapsMan
         /// DefaultValue="0" makes the mapper omit this field on add when unset.
         /// WinBox: "Client TX Limit"
         /// </summary>
-        [TikProperty("client-tx-limit", DefaultValue = "0")]
+        [TikProperty("client-tx-limit", DefaultValue = "0", WinboxLabel = "Client Tx Limit")]
         public TikValue<int?> ClientTxLimit { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────

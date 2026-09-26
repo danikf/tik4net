@@ -20,31 +20,31 @@ namespace tik4net.Objects.Interface.Tunnel
         public string? Id { get; private set; }
 
         /// <summary>name — VXLAN interface name.</summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>mtu — Layer3 MTU in bytes. Default: 1500. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("mtu", DefaultValue = "1500")]
+        [TikProperty("mtu", DefaultValue = "1500", WinboxLabel = "MTU")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>l2mtu — Layer2 MTU (read-only).</summary>
-        [TikProperty("l2mtu", IsReadOnly = true)]
+        [TikProperty("l2mtu", IsReadOnly = true, WinboxLabel = "L2 MTU")]
         public TikValue<string?> L2Mtu { get; private set; }
 
         /// <summary>mac-address — MAC address of the VXLAN interface (auto-assigned or manually set).</summary>
-        [TikProperty("mac-address", DefaultValue = "")]
+        [TikProperty("mac-address", DefaultValue = "", WinboxLabel = "MAC Address")]
         public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>vni — VXLAN Network Identifier (1–16777216). Required.</summary>
-        [TikProperty("vni")]
+        [TikProperty("vni", WinboxLabel = "VNI")]
         public TikValue<int?> Vni { get; set; }
 
         /// <summary>port — UDP destination port for VXLAN packets. Default: 4789. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("port", DefaultValue = "4789")]
+        [TikProperty("port", DefaultValue = "4789", WinboxLabel = "Port")]
         public TikValue<int?> Port { get; set; }
 
         /// <summary>local-address — Local source IP address for VXLAN packets.</summary>
-        [TikProperty("local-address", DefaultValue = "")]
+        [TikProperty("local-address", DefaultValue = "", WinboxLabel = "Local Address")]
         public TikValue<string?> LocalAddress { get; set; }
 
         /// <summary>group — Multicast group address for BUM (Broadcast, Unknown-unicast, Multicast) traffic between VTEPs.</summary>
@@ -52,7 +52,7 @@ namespace tik4net.Objects.Interface.Tunnel
         public TikValue<string?> Group { get; set; }
 
         /// <summary>interface — Interface to use for multicast forwarding (used together with group).</summary>
-        [TikProperty("interface", DefaultValue = "")]
+        [TikProperty("interface", DefaultValue = "", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>arp — the Address Resolution Protocol setting for the VXLAN interface.</summary>
@@ -72,11 +72,11 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>
         /// <seealso cref="ArpMode"/>
-        [TikProperty("arp", DefaultValue = "enabled")]
+        [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
         public TikValue<ArpMode?> Arp { get; set; }
 
         /// <summary>arp-timeout — How long ARP entries are kept. Default: auto.</summary>
-        [TikProperty("arp-timeout", DefaultValue = "auto")]
+        [TikProperty("arp-timeout", DefaultValue = "auto", WinboxLabel = "ARP Timeout")]
         public TikValue<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>loop-protect — the loop protection mode for the VXLAN interface.</summary>
@@ -92,23 +92,23 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>loop-protect — Loop protection mode. Default: default.</summary>
         /// <seealso cref="LoopProtectMode"/>
-        [TikProperty("loop-protect", DefaultValue = "default")]
+        [TikProperty("loop-protect", DefaultValue = "default", WinboxLabel = "Loop Protect")]
         public TikValue<LoopProtectMode?> LoopProtect { get; set; }
 
         /// <summary>loop-protect-status — Current loop protection status (read-only).</summary>
-        [TikProperty("loop-protect-status", IsReadOnly = true)]
+        [TikProperty("loop-protect-status", IsReadOnly = true, WinboxLabel = "loop-protect: Status")]
         public TikValue<string?> LoopProtectStatus { get; private set; }
 
         /// <summary>loop-protect-send-interval — How often loop protection packets are sent. Default: 5s.</summary>
-        [TikProperty("loop-protect-send-interval", DefaultValue = "5s")]
+        [TikProperty("loop-protect-send-interval", DefaultValue = "5s", WinboxLabel = "loop-protect: Send Interval")]
         public TikValue<TikDuration?> LoopProtectSendInterval { get; set; }
 
         /// <summary>loop-protect-disable-time — How long to disable interface when loop is detected. Default: 5m.</summary>
-        [TikProperty("loop-protect-disable-time", DefaultValue = "5m")]
+        [TikProperty("loop-protect-disable-time", DefaultValue = "5m", WinboxLabel = "loop-protect: Disable Time")]
         public TikValue<TikDuration?> LoopProtectDisableTime { get; set; }
 
         /// <summary>vtep-vrf — VRF table used for VTEP listening and connections. Default: main.</summary>
-        [TikProperty("vtep-vrf", DefaultValue = "main")]
+        [TikProperty("vtep-vrf", DefaultValue = "main", WinboxLabel = "VTEP VRF")]
         public TikValue<string?> VtepVrf { get; set; }
 
         /// <summary>vteps-ip-version — the IP version used for static VTEP connections.</summary>
@@ -122,27 +122,27 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>vteps-ip-version — IP version for static VTEP connections. Default: ipv4.</summary>
         /// <seealso cref="VtepsIpVersionType"/>
-        [TikProperty("vteps-ip-version", DefaultValue = "ipv4")]
+        [TikProperty("vteps-ip-version", DefaultValue = "ipv4", WinboxLabel = "VTEPS IP version")]
         public TikValue<VtepsIpVersionType?> VtepsIpVersion { get; set; }
 
         /// <summary>dont-fragment — DF flag in outer IPv4 header. Default: auto.</summary>
-        [TikProperty("dont-fragment", DefaultValue = "auto")]
+        [TikProperty("dont-fragment", DefaultValue = "auto", WinboxLabel = "Don't Fragment")]
         public TikValue<string?> DontFragment { get; set; }
 
         /// <summary>ttl — TTL value in outgoing VXLAN packets. "auto" uses the routing table value. Default: auto.</summary>
-        [TikProperty("ttl", DefaultValue = "auto")]
+        [TikProperty("ttl", DefaultValue = "auto", WinboxLabel = "TTL")]
         public TikValue<string?> Ttl { get; set; }
 
         /// <summary>max-fdb-size — Maximum number of MAC entries in the forwarding database. Default: 4096. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("max-fdb-size", DefaultValue = "4096")]
+        [TikProperty("max-fdb-size", DefaultValue = "4096", WinboxLabel = "Max FDB Size")]
         public TikValue<int?> MaxFdbSize { get; set; }
 
         /// <summary>learning — Dynamically learn MAC addresses and remote VTEP IPs. Default: yes.</summary>
-        [TikProperty("learning", DefaultValue = "yes")]
+        [TikProperty("learning", DefaultValue = "yes", WinboxLabel = "Learning")]
         public TikValue<bool?> Learning { get; set; }
 
         /// <summary>checksum — Calculate UDP checksum in outer packets. Default: no.</summary>
-        [TikProperty("checksum", DefaultValue = "no")]
+        [TikProperty("checksum", DefaultValue = "no", WinboxLabel = "Checksum")]
         public TikValue<bool?> Checksum { get; set; }
 
         /// <summary>rem-csum — the Remote Checksum Offload setting for the VXLAN interface.</summary>
@@ -160,31 +160,31 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>rem-csum — Remote Checksum Offload setting. Default: none.</summary>
         /// <seealso cref="RemCsumType"/>
-        [TikProperty("rem-csum", DefaultValue = "none")]
+        [TikProperty("rem-csum", DefaultValue = "none", WinboxLabel = "Remote Checksum Offload")]
         public TikValue<RemCsumType?> RemCsum { get; set; }
 
         /// <summary>hw — Enable hardware offloading on compatible devices. Default: yes.</summary>
-        [TikProperty("hw", DefaultValue = "yes")]
+        [TikProperty("hw", DefaultValue = "yes", WinboxLabel = "HW")]
         public TikValue<bool?> Hw { get; set; }
 
         /// <summary>allow-fast-path — Allow FastPath processing. Default: yes.</summary>
-        [TikProperty("allow-fast-path", DefaultValue = "yes")]
+        [TikProperty("allow-fast-path", DefaultValue = "yes", WinboxLabel = "Allow Fast Path")]
         public TikValue<bool?> AllowFastPath { get; set; }
 
         /// <summary>bridge — Bridge interface to add this VXLAN interface as a slave port.</summary>
-        [TikProperty("bridge", DefaultValue = "")]
+        [TikProperty("bridge", DefaultValue = "", WinboxLabel = "Bridge")]
         public TikValue<string?> Bridge { get; set; }
 
         /// <summary>bridge-pvid — Port VLAN ID when used with a bridge with VLAN filtering. Default: 1. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("bridge-pvid", DefaultValue = "0")]
+        [TikProperty("bridge-pvid", DefaultValue = "0", WinboxLabel = "Bridge PVID")]
         public TikValue<int?> BridgePvid { get; set; }
 
         /// <summary>hw-offloaded — Whether hardware offloading is active (read-only).</summary>
-        [TikProperty("hw-offloaded", IsReadOnly = true)]
+        [TikProperty("hw-offloaded", IsReadOnly = true, WinboxLabel = "Hw. Offloaded")]
         public TikValue<bool?> HwOffloaded { get; private set; }
 
         /// <summary>running — Whether the VXLAN interface is running (read-only).</summary>
-        [TikProperty("running", IsReadOnly = true)]
+        [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
         public TikValue<bool?> Running { get; private set; }
 
         /// <summary>disabled — Whether the interface is disabled.</summary>

@@ -22,43 +22,43 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// add-relay-info: Adds DHCP relay agent information if enabled according to RFC 3046.  Agent Circuit ID Sub-option contains mac address of an interface, Agent Remote ID Sub-option contains MAC address of the client from which request was received.
         /// </summary>
-        [TikProperty("add-relay-info", DefaultValue = "no")]
+        [TikProperty("add-relay-info", DefaultValue = "no", WinboxLabel = "Add Relay Info")]
         public TikValue<string?> AddRelayInfo { get; set; }
 
         /// <summary>
         /// delay-threshold: If secs field in DHCP packet is smaller than delay-threshold, then this packet is ignored
         /// </summary>
-        [TikProperty("delay-threshold", DefaultValue = "none")]
+        [TikProperty("delay-threshold", DefaultValue = "none", WinboxLabel = "Delay Threshold")]
         public TikValue<TikDuration?> DelayThreshold { get; set; }
 
         /// <summary>
         /// dhcp-server: List of DHCP servers' IP addresses which should the DHCP requests be forwarded to
         /// </summary>
-        [TikProperty("dhcp-server")]
+        [TikProperty("dhcp-server", WinboxLabel = "DHCP Server")]
         public TikValue<string?> DhcpServer { get; set; }
 
         /// <summary>
         /// interface: Interface name the DHCP relay will be working on.
         /// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// local-address: The unique IP address of this DHCP relay needed for DHCP server to distinguish relays. If set to 0.0.0.0 - the IP address will be chosen automatically
         /// </summary>
-        [TikProperty("local-address", DefaultValue = "0.0.0.0")]
+        [TikProperty("local-address", DefaultValue = "0.0.0.0", WinboxLabel = "Local Address")]
         public TikValue<string?> LocalAddress { get; set; }
 
         /// <summary>
         /// relay-info-remote-id: relay will use this string instead of client MAC address when constructing Option 82 to be sent to DHCP-server. Option 82 consist of interface packets was received from + client mac address or relay-info-remote-id
         /// </summary>
-        [TikProperty("relay-info-remote-id")]
+        [TikProperty("relay-info-remote-id", WinboxLabel = "Relay Info Remote ID")]
         public TikValue<string?> RelayInfoRemoteId { get; set; }
 
         /// <summary>
         /// name: Descriptive name for the relay
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>

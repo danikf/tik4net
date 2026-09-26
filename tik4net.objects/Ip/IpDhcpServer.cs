@@ -87,13 +87,13 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// address-pool:  IP pool, from which to take IP addresses for the clients. If set to static-only, then only the clients that have a static lease (added in  lease submenu) will be allowed.
         /// </summary>
-        [TikProperty("address-pool", DefaultValue = "static-only")]
+        [TikProperty("address-pool", DefaultValue = "static-only", WinboxLabel = "Address Pool")]
         public TikValue<string?> AddressPool { get; set; }
 
         /// <summary>
         /// always-broadcast: Always send replies as broadcasts.
         /// </summary>
-        [TikProperty("always-broadcast", DefaultValue = "no")]
+        [TikProperty("always-broadcast", DefaultValue = "no", WinboxLabel = "Always Broadcast")]
         public TikValue<bool?> AlwaysBroadcast { get; set; }                                    
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace tik4net.Objects.Ip
         ///  after-2sec-delay - requests with "secs &lt; 2" will be processed as in "no" setting case and requests with "secs &gt;= 2" will be processed as in "yes" case.
         /// If all requests with "secs &lt; x" should be ignored, then delay-threshold=x setting should be used.
         /// </summary>
-        [TikProperty("authoritative", DefaultValue = "yes")]
+        [TikProperty("authoritative", DefaultValue = "yes", WinboxLabel = "Authoritative")]
         public TikValue<AuthoritativeType?> Authoritative { get; set; }
 
         /// <summary>
@@ -115,19 +115,19 @@ namespace tik4net.Objects.Ip
         ///  static - offer only static leases to BOOTP clients 
         ///  dynamic - offer static and dynamic leases for BOOTP clients
         /// </summary>
-        [TikProperty("bootp-support", DefaultValue = "static")]
+        [TikProperty("bootp-support", DefaultValue = "static", WinboxLabel = "Bootp Support")]
         public TikValue<BootpSupportType?> BootpSupport { get; set; }
 
         /// <summary>
         /// delay-threshold: If secs field in DHCP packet is smaller than delay-threshold, then this packet is ignored. If set to none - there is no threshold (all DHCP packets are processed)
         /// </summary>
-        [TikProperty("delay-threshold", DefaultValue = "none")]
+        [TikProperty("delay-threshold", DefaultValue = "none", WinboxLabel = "Delay Threshold")]
         public TikValue<string?> DelayThreshold { get; set; }
 
         /// <summary>
         /// interface: Interface on which server will be running.
         /// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", WinboxLabel = "Interface")]
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>
@@ -138,19 +138,19 @@ namespace tik4net.Objects.Ip
         ///  leaseActMAC -  active mac address
         ///  leaseActIP -  active IP address
         /// </summary>
-        [TikProperty("lease-script")]
+        [TikProperty("lease-script", WinboxLabel = "Lease Script")]
         public TikValue<string?> LeaseScript { get; set; }
 
         /// <summary>
         /// lease-time: The time that a client may use the assigned address. The client will try to renew this address after a half of this time and will request a new address after time limit expires.
         /// </summary>
-        [TikProperty("lease-time", DefaultValue = "30m")]
+        [TikProperty("lease-time", DefaultValue = "30m", WinboxLabel = "Lease Time")]
         public TikValue<TikDuration?> LeaseTime { get; set; }
 
         /// <summary>
         /// name: Reference name
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace tik4net.Objects.Ip
         ///  0.0.0.0 - the DHCP server will be used only for direct requests from clients (no DHCP really allowed) 
         ///  255.255.255.255 - the DHCP server should be used for any incoming request from a DHCP relay except for those, which are processed by another DHCP server that exists in the /ip dhcp-server submenu.
         /// </summary>
-        [TikProperty("relay", DefaultValue = "0.0.0.0")]
+        [TikProperty("relay", DefaultValue = "0.0.0.0", WinboxLabel = "Relay")]
         public TikValue<string?> Relay { get; set; }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// use-radius: Whether to use RADIUS server for dynamic leases
         /// </summary>
-        [TikProperty("use-radius", DefaultValue = "no")]
+        [TikProperty("use-radius", DefaultValue = "no", WinboxLabel = "Use RADIUS")]
         public TikValue<bool?> UseRadius { get; set; }
 
         /// <summary>

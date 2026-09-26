@@ -39,7 +39,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// name — unique identifier for this OSPF instance.
         /// Referenced by /routing/ospf/area entries via the "instance" field.
         /// </summary>
-        [TikProperty("name")]
+        [TikProperty("name", WinboxLabel = "Name")]
         public TikValue<string?> Name { get; set; }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: 2
         /// </summary>
         /// <seealso cref="OspfVersion"/>
-        [TikProperty("version", DefaultValue = "2")]
+        [TikProperty("version", DefaultValue = "2", WinboxLabel = "Version")]
         public TikValue<OspfVersion?> Version { get; set; }
 
         /// <summary>
@@ -56,21 +56,21 @@ namespace tik4net.Objects.Routing.Ospf
         /// Accepts an IPv4 address (e.g. "1.2.3.4") or a symbolic routing-ID reference (e.g. "main").
         /// Default: main (auto-selected from the routing table).
         /// </summary>
-        [TikProperty("router-id", DefaultValue = "main")]
+        [TikProperty("router-id", DefaultValue = "main", WinboxLabel = "Router ID")]
         public TikValue<string?> RouterId { get; set; }
 
         /// <summary>
         /// vrf — VRF (Virtual Routing and Forwarding) instance this OSPF instance is bound to.
         /// Default: main
         /// </summary>
-        [TikProperty("vrf", DefaultValue = "main")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
         public TikValue<string?> Vrf { get; set; }
 
         /// <summary>
         /// routing-table — the routing table in which OSPF-learned routes are installed.
         /// Accepts a routing-table name (e.g. "main"). When unset, defaults to the VRF table.
         /// </summary>
-        [TikProperty("routing-table")]
+        [TikProperty("routing-table", WinboxLabel = "Routing Table")]
         public TikValue<string?> RoutingTable { get; set; }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: never
         /// </summary>
         /// <seealso cref="OriginateDefaultMode"/>
-        [TikProperty("originate-default", DefaultValue = "never")]
+        [TikProperty("originate-default", DefaultValue = "never", WinboxLabel = "Originate Default")]
         public TikValue<OriginateDefaultMode?> OriginateDefault { get; set; }
 
         /// <summary>
@@ -87,21 +87,21 @@ namespace tik4net.Objects.Routing.Ospf
         /// fantasy, isis, modem, ospf, rip, slaac, static, vpn.
         /// Example: "connected,static"
         /// </summary>
-        [TikProperty("redistribute")]
+        [TikProperty("redistribute", WinboxLabel = "Redistribute")]
         public TikValue<string?> Redistribute { get; set; }
 
         /// <summary>
         /// domain-id — BGP/MPLS VPN domain identifier attached to OSPF LSAs when the instance
         /// is used in a VPN context. Expressed as an extended-community value (e.g. "1.0.0.0:0").
         /// </summary>
-        [TikProperty("domain-id")]
+        [TikProperty("domain-id", WinboxLabel = "Domain ID")]
         public TikValue<string?> DomainId { get; set; }
 
         /// <summary>
         /// domain-tag — OSPF domain tag value used in VPN route exchange to prevent routing loops.
         /// Numeric string (e.g. "100").
         /// </summary>
-        [TikProperty("domain-tag")]
+        [TikProperty("domain-tag", WinboxLabel = "Domain Tag")]
         public TikValue<string?> DomainTag { get; set; }
 
         /// <summary>
@@ -121,20 +121,20 @@ namespace tik4net.Objects.Routing.Ospf
         /// out-filter-select — routing filter chain used to select which routes are eligible for
         /// redistribution into OSPF (applied before out-filter-chain).
         /// </summary>
-        [TikProperty("out-filter-select")]
+        [TikProperty("out-filter-select", WinboxLabel = "Out Filter Select")]
         public TikValue<string?> OutFilterSelect { get; set; }
 
         /// <summary>
         /// mpls-te-area — OSPF area used for MPLS Traffic Engineering extensions (opaque LSAs).
         /// Specify the area identifier (e.g. "backbone" or "0.0.0.0").
         /// </summary>
-        [TikProperty("mpls-te-area")]
+        [TikProperty("mpls-te-area", WinboxLabel = "MPLS TE Area")]
         public TikValue<string?> MplsTeArea { get; set; }
 
         /// <summary>
         /// mpls-te-address — router address advertised in MPLS-TE LSAs. Typically an IPv4 loopback address.
         /// </summary>
-        [TikProperty("mpls-te-address")]
+        [TikProperty("mpls-te-address", WinboxLabel = "MPLS TE Address")]
         public TikValue<string?> MplsTeAddress { get; set; }
 
         /// <summary>
