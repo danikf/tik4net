@@ -71,14 +71,5 @@ namespace tik4net.Objects.Interface.Bridge
         [TikProperty("auto-isolate", DefaultValue = "no", WinboxLabel = "Auto Isolate")]
         public TikValue<bool?> AutoIsolate { get; set; }
 
-        /// <summary>
-        /// ctor
-        /// </summary>
-        public BridgePort()
-        {
-            Priority = 0x80;
-            PathCost = 10;
-            Horizon = "none";
-        }
     }
 }

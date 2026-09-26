@@ -180,15 +180,6 @@ namespace tik4net.Objects.Ip
         [TikProperty("disabled", DefaultValue = "no")]
         public TikValue<bool?> Disabled { get; set; }
 
-        /// <summary>
-        /// ctor
-        /// </summary>
-        public IpDhcpServer()
-        {
-            AddressPool = "static-only";
-            Authoritative = AuthoritativeType.After2secDelay;
-            BootpSupport = BootpSupportType.Static;
-        }
     }
 
 }

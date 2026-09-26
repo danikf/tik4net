@@ -124,14 +124,5 @@ namespace tik4net.Objects.Interface.Wireless
         [TikProperty("time", WinboxLabel = "Time")]
         public TikValue<string?> Time { get; set; }
 
-        /// <summary>
-        /// ctor
-        /// </summary>
-        public WirelessAccessList()
-        {
-            SignalRange = "-120..120";
-            PrivateAlgo = "none";
-            Interface = "all";
-        }
     }
 }

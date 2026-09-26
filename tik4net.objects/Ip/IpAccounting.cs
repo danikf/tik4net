@@ -32,12 +32,5 @@ namespace tik4net.Objects.Ip
         [TikProperty("threshold", DefaultValue = DEFAULT_TRESHOLD)]
         public TikValue<int?> Threshold { get; set; }
 
-        /// <summary>
-        /// .ctor
-        /// </summary>
-        public IpAccounting()
-        {
-            Threshold = int.Parse(DEFAULT_TRESHOLD, CultureInfo.InvariantCulture);
-        }
     }
 }

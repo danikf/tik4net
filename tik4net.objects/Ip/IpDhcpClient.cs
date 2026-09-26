@@ -167,15 +167,6 @@ namespace tik4net.Objects.Ip
         [TikProperty("status", IsReadOnly = true, WinboxLabel = "Status")]
         public TikValue<string?> Status { get; private set; }
 
-        /// <summary>
-        /// ctor
-        /// </summary>
-        public IpDhcpClient()
-        {
-            AddDefaultRoute = AddDefaultRouteType.Yes;
-            UsePeerDns = true;
-            UsePeerNtp = true;
-        }
 
         /// <summary>
         /// Release current binding and restart DHCP client

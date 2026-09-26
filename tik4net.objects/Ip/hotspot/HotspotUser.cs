@@ -128,12 +128,5 @@
         [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
         public TikValue<TikDuration?> Uptime { get; private set; }
 
-        /// <summary>
-        /// ctor
-        /// </summary>
-        public HotspotUser()
-        {
-            Server = "all";
-        }
     }
 }

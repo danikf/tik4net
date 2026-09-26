@@ -326,6 +326,35 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
+        public void ANewEntityHoldsNoValue()
+        {
+            // The mapper builds every loaded entity through the parameterless constructor and fills only the fields
+            // the row carries, so a value a constructor assigns reads as Present on a row that never printed it - and
+            // an add sends it. A constructor that "pre-fills the router's default" invents both; the default belongs
+            // in DefaultValue, which documents it.
+            var offenders = new List<string>();
+
+            foreach (var entity in EntityTypes())
+            {
+                object fresh;
+                try { fresh = Activator.CreateInstance(entity, nonPublic: true)!; }
+                catch (MissingMethodException) { continue; }
+
+                foreach (var x in Properties().Where(x => x.Entity == entity && x.Attribute.FieldName != TikSpecialProperties.Id))
+                {
+                    var stateProperty = x.Property.PropertyType.GetProperty(nameof(TikValue<int?>.State));
+                    if (stateProperty == null)
+                        continue;   // not a TikValue - EveryMappedPropertyExceptTheIdIsATikValue reports it
+                    var state = (TikValueState)stateProperty.GetValue(x.Property.GetValue(fresh))!;
+                    if (state != TikValueState.Absent)
+                        offenders.Add($"{entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') starts {state}");
+                }
+            }
+
+            AssertNoOffenders(offenders, "properties a new entity already holds a value for");
+        }
+
+        [TestMethod]
         public void NullableFlagReadsTheCompilersAnnotation()
         {
             // The convention test above passes by finding nothing, so the reader it relies on must be shown to
