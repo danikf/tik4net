@@ -49,7 +49,23 @@ namespace tik4net.unittests.Cli
             string where = CliCommandBuilder.BuildWhereClause(
                 Filters(("type", "ether"), ("running", "true"), ("#&", null)));
 
-            Assert.AreEqual("(type=ether && running=true)", where);
+            Assert.AreEqual("(type=ether && running=yes)", where);
+        }
+
+        [TestMethod]
+        public void ABooleanIsSpelledYesOrNo()
+        {
+            // In a CLI expression a boolean field takes only yes/no: 'dynamic=true' is a syntax error ("expected
+            // yes or no") and 'dynamic="true"' silently matches nothing (7.24). The API and the mapper say true.
+            Assert.AreEqual("dynamic=yes && disabled=no && running!=no",
+                CliCommandBuilder.BuildWhereClause(Filters(("dynamic", "true"), ("disabled", "False"), ("running", "!false"))));
+        }
+
+        [TestMethod]
+        public void OnlyABareBooleanIsTranslated()
+        {
+            Assert.AreEqual("comment=truely && name~true",
+                CliCommandBuilder.BuildWhereClause(Filters(("comment", "truely"), ("name", "~true"))));
         }
 
         [TestMethod]
@@ -69,7 +85,7 @@ namespace tik4net.unittests.Cli
                 Filters(("type", "ether"), ("type", "loopback"), ("#|", null),
                         ("running", "true"), ("#&", null)));
 
-            Assert.AreEqual("((type=ether || type=loopback) && running=true)", where);
+            Assert.AreEqual("((type=ether || type=loopback) && running=yes)", where);
         }
 
         [TestMethod]
@@ -79,7 +95,7 @@ namespace tik4net.unittests.Cli
             string where = CliCommandBuilder.BuildWhereClause(
                 Filters(("type", "ether"), ("running", "true")));
 
-            Assert.AreEqual("type=ether && running=true", where);
+            Assert.AreEqual("type=ether && running=yes", where);
         }
 
         [TestMethod]
@@ -90,7 +106,7 @@ namespace tik4net.unittests.Cli
             string where = CliCommandBuilder.BuildWhereClause(
                 Filters(("type", "ether"), ("type", "loopback"), ("#|", null), ("running", "true")));
 
-            Assert.AreEqual("(type=ether || type=loopback) && running=true", where);
+            Assert.AreEqual("(type=ether || type=loopback) && running=yes", where);
         }
 
         [TestMethod]

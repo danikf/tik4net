@@ -114,6 +114,30 @@ namespace tik4net.Cli
         private static readonly string[] JsonEpochDurationFields = { "ttl", "interval", "timeout", "mac-cookie-timeout" };
 
         /// <summary>
+        /// A row id in the API's spelling. RouterOS before 7.20 prints the hex of an id in lowercase on the CLI
+        /// (<c>*59b</c>) — in as-value, in the JSON read and in what <c>add</c> answers — where its binary API
+        /// prints <c>*59B</c>, as every version from 7.20 on does on both. An id is a key, and one read over a
+        /// CLI transport has to match the same row read over the API. Anything not shaped like an id is
+        /// returned unchanged.
+        /// </summary>
+        internal static string NormalizeId(string value)
+            => IsRecordId(value) ? value.ToUpperInvariant() : value;
+
+        /// <summary>True when <paramref name="s"/> is a RouterOS row id: <c>*</c> and one or more hex digits.</summary>
+        internal static bool IsRecordId(string? s)
+        {
+            if (string.IsNullOrEmpty(s) || s![0] != '*' || s.Length < 2)
+                return false;
+            for (int i = 1; i < s.Length; i++)
+            {
+                char c = s[i];
+                bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+                if (!hex) return false;
+            }
+            return true;
+        }
+
+        /// <summary>
         /// The value <paramref name="field"/> should carry, given what the CLI read put in it.
         /// </summary>
         /// <param name="field">The field name the value arrived under.</param>
@@ -125,6 +149,9 @@ namespace tik4net.Cli
         internal static string Normalize(string? field, string value, bool fromJson = false)
         {
             if (string.IsNullOrEmpty(value)) return value;
+
+            if (string.Equals(field, TikSpecialProperties.Id, StringComparison.OrdinalIgnoreCase))
+                return NormalizeId(value);
 
             if (fromJson && Contains(JsonEpochDurationFields, field)
                 && TryConvertEpochDateToDuration(value, out string? asValueForm))

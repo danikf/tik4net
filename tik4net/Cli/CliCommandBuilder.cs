@@ -61,8 +61,16 @@ namespace tik4net.Cli
         /// The bare print expression <see cref="BuildPrint"/> wraps — <c>/path print … as-value …</c>, with no
         /// <c>:put</c> around it — so a caller can bind it to a variable instead (<see cref="BuildCountedRead"/>).
         /// </summary>
+        /// <param name="apiPath">API-style path of the printed menu.</param>
+        /// <param name="parameters">Command parameters (filters, flags, markers).</param>
+        /// <param name="fromIndices">The <c>from=</c> row selector of a window, or <c>null</c>.</param>
+        /// <param name="proplist">
+        /// Field names for the CLI's own <c>proplist=</c>, or <c>null</c> for every field. Only for names known to
+        /// the menu: one unknown name refuses the whole read ("input does not match any value of value-name") —
+        /// see <see cref="BuildProplistCheck"/> and <see cref="TikSpecialProperties.CliFlags"/>.
+        /// </param>
         internal static string BuildPrintExpression(string apiPath, IList<ITikCommandParameter> parameters,
-                                                    string? fromIndices = null)
+                                                    string? fromIndices = null, string? proplist = null)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder();
@@ -93,6 +101,8 @@ namespace tik4net.Cli
                 sb.Append(" once");
 
             sb.Append(" as-value");
+            if (!string.IsNullOrEmpty(proplist))
+                sb.Append(" proplist=").Append(proplist);
             AppendFrom(sb, fromIndices);
 
             string whereClause = BuildWhereClause(parameters);
@@ -104,6 +114,67 @@ namespace tik4net.Cli
 
             return sb.ToString();
         }
+
+        /// <summary>
+        /// Asks whether the menu knows every field in <paramref name="proplist"/>, without reading a row:
+        /// <c>:put [/path print as-value proplist=… where false]</c>. The router answers nothing when it does,
+        /// and <c>input does not match any value of value-name</c> when one name is unknown — the refusal does
+        /// not depend on the rows, so <c>where false</c> costs no data (7.17, 7.19.6).
+        /// </summary>
+        /// <param name="apiPath">The print command's path, verb included (<c>/interface/print</c>).</param>
+        /// <param name="proplist">The names to check, comma-separated.</param>
+        internal static string BuildProplistCheck(string apiPath, string proplist)
+            => ":put [" + BuildPrintExpression(apiPath, new List<ITikCommandParameter>(), null, proplist) + " where false]";
+
+        /// <summary>
+        /// The router's answer when a <c>proplist=</c> names a field the menu does not have (7.17, 7.19.6, 7.24.4).
+        /// </summary>
+        internal const string ProplistRefusal = "input does not match any value of value-name";
+
+        /// <summary>
+        /// One row of <c>/ip service</c> — whose <c>disabled</c> flag exists on every RouterOS version and which
+        /// every user group may read — to learn whether this router's <c>as-value</c> prints flag fields: 7.20+
+        /// does, earlier versions do not.
+        /// </summary>
+        internal const string FlagsProbe = ":put [/ip service print as-value from=0]";
+
+        /// <summary>
+        /// Whether this router's <c>print</c> takes a <c>proplist=</c> at all:
+        /// <c>:put [/ip service print as-value proplist=name where false]</c>. RouterOS 7 answers nothing;
+        /// RouterOS 6 has no such argument and answers <c>expected end of command</c> at the column
+        /// <c>proplist</c> starts on (measured on 6.49.13: column 34 for this command).
+        /// </summary>
+        /// <remarks>
+        /// <c>/ip service</c> has a <c>name</c> on every version and every group may read it, and the same
+        /// command without the <c>proplist=</c> is accepted on 6.49.13 — so the argument is the only thing
+        /// the refusal can be about. Asked once per connection: it is a property of the RouterOS version,
+        /// not of the menu.
+        /// </remarks>
+        internal const string ProplistSupportProbe =
+            ":put [/ip service print as-value proplist=name where false]";
+
+        /// <summary>
+        /// The router's answer to an argument its parser does not know — how RouterOS 6 refuses
+        /// <c>proplist=</c> (<see cref="ProplistSupportProbe"/>).
+        /// </summary>
+        internal const string ArgumentRefusal = "expected end of command";
+
+        /// <summary>
+        /// The ids of the rows a flag is set on: <c>:put [/ip route find (active=yes)]</c>, answering
+        /// <c>*30000001;*4206a543</c>.
+        /// </summary>
+        /// <remarks>
+        /// What reads flag fields on a router with no <c>proplist=</c>. The answer is ids and nothing else,
+        /// so it costs a fraction of the rows it describes, and every row the query does not name has the flag
+        /// off. The clause is parenthesised, which is what makes it the <c>where</c> grammar rather than the
+        /// verb's arguments — and in that grammar a boolean is <c>yes</c>/<c>no</c>, never <c>true</c>/<c>false</c>
+        /// (Docs/findings-cli.md). Verified on 6.49.13 for <c>/ip route active</c>, <c>/interface running</c>,
+        /// <c>disabled</c> and <c>dynamic</c>.
+        /// </remarks>
+        /// <param name="apiPath">The print command's path, verb included (<c>/ip/route/print</c>).</param>
+        /// <param name="flagName">One flag field's name.</param>
+        internal static string BuildFlagIdQuery(string apiPath, string flagName)
+            => ":put [" + MenuPathToCli(apiPath) + " find (" + flagName + "=yes)]";
 
         /// <summary>
         /// <c>:put [expression]</c>, or <c>:put [:serialize to=json [expression]]</c> — how a print is made
@@ -666,7 +737,7 @@ namespace tik4net.Cli
 
             // Negation: ?name=!value → name!=value
             if (val.StartsWith("!"))
-                return name + "!=" + QuoteForWhere(val.Substring(1));
+                return name + "!=" + QuoteForWhere(BooleanForWhere(val.Substring(1)));
 
             // Greater-than: ?>count=5 encoded as value starting with ">"
             if (val.StartsWith(">"))
@@ -681,7 +752,25 @@ namespace tik4net.Cli
                 return name + "~" + QuoteForWhere(val.Substring(1));
 
             // Plain equality
-            return name + "=" + QuoteForWhere(val);
+            return name + "=" + QuoteForWhere(BooleanForWhere(val));
+        }
+
+        /// <summary>
+        /// Spells a boolean the way a CLI expression accepts it. The API takes <c>?disabled=true</c> and the
+        /// mapper writes a <c>bool</c> as <c>true</c>, but in a <c>where</c>/<c>find</c> expression a boolean
+        /// field accepts only <c>yes</c>/<c>no</c>: <c>dynamic=true</c> is a syntax error ("expected yes or no"),
+        /// and the quoted <c>dynamic="true"</c> silently matches nothing (7.24, filter, interface).
+        /// </summary>
+        /// <remarks>
+        /// The builder does not know the field's type, so a STRING field compared with the literal text
+        /// <c>true</c> is compared with <c>yes</c> instead. That is the price of the translation, and the only
+        /// case it gets wrong; untranslated, every boolean filter over the CLI fails.
+        /// </remarks>
+        private static string BooleanForWhere(string value)
+        {
+            if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)) return "yes";
+            if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)) return "no";
+            return value;
         }
 
         /// <summary>
@@ -713,7 +802,11 @@ namespace tik4net.Cli
                 if (!IsSafeUnquoted(c)) { safe = false; break; }
             }
 
-            if (safe)
+            // A dotted value is quoted although every character of it is safe: RouterOS before 7.20 parses a bare
+            // operand by the field's type, and /ip firewall connection types src-address as address:port, so
+            // 'where src-address=192.168.3.103' is refused with "expected value of port". Quoted, it is accepted,
+            // and a quoted IPv4 matches the same rows as a bare one on 7.19.6 and 7.24.4 (findings-cli §2).
+            if (safe && value.IndexOf('.') < 0)
                 return value;
 
             return "\"" + EscapeInsideQuotes(value) + "\"";
@@ -744,6 +837,7 @@ namespace tik4net.Cli
         ///   <c>.cli-stats</c> — CLI-layer signal that triggers the two-query stats merge (<see cref="CliConnectionBase"/>).
         ///   <c>.cli-json</c>  — CLI-layer signal that switches the read to <c>:serialize to=json</c> (same class).
         ///   <c>.cli-sensitive</c> — becomes the <c>show-sensitive</c> print word in <see cref="BuildPrintExpression"/>.
+        ///   <c>.cli-flags</c> — the entity's flag fields, read separately on a pre-7.20 router (<see cref="CliConnectionBase"/>).
         /// NOTE: this is the "dropped" set. <c>detail</c> / <c>once</c> / <c>numbers</c> are a DIFFERENT
         /// category — "consumed flags" that <see cref="BuildPrint"/> translates into print modifiers
         /// (via <see cref="HasNameValueFlag"/> / <see cref="FindNameValueParam"/>), not dropped.
@@ -753,7 +847,8 @@ namespace tik4net.Cli
             || name == TikSpecialProperties.Tag
             || name == TikSpecialProperties.CliStats
             || name == TikSpecialProperties.CliJson
-            || name == TikSpecialProperties.CliSensitive;
+            || name == TikSpecialProperties.CliSensitive
+            || name == TikSpecialProperties.CliFlags;
 
         /// <summary>
         /// Returns true when a non-Filter "consumed flag" parameter with the given name is present

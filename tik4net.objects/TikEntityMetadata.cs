@@ -119,6 +119,28 @@ namespace tik4net.Objects
         public bool IncludeProplist { get; private set; }
 
         /// <summary>
+        /// The field names of the entity's flags — <c>disabled</c> and every read-only <c>bool</c> property
+        /// (<c>dynamic</c>, <c>running</c>, <c>invalid</c>, …). RouterOS before 7.20 leaves them out of the CLI's
+        /// <c>print as-value</c>; the list goes to the CLI transports as <see cref="TikSpecialProperties.CliFlags"/>
+        /// so they can ask for them by name.
+        /// </summary>
+        /// <remarks>
+        /// A writable <c>bool</c> other than <c>disabled</c> is an ordinary field that every version prints
+        /// (<c>log=false</c> on a firewall rule, 7.17). A presence flag is left out: it reads back as an empty
+        /// value, never <c>true</c>/<c>false</c>.
+        /// </remarks>
+        internal IEnumerable<string> CliFlagFields
+        {
+            get
+            {
+                return Properties
+                    .Where(p => p.ValueType == typeof(bool) && !p.IsPresenceFlag
+                                && (p.IsReadOnly || p.FieldName == "disabled"))
+                    .Select(p => p.FieldName);
+            }
+        }
+
+        /// <summary>
         /// If any of <see cref="Properties"/> holds free-form text and the entity must therefore be read
         /// as JSON on CLI transports, whose as-value format cannot escape it.
         /// </summary>

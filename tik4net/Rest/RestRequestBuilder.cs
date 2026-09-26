@@ -373,6 +373,7 @@ namespace tik4net.Rest
         ///   <c>.cli-stats</c> — CLI-only stats marker; never sent on the wire for REST.
         ///   <c>.cli-json</c>  — CLI-only <c>:serialize</c> marker; REST already answers in JSON.
         ///   <c>.cli-sensitive</c> — CLI-only <c>show-sensitive</c> marker; REST always sends the secrets.
+        ///   <c>.cli-flags</c> — CLI-only flag list for pre-7.20 routers; REST always sends the flags.
         ///   <c>detail</c>    — no-op in REST (full details are returned by default).
         /// </summary>
         private static bool IsSpecialParam(string name)
@@ -382,6 +383,7 @@ namespace tik4net.Rest
                 || name == TikSpecialProperties.CliStats
                 || name == TikSpecialProperties.CliJson
                 || name == TikSpecialProperties.CliSensitive
+                || name == TikSpecialProperties.CliFlags
                 || string.Equals(name, "detail", StringComparison.OrdinalIgnoreCase);
         }
 

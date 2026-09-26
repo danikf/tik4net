@@ -146,7 +146,22 @@ namespace tik4net.unittests.Cli
         public void QuoteForWhere_SafeValue_IsNotQuoted()
         {
             Assert.AreEqual("ether1", CliCommandBuilder.QuoteForWhere("ether1"));
-            Assert.AreEqual("some_name-2.0", CliCommandBuilder.QuoteForWhere("some_name-2.0"));
+            Assert.AreEqual("some_name-2", CliCommandBuilder.QuoteForWhere("some_name-2"));
+            Assert.AreEqual("1500", CliCommandBuilder.QuoteForWhere("1500"));
+        }
+
+        /// <summary>
+        /// A dotted value is quoted. RouterOS 7.19.6 parses a bare one by the field's type, and
+        /// <c>/ip firewall connection</c> types <c>src-address</c> as address:port — so
+        /// <c>where src-address=192.168.3.103</c> is refused with <c>expected value of port</c> while the quoted
+        /// form is accepted. Quoted and bare IPv4 match the same rows on 7.19.6 and 7.24.4 alike (arp address,
+        /// route gateway, address network, connection src-address, measured).
+        /// </summary>
+        [TestMethod]
+        public void QuoteForWhere_DottedValue_IsQuoted()
+        {
+            Assert.AreEqual("\"192.168.3.103\"", CliCommandBuilder.QuoteForWhere("192.168.3.103"));
+            Assert.AreEqual("\"some_name-2.0\"", CliCommandBuilder.QuoteForWhere("some_name-2.0"));
         }
 
         [TestMethod]

@@ -394,6 +394,13 @@ namespace tik4net.Objects
             // CLI-only marker: 'print show-sensitive', because RouterOS 7 leaves secrets out of a terminal print.
             if (metadata.HasSensitiveProperties)
                 command.AddParameter(TikSpecialProperties.CliSensitive, "", TikCommandParameterFormat.NameValue);
+            // CLI-only marker: the flag fields, which RouterOS before 7.20 leaves out of 'print as-value'. The CLI
+            // transports then ask for them by name; every other transport drops the marker. Not for a singleton: its
+            // plain print as-value carries its flags on every version, it takes no proplist= at all (7.19.6 refuses the
+            // name check with "expected end of command"), and a flags read has no .id to be merged by.
+            string cliFlags = string.Join(",", metadata.CliFlagFields.ToArray());
+            if (cliFlags.Length > 0 && !metadata.IsSingleton)
+                command.AddParameter(TikSpecialProperties.CliFlags, cliFlags, TikCommandParameterFormat.NameValue);
             //.proplist
             if (metadata.IncludeProplist)
                 command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName).ToArray()), TikCommandParameterFormat.NameValue);

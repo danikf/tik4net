@@ -248,6 +248,71 @@ back to config-only rather than dropping the record. The binary API and REST tra
 marker (`IsSpecialParam` in `ApiCommand`/`RestRequestBuilder`) — they already get counters from
 `detail`, and the marker never reaches the wire.
 
+### Flag fields are not in `as-value` before RouterOS 7.20
+
+RouterOS **before 7.20** prints no flag field in `print as-value` — no `disabled`, `dynamic`, `running`,
+`invalid`, `active` — with or without `detail`, on every menu measured (`/interface`, `/ip address`,
+`/ip route`, `/ip firewall filter`, `/ip service`; 7.17rc3 and 7.19.6). The binary API sends them, and
+`get` answers them:
+
+```
+:put [/interface print as-value where name=ether1]                              (7.19.6)
+.id=*2;actual-mtu=1500;comment=;mac-address=AA:BB:CC:DD:EE:FF;name=ether1;type=ether
+
+:put [/interface print as-value proplist=running,disabled where name=ether1]     (7.19.6)
+.id=*2;comment=;disabled=false;running=true
+```
+
+Named in `proplist=` they come back, explicitly `true` or `false`. 7.20 made that the default — its
+changelog: *"console - include flags by default when printing to value"* — and from then on every row
+of a menu that has a `disabled` flag carries `disabled=`. A flag that applies to only some rows is
+printed on those rows only, on every version and on the binary API alike (`inactive` on a VRRP
+interface, `dynamic` on an `/interface` row).
+
+`proplist=` refuses the **whole** read when one name is unknown to the menu —
+`input does not match any value of value-name` — whether or not any row matches, so
+`print as-value proplist=<names> where false` checks names without reading a row: empty answer = all
+known.
+
+tik4net's read path: the O/R mapper sends the entity's flag fields (`disabled` and the read-only `bool`
+properties) as the CLI-only marker `.cli-flags` (`TikSpecialProperties.CliFlags`). Once per connection
+`CliConnectionBase` reads one `/ip service` row (`CliCommandBuilder.FlagsProbe`); when it carries no
+`disabled`, every mapped read with the marker gets a second `print … as-value proplist=<flags>` of the
+same rows — same filter, same windows — merged by `.id`. The names are checked once per menu first; a
+name the menu refuses is left out (the binary API does not send it either). On 7.20+ the probe is the
+only extra command. A read without the marker — a low-level `print` — gets what the router prints.
+
+**A singleton takes no `proplist=` at all**, on either version: `/system clock print as-value
+proplist=dst-active` answers `expected end of command` on 7.19.6 and `bad parameter proplist` on 7.24.4.
+It needs none — a singleton's plain `print as-value` carries its flags on both (`dst-active`,
+`/ip settings ipv4-fast-path-active`) — so the mapper sends no flags marker for an `IsSingleton` entity.
+A flags read would have nothing to merge by either, the menu having no `.id`.
+
+**A low-level read gets the flags it NAMES.** A field listed in `.proplist` that no row of the plain read
+carries is fetched by name through the same path, so `print` with `.proplist=.id,dynamic` reports
+`dynamic` on 7.19.6 exactly as the binary API does. A `.proplist` name the menu does not have is dropped
+by the name check, as the API ignores it. A plain low-level `print` — no `.proplist` — still gets only
+what the router prints, which before 7.20 is no flags.
+
+**RouterOS 6 has no `proplist=` argument at all**: 6.49.13 answers `expected end of command` at the column it
+starts on (`CliCommandBuilder.ProplistSupportProbe`, asked once per connection, and only on a router whose
+`as-value` already lacks the flags). There each flag is read as the ids it is set on —
+`:put [/ip route find (active=yes)]` answers `*30000001;*4206a543` (`BuildFlagIdQuery`) — and every row read gets
+the flag explicitly, `true` for a listed id and `false` for the rest. A flag or menu that refuses the `find` is
+left out for that menu, as an unknown name is left out of a `proplist=`.
+
+### A row id is lowercase hex before 7.20
+
+RouterOS **7.19.6** prints the hex of a row id in lowercase on the CLI — `.id=*59b` in `print as-value`, in
+the `:serialize to=json` read, and `*5a0` as the answer to `:put [… add …]` — where its binary API prints
+`*59B` and `*5A0` for the same rows. **7.24.4** prints uppercase on both. Measured against the same address-list
+rows over Telnet and the binary API on each version. The CLI accepts either spelling back (`set`/`remove
+numbers=*5A0` on 7.19.6).
+
+An id is a key, so tik4net spells it the API's way: `CliValueNormalizer.NormalizeId` uppercases a value shaped
+`*<hex>` in the `.id` field of every CLI read, and the id an `add` returns. A value of any other shape, or in any
+other field, is left alone.
+
 ### A number as-value prints, and the word the API prints for it
 
 Some fields store a number whose extreme value the API renders as a word. as-value always gives the
@@ -412,6 +477,29 @@ and `:` are interpreted as operators. It must be `where address="192.168.1.1/24"
 character set is `[A-Za-z0-9._-]` (`CliCommandBuilder.QuoteForWhere`); anything outside it is
 double-quoted. `*N` (an `.id`) works unquoted inside a `find` — `where .id=*1` — and also works quoted, so the builder
 quotes it like anything else.
+
+### A dotted value is quoted too — the operand is parsed by the FIELD's type
+
+Before 7.20 a bare operand is parsed according to the type of the field it is compared with, and an
+address:port field then refuses a bare IPv4: on 7.19.6 `/ip firewall connection print as-value where
+src-address=192.168.3.103` answers `expected value of port (line 1 column 77)`, while
+`src-address="192.168.3.103"` is accepted. 7.24.4 accepts both. Quoted and bare match the *same* rows on
+both versions — measured on `/ip arp address`, `/ip route gateway`, `/ip address network`,
+`/ip firewall connection src-address` and, as a number, `/interface mtu="1500"` — so `QuoteForWhere`
+quotes any value containing a `.` although every character of it is in the safe set. Quoting is not
+free everywhere: a **boolean** compared as a string silently matches nothing (below), and a bool never
+contains a dot.
+
+### A boolean in `where`/`find` is `yes` or `no`, never `true`
+
+In an expression a boolean field accepts only `yes`/`no` (7.24, `/ip/firewall/filter`, `/interface`):
+`where dynamic=true` and `where disabled=false` are refused with `expected yes or no (line 1 column N)`,
+`where dynamic="true"` is accepted and **silently matches nothing**, and `where dynamic=yes` /
+`where dynamic` / `find (dynamic=yes)` work. A string field is unaffected (`where comment=true` is a plain
+string comparison). The binary API takes `?disabled=true` and the mapper writes a `bool` as `true`, so
+`BuildWhereClause` spells a bare `true`/`false` as `yes`/`no` in an equality or negation. The builder does
+not know the field's type, so a string field compared with the literal text `true` is compared with `yes` —
+the one case the translation gets wrong.
 
 ### A `name=value` argument is parsed by the PARAMETER's type, so it needs the same quoting
 
