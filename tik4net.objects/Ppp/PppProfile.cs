@@ -153,7 +153,7 @@ namespace tik4net.Objects.Ppp
         ///  default - derive this value from the interface default profile; same as no if this is the interface default profile 
         ///  require - explicitly requires IPv6 support
         /// </summary>
-        [TikProperty("use-ipv6", DefaultValue = "default")]
+        [TikProperty("use-ipv6", DefaultValue = "yes")]
         public string?/*yes | no | default | require*/ UseIpv6 { get; set; }
 
         /// <summary>

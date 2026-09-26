@@ -25,12 +25,12 @@ namespace tik4net.Objects.Tool.Graphing
         [TikProperty("allow-address")]
         public string?/*IP/CIDR*/ AllowAddress { get; set; }
 
-        /// <summary>allow-target — when yes, the queue target address range may also view the graph in addition to the allow-address. Default: no.</summary>
-        [TikProperty("allow-target", DefaultValue = "no")]
+        /// <summary>allow-target — when yes, the queue target address range may also view the graph in addition to the allow-address. Default: yes.</summary>
+        [TikProperty("allow-target", DefaultValue = "yes")]
         public bool? AllowTarget { get; set; }
 
-        /// <summary>store-on-disk — when yes, collected queue data is saved to the router's disk. Default: no.</summary>
-        [TikProperty("store-on-disk", DefaultValue = "no")]
+        /// <summary>store-on-disk — when yes, collected queue data is saved to the router's disk. Default: yes.</summary>
+        [TikProperty("store-on-disk", DefaultValue = "yes")]
         public bool? StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>

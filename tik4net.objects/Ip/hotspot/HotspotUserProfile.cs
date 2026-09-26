@@ -153,13 +153,13 @@ namespace tik4net.Objects.Ip.Hotspot
         /// <summary>
         /// shared-users: Allowed number of simultaneously logged in users with the same HotSpot username
         /// </summary>
-        [TikProperty("shared-users", DefaultValue = "unlimited")]
+        [TikProperty("shared-users", DefaultValue = "1")]
         public string? SharedUsers { get; set; }
 
         /// <summary>
         /// status-autorefresh: HotSpot status page autorefresh interval
         /// </summary>
-        [TikProperty("status-autorefresh", DefaultValue = "none")]
+        [TikProperty("status-autorefresh", DefaultValue = "1m")]
         public string?/*time | none*/ StatusAutorefresh { get; set; }
 
         /// <summary>

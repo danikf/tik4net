@@ -21,8 +21,8 @@ namespace tik4net.Objects.Tool.Graphing
         [TikProperty("allow-address")]
         public string?/*IP/CIDR*/ AllowAddress { get; set; }
 
-        /// <summary>store-on-disk — when yes, collected resource data is saved to the router's disk. Default: no.</summary>
-        [TikProperty("store-on-disk", DefaultValue = "no")]
+        /// <summary>store-on-disk — when yes, collected resource data is saved to the router's disk. Default: yes.</summary>
+        [TikProperty("store-on-disk", DefaultValue = "yes")]
         public bool? StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>

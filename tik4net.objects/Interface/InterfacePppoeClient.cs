@@ -35,15 +35,15 @@ namespace tik4net.Objects.Interface
         public string? Interface { get; set; }
 
         /// <summary>keepalive-timeout — Interval (seconds) used to check whether the server is still online.</summary>
-        [TikProperty("keepalive-timeout", DefaultValue = "60")]
+        [TikProperty("keepalive-timeout", DefaultValue = "10")]
         public int? KeepaliveTimeout { get; set; }
 
         /// <summary>max-mru — Maximum Receive Unit negotiated with the server.</summary>
-        [TikProperty("max-mru", DefaultValue = "1460")]
+        [TikProperty("max-mru", DefaultValue = "0")]
         public string? MaxMru { get; set; }
 
         /// <summary>max-mtu — Maximum Transmit Unit negotiated with the server.</summary>
-        [TikProperty("max-mtu", DefaultValue = "1460")]
+        [TikProperty("max-mtu", DefaultValue = "0")]
         public string? MaxMtu { get; set; }
 
         /// <summary>mrru — Maximum Receive Reconstructed Unit; "disabled" turns off multilink PPP.</summary>

@@ -24,7 +24,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// alert-timeout: Time after which alert will be forgotten. If after that time the same server is detected, new alert will be generated. If set to none timeout will never expire.
         /// </summary>
-        [TikProperty("alert-timeout", DefaultValue = "none")]
+        [TikProperty("alert-timeout", DefaultValue = "1h")]
         public TikDuration? AlertTimeout { get; set; }
 
         /// <summary>

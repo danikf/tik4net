@@ -35,13 +35,13 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// max-mtu - Maximum Transmission Unit. The optimal value is the MTU of the interface the tunnel is working over reduced by 20 (so, for 1500-byte Ethernet link, set the MTU to 1480 to avoid fragmentation of packets)
         /// </summary>
-        [TikProperty("max-mtu", DefaultValue = "1480")]
+        [TikProperty("max-mtu", DefaultValue = "0")]
         public string? MaxMtu { get; set; }
 
         /// <summary>
         /// max-mtu - Maximum Receive Unit. The optimal value is the MTU of the interface the tunnel is working over reduced by 20 (so, for 1500-byte Ethernet link, set the MTU to 1480 to avoid fragmentation of packets)
         /// </summary>
-        [TikProperty("max-mru", DefaultValue = "1480")]
+        [TikProperty("max-mru", DefaultValue = "0")]
         public string? MaxMru { get; set; }
 
         /// <summary>
