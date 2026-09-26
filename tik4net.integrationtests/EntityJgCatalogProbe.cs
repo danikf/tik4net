@@ -72,6 +72,9 @@ namespace tik4net.integrationtests
             var mismatch = new StringBuilder();
             var unset = new StringBuilder();
             var noHandler = new StringBuilder();
+            var labels = new StringBuilder();
+            var labelIssues = new StringBuilder();
+            int nLabelOk = 0, nLabelIssue = 0;
             int nFields = 0, nMissing = 0, nKind = 0, nMatch = 0, nMismatch = 0, nUnset = 0, nNoDef = 0, nNoAttr = 0;
             string version;
 
@@ -104,9 +107,29 @@ namespace tik4net.integrationtests
                         {
                             nMissing++;
                             missing.AppendLine($"{metadata.EntityPath} {p.FieldName}{ro}");
+                            if (p.WinboxLabel != null)
+                            {
+                                nLabelIssue++;
+                                labelIssues.AppendLine($"{label} {p.FieldName}: attribute label {Quote(p.WinboxLabel)} — no such field in this version's catalog");
+                            }
                             continue;
                         }
                         var (_, field, render) = byName[hit];
+
+                        string suggested = SuggestLabel(connection, field, byName);
+                        if (suggested != null)
+                        {
+                            labels.AppendLine($"{entity.Type.FullName}|{p.PropertyName}|{p.FieldName}|{suggested}");
+                            if (p.WinboxLabel != null)
+                            {
+                                if (p.WinboxLabel == suggested) nLabelOk++;
+                                else
+                                {
+                                    nLabelIssue++;
+                                    labelIssues.AppendLine($"{label} {p.FieldName}: attribute label {Quote(p.WinboxLabel)}, catalog {Quote(suggested)}");
+                                }
+                            }
+                        }
 
                         if (field.PaneSelectorKey != 0 && field.PaneValues != null && field.PaneValues.Length > 0)
                         {
@@ -147,6 +170,11 @@ namespace tik4net.integrationtests
             report.AppendLine($"# properties {nFields}: missing {nMissing}; kind-dependent {nKind}; default match {nMatch}, "
                 + $"MISMATCH {nMismatch}, catalog-unset {nUnset}, no catalog def {nNoDef}, no attribute {nNoAttr}");
             report.AppendLine();
+            report.AppendLine($"# WinboxLabel attributes: match {nLabelOk}, issues {nLabelIssue}");
+            report.AppendLine();
+            report.AppendLine("## LABEL ISSUES — a declared WinboxLabel this catalog does not confirm");
+            report.Append(labelIssues);
+            report.AppendLine();
             report.AppendLine("## DEFAULT MISMATCH — the attribute's DefaultValue is not the catalog's def");
             report.Append(mismatch);
             report.AppendLine();
@@ -161,8 +189,30 @@ namespace tik4net.integrationtests
             report.AppendLine();
             report.AppendLine("## MISSING — no field of this name in this version's catalog (path field)");
             report.Append(missing);
+            report.AppendLine();
+            report.AppendLine("## LABELS — suggested WinboxLabel per property (type|property|field|label), for the generator");
+            report.Append(labels);
             File.WriteAllText(outPath, report.ToString());
             Console.WriteLine(report.ToString().Split('\n')[1] + " → " + outPath);
+        }
+
+        // The WinboxLabel that names this field: its .jg label, qualified by pane kind or tab only where the plain label
+        // would resolve to another field of the window (see TikPropertyAttribute.WinboxLabel).
+        private static string SuggestLabel(WinboxNativeConnection connection, WinboxJgField field,
+            Dictionary<string, (string ApiName, WinboxJgField Field, Func<object, string> Render)> byName)
+        {
+            string raw = connection.CatalogLabelOf(field);
+            if (string.IsNullOrEmpty(raw))
+                return null;
+            string plain = WinboxFieldResolver.NormalizeLabel(raw);
+            if (byName.TryGetValue(plain, out var owner) && owner.Field.Key == field.Key)
+                return raw;
+            if (!string.IsNullOrEmpty(field.PaneKind))
+                return field.PaneKind + ": " + raw;
+            string apiName = field.ApiName;
+            if (apiName.EndsWith("-" + plain, StringComparison.Ordinal))
+                return apiName.Substring(0, apiName.Length - plain.Length - 1) + ": " + raw;
+            return raw;
         }
 
         // The form the entity writes a value in: through its own converter, so "no" and "false" agree.

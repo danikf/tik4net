@@ -860,7 +860,8 @@ namespace tik4net.Cli
             || name == TikSpecialProperties.CliStats
             || name == TikSpecialProperties.CliJson
             || name == TikSpecialProperties.CliFlags
-            || name == TikSpecialProperties.CliSensitive;
+            || name == TikSpecialProperties.CliSensitive
+            || name == TikSpecialProperties.WinboxLabels;
 
         /// <summary>
         /// Returns true when a non-Filter "consumed flag" parameter with the given name is present

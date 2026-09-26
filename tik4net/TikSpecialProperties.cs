@@ -86,5 +86,18 @@ namespace tik4net
         /// </para>
         /// </summary>
         public const string CliSensitive = ".cli-sensitive";
+
+        /// <summary>
+        /// WinBox-native marker — the entity's WinBox labels (see <c>TikPropertyAttribute.WinboxLabel</c>) as
+        /// <c>api-name=WinBox Label|…</c>. The native transport resolves a named field through its label in this
+        /// router's <c>.jg</c> catalog before any name heuristic (a session field override still wins); a label the
+        /// catalog does not have is ignored.
+        /// <para>
+        /// Added by the O/R mapper to its reads and writes of every entity with labelled properties, and only on a
+        /// connection that declares <see cref="TikConnectionCapability.FieldLabels"/>. API, REST and the CLI
+        /// transports silently ignore this parameter if it reaches them anyway.
+        /// </para>
+        /// </summary>
+        public const string WinboxLabels = ".winbox-labels";
     }
 }

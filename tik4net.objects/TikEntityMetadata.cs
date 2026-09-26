@@ -139,6 +139,28 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// The entity's WinBox labels as the <see cref="TikSpecialProperties.WinboxLabels"/> marker value
+        /// (<c>api-name=Label|…</c>, every name a property is read under), or <c>null</c> when no property declares one.
+        /// </summary>
+        internal string? WinboxLabelsMarker
+        {
+            get
+            {
+                if (!_winboxLabelsComputed)
+                {
+                    var pairs = Properties.Where(p => p.WinboxLabel != null)
+                        .SelectMany(p => new[] { p.FieldName }.Concat(p.AlternateNames).Select(name => name + "=" + p.WinboxLabel))
+                        .ToList();
+                    _winboxLabels = pairs.Count > 0 ? string.Join("|", pairs) : null;
+                    _winboxLabelsComputed = true;
+                }
+                return _winboxLabels;
+            }
+        }
+        private string? _winboxLabels;
+        private bool _winboxLabelsComputed;
+
+        /// <summary>
         /// The field names of the entity's flags — <c>disabled</c> and every read-only <c>bool</c> property
         /// (<c>dynamic</c>, <c>running</c>, <c>invalid</c>, …). RouterOS before 7.20 leaves them out of the CLI's
         /// <c>print as-value</c>; the list goes to the CLI transports as <see cref="TikSpecialProperties.CliFlags"/>

@@ -384,6 +384,7 @@ namespace tik4net.Rest
                 || name == TikSpecialProperties.CliJson
                 || name == TikSpecialProperties.CliFlags
                 || name == TikSpecialProperties.CliSensitive
+                || name == TikSpecialProperties.WinboxLabels
                 || string.Equals(name, "detail", StringComparison.OrdinalIgnoreCase);
         }
 

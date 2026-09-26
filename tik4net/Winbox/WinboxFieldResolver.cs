@@ -38,11 +38,17 @@ namespace tik4net.Winbox
         private readonly IReadOnlyDictionary<string, WinboxJgField>? _actionFields;
         // Lazily computed by the JgFields getter; null means "not yet computed", not "no fields".
         private IReadOnlyDictionary<string, WinboxJgField>? _fields;
+        // The entity's WinBox labels for this command (TikPropertyAttribute.WinboxLabel, carried by the
+        // .winbox-labels marker): apiName → catalog name. Second in priority, after the session overrides and
+        // before every heuristic; a label this version's catalog does not have is ignored.
+        private readonly IReadOnlyDictionary<string, string>? _labelHints;
 
         internal WinboxFieldResolver(string? apiPath, int[] handler, WinboxJgCatalog catalog,
             IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string? windowKey = null,
-            IReadOnlyDictionary<string, WinboxJgField>? actionFields = null)
+            IReadOnlyDictionary<string, WinboxJgField>? actionFields = null,
+            IReadOnlyDictionary<string, string>? labelHints = null)
         {
+            _labelHints = labelHints;
             _apiPath = apiPath;
             _handler = handler;
             _catalog = catalog;
@@ -198,6 +204,40 @@ namespace tik4net.Winbox
         /// 'PFIFO Queue Size' inside the pfifo one, where the API says <c>remote-port</c> and
         /// <c>pfifo-limit</c> — not <c>remote-remote-port</c>).
         /// </summary>
+        /// <summary>
+        /// Parses the <c>.winbox-labels</c> marker the O/R mapper puts on its commands —
+        /// <c>api-name=WinBox Label|other=memory: Stop on Full</c> — into <c>apiName → catalog name</c>. A label
+        /// written <c>qualifier: Label</c> names a field whose label repeats in its window, by the deck pane's kind or
+        /// the tab it sits on (the same qualified name the catalog files it under). <c>null</c> for no marker.
+        /// </summary>
+        internal static IReadOnlyDictionary<string, string>? ParseLabelHints(string? marker)
+        {
+            if (string.IsNullOrEmpty(marker)) return null;
+            var hints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string pair in marker!.Split('|'))
+            {
+                int eq = pair.IndexOf('=');
+                if (eq <= 0 || eq == pair.Length - 1) continue;
+                string apiName = pair.Substring(0, eq).Trim();
+                string label = pair.Substring(eq + 1).Trim();
+                int colon = label.IndexOf(':');
+                string name = colon > 0
+                    ? PrefixWithKind(NormalizeLabel(label.Substring(0, colon)), NormalizeLabel(label.Substring(colon + 1)))
+                    : NormalizeLabel(label);
+                if (name.Length > 0) hints[apiName] = name;
+            }
+            return hints.Count > 0 ? hints : null;
+        }
+
+        // The catalog field an entity's WinBox label names for apiName, when this version's catalog has it.
+        private bool TryLabelHint(string apiName, out WinboxJgField field)
+        {
+            field = null!;
+            var jg = JgFields;
+            return _labelHints != null && jg != null
+                && _labelHints.TryGetValue(apiName, out string? name) && jg.TryGetValue(name, out field!);
+        }
+
         internal static string PrefixWithKind(string? kind, string apiName)
         {
             if (string.IsNullOrEmpty(kind) || string.IsNullOrEmpty(apiName)) return apiName;
@@ -1797,6 +1837,9 @@ namespace tik4net.Winbox
             // Extra registrations of a union/tuple, applied after the loop below — see there.
             var deferred = new List<KeyValuePair<int, string>>();
             foreach (var kv in _overrides) Put(kv.Value, kv.Key);
+            if (_labelHints != null)
+                foreach (var hint in _labelHints)
+                    if (TryLabelHint(hint.Key, out var hinted)) Put(hinted.Key, hint.Key);
             // A paired field's composite name has to win over the upload half's own, and Put is first-wins,
             // so it goes in before the catalog. Without this the joined value came out under the HALF's
             // name — 'upload-max-limit = 1000000/2000000' — which is the right value answering to a name
@@ -2010,6 +2053,7 @@ namespace tik4net.Winbox
         private bool TryResolveKey(string apiName, out int key)
         {
             if (_overrides.TryGetValue(apiName, out key)) return true;
+            if (TryLabelHint(apiName, out var hinted)) { key = hinted.Key; return true; }
             // Rewrite a shipped API alias to its .jg label (e.g. ping 'address' → 'ping-to') before catalog lookup.
             string jgName = AliasToJg(apiName);
             // universal system keys (.id/comment) are authoritative; name and other fields come from the .jg.

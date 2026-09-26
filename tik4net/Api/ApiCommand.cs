@@ -147,13 +147,15 @@ namespace tik4net.Api
         /// <c>.proplist</c> and <c>.tag</c> natively (they ARE valid wire words), so the only thing stripped
         /// here is the CLI-only set: the <c>.cli-stats</c> stats marker, the <c>.cli-json</c>
         /// <c>:serialize</c> marker, the <c>.cli-flags</c> flag list and the <c>.cli-sensitive</c> marker (the binary API
-        /// frames values and always sends the flags and the secrets, so it never needs any of them).
+        /// frames values and always sends the flags and the secrets, so it never needs any of them), and the
+        /// WinBox-native <c>.winbox-labels</c> marker.
         /// </summary>
         private static bool IsSpecialParam(string name)
             => name == TikSpecialProperties.CliStats
             || name == TikSpecialProperties.CliJson
             || name == TikSpecialProperties.CliFlags
-            || name == TikSpecialProperties.CliSensitive;
+            || name == TikSpecialProperties.CliSensitive
+            || name == TikSpecialProperties.WinboxLabels;
 
         private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] additionalParamemeters)
         {

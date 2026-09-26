@@ -56,7 +56,7 @@ for what each capability means in practice, and for the per-transport detail beh
 | **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
 | **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
 | **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
-| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal — **experimental**: fields are addressed by number, and the API-name ↔ M2 mapping is reconstructed rather than published | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight` |
+| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal — **experimental**: fields are addressed by number, and the API-name ↔ M2 mapping is reconstructed rather than published | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight`, `FieldLabels` |
 
 What the table does not say, in one line each — the
 [capabilities page](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) has the rest:

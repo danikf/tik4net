@@ -294,6 +294,7 @@ namespace tik4net.Objects
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             ITikCommand command = connection.CreateCommand(metadata.EntityPath + "/listen", metadata.LoadDefaultParameterFormat);
+            AddWinboxLabels(command, metadata);
 
             if (parameters != null)
             {
@@ -381,6 +382,16 @@ namespace tik4net.Objects
             return isFullLoad ? null : (IEnumerable<string>)fields;
         }
 
+        // WinBox-native marker: the entity's WinBox labels (TikPropertyAttribute.WinboxLabel), which the native
+        // transport resolves in the router's own catalog before its name heuristic. Sent only to a connection that
+        // declares FieldLabels, so every other connection - a test double included - sees the same command as before.
+        private static void AddWinboxLabels(ITikCommand command, TikEntityMetadata metadata)
+        {
+            string? labels = metadata.WinboxLabelsMarker;
+            if (labels != null && command.Connection.Supports(TikConnectionCapability.FieldLabels))
+                command.AddParameter(TikSpecialProperties.WinboxLabels, labels, TikCommandParameterFormat.NameValue);
+        }
+
         private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, params ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
@@ -401,6 +412,7 @@ namespace tik4net.Objects
             // CLI-only marker: 'print show-sensitive', because RouterOS 7 leaves secrets out of a terminal print.
             if (metadata.HasSensitiveProperties)
                 command.AddParameter(TikSpecialProperties.CliSensitive, "", TikCommandParameterFormat.NameValue);
+            AddWinboxLabels(command, metadata);
             // CLI-only marker: the flag fields, which RouterOS before 7.20 leaves out of 'print as-value'. The CLI
             // transports then ask for them by name; every other transport drops the marker. Not for a singleton: its
             // plain print as-value carries its flags on every version, it takes no proplist= at all (7.19.6 refuses the
@@ -618,6 +630,7 @@ namespace tik4net.Objects
             TikEntityMetadata metadata, IEnumerable<string>? usedFieldsFilter)
         {
             ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add", TikCommandParameterFormat.NameValue);
+            AddWinboxLabels(createCmd, metadata);
 
             foreach (var property in metadata.Properties
                 .Where(pm => !pm.IsReadOnly)
@@ -717,6 +730,7 @@ namespace tik4net.Objects
             IEnumerable<string>? usedFieldsFilter, string? id)
         {
             ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set", TikCommandParameterFormat.NameValue);
+            AddWinboxLabels(setCmd, metadata);
             List<string> fieldsToUnset = new List<string>();
             var clearedFields = ResolveClearedFields(connection, entity, metadata);
 
@@ -747,6 +761,7 @@ namespace tik4net.Objects
             foreach (string fld in fieldsToUnset)
             {
                 ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset", TikCommandParameterFormat.NameValue);
+                AddWinboxLabels(unsetCmd, metadata);
                 // id: null only for a singleton, and BuildUpdateCommands is only reached past Save's IsCreate
                 // check, which already requires a non-empty id for every non-singleton entity.
                 unsetCmd.AddParameter(TikSpecialProperties.Id, id!, TikCommandParameterFormat.NameValue);

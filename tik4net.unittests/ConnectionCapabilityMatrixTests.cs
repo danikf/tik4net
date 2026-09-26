@@ -52,7 +52,8 @@ namespace tik4net.unittests
         // reply identifiable rather than someone else's answer.
         private const TikConnectionCapability Native =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
+            | TikConnectionCapability.FieldLabels;
 
         // The binary API declares everything, including CancelInFlight — the only transport where cancelling
         // is the protocol's own operation (`/cancel tag=N`) rather than an abandon we hope is safe: the router

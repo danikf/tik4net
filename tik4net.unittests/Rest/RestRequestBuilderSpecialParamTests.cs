@@ -8,7 +8,8 @@ using tik4net.Rest;
 namespace tik4net.unittests.Rest
 {
     /// <summary>
-    /// The client-side markers (<c>.cli-flags</c>, <c>.cli-stats</c>, <c>.cli-json</c>, <c>.cli-sensitive</c>, <c>detail</c>) are
+    /// The client-side markers (<c>.cli-flags</c>, <c>.cli-stats</c>, <c>.cli-json</c>, <c>.cli-sensitive</c>,
+    /// <c>.winbox-labels</c>, <c>detail</c>) are
     /// instructions to a transport, not data words: REST has to drop every one of them whatever request shape
     /// the command turns into. RouterOS refuses the ones it does not know — <c>Bad Request: unknown parameter
     /// .cli-flags</c> — so a marker that survives into a body fails the whole call.
@@ -25,6 +26,7 @@ namespace tik4net.unittests.Rest
                     new TikCommandParameter(TikSpecialProperties.CliStats, "yes", TikCommandParameterFormat.NameValue),
                     new TikCommandParameter(TikSpecialProperties.CliJson, "yes", TikCommandParameterFormat.NameValue),
                     new TikCommandParameter(TikSpecialProperties.CliSensitive, "", TikCommandParameterFormat.NameValue),
+                    new TikCommandParameter(TikSpecialProperties.WinboxLabels, "passthrough=Passthrough", TikCommandParameterFormat.NameValue),
                     new TikCommandParameter("detail", string.Empty, TikCommandParameterFormat.NameValue),
                 })
                 .ToList();
@@ -32,7 +34,7 @@ namespace tik4net.unittests.Rest
         private static void AssertNoMarkers(RestRequestBuilder.RestRequest req, string because)
         {
             string body = req.JsonBody ?? string.Empty;
-            foreach (string marker in new[] { "cli-flags", "cli-stats", "cli-json", "cli-sensitive", "detail" })
+            foreach (string marker in new[] { "cli-flags", "cli-stats", "cli-json", "cli-sensitive", "winbox-labels", "detail" })
             {
                 Assert.IsFalse(body.Contains(marker), because + " body: " + body);
                 Assert.IsFalse(req.RelativePath.Contains(marker), because + " path: " + req.RelativePath);

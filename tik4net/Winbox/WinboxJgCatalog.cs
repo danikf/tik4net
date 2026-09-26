@@ -1307,6 +1307,13 @@ namespace tik4net.Winbox
             finally { _deckAliasValues = outerAliases; }
         }
 
+        // The raw .jg label each registered field was declared with ('New Packet Mark'), by field instance — for
+        // audits and the entity generator (TikPropertyAttribute.WinboxLabel). Not used to resolve anything.
+        private readonly Dictionary<WinboxJgField, string> _labels = new Dictionary<WinboxJgField, string>();
+
+        /// <summary>The <c>.jg</c> label a field was declared with, as WinBox shows it; <c>null</c> when unknown.</summary>
+        internal string? LabelOf(WinboxJgField field) => _labels.TryGetValue(field, out string? label) ? label : null;
+
         // Normalized label -> the selector values of every pane of the deck being walked that lists it as an alias.
         private Dictionary<string, List<int>>? _deckAliasValues;
 
@@ -1410,6 +1417,7 @@ namespace tik4net.Winbox
                 elementIsRange: elementIsRange, titleApiName: titleName,
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
                 prefix: prefix, elementScale: elementScale, relative: relative, refHandlers: refHandlers);
+            _labels[field] = label;
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
@@ -1422,7 +1430,7 @@ namespace tik4net.Winbox
                 && !(incumbent.NonPublic && !nonPublic))
             {
                 string qualified = WinboxFieldResolver.PrefixWithKind(tab, apiName);
-                if (qualified != apiName) field = field.WithApiName(qualified);
+                if (qualified != apiName) { field = field.WithApiName(qualified); _labels[field] = label; }
                 apiName = qualified;
             }
             Put(handlerKey, apiName, field);

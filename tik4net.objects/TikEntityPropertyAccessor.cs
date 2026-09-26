@@ -128,6 +128,10 @@ namespace tik4net.Objects
         /// <seealso cref="TikPropertyAttribute.IsPresenceFlag"/>
         public bool IsPresenceFlag { get; private set; }
 
+        /// <summary>The field's WinBox label, when declared.</summary>
+        /// <seealso cref="TikPropertyAttribute.WinboxLabel"/>
+        public string? WinboxLabel { get; private set; }
+
         /// <summary>
         /// If the router changes the field's value by itself between two reads (a clock), so a full-update save
         /// compares it against what was loaded rather than against a fresh read.
@@ -270,6 +274,7 @@ namespace tik4net.Objects
             UnsetOnDefault = propertyAttribute.UnsetOnDefault;
             IsFreeText = propertyAttribute.IsFreeText;
             IsPresenceFlag = propertyAttribute.IsPresenceFlag;
+            WinboxLabel = string.IsNullOrWhiteSpace(propertyAttribute.WinboxLabel) ? null : propertyAttribute.WinboxLabel;
             ChangesOnItsOwn = propertyAttribute.ChangesOnItsOwn;
             IsSensitive = propertyAttribute.IsSensitive;
         }

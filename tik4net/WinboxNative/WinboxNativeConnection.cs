@@ -116,6 +116,13 @@ namespace tik4net.WinboxNative
         private WinboxM2Multiplexer? _mux;   // null on transports that cannot run a reader loop (MAC)
         private WinboxNativeM2Operations _ops = null!;
         private WinboxRecordCodec _codec = null!;   // M2 record → API field decoder (see WinboxRecordCodec)
+        // The WinBox labels the O/R mapper sent with the command being run (TikSpecialProperties.WinboxLabels).
+        // Set at each command entry — an async method, so the value never outlives the command — and handed to
+        // every resolver the command builds.
+        private readonly AsyncLocal<IReadOnlyDictionary<string, string>?> _labelHints = new AsyncLocal<IReadOnlyDictionary<string, string>?>();
+
+        private void TakeLabelHints(TikCommandDescriptor descriptor)
+            => _labelHints.Value = WinboxFieldResolver.ParseLabelHints(FindParam(descriptor, TikSpecialProperties.WinboxLabels));
         private WinboxIdResolver _idResolver = null!;   // friendly-name → M2 id lookup (see WinboxIdResolver)
         // Replaced at open time by the process-shared catalog for this router's plugin set
         // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
@@ -538,6 +545,7 @@ namespace tik4net.WinboxNative
         private async Task<IList<TikRecordSentence>> RunPrintCoreAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
+            TakeLabelHints(descriptor);   // here, not in RunPrintAsync: background workers enter the core directly
             EnsureNativeOpen();
 
             string apiPath = ApiPathOf(descriptor.CommandText);
@@ -719,7 +727,8 @@ namespace tik4net.WinboxNative
             // interface list and 'rx-bits-per-second' by /interface/monitor-traffic, and a caller asking for
             // the monitor must get the monitor's names.
             var resolver = new WinboxFieldResolver(ApiPathOf(descriptor.CommandText), handler, _catalog,
-                OverridesFor(parentPath), _useGuiNames, _handlerMap.ResolveDerivedKey(parentPath));
+                OverridesFor(parentPath), _useGuiNames, _handlerMap.ResolveDerivedKey(parentPath),
+                labelHints: _labelHints.Value);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             var numFlags = resolver.BuildNumFlags();
@@ -890,6 +899,7 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         protected override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
+            TakeLabelHints(descriptor);
             EnsureNativeOpen();
             // descriptor.CommandText is "/path/add"; the resolution path is the parent.
             string apiPath = TikPath.Parent(descriptor.CommandText);
@@ -926,6 +936,7 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         protected override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
+            TakeLabelHints(descriptor);
             EnsureNativeOpen();
             // Try the whole command text as a standalone action window first (e.g. /tool/wol). Splitting it
             // into parent+verb would resolve '/tool' and look for a 'wol' action there, which is not how
@@ -1057,7 +1068,8 @@ namespace tik4net.WinboxNative
         /// </remarks>
         public override TikConnectionCapability Capabilities =>
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
+            | TikConnectionCapability.FieldLabels;
 
         // ── Safe Mode (system handler [17]) ──────────────────────────────────────
         // Take/release map to the webfig toggleSafeMode() M2 commands. WebFig exposes no in-place
@@ -1873,12 +1885,6 @@ namespace tik4net.WinboxNative
         }
 
         /// <summary>
-        /// Whether the window <paramref name="apiPath"/> resolves to is a singleton (get-singleton /
-        /// set-singleton) rather than a record list. Asks the catalog about the WINDOW first and falls back to
-        /// the handler-level answer for paths reached by a raw <see cref="PathOverride"/>, where there is no
-        /// window to ask about.
-        /// </summary>
-        /// <summary>
         /// Diagnostics for audits (the DefaultValue / applicability probe): how this router's catalog sees the fields of
         /// <paramref name="apiPath"/> — each API name the resolver decodes, its <c>.jg</c> field, and a decoder that
         /// renders one M2 value of that field as the API prints it. <c>null</c> when the path has no handler.
@@ -1907,6 +1913,9 @@ namespace tik4net.WinboxNative
             return result;
         }
 
+        /// <summary>The <c>.jg</c> label a catalog field was declared with (see <see cref="DescribeFields"/>).</summary>
+        internal string? CatalogLabelOf(WinboxJgField field) => _catalog.LabelOf(field);
+
         /// <summary>
         /// Builds the field resolver for a path, telling it which WINDOW the path resolves to. That matters
         /// wherever several windows share one handler: every interface subtype reads <c>[20,0]</c> but
@@ -1915,7 +1924,7 @@ namespace tik4net.WinboxNative
         /// </summary>
         private WinboxFieldResolver MakeResolver(string apiPath, int[] handler)
             => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
-                                       _handlerMap.ResolveDerivedKey(apiPath));
+                                       _handlerMap.ResolveDerivedKey(apiPath), labelHints: _labelHints.Value);
 
         /// <summary>
         /// The resolver for an ACTION invocation: the path's ordinary resolver with the action window's own
@@ -1926,8 +1935,14 @@ namespace tik4net.WinboxNative
         private WinboxFieldResolver MakeActionResolver(string apiPath, int[] handler, string actionLabel)
             => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
                                        _handlerMap.ResolveDerivedKey(apiPath),
-                                       _catalog.GetActionFields(handler, actionLabel));
+                                       _catalog.GetActionFields(handler, actionLabel), _labelHints.Value);
 
+        /// <summary>
+        /// Whether the window <paramref name="apiPath"/> resolves to is a singleton (get-singleton /
+        /// set-singleton) rather than a record list. Asks the catalog about the WINDOW first and falls back to
+        /// the handler-level answer for paths reached by a raw <see cref="PathOverride"/>, where there is no
+        /// window to ask about.
+        /// </summary>
         private bool IsSingletonWindow(string apiPath, int[] handler)
         {
             // Only when the window the path resolves to is the one actually being read. A caller may hand us

@@ -148,6 +148,21 @@ namespace tik4net.Objects
         public bool IsPresenceFlag { get; set; }
 
         /// <summary>
+        /// The field's label in WinBox (its <c>.jg</c> catalog name) — <c>"New Packet Mark"</c> for
+        /// <c>new-packet-mark</c>. The WinBox-native transport resolves the field through this label in the router's
+        /// own catalog before any name heuristic; a session field override still wins, and a label this RouterOS
+        /// version's catalog does not have is ignored (the heuristic then decides). The mapper sends labels only to a
+        /// connection declaring <see cref="TikConnectionCapability.FieldLabels"/>; other transports never see them.
+        /// </summary>
+        /// <remarks>
+        /// A label that repeats within one window — two deck panes' <c>Stop on Full</c>, two tabs' <c>Port</c> — is
+        /// written with its pane kind or tab: <c>"memory: Stop on Full"</c>. Labels are the stable identity across
+        /// RouterOS versions (a field's key and wire type can change under the same label). The labels are
+        /// generated from the catalog and checked against it by <c>EntityJgCatalogProbe</c>.
+        /// </remarks>
+        public string? WinboxLabel { get; set; }
+
+        /// <summary>
         /// Marks a writable field whose value the <b>router changes by itself</b> between two reads —
         /// <c>/system/clock</c>'s <c>time</c> and <c>date</c>.
         /// <para>
