@@ -219,7 +219,9 @@ namespace tik4net.unittests.Objects
 
             var unset = connection.SentCommands.Where(c => c.First() == "/box/unset")
                 .Select(c => c.Single(w => w.StartsWith("=value-name="))).ToArray();
-            CollectionAssert.AreEquivalent(new[] { "=value-name=comment", "=value-name=mode" }, unset);
+            CollectionAssert.AreEquivalent(new[] { "=value-name=mode" }, unset);
+            // A comment is cleared with comment="" rather than an unset (ClearedCommentTests).
+            CollectionAssert.Contains(connection.SentCommands.Single(c => c.First() == "/box/set").ToArray(), "=comment=");
         }
 
         [TestMethod]

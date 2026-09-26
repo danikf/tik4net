@@ -47,7 +47,8 @@ namespace tik4net.unittests.Objects
                 .Field(b => b.Comment)
                 .Save();
 
-            Assert.IsTrue(connection.SentCommands.Any(c => c.First() == "/box/unset" && c.Contains("=value-name=comment")));
+            // A comment is cleared with comment="" (an unset on any other field; ClearedCommentTests).
+            Assert.IsTrue(connection.SentCommands.Any(c => c.First() == "/box/set" && c.Contains("=comment=")));
         }
 
         [TestMethod]

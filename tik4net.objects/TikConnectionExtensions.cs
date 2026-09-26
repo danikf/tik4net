@@ -741,7 +741,15 @@ namespace tik4net.Objects
                 if (property.HasDefaultValue(entity!) && property.UnsetOnDefault)
                     fieldsToUnset.Add(property.WriteName(entity!));
                 else if (clearedFields.Contains(property.FieldName))
-                    fieldsToUnset.Add(property.WriteName(entity!));   // loaded with a value, set to null → unset
+                {
+                    // Loaded with a value, set to null → unset. Except a comment: RouterOS clears one with
+                    // comment="" on every menu (an empty comment is no comment - TikEmptyComment), while menus
+                    // such as /interface have no unset verb at all ("no such command").
+                    if (string.Equals(property.FieldName, "comment", StringComparison.OrdinalIgnoreCase))
+                        setCmd.AddParameter(property.WriteName(entity!), "");
+                    else
+                        fieldsToUnset.Add(property.WriteName(entity!));
+                }
                 else
                 {
                     string? value = property.GetEntityValue(entity!);

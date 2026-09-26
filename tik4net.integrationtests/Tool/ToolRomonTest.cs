@@ -59,7 +59,7 @@ namespace tik4net.integrationtests
             var rows = Connection.RomonPing("AA:BB:CC:DD:EE:FF", 1).ToList();
             Assert.AreEqual(1, rows.Count);
             Assert.AreEqual("timeout", rows[0].Status);
-            Assert.IsNull(rows[0].Time);
+            Assert.IsTrue(rows[0].Time == null, "a timed-out ping has no time: " + rows[0].Time.State);
         }
 
         [TestMethod]

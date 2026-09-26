@@ -23,7 +23,7 @@ namespace tik4net.integrationtests
         {
             var tmp = Connection.GetInterfaceMonitorTrafficSnapshot(TestConstants.Interface);
             Assert.AreEqual(TestConstants.Interface, tmp.Name);
-            Assert.IsNotNull(tmp.RxBitsPerSecond, "the reading the command exists for");
+            Assert.IsTrue(tmp.RxBitsPerSecond != null, "the reading the command exists for");
         }
 
         [TestMethod]
