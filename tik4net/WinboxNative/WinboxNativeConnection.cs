@@ -1879,12 +1879,6 @@ namespace tik4net.WinboxNative
         /// window to ask about.
         /// </summary>
         /// <summary>
-        /// Builds the field resolver for a path, telling it which WINDOW the path resolves to. That matters
-        /// wherever several windows share one handler: every interface subtype reads <c>[20,0]</c> but
-        /// declares its own field keys, so a resolver that only knew the handler could not tell EoIP's
-        /// 'Remote Address' from GRE's.
-        /// </summary>
-        /// <summary>
         /// Diagnostics for audits (the DefaultValue / applicability probe): how this router's catalog sees the fields of
         /// <paramref name="apiPath"/> — each API name the resolver decodes, its <c>.jg</c> field, and a decoder that
         /// renders one M2 value of that field as the API prints it. <c>null</c> when the path has no handler.
@@ -1897,7 +1891,7 @@ namespace tik4net.WinboxNative
             var resolver = MakeResolver(apiPath, handler);
             var names = resolver.BuildKeyToApiName();
             var fields = resolver.BuildKeyToField();
-            var codec = new WinboxRecordCodec(null, _catalog);
+            var codec = _codec;   // the open connection's decoder: DescribeFields needs an opened catalog anyway
             var result = new List<(string, WinboxJgField, Func<object, string?>)>();
             foreach (var pair in fields)
             {
@@ -1913,6 +1907,12 @@ namespace tik4net.WinboxNative
             return result;
         }
 
+        /// <summary>
+        /// Builds the field resolver for a path, telling it which WINDOW the path resolves to. That matters
+        /// wherever several windows share one handler: every interface subtype reads <c>[20,0]</c> but
+        /// declares its own field keys, so a resolver that only knew the handler could not tell EoIP's
+        /// 'Remote Address' from GRE's.
+        /// </summary>
         private WinboxFieldResolver MakeResolver(string apiPath, int[] handler)
             => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
                                        _handlerMap.ResolveDerivedKey(apiPath));

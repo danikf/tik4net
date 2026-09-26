@@ -47,7 +47,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// certificate — name of the certificate used by this service (relevant for www-ssl and api-ssl).
         /// </summary>
-        [TikProperty("certificate", DefaultValue = "")]
+        [TikProperty("certificate", DefaultValue = "none")]
         public string? Certificate { get; set; }
 
         /// <summary>

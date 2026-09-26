@@ -125,11 +125,11 @@ namespace tik4net.Objects.Ip.Hotspot
         public string? TrialUserProfile { get; set; }
 
         /// <summary>trial-uptime-limit — maximum session time for trial users (0s = disabled).</summary>
-        [TikProperty("trial-uptime-limit", DefaultValue = "0s")]
+        [TikProperty("trial-uptime-limit", DefaultValue = "30m")]
         public TikDuration? TrialUptimeLimit { get; set; }
 
         /// <summary>trial-uptime-reset — interval after which the trial uptime counter resets (0s = no reset).</summary>
-        [TikProperty("trial-uptime-reset", DefaultValue = "0s")]
+        [TikProperty("trial-uptime-reset", DefaultValue = "1d")]
         public TikDuration? TrialUptimeReset { get; set; }
 
         // --- Read-only ---

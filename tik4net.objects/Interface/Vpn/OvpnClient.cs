@@ -183,9 +183,9 @@ namespace tik4net.Objects.Interface.Vpn
 
         /// <summary>
         /// use-peer-dns — whether to add DNS servers advertised by the OVPN server.
-        /// Default: no
+        /// Default: yes
         /// </summary>
-        [TikProperty("use-peer-dns", DefaultValue = "no")]
+        [TikProperty("use-peer-dns", DefaultValue = "yes")]
         public bool? UsePeerDns { get; set; }
 
         /// <summary>

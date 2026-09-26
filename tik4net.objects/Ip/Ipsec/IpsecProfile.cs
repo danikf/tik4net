@@ -92,9 +92,9 @@ namespace tik4net.Objects.Ip.Ipsec
         /// (multi-value, kept as string).
         /// Allowed values: modp768, modp1024, modp1536, modp2048, modp3072, modp4096,
         /// modp6144, modp8192, ecp256, ecp384, ecp521.
-        /// Default: "modp1024,modp2048"
+        /// Default: "modp2048,modp1024"
         /// </summary>
-        [TikProperty("dh-group", DefaultValue = "modp1024,modp2048")]
+        [TikProperty("dh-group", DefaultValue = "modp2048,modp1024")]
         public string? DhGroup { get; set; }
 
         /// <summary>

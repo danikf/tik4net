@@ -29,7 +29,7 @@ namespace tik4net.Objects.Ip
         /// cache-size
         /// specifies the size of DNS cache in KiB
         /// </summary>
-        [TikProperty("cache-size", DefaultValue = "2M")]
+        [TikProperty("cache-size", DefaultValue = "2048")]
         public string?/*integer: 512..10240*/ CacheSize { get; set; }
 
         /// <summary>
