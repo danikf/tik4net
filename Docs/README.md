@@ -40,7 +40,7 @@ code was actually wrong.
 
 | Document | Covers |
 |---|---|
-| [`winbox-native-m2-protocol.md`](winbox-native-m2-protocol.md) | Handler/command model, native CRUD as decoded from webfig `master.js`, streaming monitor protocol |
+| [`winbox-native-m2-protocol.md`](winbox-native-m2-protocol.md) | Handler/command model, native CRUD as decoded from webfig `master.js`, streaming monitor protocol; the `.jg` catalog as a source of field applicability, defaults and version differences (§34) |
 | [`jg-catalog-format.md`](jg-catalog-format.md) | The `.jg` catalog format (JS object literal): handlers, windows, field keys and wire types |
 | [`findings-winbox-catalog.md`](findings-winbox-catalog.md) | Catalog acquisition and cross-version drift |
 | [`winbox-m2-multiplexing-design.md`](winbox-m2-multiplexing-design.md) | Request/reply correlation and the channel model the async work is built on |

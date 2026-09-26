@@ -2305,6 +2305,55 @@ to the window's own field.
 Never for a deck-pane leaf: there the API name comes from the pane KIND (`bfifo-limit`, `pcq-rate`), and
 four panes whose boxes all read 'Queue Size' would collapse onto one name.
 
+## 34. The catalog as knowledge about the entities: defaults, applicability, versions
+
+WinBox and WebFig draw every window from the catalog, so it answers three questions about a RouterOS menu that the
+router's own replies do not: which fields a row of a given kind has, what a new row is pre-filled with, and whether
+this version has a field at all. `EntityJgCatalogProbe` (integration, `[Ignore]`d) reports all three for every
+`[TikEntity]` property against a live router's catalog, through the native transport's own resolver
+(`WinboxNativeConnection.DescribeFields`).
+
+### 34.1 A deck pane is where the router leaves a field out
+
+A field inside a `deck` pane (§27) exists only on rows whose selector value the pane — or a pane that aliases it,
+§27.3 — lists. The API omits it from every other row, and writing it there changes nothing the router prints: mangle
+`passthrough` on a `jump` rule is accepted and never shown. That is the whole set of "does not apply to this kind of
+row" fields, which no sweep of printed rows can enumerate (a lab holds rows of few kinds). On 7.24 there are about 70
+among the mapped entities: mangle/filter/raw/NAT action arguments, queue-type `kind` parameters, logging-action
+`target` settings, IPsec identity fields by `auth-method`, connection-tracking fields by `protocol`.
+
+### 34.2 `def` is the dialog's pre-fill — usually, not always, the router's default
+
+A field's `def` is what WinBox puts in the box of a new row. Checked against rows freshly created over the CLI on
+7.24, it matches the router's `add` default in most cases, and it is the better source for placeholder attributes
+(`vxlan port` 4789, `vrrp priority` 100, `romon port cost` 100). It is not the router's default everywhere:
+
+- pppoe-client `add-default-route` is `def:1` on 6.49 and 7.24; a CLI-created row prints `false`;
+- a reference default is a sentinel id (`4294967294`, printed `*FFFFFFFE` when rendered raw) that the router prints as
+  the referenced name (`profile=default-encryption`);
+- a list or bitmask `def` renders in catalog order (`mschap2,mschap1,chap,pap`, `modp2048,modp1024`), and a bitmask
+  `def` may be stale (IPsec proposal `enc-algorithms` renders `3des`; the router's default is
+  `aes-256-cbc,aes-192-cbc,aes-128-cbc`);
+- an enum label is a caption, not always the API word (`wireless-80211` for `wireless-802.11`).
+
+A disagreement between an attribute and `def` is settled by a third opinion — the router's print of a new row.
+
+### 34.3 A catalog is one version's; labels are the stable identity, keys and types are not
+
+Each RouterOS version ships its own catalog. Between 6.45 and 7.24 the mangle window keeps 81 of its 92 labels with
+the same key and type; the rest show the three kinds of drift:
+
+- a key or a type changes under the same label (`New Routing Mark`: `s3f0` → `u3f0`);
+- a label repeats within one window for different fields (`Dst. Address` is two keys), so a label needs its pane kind
+  or tab to be unique (§27.1, §32.1.4);
+- fields come and go (6.45 `Routing Table`, `DSCP (TOS)`, `Every`; 7.24 `DSCP`, `TOS`, `Route Dst.`).
+
+Defaults move between versions too (DHCP `lease-time` 10m on 6.49, 30m on 7.24; netwatch `interval` 1m / 10s). A
+field absent from a version's catalog — while other versions' catalogs have it — is the version signal: it separates
+"this RouterOS lacks the field" from "no WinBox window shows it" and from "this kind of row does not have it" (§34.1).
+
+---
+
 ## Settled questions — do not re-investigate
 
 - **Black-box M2 probing without the webfig source is not the way to recover the CRUD command
