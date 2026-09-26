@@ -47,8 +47,6 @@ namespace tik4net.Objects.Ip
             /// </summary>
             [TikEnum("after-10sec-delay")]
             After10secDelay,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -71,8 +69,6 @@ namespace tik4net.Objects.Ip
             /// </summary>
             [TikEnum("dynamic")]
             Dynamic,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
         #endregion
 
@@ -86,19 +82,19 @@ namespace tik4net.Objects.Ip
         /// add-arp: Whether to add dynamic ARP entry.  If set to no either  ARP mode should be enabled on that interface or static  ARP entries should be administratively defined in /ip arp submenu.
         /// </summary>
         [TikProperty("add-arp", DefaultValue = "no")]
-        public bool? AddArp { get; set; }
+        public TikValue<bool?> AddArp { get; set; }
 
         /// <summary>
         /// address-pool:  IP pool, from which to take IP addresses for the clients. If set to static-only, then only the clients that have a static lease (added in  lease submenu) will be allowed.
         /// </summary>
         [TikProperty("address-pool", DefaultValue = "static-only")]
-        public string?/*string | static-only*/ AddressPool { get; set; }
+        public TikValue<string?> AddressPool { get; set; }
 
         /// <summary>
         /// always-broadcast: Always send replies as broadcasts.
         /// </summary>
         [TikProperty("always-broadcast", DefaultValue = "no")]
-        public bool? AlwaysBroadcast { get; set; }                                    
+        public TikValue<bool?> AlwaysBroadcast { get; set; }                                    
 
         /// <summary>
         /// authoritative
@@ -110,7 +106,7 @@ namespace tik4net.Objects.Ip
         /// If all requests with "secs &lt; x" should be ignored, then delay-threshold=x setting should be used.
         /// </summary>
         [TikProperty("authoritative", DefaultValue = "after-2sec-delay")]
-        public AuthoritativeType Authoritative { get; set; }
+        public TikValue<AuthoritativeType?> Authoritative { get; set; }
 
         /// <summary>
         /// bootp-support
@@ -120,19 +116,19 @@ namespace tik4net.Objects.Ip
         ///  dynamic - offer static and dynamic leases for BOOTP clients
         /// </summary>
         [TikProperty("bootp-support", DefaultValue = "static")]
-        public BootpSupportType BootpSupport { get; set; }
+        public TikValue<BootpSupportType?> BootpSupport { get; set; }
 
         /// <summary>
         /// delay-threshold: If secs field in DHCP packet is smaller than delay-threshold, then this packet is ignored. If set to none - there is no threshold (all DHCP packets are processed)
         /// </summary>
         [TikProperty("delay-threshold", DefaultValue = "none")]
-        public string?/*time | none*/ DelayThreshold { get; set; }
+        public TikValue<string?> DelayThreshold { get; set; }
 
         /// <summary>
         /// interface: Interface on which server will be running.
         /// </summary>
         [TikProperty("interface")]
-        public string? Interface { get; set; }
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// lease-script
@@ -143,19 +139,19 @@ namespace tik4net.Objects.Ip
         ///  leaseActIP -  active IP address
         /// </summary>
         [TikProperty("lease-script")]
-        public string? LeaseScript { get; set; }
+        public TikValue<string?> LeaseScript { get; set; }
 
         /// <summary>
         /// lease-time: The time that a client may use the assigned address. The client will try to renew this address after a half of this time and will request a new address after time limit expires.
         /// </summary>
         [TikProperty("lease-time", DefaultValue = "30m")]
-        public TikDuration? LeaseTime { get; set; }
+        public TikValue<TikDuration?> LeaseTime { get; set; }
 
         /// <summary>
         /// name: Reference name
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// relay
@@ -164,25 +160,25 @@ namespace tik4net.Objects.Ip
         ///  255.255.255.255 - the DHCP server should be used for any incoming request from a DHCP relay except for those, which are processed by another DHCP server that exists in the /ip dhcp-server submenu.
         /// </summary>
         [TikProperty("relay", DefaultValue = "0.0.0.0")]
-        public string?/*IP*/ Relay { get; set; }
+        public TikValue<string?> Relay { get; set; }
 
         /// <summary>
         /// src-address: The address which the DHCP client must send requests to in order to renew an IP address lease. If there is only one static address on the DHCP server interface and the source-address is left as 0.0.0.0, then the static address will be used. If there are multiple addresses on the interface, an address in the same subnet as the range of given addresses should be used.
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string?/*IP*/ SrcAddress { get; set; }
+        public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// use-radius: Whether to use RADIUS server for dynamic leases
         /// </summary>
         [TikProperty("use-radius", DefaultValue = "no")]
-        public bool? UseRadius { get; set; }
+        public TikValue<bool?> UseRadius { get; set; }
 
         /// <summary>
         /// disabled: Whether DHCP server is disabled or not
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// ctor

@@ -36,8 +36,6 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("proxy-arp")] ProxyArp,
             /// <summary>reply-only — the interface replies only to ARP requests that match static entries in /ip arp; no dynamic entries are created.</summary>
             [TikEnum("reply-only")] ReplyOnly,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── VLAN mode ─────────────────────────────────────────────────────────
@@ -52,8 +50,6 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("use-service-tag")] UseServiceTag,
             /// <summary>use-tag — tag frames with 802.1q VLAN tags.</summary>
             [TikEnum("use-tag")] UseTag,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────
@@ -67,8 +63,8 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// name — unique name for this datapath profile.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         // ── Forwarding mode ───────────────────────────────────────────────────
 
@@ -79,7 +75,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("local-forwarding", DefaultValue = "no")]
-        public bool? LocalForwarding { get; set; }
+        public TikValue<bool?> LocalForwarding { get; set; }
 
         /// <summary>
         /// client-to-client-forwarding — when true, wireless clients connected to the same
@@ -87,7 +83,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("client-to-client-forwarding", DefaultValue = "no")]
-        public bool? ClientToClientForwarding { get; set; }
+        public TikValue<bool?> ClientToClientForwarding { get; set; }
 
         // ── Bridge membership ─────────────────────────────────────────────────
 
@@ -96,21 +92,21 @@ namespace tik4net.Objects.CapsMan
         /// added as a bridge port.  Leave empty to skip automatic bridge-port assignment.
         /// </summary>
         [TikProperty("bridge")]
-        public string? Bridge { get; set; }
+        public TikValue<string?> Bridge { get; set; }
 
         /// <summary>
         /// bridge-cost — spanning-tree port cost assigned to the bridge port.
         /// Valid range 1..200000000; DefaultValue="0" prevents sending 0 on add (0 is out of range).
         /// </summary>
         [TikProperty("bridge-cost", DefaultValue = "0")]
-        public int BridgeCost { get; set; }
+        public TikValue<int?> BridgeCost { get; set; }
 
         /// <summary>
         /// bridge-horizon — bridge horizon value assigned to the port.
         /// Valid range 0..4294967295; DefaultValue="0" makes the mapper skip an unset field on add.
         /// </summary>
         [TikProperty("bridge-horizon", DefaultValue = "0")]
-        public int BridgeHorizon { get; set; }
+        public TikValue<int?> BridgeHorizon { get; set; }
 
         // ── VLAN ──────────────────────────────────────────────────────────────
 
@@ -121,14 +117,14 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="VlanModeType"/>
         /// </summary>
         [TikProperty("vlan-mode", DefaultValue = "no-tag")]
-        public VlanModeType VlanMode { get; set; }
+        public TikValue<VlanModeType?> VlanMode { get; set; }
 
         /// <summary>
         /// vlan-id — VLAN identifier applied when vlan-mode is use-tag or use-service-tag.
         /// Valid range 1..4095; DefaultValue="0" prevents sending 0 on add (0 is out of range).
         /// </summary>
         [TikProperty("vlan-id", DefaultValue = "0")]
-        public int VlanId { get; set; }
+        public TikValue<int?> VlanId { get; set; }
 
         // ── Network layer ─────────────────────────────────────────────────────
 
@@ -138,21 +134,21 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="ArpMode"/>
         /// </summary>
         [TikProperty("arp", DefaultValue = "enabled")]
-        public ArpMode Arp { get; set; }
+        public TikValue<ArpMode?> Arp { get; set; }
 
         /// <summary>
         /// mtu — IP-layer maximum transmission unit for the virtual wireless interface (bytes).
         /// DefaultValue="0" prevents sending 0 on add when the field is not explicitly set.
         /// </summary>
         [TikProperty("mtu", DefaultValue = "0")]
-        public int Mtu { get; set; }
+        public TikValue<int?> Mtu { get; set; }
 
         /// <summary>
         /// l2mtu — link-layer maximum transmission unit (bytes).
         /// DefaultValue="0" prevents sending 0 on add when the field is not explicitly set.
         /// </summary>
         [TikProperty("l2mtu", DefaultValue = "0")]
-        public int L2Mtu { get; set; }
+        public TikValue<int?> L2Mtu { get; set; }
 
         // ── Interface list / OpenFlow ─────────────────────────────────────────
 
@@ -160,13 +156,13 @@ namespace tik4net.Objects.CapsMan
         /// interface-list — assigns the virtual wireless interface to the named interface list.
         /// </summary>
         [TikProperty("interface-list")]
-        public string? InterfaceList { get; set; }
+        public TikValue<string?> InterfaceList { get; set; }
 
         /// <summary>
         /// openflow-switch — name of the OpenFlow switch to which the virtual interface is assigned.
         /// </summary>
         [TikProperty("openflow-switch")]
-        public string? OpenflowSwitch { get; set; }
+        public TikValue<string?> OpenflowSwitch { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -174,9 +170,9 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this datapath profile.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

@@ -13,7 +13,7 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/ip/settings");
             var settings = Connection.LoadSingle<IpSettings>();
             Assert.IsNotNull(settings);
-            Assert.IsTrue(settings.IpForward, "ip-forward should be enabled on this router");
+            Assert.IsTrue(settings.IpForward.GetValueOrDefault(), "ip-forward should be enabled on this router");
         }
     }
 }

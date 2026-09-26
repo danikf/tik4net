@@ -28,7 +28,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// integer [0..4294967295]
         /// </summary>
         [TikProperty("ap-tx-limit", DefaultValue = "0")]
-        public long ApTxLimit { get; set; }
+        public TikValue<long?> ApTxLimit { get; set; }
 
         /// <summary>
         /// authentication
@@ -37,7 +37,7 @@ namespace tik4net.Objects.Interface.Wireless
         ///  yes - Use authentication procedure that is specified in the  security-profile of the interface.
         /// </summary>
         [TikProperty("authentication", DefaultValue = "yes")]
-        public bool? Authentication { get; set; }
+        public TikValue<bool?> Authentication { get; set; }
 
         /// <summary>
         /// client-tx-limit
@@ -47,19 +47,19 @@ namespace tik4net.Objects.Interface.Wireless
         /// integer [0..4294967295]
         /// </summary>
         [TikProperty("client-tx-limit", DefaultValue = "0")]
-        public long ClientTxLimit { get; set; }
+        public TikValue<long?> ClientTxLimit { get; set; }
 
         /// <summary>
         /// comment: Short description of an entry
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>
         /// disabled: 
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// forwarding
@@ -68,43 +68,43 @@ namespace tik4net.Objects.Interface.Wireless
         ///  yes - Client can send frames to other stations on the same access point.
         /// </summary>
         [TikProperty("forwarding", DefaultValue = "yes")]
-        public bool? Forwarding { get; set; }
+        public TikValue<bool?> Forwarding { get; set; }
 
         /// <summary>
         /// interface: Rules with interface=all are used for all wireless interfaces. To make rule that applies only to one wireless interface, specify that interface as a value of this property.
         /// </summary>
         [TikProperty("interface", DefaultValue = "all")]
-        public string?/*string | all*/ Interface { get; set; }
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// mac-address: Rule matches client with the specified MAC address. Value 00:00:00:00:00:00 matches always.
         /// </summary>
         [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
-        public string?/*MAC*/ MacAddress { get; set; }
+        public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
         /// management-protection-key: 
         /// </summary>
         [TikProperty("management-protection-key", DefaultValue = "", IsSensitive = true)]
-        public string? ManagementProtectionKey { get; set; }
+        public TikValue<string?> ManagementProtectionKey { get; set; }
 
         /// <summary>
         /// private-algo: Only for WEP modes.
         /// </summary>
         [TikProperty("private-algo", DefaultValue = "none")]
-        public string?/*104bit-wep | 40bit-wep | aes-ccm | none | tkip*/ PrivateAlgo { get; set; }
+        public TikValue<string?> PrivateAlgo { get; set; }
 
         /// <summary>
         /// private-key: Only for WEP modes.
         /// </summary>
         [TikProperty("private-key", DefaultValue = "", IsSensitive = true)]
-        public string? PrivateKey { get; set; }
+        public TikValue<string?> PrivateKey { get; set; }
 
         /// <summary>
         /// private-pre-shared-key: Used in WPA PSK mode.
         /// </summary>
         [TikProperty("private-pre-shared-key", DefaultValue = "", IsSensitive = true)]
-        public string? PrivatePreSharedKey { get; set; }
+        public TikValue<string?> PrivatePreSharedKey { get; set; }
 
         /// <summary>
         /// signal-range
@@ -112,7 +112,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// If signal strength of the station will go out of the range that is specified in the rule, access point will disconnect that station.
         /// </summary>
         [TikProperty("signal-range", DefaultValue = "-120..120")]
-        public string?/*NUM..NUM - both NUM are numbers in the range -120..120*/ SignalRange { get; set; }
+        public TikValue<string?> SignalRange { get; set; }
 
         /// <summary>
         /// time
@@ -122,7 +122,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// Rule will match only during specified days of the week.
         /// </summary>
         [TikProperty("time")]
-        public string?/*TIME-TIME,sun,mon,tue,wed,thu,fri,sat - TIME is time interval 0..86400 seconds; all day names are optional; value can be unset*/ Time { get; set; }
+        public TikValue<string?> Time { get; set; }
 
         /// <summary>
         /// ctor

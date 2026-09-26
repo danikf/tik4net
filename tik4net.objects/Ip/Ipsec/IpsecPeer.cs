@@ -21,8 +21,6 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("base")] Base,
             /// <summary>ike2 — IKEv2 (RFC 7296), the modern IKE version.</summary>
             [TikEnum("ike2")] Ike2,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>
@@ -32,8 +30,8 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// name — peer identifier; used to reference this entry from policies and scripts.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// address — IP/IPv6 prefix of the remote peer. When the remote peer's address matches
@@ -41,14 +39,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: 0.0.0.0/0 (match any remote address).
         /// </summary>
         [TikProperty("address", DefaultValue = "0.0.0.0/0")]
-        public string?/*IP Prefix*/ Address { get; set; }
+        public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// local-address — router's local IP/IPv6 address to which IKE Phase 1 is bound.
         /// Leave empty to use the address selected by the routing table.
         /// </summary>
         [TikProperty("local-address")]
-        public string?/*IP*/ LocalAddress { get; set; }
+        public TikValue<string?> LocalAddress { get; set; }
 
         /// <summary>
         /// port — UDP port used by the initiator when connecting to the remote peer.
@@ -56,7 +54,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// so the mapper omits the field on add and the router applies its own default.
         /// </summary>
         [TikProperty("port")]
-        public int Port { get; set; }
+        public TikValue<int?> Port { get; set; }
 
         /// <summary>
         /// profile — name of the IKE profile template (/ip/ipsec/profile) applied during
@@ -64,7 +62,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: "default"
         /// </summary>
         [TikProperty("profile", DefaultValue = "default")]
-        public string? Profile { get; set; }
+        public TikValue<string?> Profile { get; set; }
 
         /// <summary>
         /// exchange-mode — IKEv1/IKEv2 Phase 1 exchange mode (RFC 2408).
@@ -72,7 +70,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="ExchangeModeType"/>
         /// </summary>
         [TikProperty("exchange-mode", DefaultValue = "main")]
-        public ExchangeModeType ExchangeMode { get; set; }
+        public TikValue<ExchangeModeType?> ExchangeMode { get; set; }
 
         /// <summary>
         /// send-initial-contact — when true, the router sends an Initial-Contact IKE
@@ -81,7 +79,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: yes
         /// </summary>
         [TikProperty("send-initial-contact", DefaultValue = "yes")]
-        public bool? SendInitialContact { get; set; }
+        public TikValue<bool?> SendInitialContact { get; set; }
 
         /// <summary>
         /// passive — when true the router acts only as a responder and waits for the remote
@@ -89,27 +87,27 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("passive", DefaultValue = "no")]
-        public bool? Passive { get; set; }
+        public TikValue<bool?> Passive { get; set; }
 
         /// <summary>
         /// ppk-secret — Post-quantum Preshared Key secret (IKEv2 RFC 8784). Leave empty
         /// when PPK is not used.
         /// </summary>
         [TikProperty("ppk-secret", IsSensitive = true)]
-        public string? PpkSecret { get; set; }
+        public TikValue<string?> PpkSecret { get; set; }
 
         /// <summary>
         /// disabled — when true this peer entry is not used to match remote peers.
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short description of the peer entry.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -118,16 +116,16 @@ namespace tik4net.Objects.Ip.Ipsec
         /// (e.g. L2TP server); false for manually configured peers.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; private set; }
+        public TikValue<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// responder — true when this peer is configured (or determined) to act as a
         /// responder only (listens for incoming IKE; never initiates).
         /// </summary>
         [TikProperty("responder", IsReadOnly = true)]
-        public bool Responder { get; private set; }
+        public TikValue<bool?> Responder { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

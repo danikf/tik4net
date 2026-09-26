@@ -24,7 +24,7 @@ namespace tik4net.integrationtests
         {
             EnsureCommandAvailable("/ip/service");
             var ftp = Connection.LoadAll<IpService>().Single(s => s.Name == "ftp");
-            string original = ftp.Address;
+            string original = ftp.Address.Value;
             try
             {
                 ftp.Address = "0.0.0.0/0";

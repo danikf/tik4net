@@ -22,8 +22,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// name — unique name for this layer 7 protocol definition.
         /// WinBox: "Name"
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// regexp — POSIX extended regular expression matched against the first 10 packets
@@ -31,15 +31,15 @@ namespace tik4net.Objects.Ip.Firewall
         /// WinBox: "Regexp"
         /// </summary>
         [TikProperty("regexp", IsFreeText = true)]
-        public string? Regexp { get; set; }
+        public TikValue<string?> Regexp { get; set; }
 
         /// <summary>
         /// comment — free-form descriptive text for this entry.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

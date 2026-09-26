@@ -18,8 +18,8 @@ namespace tik4net.Objects.Routing
         /// name — unique identifier for the routing table.
         /// Referenced by routing rules (/routing/rule) and firewall mangle rules.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// fib — when true, the table is a FIB (Forwarding Information Base) table whose
@@ -36,18 +36,18 @@ namespace tik4net.Objects.Routing
         /// Writing is unaffected: Save() sends <c>=fib=yes</c>, which the router accepts.
         /// </summary>
         [TikProperty("fib", DefaultValue = "no", IsPresenceFlag = true)]
-        public bool? Fib { get; set; }
+        public TikValue<bool?> Fib { get; set; }
 
         /// <summary>
         /// disabled — when true the routing table is administratively disabled.
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -56,15 +56,15 @@ namespace tik4net.Objects.Routing
         /// (e.g. the built-in "main" table); false for user-created tables.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; private set; }
+        public TikValue<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// invalid — true when the routing table entry is in an invalid/error state.
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public bool Invalid { get; private set; }
+        public TikValue<bool?> Invalid { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

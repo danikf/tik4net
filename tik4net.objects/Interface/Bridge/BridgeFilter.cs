@@ -79,8 +79,6 @@ namespace tik4net.Objects.Interface.Bridge
             /// </summary>
             [TikEnum("set-priority")]
             SetPriority,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -93,36 +91,36 @@ namespace tik4net.Objects.Interface.Bridge
         /// return  - passes control back to the chain from where the jump took place
         /// </summary>
         [TikProperty("action", DefaultValue = "accept")]
-        public ActionType Action { get; set; }
+        public TikValue<ActionType?> Action { get; set; }
 
         /// <summary>
         /// jump-target: If action=jump specified, then specifies the user-defined firewall chain to process the packet
         /// </summary>
         [TikProperty("jump-target")]
-        public string?/*name*/ JumpTarget { get; set; }
+        public TikValue<string?> JumpTarget { get; set; }
 
         /// <summary>
         /// log-prefix: Defines the prefix to be printed before the logging information
         /// </summary>
         [TikProperty("log-prefix")]
-        public string?/*text*/ LogPrefix { get; set; }
+        public TikValue<string?> LogPrefix { get; set; }
 
         /// <summary>
         /// new-packet-mark
         /// </summary>
         [TikProperty("new-packet-mark")]
-        public string? NewPacketMark { get; set; }
+        public TikValue<string?> NewPacketMark { get; set; }
 
         /// <summary>
         /// new-priorityne
         /// </summary>
         [TikProperty("new-priority", DefaultValue = "0")]
-        public string? NewPriority { get; set; }
+        public TikValue<string?> NewPriority { get; set; }
 
         /// <summary>
         /// passthrough
         /// </summary>
         [TikProperty("passthrough", DefaultValue = "yes")]
-        public bool? Passthrough { get; set; }
+        public TikValue<bool?> Passthrough { get; set; }
     }
 }

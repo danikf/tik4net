@@ -27,67 +27,67 @@ namespace tik4net.Objects.Ppp
         /// address: IP address the client got from the server
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string? Address { get; private set; }
+        public TikValue<string?> Address { get; private set; }
 
         /// <summary>
         /// bytes: Amount of bytes transfered through tis connection. First figure represents amount of transmitted traffic from the router's point of view, while the second one shows amount of received traffic.
         /// </summary>
         [TikProperty("bytes", IsReadOnly = true)]
-        public int Bytes { get; private set; }
+        public TikValue<int?> Bytes { get; private set; }
 
         /// <summary>
         /// caller-id: For  PPTP and  L2TP it is the IP address the client connected from. For  PPPoE it is the MAC address the client connected from.
         /// </summary>
         [TikProperty("caller-id", IsReadOnly = true)]
-        public string? CallerId { get; private set; }
+        public TikValue<string?> CallerId { get; private set; }
 
         /// <summary>
         /// encoding: Shows encryption and encoding (separated with '/' if asymmetric) being used in this connection
         /// </summary>
         [TikProperty("encoding", IsReadOnly = true)]
-        public string? Encoding { get; private set; }
+        public TikValue<string?> Encoding { get; private set; }
 
         /// <summary>
         /// limit-bytes-in: Maximal amount of bytes the user is allowed to send to the router.
         /// </summary>
         [TikProperty("limit-bytes-in", IsReadOnly = true)]
-        public int LimitBytesIn { get; private set; }
+        public TikValue<int?> LimitBytesIn { get; private set; }
 
         /// <summary>
         /// limit-bytes-out: Maximal amount of bytes the user is allowed to send to the client.
         /// </summary>
         [TikProperty("limit-bytes-out", IsReadOnly = true)]
-        public int LimitBytesOut { get; private set; }
+        public TikValue<int?> LimitBytesOut { get; private set; }
 
         /// <summary>
         /// name: User name supplied at authentication stage
         /// </summary>
-        [TikProperty("name", IsReadOnly = true, IsMandatory = true)]
-        public string? Name { get; private set; }
+        [TikProperty("name", IsReadOnly = true)]
+        public TikValue<string?> Name { get; private set; }
 
         /// <summary>
         /// packets: Amount of packets transfered through tis connection. First figure represents amount of transmitted traffic from the router's point of view, while the second one shows amount of received traffic
         /// </summary>
         [TikProperty("packets", IsReadOnly = true)]
-        public string? Packets { get; private set; }
+        public TikValue<string?> Packets { get; private set; }
 
         /// <summary>
         /// service: Type of service the user is using.
         /// </summary>
         [TikProperty("service", IsReadOnly = true)]
-        public string? Service { get; private set; }
+        public TikValue<string?> Service { get; private set; }
 
         /// <summary>
         /// session-id: Shows unique client identifier.
         /// </summary>
         [TikProperty("session-id", IsReadOnly = true)]
-        public string? SessionId { get; private set; }
+        public TikValue<string?> SessionId { get; private set; }
 
         /// <summary>
         /// uptime: User's uptime
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public TikDuration? Uptime { get; private set; }
+        public TikValue<TikDuration?> Uptime { get; private set; }
 
     }
 

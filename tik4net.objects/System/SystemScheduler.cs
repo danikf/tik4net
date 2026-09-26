@@ -21,27 +21,27 @@ namespace tik4net.Objects.System
         /// <summary>
         /// name — identifier for the scheduled task.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// interval — time between executions. <c>0s</c> means execute only at <see cref="StartTime"/>.
         /// </summary>
         [TikProperty("interval", DefaultValue = "0s")]
-        public TikDuration? Interval { get; set; }
+        public TikValue<TikDuration?> Interval { get; set; }
 
         /// <summary>
         /// start-date — date when the script first executes.
         /// </summary>
         [TikProperty("start-date")]
-        public string?/*date*/ StartDate { get; set; }
+        public TikValue<string?> StartDate { get; set; }
 
         /// <summary>
         /// start-time — time of initial script execution. The special value <c>startup</c>
         /// runs the script a few seconds after the system boots.
         /// </summary>
         [TikProperty("start-time")]
-        public string?/*time*/ StartTime { get; set; }
+        public TikValue<string?> StartTime { get; set; }
 
         /// <summary>
         /// on-event — script source to run, or the name of a script from /system/script.
@@ -52,44 +52,44 @@ namespace tik4net.Objects.System
         /// </para>
         /// </summary>
         [TikProperty("on-event", IsFreeText = true)]
-        public string? OnEvent { get; set; }
+        public TikValue<string?> OnEvent { get; set; }
 
         /// <summary>
         /// policy — comma-separated list of user policies this script runs under
         /// (e.g. <c>read,write,policy,test</c>). Combination of flags, kept as string.
         /// </summary>
         [TikProperty("policy")]
-        public string? Policy { get; set; }
+        public TikValue<string?> Policy { get; set; }
 
         /// <summary>
         /// owner — user that owns/created the scheduled task (read-only).
         /// </summary>
         [TikProperty("owner", IsReadOnly = true)]
-        public string? Owner { get; private set; }
+        public TikValue<string?> Owner { get; private set; }
 
         /// <summary>
         /// run-count — counter tracking how many times the script has executed (read-only).
         /// </summary>
         [TikProperty("run-count", IsReadOnly = true)]
-        public int RunCount { get; private set; }
+        public TikValue<int?> RunCount { get; private set; }
 
         /// <summary>
         /// next-run — when the script is scheduled to run next (read-only).
         /// </summary>
         [TikProperty("next-run", IsReadOnly = true)]
-        public string? NextRun { get; private set; }
+        public TikValue<string?> NextRun { get; private set; }
 
         /// <summary>
         /// disabled — whether the scheduled task is disabled.
         /// </summary>
         [TikProperty("disabled")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()

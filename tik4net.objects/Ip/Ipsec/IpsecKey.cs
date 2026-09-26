@@ -23,8 +23,8 @@ namespace tik4net.Objects.Ip.Ipsec
         /// name — identifier for the key; referenced from <c>/ip/ipsec/identity</c> when
         /// using RSA-based authentication methods.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         // --- Read-only status properties ---
 
@@ -33,7 +33,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Set at generation time via <c>generate-key</c> and cannot be changed afterwards.
         /// </summary>
         [TikProperty("key-size", IsReadOnly = true)]
-        public string?/*bits: 2048|4096|8192*/ KeySize { get; private set; }
+        public TikValue<string?> KeySize { get; private set; }
 
         /// <summary>
         /// private-key — true when this entry holds the private key material (i.e. it was
@@ -41,16 +41,16 @@ namespace tik4net.Objects.Ip.Ipsec
         /// key is available (e.g. a peer's imported public key).
         /// </summary>
         [TikProperty("private-key", IsReadOnly = true)]
-        public bool PrivateKey { get; private set; }
+        public TikValue<bool?> PrivateKey { get; private set; }
 
         /// <summary>
         /// rsa — true when the key is in RSA format (always true for entries in this table).
         /// </summary>
         [TikProperty("rsa", IsReadOnly = true)]
-        public bool Rsa { get; private set; }
+        public TikValue<bool?> Rsa { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 
     /// <summary>Connection extension methods for <see cref="IpsecKey"/>.</summary>

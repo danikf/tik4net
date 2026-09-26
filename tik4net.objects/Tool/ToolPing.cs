@@ -26,61 +26,61 @@ namespace tik4net.Objects.Tool
         /// Sequence number
         /// </summary>
         [TikProperty("seq", IsReadOnly = true)]
-        public long SequenceNo { get; private set; }
+        public TikValue<long?> SequenceNo { get; private set; }
 
         /// <summary>
         /// Pinged host.
         /// </summary>
         [TikProperty("host", IsReadOnly = true)]
-        public string? Host { get; private set; }
+        public TikValue<string?> Host { get; private set; }
 
         /// <summary>
         /// Time to live parameter adjustment
         /// </summary>
         [TikProperty("ttl", IsReadOnly = true)]
-        public string? TimeToLife { get; private set; }
+        public TikValue<string?> TimeToLife { get; private set; }
 
         /// <summary>
         /// The ping time.
         /// </summary>
         [TikProperty("time", IsReadOnly = true)]
-        public TikDuration? Time { get; private set; }
+        public TikValue<TikDuration?> Time { get; private set; }
 
         /// <summary>
         /// sent
         /// </summary>
         [TikProperty("sent", IsReadOnly = true)]
-        public string? Sent { get; private set; }
+        public TikValue<string?> Sent { get; private set; }
 
         /// <summary>
         /// received
         /// </summary>
         [TikProperty("received", IsReadOnly = true)]
-        public string? Received { get; private set; }
+        public TikValue<string?> Received { get; private set; }
 
         /// <summary>
         /// packet-loss
         /// </summary>
         [TikProperty("packet-loss", IsReadOnly = true)]
-        public string? PacketLoss { get; private set; }
+        public TikValue<string?> PacketLoss { get; private set; }
 
         /// <summary>
         /// min-rtt
         /// </summary>
         [TikProperty("min-rtt", IsReadOnly = true)]
-        public string? MinRtt { get; private set; }
+        public TikValue<string?> MinRtt { get; private set; }
 
         /// <summary>
         /// avg-rtt
         /// </summary>
         [TikProperty("avg-rtt", IsReadOnly = true)]
-        public string? AvgRtt { get; private set; }
+        public TikValue<string?> AvgRtt { get; private set; }
 
         /// <summary>
         /// max-rtt
         /// </summary>
         [TikProperty("max-rtt", IsReadOnly = true)]
-        public string? MaxRtt { get; private set; }
+        public TikValue<string?> MaxRtt { get; private set; }
         //        <=seq=0
         //<=host=172.16.100.1
         //<=size=56
@@ -106,7 +106,7 @@ namespace tik4net.Objects.Tool
             // Time is not IsMandatory: a row without it (a ping that timed out) leaves it null, and saying
             // so beats the old formatting, which ran the value through a whole-seconds conversion — every
             // round trip under a second printed as 0.
-            return string.Format("{0} ....... {1}", Host, Time?.ToString() ?? "(timeout)");
+            return string.Format("{0} ....... {1}", Host, (Time.TryGetValue(out var time) ? time?.ToString() : null) ?? "(timeout)");
         }
 
         /// <summary>

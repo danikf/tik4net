@@ -20,20 +20,20 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Row name property.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// Row ranges property.
         /// comma separated list of DNS server IP addresses
         /// </summary>
-        [TikProperty("ranges", IsMandatory = true)]
-        public string?/*IPv4/IPv6 range list*/ Ranges { get; set; }
+        [TikProperty("ranges")]
+        public TikValue<string?> Ranges { get; set; }
 
         /// <summary>
         /// Row name property.
         /// </summary>
         [TikProperty("next-pool")]
-        public string? NextPool { get; set; }
+        public TikValue<string?> NextPool { get; set; }
     }
 }

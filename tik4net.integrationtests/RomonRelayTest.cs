@@ -105,9 +105,9 @@ namespace tik4net.integrationtests
 
             string targetIdentity, agentIdentity;
             using (var direct = OpenTargetDirect())
-                targetIdentity = direct.LoadSingle<SystemIdentity>().Name;
+                targetIdentity = direct.LoadSingle<SystemIdentity>().Name.Value;
             using (var agent = OpenAgentDirect())
-                agentIdentity = agent.LoadSingle<SystemIdentity>().Name;
+                agentIdentity = agent.LoadSingle<SystemIdentity>().Name.Value;
             Assert.AreNotEqual(agentIdentity, targetIdentity,
                 "the two lab routers share an identity, so this test could not tell them apart — rename one");
 
@@ -118,7 +118,7 @@ namespace tik4net.integrationtests
                 Assert.AreEqual(TargetId, info.Target.RomonId, true);
                 Assert.AreEqual(agentTransport, info.Agent.ConnectionType);
 
-                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true);
                 Assert.AreEqual(targetIdentity, relay.LoadSingle<SystemIdentity>().Name);
             }
         }
@@ -188,14 +188,14 @@ namespace tik4net.integrationtests
 
             using (var relay = OpenRelay(agentTransport))
             {
-                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true);
 
                 var ended = Assert.ThrowsException<TikRomonRelayEndedException>(
                     () => ((ITikRawSentenceConnection)relay).CallCommandSync("/quit").ToList());
                 Assert.IsTrue(ended.CommandMayHaveRun, "/quit was sent, and it is what ended the relay");
 
                 string after;
-                try { after = relay.LoadSingle<ToolRomon>().CurrentId; }
+                try { after = relay.LoadSingle<ToolRomon>().CurrentId.Value; }
                 catch (Exception ex) when (!(ex is AssertFailedException)) { return; }   // failing is right
                 Assert.AreEqual(TargetId, after, true, "a command after the relay ended answered from the agent");
             }
@@ -289,7 +289,7 @@ namespace tik4net.integrationtests
                 // could not see what it looks for.
                 using (var relay = await setup.CreateAsync(agentTransport))
                 {
-                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true);
                     var open = RelayedSessions(target).Where(kv => !relayedBefore.Contains(kv.Key)).ToArray();
                     Assert.AreEqual(1, open.Length, "an open relay must be one new by-romon session on the target: "
                         + string.Join(", ", open.Select(kv => kv.Value)));
@@ -301,7 +301,7 @@ namespace tik4net.integrationtests
                 // and cancel points taken from it land after most of the warm opens are done.
                 var watch = Stopwatch.StartNew();
                 using (var relay = await setup.CreateAsync(agentTransport))
-                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true);
                 long full = watch.ElapsedMilliseconds;
 
                 var log = new List<string> { $"full open {full} ms" };
@@ -323,7 +323,7 @@ namespace tik4net.integrationtests
                                 Assert.IsTrue(opened < delay + IgnoredCancelMs,
                                     $"cancel at {delay} ms was ignored: the open went on and succeeded at {opened} ms"
                                     + Environment.NewLine + string.Join(Environment.NewLine, log));
-                                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                                     $"an open that outran its cancel at {delay} ms answered from the agent");
                             }
                         }
@@ -365,7 +365,7 @@ namespace tik4net.integrationtests
                         "relayed sessions left on the target: " + string.Join(", ", relayedAfter));
 
                 using (var relay = await setup.CreateAsync(agentTransport))
-                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                         "the open after the cancelled ones did not reach the target");
             }
         }
@@ -388,14 +388,14 @@ namespace tik4net.integrationtests
             try
             {
                 foreach (var relay in relays)
-                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true);
 
                 Thread.Sleep(40000);
 
                 var results = relays.Select((relay, i) => Task.Run(() =>
                 {
                     var watch = Stopwatch.StartNew();
-                    string id = relay.LoadSingle<ToolRomon>().CurrentId;
+                    string id = relay.LoadSingle<ToolRomon>().CurrentId.Value;
                     return (Transport: transports[i], Id: id, Ms: watch.ElapsedMilliseconds);
                 })).Select(t => t.Result).ToArray();
 
@@ -502,7 +502,7 @@ namespace tik4net.integrationtests
                             // resynchronized, so the transport closes rather than let the next command parse it.
                             // There is then no relay left to ask, and the check belongs to the runs that got one.
                             if (relay.IsOpened)
-                                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                                     $"after the page-size-{pageSize} reads the relay answered from the agent");
                         }
                     }
@@ -577,7 +577,7 @@ namespace tik4net.integrationtests
                         Assert.IsNull(listenError, listenError?.ToString());
                         Assert.IsTrue(seen.Any(r => r.Address == targetAddress), "the listen did not report the row added on the target");
                         Assert.IsFalse(seen.Any(r => r.Address == agentAddress), "the listen reported a row added on the AGENT");
-                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                             "after the listen stopped the relay answered from the agent");
                     }
                 }
@@ -624,7 +624,7 @@ namespace tik4net.integrationtests
                 Assert.IsNull(monitorError, monitorError?.ToString());
                 Assert.IsTrue(rows.Count >= 3, "expected three ping rows through the relay, got " + rows.Count);
                 Assert.IsTrue(rows.All(r => r.Host == TargetHost));
-                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                     "after the monitor stopped the relay answered from the agent");
             }
         }
@@ -645,7 +645,7 @@ namespace tik4net.integrationtests
                     relay.CreateParameter("count", "2")).ToList();
 
                 Assert.AreEqual(2, rows.Count(r => r.Host == TargetHost), "expected two ping rows through the relay");
-                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                     "after the monitor the relay answered from the agent");
             }
         }
@@ -689,7 +689,7 @@ namespace tik4net.integrationtests
                             + "tell which of them answered.");
                     Assert.IsTrue(agentOnly.Length > 0, $"call {call}: the completion listed the AGENT's menus");
 
-                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                         $"after completion {call} the relay answered from the agent");
                 }
             }
@@ -758,7 +758,7 @@ namespace tik4net.integrationtests
                         relay.Save(new FirewallAddressList { List = TestList, Address = address, Comment = comment });
                         safeMode.SafeModeRelease();
                         Assert.IsFalse(SafeModeHeldOn(direct), "the release through the relay did not reach the target");
-                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                             "after the release the relay answered from the agent");
                     }
                     Assert.AreEqual(1, OurRows(direct, comment).Length, "a released change must stay on the target");
@@ -803,7 +803,7 @@ namespace tik4net.integrationtests
                         Assert.IsFalse(safeMode.SafeModeGet());
                         Assert.AreEqual(0, OurRows(direct, comment).Length, "the unroll did not discard the change on the target");
                         Assert.IsFalse(SafeModeHeldOn(direct), "Safe Mode is still held on the target after the unroll");
-                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                             "after the unroll the relay answered from the agent");
                     }
                 }

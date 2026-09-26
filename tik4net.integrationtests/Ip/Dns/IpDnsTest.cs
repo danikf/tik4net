@@ -78,7 +78,7 @@ namespace tik4net.integrationtests
                 var item = items.SingleOrDefault(i => i.Address == dnsItem.Address && i.Regexp == dnsItem.Regexp);
                 Assert.IsNotNull(item);
                 Assert.AreEqual(dnsItem.Regexp, item.Regexp);
-                Assert.IsTrue(string.IsNullOrWhiteSpace(item.Name));
+                Assert.IsTrue(string.IsNullOrWhiteSpace(item.Name.Value));
             }
             finally
             {

@@ -34,7 +34,7 @@ namespace tik4net.integrationtests.Cli
             using (var other = TestBase.LabSetup(transport).Create(transport))
             {
                 var apiInterfaces = api.LoadAll<Interface>().ToList();
-                Assert.IsTrue(apiInterfaces.Any(i => i.Running),
+                Assert.IsTrue(apiInterfaces.Any(i => i.Running.GetValueOrDefault()),
                     "no interface is running on this router, so a Running that defaulted to false would pass unseen");
 
                 Compare("interface", apiInterfaces, other.LoadAll<Interface>().ToList(), i => i.Id,

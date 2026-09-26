@@ -102,8 +102,8 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual("br-full", bridge.ToString());
             Assert.AreEqual("probe", bridge.Comment);
             Assert.AreEqual(false, bridge.Disabled);
-            Assert.AreEqual("auto", bridge.ArpTimeout?.Token);
-            Assert.AreEqual(TimeSpan.FromMilliseconds(31250), bridge.StartupQueryInterval?.Value);
+            Assert.AreEqual("auto", bridge.ArpTimeout.Value?.Token);
+            Assert.AreEqual(TimeSpan.FromMilliseconds(31250), bridge.StartupQueryInterval.Value?.Value);
             Assert.AreEqual(6, bridge.TransmitHoldCount);
             Assert.AreEqual(20, bridge.MaxHops);
             Assert.AreEqual(1, bridge.Pvid);
@@ -113,7 +113,7 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual(true, bridge.IgmpSnooping);
             Assert.AreEqual(true, bridge.DhcpSnooping);
             Assert.AreEqual("1500", bridge.ActualMtu);
-            Assert.IsTrue(bridge.Running);
+            Assert.IsTrue(bridge.Running.GetValueOrDefault());
         }
 
         [TestMethod]

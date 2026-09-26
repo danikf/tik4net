@@ -83,7 +83,7 @@ namespace tik4net.integrationtests
 
             using (var connection = Open(romonTarget))
             {
-                version = connection.LoadSingle<tik4net.Objects.System.SystemResource>().Version ?? "?";
+                version = connection.LoadSingle<tik4net.Objects.System.SystemResource>().Version.Value ?? "?";
                 foreach (var entity in entities)
                 {
                     var metadata = Metadata(entity.Type);

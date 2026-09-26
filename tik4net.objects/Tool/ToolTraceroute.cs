@@ -19,49 +19,49 @@ namespace tik4net.Objects.Tool
         /// address
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string? Address { get; private set; }
+        public TikValue<string?> Address { get; private set; }
 
         /// <summary>
         /// loss
         /// </summary>
         [TikProperty("loss", IsReadOnly = true)]
-        public int Loss { get; private set; }
+        public TikValue<int?> Loss { get; private set; }
 
         /// <summary>
         /// sent
         /// </summary>
         [TikProperty("sent", IsReadOnly = true)]
-        public int Sent { get; private set; }
+        public TikValue<int?> Sent { get; private set; }
 
         /// <summary>
         /// last
         /// </summary>
         [TikProperty("last", IsReadOnly = true)]
-        public string? Last { get; private set; }
+        public TikValue<string?> Last { get; private set; }
 
         /// <summary>
         /// status
         /// </summary>
         [TikProperty("status", IsReadOnly = true)]
-        public string? Status { get; private set; }
+        public TikValue<string?> Status { get; private set; }
 
         /// <summary>
         /// avg
         /// </summary>
         [TikProperty("avg", IsReadOnly = true, IsMandatory = false)]
-        public string? Avg { get; private set; }
+        public TikValue<string?> Avg { get; private set; }
 
         /// <summary>
         /// best
         /// </summary>
         [TikProperty("best", IsReadOnly = true, IsMandatory = false)]
-        public string? Best { get; private set; }
+        public TikValue<string?> Best { get; private set; }
 
         /// <summary>
         /// worst
         /// </summary>
         [TikProperty("worst", IsReadOnly = true, IsMandatory = false)]
-        public string? Worst { get; private set; }
+        public TikValue<string?> Worst { get; private set; }
 
         /// <summary>
         /// Traceroutes given <see paramref="address"/>.

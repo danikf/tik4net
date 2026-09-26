@@ -23,61 +23,61 @@ namespace tik4net.Objects.Ip
         /// add-relay-info: Adds DHCP relay agent information if enabled according to RFC 3046.  Agent Circuit ID Sub-option contains mac address of an interface, Agent Remote ID Sub-option contains MAC address of the client from which request was received.
         /// </summary>
         [TikProperty("add-relay-info", DefaultValue = "no")]
-        public string? AddRelayInfo { get; set; }
+        public TikValue<string?> AddRelayInfo { get; set; }
 
         /// <summary>
         /// delay-threshold: If secs field in DHCP packet is smaller than delay-threshold, then this packet is ignored
         /// </summary>
         [TikProperty("delay-threshold", DefaultValue = "none")]
-        public TikDuration? DelayThreshold { get; set; }
+        public TikValue<TikDuration?> DelayThreshold { get; set; }
 
         /// <summary>
         /// dhcp-server: List of DHCP servers' IP addresses which should the DHCP requests be forwarded to
         /// </summary>
         [TikProperty("dhcp-server")]
-        public string? DhcpServer { get; set; }
+        public TikValue<string?> DhcpServer { get; set; }
 
         /// <summary>
         /// interface: Interface name the DHCP relay will be working on.
         /// </summary>
         [TikProperty("interface")]
-        public string? Interface { get; set; }
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// local-address: The unique IP address of this DHCP relay needed for DHCP server to distinguish relays. If set to 0.0.0.0 - the IP address will be chosen automatically
         /// </summary>
         [TikProperty("local-address", DefaultValue = "0.0.0.0")]
-        public string?/*IP*/ LocalAddress { get; set; }
+        public TikValue<string?> LocalAddress { get; set; }
 
         /// <summary>
         /// relay-info-remote-id: relay will use this string instead of client MAC address when constructing Option 82 to be sent to DHCP-server. Option 82 consist of interface packets was received from + client mac address or relay-info-remote-id
         /// </summary>
-        [TikProperty("relay-info-remote-id", UnsetOnDefault = true)]
-        public string? RelayInfoRemoteId { get; set; }
+        [TikProperty("relay-info-remote-id")]
+        public TikValue<string?> RelayInfoRemoteId { get; set; }
 
         /// <summary>
         /// name: Descriptive name for the relay
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// disabled: 
         /// </summary>
         [TikProperty("disabled")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment: Short description of the client
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>
         /// invalid: Shows whether configuration is invalid.
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public bool Invalid { get; private set; }
+        public TikValue<bool?> Invalid { get; private set; }
 
         /// <summary>
         /// Reset counters

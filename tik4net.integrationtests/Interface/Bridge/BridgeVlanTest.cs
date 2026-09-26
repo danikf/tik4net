@@ -47,7 +47,7 @@ namespace tik4net.integrationtests
                 var existingBridge = bridges.FirstOrDefault();
                 if (existingBridge != null)
                 {
-                    bridgeName = existingBridge.Name;
+                    bridgeName = existingBridge.Name.Value;
                 }
                 else
                 {

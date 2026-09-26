@@ -27,8 +27,6 @@ namespace tik4net.Objects.Radius
             /// <summary>radsec — RADIUS over TLS (RadSec)</summary>
             [TikEnum("radsec")]
             Radsec,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -43,8 +41,6 @@ namespace tik4net.Objects.Radius
             /// <summary>yes-for-request-resp — require Message-Authenticator on requests and responses</summary>
             [TikEnum("yes-for-request-resp")]
             YesForRequestResp,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>
@@ -57,54 +53,54 @@ namespace tik4net.Objects.Radius
         /// Multiple services can be specified (e.g. "ppp,hotspot").
         /// </summary>
         [TikProperty("service")]
-        public string? Service { get; set; }
+        public TikValue<string?> Service { get; set; }
 
         /// <summary>
         /// called-id — the ID of the server depends on the protocol: for HotSpot it is the IP of the
         /// HotSpot interface, for PPP it is the hostname of the router.
         /// </summary>
         [TikProperty("called-id")]
-        public string? CalledId { get; set; }
+        public TikValue<string?> CalledId { get; set; }
 
         /// <summary>
         /// domain — the Microsoft Windows domain to which the user belongs. For HotSpot and PPP services
         /// only. Used to validate usernames that do not include domain information.
         /// </summary>
         [TikProperty("domain")]
-        public string? Domain { get; set; }
+        public TikValue<string?> Domain { get; set; }
 
         /// <summary>
         /// address — IP address of the RADIUS server. Supports VRF notation (address@vrf).
         /// </summary>
         [TikProperty("address")]
-        public string? Address { get; set; }
+        public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// secret — the shared secret of the RADIUS server used to authenticate the client.
         /// </summary>
         [TikProperty("secret", IsSensitive = true)]
-        public string? Secret { get; set; }
+        public TikValue<string?> Secret { get; set; }
 
         /// <summary>
         /// authentication-port — RADIUS server port used for authentication.
         /// Default: 1812.
         /// </summary>
         [TikProperty("authentication-port")] // router default 1812; omitted on add when left 0
-        public int AuthenticationPort { get; set; }
+        public TikValue<int?> AuthenticationPort { get; set; }
 
         /// <summary>
         /// accounting-port — RADIUS server port used for accounting.
         /// Default: 1813.
         /// </summary>
         [TikProperty("accounting-port")] // router default 1813; omitted on add when left 0
-        public int AccountingPort { get; set; }
+        public TikValue<int?> AccountingPort { get; set; }
 
         /// <summary>
         /// timeout — timeout after which the request should be resent (standard UDP path).
         /// Value is a time string, e.g. "1s100ms". Default: 1s100ms (1100ms).
         /// </summary>
         [TikProperty("timeout", DefaultValue = "1s100ms")]
-        public TikDuration? Timeout { get; set; }
+        public TikValue<TikDuration?> Timeout { get; set; }
 
         /// <summary>
         /// radsec-timeout — timeout after which the request should be resent when using RadSec (TLS).
@@ -112,7 +108,7 @@ namespace tik4net.Objects.Radius
         /// Only relevant when <see cref="Protocol"/> is <see cref="ProtocolType.Radsec"/>.
         /// </summary>
         [TikProperty("radsec-timeout", DefaultValue = "3s300ms")]
-        public TikDuration? RadsecTimeout { get; set; }
+        public TikValue<TikDuration?> RadsecTimeout { get; set; }
 
         /// <summary>
         /// accounting-backup — designates this entry as a backup RADIUS server for accounting.
@@ -120,20 +116,20 @@ namespace tik4net.Objects.Radius
         /// Default: false.
         /// </summary>
         [TikProperty("accounting-backup", DefaultValue = "no")]
-        public bool? AccountingBackup { get; set; }
+        public TikValue<bool?> AccountingBackup { get; set; }
 
         /// <summary>
         /// realm — explicitly stated realm (domain) for the user, so the correct user database is chosen.
         /// </summary>
         [TikProperty("realm")]
-        public string? Realm { get; set; }
+        public TikValue<string?> Realm { get; set; }
 
         /// <summary>
         /// src-address — source IP address of the outbound RADIUS packets.
         /// Default: 0.0.0.0 (use the routing-determined source address).
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string?/*IP*/ SrcAddress { get; set; }
+        public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// protocol — the protocol to use when communicating with the RADIUS server.
@@ -141,7 +137,7 @@ namespace tik4net.Objects.Radius
         /// Default: udp.
         /// </summary>
         [TikProperty("protocol", DefaultValue = "udp")]
-        public ProtocolType Protocol { get; set; }
+        public TikValue<ProtocolType?> Protocol { get; set; }
 
         /// <summary>
         /// certificate — the certificate file to use for RadSec (TLS) communication.
@@ -149,7 +145,7 @@ namespace tik4net.Objects.Radius
         /// Default: none.
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none")]
-        public string? Certificate { get; set; }
+        public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
         /// require-message-auth — controls whether the Message-Authenticator attribute is required
@@ -158,20 +154,20 @@ namespace tik4net.Objects.Radius
         /// Default: yes-for-request-resp.
         /// </summary>
         [TikProperty("require-message-auth", DefaultValue = "yes-for-request-resp")]
-        public RequireMessageAuthType? RequireMessageAuth { get; set; }
+        public TikValue<RequireMessageAuthType?> RequireMessageAuth { get; set; }
 
         /// <summary>
         /// disabled — whether this RADIUS server entry is disabled.
         /// Default: false.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — descriptive comment for this entry.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -179,13 +175,13 @@ namespace tik4net.Objects.Radius
         /// invalid — whether the entry is considered invalid/inapplicable by RouterOS (read-only).
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public bool Invalid { get; private set; }
+        public TikValue<bool?> Invalid { get; private set; }
 
         /// <summary>
         /// status — current connection status of the RADIUS server entry (read-only).
         /// </summary>
         [TikProperty("status", IsReadOnly = true)]
-        public string? Status { get; private set; }
+        public TikValue<string?> Status { get; private set; }
 
         /// <summary>Returns a human-readable summary of the entry.</summary>
         public override string ToString()

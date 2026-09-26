@@ -29,8 +29,6 @@ namespace tik4net.Objects.System
             [TikEnum("email")] Email,
             /// <summary>script — Run the script named by the action for each matching message.</summary>
             [TikEnum("script")] Script,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Transport protocol used when target is <see cref="LoggingTarget.Remote"/>.</summary>
@@ -42,8 +40,6 @@ namespace tik4net.Objects.System
             [TikEnum("tcp")] Tcp,
             /// <summary>TLS (encrypted TCP).</summary>
             [TikEnum("tls")] Tls,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Wire format when target is <see cref="LoggingTarget.Remote"/>.</summary>
@@ -55,8 +51,6 @@ namespace tik4net.Objects.System
             [TikEnum("syslog")] Syslog,
             /// <summary>Common Event Format (CEF).</summary>
             [TikEnum("cef")] Cef,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>RFC 3164 syslog facility code.</summary>
@@ -104,8 +98,6 @@ namespace tik4net.Objects.System
             [TikEnum("local6")] Local6,
             /// <summary>locally defined</summary>
             [TikEnum("local7")] Local7,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>RFC 3164 syslog severity level.</summary>
@@ -129,8 +121,6 @@ namespace tik4net.Objects.System
             [TikEnum("info")] Info,
             /// <summary>Debug-level messages.</summary>
             [TikEnum("debug")] Debug,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Timestamp format in syslog messages.</summary>
@@ -140,8 +130,6 @@ namespace tik4net.Objects.System
             [TikEnum("bsd-syslog")] BsdSyslog,
             /// <summary>ISO 8601 timestamp with milliseconds.</summary>
             [TikEnum("iso8601")] Iso8601,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── identity ──────────────────────────────────────────────────────────
@@ -154,15 +142,15 @@ namespace tik4net.Objects.System
         /// name — unique action name; for the <c>memory</c> target this is also the name of the
         /// in-memory log buffer visible in /log print.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// target — storage destination for log entries.
         /// <seealso cref="LoggingTarget"/>
         /// </summary>
-        [TikProperty("target", DefaultValue = "memory", IsMandatory = true)]
-        public LoggingTarget Target { get; set; }
+        [TikProperty("target", DefaultValue = "memory")]
+        public TikValue<LoggingTarget?> Target { get; set; }
 
         // ── memory target ─────────────────────────────────────────────────────
 
@@ -171,13 +159,13 @@ namespace tik4net.Objects.System
         /// Oldest entries are dropped when the limit is reached (unless <see cref="MemoryStopOnFull"/> is set).
         /// </summary>
         [TikProperty("memory-lines")] // router default 1000; omitted on add when left 0
-        public int MemoryLines { get; set; }
+        public TikValue<int?> MemoryLines { get; set; }
 
         /// <summary>
         /// memory-stop-on-full — stop logging when the memory buffer is full (memory target only).
         /// </summary>
         [TikProperty("memory-stop-on-full", DefaultValue = "no")]
-        public bool? MemoryStopOnFull { get; set; }
+        public TikValue<bool?> MemoryStopOnFull { get; set; }
 
         // ── disk target ───────────────────────────────────────────────────────
 
@@ -185,25 +173,25 @@ namespace tik4net.Objects.System
         /// disk-file-name — base name of the log file written to disk (disk target only).
         /// </summary>
         [TikProperty("disk-file-name", DefaultValue = "log")]
-        public string? DiskFileName { get; set; }
+        public TikValue<string?> DiskFileName { get; set; }
 
         /// <summary>
         /// disk-lines-per-file — maximum number of log lines per file before rotating (disk target only).
         /// </summary>
         [TikProperty("disk-lines-per-file")] // router default 100; omitted on add when left 0
-        public int DiskLinesPerFile { get; set; }
+        public TikValue<int?> DiskLinesPerFile { get; set; }
 
         /// <summary>
         /// disk-file-count — number of rotated log files to keep (disk target only).
         /// </summary>
         [TikProperty("disk-file-count")] // router default 2; omitted on add when left 0
-        public int DiskFileCount { get; set; }
+        public TikValue<int?> DiskFileCount { get; set; }
 
         /// <summary>
         /// disk-stop-on-full — stop logging when all disk files are full (disk target only).
         /// </summary>
         [TikProperty("disk-stop-on-full", DefaultValue = "no")]
-        public bool? DiskStopOnFull { get; set; }
+        public TikValue<bool?> DiskStopOnFull { get; set; }
 
         // ── echo target ───────────────────────────────────────────────────────
 
@@ -211,7 +199,7 @@ namespace tik4net.Objects.System
         /// remember — keep unread console messages highlighted until viewed (echo target only).
         /// </summary>
         [TikProperty("remember")]
-        public bool? Remember { get; set; }
+        public TikValue<bool?> Remember { get; set; }
 
         // ── remote target ─────────────────────────────────────────────────────
 
@@ -219,47 +207,47 @@ namespace tik4net.Objects.System
         /// remote — IP address of the remote syslog server (remote target only).
         /// </summary>
         [TikProperty("remote", DefaultValue = "0.0.0.0")]
-        public string?/*IPv4*/ Remote { get; set; }
+        public TikValue<string?> Remote { get; set; }
 
         /// <summary>
         /// remote-port — UDP/TCP port on the remote syslog server (remote target only).
         /// </summary>
         [TikProperty("remote-port")] // router default 514; omitted on add when left 0
-        public int RemotePort { get; set; }
+        public TikValue<int?> RemotePort { get; set; }
 
         /// <summary>
         /// remote-protocol — transport protocol used to reach the remote syslog server (remote target only).
         /// <seealso cref="RemoteProtocolType"/>
         /// </summary>
         [TikProperty("remote-protocol", DefaultValue = "udp")]
-        public RemoteProtocolType RemoteProtocol { get; set; }
+        public TikValue<RemoteProtocolType?> RemoteProtocol { get; set; }
 
         /// <summary>
         /// remote-log-format — wire format of messages sent to the remote server (remote target only).
         /// <seealso cref="RemoteLogFormatType"/>
         /// </summary>
         [TikProperty("remote-log-format", DefaultValue = "default")]
-        public RemoteLogFormatType RemoteLogFormat { get; set; }
+        public TikValue<RemoteLogFormatType?> RemoteLogFormat { get; set; }
 
         /// <summary>
         /// src-address — source IP address used when connecting to the remote syslog server.
         /// 0.0.0.0 means the router selects the address automatically.
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string?/*IPv4*/ SrcAddress { get; set; }
+        public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// vrf — VRF context used for remote syslog connections (RouterOS 7.19+).
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main")]
-        public string? Vrf { get; set; }
+        public TikValue<string?> Vrf { get; set; }
 
         /// <summary>
         /// syslog-facility — RFC 3164 facility code included in syslog messages (remote target only).
         /// <seealso cref="SyslogFacilityType"/>
         /// </summary>
         [TikProperty("syslog-facility", DefaultValue = "daemon")]
-        public SyslogFacilityType? SyslogFacility { get; set; }
+        public TikValue<SyslogFacilityType?> SyslogFacility { get; set; }
 
         /// <summary>
         /// syslog-severity — RFC 3164 severity level override; <c>auto</c> maps RouterOS topic severity
@@ -267,14 +255,14 @@ namespace tik4net.Objects.System
         /// <seealso cref="SyslogSeverityType"/>
         /// </summary>
         [TikProperty("syslog-severity", DefaultValue = "auto")]
-        public SyslogSeverityType SyslogSeverity { get; set; }
+        public TikValue<SyslogSeverityType?> SyslogSeverity { get; set; }
 
         /// <summary>
         /// syslog-time-format — timestamp format used in outgoing syslog messages (remote target only).
         /// <seealso cref="SyslogTimeFormatType"/>
         /// </summary>
         [TikProperty("syslog-time-format", DefaultValue = "bsd-syslog")]
-        public SyslogTimeFormatType SyslogTimeFormat { get; set; }
+        public TikValue<SyslogTimeFormatType?> SyslogTimeFormat { get; set; }
 
         /// <summary>
         /// cef-event-delimiter — delimiter between CEF events in a batched UDP packet
@@ -282,7 +270,7 @@ namespace tik4net.Objects.System
         /// Default is CRLF (<c>\r\n</c>).
         /// </summary>
         [TikProperty("cef-event-delimiter")]
-        public string? CefEventDelimiter { get; set; }
+        public TikValue<string?> CefEventDelimiter { get; set; }
 
         // ── email target ──────────────────────────────────────────────────────
 
@@ -290,13 +278,13 @@ namespace tik4net.Objects.System
         /// email-to — recipient e-mail address (email target only).
         /// </summary>
         [TikProperty("email-to")]
-        public string? EmailTo { get; set; }
+        public TikValue<string?> EmailTo { get; set; }
 
         /// <summary>
         /// email-start-tls — use STARTTLS when connecting to the SMTP relay (email target only).
         /// </summary>
         [TikProperty("email-start-tls", DefaultValue = "no")]
-        public bool? EmailStartTls { get; set; }
+        public TikValue<bool?> EmailStartTls { get; set; }
 
         // ── read-only / meta ──────────────────────────────────────────────────
 
@@ -305,11 +293,11 @@ namespace tik4net.Objects.System
         /// These cannot be deleted (read-only).
         /// </summary>
         [TikProperty("default", IsReadOnly = true)]
-        public bool Default { get; private set; }
+        public TikValue<bool?> Default { get; private set; }
 
         /// <summary>comment</summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()

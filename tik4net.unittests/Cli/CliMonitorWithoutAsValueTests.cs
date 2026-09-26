@@ -41,7 +41,7 @@ namespace tik4net.unittests.Cli
                     conn.CreateParameter("count", "2")).ToList();
 
                 Assert.AreEqual(2, rows.Count, string.Join(" | ", conn.Sent));
-                CollectionAssert.AreEqual(new[] { "10.0.0.1", "10.0.0.1" }, rows.Select(r => r.Host).ToList());
+                CollectionAssert.AreEqual(new[] { "10.0.0.1", "10.0.0.1" }, rows.Select(r => r.Host.Value).ToList());
             }
         }
 

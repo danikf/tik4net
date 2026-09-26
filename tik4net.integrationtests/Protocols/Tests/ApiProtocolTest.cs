@@ -97,7 +97,7 @@ namespace tik4net.integrationtests
 
             // Set and verify comment on ether1
             var ether1 = interfaces.First(i => i.DefaultName == "ether1");
-            string original = ether1.Comment ?? "";
+            string original = ether1.Comment.Value ?? "";
             Console.WriteLine($"Original ether1 comment: '{original}'");
 
             const string testComment = "tik4net-transport-parity-test";
@@ -107,7 +107,7 @@ namespace tik4net.integrationtests
 
             var ether1After = conn.LoadAll<Interface>().FirstOrDefault(i => i.DefaultName == "ether1");
             Assert.IsNotNull(ether1After);
-            string verified = ether1After.Comment ?? "";
+            string verified = ether1After.Comment.Value ?? "";
             Console.WriteLine($"Verified comment: '{verified}'");
 
             // Restore
@@ -115,7 +115,7 @@ namespace tik4net.integrationtests
             conn.Save(ether1After);
 
             var ether1Restored = conn.LoadAll<Interface>().FirstOrDefault(i => i.DefaultName == "ether1");
-            string restored = ether1Restored?.Comment ?? "";
+            string restored = ether1Restored?.Comment.Value ?? "";
             Console.WriteLine($"Restored comment: '{restored}'");
 
             Assert.AreEqual(testComment, verified, "Comment should be set correctly");

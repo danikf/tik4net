@@ -30,8 +30,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("station-bridge")] StationBridge,
             /// <summary>station-pseudobridge — client mode with pseudobridge (address substitution).</summary>
             [TikEnum("station-pseudobridge")] StationPseudobridge,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Installation type ─────────────────────────────────────────────────
@@ -44,8 +42,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("indoor")] Indoor,
             /// <summary>outdoor — outdoor installation; applies outdoor power/channel limits.</summary>
             [TikEnum("outdoor")] Outdoor,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Manager ───────────────────────────────────────────────────────────
@@ -60,8 +56,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("capsman")] Capsman,
             /// <summary>capsman-or-local — use CAPsMAN when available, fall back to local.</summary>
             [TikEnum("capsman-or-local")] CapsmanOrLocal,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Multicast enhance ─────────────────────────────────────────────────
@@ -74,8 +68,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("disabled")] Disabled,
             /// <summary>enabled — convert multicast frames to unicast transmissions per-client.</summary>
             [TikEnum("enabled")] Enabled,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── QoS classifier ────────────────────────────────────────────────────
@@ -88,8 +80,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("priority")] Priority,
             /// <summary>dscp-high-3-bits — classify by the three highest DSCP bits.</summary>
             [TikEnum("dscp-high-3-bits")] DscpHigh3Bits,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── HW protection mode ────────────────────────────────────────────────
@@ -104,8 +94,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("cts-to-self")] CtsToSelf,
             /// <summary>none — no hardware protection (disables RTS/CTS and CTS-to-self).</summary>
             [TikEnum("none")] None,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────
@@ -120,8 +108,8 @@ namespace tik4net.Objects.Interface.Wifi
         /// name — unique name for this configuration profile.
         /// WinBox: "Name"
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         // ── Network identity ──────────────────────────────────────────────────
 
@@ -130,7 +118,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "SSID"
         /// </summary>
         [TikProperty("ssid")]
-        public string? Ssid { get; set; }
+        public TikValue<string?> Ssid { get; set; }
 
         /// <summary>
         /// mode — interface operating mode.
@@ -139,7 +127,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Mode"
         /// </summary>
         [TikProperty("mode", DefaultValue = "ap")]
-        public OperatingMode Mode { get; set; }
+        public TikValue<OperatingMode?> Mode { get; set; }
 
         /// <summary>
         /// country — regulatory domain that determines allowed channels and maximum transmit power.
@@ -147,7 +135,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Country"
         /// </summary>
         [TikProperty("country", DefaultValue = "Latvia")]
-        public string? Country { get; set; }
+        public TikValue<string?> Country { get; set; }
 
         // ── Profile references ────────────────────────────────────────────────
         // These string fields hold the name of a shared sub-profile object (or empty for "none").
@@ -158,35 +146,35 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Channel"
         /// </summary>
         [TikProperty("channel")]
-        public string? Channel { get; set; }
+        public TikValue<string?> Channel { get; set; }
 
         /// <summary>
         /// security — name of the /interface/wifi/security profile to apply.
         /// WinBox: "Security"
         /// </summary>
         [TikProperty("security")]
-        public string? Security { get; set; }
+        public TikValue<string?> Security { get; set; }
 
         /// <summary>
         /// datapath — name of the /interface/wifi/datapath profile to apply.
         /// WinBox: "Datapath"
         /// </summary>
         [TikProperty("datapath")]
-        public string? Datapath { get; set; }
+        public TikValue<string?> Datapath { get; set; }
 
         /// <summary>
         /// interworking — name of the /interface/wifi/interworking (Hotspot 2.0) profile.
         /// WinBox: "Interworking"
         /// </summary>
         [TikProperty("interworking")]
-        public string? Interworking { get; set; }
+        public TikValue<string?> Interworking { get; set; }
 
         /// <summary>
         /// steering — name of the /interface/wifi/steering profile for 802.11k/v band-steering.
         /// WinBox: "Steering"
         /// </summary>
         [TikProperty("steering")]
-        public string? Steering { get; set; }
+        public TikValue<string?> Steering { get; set; }
 
         // ── AAA (RADIUS) settings ─────────────────────────────────────────────
 
@@ -196,7 +184,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "AAA"
         /// </summary>
         [TikProperty("aaa")]
-        public string? Aaa { get; set; }
+        public TikValue<string?> Aaa { get; set; }
 
         /// <summary>
         /// aaa.called-format — format string for RADIUS Called-Station-Id attribute.
@@ -204,49 +192,49 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Called Format"
         /// </summary>
         [TikProperty("aaa.called-format")]
-        public string? AaaCalledFormat { get; set; }
+        public TikValue<string?> AaaCalledFormat { get; set; }
 
         /// <summary>
         /// aaa.calling-format — format string for RADIUS Calling-Station-Id attribute.
         /// WinBox: "Calling Format"
         /// </summary>
         [TikProperty("aaa.calling-format")]
-        public string? AaaCallingFormat { get; set; }
+        public TikValue<string?> AaaCallingFormat { get; set; }
 
         /// <summary>
         /// aaa.interim-update — interval for RADIUS interim accounting updates; "disabled" to turn off.
         /// WinBox: "Interim Update"
         /// </summary>
         [TikProperty("aaa.interim-update")]
-        public string?/*time|disabled*/ AaaInterimUpdate { get; set; }
+        public TikValue<string?> AaaInterimUpdate { get; set; }
 
         /// <summary>
         /// aaa.mac-caching — how long to cache RADIUS MAC-auth results; "disabled" to skip caching.
         /// WinBox: "MAC Caching"
         /// </summary>
         [TikProperty("aaa.mac-caching")]
-        public string?/*time|disabled*/ AaaMacCaching { get; set; }
+        public TikValue<string?> AaaMacCaching { get; set; }
 
         /// <summary>
         /// aaa.nas-identifier — value sent in the RADIUS NAS-Identifier attribute.
         /// WinBox: "NAS Identifier"
         /// </summary>
         [TikProperty("aaa.nas-identifier")]
-        public string? AaaNasIdentifier { get; set; }
+        public TikValue<string?> AaaNasIdentifier { get; set; }
 
         /// <summary>
         /// aaa.password-format — format of the RADIUS password field used during MAC authentication.
         /// WinBox: "Password Format"
         /// </summary>
         [TikProperty("aaa.password-format")]
-        public string? AaaPasswordFormat { get; set; }
+        public TikValue<string?> AaaPasswordFormat { get; set; }
 
         /// <summary>
         /// aaa.username-format — format of the RADIUS User-Name attribute during MAC authentication.
         /// WinBox: "Username Format"
         /// </summary>
         [TikProperty("aaa.username-format")]
-        public string? AaaUsernameFormat { get; set; }
+        public TikValue<string?> AaaUsernameFormat { get; set; }
 
         // ── Radio / PHY settings ──────────────────────────────────────────────
 
@@ -256,7 +244,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Chains"
         /// </summary>
         [TikProperty("chains")]
-        public string?/*chain-list*/ Chains { get; set; }
+        public TikValue<string?> Chains { get; set; }
 
         /// <summary>
         /// tx-chains — transmit radio chains to use (comma-separated chain indices).
@@ -264,7 +252,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "TX Chains"
         /// </summary>
         [TikProperty("tx-chains")]
-        public string?/*chain-list*/ TxChains { get; set; }
+        public TikValue<string?> TxChains { get; set; }
 
         /// <summary>
         /// tx-power — transmit power override in dBm (1..40). Set to 0 here to let the router
@@ -272,14 +260,14 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "TX Power"
         /// </summary>
         [TikProperty("tx-power", DefaultValue = "0")]
-        public int TxPower { get; set; }
+        public TikValue<int?> TxPower { get; set; }
 
         /// <summary>
         /// antenna-gain — override the default antenna gain in dBi (0..30).
         /// WinBox: "Antenna Gain"
         /// </summary>
         [TikProperty("antenna-gain", DefaultValue = "0")]
-        public int AntennaGain { get; set; }
+        public TikValue<int?> AntennaGain { get; set; }
 
         // ── Beacon / client settings ──────────────────────────────────────────
 
@@ -289,7 +277,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Beacon Interval"
         /// </summary>
         [TikProperty("beacon-interval", DefaultValue = "100ms")]
-        public TikDuration? BeaconInterval { get; set; }
+        public TikValue<TikDuration?> BeaconInterval { get; set; }
 
         /// <summary>
         /// dtim-period — number of beacon intervals between DTIM frames (1..255).
@@ -298,7 +286,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "DTIM Period"
         /// </summary>
         [TikProperty("dtim-period", DefaultValue = "0")]
-        public int DtimPeriod { get; set; }
+        public TikValue<int?> DtimPeriod { get; set; }
 
         /// <summary>
         /// hide-ssid — when true the SSID is omitted from beacon frames (hidden network).
@@ -306,7 +294,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Hide SSID"
         /// </summary>
         [TikProperty("hide-ssid", DefaultValue = "no")]
-        public bool? HideSsid { get; set; }
+        public TikValue<bool?> HideSsid { get; set; }
 
         /// <summary>
         /// max-clients — maximum number of simultaneously associated stations (1..1000).
@@ -314,7 +302,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Max Clients"
         /// </summary>
         [TikProperty("max-clients", DefaultValue = "0")]
-        public int MaxClients { get; set; }
+        public TikValue<int?> MaxClients { get; set; }
 
         /// <summary>
         /// station-roaming — when true, the station periodically scans for a better AP.
@@ -322,7 +310,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Station Roaming"
         /// </summary>
         [TikProperty("station-roaming", DefaultValue = "no")]
-        public bool? StationRoaming { get; set; }
+        public TikValue<bool?> StationRoaming { get; set; }
 
         // ── Environment / regulatory settings ────────────────────────────────
 
@@ -333,7 +321,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Installation"
         /// </summary>
         [TikProperty("installation", DefaultValue = "indoor")]
-        public InstallationType Installation { get; set; }
+        public TikValue<InstallationType?> Installation { get; set; }
 
         /// <summary>
         /// distance — maximum link distance in kilometres for outdoor long-range links.
@@ -341,7 +329,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Distance"
         /// </summary>
         [TikProperty("distance")]
-        public string?/*integer km*/ Distance { get; set; }
+        public TikValue<string?> Distance { get; set; }
 
         // ── Management / CAPsMAN ──────────────────────────────────────────────
 
@@ -352,7 +340,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Manager"
         /// </summary>
         [TikProperty("manager", DefaultValue = "local")]
-        public ManagerType Manager { get; set; }
+        public TikValue<ManagerType?> Manager { get; set; }
 
         // ── Traffic / QoS settings ────────────────────────────────────────────
 
@@ -363,7 +351,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Multicast Enhance"
         /// </summary>
         [TikProperty("multicast-enhance", DefaultValue = "disabled")]
-        public MulticastEnhanceMode MulticastEnhance { get; set; }
+        public TikValue<MulticastEnhanceMode?> MulticastEnhance { get; set; }
 
         /// <summary>
         /// qos-classifier — WMM traffic classification source.
@@ -372,7 +360,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "QoS Classifier"
         /// </summary>
         [TikProperty("qos-classifier", DefaultValue = "priority")]
-        public QosClassifierMode QosClassifier { get; set; }
+        public TikValue<QosClassifierMode?> QosClassifier { get; set; }
 
         /// <summary>
         /// hw-protection-mode — hardware collision-avoidance mechanism.
@@ -381,7 +369,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "HW Protection Mode"
         /// </summary>
         [TikProperty("hw-protection-mode", DefaultValue = "rts-cts")]
-        public HwProtectionModeType HwProtectionMode { get; set; }
+        public TikValue<HwProtectionModeType?> HwProtectionMode { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -391,16 +379,16 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

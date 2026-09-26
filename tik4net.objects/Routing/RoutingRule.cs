@@ -25,8 +25,6 @@ namespace tik4net.Objects.Routing
             [TikEnum("unreachable")] Unreachable,
             /// <summary>mangle — Rewrite the packet's routing mark / table and continue.</summary>
             [TikEnum("mangle")] Mangle,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>
@@ -39,42 +37,42 @@ namespace tik4net.Objects.Routing
         /// </summary>
         /// <seealso cref="ActionType"/>
         [TikProperty("action", DefaultValue = "lookup")]
-        public ActionType Action { get; set; }
+        public TikValue<ActionType?> Action { get; set; }
 
         /// <summary>
         /// table — name of the routing table to use for lookup when action is lookup or lookup-only-in-table.
         /// References a table defined in /routing/table (or the built-in "main" table).
         /// </summary>
         [TikProperty("table")]
-        public string? Table { get; set; }
+        public TikValue<string?> Table { get; set; }
 
         /// <summary>
         /// src-address — match packets whose source IP address falls within this prefix (e.g. 192.0.2.0/24).
         /// Leave empty to match any source address.
         /// </summary>
         [TikProperty("src-address")]
-        public string? SrcAddress { get; set; }
+        public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// dst-address — match packets whose destination IP address falls within this prefix (e.g. 198.51.100.0/24).
         /// Leave empty to match any destination address.
         /// </summary>
         [TikProperty("dst-address")]
-        public string? DstAddress { get; set; }
+        public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>
         /// interface — match packets arriving on this interface name.
         /// Leave empty to match all interfaces.
         /// </summary>
         [TikProperty("interface")]
-        public string? Interface { get; set; }
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// routing-mark — match packets that carry this firewall routing mark (set by mangle rules).
         /// Leave empty to match unmarked packets / all packets.
         /// </summary>
         [TikProperty("routing-mark")]
-        public string? RoutingMark { get; set; }
+        public TikValue<string?> RoutingMark { get; set; }
 
         /// <summary>
         /// min-prefix — minimum prefix length of the matched destination route.
@@ -84,18 +82,18 @@ namespace tik4net.Objects.Routing
         /// preventing a "value out of range" rejection from the router.
         /// </summary>
         [TikProperty("min-prefix", DefaultValue = "0")]
-        public int MinPrefix { get; set; }
+        public TikValue<int?> MinPrefix { get; set; }
 
         /// <summary>
         /// disabled — when true the rule is administratively disabled and skipped during evaluation.
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -103,14 +101,14 @@ namespace tik4net.Objects.Routing
         /// inactive — true when the rule is inactive (e.g. the referenced interface or table does not exist).
         /// </summary>
         [TikProperty("inactive", IsReadOnly = true)]
-        public bool Inactive { get; private set; }
+        public TikValue<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable summary.</summary>
         public override string ToString()
         {
             // IsNullOrEmpty isn't NotNullWhen-annotated on netstandard2.0, so `!` is needed on the non-empty branch.
-            string src = string.IsNullOrEmpty(SrcAddress) ? "any" : SrcAddress!;
-            string dst = string.IsNullOrEmpty(DstAddress) ? "any" : DstAddress!;
+            string src = string.IsNullOrEmpty(SrcAddress.Value) ? "any" : SrcAddress.Value!;
+            string dst = string.IsNullOrEmpty(DstAddress.Value) ? "any" : DstAddress.Value!;
             return string.Format("src={0} dst={1} action={2}", src, dst, Action);
         }
     }

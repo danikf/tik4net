@@ -42,8 +42,6 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("ec2n155")] Ec2n155,
             /// <summary>ec2n185 — 185-bit EC2N group (Group 4). RouterOS 6 only; 7 dropped it.</summary>
             [TikEnum("ec2n185")] Ec2n185,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>
@@ -53,8 +51,8 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <summary>
         /// name — proposal identifier; used to reference this entry from policies.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// auth-algorithms — comma-separated list of allowed authentication (integrity) algorithms
@@ -63,7 +61,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: sha1
         /// </summary>
         [TikProperty("auth-algorithms", DefaultValue = "sha1")]
-        public string? AuthAlgorithms { get; set; }
+        public TikValue<string?> AuthAlgorithms { get; set; }
 
         /// <summary>
         /// enc-algorithms — comma-separated list of allowed encryption algorithms and key lengths
@@ -74,7 +72,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: aes-256-cbc,aes-192-cbc,aes-128-cbc
         /// </summary>
         [TikProperty("enc-algorithms", DefaultValue = "aes-256-cbc,aes-192-cbc,aes-128-cbc")]
-        public string? EncAlgorithms { get; set; }
+        public TikValue<string?> EncAlgorithms { get; set; }
 
         /// <summary>
         /// lifetime — how long (time string, e.g. "30m") to use the SA before it must be
@@ -82,7 +80,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: 30m
         /// </summary>
         [TikProperty("lifetime", DefaultValue = "30m")]
-        public TikDuration? Lifetime { get; set; }
+        public TikValue<TikDuration?> Lifetime { get; set; }
 
         /// <summary>
         /// pfs-group — Diffie-Hellman group used for Perfect Forward Secrecy in Phase 2.
@@ -91,20 +89,20 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="PfsGroupType"/>
         /// </summary>
         [TikProperty("pfs-group", DefaultValue = "modp1024")]
-        public PfsGroupType? PfsGroup { get; set; }
+        public TikValue<PfsGroupType?> PfsGroup { get; set; }
 
         /// <summary>
         /// disabled — when true this proposal entry is not offered during IKE negotiation.
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short description of the proposal entry.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -113,9 +111,9 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default entries cannot be deleted.
         /// </summary>
         [TikProperty("default", IsReadOnly = true)]
-        public bool Default { get; private set; }
+        public TikValue<bool?> Default { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

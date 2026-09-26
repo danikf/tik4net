@@ -52,8 +52,6 @@ namespace tik4net.Objects.CapsMan
             /// master-configuration profile.
             /// </summary>
             [TikEnum("create-enabled")] CreateEnabled,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Name format ───────────────────────────────────────────────────────
@@ -81,8 +79,6 @@ namespace tik4net.Objects.CapsMan
             /// prefix-identity — combine name-prefix with the CAP router identity.
             /// </summary>
             [TikEnum("prefix-identity")] PrefixIdentity,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────
@@ -103,7 +99,7 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="CapsManProvisioningAction"/>
         /// </summary>
         [TikProperty("action", DefaultValue = "none")]
-        public CapsManProvisioningAction Action { get; set; }
+        public TikValue<CapsManProvisioningAction?> Action { get; set; }
 
         // ── Radio matchers ────────────────────────────────────────────────────
 
@@ -113,7 +109,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Radio MAC"
         /// </summary>
         [TikProperty("radio-mac", DefaultValue = "00:00:00:00:00:00")]
-        public string?/*MAC*/ RadioMac { get; set; }
+        public TikValue<string?> RadioMac { get; set; }
 
         /// <summary>
         /// hw-supported-modes — comma-separated list of wireless hardware modes the radio
@@ -123,7 +119,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Hw. Supported Modes"
         /// </summary>
         [TikProperty("hw-supported-modes", DefaultValue = "")]
-        public string? HwSupportedModes { get; set; }
+        public TikValue<string?> HwSupportedModes { get; set; }
 
         /// <summary>
         /// identity-regexp — regular expression matched against the CAP router's system
@@ -131,7 +127,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Identity Regexp"
         /// </summary>
         [TikProperty("identity-regexp", DefaultValue = "")]
-        public string? IdentityRegexp { get; set; }
+        public TikValue<string?> IdentityRegexp { get; set; }
 
         /// <summary>
         /// common-name-regexp — regular expression matched against the CAP certificate
@@ -139,7 +135,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Common Name Regexp"
         /// </summary>
         [TikProperty("common-name-regexp", DefaultValue = "")]
-        public string? CommonNameRegexp { get; set; }
+        public TikValue<string?> CommonNameRegexp { get; set; }
 
         /// <summary>
         /// ip-address-ranges — comma-separated list of IP address ranges (up to 100) that
@@ -149,7 +145,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "IP Address Ranges"
         /// </summary>
         [TikProperty("ip-address-ranges", DefaultValue = "")]
-        public string? IpAddressRanges { get; set; }
+        public TikValue<string?> IpAddressRanges { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
 
@@ -160,7 +156,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Master Configuration"
         /// </summary>
         [TikProperty("master-configuration", DefaultValue = "")]
-        public string? MasterConfiguration { get; set; }
+        public TikValue<string?> MasterConfiguration { get; set; }
 
         /// <summary>
         /// slave-configurations — comma-separated list of /caps-man/configuration profile
@@ -169,7 +165,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Slave Configurations"
         /// </summary>
         [TikProperty("slave-configurations", DefaultValue = "")]
-        public string? SlaveConfigurations { get; set; }
+        public TikValue<string?> SlaveConfigurations { get; set; }
 
         // ── Naming ────────────────────────────────────────────────────────────
 
@@ -180,7 +176,7 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="CapsManProvisioningNameFormat"/>
         /// </summary>
         [TikProperty("name-format", DefaultValue = "cap")]
-        public CapsManProvisioningNameFormat NameFormat { get; set; }
+        public TikValue<CapsManProvisioningNameFormat?> NameFormat { get; set; }
 
         /// <summary>
         /// name-prefix — custom prefix used when name-format is "prefix" or "prefix-identity".
@@ -188,7 +184,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Name Prefix"
         /// </summary>
         [TikProperty("name-prefix", DefaultValue = "")]
-        public string? NamePrefix { get; set; }
+        public TikValue<string?> NamePrefix { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -198,18 +194,18 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description of this provisioning rule.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity — action and comment.</summary>
         public override string ToString() =>
-            string.IsNullOrEmpty(Comment)
+            string.IsNullOrEmpty(Comment.Value)
                 ? Action.ToString()
                 : string.Format("{0} ({1})", Action, Comment);
     }

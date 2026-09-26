@@ -27,40 +27,40 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// name — unique interface name (mandatory).
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// connect-to — IP address of the remote PPTP server to connect to.
         /// </summary>
         [TikProperty("connect-to")]
-        public string?/*IP*/ ConnectTo { get; set; }
+        public TikValue<string?> ConnectTo { get; set; }
 
         /// <summary>
         /// disabled — when <c>true</c> the interface will not initiate connections.
         /// Default: yes (disabled on creation).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// user — username sent during authentication.
         /// </summary>
         [TikProperty("user")]
-        public string? User { get; set; }
+        public TikValue<string?> User { get; set; }
 
         /// <summary>
         /// password — password sent during authentication.
         /// </summary>
         [TikProperty("password", IsSensitive = true)]
-        public string? Password { get; set; }
+        public TikValue<string?> Password { get; set; }
 
         /// <summary>
         /// profile — PPP profile applied when the tunnel is established.
         /// Default: default-encryption
         /// </summary>
         [TikProperty("profile", DefaultValue = "default-encryption")]
-        public string? Profile { get; set; }
+        public TikValue<string?> Profile { get; set; }
 
         /// <summary>
         /// allow — comma-separated list of permitted authentication methods (pap, chap, mschap1, mschap2).
@@ -68,14 +68,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Note: the router stores and returns this as a comma-joined string.
         /// </summary>
         [TikProperty("allow", DefaultValue = "pap,chap,mschap1,mschap2")]
-        public string? Allow { get; set; }
+        public TikValue<string?> Allow { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the PPTP remote address as a default route.
         /// Default: no
         /// </summary>
         [TikProperty("add-default-route", DefaultValue = "no")]
-        public bool? AddDefaultRoute { get; set; }
+        public TikValue<bool?> AddDefaultRoute { get; set; }
 
         /// <summary>
         /// default-route-distance — administrative distance applied to the auto-created default route
@@ -83,14 +83,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1; omitted on add when left 0
         [TikProperty("default-route-distance")]
-        public int DefaultRouteDistance { get; set; }
+        public TikValue<int?> DefaultRouteDistance { get; set; }
 
         /// <summary>
         /// dial-on-demand — when <c>true</c> the tunnel connects only when outbound traffic is generated.
         /// Default: no
         /// </summary>
         [TikProperty("dial-on-demand", DefaultValue = "no")]
-        public bool? DialOnDemand { get; set; }
+        public TikValue<bool?> DialOnDemand { get; set; }
 
         /// <summary>
         /// keepalive-timeout — tunnel keepalive timeout in seconds; if the remote end does not respond
@@ -99,7 +99,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 60; omitted on add when left 0
         [TikProperty("keepalive-timeout")]
-        public int KeepaliveTimeout { get; set; }
+        public TikValue<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// max-mru — maximum receive unit (bytes) advertised to the peer.
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mru")]
-        public int MaxMru { get; set; }
+        public TikValue<int?> MaxMru { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmit unit (bytes) for the tunnel interface.
@@ -115,7 +115,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mtu")]
-        public int MaxMtu { get; set; }
+        public TikValue<int?> MaxMtu { get; set; }
 
         /// <summary>
         /// mrru — maximum received reconstructed unit (bytes); enables multilink PPP when set to a
@@ -123,18 +123,18 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled")]
-        public string? Mrru { get; set; }
+        public TikValue<string?> Mrru { get; set; }
 
         /// <summary>
         /// use-peer-dns — whether to use DNS servers advertised by the remote peer.
         /// Default: no
         /// </summary>
         [TikProperty("use-peer-dns", DefaultValue = "no")]
-        public bool? UsePeerDns { get; set; }
+        public TikValue<bool?> UsePeerDns { get; set; }
 
         /// <summary>comment — optional free-text description of this PPTP client interface.</summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         // ---- Read-only properties ----
 
@@ -142,7 +142,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// running — <c>true</c> when the tunnel is currently established and passing traffic.
         /// </summary>
         [TikProperty("running", IsReadOnly = true)]
-        public bool Running { get; private set; }
+        public TikValue<bool?> Running { get; private set; }
 
         /// <summary>Human-readable identity of the PPTP client interface.</summary>
         public override string ToString() => string.Format("{0} -> {1} (disabled={2})", Name, ConnectTo, Disabled);

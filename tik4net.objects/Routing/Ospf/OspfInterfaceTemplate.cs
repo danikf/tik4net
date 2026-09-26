@@ -28,8 +28,6 @@ namespace tik4net.Objects.Routing.Ospf
             [TikEnum("ptp-unnumbered")] PtpUnnumbered,
             /// <summary>virtual-link — OSPF virtual link through a transit area.</summary>
             [TikEnum("virtual-link")] VirtualLink,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>OSPF authentication method.</summary>
@@ -58,22 +56,22 @@ namespace tik4net.Objects.Routing.Ospf
         /// Must reference an existing /routing/ospf/area entry.
         /// This field is mandatory — the router rejects add without it.
         /// </summary>
-        [TikProperty("area", IsMandatory = true)]
-        public string? Area { get; set; }
+        [TikProperty("area")]
+        public TikValue<string?> Area { get; set; }
 
         /// <summary>
         /// interfaces — comma-separated list of interface names this template applies to.
         /// Mutually exclusive with networks. Leave empty to match all interfaces in the area.
         /// </summary>
         [TikProperty("interfaces")]
-        public string? Interfaces { get; set; }
+        public TikValue<string?> Interfaces { get; set; }
 
         /// <summary>
         /// networks — IP network (prefix) this template applies to.
         /// Mutually exclusive with interfaces.
         /// </summary>
         [TikProperty("networks")]
-        public string? Networks { get; set; }
+        public TikValue<string?> Networks { get; set; }
 
         /// <summary>
         /// type — OSPF network type for matched interfaces. Controls DR/BDR election and neighbour discovery.
@@ -81,7 +79,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// </summary>
         /// <seealso cref="OspfNetworkType"/>
         [TikProperty("type", DefaultValue = "broadcast")]
-        public OspfNetworkType Type { get; set; }
+        public TikValue<OspfNetworkType?> Type { get; set; }
 
         /// <summary>
         /// cost — interface metric (link cost) advertised in LSAs.
@@ -89,7 +87,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// set to a real value to override the router's built-in default (1).
         /// </summary>
         [TikProperty("cost", DefaultValue = "0")]
-        public int Cost { get; set; }
+        public TikValue<int?> Cost { get; set; }
 
         /// <summary>
         /// priority — router priority used in DR/BDR election on broadcast/NBMA networks.
@@ -98,41 +96,41 @@ namespace tik4net.Objects.Routing.Ospf
         /// set to a real value to override the router default (128).
         /// </summary>
         [TikProperty("priority", DefaultValue = "0")]
-        public int Priority { get; set; }
+        public TikValue<int?> Priority { get; set; }
 
         /// <summary>
         /// hello-interval — interval between OSPF Hello packets. Must match all neighbours on the segment.
         /// Default: 10s
         /// </summary>
         [TikProperty("hello-interval", DefaultValue = "10s")]
-        public TikDuration? HelloInterval { get; set; }
+        public TikValue<TikDuration?> HelloInterval { get; set; }
 
         /// <summary>
         /// dead-interval — time after which a silent neighbour is declared dead. Typically 4× hello-interval.
         /// Must match all neighbours on the segment. Default: 40s
         /// </summary>
         [TikProperty("dead-interval", DefaultValue = "40s")]
-        public TikDuration? DeadInterval { get; set; }
+        public TikValue<TikDuration?> DeadInterval { get; set; }
 
         /// <summary>
         /// retransmit-interval — time between LSA retransmissions to a neighbour. Default: 5s
         /// </summary>
         [TikProperty("retransmit-interval", DefaultValue = "5s")]
-        public TikDuration? RetransmitInterval { get; set; }
+        public TikValue<TikDuration?> RetransmitInterval { get; set; }
 
         /// <summary>
         /// transmit-delay — estimated time to transmit an LSA; added to the age of LSAs before flooding.
         /// Default: 1s
         /// </summary>
         [TikProperty("transmit-delay", DefaultValue = "1s")]
-        public TikDuration? TransmitDelay { get; set; }
+        public TikValue<TikDuration?> TransmitDelay { get; set; }
 
         /// <summary>
         /// instance-id — OSPF instance ID used in OSPFv3 to separate multiple instances on the same link.
         /// Default: 0
         /// </summary>
         [TikProperty("instance-id", DefaultValue = "0")]
-        public int InstanceId { get; set; }
+        public TikValue<int?> InstanceId { get; set; }
 
         /// <summary>
         /// auth — authentication type for OSPF packets on matched interfaces.
@@ -140,20 +138,20 @@ namespace tik4net.Objects.Routing.Ospf
         /// </summary>
         /// <seealso cref="OspfAuthType"/>
         [TikProperty("auth")]
-        public string? Auth { get; set; }
+        public TikValue<string?> Auth { get; set; }
 
         /// <summary>
         /// auth-id — key ID used with cryptographic authentication (md5/sha*). Range 1..255.
         /// DefaultValue="0" is a CLR sentinel so an unset field is omitted on add.
         /// </summary>
         [TikProperty("auth-id", DefaultValue = "0")]
-        public int AuthId { get; set; }
+        public TikValue<int?> AuthId { get; set; }
 
         /// <summary>
         /// auth-key — authentication key/password string for OSPF packet authentication.
         /// </summary>
         [TikProperty("auth-key", IsSensitive = true)]
-        public string? AuthKey { get; set; }
+        public TikValue<string?> AuthKey { get; set; }
 
         /// <summary>
         /// passive — when true the interface is passive: OSPF adjacencies are not formed, but the
@@ -161,44 +159,44 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: false (no)
         /// </summary>
         [TikProperty("passive", DefaultValue = "no")]
-        public bool? Passive { get; set; }
+        public TikValue<bool?> Passive { get; set; }
 
         /// <summary>
         /// use-bfd — enable Bidirectional Forwarding Detection (BFD) for faster neighbour failure detection.
         /// Default: false (no)
         /// </summary>
         [TikProperty("use-bfd", DefaultValue = "no")]
-        public bool? UseBfd { get; set; }
+        public TikValue<bool?> UseBfd { get; set; }
 
         /// <summary>
         /// prefix-list — name of an IP prefix list used to filter networks redistributed into OSPF via this template.
         /// </summary>
         [TikProperty("prefix-list")]
-        public string? PrefixList { get; set; }
+        public TikValue<string?> PrefixList { get; set; }
 
         /// <summary>
         /// vlink-neighbor-id — router-id of the virtual link neighbour. Used when type=virtual-link.
         /// </summary>
         [TikProperty("vlink-neighbor-id")]
-        public string?/*IP*/ VlinkNeighborId { get; set; }
+        public TikValue<string?> VlinkNeighborId { get; set; }
 
         /// <summary>
         /// vlink-transit-area — name of the transit area through which the virtual link passes.
         /// Used when type=virtual-link.
         /// </summary>
         [TikProperty("vlink-transit-area")]
-        public string? VlinkTransitArea { get; set; }
+        public TikValue<string?> VlinkTransitArea { get; set; }
 
         /// <summary>
         /// disabled — when true this template entry is administratively disabled.
         /// Default: false (no)
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -207,7 +205,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// or the routing package is not running).
         /// </summary>
         [TikProperty("inactive", IsReadOnly = true)]
-        public bool Inactive { get; private set; }
+        public TikValue<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string ToString() => string.Format("area={0} interfaces={1}", Area, Interfaces);

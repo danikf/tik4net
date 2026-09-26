@@ -67,7 +67,7 @@ namespace tik4net.integrationtests
 
             // Read once, serially, so the concurrent rounds have a known answer to check against — a reply
             // handed to the wrong caller then shows up as a wrong value, not merely as an empty result.
-            string version = Connection.LoadSingle<SystemResource>().Version;
+            string version = Connection.LoadSingle<SystemResource>().Version.Value;
             Assert.IsFalse(string.IsNullOrEmpty(version), "precondition: the router reports its version");
 
             var problems = new ConcurrentQueue<string>();
@@ -120,7 +120,7 @@ namespace tik4net.integrationtests
                 Assert.Inconclusive("This is the serialized transports' half of the contract; "
                     + $"'{ResolveConnectionType()}' multiplexes and is covered by the test above.");
 
-            string version = Connection.LoadSingle<SystemResource>().Version;
+            string version = Connection.LoadSingle<SystemResource>().Version.Value;
             Assert.IsFalse(string.IsNullOrEmpty(version), "precondition: the router reports its version");
 
             var problems = new ConcurrentQueue<string>();
@@ -156,7 +156,7 @@ namespace tik4net.integrationtests
                 case 0:
                     // Single-row read of a known value: the strongest mis-delivery check available, because
                     // the expected answer was established before the request went out.
-                    string version = Connection.LoadSingle<SystemResource>().Version;
+                    string version = Connection.LoadSingle<SystemResource>().Version.Value;
                     if (version != expectedVersion)
                         problems.Enqueue($"system resource came back with version '{version}', expected '{expectedVersion}'");
                     break;
@@ -167,7 +167,7 @@ namespace tik4net.integrationtests
                     var interfaces = Connection.LoadAll<Interface>().ToList();
                     if (interfaces.Count == 0)
                         problems.Enqueue("interface list came back empty");
-                    else if (interfaces.Any(i => string.IsNullOrEmpty(i.Name)))
+                    else if (interfaces.Any(i => string.IsNullOrEmpty(i.Name.Value)))
                         problems.Enqueue("an interface row arrived without a name");
                     break;
 

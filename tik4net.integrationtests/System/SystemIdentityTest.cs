@@ -24,7 +24,7 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/system/identity");
             var identity = Connection.LoadSingle<SystemIdentity>();
             Assert.IsNotNull(identity);
-            Assert.IsFalse(string.IsNullOrEmpty(identity.Name), "the router always has an identity");
+            Assert.IsFalse(string.IsNullOrEmpty(identity.Name.Value), "the router always has an identity");
         }
 
         [TestMethod]
@@ -32,7 +32,7 @@ namespace tik4net.integrationtests
         {
             EnsureCommandAvailable("/system/identity");
             var original = Connection.LoadSingle<SystemIdentity>();
-            string originalName = original.Name;
+            string originalName = original.Name.Value;
             string tempName = "tik4net-" + Guid.NewGuid().ToString("N").Substring(0, 8);
 
             try

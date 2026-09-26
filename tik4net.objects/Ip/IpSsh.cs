@@ -15,36 +15,36 @@ namespace tik4net.Objects.Ip
     {
         /// <summary>strong-crypto — enables stronger encryption algorithms and larger DH prime groups.</summary>
         [TikProperty("strong-crypto", DefaultValue = "no")]
-        public bool? StrongCrypto { get; set; }
+        public TikValue<bool?> StrongCrypto { get; set; }
 
         /// <summary>ciphers — SSH cipher suite selection. Default: auto (lets RouterOS pick the best available).
         /// <seealso cref="SshCiphers"/></summary>
         [TikProperty("ciphers", DefaultValue = "auto")]
-        public SshCiphers Ciphers { get; set; }
+        public TikValue<SshCiphers?> Ciphers { get; set; }
 
         /// <summary>forwarding-enabled — controls which SSH port-forwarding modes are permitted.
         /// <seealso cref="SshForwardingMode"/></summary>
         [TikProperty("forwarding-enabled", DefaultValue = "no")]
-        public SshForwardingMode ForwardingEnabled { get; set; }
+        public TikValue<SshForwardingMode?> ForwardingEnabled { get; set; }
 
         /// <summary>host-key-size — RSA host key size in bits, applied at next key regeneration. Default: 2048.</summary>
         [TikProperty("host-key-size", DefaultValue = "2048")]
-        public int? HostKeySize { get; set; }
+        public TikValue<int?> HostKeySize { get; set; }
 
         /// <summary>host-key-type — host key algorithm type.
         /// <seealso cref="SshHostKeyType"/></summary>
         [TikProperty("host-key-type", DefaultValue = "rsa")]
-        public SshHostKeyType HostKeyType { get; set; }
+        public TikValue<SshHostKeyType?> HostKeyType { get; set; }
 
         /// <summary>password-authentication — controls whether password login is allowed alongside public-key auth.
         /// <seealso cref="SshPasswordAuth"/></summary>
         [TikProperty("password-authentication", DefaultValue = "yes-if-no-key")]
-        public SshPasswordAuth PasswordAuthentication { get; set; }
+        public TikValue<SshPasswordAuth?> PasswordAuthentication { get; set; }
 
         /// <summary>publickey-authentication-options — additional requirements for public-key authentication.
         /// <seealso cref="SshPubkeyOptions"/></summary>
         [TikProperty("publickey-authentication-options", DefaultValue = "none")]
-        public SshPubkeyOptions PublickeyAuthenticationOptions { get; set; }
+        public TikValue<SshPubkeyOptions?> PublickeyAuthenticationOptions { get; set; }
 
         /// <summary>Human-readable SSH settings summary.</summary>
         public override string ToString() => string.Format("ciphers={0} forwarding={1} strong-crypto={2}", Ciphers, ForwardingEnabled, StrongCrypto);
@@ -65,8 +65,6 @@ namespace tik4net.Objects.Ip
         [TikEnum("3des-cbc")] TripleDesCbc,
         /// <summary>null — no encryption (testing only).</summary>
         [TikEnum("null")] Null,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>SSH forwarding mode for <see cref="IpSsh.ForwardingEnabled"/>.</summary>
@@ -80,8 +78,6 @@ namespace tik4net.Objects.Ip
         [TikEnum("remote")] Remote,
         /// <summary>both — local and remote forwarding permitted.</summary>
         [TikEnum("both")] Both,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>SSH host key algorithm for <see cref="IpSsh.HostKeyType"/>.</summary>
@@ -91,8 +87,6 @@ namespace tik4net.Objects.Ip
         [TikEnum("rsa")] Rsa,
         /// <summary>ed25519 — Ed25519 host key (smaller, faster).</summary>
         [TikEnum("ed25519")] Ed25519,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>Password authentication mode for <see cref="IpSsh.PasswordAuthentication"/>.</summary>
@@ -104,8 +98,6 @@ namespace tik4net.Objects.Ip
         [TikEnum("yes")] Yes,
         /// <summary>no — password login disabled; public-key only.</summary>
         [TikEnum("no")] No,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>Public-key authentication options for <see cref="IpSsh.PublickeyAuthenticationOptions"/>.</summary>
@@ -117,7 +109,5 @@ namespace tik4net.Objects.Ip
         [TikEnum("touch-required")] TouchRequired,
         /// <summary>verify-required — hardware security key must verify user presence/PIN.</summary>
         [TikEnum("verify-required")] VerifyRequired,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 }

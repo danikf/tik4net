@@ -100,7 +100,7 @@ namespace tik4net.integrationtests
         {
             string INTERFACE = TestConstants.Interface;
 
-            var originalComment = Connection.LoadByName<Objects.Interface.Interface>(INTERFACE).Comment ?? "";
+            var originalComment = Connection.LoadByName<Objects.Interface.Interface>(INTERFACE).Comment.Value ?? "";
             try
             {
                 //update interface name

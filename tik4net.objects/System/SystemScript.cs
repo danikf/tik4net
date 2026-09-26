@@ -23,8 +23,8 @@ namespace tik4net.Objects.System
         /// <summary>
         /// name — identifier for the script. Default auto-assigned as "Script[num]".
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// source — script source code content.
@@ -38,7 +38,7 @@ namespace tik4net.Objects.System
         /// </para>
         /// </summary>
         [TikProperty("source", IsFreeText = true)]
-        public string? Source { get; set; }
+        public TikValue<string?> Source { get; set; }
 
         /// <summary>
         /// policy — comma-separated list of applicable policies this script runs under
@@ -46,7 +46,7 @@ namespace tik4net.Objects.System
         /// Kept as string because it is a multi-value bitmask. Default: ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon.
         /// </summary>
         [TikProperty("policy")]
-        public string? Policy { get; set; }
+        public TikValue<string?> Policy { get; set; }
 
         /// <summary>
         /// dont-require-permissions — bypass the permissions check when the script executes;
@@ -57,38 +57,38 @@ namespace tik4net.Objects.System
         // so DefaultValue="false" would never match and the field would be force-sent on every add/set
         // (which also makes the native WinBox M2 transport fail: it cannot resolve this field to an M2 key).
         [TikProperty("dont-require-permissions", DefaultValue = "no")]
-        public bool? DontRequirePermissions { get; set; }
+        public TikValue<bool?> DontRequirePermissions { get; set; }
 
         /// <summary>
         /// comment — descriptive comment for the script.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>
         /// owner — user who created the script (read-only).
         /// </summary>
         [TikProperty("owner", IsReadOnly = true)]
-        public string? Owner { get; private set; }
+        public TikValue<string?> Owner { get; private set; }
 
         /// <summary>
         /// run-count — total number of times the script has been executed (read-only).
         /// </summary>
         [TikProperty("run-count", IsReadOnly = true)]
-        public int RunCount { get; private set; }
+        public TikValue<int?> RunCount { get; private set; }
 
         /// <summary>
         /// last-started — date and time of the most recent script invocation (read-only).
         /// Only present after the script has been run at least once.
         /// </summary>
         [TikProperty("last-started", IsReadOnly = true)]
-        public string?/*datetime*/ LastStarted { get; private set; }
+        public TikValue<string?> LastStarted { get; private set; }
 
         /// <summary>
         /// invalid — whether the script is in an invalid state (read-only, undocumented).
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public bool Invalid { get; private set; }
+        public TikValue<bool?> Invalid { get; private set; }
 
         /// <inheritdoc/>
         public override string ToString()

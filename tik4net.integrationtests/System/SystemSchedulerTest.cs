@@ -27,7 +27,7 @@ namespace tik4net.integrationtests
             {
                 Name = "t4n-test-" + Guid.NewGuid().ToString("N").Substring(0, 8),
                 OnEvent = ":put hi",
-                Interval = "00:05:00",
+                Interval = (TikDuration)"00:05:00",
                 Comment = marker,
             };
             SaveTracked(entity);

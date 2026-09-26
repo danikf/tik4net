@@ -19,39 +19,39 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>action — what to do when the rule matches. Default: allow.</summary>
         [TikProperty("action", DefaultValue = "allow")]
-        public WalledGardenAction Action { get; set; }
+        public TikValue<WalledGardenAction?> Action { get; set; }
 
         /// <summary>server — HotSpot server name this rule applies to; empty means all servers.</summary>
         [TikProperty("server", DefaultValue = "")]
-        public string? Server { get; set; }
+        public TikValue<string?> Server { get; set; }
 
         /// <summary>src-address — source IP address or range of the unauthenticated client.</summary>
         [TikProperty("src-address", DefaultValue = "")]
-        public string? SrcAddress { get; set; }
+        public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>dst-host — destination hostname or wildcard (e.g. *.example.com).</summary>
         [TikProperty("dst-host", DefaultValue = "")]
-        public string? DstHost { get; set; }
+        public TikValue<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match.</summary>
         [TikProperty("dst-port", DefaultValue = "")]
-        public string? DstPort { get; set; }
+        public TikValue<string?> DstPort { get; set; }
 
         /// <summary>method — HTTP method to match (any/connect/delete/get/head/options/post/put/trace). Default: any.</summary>
         [TikProperty("method", DefaultValue = "any")]
-        public string? Method { get; set; }
+        public TikValue<string?> Method { get; set; }
 
         /// <summary>path — URL path pattern to match (without hostname, e.g. /images/*).</summary>
         [TikProperty("path", DefaultValue = "")]
-        public string? Path { get; set; }
+        public TikValue<string?> Path { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>comment — free-form annotation.</summary>
         [TikProperty("comment", DefaultValue = "")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable rule summary.</summary>
         public override string ToString() => string.Format("{0} dst-host={1} path={2}", Action, DstHost, Path);
@@ -65,7 +65,5 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>deny — block the matched unauthenticated request.</summary>
         [TikEnum("deny")] Deny,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 }

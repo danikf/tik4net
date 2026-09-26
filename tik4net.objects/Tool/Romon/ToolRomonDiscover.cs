@@ -23,44 +23,44 @@ namespace tik4net.Objects.Tool.Romon
         /// <summary>address — the neighbour's RoMON id (MAC-address format). The id a RoMON ping or a
         /// RoMON connection is addressed to.</summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string?/*MAC*/ Address { get; private set; }
+        public TikValue<string?> Address { get; private set; }
 
         /// <summary>cost — the summed port cost of the path to the neighbour.</summary>
         [TikProperty("cost", IsReadOnly = true)]
-        public long Cost { get; private set; }
+        public TikValue<long?> Cost { get; private set; }
 
         /// <summary>hops — number of RoMON hops to the neighbour (1 = directly adjacent).</summary>
         [TikProperty("hops", IsReadOnly = true)]
-        public long Hops { get; private set; }
+        public TikValue<long?> Hops { get; private set; }
 
         /// <summary>path — the RoMON ids of the hops on the way to the neighbour, comma-separated.</summary>
         [TikProperty("path", IsReadOnly = true)]
-        public string? Path { get; private set; }
+        public TikValue<string?> Path { get; private set; }
 
         /// <summary>l2mtu — the smallest L2 MTU along the path. WinBox: "L2MTU".</summary>
         [TikProperty("l2mtu", IsReadOnly = true)]
-        public long L2Mtu { get; private set; }
+        public TikValue<long?> L2Mtu { get; private set; }
 
         /// <summary>identity — the neighbour's system identity.</summary>
         [TikProperty("identity", IsReadOnly = true)]
-        public string? Identity { get; private set; }
+        public TikValue<string?> Identity { get; private set; }
 
         /// <summary>version — the neighbour's RouterOS version.</summary>
         [TikProperty("version", IsReadOnly = true)]
-        public string? Version { get; private set; }
+        public TikValue<string?> Version { get; private set; }
 
         /// <summary>board — the neighbour's board name.</summary>
         [TikProperty("board", IsReadOnly = true)]
-        public string? Board { get; private set; }
+        public TikValue<string?> Board { get; private set; }
 
         /// <summary>uptime — the neighbour's uptime.</summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public TikDuration? Uptime { get; private set; }
+        public TikValue<TikDuration?> Uptime { get; private set; }
 
         /// <summary>active — flag A. Only the CLI transports report it; it is <c>null</c> over the binary API
         /// and REST, which do not send the field.</summary>
         [TikProperty("active", IsReadOnly = true)]
-        public bool? Active { get; private set; }
+        public TikValue<bool?> Active { get; private set; }
 
         /// <summary>Human-readable identity: RoMON id, identity and hop count.</summary>
         public override string ToString()
@@ -96,7 +96,7 @@ namespace tik4net.Objects.Tool.Romon
             var order = new List<string>();
             foreach (var row in rows)
             {
-                string key = row.Address ?? string.Empty;
+                string key = row.Address.GetValueOrDefault() ?? string.Empty;
                 if (!byAddress.ContainsKey(key)) order.Add(key);
                 byAddress[key] = row;
             }

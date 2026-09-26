@@ -197,7 +197,7 @@ namespace tik4net.integrationtests
 
                 string original;
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
-                    original = api.LoadAll<Interface>().First(i => i.Name == "ether1").Comment ?? "";
+                    original = api.LoadAll<Interface>().First(i => i.Name == "ether1").Comment.Value ?? "";
                 Console.WriteLine($"comment (API) before = '{original}'");
 
                 const string test = "native-m2-ok";
@@ -207,7 +207,7 @@ namespace tik4net.integrationtests
 
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
                 {
-                    string after = api.LoadAll<Interface>().First(i => i.Name == "ether1").Comment ?? "";
+                    string after = api.LoadAll<Interface>().First(i => i.Name == "ether1").Comment.Value ?? "";
                     Console.WriteLine($"comment (API) after set = '{after}'");
                     // restore before asserting so the router is left clean either way
                     client.NativeSetRecord(IFACE, id, M2Message.StringSys(KEY_COMMENT, original));
@@ -216,7 +216,7 @@ namespace tik4net.integrationtests
 
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
                 {
-                    string restored = api.LoadAll<Interface>().First(i => i.Name == "ether1").Comment ?? "";
+                    string restored = api.LoadAll<Interface>().First(i => i.Name == "ether1").Comment.Value ?? "";
                     Console.WriteLine($"comment (API) restored = '{restored}'");
                     Assert.AreEqual(original, restored, "comment must be restored");
                 }

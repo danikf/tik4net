@@ -312,15 +312,15 @@ namespace tik4net.integrationtests
                 var resource = conn.LoadSingle<tik4net.Objects.System.SystemResource>();
                 Log($"version: {resource.Version}  board: {resource.BoardName}");
                 var interfaces = conn.LoadAll<tik4net.Objects.Interface.Interface>().ToList();
-                Log($"interfaces: {interfaces.Count}, longest name '{interfaces.Select(i => i.Name).OrderByDescending(n => n?.Length).FirstOrDefault()}'");
-                foreach (var i in interfaces.Take(3)) Log($"    {i.Name} type={i.Type} mac={(string.IsNullOrEmpty(i.MacAddress) ? "" : "set")} running={i.Running}");
+                Log($"interfaces: {interfaces.Count}, longest name '{interfaces.Select(i => i.Name.Value).OrderByDescending(n => n?.Length).FirstOrDefault()}'");
+                foreach (var i in interfaces.Take(3)) Log($"    {i.Name} type={i.Type} mac={(string.IsNullOrEmpty(i.MacAddress.Value) ? "" : "set")} running={i.Running}");
                 var addresses = conn.LoadAll<tik4net.Objects.Ip.IpAddress>().ToList();
                 Log($"ip addresses: {addresses.Count}");
                 var ethers = conn.LoadList<tik4net.Objects.Interface.Interface>(
                     conn.CreateParameter("type", "ether", TikCommandParameterFormat.Filter)).ToList();
                 Log($"filtered type=ether: {ethers.Count} (all ether: {ethers.All(e => e.Type == "ether")})");
                 var romon = conn.LoadSingle<tik4net.Objects.Tool.Romon.ToolRomon>();
-                Log($"target current-id matches: {string.Equals(romon.CurrentId, target, StringComparison.OrdinalIgnoreCase)}");
+                Log($"target current-id matches: {string.Equals(romon.CurrentId.Value, target, StringComparison.OrdinalIgnoreCase)}");
                 Log($"total: {sw.ElapsedMilliseconds} ms");
             }
         }
@@ -369,7 +369,7 @@ namespace tik4net.integrationtests
             using (var conn = OpenRelay(target, user, pass))
             {
                 var cli = (tik4net.Cli.CliConnectionBase)conn;
-                Func<string> currentId = () => conn.LoadSingle<tik4net.Objects.Tool.Romon.ToolRomon>().CurrentId;
+                Func<string> currentId = () => conn.LoadSingle<tik4net.Objects.Tool.Romon.ToolRomon>().CurrentId.Value;
                 Assert.AreEqual(target, currentId(), true);
 
                 try { cli.CallCommandSync("/quit"); Log("/quit on the target: returned"); }
@@ -395,7 +395,7 @@ namespace tik4net.integrationtests
             {
                 System.Threading.Thread.Sleep(35000);
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                string afterIdle = conn.LoadSingle<tik4net.Objects.Tool.Romon.ToolRomon>().CurrentId;
+                string afterIdle = conn.LoadSingle<tik4net.Objects.Tool.Romon.ToolRomon>().CurrentId.Value;
                 Log($"after a 35 s idle ({sw.ElapsedMilliseconds} ms): {(string.Equals(afterIdle, target, StringComparison.OrdinalIgnoreCase) ? "the TARGET" : "NOT the target")}");
                 Assert.AreEqual(target, afterIdle, true);
             }

@@ -611,7 +611,7 @@ namespace tik4net.unittests.Objects
                 .SelectMany(t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                     .Select(p => new { Entity = t, Property = p, Attribute = p.GetCustomAttribute<TikPropertyAttribute>() })
                     .Where(x => x.Attribute != null)
-                    .Where(x => (Nullable.GetUnderlyingType(x.Property.PropertyType) ?? x.Property.PropertyType).IsEnum)
+                    .Where(x => (Nullable.GetUnderlyingType(MappedPropertyType.Of(x.Property)) ?? MappedPropertyType.Of(x.Property)).IsEnum)
                     .Select(x => $"{t.GetCustomAttribute<TikEntityAttribute>()!.EntityPath} {x.Attribute!.FieldName}"))
                 .ToList();
 

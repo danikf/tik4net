@@ -62,7 +62,7 @@ namespace tik4net.integrationtests
                 IgmpVersion = 3,
                 MulticastRouter = InterfaceBridge.MulticastRouterMode.Permanent,
                 LastMemberQueryCount = 3,
-                QueryInterval = "1m",
+                QueryInterval = (TikDuration)"1m",
                 DhcpSnooping = true,
                 PortCostMode = InterfaceBridge.PortCostModeType.Short,
                 TransmitHoldCount = 4,
@@ -80,7 +80,7 @@ namespace tik4net.integrationtests
             Assert.AreEqual(3, loaded.IgmpVersion);
             Assert.AreEqual(InterfaceBridge.MulticastRouterMode.Permanent, loaded.MulticastRouter);
             Assert.AreEqual(3, loaded.LastMemberQueryCount);
-            Assert.AreEqual(TimeSpan.FromMinutes(1), loaded.QueryInterval?.Value);
+            Assert.AreEqual(TimeSpan.FromMinutes(1), loaded.QueryInterval.Value?.Value);
             Assert.AreEqual(true, loaded.DhcpSnooping);
             Assert.AreEqual(InterfaceBridge.PortCostModeType.Short, loaded.PortCostMode);
             Assert.AreEqual(4, loaded.TransmitHoldCount);

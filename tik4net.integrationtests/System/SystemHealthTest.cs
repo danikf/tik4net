@@ -91,7 +91,7 @@ namespace tik4net.integrationtests
             using (var apiConnection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {
                 apiConnection.Open(host, user, pass);
-                string original = apiConnection.LoadSingle<SystemHealth>().StateAfterReboot;
+                string original = apiConnection.LoadSingle<SystemHealth>().StateAfterReboot.Value;
                 string flipped = original == "enabled" ? "disabled" : "enabled";
 
                 try

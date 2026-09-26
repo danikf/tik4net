@@ -25,8 +25,6 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("initiator")] Initiator,
             /// <summary>responder — the remote peer initiated Phase 1.</summary>
             [TikEnum("responder")] Responder,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>
@@ -38,93 +36,93 @@ namespace tik4net.Objects.Ip.Ipsec
         /// name), as presented during Phase 1 negotiation. Distinct from the row key (.id).
         /// </summary>
         [TikProperty("id", IsReadOnly = true)]
-        public string? RemoteId { get; private set; }
+        public TikValue<string?> RemoteId { get; private set; }
 
         /// <summary>
         /// remote-address — the remote peer's IP or IPv6 address.
         /// </summary>
         [TikProperty("remote-address", IsReadOnly = true)]
-        public string?/*IP*/ RemoteAddress { get; private set; }
+        public TikValue<string?> RemoteAddress { get; private set; }
 
         /// <summary>
         /// local-address — local address on the router used by this peer session.
         /// </summary>
         [TikProperty("local-address", IsReadOnly = true)]
-        public string?/*IP*/ LocalAddress { get; private set; }
+        public TikValue<string?> LocalAddress { get; private set; }
 
         /// <summary>
         /// dynamic-address — IP or IPv6 address dynamically assigned to the peer via Mode Config.
         /// Empty when Mode Config is not used.
         /// </summary>
         [TikProperty("dynamic-address", IsReadOnly = true)]
-        public string?/*IP*/ DynamicAddress { get; private set; }
+        public TikValue<string?> DynamicAddress { get; private set; }
 
         /// <summary>
         /// state — current Phase 1 negotiation status (e.g. "established", "connecting").
         /// </summary>
         [TikProperty("state", IsReadOnly = true)]
-        public string? State { get; private set; }
+        public TikValue<string?> State { get; private set; }
 
         /// <summary>
         /// side — shows which side initiated the Phase 1 negotiation.
         /// <seealso cref="SideType"/>
         /// </summary>
         [TikProperty("side", IsReadOnly = true)]
-        public SideType Side { get; private set; }
+        public TikValue<SideType?> Side { get; private set; }
 
         /// <summary>
         /// uptime — how long this peer has been in an established state.
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public string?/*time*/ Uptime { get; private set; }
+        public TikValue<string?> Uptime { get; private set; }
 
         /// <summary>
         /// last-seen — duration since the last message was received from this peer.
         /// </summary>
         [TikProperty("last-seen", IsReadOnly = true)]
-        public string?/*time*/ LastSeen { get; private set; }
+        public TikValue<string?> LastSeen { get; private set; }
 
         /// <summary>
         /// responder — true when the connection was initiated by the remote peer.
         /// </summary>
         [TikProperty("responder", IsReadOnly = true)]
-        public bool Responder { get; private set; }
+        public TikValue<bool?> Responder { get; private set; }
 
         /// <summary>
         /// natt-peer — true when NAT Traversal (NAT-T) is active for this peer connection.
         /// </summary>
         [TikProperty("natt-peer", IsReadOnly = true)]
-        public bool NattPeer { get; private set; }
+        public TikValue<bool?> NattPeer { get; private set; }
 
         /// <summary>
         /// ph2-total — total number of active IPsec Phase 2 security associations for this peer.
         /// </summary>
         [TikProperty("ph2-total", IsReadOnly = true)]
-        public string? Ph2Total { get; private set; }
+        public TikValue<string?> Ph2Total { get; private set; }
 
         /// <summary>
         /// rx-bytes — total bytes received from this peer.
         /// </summary>
         [TikProperty("rx-bytes", IsReadOnly = true)]
-        public string? RxBytes { get; private set; }
+        public TikValue<string?> RxBytes { get; private set; }
 
         /// <summary>
         /// rx-packets — total packets received from this peer.
         /// </summary>
         [TikProperty("rx-packets", IsReadOnly = true)]
-        public string? RxPackets { get; private set; }
+        public TikValue<string?> RxPackets { get; private set; }
 
         /// <summary>
         /// tx-bytes — total bytes transmitted to this peer.
         /// </summary>
         [TikProperty("tx-bytes", IsReadOnly = true)]
-        public string? TxBytes { get; private set; }
+        public TikValue<string?> TxBytes { get; private set; }
 
         /// <summary>
         /// tx-packets — total packets transmitted to this peer.
         /// </summary>
         [TikProperty("tx-packets", IsReadOnly = true)]
-        public string? TxPackets { get; private set; }
+        public TikValue<string?> TxPackets { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string ToString() => string.Format("{0} ({1})", RemoteAddress, State);

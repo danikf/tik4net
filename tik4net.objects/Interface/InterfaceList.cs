@@ -22,43 +22,43 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// name — name of the interface list.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// include — comma-separated list of other interface lists whose members are included in this list.
         /// </summary>
         [TikProperty("include")]
-        public string? Include { get; set; }
+        public TikValue<string?> Include { get; set; }
 
         /// <summary>
         /// exclude — comma-separated list of other interface lists whose members are excluded from this list.
         /// </summary>
         [TikProperty("exclude")]
-        public string? Exclude { get; set; }
+        public TikValue<string?> Exclude { get; set; }
 
         /// <summary>
         /// builtin — whether this is a built-in list (all/none/dynamic/static) that cannot be removed (read-only).
         /// </summary>
         [TikProperty("builtin", IsReadOnly = true)]
-        public bool Builtin { get; private set; }
+        public TikValue<bool?> Builtin { get; private set; }
 
         /// <summary>
         /// dynamic — whether the list was added dynamically and cannot be edited/removed (read-only).
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; private set; }
+        public TikValue<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// comment.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <inheritdoc/>
         public override string? ToString()
         {
-            return Name;
+            return Name.Value;
         }
     }
 }

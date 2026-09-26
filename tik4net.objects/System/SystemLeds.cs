@@ -24,7 +24,7 @@ namespace tik4net.Objects.System
         /// </summary>
         /// <seealso cref="LedType"/>
         [TikProperty("type", DefaultValue = "off")]
-        public LedType Type { get; set; }
+        public TikValue<LedType?> Type { get; set; }
 
         /// <summary>LED trigger type for <see cref="Type"/>.</summary>
         public enum LedType
@@ -69,26 +69,24 @@ namespace tik4net.Objects.System
             [TikEnum("wireless-signal-strength")] WirelessSignalStrength,
             /// <summary>wireless-status — LED reflects wireless association status.</summary>
             [TikEnum("wireless-status")] WirelessStatus,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>leds — hardware LED identifier(s) controlled by this entry (hardware-specific names, e.g. "user-led").</summary>
         [TikProperty("leds")]
-        public string? Leds { get; set; }
+        public TikValue<string?> Leds { get; set; }
 
         /// <summary>interface — name of the interface whose state/traffic drives the LED (used with interface-* and wireless-* types).</summary>
         [TikProperty("interface")]
-        public string? Interface { get; set; }
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>modem-signal-threshold — RSSI threshold (dBm) for the modem-signal LED type; LED is on when signal is above this value. Real default: -70; 0 is the CLR sentinel (omitted on add).</summary>
         // Range e.g. -120..0; DefaultValue="0" so CLR default 0 is omitted on add.
         [TikProperty("modem-signal-threshold", DefaultValue = "0")]
-        public int ModemSignalThreshold { get; set; }
+        public TikValue<int?> ModemSignalThreshold { get; set; }
 
         /// <summary>disabled — when true this LED entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>Returns a human-readable summary of this LED entry.</summary>
         public override string ToString() => string.Format("leds: {0} type={1} iface={2}", Leds, Type, Interface);

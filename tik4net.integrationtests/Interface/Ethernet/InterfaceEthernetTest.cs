@@ -108,7 +108,7 @@ namespace tik4net.integrationtests
             {
                 apiConnection.Open(host, user, pass);
                 var apiBefore = apiConnection.LoadAll<InterfaceEthernet>().Single(e => e.Name == TestConstants.Interface);
-                bool original = apiBefore.AutoNegotiation ?? true;
+                bool original = apiBefore.AutoNegotiation.Value ?? true;
                 bool flipped = !original;
 
                 try

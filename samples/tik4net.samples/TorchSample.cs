@@ -47,9 +47,9 @@ public static class TorchSample
 
     private static void OnRow(ToolTorch row)
         => Console.WriteLine("{0}{1} -> {2} ({3}/{4})",
-            (row.IpProtocol ?? "").PadRight(8),
-            Address(row.SrcAddress, row.SrcPort),
-            Address(row.DstAddress, row.DstPort),
+            (row.IpProtocol.Value ?? "").PadRight(8),
+            Address(row.SrcAddress.Value, row.SrcPort.Value),
+            Address(row.DstAddress.Value, row.DstPort.Value),
             row.Tx, row.Rx);
 
     private static string Address(string? ip, string? port) => $"{ip}:{port}".PadRight(21);

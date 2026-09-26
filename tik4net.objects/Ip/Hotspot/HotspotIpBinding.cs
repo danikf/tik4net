@@ -23,13 +23,13 @@ namespace tik4net.Objects.Ip.Hotspot
         /// address: The original IP address of the client
         /// </summary>
         [TikProperty("address", DefaultValue = "")]
-        public string?/*IP Range*/ Address { get; set; }
+        public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// mac-address: MAC address of the client
         /// </summary>
         [TikProperty("mac-address", DefaultValue = "")]
-        public string?/*MAC*/ MacAddress { get; set; }
+        public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
         /// server
@@ -37,13 +37,13 @@ namespace tik4net.Objects.Ip.Hotspot
         ///  all - will be applied to all hotspot servers
         /// </summary>
         [TikProperty("server", DefaultValue = "all")]
-        public string?/*string | all*/ Server { get; set; }
+        public TikValue<string?> Server { get; set; }
 
         /// <summary>
         /// to-address: New IP address of the client, translation occurs on the router (client does not know anything about the translation)
         /// </summary>
         [TikProperty("to-address", DefaultValue = "")]
-        public string?/*IP*/ ToAddress { get; set; }
+        public TikValue<string?> ToAddress { get; set; }
 
         /// <summary>
         /// type
@@ -53,6 +53,6 @@ namespace tik4net.Objects.Ip.Hotspot
         ///  blocked - translation is not performed and packets from host are dropped
         /// </summary>
         [TikProperty("type", DefaultValue = "")]
-        public string?/*blocked | bypassed | regular*/ Type { get; set; }
+        public TikValue<string?> Type { get; set; }
     }
 }

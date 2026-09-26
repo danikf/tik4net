@@ -275,7 +275,7 @@ namespace tik4net.unittests.Objects
 
         private static IEnumerable<Type> EntityEnumTypes()
             => Properties()
-                .Select(x => Nullable.GetUnderlyingType(x.Property.PropertyType) ?? x.Property.PropertyType)
+                .Select(x => Nullable.GetUnderlyingType(MappedPropertyType.Of(x.Property)) ?? MappedPropertyType.Of(x.Property))
                 .Where(t => t.IsEnum)
                 .Distinct();
 
@@ -305,6 +305,24 @@ namespace tik4net.unittests.Objects
             }
 
             AssertNoOffenders(offenders, "mapped reference-typed properties not declared nullable");
+        }
+
+        [TestMethod]
+        public void EveryMappedPropertyExceptTheIdIsATikValue()
+        {
+            // 5.0 entity value model: a field says whether the router printed it (Absent / Present / Unparsed). A
+            // plain property cannot — a missing field reads as its default, an unknown word needs a fake enum member
+            // — so a built-in entity has none. `.id` stays the plain `string?` every write addresses the row by.
+            var offenders = new List<string>();
+
+            foreach (var x in Properties().Where(x => x.Attribute.FieldName != TikSpecialProperties.Id))
+            {
+                var type = x.Property.PropertyType;
+                if (!type.IsGenericType || type.GetGenericTypeDefinition() != typeof(TikValue<>))
+                    offenders.Add($"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') is {type.Name}");
+            }
+
+            AssertNoOffenders(offenders, "mapped properties that are not TikValue<T?>");
         }
 
         [TestMethod]

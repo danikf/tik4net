@@ -23,26 +23,26 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// name - Interface name
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// mtu - Layer3 Maximum transmission unit
         /// </summary>
         [TikProperty("mtu")]
-        public string? Mtu { get; set; }
+        public TikValue<string?> Mtu { get; set; }
 
         /// <summary>
         /// l2mtu - Layer2 MTU. For VLANS this value is not configurable.
         /// </summary>
         [TikProperty("l2mtu", IsReadOnly = true)]
-        public string? L2Mtu { get; set; }
+        public TikValue<string?> L2Mtu { get; set; }
 
         /// <summary>
         /// mac-address
         /// </summary>
         [TikProperty("mac-address")]
-        public string? MacAddress { get; set; }
+        public TikValue<string?> MacAddress { get; set; }
 
         /// <summary>
         /// arp
@@ -77,8 +77,6 @@ namespace tik4net.Objects.Interface
             /// </summary>
             [TikEnum("local-proxy-arp")]
             LocalProxyArp,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -91,13 +89,13 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="ArpMode"/>
         [TikProperty("arp", DefaultValue = "enabled")]
-        public ArpMode? Arp { get; set; }
+        public TikValue<ArpMode?> Arp { get; set; }
 
         /// <summary>
         /// arp-timeout: how long the ARP record is kept in the ARP table after no packets are received from IP.
         /// </summary>
         [TikProperty("arp-timeout")]
-        public TikDuration? ArpTimeout { get; set; }
+        public TikValue<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>
         /// loop-protect
@@ -120,8 +118,6 @@ namespace tik4net.Objects.Interface
             /// </summary>
             [TikEnum("on")]
             On,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -130,31 +126,31 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="LoopProtectMode"/>
         [TikProperty("loop-protect", DefaultValue = "default")]
-        public LoopProtectMode LoopProtect { get; set; }
+        public TikValue<LoopProtectMode?> LoopProtect { get; set; }
 
         /// <summary>
         /// loop-protect-status
         /// </summary>
         [TikProperty("loop-protect-status", IsReadOnly = true)]
-        public bool LoopProtectStatus { get; private set; }
+        public TikValue<bool?> LoopProtectStatus { get; private set; }
 
         /// <summary>
         /// loop-protect-send-interval
         /// </summary>
         [TikProperty("loop-protect-send-interval", DefaultValue = "00:00:05")]
-        public TikDuration? LoopProtectSendInterval { get; set; }
+        public TikValue<TikDuration?> LoopProtectSendInterval { get; set; }
 
         /// <summary>
         /// loop-protect-disable-time
         /// </summary>
         [TikProperty("loop-protect-disable-time", DefaultValue = "00:05:00")]
-        public TikDuration? LoopProtectDisableTime { get; set; }
+        public TikValue<TikDuration?> LoopProtectDisableTime { get; set; }
 
         /// <summary>
         /// vlan-id: the VLAN tag (1–4094) carried on this interface's traffic.
         /// </summary>
-        [TikProperty("vlan-id", IsMandatory = true)]
-        public string? VlanId { get; set; }
+        [TikProperty("vlan-id")]
+        public TikValue<string?> VlanId { get; set; }
 
         /// <summary>
         /// Previous spelling of <see cref="VlanId"/>, kept so existing code compiles. It was the only
@@ -167,39 +163,39 @@ namespace tik4net.Objects.Interface
         [Obsolete("Renamed to VlanId (the library's naming is PascalCase).", true)]
         public string? vlanId
         {
-            get => VlanId;
+            get => VlanId.GetValueOrDefault();
             set => VlanId = value;
         }
 
         /// <summary>
         /// interface
         /// </summary>
-        [TikProperty("interface", IsMandatory = true)]
-        public string? Interface { get; set; }
+        [TikProperty("interface")]
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// use-service-tag: IEEE 802.1ad compatible Service Tag.
         /// </summary>
         [TikProperty("use-service-tag")]
-        public bool? UseServiceTag { get; set; }
+        public TikValue<bool?> UseServiceTag { get; set; }
 
         /// <summary>
         /// running
         /// </summary>
         [TikProperty("running", IsReadOnly = true)]
-        public bool Running { get; private set; }
+        public TikValue<bool?> Running { get; private set; }
 
         /// <summary>
         /// disabled
         /// </summary>
         [TikProperty("disabled")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
     }
 

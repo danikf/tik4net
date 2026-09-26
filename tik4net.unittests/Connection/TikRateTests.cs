@@ -72,24 +72,24 @@ namespace tik4net.unittests.Connection
             var queue = new QueueSimple
             {
                 Name = "shaper",
-                MaxLimit = "1M/2M",
-                LimitAt = "500k/1M",
-                BurstLimit = "4M/8M",
-                BurstThreshold = 0,
+                MaxLimit = (TikRatePair)"1M/2M",
+                LimitAt = (TikRatePair)"500k/1M",
+                BurstLimit = (TikRatePair)"4M/8M",
+                BurstThreshold = (TikRatePair)0,
             };
 
-            Assert.AreEqual(1000000L, queue.MaxLimit!.Value.Upload.Value);
-            Assert.AreEqual(2000000L, queue.MaxLimit!.Value.Download.Value);
+            Assert.AreEqual(1000000L, queue.MaxLimit!.Value.Value.Upload.Value);
+            Assert.AreEqual(2000000L, queue.MaxLimit!.Value.Value.Download.Value);
             Assert.AreEqual("500000/1000000", queue.LimitAt.ToString());
 
             var sniffer = new tik4net.Objects.Interface.Wireless.WirelessSniffer
             {
-                ChannelTime = "200ms",
+                ChannelTime = (TikDuration)"200ms",
             };
             Assert.AreEqual(TimeSpan.FromMilliseconds(200), sniffer.ChannelTime!.Value.Value);
 
             // The clock spelling the CLI transports report assigns just as well.
-            sniffer.ChannelTime = "00:00:00.500";
+            sniffer.ChannelTime = (TikDuration)"00:00:00.500";
             Assert.AreEqual(TimeSpan.FromMilliseconds(500), sniffer.ChannelTime!.Value.Value);
 
             // And so does a word, which is why the property is not a TimeSpan.

@@ -24,8 +24,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("disabled")] Disabled,
             /// <summary>enabled — beacon integrity protection is enabled (mandatory for 802.11be).</summary>
             [TikEnum("enabled")] Enabled,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── EAP certificate mode ──────────────────────────────────────────────
@@ -42,8 +40,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("verify-certificate")] VerifyCertificate,
             /// <summary>verify-certificate-with-crl — verify the server certificate and check CRL.</summary>
             [TikEnum("verify-certificate-with-crl")] VerifyCertificateWithCrl,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Group encryption ──────────────────────────────────────────────────
@@ -62,8 +58,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("gcmp-256")] Gcmp256,
             /// <summary>tkip — TKIP (legacy; WPA only).</summary>
             [TikEnum("tkip")] Tkip,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Management frame protection ───────────────────────────────────────
@@ -78,8 +72,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("disabled")] Disabled,
             /// <summary>required — only peers supporting management frame protection are accepted.</summary>
             [TikEnum("required")] Required,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Management frame encryption ───────────────────────────────────────
@@ -96,8 +88,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("gmac")] Gmac,
             /// <summary>gmac-256 — AES-GMAC 256-bit.</summary>
             [TikEnum("gmac-256")] Gmac256,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── SAE password element derivation ───────────────────────────────────
@@ -112,8 +102,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("hash-to-element")] HashToElement,
             /// <summary>hunting-and-pecking — use the original hunting-and-pecking method only.</summary>
             [TikEnum("hunting-and-pecking")] HuntingAndPecking,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── WPS mode ──────────────────────────────────────────────────────────
@@ -126,8 +114,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("disable")] Disable,
             /// <summary>push-button — accept WPS push-button requests for 2 minutes after a wps-push-button command.</summary>
             [TikEnum("push-button")] PushButton,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────
@@ -142,8 +128,8 @@ namespace tik4net.Objects.Interface.Wifi
         /// name — unique name for this security profile.
         /// WinBox: "Name"
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         // ── Authentication ────────────────────────────────────────────────────
 
@@ -155,7 +141,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Authentication Types"
         /// </summary>
         [TikProperty("authentication-types")]
-        public string? AuthenticationTypes { get; set; }
+        public TikValue<string?> AuthenticationTypes { get; set; }
 
         /// <summary>
         /// passphrase — PSK passphrase for WPA2-PSK / WPA3-PSK authentication.
@@ -163,7 +149,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Passphrase"
         /// </summary>
         [TikProperty("passphrase", IsSensitive = true)]
-        public string? Passphrase { get; set; }
+        public TikValue<string?> Passphrase { get; set; }
 
         // ── WPS ───────────────────────────────────────────────────────────────
 
@@ -174,7 +160,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "WPS"
         /// </summary>
         [TikProperty("wps", DefaultValue = "disable")]
-        public WpsMode Wps { get; set; }
+        public TikValue<WpsMode?> Wps { get; set; }
 
         // ── Encryption ciphers ────────────────────────────────────────────────
 
@@ -185,7 +171,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Encryption"
         /// </summary>
         [TikProperty("encryption", DefaultValue = "ccmp")]
-        public string? Encryption { get; set; }
+        public TikValue<string?> Encryption { get; set; }
 
         /// <summary>
         /// group-encryption — cipher used for multicast/broadcast traffic.
@@ -194,7 +180,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Group Encryption"
         /// </summary>
         [TikProperty("group-encryption", DefaultValue = "ccmp")]
-        public GroupEncryptionCipher GroupEncryption { get; set; }
+        public TikValue<GroupEncryptionCipher?> GroupEncryption { get; set; }
 
         /// <summary>
         /// group-key-update — interval for renewing the group temporal key (GTK).
@@ -202,7 +188,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Group Key Update"
         /// </summary>
         [TikProperty("group-key-update", DefaultValue = "24h")]
-        public TikDuration? GroupKeyUpdate { get; set; }
+        public TikValue<TikDuration?> GroupKeyUpdate { get; set; }
 
         // ── Management frame protection (802.11w) ─────────────────────────────
 
@@ -213,7 +199,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Management Protection"
         /// </summary>
         [TikProperty("management-protection", DefaultValue = "allowed")]
-        public ManagementProtectionMode ManagementProtection { get; set; }
+        public TikValue<ManagementProtectionMode?> ManagementProtection { get; set; }
 
         /// <summary>
         /// management-encryption — cipher used to encrypt protected management frames.
@@ -222,7 +208,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Management Encryption"
         /// </summary>
         [TikProperty("management-encryption", DefaultValue = "cmac")]
-        public ManagementEncryptionCipher ManagementEncryption { get; set; }
+        public TikValue<ManagementEncryptionCipher?> ManagementEncryption { get; set; }
 
         // ── Beacon protection ─────────────────────────────────────────────────
 
@@ -234,7 +220,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Beacon Protection"
         /// </summary>
         [TikProperty("beacon-protection", DefaultValue = "disabled")]
-        public BeaconProtectionMode BeaconProtection { get; set; }
+        public TikValue<BeaconProtectionMode?> BeaconProtection { get; set; }
 
         // ── PMKID ─────────────────────────────────────────────────────────────
 
@@ -244,7 +230,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disable PMKID"
         /// </summary>
         [TikProperty("disable-pmkid", DefaultValue = "no")]
-        public bool? DisablePmkid { get; set; }
+        public TikValue<bool?> DisablePmkid { get; set; }
 
         // ── SAE (WPA3-PSK) settings ───────────────────────────────────────────
 
@@ -255,7 +241,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "SAE PWE"
         /// </summary>
         [TikProperty("sae-pwe", DefaultValue = "both")]
-        public SaePweMethod SaePwe { get; set; }
+        public TikValue<SaePweMethod?> SaePwe { get; set; }
 
         /// <summary>
         /// sae-anti-clogging-threshold — number of in-progress SAE authentications before
@@ -264,7 +250,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "SAE Anti-Clogging Threshold"
         /// </summary>
         [TikProperty("sae-anti-clogging-threshold", DefaultValue = "0")]
-        public int SaeAntiCloggingThreshold { get; set; }
+        public TikValue<int?> SaeAntiCloggingThreshold { get; set; }
 
         /// <summary>
         /// sae-max-failure-rate — maximum failed SAE associations per minute before new SAE
@@ -272,7 +258,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "SAE Max Failure Rate"
         /// </summary>
         [TikProperty("sae-max-failure-rate", DefaultValue = "0")]
-        public int SaeMaxFailureRate { get; set; }
+        public TikValue<int?> SaeMaxFailureRate { get; set; }
 
         // ── DH groups (SAE/EAP) ───────────────────────────────────────────────
 
@@ -282,7 +268,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "DH Groups"
         /// </summary>
         [TikProperty("dh-groups")]
-        public string? DhGroups { get; set; }
+        public TikValue<string?> DhGroups { get; set; }
 
         // ── EAP settings ──────────────────────────────────────────────────────
 
@@ -293,7 +279,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "EAP Methods"
         /// </summary>
         [TikProperty("eap-methods")]
-        public string? EapMethods { get; set; }
+        public TikValue<string?> EapMethods { get; set; }
 
         /// <summary>
         /// eap-certificate-mode — how the TLS certificate is handled during EAP authentication.
@@ -302,21 +288,21 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "EAP Certificate Mode"
         /// </summary>
         [TikProperty("eap-certificate-mode", DefaultValue = "dont-verify-certificate")]
-        public EapCertificateModeType EapCertificateMode { get; set; }
+        public TikValue<EapCertificateModeType?> EapCertificateMode { get; set; }
 
         /// <summary>
         /// eap-username — username sent during EAP authentication (PEAP/TTLS outer identity).
         /// WinBox: "EAP Username"
         /// </summary>
         [TikProperty("eap-username")]
-        public string? EapUsername { get; set; }
+        public TikValue<string?> EapUsername { get; set; }
 
         /// <summary>
         /// eap-password — password used for PEAP/TTLS EAP authentication.
         /// WinBox: "EAP Password"
         /// </summary>
         [TikProperty("eap-password", IsSensitive = true)]
-        public string? EapPassword { get; set; }
+        public TikValue<string?> EapPassword { get; set; }
 
         /// <summary>
         /// eap-anonymous-identity — outer/anonymous identity sent in EAP identity response
@@ -324,7 +310,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "EAP Anonymous Identity"
         /// </summary>
         [TikProperty("eap-anonymous-identity")]
-        public string? EapAnonymousIdentity { get; set; }
+        public TikValue<string?> EapAnonymousIdentity { get; set; }
 
         /// <summary>
         /// eap-tls-certificate — name of the client certificate from the system certificate
@@ -332,7 +318,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "EAP TLS Certificate"
         /// </summary>
         [TikProperty("eap-tls-certificate")]
-        public string? EapTlsCertificate { get; set; }
+        public TikValue<string?> EapTlsCertificate { get; set; }
 
         /// <summary>
         /// eap-accounting — when true, send RADIUS accounting data for EAP-authenticated peers.
@@ -340,7 +326,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "EAP Accounting"
         /// </summary>
         [TikProperty("eap-accounting", DefaultValue = "no")]
-        public bool? EapAccounting { get; set; }
+        public TikValue<bool?> EapAccounting { get; set; }
 
         // ── 802.11r Fast BSS Transition (FT) ─────────────────────────────────
 
@@ -350,7 +336,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT"
         /// </summary>
         [TikProperty("ft", DefaultValue = "no")]
-        public bool? Ft { get; set; }
+        public TikValue<bool?> Ft { get; set; }
 
         /// <summary>
         /// ft-over-ds — enable FT over the Distribution System (DS) rather than the air.
@@ -358,7 +344,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT Over DS"
         /// </summary>
         [TikProperty("ft-over-ds", DefaultValue = "no")]
-        public bool? FtOverDs { get; set; }
+        public TikValue<bool?> FtOverDs { get; set; }
 
         /// <summary>
         /// ft-mobility-domain — 802.11r mobility domain identifier (0..65535).
@@ -366,7 +352,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT Mobility Domain"
         /// </summary>
         [TikProperty("ft-mobility-domain", DefaultValue = "0")]
-        public int FtMobilityDomain { get; set; }
+        public TikValue<int?> FtMobilityDomain { get; set; }
 
         /// <summary>
         /// ft-nas-identifier — PMK-R0 key holder identifier (2–96 hex characters).
@@ -374,7 +360,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT NAS Identifier"
         /// </summary>
         [TikProperty("ft-nas-identifier")]
-        public string? FtNasIdentifier { get; set; }
+        public TikValue<string?> FtNasIdentifier { get; set; }
 
         /// <summary>
         /// ft-r0-key-lifetime — lifetime of the PMK-R0 encryption key (up to ~7 days).
@@ -382,7 +368,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT R0 Key Lifetime"
         /// </summary>
         [TikProperty("ft-r0-key-lifetime", DefaultValue = "600000s")]
-        public TikDuration? FtR0KeyLifetime { get; set; }
+        public TikValue<TikDuration?> FtR0KeyLifetime { get; set; }
 
         /// <summary>
         /// ft-reassociation-deadline — time window (0..70s) within which a client must
@@ -391,7 +377,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT Reassociation Deadline"
         /// </summary>
         [TikProperty("ft-reassociation-deadline", DefaultValue = "0")]
-        public int FtReassociationDeadline { get; set; }
+        public TikValue<int?> FtReassociationDeadline { get; set; }
 
         /// <summary>
         /// ft-preserve-vlanid — when true, preserve the VLAN ID during 802.11r transition.
@@ -399,7 +385,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT Preserve VLAN ID"
         /// </summary>
         [TikProperty("ft-preserve-vlanid", DefaultValue = "yes")]
-        public bool? FtPreserveVlanid { get; set; }
+        public TikValue<bool?> FtPreserveVlanid { get; set; }
 
         // ── OWE ───────────────────────────────────────────────────────────────
 
@@ -409,7 +395,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "OWE Transition Interface"
         /// </summary>
         [TikProperty("owe-transition-interface")]
-        public string? OweTransitionInterface { get; set; }
+        public TikValue<string?> OweTransitionInterface { get; set; }
 
         // ── Connection control ────────────────────────────────────────────────
 
@@ -420,7 +406,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Connect Group"
         /// </summary>
         [TikProperty("connect-group", DefaultValue = "default")]
-        public string? ConnectGroup { get; set; }
+        public TikValue<string?> ConnectGroup { get; set; }
 
         /// <summary>
         /// connect-priority — space-separated accept-priority and hold-priority values that
@@ -428,7 +414,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Connect Priority"
         /// </summary>
         [TikProperty("connect-priority")]
-        public string? ConnectPriority { get; set; }
+        public TikValue<string?> ConnectPriority { get; set; }
 
         // ── Multi-passphrase ──────────────────────────────────────────────────
 
@@ -438,7 +424,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Multi-Passphrase Group"
         /// </summary>
         [TikProperty("multi-passphrase-group")]
-        public string? MultiPassphraseGroup { get; set; }
+        public TikValue<string?> MultiPassphraseGroup { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -448,16 +434,16 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

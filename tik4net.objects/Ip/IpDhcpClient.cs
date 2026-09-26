@@ -36,8 +36,6 @@ namespace tik4net.Objects.Ip
             /// </summary>
             [TikEnum("special-classless")]
             SpecialClassless,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
         #endregion
 
@@ -53,121 +51,121 @@ namespace tik4net.Objects.Ip
         /// special-classless - adds both classless route if received and default route(MS style)
 		/// </summary>
 		[TikProperty("add-default-route", DefaultValue = "yes")]
-        public AddDefaultRouteType AddDefaultRoute { get; set; }
+        public TikValue<AddDefaultRouteType?> AddDefaultRoute { get; set; }
 
         /// <summary>
         /// client-id: Corresponds to the settings suggested by the network administrator or ISP. If not specified, client's MAC address will be sent
         /// </summary>
         [TikProperty("client-id")]
-        public string? ClientId { get; set; }
+        public TikValue<string?> ClientId { get; set; }
 
         /// <summary>
         /// comment: Short description of the client
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>
         /// default-route-distance: Distance of default route. Applicable if add-default-route is set to yes.
         /// </summary>
         [TikProperty("default-route-distance")]
-        public string? DefaultRouteDistance { get; set; }
+        public TikValue<string?> DefaultRouteDistance { get; set; }
 
         /// <summary>
         /// disabled: 
         /// </summary>
         [TikProperty("disabled")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// host-name: Host name of the client sent to a DHCP server. If not specified, client's system identity will be used.
         /// </summary>
         [TikProperty("host-name")]
-        public string? HostName { get; set; }
+        public TikValue<string?> HostName { get; set; }
 
         /// <summary>
         /// interface: Interface on which DHCP client will be running.
         /// </summary>
         [TikProperty("interface")]
-        public string? Interface { get; set; }
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>
         /// use-peer-dns: Whether to accept the  DNS settings advertised by  DHCP Server. (Will override the settings put in the /ip dns submenu.
         /// </summary>
         [TikProperty("use-peer-dns", DefaultValue = "yes")]
-        public bool? UsePeerDns { get; set; }
+        public TikValue<bool?> UsePeerDns { get; set; }
 
         /// <summary>
         /// use-peer-ntp: Whether to accept the  NTP settings advertised by  DHCP Server. (Will override the settings put in the /system ntp client submenu)
         /// </summary>
         [TikProperty("use-peer-ntp", DefaultValue = "yes")]
-        public bool? UsePeerNtp { get; set; }
+        public TikValue<bool?> UsePeerNtp { get; set; }
 
         /// <summary>
         /// address: IP address and netmask, which is assigned to DHCP Client from the Server
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string? Address { get; private set; }
+        public TikValue<string?> Address { get; private set; }
 
         /// <summary>
         /// dhcp-server: IP address of the DHCP server.
         /// </summary>
         [TikProperty("dhcp-server", IsReadOnly = true)]
-        public string? DhcpServer { get; private set; }
+        public TikValue<string?> DhcpServer { get; private set; }
 
         /// <summary>
         /// expires-after: Time when the lease expires (specified by the DHCP server).
         /// </summary>
         [TikProperty("expires-after", IsReadOnly = true)]
-        public TikDuration? ExpiresAfter { get; private set; }
+        public TikValue<TikDuration?> ExpiresAfter { get; private set; }
 
         /// <summary>
         /// gateway: IP address of the gateway which is assigned by DHCP server
         /// </summary>
         [TikProperty("gateway", IsReadOnly = true)]
-        public string? Gateway { get; private set; }
+        public TikValue<string?> Gateway { get; private set; }
 
         /// <summary>
         /// invalid: Shows whether configuration is invalid.
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public bool Invalid { get; private set; }
+        public TikValue<bool?> Invalid { get; private set; }
 
         /// <summary>
         /// netmask: 
         /// </summary>
         [TikProperty("netmask", IsReadOnly = true)]
-        public string? Netmask { get; private set; }
+        public TikValue<string?> Netmask { get; private set; }
 
         /// <summary>
         /// primary-dns: IP address of the primary DNS server, assigned by the DHCP server
         /// </summary>
         [TikProperty("primary-dns", IsReadOnly = true)]
-        public string? PrimaryDns { get; private set; }
+        public TikValue<string?> PrimaryDns { get; private set; }
 
         /// <summary>
         /// primary-ntp: IP address of the primary NTP server, assigned by the DHCP server
         /// </summary>
         [TikProperty("primary-ntp", IsReadOnly = true)]
-        public string? PrimaryNtp { get; private set; }
+        public TikValue<string?> PrimaryNtp { get; private set; }
 
         /// <summary>
         /// secondary-dns: IP address of the secondary DNS server, assigned by the DHCP server
         /// </summary>
         [TikProperty("secondary-dns", IsReadOnly = true)]
-        public string? SecondaryDns { get; private set; }
+        public TikValue<string?> SecondaryDns { get; private set; }
 
         /// <summary>
         /// secondary-ntp: IP address of the secondary NTP server, assigned by the DHCP server
         /// </summary>
         [TikProperty("secondary-ntp", IsReadOnly = true)]
-        public string? SecondaryNtp { get; private set; }
+        public TikValue<string?> SecondaryNtp { get; private set; }
 
         /// <summary>
         /// status: Shows the status of DHCP Client
         /// </summary>
         [TikProperty("status", IsReadOnly = true)]
-        public string? Status { get; private set; }
+        public TikValue<string?> Status { get; private set; }
 
         /// <summary>
         /// ctor

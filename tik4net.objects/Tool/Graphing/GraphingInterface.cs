@@ -20,23 +20,23 @@ namespace tik4net.Objects.Tool.Graphing
 
         /// <summary>interface — name of the interface to graph. Use "all" to graph every interface.</summary>
         [TikProperty("interface", DefaultValue = "all")]
-        public string? Interface { get; set; }
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>allow-address — IP address or prefix allowed to retrieve the graph (e.g. "0.0.0.0/0"). Empty means unrestricted.</summary>
         [TikProperty("allow-address")]
-        public string?/*IP/CIDR*/ AllowAddress { get; set; }
+        public TikValue<string?> AllowAddress { get; set; }
 
         /// <summary>store-on-disk — when yes, collected traffic data is saved to the router's disk. Default: yes.</summary>
         [TikProperty("store-on-disk", DefaultValue = "yes")]
-        public bool? StoreOnDisk { get; set; }
+        public TikValue<bool?> StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Returns a human-readable summary of this graphing entry.</summary>
         public override string ToString() => string.Format("graphing/interface: {0} (allow: {1})", Interface, AllowAddress);

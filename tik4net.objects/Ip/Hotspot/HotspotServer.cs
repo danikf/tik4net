@@ -18,40 +18,40 @@ namespace tik4net.Objects.Ip.Hotspot
         public string? Id { get; private set; }
 
         /// <summary>name — descriptive name for this HotSpot server instance.</summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>interface — interface on which the HotSpot server is running.</summary>
-        [TikProperty("interface", IsMandatory = true)]
-        public string? Interface { get; set; }
+        [TikProperty("interface")]
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>profile — server profile from /ip/hotspot/profile to use. Default: default.</summary>
         [TikProperty("profile", DefaultValue = "default")]
-        public string? Profile { get; set; }
+        public TikValue<string?> Profile { get; set; }
 
         /// <summary>address-pool — IP pool for client address assignment. Default: none.</summary>
         [TikProperty("address-pool", DefaultValue = "none")]
-        public string? AddressPool { get; set; }
+        public TikValue<string?> AddressPool { get; set; }
 
         /// <summary>addresses-per-mac — maximum number of simultaneous clients per MAC address. Default: unlimited.</summary>
         [TikProperty("addresses-per-mac", DefaultValue = "unlimited")]
-        public string? AddressesPerMac { get; set; }
+        public TikValue<string?> AddressesPerMac { get; set; }
 
         /// <summary>idle-timeout — how long an idle (no traffic) client remains connected. Default: none (disabled).</summary>
         [TikProperty("idle-timeout", DefaultValue = "none")]
-        public TikDuration? IdleTimeout { get; set; }
+        public TikValue<TikDuration?> IdleTimeout { get; set; }
 
         /// <summary>keepalive-timeout — interval for checking that a client's host is still reachable. Default: none.</summary>
         [TikProperty("keepalive-timeout", DefaultValue = "none")]
-        public TikDuration? KeepaliveTimeout { get; set; }
+        public TikValue<TikDuration?> KeepaliveTimeout { get; set; }
 
         /// <summary>login-timeout — maximum time allowed for login after initial redirect. Default: none.</summary>
         [TikProperty("login-timeout", DefaultValue = "none")]
-        public TikDuration? LoginTimeout { get; set; }
+        public TikValue<TikDuration?> LoginTimeout { get; set; }
 
         /// <summary>disabled — when yes, the server is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>Human-readable server summary.</summary>
         public override string ToString() => string.Format("{0} ({1})", Name, Interface);

@@ -37,8 +37,8 @@ namespace tik4net.integrationtests
             var iface = Connection.LoadAll<Interface>().FirstOrDefault(i => i.Name == TestConstants.Interface);
             Assert.IsNotNull(iface, $"Interface {TestConstants.Interface} not found on this router.");
 
-            long rxPackets = iface.RxPacket;
-            long rxBytes = iface.RxByte;
+            long rxPackets = iface.RxPacket.GetValueOrDefault();
+            long rxBytes = iface.RxByte.GetValueOrDefault();
             if (rxPackets == 0)
                 Assert.Inconclusive($"{TestConstants.Interface} has received nothing yet — no counter to check.");
 
@@ -138,7 +138,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void UpdateCommentOnEth1_2_WillNotFail()
         {
-            var originalComment = Connection.LoadByName<Interface>(TestConstants.Interface).Comment ?? "";
+            var originalComment = Connection.LoadByName<Interface>(TestConstants.Interface).Comment.Value ?? "";
             try
             {
                 var cmd = Connection.CreateCommand("/interface/set");

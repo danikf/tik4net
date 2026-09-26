@@ -15,8 +15,8 @@ namespace tik4net.Objects.Interface.Ethernet
         /// <summary>
         /// name
         /// </summary>
-        [TikProperty("name", IsMandatory = true, IsReadOnly = true)]
-        public string? Name { get; private set; }
+        [TikProperty("name", IsReadOnly = true)]
+        public TikValue<string?> Name { get; private set; }
 
         /// <summary>
         /// auto-negotiation
@@ -25,7 +25,7 @@ namespace tik4net.Objects.Interface.Ethernet
         ///  incomplete - negotiation failed or not yet completed
         /// </summary>
         [TikProperty("auto-negotiation")]
-        public string?/*done | incomplete*/ AutoNegotiation { get; set; }
+        public TikValue<string?> AutoNegotiation { get; set; }
 
         /// <summary>
         /// default-cable-setting
@@ -34,13 +34,13 @@ namespace tik4net.Objects.Interface.Ethernet
         ///  standard - support standard cables
         /// </summary>
         [TikProperty("default-cable-setting")]
-        public string?/*short | standard*/ DefaultCableSetting { get; set; }
+        public TikValue<string?> DefaultCableSetting { get; set; }
 
         /// <summary>
         /// full-duplex: Whether transmission of data occurs in two directions simultaneously
         /// </summary>
         [TikProperty("full-duplex")]
-        public bool? FullDuplex { get; set; }
+        public TikValue<bool?> FullDuplex { get; set; }
 
         /// <summary>
         /// rate: Actual data rate of the connection. RouterOS renders it with a unit here —
@@ -48,14 +48,14 @@ namespace tik4net.Objects.Interface.Ethernet
         /// <see cref="TikDataRate"/> exists to read; the value is bits per second either way.
         /// </summary>
         [TikProperty("rate")]
-        public TikDataRate? Rate { get; set; }
+        public TikValue<TikDataRate?> Rate { get; set; }
 
         /// <summary>
         /// supported: the rate/duplex combinations the port itself can do, as a comma-separated list
         /// (e.g. <c>10M-baseT-half,10M-baseT-full,100M-baseT-half,…</c>). Empty on a virtual NIC.
         /// </summary>
         [TikProperty("supported")]
-        public string? Supported { get; set; }
+        public TikValue<string?> Supported { get; set; }
 
         /// <summary>
         /// status
@@ -65,85 +65,85 @@ namespace tik4net.Objects.Interface.Ethernet
         ///  unknown - the connection is not recognized (if the card does not report connection status)
         /// </summary>
         [TikProperty("status")]
-        public string?/*link-ok | no-link | unknown*/ Status { get; set; }
+        public TikValue<string?> Status { get; set; }
 
         /// <summary>
         /// tx-flow-control: Whether TX flow control is used
         /// </summary>
         [TikProperty("tx-flow-control")]
-        public string? TxFlowControl { get; set; }
+        public TikValue<string?> TxFlowControl { get; set; }
 
         /// <summary>
         /// rx-flow-control: Whether RX flow control is used
         /// </summary>
         [TikProperty("rx-flow-control")]
-        public string? RxFlowControl { get; set; }
+        public TikValue<string?> RxFlowControl { get; set; }
 
         /// <summary>
         /// sfp-module-present: Whether SFP module is in cage
         /// </summary>
         [TikProperty("sfp-module-present")]
-        public bool? SfpModulePresent { get; set; }
+        public TikValue<bool?> SfpModulePresent { get; set; }
 
         /// <summary>
         /// sfp-rx-lose: 
         /// </summary>
         [TikProperty("sfp-rx-lose")]
-        public bool? SfpRxLose { get; set; }
+        public TikValue<bool?> SfpRxLose { get; set; }
 
         /// <summary>
         /// sfp-tx-fault: 
         /// </summary>
         [TikProperty("sfp-tx-fault")]
-        public bool? SfpTxFault { get; set; }
+        public TikValue<bool?> SfpTxFault { get; set; }
 
         /// <summary>
         /// sfp-connector-type: 
         /// </summary>
         [TikProperty("sfp-connector-type")]
-        public string? SfpConnectorType { get; set; }
+        public TikValue<string?> SfpConnectorType { get; set; }
 
         /// <summary>
         /// sfp-link-length-copper: Detected link length when copper SFP module is used
         /// </summary>
         [TikProperty("sfp-link-length-copper")]
-        public string? SfpLinkLengthCopper { get; set; }
+        public TikValue<string?> SfpLinkLengthCopper { get; set; }
 
         /// <summary>
         /// sfp-vendor-name: Vendor of the SFP module
         /// </summary>
         [TikProperty("sfp-vendor-name")]
-        public string? SfpVendorName { get; set; }
+        public TikValue<string?> SfpVendorName { get; set; }
 
         /// <summary>
         /// sfp-vendor-part-number: SFP module part number
         /// </summary>
         [TikProperty("sfp-vendor-part-number")]
-        public string? SfpVendorPartNumber { get; set; }
+        public TikValue<string?> SfpVendorPartNumber { get; set; }
 
         /// <summary>
         /// sfp-vendor-revision: SFP module revision number
         /// </summary>
         [TikProperty("sfp-vendor-revision")]
-        public string? SfpVendorRevision { get; set; }
+        public TikValue<string?> SfpVendorRevision { get; set; }
 
         /// <summary>
         /// sfp-vendor-serial: SFP module serial number
         /// </summary>
         [TikProperty("sfp-vendor-serial")]
-        public string? SfpVendorSerial { get; set; }
+        public TikValue<string?> SfpVendorSerial { get; set; }
 
         /// <summary>
         /// sfp-manufacturing-date: SFP module manufacturing date
         /// </summary>
         [TikProperty("sfp-manufacturing-date")]
-        public string? SfpManufacturingDate { get; set; }
+        public TikValue<string?> SfpManufacturingDate { get; set; }
 
         /// <summary>
         /// eeprom: EEPROM of an SFP module
         /// </summary>
         [TikProperty("eeprom")]
-        public string? Eeprom { get; set; }
+        public TikValue<string?> Eeprom { get; set; }
 
         /// <summary>
         /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.

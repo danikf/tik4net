@@ -21,7 +21,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>
         /// Mode for <see cref="Mode"/>.
@@ -52,27 +52,25 @@ namespace tik4net.Objects.Interface.Wireless
             /// </summary>
             [TikEnum("static-keys-required")]
             StaticKeysRequiered,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
         /// mode
         /// </summary>
-        [TikProperty("mode", IsMandatory = true)]
-        public SecurityMode /* none, static-keys-optional, static-keys-required, dynamic-keys*/Mode { get; set; }
+        [TikProperty("mode")]
+        public TikValue<SecurityMode?> /* none, static-keys-optional, static-keys-required, dynamic-keys*/ Mode { get; set; }
 
         /// <summary>
         /// name
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         /// <summary>
         /// management-protection
         /// </summary>
         [TikProperty("management-protection")]
-        public bool? ManagementProtection { get; set; }
+        public TikValue<bool?> ManagementProtection { get; set; }
 
         /// <summary>
         /// management-protection-key
@@ -82,7 +80,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </para>
         /// </summary>
         [TikProperty("management-protection-key", IsSensitive = true)]
-        public string? ManagementProtectionKey { get; set; }
+        public TikValue<string?> ManagementProtectionKey { get; set; }
 
         /// <summary>
         /// wpa-pre-shared-key
@@ -92,7 +90,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </para>
         /// </summary>
         [TikProperty("wpa-pre-shared-key", IsSensitive = true)]
-        public string? WpaPreSharedKey { get; set; }
+        public TikValue<string?> WpaPreSharedKey { get; set; }
 
         /// <summary>
         /// wpa2-pre-shared-key
@@ -102,40 +100,40 @@ namespace tik4net.Objects.Interface.Wireless
         /// </para>
         /// </summary>
         [TikProperty("wpa2-pre-shared-key", IsSensitive = true)]
-        public string? Wpa2PreSharedKey { get; set; }
+        public TikValue<string?> Wpa2PreSharedKey { get; set; }
 
         /// <summary>
         /// authentication-types
         /// Comma separated string
         /// </summary>
         [TikProperty("authentication-types")]
-        public string? AuthenticationTypes { get; set; }
+        public TikValue<string?> AuthenticationTypes { get; set; }
 
         /// <summary>
         /// group-ciphers
         /// Comma separated string
         /// </summary>
         [TikProperty("group-ciphers")]
-        public string? /*tkip, aes-ccm*/GroupCiphers { get; set; }
+        public TikValue<string?> /*tkip, aes-ccm*/ GroupCiphers { get; set; }
 
         /// <summary>
         /// unicast-ciphers
         /// Comma separated string
         /// </summary>
         [TikProperty("unicast-ciphers")]
-        public string? /*tkip, aes-ccm*/UnicastCiphers { get; set; }
+        public TikValue<string?> /*tkip, aes-ccm*/ UnicastCiphers { get; set; }
 
         /// <summary>
         /// supplicant-identity
         /// </summary>
         [TikProperty("supplicant-identity")]
-        public string? /*tkip, aes-ccm*/SupplicantIdentiy { get; set; }
+        public TikValue<string?> /*tkip, aes-ccm*/ SupplicantIdentiy { get; set; }
 
         /// <summary>
         /// group-key-update - (time interval in the 30s..1h range; default value: 5m) : Controls how often access point updates group key. This key is used to encrypt all broadcast and multicast frames.
         /// </summary>
         [TikProperty("group-key-update")]
-        public string? GroupKeyUpdate { get; set; }
+        public TikValue<string?> GroupKeyUpdate { get; set; }
 
         // ── RADIUS (WinBox: the profile's "RADIUS" tab) ───────────────────────────────────────────
         //
@@ -149,7 +147,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "MAC Authentication" (RADIUS tab).</para>
         /// </summary>
         [TikProperty("radius-mac-authentication", DefaultValue = "no")]
-        public bool? RadiusMacAuthentication { get; set; }
+        public TikValue<bool?> RadiusMacAuthentication { get; set; }
 
         /// <summary>
         /// radius-mac-accounting — send RADIUS accounting requests for MAC-authenticated clients.
@@ -157,7 +155,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "MAC Accounting" (RADIUS tab).</para>
         /// </summary>
         [TikProperty("radius-mac-accounting", DefaultValue = "no")]
-        public bool? RadiusMacAccounting { get; set; }
+        public TikValue<bool?> RadiusMacAccounting { get; set; }
 
         /// <summary>
         /// radius-eap-accounting — send RADIUS accounting requests for EAP-authenticated clients.
@@ -165,7 +163,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "EAP Accounting" (RADIUS tab).</para>
         /// </summary>
         [TikProperty("radius-eap-accounting", DefaultValue = "no")]
-        public bool? RadiusEapAccounting { get; set; }
+        public TikValue<bool?> RadiusEapAccounting { get; set; }
 
         /// <summary>
         /// interim-update — how often an interim RADIUS accounting update is sent; <c>0s</c> disables it.
@@ -179,7 +177,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "Interim Update" (RADIUS tab).</para>
         /// </summary>
         [TikProperty("interim-update", DefaultValue = "0s")]
-        public TikDuration? InterimUpdate { get; set; }
+        public TikValue<TikDuration?> InterimUpdate { get; set; }
 
         /// <summary>
         /// radius-mac-format — how a client's MAC address is written in the RADIUS request.
@@ -195,7 +193,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "MAC Format" (RADIUS tab).</para>
         /// </summary>
         [TikProperty("radius-mac-format", DefaultValue = "XX:XX:XX:XX:XX:XX")]
-        public string? RadiusMacFormat { get; set; }
+        public TikValue<string?> RadiusMacFormat { get; set; }
 
         /// <summary>
         /// Values of <see cref="RadiusMacMode"/> — what the MAC address is sent AS.
@@ -209,8 +207,6 @@ namespace tik4net.Objects.Interface.Wireless
             /// <summary>as-username-and-password - the MAC is sent as both the user name and the password.</summary>
             [TikEnum("as-username-and-password")]
             AsUsernameAndPassword,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -220,7 +216,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </summary>
         /// <seealso cref="MacModeType"/>
         [TikProperty("radius-mac-mode", DefaultValue = "as-username")]
-        public MacModeType? RadiusMacMode { get; set; }
+        public TikValue<MacModeType?> RadiusMacMode { get; set; }
 
         /// <summary>
         /// Values of <see cref="RadiusCalledFormat"/> — what goes into the RADIUS Called-Station-Id.
@@ -238,8 +234,6 @@ namespace tik4net.Objects.Interface.Wireless
             /// <summary>ssid - the SSID only.</summary>
             [TikEnum("ssid")]
             Ssid,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -249,7 +243,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </summary>
         /// <seealso cref="CalledFormatType"/>
         [TikProperty("radius-called-format", DefaultValue = "mac:ssid")]
-        public CalledFormatType? RadiusCalledFormat { get; set; }
+        public TikValue<CalledFormatType?> RadiusCalledFormat { get; set; }
 
         /// <summary>
         /// radius-mac-caching — how long a successful RADIUS MAC authentication is cached, so a
@@ -262,7 +256,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "MAC Caching Time" (RADIUS tab).</para>
         /// </summary>
         [TikProperty("radius-mac-caching", DefaultValue = "disabled")]
-        public string? /*disabled | time*/ RadiusMacCaching { get; set; }
+        public TikValue<string?> /*disabled | time*/ RadiusMacCaching { get; set; }
 
         // ── Static (WEP) keys (WinBox: the profile's "Static Keys" tab) ───────────────────────────
         //
@@ -296,8 +290,6 @@ namespace tik4net.Objects.Interface.Wireless
             /// <summary>tkip</summary>
             [TikEnum("tkip")]
             Tkip,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -321,8 +313,6 @@ namespace tik4net.Objects.Interface.Wireless
             /// <summary>key-3</summary>
             [TikEnum("key-3")]
             Key3,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -331,7 +321,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </summary>
         /// <seealso cref="StaticAlgoType"/>
         [TikProperty("static-algo-0", DefaultValue = "none")]
-        public StaticAlgoType? StaticAlgo0 { get; set; }
+        public TikValue<StaticAlgoType?> StaticAlgo0 { get; set; }
 
         /// <summary>
         /// static-key-0 — static key slot 0, as hex characters (10 for 40bit-wep, 26 for 104bit-wep).
@@ -342,7 +332,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </para>
         /// </summary>
         [TikProperty("static-key-0", IsSensitive = true)]
-        public string? StaticKey0 { get; set; }
+        public TikValue<string?> StaticKey0 { get; set; }
 
         /// <summary>
         /// static-algo-1 — the cipher of static key slot 1. Default: none.
@@ -350,14 +340,14 @@ namespace tik4net.Objects.Interface.Wireless
         /// </summary>
         /// <seealso cref="StaticAlgoType"/>
         [TikProperty("static-algo-1", DefaultValue = "none")]
-        public StaticAlgoType? StaticAlgo1 { get; set; }
+        public TikValue<StaticAlgoType?> StaticAlgo1 { get; set; }
 
         /// <summary>
         /// static-key-1 — static key slot 1, as hex characters. Sensitive; see <see cref="StaticKey0"/>.
         /// <para>WinBox: the right half of "Key 1" (Static Keys tab).</para>
         /// </summary>
         [TikProperty("static-key-1", IsSensitive = true)]
-        public string? StaticKey1 { get; set; }
+        public TikValue<string?> StaticKey1 { get; set; }
 
         /// <summary>
         /// static-algo-2 — the cipher of static key slot 2. Default: none.
@@ -365,14 +355,14 @@ namespace tik4net.Objects.Interface.Wireless
         /// </summary>
         /// <seealso cref="StaticAlgoType"/>
         [TikProperty("static-algo-2", DefaultValue = "none")]
-        public StaticAlgoType? StaticAlgo2 { get; set; }
+        public TikValue<StaticAlgoType?> StaticAlgo2 { get; set; }
 
         /// <summary>
         /// static-key-2 — static key slot 2, as hex characters. Sensitive; see <see cref="StaticKey0"/>.
         /// <para>WinBox: the right half of "Key 2" (Static Keys tab).</para>
         /// </summary>
         [TikProperty("static-key-2", IsSensitive = true)]
-        public string? StaticKey2 { get; set; }
+        public TikValue<string?> StaticKey2 { get; set; }
 
         /// <summary>
         /// static-algo-3 — the cipher of static key slot 3. Default: none.
@@ -380,14 +370,14 @@ namespace tik4net.Objects.Interface.Wireless
         /// </summary>
         /// <seealso cref="StaticAlgoType"/>
         [TikProperty("static-algo-3", DefaultValue = "none")]
-        public StaticAlgoType? StaticAlgo3 { get; set; }
+        public TikValue<StaticAlgoType?> StaticAlgo3 { get; set; }
 
         /// <summary>
         /// static-key-3 — static key slot 3, as hex characters. Sensitive; see <see cref="StaticKey0"/>.
         /// <para>WinBox: the right half of "Key 3" (Static Keys tab).</para>
         /// </summary>
         [TikProperty("static-key-3", IsSensitive = true)]
-        public string? StaticKey3 { get; set; }
+        public TikValue<string?> StaticKey3 { get; set; }
 
         /// <summary>
         /// static-transmit-key — which of the four static keys encrypts the frames this device sends.
@@ -396,7 +386,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// </summary>
         /// <seealso cref="TransmitKeyType"/>
         [TikProperty("static-transmit-key", DefaultValue = "key-0")]
-        public TransmitKeyType? StaticTransmitKey { get; set; }
+        public TikValue<TransmitKeyType?> StaticTransmitKey { get; set; }
 
         /// <summary>
         /// static-sta-private-algo — the cipher of the station's private key, used for unicast frames
@@ -405,16 +395,16 @@ namespace tik4net.Objects.Interface.Wireless
         /// </summary>
         /// <seealso cref="StaticAlgoType"/>
         [TikProperty("static-sta-private-algo", DefaultValue = "none")]
-        public StaticAlgoType? StaticStaPrivateAlgo { get; set; }
+        public TikValue<StaticAlgoType?> StaticStaPrivateAlgo { get; set; }
 
         /// <summary>
         /// static-sta-private-key — the station's private key. Sensitive; see <see cref="StaticKey0"/>.
         /// <para>WinBox: the right half of "St. Private Key" (Static Keys tab).</para>
         /// </summary>
         [TikProperty("static-sta-private-key", IsSensitive = true)]
-        public string? StaticStaPrivateKey { get; set; }
+        public TikValue<string?> StaticStaPrivateKey { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

@@ -24,21 +24,21 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: mschap1,mschap2
         /// </summary>
         [TikProperty("authentication", DefaultValue = "mschap1,mschap2")]
-        public string? Authentication { get; set; }
+        public TikValue<string?> Authentication { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new PPTP sessions.
         /// Default: default-encryption
         /// </summary>
         [TikProperty("default-profile", DefaultValue = "default-encryption")]
-        public string? DefaultProfile { get; set; }
+        public TikValue<string?> DefaultProfile { get; set; }
 
         /// <summary>
         /// enabled — when <c>true</c> the PPTP server accepts incoming connections.
         /// Default: no
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool? Enabled { get; set; }
+        public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>
         /// keepalive-timeout — if the server during the keepalive period does not receive any packet,
@@ -48,7 +48,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 30; omitted on add when left 0
         [TikProperty("keepalive-timeout")]
-        public int KeepaliveTimeout { get; set; }
+        public TikValue<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// max-mru — maximum receive unit for PPTP tunnel interfaces, in bytes.
@@ -57,7 +57,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mru")]
-        public int MaxMru { get; set; }
+        public TikValue<int?> MaxMru { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmit unit for PPTP tunnel interfaces, in bytes.
@@ -66,7 +66,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mtu")]
-        public int MaxMtu { get; set; }
+        public TikValue<int?> MaxMtu { get; set; }
 
         /// <summary>
         /// mrru — maximum packet size that can be received on the link. If a packet is bigger than
@@ -76,7 +76,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled")]
-        public string?/*integer or "disabled"*/ Mrru { get; set; }
+        public TikValue<string?> Mrru { get; set; }
 
         /// <summary>Human-readable summary of the PPTP server configuration.</summary>
         public override string ToString() => string.Format("pptp-server enabled={0} max-mtu={1} max-mru={2} auth={3}", Enabled, MaxMtu, MaxMru, Authentication);

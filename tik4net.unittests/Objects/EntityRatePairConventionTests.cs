@@ -174,7 +174,7 @@ namespace tik4net.unittests.Objects
         public void ANewPairedRateFieldIsTikRatePairAndNotString()
         {
             var offenders = Properties()
-                .Where(x => x.Property.PropertyType == typeof(string))
+                .Where(x => MappedPropertyType.Of(x.Property) == typeof(string))
                 .Where(x => IsCandidateName(x.Attribute.FieldName))
                 .Where(x => !Listed(NotRatePairs, x.Entity, x.Attribute.FieldName))
                 .Where(x => !Listed(PendingTikRatePair, x.Entity, x.Attribute.FieldName))
@@ -204,8 +204,8 @@ namespace tik4net.unittests.Objects
 
                     if (match.Property == null)
                         stale.Add($"{kv.Key}.\"{wire}\" — no such mapped field any more");
-                    else if (match.Property.PropertyType != typeof(string))
-                        stale.Add($"{kv.Key}.{match.Property.Name} — now {match.Property.PropertyType.Name}, "
+                    else if (MappedPropertyType.Of(match.Property) != typeof(string))
+                        stale.Add($"{kv.Key}.{match.Property.Name} — now {MappedPropertyType.Of(match.Property).Name}, "
                                   + "delete it from PendingTikRatePair");
                 }
 
@@ -230,8 +230,8 @@ namespace tik4net.unittests.Objects
 
                     if (match.Property == null)
                         stale.Add($"{kv.Key}.\"{wire}\" — no such mapped field any more");
-                    else if (match.Property.PropertyType != typeof(string))
-                        stale.Add($"{kv.Key}.{match.Property.Name} — now {match.Property.PropertyType.Name}, "
+                    else if (MappedPropertyType.Of(match.Property) != typeof(string))
+                        stale.Add($"{kv.Key}.{match.Property.Name} — now {MappedPropertyType.Of(match.Property).Name}, "
                                   + "so it is not an exception to the rule any more");
                 }
 
@@ -253,11 +253,11 @@ namespace tik4net.unittests.Objects
                 .Select(e => (Entity: e.Item1, Wire: e.Item2, Match: Properties().FirstOrDefault(
                     x => x.Entity.Name == e.Item1 && x.Attribute.FieldName == e.Item2)))
                 .Where(x => x.Match.Property == null
-                            || x.Match.Property.PropertyType != typeof(TikRatePair?))
+                            || MappedPropertyType.Of(x.Match.Property) != typeof(TikRatePair?))
                 .Select(x => $"{x.Entity}.\"{x.Wire}\" is "
                              + (x.Match.Property == null
                                  ? "no longer mapped"
-                                 : "declared " + x.Match.Property.PropertyType.Name))
+                                 : "declared " + MappedPropertyType.Of(x.Match.Property).Name))
                 .ToList();
 
             Assert.AreEqual(0, wrong.Count,

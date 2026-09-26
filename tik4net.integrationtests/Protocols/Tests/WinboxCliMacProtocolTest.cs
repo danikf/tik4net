@@ -79,7 +79,7 @@ namespace tik4net.integrationtests
             using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
             {
                 var e1 = api.LoadAll<Interface>().FirstOrDefault(i => i.DefaultName == "ether1");
-                original = e1?.Comment ?? "";
+                original = e1?.Comment.Value ?? "";
             }
             Console.WriteLine($"Original: '{original}'");
 

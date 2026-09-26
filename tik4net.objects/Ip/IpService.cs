@@ -22,14 +22,14 @@ namespace tik4net.Objects.Ip
         /// name — service identifier (e.g. ftp, ssh, telnet, www, www-ssl, api, api-ssl, winbox).
         /// Read-only; the set of services is defined by the router.
         /// </summary>
-        [TikProperty("name", IsReadOnly = true, IsMandatory = true)]
-        public string? Name { get; private set; }
+        [TikProperty("name", IsReadOnly = true)]
+        public TikValue<string?> Name { get; private set; }
 
         /// <summary>
         /// port — the TCP/UDP port the service listens on (1..65535).
         /// </summary>
         [TikProperty("port")]
-        public int Port { get; set; }
+        public TikValue<int?> Port { get; set; }
 
         /// <summary>
         /// address — list of IP/IPv6 prefixes from which the service is accessible.
@@ -42,74 +42,74 @@ namespace tik4net.Objects.Ip
         /// (6.49.13 refuses <c>available-from</c>).
         /// </remarks>
         [TikProperty("address", AlternateNames = new[] { "available-from" }, DefaultValue = "")]
-        public string? Address { get; set; }
+        public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// certificate — name of the certificate used by this service (relevant for www-ssl and api-ssl).
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none")]
-        public string? Certificate { get; set; }
+        public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
         /// tls-version — specifies which TLS versions to allow for this service.
         /// </summary>
         /// <seealso cref="TlsVersionType"/>
         [TikProperty("tls-version", DefaultValue = "any")]
-        public TlsVersionType TlsVersion { get; set; }
+        public TikValue<TlsVersionType?> TlsVersion { get; set; }
 
         /// <summary>
         /// max-sessions — maximum number of simultaneous sessions for this service (1..1000).
         /// </summary>
         [TikProperty("max-sessions", DefaultValue = "20")]
-        public int? MaxSessions { get; set; }
+        public TikValue<int?> MaxSessions { get; set; }
 
         /// <summary>
         /// vrf — specifies which VRF instance is used by this service.
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main")]
-        public string? Vrf { get; set; }
+        public TikValue<string?> Vrf { get; set; }
 
         /// <summary>
         /// disabled — whether the service is disabled.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// proto — transport protocol used by the service (tcp or udp). Read-only.
         /// </summary>
         [TikProperty("proto", IsReadOnly = true)]
-        public string? Proto { get; private set; }
+        public TikValue<string?> Proto { get; private set; }
 
         /// <summary>
         /// dynamic — whether this is a dynamically created connection entry (not a base service row). Read-only.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; private set; }
+        public TikValue<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// invalid — whether the service entry is in an invalid state. Read-only.
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public bool Invalid { get; private set; }
+        public TikValue<bool?> Invalid { get; private set; }
 
         /// <summary>
         /// local — router local address for an active connection (present on dynamic connection rows only). Read-only.
         /// </summary>
         [TikProperty("local", IsReadOnly = true)]
-        public string? Local { get; private set; }
+        public TikValue<string?> Local { get; private set; }
 
         /// <summary>
         /// remote — remote address of the active connection (present on dynamic connection rows only). Read-only.
         /// </summary>
         [TikProperty("remote", IsReadOnly = true)]
-        public string? Remote { get; private set; }
+        public TikValue<string?> Remote { get; private set; }
 
         /// <summary>
         /// connection — true when the row represents an active connection rather than a service definition. Read-only.
         /// </summary>
         [TikProperty("connection", IsReadOnly = true)]
-        public bool Connection { get; private set; }
+        public TikValue<bool?> Connection { get; private set; }
 
         /// <summary>Human-readable identity — service name and port.</summary>
         public override string ToString() => string.Format("{0}:{1}", Name, Port);
@@ -121,8 +121,6 @@ namespace tik4net.Objects.Ip
             [TikEnum("any")] Any,
             /// <summary>only-1.2 — restrict to TLS 1.2 only.</summary>
             [TikEnum("only-1.2")] Only12,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
     }
 }

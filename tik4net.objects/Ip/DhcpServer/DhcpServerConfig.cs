@@ -31,6 +31,6 @@ namespace tik4net.Objects.Ip
         /// </summary>
         /// <seealso cref="StoreLeasesDiskType"/>
         [TikProperty("store-leases-disk")]
-        public string? StoreLeasesDisk { get; set; }
+        public TikValue<string?> StoreLeasesDisk { get; set; }
     }
 }

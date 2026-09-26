@@ -331,9 +331,9 @@ namespace tik4net.integrationtests
             try
             {
                 var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
-                Assert.IsTrue(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.Established));
-                Assert.IsTrue(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.Related));
-                Assert.IsFalse(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.Invalid));
+                Assert.IsTrue(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.Established));
+                Assert.IsTrue(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.Related));
+                Assert.IsFalse(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.Invalid));
             }
             finally
             {
@@ -356,8 +356,8 @@ namespace tik4net.integrationtests
             try
             {
                 var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
-                Assert.IsTrue(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.New));
-                Assert.IsTrue(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.Invalid));
+                Assert.IsTrue(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.New));
+                Assert.IsTrue(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.Invalid));
             }
             finally
             {

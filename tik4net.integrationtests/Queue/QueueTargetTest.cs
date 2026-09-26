@@ -44,7 +44,7 @@ namespace tik4net.integrationtests.Queue
         [TestMethod]
         public void AQueueIsCreatedWithItsTargetOverTheTransportUnderTest()
         {
-            Connection.Save(new QueueSimple { Name = QueueName, Target = TestSubnet, MaxLimit = "1M/2M" });
+            Connection.Save(new QueueSimple { Name = QueueName, Target = TestSubnet, MaxLimit = (TikRatePair)"1M/2M" });
 
             using (var api = OpenSideApi())
                 Assert.AreEqual(TestSubnet, TestQueue(api).Target, "as the API reads it after the write");
@@ -57,13 +57,13 @@ namespace tik4net.integrationtests.Queue
             {
                 Name = QueueName,
                 Target = TestSubnet + ",192.168.252.7/32",
-                MaxLimit = "1M/2M",
+                MaxLimit = (TikRatePair)"1M/2M",
             });
 
             using (var api = OpenSideApi())
             {
                 // The router keeps a /32 as a /32; the order it prints them in is its own.
-                var targets = TestQueue(api).Target.Split(',').OrderBy(t => t).ToArray();
+                var targets = TestQueue(api).Target.Value.Split(',').OrderBy(t => t).ToArray();
                 CollectionAssert.AreEqual(new[] { "192.168.251.0/24", "192.168.252.7/32" }, targets);
             }
         }
@@ -73,7 +73,7 @@ namespace tik4net.integrationtests.Queue
         {
             // The union's third family: an element that names a record in the interface table rather than
             // an address. 'lo' exists on every RouterOS device.
-            Connection.Save(new QueueSimple { Name = QueueName, Target = "lo", MaxLimit = "1M/2M" });
+            Connection.Save(new QueueSimple { Name = QueueName, Target = "lo", MaxLimit = (TikRatePair)"1M/2M" });
 
             using (var api = OpenSideApi())
                 Assert.AreEqual("lo", TestQueue(api).Target, "as the API reads it after the write");

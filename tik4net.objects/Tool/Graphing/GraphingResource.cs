@@ -19,19 +19,19 @@ namespace tik4net.Objects.Tool.Graphing
 
         /// <summary>allow-address — IP address or prefix allowed to retrieve the graph (e.g. "0.0.0.0/0"). Empty means unrestricted.</summary>
         [TikProperty("allow-address")]
-        public string?/*IP/CIDR*/ AllowAddress { get; set; }
+        public TikValue<string?> AllowAddress { get; set; }
 
         /// <summary>store-on-disk — when yes, collected resource data is saved to the router's disk. Default: yes.</summary>
         [TikProperty("store-on-disk", DefaultValue = "yes")]
-        public bool? StoreOnDisk { get; set; }
+        public TikValue<bool?> StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Returns a human-readable summary of this resource graphing entry.</summary>
         public override string ToString() => string.Format("graphing/resource (allow: {0}, store: {1})", AllowAddress, StoreOnDisk);

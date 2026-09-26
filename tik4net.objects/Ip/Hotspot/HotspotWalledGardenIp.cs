@@ -19,47 +19,47 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>action — what to do when the rule matches (firewall-style: accept/drop). Default: accept.</summary>
         [TikProperty("action", DefaultValue = "accept")]
-        public WalledGardenIpAction Action { get; set; }
+        public TikValue<WalledGardenIpAction?> Action { get; set; }
 
         /// <summary>server — HotSpot server name this rule applies to; empty means all servers.</summary>
         [TikProperty("server", DefaultValue = "")]
-        public string? Server { get; set; }
+        public TikValue<string?> Server { get; set; }
 
         /// <summary>protocol — IP protocol to match (e.g. tcp, udp, icmp). Empty = any.</summary>
         [TikProperty("protocol", DefaultValue = "")]
-        public string? Protocol { get; set; }
+        public TikValue<string?> Protocol { get; set; }
 
         /// <summary>src-address — source IP address or range of the unauthenticated client.</summary>
         [TikProperty("src-address", DefaultValue = "")]
-        public string? SrcAddress { get; set; }
+        public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>src-address-list — source address list name to match.</summary>
         [TikProperty("src-address-list", DefaultValue = "")]
-        public string? SrcAddressList { get; set; }
+        public TikValue<string?> SrcAddressList { get; set; }
 
         /// <summary>dst-address — destination IP address or range.</summary>
         [TikProperty("dst-address", DefaultValue = "")]
-        public string? DstAddress { get; set; }
+        public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>dst-address-list — destination address list name to match.</summary>
         [TikProperty("dst-address-list", DefaultValue = "")]
-        public string? DstAddressList { get; set; }
+        public TikValue<string?> DstAddressList { get; set; }
 
         /// <summary>dst-host — destination hostname to resolve and match (useful for dynamic IPs).</summary>
         [TikProperty("dst-host", DefaultValue = "")]
-        public string? DstHost { get; set; }
+        public TikValue<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match (e.g. 80 or 80-90).</summary>
         [TikProperty("dst-port", DefaultValue = "")]
-        public string? DstPort { get; set; }
+        public TikValue<string?> DstPort { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>comment — free-form annotation.</summary>
         [TikProperty("comment", DefaultValue = "")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable rule summary.</summary>
         public override string ToString() => string.Format("{0} proto={1} src={2} dst={3}:{4}", Action, Protocol, SrcAddress, DstAddress, DstPort);
@@ -75,7 +75,5 @@ namespace tik4net.Objects.Ip.Hotspot
         [TikEnum("drop")] Drop,
         /// <summary>reject — Deny access and answer with an ICMP reject, rather than silently dropping.</summary>
         [TikEnum("reject")] Reject,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 }

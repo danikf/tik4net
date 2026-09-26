@@ -26,8 +26,6 @@ namespace tik4net.Objects.Ip.TrafficFlow
             [TikEnum("9")] V9,
             /// <summary>IETF standardised protocol with extended capabilities including multicast support.</summary>
             [TikEnum("ipfix")] Ipfix,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row.</summary>
@@ -38,29 +36,29 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// dst-address — IP address of the host which receives Traffic-Flow statistic packets
         /// from the router.
         /// </summary>
-        [TikProperty("dst-address", IsMandatory = true)]
-        public string?/*IPv4*/ DstAddress { get; set; }
+        [TikProperty("dst-address")]
+        public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>
         /// src-address — IP address used as the source when sending Traffic-Flow statistics.
         /// Default: 0.0.0.0 (router picks the outgoing interface address automatically).
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string?/*IPv4*/ SrcAddress { get; set; }
+        public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// port — UDP port of the receiving host.
         /// Default: 2055
         /// </summary>
         [TikProperty("port")] // router default 2055; omitted on add when left 0
-        public int Port { get; set; }
+        public TikValue<int?> Port { get; set; }
 
         /// <summary>
         /// version — NetFlow/IPFIX format version to use when exporting records.
         /// <seealso cref="NetFlowVersion"/>
         /// </summary>
         [TikProperty("version")]
-        public NetFlowVersion Version { get; set; }
+        public TikValue<NetFlowVersion?> Version { get; set; }
 
         /// <summary>
         /// v9-template-refresh — number of packets after which the template record is
@@ -68,7 +66,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 20
         /// </summary>
         [TikProperty("v9-template-refresh")] // router default 20; omitted on add when left 0
-        public int V9TemplateRefresh { get; set; }
+        public TikValue<int?> V9TemplateRefresh { get; set; }
 
         /// <summary>
         /// v9-template-timeout — maximum time interval after which the template is sent even
@@ -76,14 +74,14 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 30m
         /// </summary>
         [TikProperty("v9-template-timeout", DefaultValue = "30m")]
-        public TikDuration? V9TemplateTimeout { get; set; }
+        public TikValue<TikDuration?> V9TemplateTimeout { get; set; }
 
         /// <summary>
         /// disabled — whether this export target is administratively disabled.
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>Returns a human-readable description of this export target.</summary>
         public override string ToString() => string.Format("{0}:{1} (v{2})", DstAddress, Port, Version);

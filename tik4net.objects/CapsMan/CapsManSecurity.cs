@@ -45,8 +45,6 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("aes-ccm")] AesCcm,
             /// <summary>tkip — TKIP cipher for group keys (legacy; required for WPA-only clients).</summary>
             [TikEnum("tkip")] Tkip,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────
@@ -60,8 +58,8 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// name — unique name for this security profile; referenced by /caps-man/configuration.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         // ── Authentication ────────────────────────────────────────────────────
 
@@ -71,7 +69,7 @@ namespace tik4net.Objects.CapsMan
         /// Empty string means open (no authentication).
         /// </summary>
         [TikProperty("authentication-types")]
-        public string? AuthenticationTypes { get; set; }
+        public TikValue<string?> AuthenticationTypes { get; set; }
 
         // ── Unicast encryption ────────────────────────────────────────────────
 
@@ -80,7 +78,7 @@ namespace tik4net.Objects.CapsMan
         /// Possible values: aes-ccm, tkip. Empty means no explicit override.
         /// </summary>
         [TikProperty("encryption")]
-        public string? Encryption { get; set; }
+        public TikValue<string?> Encryption { get; set; }
 
         // ── Group (broadcast/multicast) encryption ────────────────────────────
 
@@ -91,7 +89,7 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="GroupEncryptionType"/>
         /// </summary>
         [TikProperty("group-encryption", DefaultValue = "aes-ccm")]
-        public GroupEncryptionType GroupEncryption { get; set; }
+        public TikValue<GroupEncryptionType?> GroupEncryption { get; set; }
 
         // ── Key management ────────────────────────────────────────────────────
 
@@ -100,7 +98,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: 5m.
         /// </summary>
         [TikProperty("group-key-update", DefaultValue = "5m")]
-        public TikDuration? GroupKeyUpdate { get; set; }
+        public TikValue<TikDuration?> GroupKeyUpdate { get; set; }
 
         // ── PSK ───────────────────────────────────────────────────────────────
 
@@ -109,7 +107,7 @@ namespace tik4net.Objects.CapsMan
         /// 8–63 ASCII characters, or 64 hex digits for a raw PMK.
         /// </summary>
         [TikProperty("passphrase", IsSensitive = true)]
-        public string? Passphrase { get; set; }
+        public TikValue<string?> Passphrase { get; set; }
 
         // ── EAP ───────────────────────────────────────────────────────────────
 
@@ -119,14 +117,14 @@ namespace tik4net.Objects.CapsMan
         /// Empty means no EAP (PSK only).
         /// </summary>
         [TikProperty("eap-methods")]
-        public string? EapMethods { get; set; }
+        public TikValue<string?> EapMethods { get; set; }
 
         /// <summary>
         /// eap-radius-accounting — when true, RADIUS accounting messages are sent for EAP-authenticated clients.
         /// Default: no.
         /// </summary>
         [TikProperty("eap-radius-accounting", DefaultValue = "no")]
-        public bool? EapRadiusAccounting { get; set; }
+        public TikValue<bool?> EapRadiusAccounting { get; set; }
 
         // ── TLS / certificates ────────────────────────────────────────────────
 
@@ -138,14 +136,14 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="TlsModeType"/>
         /// </summary>
         [TikProperty("tls-mode")]
-        public string? TlsMode { get; set; }
+        public TikValue<string?> TlsMode { get; set; }
 
         /// <summary>
         /// tls-certificate — name of the certificate (from /certificate) presented by the AP
         /// during EAP-TLS authentication. Use "none" to disable certificate use.
         /// </summary>
         [TikProperty("tls-certificate")]
-        public string? TlsCertificate { get; set; }
+        public TikValue<string?> TlsCertificate { get; set; }
 
         // ── PMKID ─────────────────────────────────────────────────────────────
 
@@ -155,7 +153,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("disable-pmkid", DefaultValue = "no")]
-        public bool? DisablePmkid { get; set; }
+        public TikValue<bool?> DisablePmkid { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -163,9 +161,9 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this security profile.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

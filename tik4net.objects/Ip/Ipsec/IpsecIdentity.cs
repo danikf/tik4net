@@ -30,8 +30,6 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("eap")] Eap,
             /// <summary>eap-radius — EAP backed by a RADIUS server (IKEv2 only).</summary>
             [TikEnum("eap-radius")] EapRadius,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Controls whether dynamic security policies (SAs) are generated for unmatched traffic.</summary>
@@ -43,8 +41,6 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("port-override")] PortOverride,
             /// <summary>port-strict — generate policies and keep the original port selectors from the IKE proposal.</summary>
             [TikEnum("port-strict")] PortStrict,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Logic used to match an incoming IKE identity against this entry.</summary>
@@ -54,8 +50,6 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("remote-id")] RemoteId,
             /// <summary>certificate — match by the subject of the peer's certificate.</summary>
             [TikEnum("certificate")] Certificate,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>The local identity type sent to the remote peer during IKE negotiation.</summary>
@@ -73,8 +67,6 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("key-id")] KeyId,
             /// <summary>dn — The distinguished name of the local certificate.</summary>
             [TikEnum("dn")] Dn,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>The expected identity type received from the remote peer during IKE negotiation.</summary>
@@ -94,8 +86,6 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("key-id")] KeyId,
             /// <summary>ignore — do not validate the remote identity.</summary>
             [TikEnum("ignore")] Ignore,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>
@@ -106,8 +96,8 @@ namespace tik4net.Objects.Ip.Ipsec
         /// peer — name of the IKE peer entry (/ip/ipsec/peer) this identity is linked to.
         /// The router requires a peer reference on add; it is treated as a mandatory field.
         /// </summary>
-        [TikProperty("peer", IsMandatory = true)]
-        public string? Peer { get; set; }
+        [TikProperty("peer")]
+        public TikValue<string?> Peer { get; set; }
 
         /// <summary>
         /// auth-method — authentication method used to verify the remote peer's identity.
@@ -115,14 +105,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="AuthMethodType"/>
         /// </summary>
         [TikProperty("auth-method", DefaultValue = "pre-shared-key")]
-        public AuthMethodType AuthMethod { get; set; }
+        public TikValue<AuthMethodType?> AuthMethod { get; set; }
 
         /// <summary>
         /// secret — pre-shared key string used when auth-method is pre-shared-key or
         /// pre-shared-key-xauth. Leave empty for certificate-based methods.
         /// </summary>
         [TikProperty("secret", IsSensitive = true)]
-        public string? Secret { get; set; }
+        public TikValue<string?> Secret { get; set; }
 
         /// <summary>
         /// generate-policy — controls whether RouterOS automatically creates IPsec policies
@@ -131,7 +121,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="GeneratePolicyType"/>
         /// </summary>
         [TikProperty("generate-policy", DefaultValue = "no")]
-        public GeneratePolicyType GeneratePolicy { get; set; }
+        public TikValue<GeneratePolicyType?> GeneratePolicy { get; set; }
 
         /// <summary>
         /// match-by — logic used to match incoming IKE identities against this entry.
@@ -139,7 +129,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="MatchByType"/>
         /// </summary>
         [TikProperty("match-by", DefaultValue = "remote-id")]
-        public MatchByType MatchBy { get; set; }
+        public TikValue<MatchByType?> MatchBy { get; set; }
 
         /// <summary>
         /// mode-config — name of the mode-config entry (/ip/ipsec/mode-config) to use for
@@ -147,7 +137,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Leave empty to disable mode-config for this identity.
         /// </summary>
         [TikProperty("mode-config")]
-        public string? ModeConfig { get; set; }
+        public TikValue<string?> ModeConfig { get; set; }
 
         /// <summary>
         /// policy-template-group — name of the policy template group used to validate traffic
@@ -155,7 +145,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: "default"
         /// </summary>
         [TikProperty("policy-template-group", DefaultValue = "default")]
-        public string? PolicyTemplateGroup { get; set; }
+        public TikValue<string?> PolicyTemplateGroup { get; set; }
 
         /// <summary>
         /// my-id — type and value of the local identity sent to the remote peer in IKE.
@@ -163,7 +153,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="MyIdType"/>
         /// </summary>
         [TikProperty("my-id", DefaultValue = "auto")]
-        public MyIdType MyId { get; set; }
+        public TikValue<MyIdType?> MyId { get; set; }
 
         /// <summary>
         /// remote-id — expected identity type and value received from the remote peer.
@@ -171,7 +161,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="RemoteIdType"/>
         /// </summary>
         [TikProperty("remote-id", DefaultValue = "auto")]
-        public RemoteIdType RemoteId { get; set; }
+        public TikValue<RemoteIdType?> RemoteId { get; set; }
 
         /// <summary>
         /// certificate — name of a local certificate (from /certificate) used to authenticate
@@ -179,28 +169,28 @@ namespace tik4net.Objects.Ip.Ipsec
         /// or digital-signature.
         /// </summary>
         [TikProperty("certificate")]
-        public string? Certificate { get; set; }
+        public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
         /// remote-certificate — name of the certificate (from /certificate) used to authenticate
         /// the remote peer. When specified, the remote peer's certificate must match this entry.
         /// </summary>
         [TikProperty("remote-certificate")]
-        public string? RemoteCertificate { get; set; }
+        public TikValue<string?> RemoteCertificate { get; set; }
 
         /// <summary>
         /// key — name of a local RSA private key (from /ip/ipsec/key) used when auth-method
         /// is rsa-key.
         /// </summary>
         [TikProperty("key")]
-        public string? Key { get; set; }
+        public TikValue<string?> Key { get; set; }
 
         /// <summary>
         /// remote-key — name of the remote peer's RSA public key (from /ip/ipsec/key) used
         /// to verify the remote peer when auth-method is rsa-key.
         /// </summary>
         [TikProperty("remote-key")]
-        public string? RemoteKey { get; set; }
+        public TikValue<string?> RemoteKey { get; set; }
 
         /// <summary>
         /// eap-methods — comma-separated list of EAP methods accepted/offered when auth-method
@@ -208,21 +198,21 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: eap-tls
         /// </summary>
         [TikProperty("eap-methods")]
-        public string? EapMethods { get; set; }
+        public TikValue<string?> EapMethods { get; set; }
 
         /// <summary>
         /// username — XAuth or EAP account name sent to the remote peer when auth-method is
         /// pre-shared-key-xauth, rsa-signature-hybrid, eap, or eap-radius.
         /// </summary>
         [TikProperty("username")]
-        public string? Username { get; set; }
+        public TikValue<string?> Username { get; set; }
 
         /// <summary>
         /// password — XAuth or EAP credential sent to the remote peer when auth-method is
         /// pre-shared-key-xauth, rsa-signature-hybrid, eap, or eap-radius.
         /// </summary>
         [TikProperty("password", IsSensitive = true)]
-        public string? Password { get; set; }
+        public TikValue<string?> Password { get; set; }
 
         /// <summary>
         /// notrack-chain — when set, RouterOS adds /ip/firewall/raw rules to the named chain
@@ -230,20 +220,20 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Leave empty to disable.
         /// </summary>
         [TikProperty("notrack-chain")]
-        public string? NotrackChain { get; set; }
+        public TikValue<string?> NotrackChain { get; set; }
 
         /// <summary>
         /// disabled — when true this identity entry is not used to match remote peers.
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short description of the identity entry.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -252,7 +242,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// (e.g. L2TP server); false for manually configured identities.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; private set; }
+        public TikValue<bool?> Dynamic { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string ToString() => string.Format("peer={0} auth={1}", Peer, AuthMethod);

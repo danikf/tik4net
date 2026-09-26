@@ -69,14 +69,14 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void ARowCarryingNeitherName_ReadsTheDefault()
+        public void ARowCarryingNeitherName_ReadsAbsent()
         {
             var row = Service("address", "x");
             row.Remove("address");
 
             var ftp = Router("/ip/service/print", row).LoadAll<IpService>().Single();
 
-            Assert.AreEqual("", ftp.Address);
+            Assert.AreEqual(TikValueState.Absent, ftp.Address.State);
         }
 
         [TestMethod]

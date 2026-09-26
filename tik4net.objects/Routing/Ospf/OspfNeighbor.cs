@@ -36,8 +36,6 @@ namespace tik4net.Objects.Routing.Ospf
             [TikEnum("loading")] Loading,
             /// <summary>full — fully adjacent; link-state databases are synchronized.</summary>
             [TikEnum("full")] Full,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>
@@ -48,106 +46,106 @@ namespace tik4net.Objects.Routing.Ospf
         /// instance — name of the OSPF instance this neighbor belongs to.
         /// </summary>
         [TikProperty("instance", IsReadOnly = true)]
-        public string? Instance { get; private set; }
+        public TikValue<string?> Instance { get; private set; }
 
         /// <summary>
         /// area — OSPF area this neighbor was discovered in.
         /// </summary>
         [TikProperty("area", IsReadOnly = true)]
-        public string? Area { get; private set; }
+        public TikValue<string?> Area { get; private set; }
 
         /// <summary>
         /// interface — local router interface through which this neighbor is reachable.
         /// </summary>
         [TikProperty("interface", IsReadOnly = true)]
-        public string? Interface { get; private set; }
+        public TikValue<string?> Interface { get; private set; }
 
         /// <summary>
         /// address — IP address of the neighbor's interface (next-hop address).
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string?/*IP*/ Address { get; private set; }
+        public TikValue<string?> Address { get; private set; }
 
         /// <summary>
         /// router-id — OSPF router identifier of the neighbor (dotted-decimal IPv4 notation).
         /// </summary>
         [TikProperty("router-id", IsReadOnly = true)]
-        public string?/*IP*/ RouterId { get; private set; }
+        public TikValue<string?> RouterId { get; private set; }
 
         /// <summary>
         /// state — current OSPF FSM state of the neighbor relationship.
         /// </summary>
         /// <seealso cref="OspfNeighborState"/>
         [TikProperty("state", IsReadOnly = true)]
-        public OspfNeighborState State { get; private set; }
+        public TikValue<OspfNeighborState?> State { get; private set; }
 
         /// <summary>
         /// state-changes — total number of OSPF FSM state transitions for this neighbor since discovery.
         /// </summary>
         [TikProperty("state-changes", IsReadOnly = true)]
-        public int StateChanges { get; private set; }
+        public TikValue<int?> StateChanges { get; private set; }
 
         /// <summary>
         /// priority — neighbor's router priority used in DR/BDR election on multi-access networks.
         /// A value of 0 means the router is ineligible to become DR or BDR.
         /// </summary>
         [TikProperty("priority", IsReadOnly = true)]
-        public int Priority { get; private set; }
+        public TikValue<int?> Priority { get; private set; }
 
         /// <summary>
         /// dr — IP address of the Designated Router on the shared segment, as reported by this neighbor.
         /// </summary>
         [TikProperty("dr", IsReadOnly = true)]
-        public string?/*IP*/ Dr { get; private set; }
+        public TikValue<string?> Dr { get; private set; }
 
         /// <summary>
         /// bdr — IP address of the Backup Designated Router on the shared segment.
         /// </summary>
         [TikProperty("bdr", IsReadOnly = true)]
-        public string?/*IP*/ Bdr { get; private set; }
+        public TikValue<string?> Bdr { get; private set; }
 
         /// <summary>
         /// ls-retransmits — number of LSAs in the retransmission queue waiting for acknowledgment.
         /// </summary>
         [TikProperty("ls-retransmits", IsReadOnly = true)]
-        public int LsRetransmits { get; private set; }
+        public TikValue<int?> LsRetransmits { get; private set; }
 
         /// <summary>
         /// ls-requests — number of outstanding Link State Request packets still to be sent.
         /// </summary>
         [TikProperty("ls-requests", IsReadOnly = true)]
-        public int LsRequests { get; private set; }
+        public TikValue<int?> LsRequests { get; private set; }
 
         /// <summary>
         /// db-summaries — number of Database Description packets still to be sent during Exchange state.
         /// </summary>
         [TikProperty("db-summaries", IsReadOnly = true)]
-        public int DbSummaries { get; private set; }
+        public TikValue<int?> DbSummaries { get; private set; }
 
         /// <summary>
         /// adjacency — uptime of the full adjacency (available only when state=Full).
         /// </summary>
         [TikProperty("adjacency", IsReadOnly = true)]
-        public string?/*time*/ Adjacency { get; private set; }
+        public TikValue<string?> Adjacency { get; private set; }
 
         /// <summary>
         /// timeout — time remaining until this neighbor is declared dead (dead-interval countdown).
         /// </summary>
         [TikProperty("timeout", IsReadOnly = true)]
-        public string?/*time*/ Timeout { get; private set; }
+        public TikValue<string?> Timeout { get; private set; }
 
         /// <summary>
         /// dynamic — true when this neighbor entry was created dynamically by the OSPF process
         /// (as opposed to a statically configured NBMA neighbor).
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; private set; }
+        public TikValue<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// virtual — true when this is a virtual link neighbor (crossing a non-backbone area).
         /// </summary>
         [TikProperty("virtual", IsReadOnly = true)]
-        public bool Virtual { get; private set; }
+        public TikValue<bool?> Virtual { get; private set; }
 
         /// <summary>
         /// comment — optional annotation. The one writable field on this menu: <c>set</c> accepts
@@ -155,7 +153,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// <see cref="TikEntityOperations.Set"/> while every other property stays read-only.
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string ToString() => string.Format("{0} ({1}) [{2}]", RouterId, Address, State);

@@ -76,14 +76,14 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/file");
 
             var textFile = Connection.LoadAll<File>()
-                .FirstOrDefault(f => !string.IsNullOrEmpty(f.Contents)
-                                     && (f.Contents.Contains(";") || f.Contents.Contains("=")));
+                .FirstOrDefault(f => !string.IsNullOrEmpty(f.Contents.Value)
+                                     && ((f.Contents.Value ?? "").Contains(";") || (f.Contents.Value ?? "").Contains("=")));
 
             if (textFile == null)
                 Assert.Inconclusive("No file on this router exposes a text body containing ';' or '=' — "
                     + "nothing to assert the escaping against.");
 
-            Console.WriteLine($"contents of '{textFile.Name}' ({textFile.Contents.Length} chars)");
+            Console.WriteLine($"contents of '{textFile.Name}' ({(textFile.Contents.Value ?? "").Length} chars)");
 
             string host = ConfigurationManager.AppSettings["host"];
             string user = ConfigurationManager.AppSettings["user"];

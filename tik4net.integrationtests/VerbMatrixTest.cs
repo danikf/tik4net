@@ -282,7 +282,7 @@ namespace tik4net.integrationtests
             rule.ConnectionMark = null;   // back to the default → Save must emit /unset value-name=connection-mark
             Connection.Save(rule);
 
-            Assert.IsTrue(string.IsNullOrEmpty(Connection.LoadById<FirewallFilter>(rule.Id).ConnectionMark),
+            Assert.IsTrue(string.IsNullOrEmpty(Connection.LoadById<FirewallFilter>(rule.Id).ConnectionMark.Value),
                 "Save() of a defaulted UnsetOnDefault property left the value on the router");
         }
 

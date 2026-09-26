@@ -16,35 +16,35 @@ namespace tik4net.Objects.Ip
         /// specifies whether to allow network requests
         /// </summary>
         [TikProperty("allow-remote-requests", DefaultValue = "no")]
-        public bool? AllowRemoteRequests { get; set; }
+        public TikValue<bool?> AllowRemoteRequests { get; set; }
 
         /// <summary>
         /// cache-max-ttl
         /// specifies maximum time-to-live for cache records. In other words, cache records will expire unconditionally after cache-max-ttl time. Shorter TTL received from DNS servers are respected
         /// </summary>
         [TikProperty("cache-max-ttl", DefaultValue = "1w")]
-        public TikDuration? CacheMaxTtl { get; set; }
+        public TikValue<TikDuration?> CacheMaxTtl { get; set; }
 
         /// <summary>
         /// cache-size
         /// specifies the size of DNS cache in KiB
         /// </summary>
         [TikProperty("cache-size", DefaultValue = "2048")]
-        public string?/*integer: 512..10240*/ CacheSize { get; set; }
+        public TikValue<string?> CacheSize { get; set; }
 
         /// <summary>
         /// cache-used
         /// displays the current cache size in KiB
         /// </summary>
         [TikProperty("cache-used", IsReadOnly = true)]
-        public string?/*read-only: integer*/ CacheUsed { get; private set; }
+        public TikValue<string?> CacheUsed { get; private set; }
 
         /// <summary>
         /// servers
         /// comma separated list of DNS server IP addresses
         /// </summary>
         [TikProperty("servers", DefaultValue = "0.0.0.0")]
-        public string?/*IPv4/IPv6 address list*/ Servers { get; set; }
+        public TikValue<string?> Servers { get; set; }
     }
 
 }

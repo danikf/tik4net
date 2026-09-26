@@ -34,7 +34,7 @@ namespace tik4net.integrationtests
             var loaded = Connection.LoadById<InterfaceList>(entity.Id);
             Assert.IsNotNull(loaded);
             Assert.AreEqual(marker, loaded.Comment);
-            Assert.IsFalse(loaded.Builtin);
+            Assert.IsFalse(loaded.Builtin.GetValueOrDefault());
 
             Connection.Delete(loaded);
         }
@@ -63,7 +63,7 @@ namespace tik4net.integrationtests
             SaveTracked(parentList);
             try
             {
-                string interfaceName = Connection.LoadAll<tik4net.Objects.Interface.Interface>().First().Name;
+                string interfaceName = Connection.LoadAll<tik4net.Objects.Interface.Interface>().First().Name.Value;
                 string marker = Guid.NewGuid().ToString();
                 var member = new InterfaceListMember
                 {

@@ -794,7 +794,7 @@ namespace tik4net.integrationtests
                 using (var apiConn2 = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
                 {
                     var ether1 = apiConn2.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1");
-                    string originalComment = ether1?.Comment ?? "";
+                    string originalComment = ether1?.Comment.Value ?? "";
                     Console.WriteLine($"ether1 original comment (API): '{originalComment}'");
 
                     // Set comment via API as reference
@@ -862,7 +862,7 @@ namespace tik4net.integrationtests
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
                 {
                     var ether1 = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1");
-                    originalComment = ether1?.Comment ?? "";
+                    originalComment = ether1?.Comment.Value ?? "";
                     Console.WriteLine($"ether1 original comment: '{originalComment}'");
                 }
 
@@ -1474,7 +1474,7 @@ namespace tik4net.integrationtests
                     Console.WriteLine("API interfaces:");
                     foreach (var i in ifaces)
                         Console.WriteLine($"  .id={i.Id} name={i.Name} comment={i.Comment}");
-                    origComment = ifaces.FirstOrDefault(i => i.Name == "ether1")?.Comment ?? "My comment";
+                    origComment = ifaces.FirstOrDefault(i => i.Name == "ether1")?.Comment.Value ?? "My comment";
                 }
                 Console.WriteLine($"Original comment: '{origComment}'");
 
@@ -1782,7 +1782,7 @@ namespace tik4net.integrationtests
                 // Step 3: Read original comment via API
                 string origComment;
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
-                    origComment = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment ?? "";
+                    origComment = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment.Value ?? "";
                 Console.WriteLine($"Original comment: '{origComment}'");
 
                 // Step 4: Set comment via native M2 cmd=2 + .id + key=0xFE0009
@@ -1825,7 +1825,7 @@ namespace tik4net.integrationtests
                 // Verify restoration
                 string finalComment;
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
-                    finalComment = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment ?? "";
+                    finalComment = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment.Value ?? "";
                 Console.WriteLine($"Final comment after restore: '{finalComment}'");
                 Assert.AreEqual(origComment, finalComment, "Comment should be restored to original");
 
@@ -2012,7 +2012,7 @@ namespace tik4net.integrationtests
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
                 {
                     var eth = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1");
-                    origComment = eth?.Comment ?? "My comment";
+                    origComment = eth?.Comment.Value ?? "My comment";
                     Console.WriteLine($"ether1 original comment: '{origComment}'");
                 }
 
@@ -2093,7 +2093,7 @@ namespace tik4net.integrationtests
 
                 string origComment;
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
-                    origComment = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment ?? "My comment";
+                    origComment = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment.Value ?? "My comment";
                 Console.WriteLine($"Original comment: '{origComment}'");
 
                 const string probe = "m2-set-probe";
@@ -2156,7 +2156,7 @@ namespace tik4net.integrationtests
                         // Verify restoration
                         string restored;
                         using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
-                            restored = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment ?? "";
+                            restored = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment.Value ?? "";
                         Console.WriteLine($"Restored to: '{restored}'");
                         return;
                     }
@@ -2342,7 +2342,7 @@ namespace tik4net.integrationtests
 
                 string origComment;
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
-                    origComment = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment ?? "My comment";
+                    origComment = api.LoadAll<Interface>().FirstOrDefault(i => i.Name == "ether1")?.Comment.Value ?? "My comment";
                 Console.WriteLine($"Original comment: '{origComment}'");
 
                 const string probe = "m2-type-probe";

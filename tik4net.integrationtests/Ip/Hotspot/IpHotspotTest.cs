@@ -36,7 +36,7 @@ namespace tik4net.integrationtests
             var user = new HotspotUser()
             {
                 Name = "TEST_" + Guid.NewGuid().ToString("N").Substring(0, 8),
-                LimitUptime = "1:00:00",
+                LimitUptime = (TikDuration)"1:00:00",
                 Password = "secretpass",
             };
 
@@ -53,7 +53,7 @@ namespace tik4net.integrationtests
             var user = new HotspotUser()
             {
                 Name = "TEST_" + Guid.NewGuid().ToString("N").Substring(0, 8),
-                LimitUptime = "1:00:00",
+                LimitUptime = (TikDuration)"1:00:00",
                 Password = "secretpass",
             };
             SaveTracked(user);
@@ -87,7 +87,7 @@ namespace tik4net.integrationtests
             {
                 Name = "User for " + profileName,
                 Profile = profileName,
-                LimitUptime = "1:00:00",
+                LimitUptime = (TikDuration)"1:00:00",
             };
             SaveTracked(user);
 

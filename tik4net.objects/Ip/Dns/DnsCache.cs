@@ -22,21 +22,21 @@ namespace tik4net.Objects.Ip.Dns
         /// IP address of the host
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string?/*read-only: IP address*/ Address { get; private set; }
+        public TikValue<string?> Address { get; private set; }
 
         /// <summary>
         /// name
         /// DNS name of the host
         /// </summary>
-        [TikProperty("name", IsMandatory = true, IsReadOnly = true)]
-        public string?/*read-only: name*/ Name { get; private set; }
+        [TikProperty("name", IsReadOnly = true)]
+        public TikValue<string?> Name { get; private set; }
 
         /// <summary>
         /// ttl
         /// remaining time-to-live for the record
         /// </summary>
         [TikProperty("ttl", IsReadOnly = true)]
-        public string?/*read-only: time*/ Ttl { get; private set; }
+        public TikValue<string?> Ttl { get; private set; }
 
         /// <summary>
         /// clears internal DNS cache 

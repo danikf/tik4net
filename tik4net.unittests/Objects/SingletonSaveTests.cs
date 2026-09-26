@@ -71,16 +71,18 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void ASingletonNeverLoaded_StillSendsEveryFieldItHolds()
+        public void ASingletonNeverLoaded_SendsWhatTheCallerAssigned()
         {
-            // Nothing is known about the router's state, so everything the caller's object holds is sent, as before.
+            // Nothing is known about the router's state, so everything the caller's object holds is sent - and a
+            // TikValue property the caller did not assign holds nothing (Absent), so it is not sent at all.
             var connection = RouterOs6Email();
 
-            connection.Save(new ToolEmail { Server = "192.0.2.25" });
+            connection.Save(new ToolEmail { Server = "192.0.2.25", Port = 587 });
 
             var set = TheSet(connection);
             CollectionAssert.Contains(set, "=server=192.0.2.25");
-            Assert.IsTrue(set.Any(w => w.StartsWith("=tls=")), "the other fields it holds go too (tls is non-nullable)");
+            CollectionAssert.Contains(set, "=port=587");
+            Assert.IsFalse(set.Any(w => w.StartsWith("=tls=")), "an unassigned field is not sent");
         }
     }
 }

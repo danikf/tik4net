@@ -25,8 +25,6 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("on-capsman")] OnCapsman,
             /// <summary>on-capsman-secure — forward traffic to CAPsMAN over an encrypted tunnel.</summary>
             [TikEnum("on-capsman-secure")] OnCapsmanSecure,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────
@@ -41,8 +39,8 @@ namespace tik4net.Objects.Interface.Wifi
         /// name — unique name for this datapath profile.
         /// WinBox: "Name"
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string? Name { get; set; }
+        [TikProperty("name")]
+        public TikValue<string?> Name { get; set; }
 
         // ── Bridge settings ───────────────────────────────────────────────────
 
@@ -53,7 +51,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Bridge"
         /// </summary>
         [TikProperty("bridge")]
-        public string? Bridge { get; set; }
+        public TikValue<string?> Bridge { get; set; }
 
         /// <summary>
         /// bridge-cost — STP path cost assigned when adding the interface as a bridge port (1..65535).
@@ -62,7 +60,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Bridge Cost"
         /// </summary>
         [TikProperty("bridge-cost", DefaultValue = "0")]
-        public int BridgeCost { get; set; }
+        public TikValue<int?> BridgeCost { get; set; }
 
         /// <summary>
         /// bridge-horizon — bridge horizon for split-horizon bridging; "none" disables it.
@@ -71,7 +69,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Bridge Horizon"
         /// </summary>
         [TikProperty("bridge-horizon", DefaultValue = "none")]
-        public string?/*integer|none*/ BridgeHorizon { get; set; }
+        public TikValue<string?> BridgeHorizon { get; set; }
 
         // ── Client settings ───────────────────────────────────────────────────
 
@@ -82,7 +80,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Client Isolation"
         /// </summary>
         [TikProperty("client-isolation", DefaultValue = "no")]
-        public bool? ClientIsolation { get; set; }
+        public TikValue<bool?> ClientIsolation { get; set; }
 
         // ── Interface / VLAN ──────────────────────────────────────────────────
 
@@ -91,7 +89,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Interface List"
         /// </summary>
         [TikProperty("interface-list")]
-        public string? InterfaceList { get; set; }
+        public TikValue<string?> InterfaceList { get; set; }
 
         /// <summary>
         /// vlan-id — default VLAN ID (1..4095) to assign to clients connecting to this AP,
@@ -100,7 +98,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "VLAN ID"
         /// </summary>
         [TikProperty("vlan-id", DefaultValue = "none")]
-        public string?/*1..4095|none*/ VlanId { get; set; }
+        public TikValue<string?> VlanId { get; set; }
 
         // ── OpenFlow ──────────────────────────────────────────────────────────
 
@@ -110,7 +108,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "OpenFlow Switch"
         /// </summary>
         [TikProperty("openflow-switch")]
-        public string? OpenflowSwitch { get; set; }
+        public TikValue<string?> OpenflowSwitch { get; set; }
 
         // ── CAPsMAN ───────────────────────────────────────────────────────────
 
@@ -122,7 +120,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Traffic Processing"
         /// </summary>
         [TikProperty("traffic-processing", DefaultValue = "on-cap")]
-        public TrafficProcessingMode TrafficProcessing { get; set; }
+        public TikValue<TrafficProcessingMode?> TrafficProcessing { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -132,16 +130,16 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string? ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 }

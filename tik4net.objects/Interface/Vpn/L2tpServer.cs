@@ -26,8 +26,6 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("l2tpv2")] L2tpv2,
             /// <summary>l2tpv3 — accept only L2TPv3 connections.</summary>
             [TikEnum("l2tpv3")] L2tpv3,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Accepted pseudowire types for <see cref="AcceptPseudowireType"/>.</summary>
@@ -39,8 +37,6 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("ether")] Ether,
             /// <summary>ppp — accept PPP pseudowires only.</summary>
             [TikEnum("ppp")] Ppp,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Caller ID identification method for <see cref="CallerIdType"/>.</summary>
@@ -50,8 +46,6 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("ip-address")] IpAddress,
             /// <summary>number — identify caller by tunnel ID number.</summary>
             [TikEnum("number")] Number,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>L2TPv3 cookie length for <see cref="L2tpv3CookieLength"/>.</summary>
@@ -63,8 +57,6 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("4-bytes")] FourBytes,
             /// <summary>8-bytes — 8-byte cookie.</summary>
             [TikEnum("8-bytes")] EightBytes,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>L2TPv3 digest hash algorithm for <see cref="L2tpv3DigestHash"/>.</summary>
@@ -76,8 +68,6 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("none")] None,
             /// <summary>sha1 — use SHA1 hash for L2TPv3 control channel.</summary>
             [TikEnum("sha1")] Sha1,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>IPSec usage mode for <see cref="UseIpsec"/>.</summary>
@@ -89,8 +79,6 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("yes")] Yes,
             /// <summary>required — only IPSec-wrapped connections are accepted.</summary>
             [TikEnum("required")] Require,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ---- Writable properties ----
@@ -101,7 +89,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <seealso cref="AcceptProtoVersionType"/>
         /// </summary>
         [TikProperty("accept-proto-version", DefaultValue = "all")]
-        public AcceptProtoVersionType AcceptProtoVersion { get; set; }
+        public TikValue<AcceptProtoVersionType?> AcceptProtoVersion { get; set; }
 
         /// <summary>
         /// accept-pseudowire-type — pseudowire signaling type(s) the server accepts.
@@ -109,14 +97,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// <seealso cref="AcceptPseudowireTypeValue"/>
         /// </summary>
         [TikProperty("accept-pseudowire-type", DefaultValue = "all")]
-        public AcceptPseudowireTypeValue AcceptPseudowireType { get; set; }
+        public TikValue<AcceptPseudowireTypeValue?> AcceptPseudowireType { get; set; }
 
         /// <summary>
         /// allow-fast-path — when <c>true</c>, enables kernel fast-path packet forwarding bypass.
         /// Default: no
         /// </summary>
         [TikProperty("allow-fast-path", DefaultValue = "no")]
-        public bool? AllowFastPath { get; set; }
+        public TikValue<bool?> AllowFastPath { get; set; }
 
         /// <summary>
         /// authentication — comma-separated list of authentication protocols the server accepts.
@@ -124,7 +112,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: mschap1,mschap2
         /// </summary>
         [TikProperty("authentication", DefaultValue = "mschap1,mschap2")]
-        public string? Authentication { get; set; }
+        public TikValue<string?> Authentication { get; set; }
 
         /// <summary>
         /// caller-id-type — how connected clients are identified when multiple share the same source IP.
@@ -132,28 +120,28 @@ namespace tik4net.Objects.Interface.Vpn
         /// <seealso cref="CallerIdTypeValue"/>
         /// </summary>
         [TikProperty("caller-id-type", DefaultValue = "ip-address")]
-        public CallerIdTypeValue CallerIdType { get; set; }
+        public TikValue<CallerIdTypeValue?> CallerIdType { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new L2TP sessions.
         /// Default: default-encryption
         /// </summary>
         [TikProperty("default-profile", DefaultValue = "default-encryption")]
-        public string? DefaultProfile { get; set; }
+        public TikValue<string?> DefaultProfile { get; set; }
 
         /// <summary>
         /// enabled — when <c>true</c> the L2TP server accepts incoming connections.
         /// Default: no
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool? Enabled { get; set; }
+        public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>
         /// ipsec-secret — pre-shared key used for IPSec encryption when <see cref="UseIpsec"/> is enabled.
         /// Leave empty to disable PSK-based IPSec.
         /// </summary>
         [TikProperty("ipsec-secret", IsSensitive = true)]
-        public string? IpsecSecret { get; set; }
+        public TikValue<string?> IpsecSecret { get; set; }
 
         /// <summary>
         /// keepalive-timeout — inactivity timeout in seconds before a client is considered disconnected.
@@ -161,13 +149,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 30; omitted on add when left 0
         [TikProperty("keepalive-timeout")]
-        public int KeepaliveTimeout { get; set; }
+        public TikValue<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// l2tpv3-circuit-id — virtual circuit identifier sent in L2TPv3 control channel AVPs.
         /// </summary>
         [TikProperty("l2tpv3-circuit-id")]
-        public string? L2tpv3CircuitId { get; set; }
+        public TikValue<string?> L2tpv3CircuitId { get; set; }
 
         /// <summary>
         /// l2tpv3-cookie-length — session cookie size for L2TPv3 pseudowires.
@@ -175,7 +163,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <seealso cref="L2tpv3CookieLengthType"/>
         /// </summary>
         [TikProperty("l2tpv3-cookie-length", DefaultValue = "0")]
-        public L2tpv3CookieLengthType L2tpv3CookieLength { get; set; }
+        public TikValue<L2tpv3CookieLengthType?> L2tpv3CookieLength { get; set; }
 
         /// <summary>
         /// l2tpv3-digest-hash — hash algorithm used for L2TPv3 control channel message authentication.
@@ -183,13 +171,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// <seealso cref="L2tpv3DigestHashType"/>
         /// </summary>
         [TikProperty("l2tpv3-digest-hash", DefaultValue = "md5")]
-        public L2tpv3DigestHashType L2tpv3DigestHash { get; set; }
+        public TikValue<L2tpv3DigestHashType?> L2tpv3DigestHash { get; set; }
 
         /// <summary>
         /// l2tpv3-ether-interface-list — interface list whose members are bridged via L2TPv3 Ethernet pseudowires.
         /// </summary>
         [TikProperty("l2tpv3-ether-interface-list")]
-        public string? L2tpv3EtherInterfaceList { get; set; }
+        public TikValue<string?> L2tpv3EtherInterfaceList { get; set; }
 
         /// <summary>
         /// max-mru — maximum receive unit for L2TP tunnel interfaces in bytes.
@@ -197,7 +185,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mru")]
-        public int MaxMru { get; set; }
+        public TikValue<int?> MaxMru { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmit unit for L2TP tunnel interfaces in bytes.
@@ -205,7 +193,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mtu")]
-        public int MaxMtu { get; set; }
+        public TikValue<int?> MaxMtu { get; set; }
 
         /// <summary>
         /// max-sessions — maximum number of concurrent L2TP sessions.
@@ -213,7 +201,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: unlimited
         /// </summary>
         [TikProperty("max-sessions", DefaultValue = "unlimited")]
-        public string?/*integer or "unlimited"*/ MaxSessions { get; set; }
+        public TikValue<string?> MaxSessions { get; set; }
 
         /// <summary>
         /// mrru — maximum reconstructed receive unit across multi-link PPP tunnel links, in bytes.
@@ -221,14 +209,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled")]
-        public string?/*integer or "disabled"*/ Mrru { get; set; }
+        public TikValue<string?> Mrru { get; set; }
 
         /// <summary>
         /// one-session-per-host — when <c>true</c>, each remote host is limited to a single active L2TP session.
         /// Default: no
         /// </summary>
         [TikProperty("one-session-per-host", DefaultValue = "no")]
-        public bool? OneSessionPerHost { get; set; }
+        public TikValue<bool?> OneSessionPerHost { get; set; }
 
         /// <summary>
         /// use-ipsec — controls IPSec encapsulation for L2TP tunnels.
@@ -237,7 +225,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <seealso cref="UseIpsecType"/>
         /// </summary>
         [TikProperty("use-ipsec", DefaultValue = "no")]
-        public UseIpsecType UseIpsec { get; set; }
+        public TikValue<UseIpsecType?> UseIpsec { get; set; }
 
         /// <summary>Human-readable summary of the L2TP server configuration.</summary>
         public override string ToString() => string.Format("l2tp-server enabled={0} use-ipsec={1} max-sessions={2}", Enabled, UseIpsec, MaxSessions);

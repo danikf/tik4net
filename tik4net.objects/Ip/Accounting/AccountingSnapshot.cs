@@ -29,37 +29,37 @@ namespace tik4net.Objects.Ip
         /// bytes: total number of bytes, matched by this entry
         /// </summary>
         [TikProperty("bytes", IsReadOnly = true)]
-        public int Bytes { get; private set; }
+        public TikValue<int?> Bytes { get; private set; }
 
         /// <summary>
         /// dst-address: destination IP address
         /// </summary>
         [TikProperty("dst-address", IsReadOnly = true)]
-        public string? DstAddress { get; private set; }
+        public TikValue<string?> DstAddress { get; private set; }
 
         /// <summary>
         /// dst-user: recipient's name (if applicable)
         /// </summary>
         [TikProperty("dst-user", IsReadOnly = true)]
-        public string? DstUser { get; private set; }
+        public TikValue<string?> DstUser { get; private set; }
 
         /// <summary>
         /// packets: total number of packets, matched by this entry
         /// </summary>
         [TikProperty("packets", IsReadOnly = true)]
-        public int Packets { get; private set; }
+        public TikValue<int?> Packets { get; private set; }
 
         /// <summary>
         /// src-address: source IP address
         /// </summary>
         [TikProperty("src-address", IsReadOnly = true)]
-        public string? SrcAddress { get; private set; }
+        public TikValue<string?> SrcAddress { get; private set; }
 
         /// <summary>
         /// src-user: sender's name (if aplicable)
         /// </summary>
         [TikProperty("src-user", IsReadOnly = true)]
-        public string? SrcUser { get; private set; }
+        public TikValue<string?> SrcUser { get; private set; }
 
         /// <summary>
         /// Take new snapshot

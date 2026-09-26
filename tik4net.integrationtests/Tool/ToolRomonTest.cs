@@ -47,7 +47,7 @@ namespace tik4net.integrationtests
             Assert.AreEqual(neighbours.Count, neighbours.Select(n => n.Address).Distinct().Count());
             foreach (var n in neighbours)
             {
-                Assert.IsFalse(string.IsNullOrEmpty(n.Address), "a neighbour without its RoMON id");
+                Assert.IsFalse(string.IsNullOrEmpty(n.Address.Value), "a neighbour without its RoMON id");
                 Assert.IsTrue(n.Hops >= 1, "hops=" + n.Hops);
             }
         }
@@ -70,10 +70,10 @@ namespace tik4net.integrationtests
             if (neighbour == null)
                 Assert.Inconclusive("The test router has no RoMON neighbour — the lab needs a second RoMON-enabled router on its segment.");
 
-            var rows = Connection.RomonPing(neighbour.Address, 2).ToList();
+            var rows = Connection.RomonPing(neighbour.Address.Value, 2).ToList();
             Assert.AreEqual(2, rows.Count);
             Assert.IsTrue(rows.Any(r => r.Time != null), "no echo was answered: " + string.Join(" | ", rows));
-            Assert.IsTrue(rows.All(r => string.Equals(r.Host, neighbour.Address, StringComparison.OrdinalIgnoreCase)),
+            Assert.IsTrue(rows.All(r => string.Equals(r.Host.Value, neighbour.Address.Value, StringComparison.OrdinalIgnoreCase)),
                 "hosts: " + string.Join(", ", rows.Select(r => r.Host)));
         }
 

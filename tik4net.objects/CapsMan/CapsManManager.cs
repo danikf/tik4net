@@ -27,8 +27,6 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("require-same-version")] RequireSameVersion,
             /// <summary>suggest-same-version — recommend that CAPs upgrade to the same RouterOS version, but allow provisioning even if upgrade fails.</summary>
             [TikEnum("suggest-same-version")] SuggestSameVersion,
-            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Writable properties ───────────────────────────────────────────────
@@ -38,7 +36,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool? Enabled { get; set; }
+        public TikValue<bool?> Enabled { get; set; }
 
         /// <summary>
         /// certificate — name of the device certificate used for DTLS-secured CAP connections,
@@ -46,7 +44,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: none.
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none")]
-        public string? Certificate { get; set; }
+        public TikValue<string?> Certificate { get; set; }
 
         /// <summary>
         /// ca-certificate — name of the CA certificate used to validate connecting CAPs,
@@ -54,7 +52,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: none.
         /// </summary>
         [TikProperty("ca-certificate", DefaultValue = "none")]
-        public string? CaCertificate { get; set; }
+        public TikValue<string?> CaCertificate { get; set; }
 
         /// <summary>
         /// require-peer-certificate — when true, all connecting CAPs must present a valid
@@ -62,7 +60,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("require-peer-certificate", DefaultValue = "no")]
-        public bool? RequirePeerCertificate { get; set; }
+        public TikValue<bool?> RequirePeerCertificate { get; set; }
 
         /// <summary>
         /// package-path — folder path on this router from which RouterOS upgrade packages
@@ -71,7 +69,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: "" (empty — use built-in packages).
         /// </summary>
         [TikProperty("package-path", DefaultValue = "")]
-        public string? PackagePath { get; set; }
+        public TikValue<string?> PackagePath { get; set; }
 
         /// <summary>
         /// upgrade-policy — determines how CAPsMAN handles RouterOS version mismatches
@@ -80,7 +78,7 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="UpgradePolicyType"/>
         /// </summary>
         [TikProperty("upgrade-policy", DefaultValue = "none")]
-        public UpgradePolicyType UpgradePolicy { get; set; }
+        public TikValue<UpgradePolicyType?> UpgradePolicy { get; set; }
 
         /// <summary>Human-readable summary of the CAPsMAN manager state.</summary>
         public override string ToString() => string.Format("enabled={0} upgrade-policy={1}", Enabled, UpgradePolicy);

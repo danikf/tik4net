@@ -24,7 +24,7 @@ namespace tik4net.integrationtests
         {
             EnsureCommandAvailable("/tool/e-mail");
             var email = Connection.LoadSingle<ToolEmail>();
-            string original = email.Server;
+            string original = email.Server.Value;
             try
             {
                 email.Server = "192.0.2.25";

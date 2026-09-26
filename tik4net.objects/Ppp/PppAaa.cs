@@ -16,18 +16,18 @@ namespace tik4net.Objects.Ppp
         /// accounting: Enable RADIUS accounting
         /// </summary>
         [TikProperty("accounting", DefaultValue = "yes")]
-        public bool? Accounting { get; set; }
+        public TikValue<bool?> Accounting { get; set; }
 
         /// <summary>
         /// interim-update: Interim-Update time interval
         /// </summary>
         [TikProperty("interim-update", DefaultValue = "0s")]
-        public TikDuration? InterimUpdate { get; set; }
+        public TikValue<TikDuration?> InterimUpdate { get; set; }
 
         /// <summary>
         /// use-radius: Enable user authentication via RADIUS. If entry in local secret database is not found, then client will be authenticated via RADIUS.
         /// </summary>
         [TikProperty("use-radius", DefaultValue = "no")]
-        public bool? UseRadius { get; set; }
+        public TikValue<bool?> UseRadius { get; set; }
     }
 }

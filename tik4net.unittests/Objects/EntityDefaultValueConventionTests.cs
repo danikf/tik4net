@@ -64,7 +64,7 @@ namespace tik4net.unittests.Objects
             var offenders = new List<string>();
 
             foreach (var group in Properties()
-                .Where(x => numeric.Contains(x.Property.PropertyType) && x.Attribute.DefaultValue != null)
+                .Where(x => numeric.Contains(MappedPropertyType.Of(x.Property)) && x.Attribute.DefaultValue != null)
                 .GroupBy(x => x.Entity))
             {
                 object fresh;
@@ -94,7 +94,7 @@ namespace tik4net.unittests.Objects
             // therefore matches nothing: the field is force-sent on every add and set, which also gives the
             // native WinBox transport an M2 key to resolve for a field nobody asked to write.
             var offenders = Properties()
-                .Where(x => x.Property.PropertyType == typeof(bool) || x.Property.PropertyType == typeof(bool?))
+                .Where(x => MappedPropertyType.Of(x.Property) == typeof(bool) || MappedPropertyType.Of(x.Property) == typeof(bool?))
                 .Where(x => x.Attribute.DefaultValue != null
                          && x.Attribute.DefaultValue != "no" && x.Attribute.DefaultValue != "yes")
                 .Select(x => $"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') "
@@ -115,7 +115,7 @@ namespace tik4net.unittests.Objects
             // whichever value it holds, one of the three is misread, and no DefaultValue can rescue it (A10
             // measured both ways round). Read-only properties are exempt: nothing is ever sent from them.
             var offenders = Properties()
-                .Where(x => x.Property.PropertyType == typeof(bool))
+                .Where(x => MappedPropertyType.Of(x.Property) == typeof(bool))
                 .Where(x => !x.Attribute.IsReadOnly && x.Property.SetMethod != null && x.Property.SetMethod.IsPublic)
                 .Select(x => $"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}')")
                 .OrderBy(s => s)
@@ -144,10 +144,10 @@ namespace tik4net.unittests.Objects
 
             foreach (var x in Properties())
             {
-                var valueType = Nullable.GetUnderlyingType(x.Property.PropertyType) ?? x.Property.PropertyType;
+                var valueType = Nullable.GetUnderlyingType(MappedPropertyType.Of(x.Property)) ?? MappedPropertyType.Of(x.Property);
                 if (!valueType.IsEnum || x.Attribute.DefaultValue == null)
                     continue;
-                if (valueType != x.Property.PropertyType)
+                if (valueType != MappedPropertyType.Of(x.Property))
                     continue;   // nullable: untouched is null, so the zero member never reaches the router
 
                 string expected = WireNameOfDefaultMember(valueType);

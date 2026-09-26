@@ -55,7 +55,7 @@ namespace tik4net.integrationtests
             {
                 Assert.IsNotNull(created, "Generated key was not found in /ip/ipsec/key/rsa table.");
                 Assert.AreEqual("2048", created.KeySize);
-                Assert.IsTrue(created.PrivateKey, "Locally generated key should have private-key=true.");
+                Assert.IsTrue(created.PrivateKey.GetValueOrDefault(), "Locally generated key should have private-key=true.");
             }
             finally
             {

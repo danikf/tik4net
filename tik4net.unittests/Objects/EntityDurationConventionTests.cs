@@ -150,7 +150,7 @@ namespace tik4net.unittests.Objects
             // itself between the API and a CLI transport, so a caller diffing two loads sees phantom changes
             // and Save writes fields nobody touched.
             var offenders = Properties()
-                .Where(x => x.Property.PropertyType == typeof(string))
+                .Where(x => MappedPropertyType.Of(x.Property) == typeof(string))
                 .Where(x => DurationSuffixes.Any(s => x.Attribute.FieldName.EndsWith(s, StringComparison.Ordinal)))
                 .Where(x => !Listed(NotDurations, x.Entity, x.Attribute.FieldName))
                 .Where(x => !Listed(PendingTikDuration, x.Entity, x.Attribute.FieldName))
@@ -181,8 +181,8 @@ namespace tik4net.unittests.Objects
 
                     if (match.Property == null)
                         stale.Add($"{kv.Key}.\"{wire}\" — no such mapped field any more");
-                    else if (match.Property.PropertyType != typeof(string))
-                        stale.Add($"{kv.Key}.{match.Property.Name} — now {match.Property.PropertyType.Name}, "
+                    else if (MappedPropertyType.Of(match.Property) != typeof(string))
+                        stale.Add($"{kv.Key}.{match.Property.Name} — now {MappedPropertyType.Of(match.Property).Name}, "
                                   + "delete it from PendingTikDuration");
                 }
 

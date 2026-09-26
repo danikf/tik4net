@@ -15,7 +15,7 @@ namespace tik4net.Objects.System
 		/// <summary>
 		/// Gets or sets the name of the system.
 		/// </summary>
-		[TikProperty("name", IsMandatory = true)]
-		public string? Name { get; set; }
+		[TikProperty("name")]
+		public TikValue<string?> Name { get; set; }
 	}
 }

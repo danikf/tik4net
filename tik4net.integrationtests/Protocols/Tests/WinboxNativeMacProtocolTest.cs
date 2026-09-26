@@ -79,7 +79,7 @@ namespace tik4net.integrationtests
 
             string original;
             using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
-                original = api.LoadAll<Interface>().FirstOrDefault(i => i.DefaultName == "ether1")?.Comment ?? "";
+                original = api.LoadAll<Interface>().FirstOrDefault(i => i.DefaultName == "ether1")?.Comment.Value ?? "";
             Console.WriteLine($"Original: '{original}'");
 
             const string testComment = "tik4net-winboxnativemac-test";
@@ -111,7 +111,7 @@ namespace tik4net.integrationtests
 
             string original;
             using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
-                original = api.LoadAll<Interface>().FirstOrDefault(i => i.DefaultName == "ether1")?.Comment ?? "";
+                original = api.LoadAll<Interface>().FirstOrDefault(i => i.DefaultName == "ether1")?.Comment.Value ?? "";
 
             const string testComment = "tik4net-winboxnativemac-safemode";
             using (var conn = OpenWinboxNativeMacConnection())

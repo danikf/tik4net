@@ -106,7 +106,7 @@ namespace tik4net.integrationtests
             string version;
             using (var api = Open(TikConnectionType.Api, romonTarget))
             {
-                version = api.LoadSingle<tik4net.Objects.System.SystemResource>().Version ?? "?";
+                version = api.LoadSingle<tik4net.Objects.System.SystemResource>().Version.Value ?? "?";
                 foreach (var (type, _) in entities)
                     apiRows[type] = Load(api, type);
             }

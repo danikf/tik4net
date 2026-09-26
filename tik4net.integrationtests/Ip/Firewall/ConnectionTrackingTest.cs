@@ -38,11 +38,11 @@ namespace tik4net.integrationtests
 
             // RouterOS defaults, and they are durations rather than words on every box: if the transport's
             // spelling had not been understood these would be null (unparsed) instead.
-            AssertIsRealDuration(tracking.TcpEstablishedTimeout, nameof(tracking.TcpEstablishedTimeout));
-            AssertIsRealDuration(tracking.TcpSynSentTimeout, nameof(tracking.TcpSynSentTimeout));
-            AssertIsRealDuration(tracking.UdpTimeout, nameof(tracking.UdpTimeout));
-            AssertIsRealDuration(tracking.IcmpTimeout, nameof(tracking.IcmpTimeout));
-            AssertIsRealDuration(tracking.GenericTimeout, nameof(tracking.GenericTimeout));
+            AssertIsRealDuration(tracking.TcpEstablishedTimeout.Value, nameof(tracking.TcpEstablishedTimeout));
+            AssertIsRealDuration(tracking.TcpSynSentTimeout.Value, nameof(tracking.TcpSynSentTimeout));
+            AssertIsRealDuration(tracking.UdpTimeout.Value, nameof(tracking.UdpTimeout));
+            AssertIsRealDuration(tracking.IcmpTimeout.Value, nameof(tracking.IcmpTimeout));
+            AssertIsRealDuration(tracking.GenericTimeout.Value, nameof(tracking.GenericTimeout));
 
             // Pinned because it is the field whose two spellings differ most: '1d' vs '1d00:00:00'. A
             // transport that read only one of them would land somewhere else entirely.
