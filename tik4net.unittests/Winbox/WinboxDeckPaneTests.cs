@@ -61,6 +61,33 @@ namespace tik4net.unittests.Winbox
             return rec;
         }
 
+        // roteros.jg Mangle [20,7] (7.21), cut to three actions. Passthrough is declared in the mark-packet pane and
+        // listed in the mark-connection pane as an alias - the same field, shown for both kinds.
+        private const string MangleWindow =
+            "[{name:'Mangle',type:'map',path:[ 20,7 ],c:[" +
+            "{name:'Chain',type:'string',id:'s27'}," +
+            "{name:'Action',type:'enm',id:'u28',values:{type:'static',map:{1:'jump',30:'mark packet',31:'mark connection'}}}," +
+            "{type:'deck',panes:[" +
+              "{vals:[ 1 ],c:[{name:'Jump Target',type:'string',id:'s29'}]}," +
+              "{vals:[ 30 ],c:[{name:'New Packet Mark',type:'string',id:'s3e9'},{name:'Passthrough',type:'bool',id:'b3f1',def:1}]}," +
+              "{vals:[ 31 ],c:[{name:'New Connection Mark',type:'string',id:'s3ec'},{name:'Passthrough',type:'alias'}]}]," +
+              "selon:'Action'}]}]";
+
+        [TestMethod]
+        public void AFieldAnotherPaneAliases_IsKeptOnThatPanesRows()
+        {
+            // The router sends passthrough on a mark-connection rule (measured on 7.24: 0x3F1=bool:False), and the API
+            // prints it. Counted as mark-packet's alone, it was dropped as another kind's field.
+            var catalog = Parse(MangleWindow);
+            var markConnection = Decode(catalog, "/ip/firewall/mangle", new[] { 20, 7 },
+                Rec((0x28, "u32", 31L), (0x3F1, "bool", false), (0x3EC, "string", "c1")));
+            var jump = Decode(catalog, "/ip/firewall/mangle", new[] { 20, 7 },
+                Rec((0x28, "u32", 1L), (0x3F1, "bool", true), (0x29, "string", "t")));
+
+            Assert.AreEqual("false", markConnection["passthrough"]);
+            Assert.IsFalse(jump.ContainsKey("passthrough"), "a jump rule has no passthrough - no pane of its kind shows it");
+        }
+
         // ── addressability (writes) ────────────────────────────────────────────
 
         [TestMethod]
