@@ -121,16 +121,14 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ATupleElementJoinsItsPartsWithTheDeclaredSeparator()
         {
-            var alt = Sub((0x7F, "u32", (uint)1), (0x7D, "u32", 0xEC04A8C0u));
+            var alt = Sub((0x7F, "u32", (uint)1), (0x7D, "u32", 0x0A0200C0u));
             var rec = Rec((0x84, "msg[]", new List<Dictionary<int, Tuple<string, object>>> { alt }));
 
             var fields = Decode(Parse(CertificateWindow), new[] { 9, 1 }, rec);
 
-            // The API prints 'IP:192.168.4.236'. The case difference is the label normalizer, which lowercases
-            // every enum label in the catalog (it is also why an SNMP community's authentication-protocol
-            // reads 'md5' where the API says 'MD5') — a separate, deliberate, catalog-wide rule, and the one
-            // the path-map audit compares case-insensitively for. What this test is about is the SHAPE.
-            Assert.AreEqual("ip:192.168.4.236", fields["subject-alt-name"],
+            // The API prints 'IP:192.0.2.10': the kind in the router's own case (its completion lists
+            // 'DNS IP email'), which the enum normalizer keeps for this vocabulary.
+            Assert.AreEqual("IP:192.0.2.10", fields["subject-alt-name"],
                 "the element reached the caller as the bare u32 of its second part");
         }
 

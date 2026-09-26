@@ -587,8 +587,11 @@ all reported one 12-digit run where RouterOS prints `AA:BB:CC:DD:EE:FF`. The `.j
 `macaddr` correctly; the catalog was never the problem, which is why this looked like four separate path
 defects in the audit and was one decoder.
 
-The regrouping keys on the value actually being hex, so a field that answers with something else
-(`not-available`) is reported as it came rather than sliced into pairs.
+A value that is not six bytes — as a `byte[]`, twelve hex digits, or already colon-separated — is not a MAC,
+and the field is not reported. The generic `/interface` window's 'MAC Address' key (`0x3E9`) is shared by every
+interface type, and a type without a MAC puts something else there: a WireGuard interface its public key, a GRE
+or IPIP tunnel a u32 `0` (7.24.4). The API prints no `mac-address` on those rows; decoding the key anyway
+reported the public key as the interface's MAC.
 
 ### 26.2d An `interval` is a duration, and it may be scaled — an `age` is not a duration at all
 
@@ -894,8 +897,10 @@ The router sends **every** pane's keys on every row — a memory logging action'
 'Stop on Full' bools — while the API reports only the live pane's. A field whose pane does not cover the
 record's selector value is dropped, which is also what makes `/ip/ipsec/identity` read correctly: its
 'My ID' pane covers fqdn/user-fqdn/key-id, so on an `auto` identity neither pane applies and the API's
-`my-id=auto` is what the mapper's default produces. A record that does not carry the selector at all keeps
-every pane: without the kind there is no honest way to say which one is live.
+`my-id=auto` is what the mapper's default produces. A record that does not carry the selector at all has no
+kind and shows no pane: a mangle rule with no `action` prints no `passthrough` over the API or the CLI (7.24.4),
+while its M2 record carries the key. A selector that is present but not a number keeps every pane — there is no
+honest way to say which one it selects.
 
 A field one pane declares may be listed by others as `{name:'Passthrough',type:'alias'}` — the same field, shown
 for those panes too. Mangle `passthrough` is declared in the mark-packet pane and aliased by the other nine
@@ -1991,7 +1996,12 @@ into families rather than being fifteen unrelated bugs:
   Recognised by the vocabulary itself rather than by field name or path, because 'Type' is one of the
   commonest labels in the catalog and two of them carry this map while others share single members with
   it (`null`, `a`). Upper case alone is no rule either — 236 distinct ALL-CAPS members exist across the
-  catalog and RouterOS lower-cases most of them (`tkip`, `ccmp`, `tls`, `arp`).
+  catalog and RouterOS lower-cases most of them (`tkip`, `ccmp`, `tls`, `arp`). The vocabularies measured
+  against the router's completion (7.24.4): DNS record types, SNMP's `MD5 SHA1` and `AES DES`, and a
+  certificate's subject-alt-name kinds, where the router says `DNS IP email` — so inside such a vocabulary
+  a member with no lower-case letter keeps its case and a caption beside it (`Email`) still folds. A
+  **quantity** member keeps its case in every vocabulary, because the suffix is its meaning: traffic-flow
+  `cache-entries` offers `1k … 512k, 1M … 32M`, and folded, `1M` read `1m`.
 * **A row count** — not a defect. `/ip/dns/cache` reported two rows against one, and the same pair read
   by hand a minute later agreed on three: entries expire and arrive between the two reads. The audit now
   excuses the COUNT on the two cache menus and on `/ip/firewall/connection`, and says so on the line.

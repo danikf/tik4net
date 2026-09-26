@@ -358,14 +358,59 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
-        public void ANonHexMacValueIsNotRegrouped()
+        public void AValueThatIsNotAMacIsNotReported()
         {
-            // The regrouping keys on the value being hex, so a field that answers with something else is
-            // reported as it came rather than being sliced into pairs.
+            // The generic /interface window's MAC key holds a WireGuard interface's public key and a GRE
+            // tunnel's u32 0 (7.24.4), and the API prints no mac-address on either row. A value that is not
+            // six bytes is the router saying the field does not apply — never sliced into pairs, never shown.
             var decoded = Decode(Parse(MacWindow), new[] { 20, 5 },
                 Rec((0x2, "raw", "unknown")));
 
-            Assert.AreEqual("unknown", decoded["mac-address"]);
+            Assert.IsFalse(decoded.ContainsKey("mac-address"));
+        }
+
+        [TestMethod]
+        public void AZeroUnderAMacKeyIsNotReported()
+        {
+            // A GRE or IPIP tunnel's row carries u32 0 under the generic /interface window's MAC key (7.24.4).
+            var decoded = Decode(Parse(MacWindow), new[] { 20, 5 }, Rec((0x2, "u32", (uint)0)));
+
+            Assert.IsFalse(decoded.ContainsKey("mac-address"));
+        }
+
+        // ── enum members whose case is part of the word ───────────────────────
+
+        // /ip/traffic-flow cache-entries and /snmp/community's protocols, trimmed. The router's completion offers
+        // '1k … 512k, 1M … 32M' and 'MD5 SHA1' (7.24.4); the catalog's labels are the same words.
+        private const string CaseWindow =
+            "[{name:'Case',type:'map',path:[ 20,6 ],c:[" +
+            "{name:'Cache Entries',type:'enm',id:'u2',values:{type:'static',map:{1:'1k',2:'1M',3:'512k'}}}," +
+            "{name:'Authentication Protocol',type:'enm',id:'u3',values:{type:'static',map:{0:'MD5',1:'SHA1'}}}," +
+            "{name:'Mode',type:'enm',id:'u4',values:{type:'static',map:{0:'TKIP',1:'Ethernet'}}}]}]";
+
+        [TestMethod]
+        public void AQuantityMemberKeepsItsSuffixCase()
+        {
+            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x2, "u32", (uint)2)));
+
+            Assert.AreEqual("1M", decoded["cache-entries"], "1m is not 1M");
+        }
+
+        [TestMethod]
+        public void ARouterTokenVocabularyKeepsItsCase()
+        {
+            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x3, "u32", (uint)0)));
+
+            Assert.AreEqual("MD5", decoded["authentication-protocol"]);
+        }
+
+        [TestMethod]
+        public void AnyOtherMemberIsStillNormalized()
+        {
+            // Upper case alone is no rule: RouterOS prints most of the catalog's all-caps members lower-cased.
+            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x4, "u32", (uint)0)));
+
+            Assert.AreEqual("tkip", decoded["mode"]);
         }
 
         // ── a u32 enum member above int.MaxValue ──────────────────────────────

@@ -174,14 +174,15 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
-        public void ARecordWithoutItsSelectorKeepsEveryPane()
+        public void ARecordWithoutItsSelectorHasNoLivePane()
         {
-            // Without the kind there is no honest way to say which pane is live, so nothing is dropped.
+            // A record with no kind shows no pane: a mangle rule with no action prints no passthrough over the
+            // API or the CLI (7.24.4), while its M2 record carries the key.
             var decoded = Decode(Parse(LogActionWindow), "/system/logging/action", LogAction,
                 Rec((0x3, "u32", (uint)1000), (0x10, "str", "log")));
 
-            Assert.IsTrue(decoded.ContainsKey("memory-lines"));
-            Assert.IsTrue(decoded.ContainsKey("disk-file-name"));
+            Assert.IsFalse(decoded.ContainsKey("memory-lines"));
+            Assert.IsFalse(decoded.ContainsKey("disk-file-name"));
         }
 
         [TestMethod]

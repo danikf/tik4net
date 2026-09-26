@@ -261,6 +261,28 @@ namespace tik4net.Winbox
                && keyToField.TryGetValue(key, out var owner) && owner != null
                && !ReferenceEquals(owner, consumer) && owner.Key == key;
 
+        /// <summary>
+        /// Whether a <c>macaddr</c> field's value is a MAC at all: six raw bytes, as a <c>byte[]</c>, as the
+        /// twelve hex digits M2Message renders an FT_RAW in, or already separated by colons.
+        /// </summary>
+        /// <remarks>
+        /// The generic <c>/interface</c> window's 'MAC Address' key is shared by every interface type, and a
+        /// type without a MAC puts something else under it: a WireGuard interface its public key (a string), a
+        /// GRE or IPIP tunnel a u32 <c>0</c> (7.24.4). The API prints no <c>mac-address</c> on those rows, and
+        /// decoding the key anyway reported the public key as the interface's MAC. A value that is not a MAC is
+        /// the router saying the field does not apply.
+        /// </remarks>
+        private static bool IsSixByteRaw(object value)
+        {
+            if (value is byte[] b) return b.Length == 6;
+            string s = (value as string ?? "").Replace(":", "");   // an already separated MAC is a MAC too
+            if (s.Length != 12) return false;
+            foreach (char c in s)
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+                    return false;
+            return true;
+        }
+
         private static bool IsUnsetField(WinboxJgField? jf, object value,
             Dictionary<int, Tuple<string, object>> rec)
         {
@@ -269,6 +291,7 @@ namespace tik4net.Winbox
                 && opt?.Item2 is bool present && !present)
                 return true;
             if (IsAnotherKindsField(jf, rec)) return true;
+            if (jf.UiType == "macaddr" && !IsSixByteRaw(value)) return true;
             if (WinboxFieldResolver.TryToInt64(value, out long n))
             {
                 // A marker RouterOS prints as a word is a value, whichever of the two rules below would drop it.
@@ -290,13 +313,15 @@ namespace tik4net.Winbox
         /// <c>memory-stop-on-full</c> and nothing else. Keeping the others would add a dozen fields per row
         /// that no other transport reports — and, for the leftovers of a kind the record is not, values that
         /// mean nothing.
-        /// <para>A record that does not carry the selector at all is left alone: without knowing its kind
-        /// there is no honest way to say which pane is the live one.</para>
+        /// <para>A record that does not carry the selector at all has no kind, and no pane is live on it: a
+        /// mangle rule with no <c>action</c> prints no <c>passthrough</c> over the API or the CLI (7.24.4), while
+        /// its M2 record carries the key. A selector that is present but not a number is left alone — there is
+        /// no honest way to say which pane it selects.</para>
         /// </remarks>
         private static bool IsAnotherKindsField(WinboxJgField jf, Dictionary<int, Tuple<string, object>> rec)
         {
-            if (jf.PaneSelectorKey == 0 || jf.PaneValues == null) return false;
-            if (!rec.TryGetValue(jf.PaneSelectorKey, out var sel) || sel?.Item2 == null) return false;
+            if (jf.PaneSelectorKey == 0 || jf.PaneValues == null || jf.PaneValues.Length == 0) return false;
+            if (!rec.TryGetValue(jf.PaneSelectorKey, out var sel) || sel?.Item2 == null) return true;
             if (!WinboxFieldResolver.TryToInt64(sel.Item2, out long kind)) return false;
             return jf.IsForeignPane(kind);
         }

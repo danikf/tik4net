@@ -2137,13 +2137,12 @@ namespace tik4net.Winbox
             // members with it ('null', 'a') and must NOT be touched. Upper case alone is no rule either:
             // 236 distinct ALL-CAPS members exist across the catalog and RouterOS lower-cases most of them
             // (tkip, ccmp, tls, arp). Verified against `/ip/dns/static add type=?` on 7.24.
-            if (IsRouterTokenVocabulary(raw)) return raw;
+            bool tokens = IsRouterTokenVocabulary(raw);
 
             var byNormalized = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var kv in raw)
             {
-                // A member, not a field label: the field-name overrides do not apply (see NormalizeLabel).
-                string n = WinboxFieldResolver.NormalizeLabel(kv.Value, applyOverrides: false);
+                string n = NormalizeMember(kv.Value, tokens);
                 // Two DIFFERENT raw labels landing on one normalized form is the collision. The same raw
                 // label appearing at two keys is not — a defenum names an id the wrapped list also names.
                 if (byNormalized.TryGetValue(n, out string? other) && !string.Equals(other, kv.Value, StringComparison.Ordinal))
@@ -2151,20 +2150,55 @@ namespace tik4net.Winbox
                 byNormalized[n] = kv.Value;
             }
             var normalized = new Dictionary<int, string>(raw.Count);
-            foreach (var kv in raw) normalized[kv.Key] = WinboxFieldResolver.NormalizeLabel(kv.Value, applyOverrides: false);
+            foreach (var kv in raw) normalized[kv.Key] = NormalizeMember(kv.Value, tokens);
             return normalized;
         }
 
-        // The one member set the catalog spells in the router's own case. A fingerprint rather than the whole
-        // list, so both the cache's map and /ip/dns/static's shorter one match.
-        private static readonly string[] DnsRecordTypeFingerprint = { "A", "AAAA", "CNAME", "MX", "NS", "SRV", "TXT" };
+        /// <summary>
+        /// One enum member as RouterOS prints it: normalized like a label (<c>'Ethernet'</c> → <c>ethernet</c>),
+        /// except where the case is part of the word.
+        /// </summary>
+        /// <remarks>
+        /// <list type="bullet">
+        /// <item>A quantity (<c>1M</c>, <c>512k</c>): the suffix's case is its meaning. <c>/ip/traffic-flow</c>
+        /// cache-entries offers <c>1k … 512k, 1M … 32M</c> (7.24.4) and native read <c>1m</c> for <c>1M</c>.</item>
+        /// <item>In a router-token vocabulary (<see cref="IsRouterTokenVocabulary"/>), a member with no lower-case
+        /// letter is the router's own token and is kept; a caption beside it still folds — the certificate
+        /// subject-alt-name completion lists <c>DNS IP email</c> for the catalog's <c>DNS IP Email</c>.</item>
+        /// </list>
+        /// </remarks>
+        private static string NormalizeMember(string member, bool routerTokens)
+        {
+            if (IsQuantity(member)) return member;
+            if (routerTokens && !member.Any(char.IsLower)) return member;
+            // A member, not a field label: the field-name overrides do not apply (see NormalizeLabel).
+            return WinboxFieldResolver.NormalizeLabel(member, applyOverrides: false);
+        }
+
+        private static bool IsQuantity(string member)
+        {
+            int i = 0;
+            while (i < member.Length && char.IsDigit(member[i])) i++;
+            return i > 0 && i == member.Length - 1 && "kMG".IndexOf(member[i]) >= 0;
+        }
+
+        // The member sets the catalog spells in the router's own case, each measured against the router's
+        // completion on 7.24.4. A fingerprint rather than the whole list, so a shorter or longer map of the
+        // same vocabulary matches too: the DNS cache's eighteen record types and /ip/dns/static's nine, SNMP's
+        // authentication (MD5 SHA1) and encryption (AES DES) protocols, a certificate's subject-alt-name kinds.
+        // Upper case alone is no rule: RouterOS lower-cases most of the catalog's 236 all-caps members.
+        private static readonly string[][] RouterTokenFingerprints =
+        {
+            new[] { "A", "AAAA", "CNAME", "MX", "NS", "SRV", "TXT" },
+            new[] { "MD5", "SHA1" },
+            new[] { "AES", "DES" },
+            new[] { "IP", "DNS" },
+        };
 
         private static bool IsRouterTokenVocabulary(Dictionary<int, string> raw)
         {
             var values = new HashSet<string>(raw.Values, StringComparer.Ordinal);
-            foreach (string t in DnsRecordTypeFingerprint)
-                if (!values.Contains(t)) return false;
-            return true;
+            return RouterTokenFingerprints.Any(fp => fp.All(values.Contains));
         }
 
         // The wrappers whose inner `values` still lead to a static map. Anything else (queryenum, slotenum, …)

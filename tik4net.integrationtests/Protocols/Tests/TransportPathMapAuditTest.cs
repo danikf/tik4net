@@ -9,9 +9,9 @@
 //
 // So this compares, per API path, what the binary API returns against what the transport under test
 // returns: row count, the set of field names, and — on rows paired by .id — the VALUES of the fields both
-// report. The values matter as much as the names: /system/logging read `topics` as the raw handle list
-// "[1]" where the API says "info", and an audit that only counted field names called the path OK for a
-// release.
+// report, compared case-sensitively, and whether each such field is printed on the row at all. The values
+// matter as much as the names: /system/logging read `topics` as the raw handle list "[1]" where the API says
+// "info", and an audit that only counted field names called the path OK for a release.
 //
 // The transport is TIK4NET_AUDIT_TRANSPORT (default WinboxNative); the report is named after it, so runs
 // against different transports do not overwrite each other. It writes next to the other catalog dumps
@@ -148,6 +148,7 @@ namespace tik4net.integrationtests
             new Dictionary<string, TikConnectionType[]>(StringComparer.OrdinalIgnoreCase)
             {
                 ["/routing/table fib"] = NonApiShaped,
+                ["/interface type"] = new[] { TikConnectionType.WinboxNative, TikConnectionType.WinboxNativeMac },
                 ["/system/ntp/client system-offset"] = NonApiShaped,
             };
 
@@ -403,6 +404,15 @@ namespace tik4net.integrationtests
                 // rest whatever the router said.
                 ["fib"] = "api/rest spell a set presence flag as an empty value, native and the CLI as 'true'",
             },
+            ["/interface"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                // WinBox native only. The type NAME rides at 0x1001E, and on an ENSLAVED interface (a bridge or
+                // bond port — the audit's own fixture makes the second interface one) that key carries its
+                // master's numeric id instead, so the row has no type (see the 'type' synthetic in
+                // WinboxFieldResolver). The row still has type-id; the .jg declares 'Type' as an `objtype`, which
+                // webfig names from the type id through the subtype windows — not implemented yet.
+                ["type"] = "native: an enslaved interface's type-name key holds its master's id; the objtype mapping is not implemented",
+            },
             ["/system/ntp/client"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 // Precision the wire does not carry. The offset rides as a plain signed integer of
@@ -481,6 +491,24 @@ namespace tik4net.integrationtests
             {
                 if (!probe.Rows.TryGetValue(kv.Key, out var probeRow)) continue;
                 pairedRows++;
+
+                // A field one side prints on this row and the other leaves out. Only for names BOTH transports
+                // print somewhere on the path — the names only one of them has are the name check's business
+                // (native adds hundreds by design). Within that set, a word on one side and none on the other is
+                // a difference a caller sees: an entity reads "Present" on one transport and "Absent" on the other.
+                // The value loop below skipped every such field, so the audit never reported one — WinBox native's
+                // passthrough on a mangle rule with no action, or a WireGuard key read as its interface's MAC.
+                foreach (string name in api.FieldNames.Where(probe.FieldNames.Contains))
+                {
+                    if (IsNotARouterField(name) || IsVolatile(path, name)) continue;
+                    if (excused != null && excused.ContainsKey(name)) continue;
+                    bool onApi = kv.Value.TryGetValue(name, out string av);
+                    bool onProbe = probeRow.TryGetValue(name, out string pv);
+                    if (onApi == onProbe || !seen.Add(name)) continue;
+                    diffs.Add($"{name} [{kv.Key}]: api={(onApi ? "'" + Trim(av) + "'" : "(absent)")} "
+                              + $"probe={(onProbe ? "'" + Trim(pv) + "'" : "(absent)")}");
+                }
+
                 foreach (var f in kv.Value)
                 {
                     // '.tag' is the API sentence's sequence number — something OUR api layer stamps on,
@@ -489,9 +517,13 @@ namespace tik4net.integrationtests
                     // are simply at different points in their own numbering: the first ApiSsl run
                     // reported 126 of 155 paths as VALUE-DIFF, every one of them '.tag'. The audit was
                     // comparing itself.
-                    if (f.Key == ".id" || f.Key == ".tag" || IsVolatile(path, f.Key)) continue;
+                    if (IsNotARouterField(f.Key) || IsVolatile(path, f.Key)) continue;
                     if (!probeRow.TryGetValue(f.Key, out string probeValue)) continue;
-                    bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.OrdinalIgnoreCase)
+                    // Case-sensitive: a transport that spells a value in another case is not reading what the
+                    // router printed, and on a TikValue property the word is written back as read. Native read
+                    // subject-alt-name 'ip:' where the API says 'IP:' and traffic-flow cache-entries '1m' for
+                    // '1M' under a green audit that compared ignoring case.
+                    bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.Ordinal)
                                || AreTheSameTickingClock(f.Value, probeValue);
                     if (excused != null && excused.ContainsKey(f.Key))
                     {
@@ -500,13 +532,20 @@ namespace tik4net.integrationtests
                     }
                     if (agrees) continue;
                     if (!seen.Add(f.Key)) continue;
-                    diffs.Add($"{f.Key}: api='{Trim(f.Value)}' probe='{Trim(probeValue)}'");
+                    diffs.Add($"{f.Key} [{kv.Key}]: api='{Trim(f.Value)}' probe='{Trim(probeValue)}'");
                 }
             }
 
             excusedButAgreeing = agreeing.Where(f => !disagreeing.Contains(f)).OrderBy(f => f).ToList();
             return diffs;
         }
+
+        /// <summary>
+        /// Words that are not the router's fields: the row key, the API sentence's own tag, and the API's cursor
+        /// for an ordered list (see the name check in <see cref="AuditPathMapAgainstApi"/>).
+        /// </summary>
+        private static bool IsNotARouterField(string name)
+            => name == TikSpecialProperties.Id || name == TikSpecialProperties.Tag || name == ".nextid";
 
         private static string Trim(string v)
             => v == null ? "" : (v.Length > 40 ? v.Substring(0, 37) + "..." : v);
