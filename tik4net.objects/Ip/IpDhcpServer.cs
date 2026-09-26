@@ -105,7 +105,7 @@ namespace tik4net.Objects.Ip
         ///  after-2sec-delay - requests with "secs &lt; 2" will be processed as in "no" setting case and requests with "secs &gt;= 2" will be processed as in "yes" case.
         /// If all requests with "secs &lt; x" should be ignored, then delay-threshold=x setting should be used.
         /// </summary>
-        [TikProperty("authoritative", DefaultValue = "after-2sec-delay")]
+        [TikProperty("authoritative", DefaultValue = "yes")]
         public TikValue<AuthoritativeType?> Authoritative { get; set; }
 
         /// <summary>

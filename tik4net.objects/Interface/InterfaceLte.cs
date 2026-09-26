@@ -24,7 +24,7 @@ namespace tik4net.Objects.Interface
         public TikValue<string?> Name { get; set; }
 
         /// <summary>mtu — Maximum Transmit Unit in bytes. Default: 1500. DefaultValue="0" prevents sending 0 on set.</summary>
-        [TikProperty("mtu", DefaultValue = "0")]
+        [TikProperty("mtu", DefaultValue = "1500")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>mac-address — MAC address of the LTE interface (read-only, assigned by modem).</summary>

@@ -36,11 +36,11 @@ namespace tik4net.Objects.Interface
         public TikValue<string?> Interface { get; set; }
 
         /// <summary>vrid — Virtual Router Identifier (1–255). Default: 1. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("vrid", DefaultValue = "0")]
+        [TikProperty("vrid", DefaultValue = "1")]
         public TikValue<int?> Vrid { get; set; }
 
         /// <summary>priority — Election priority (1–254). 255 is reserved for the IP owner. Default: 100. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("priority", DefaultValue = "0")]
+        [TikProperty("priority", DefaultValue = "100")]
         public TikValue<int?> Priority { get; set; }
 
         /// <summary>interval — How often the VRRP master sends advertisement packets. Default: 1s.</summary>
@@ -97,7 +97,7 @@ namespace tik4net.Objects.Interface
         public TikValue<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>version — VRRP protocol version (2 or 3). Default: 3. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("version", DefaultValue = "0")]
+        [TikProperty("version", DefaultValue = "3")]
         public TikValue<int?> Version { get; set; }
 
         /// <summary>v3-protocol — the IP protocol used when version=3.</summary>
@@ -149,7 +149,7 @@ namespace tik4net.Objects.Interface
         public TikValue<ConnectionTrackingModeType?> ConnectionTrackingMode { get; set; }
 
         /// <summary>connection-tracking-port — UDP port used for connection tracking synchronization. Default: 8275. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("connection-tracking-port", DefaultValue = "0")]
+        [TikProperty("connection-tracking-port", DefaultValue = "8275")]
         public TikValue<int?> ConnectionTrackingPort { get; set; }
 
         /// <summary>remote-address — Peer router IP address for connection tracking synchronization.</summary>

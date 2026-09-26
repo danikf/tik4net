@@ -23,7 +23,7 @@ namespace tik4net.Objects.Interface
         public TikValue<string?> Name { get; set; }
 
         /// <summary>mtu — Maximum Transmit Unit in bytes. Real default: 1500. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("mtu", DefaultValue = "0")]
+        [TikProperty("mtu", DefaultValue = "1500")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>mac-address — MAC address of the bonding interface (assigned from slaves).</summary>
@@ -164,7 +164,7 @@ namespace tik4net.Objects.Interface
         public TikValue<string?> LacpSystemId { get; set; }
 
         /// <summary>lacp-system-priority — LACP system priority (1–65535). Real default: 65535. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("lacp-system-priority", DefaultValue = "0")]
+        [TikProperty("lacp-system-priority", DefaultValue = "65535")]
         public TikValue<int?> LacpSystemPriority { get; set; }
 
         /// <summary>lacp-user-key — Upper 10 bits of the LACP port key (0–1023). Default: 0.</summary>

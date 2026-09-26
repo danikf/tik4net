@@ -81,7 +81,7 @@ namespace tik4net.Objects.System
 
         /// <summary>modem-signal-threshold — RSSI threshold (dBm) for the modem-signal LED type; LED is on when signal is above this value. Real default: -70; 0 is the CLR sentinel (omitted on add).</summary>
         // Range e.g. -120..0; DefaultValue="0" so CLR default 0 is omitted on add.
-        [TikProperty("modem-signal-threshold", DefaultValue = "0")]
+        [TikProperty("modem-signal-threshold", DefaultValue = "-91")]
         public TikValue<int?> ModemSignalThreshold { get; set; }
 
         /// <summary>disabled — when true this LED entry is disabled. Default: no.</summary>

@@ -24,7 +24,7 @@ namespace tik4net.Objects.Interface.Tunnel
         public TikValue<string?> Name { get; set; }
 
         /// <summary>mtu — Layer3 MTU in bytes. Default: 1500. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("mtu", DefaultValue = "0")]
+        [TikProperty("mtu", DefaultValue = "1500")]
         public TikValue<int?> Mtu { get; set; }
 
         /// <summary>l2mtu — Layer2 MTU (read-only).</summary>
@@ -40,7 +40,7 @@ namespace tik4net.Objects.Interface.Tunnel
         public TikValue<int?> Vni { get; set; }
 
         /// <summary>port — UDP destination port for VXLAN packets. Default: 4789. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("port", DefaultValue = "0")]
+        [TikProperty("port", DefaultValue = "4789")]
         public TikValue<int?> Port { get; set; }
 
         /// <summary>local-address — Local source IP address for VXLAN packets.</summary>
@@ -134,7 +134,7 @@ namespace tik4net.Objects.Interface.Tunnel
         public TikValue<string?> Ttl { get; set; }
 
         /// <summary>max-fdb-size — Maximum number of MAC entries in the forwarding database. Default: 4096. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("max-fdb-size", DefaultValue = "0")]
+        [TikProperty("max-fdb-size", DefaultValue = "4096")]
         public TikValue<int?> MaxFdbSize { get; set; }
 
         /// <summary>learning — Dynamically learn MAC addresses and remote VTEP IPs. Default: yes.</summary>

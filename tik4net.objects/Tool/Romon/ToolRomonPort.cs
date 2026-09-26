@@ -30,7 +30,7 @@ namespace tik4net.Objects.Tool.Romon
         /// <summary>cost — RoMON link cost for this interface (lower = preferred). Real default: 100; set to 0 to let the router use its default on add.</summary>
         // Router default is 100; DefaultValue="0" sentinel ensures 0 (CLR default) is omitted on add
         // so the router applies its own default rather than rejecting an out-of-range value.
-        [TikProperty("cost", DefaultValue = "0")]
+        [TikProperty("cost", DefaultValue = "100")]
         public TikValue<int?> Cost { get; set; }
 
         /// <summary>secrets — per-interface shared secrets (overrides global RoMON secrets when set).</summary>
