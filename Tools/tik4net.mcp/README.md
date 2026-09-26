@@ -52,8 +52,14 @@ locked, and the loop becomes:
 dotnet build tik4net.sln          # never blocked, however many clients are connected
 ```
 
-then reconnect that one MCP server in your client. No uninstall, no NuGet cache purge, no stopping
-anyone else's server; each session keeps running its own staged copy until it reconnects.
+and that is all: the next call is answered by the new build. The staged copy runs as a **relay**
+(`tik4net.mcp --relay`, [`DevRelay.cs`](DevRelay.cs)) that runs the real server as a child; when a request
+arrives after a rebuild, it stages the new build, replays the client's handshake to it, retires the old
+child and tells the client `notifications/tools/list_changed`. No reconnect, no uninstall, no NuGet cache
+purge, no stopping anyone else's server. It swaps only between calls, never with an answer outstanding,
+and only once the build output is two seconds old, so a half-written build is never copied. A change to
+`DevRelay.cs` itself is the one thing that still needs a reconnect: the relay runs from the copy staged at
+connect time.
 
 The script does not build — an MCP client cannot report a build failure, it would just get a server
 that never starts — so it always runs the output of your last build, and says which one on stderr.
@@ -132,8 +138,8 @@ line, and the other tools carry the same text in a `serverBuild` property.
 
 The dev launcher runs each session from a throw-away copy of the build output, so the server can be
 replaced while clients are connected — which also means the repository cannot tell you which build is
-answering. **`dotnet build` alone therefore changes nothing the running process can see**; it keeps
-answering out of its frozen copy until the client reconnects.
+answering. The relay moves to a new build on the first call after it, so the stamp is how you confirm
+it did.
 
 Two timestamps because they move independently, and the one that matters is usually not the wrapper: a
 solution build after a library-only edit refreshes `tik4net.dll` in the output directory while MSBuild
@@ -142,8 +148,9 @@ is therefore not evidence the answer is stale.
 
 You do not have to compare by hand. `run-dev.ps1` passes the directory it staged from in
 `TIK4NET_MCP_SOURCE_DIR`, and the server re-checks it on every call: when the repository has been built
-since, the stamp gains `— STALE: … Reconnect the tik4net-mcp server; this answer describes the PREVIOUS
-code.` No note means the running copy matches the last build. The installed global tool has no source
+since, the stamp gains `— STALE: … this answer describes the PREVIOUS code; the dev relay switches to the
+new build on the next call.` — a build that landed during the call, or one still inside its two settling
+seconds. No note means the running copy matches the last build. The installed global tool has no source
 directory to be behind, so it never carries the note.
 
 ### Examples

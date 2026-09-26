@@ -11,9 +11,13 @@
   That is the whole point: `dotnet build tik4net.sln` keeps working no matter how many clients are
   connected, and picking up a change in tik4net or in the server is just
 
-      dotnet build tik4net.sln     +     reconnect this one MCP server
+      dotnet build tik4net.sln
 
-  with no uninstall, no NuGet cache purge, and without stopping the servers other sessions are using.
+  The staged copy runs as a RELAY (tik4net.mcp --relay, see DevRelay.cs): it runs the real server as a
+  child, and when a request arrives after a rebuild it stages the new build, replays the client's
+  handshake to it and retires the old child — so the next call is answered by the new code, with no
+  reconnect, no uninstall, no NuGet cache purge, and without stopping the servers other sessions are
+  using. Only a change to the relay itself needs a reconnect of this MCP server.
 
   This script does NOT build — an MCP client would have no way to report a build failure, and would
   get a server that never starts. Build first; the server always runs the output of the last build.
@@ -82,10 +86,8 @@ Copy-Item -Path (Join-Path $sourceDir '*') -Destination $stageDir -Recurse -Forc
 $built = (Get-Item $sourceDll).LastWriteTime
 Write-Note ("running $Configuration build of {0:yyyy-MM-dd HH:mm:ss} from $stageDir" -f $built)
 
-# Tell the server where it was staged FROM, so it can notice a rebuild that lands while it runs and
-# say so on every answer instead of quietly describing the previous code. Without this the staged
-# copy has no way back to the repository, and "did my rebuild take effect?" is unanswerable from
-# inside the process.
+# Tell the relay where the build output is, so it can stage each rebuild; the server it runs reads the
+# same variable to say on an answer when a newer build is waiting.
 $env:TIK4NET_MCP_SOURCE_DIR = $sourceDir
 
 # ── Run ────────────────────────────────────────────────────────────────────────
@@ -93,9 +95,9 @@ $env:TIK4NET_MCP_SOURCE_DIR = $sourceDir
 # inherited, so the client's pipes reach the server untouched.
 $exe = Join-Path $stageDir 'tik4net.mcp.exe'
 if (Test-Path $exe) {
-    & $exe @args
+    & $exe --relay @args
 } else {
-    & dotnet (Join-Path $stageDir 'tik4net.mcp.dll') @args
+    & dotnet (Join-Path $stageDir 'tik4net.mcp.dll') --relay @args
 }
 
 exit $LASTEXITCODE

@@ -3,6 +3,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using tik4net.mcp;
 
+// The in-repository launcher (run-dev.ps1) starts the server as a relay that runs the real one as a child and
+// swaps it for a rebuilt one between calls — see DevRelay.
+if (args.Length > 0 && args[0] == "--relay")
+    return await DevRelay.RunAsync();
+
 // The SSH transport ships in the satellite package tik4net.ssh and is not in the built-in registry;
 // registering it here is what makes TikConnectionType.Ssh creatable like any other transport.
 tik4net.Ssh.Tik4NetSsh.Register();
@@ -26,3 +31,4 @@ builder.Services
     .WithTools<MikroTikTools>();
 
 await builder.Build().RunAsync();
+return 0;

@@ -14,7 +14,7 @@ description: >
 
 The MCP server is a **compiled binary**, not the source tree: it never picks up a source change on
 its own. After touching anything under `Tools/tik4net.mcp/` or in `tik4net/` (the server links the
-library), it has to be rebuilt and the client reconnected.
+library), it has to be rebuilt — and, for the global tool, the client reconnected.
 
 There are two setups, and which one is in play decides what you have to run.
 
@@ -30,9 +30,10 @@ The whole refresh is:
 dotnet build tik4net.sln
 ```
 
-then reconnect the `tik4net-mcp` server in the client. Nothing to uninstall, no cache to purge, and
-no need to stop the servers other sessions are using — each session keeps its own staged copy until
-it reconnects.
+and nothing else: the launcher runs a relay (`tik4net.mcp --relay`, `Tools/tik4net.mcp/DevRelay.cs`) that
+stages the new build and swaps it in on the next call, after replaying the client's handshake to it. Nothing
+to reconnect, uninstall or purge, and no need to stop the servers other sessions are using. Only a change to
+`DevRelay.cs` itself needs a reconnect — the relay runs from the copy staged when the client connected.
 
 The launcher **does not build** (a client cannot report a build failure — it would just get a server
 that never starts), so it runs whatever the last build produced. It logs the staged build's
@@ -106,7 +107,7 @@ a server outliving its client is a real anomaly — check the parent still exist
 
 | Symptom | Cause / fix |
 |---|---|
-| Change not visible, dev launcher | Not rebuilt, or the server was not reconnected — compare the build stamp in the tool's own response (or the launcher's stderr line) against your build |
+| Change not visible, dev launcher | Not rebuilt, or the build is under two seconds old (the relay waits for it to settle; the stamp says STALE) — compare the build stamp in the tool's own response against your build. A client connected before the relay existed still runs the old launcher: reconnect it once |
 | `No Debug build found at …bin\Debug\net8.0` | `dotnet build tik4net.sln` first; the launcher never builds |
 | Build fails on a locked file under `Tools\tik4net.mcp\bin` | A client is running the old `dotnet run` configuration; fix `.mcp.json` and restart it |
 | `install-tool.ps1` aborts at the confirmation prompt | Non-interactive shell; pass `-Force` |

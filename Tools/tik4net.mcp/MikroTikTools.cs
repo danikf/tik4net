@@ -53,6 +53,9 @@ public sealed class MikroTikTools
     // source directory to be behind and the check is simply skipped.
     private static readonly string? SourceDir = Environment.GetEnvironmentVariable("TIK4NET_MCP_SOURCE_DIR");
 
+    // Set by DevRelay for the server it runs: a rebuild is then picked up on the next call, not by a reconnect.
+    private static readonly bool Relayed = Environment.GetEnvironmentVariable("TIK4NET_MCP_RELAYED") == "1";
+
     private static string DescribeBuild()
     {
         try
@@ -119,7 +122,9 @@ public sealed class MikroTikTools
                 ? string.Empty
                 : " — STALE: the repository has been rebuilt since this server was staged ("
                   + string.Join(", ", behind)
-                  + "). Reconnect the tik4net-mcp server; this answer describes the PREVIOUS code.";
+                  + (Relayed
+                      ? "). This answer describes the PREVIOUS code; the dev relay switches to the new build on the next call."
+                      : "). Reconnect the tik4net-mcp server; this answer describes the PREVIOUS code.");
         }
         catch
         {
