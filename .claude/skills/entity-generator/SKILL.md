@@ -171,54 +171,52 @@ for real names/values/types → wiki (2b) for types, defaults, R/O split and doc
 
 ## Step 3 — Field types
 
-Apply the same precedence the legacy tools use (`GeneratorHelper.DetermineFieldType` /
-`DetermineFieldTypeFromDocumentation`):
+**Every mapped property except `.id` is a `TikValue<T?>`** (the 5.0 entity value model, enforced in CI by
+`EntityStructureConventionTests.EveryMappedPropertyExceptTheIdIsATikValue`). The value records whether the router
+printed the field (`Absent`), what it printed (`Present`), or a word `T` cannot hold (`Unparsed`, kept in
+`RawValue` and written back). Choose `T` with the precedence the legacy tools use
+(`GeneratorHelper.DetermineFieldType` / `DetermineFieldTypeFromDocumentation`):
 
 | Field / signal                                              | C# type |
 |-------------------------------------------------------------|---------|
-| `.id`                                                       | `string` (always `[TikProperty(".id", IsReadOnly = true, IsMandatory = true)]`) |
-| `comment`                                                   | `string` |
-| `disabled`, `invalid`, `active`, `dynamic`, `running`       | `bool` |
-| value is `true/false/yes/no`, or wiki type `yes \| no`      | `bool` |
-| wiki type `integer`, or value parses as a whole number      | `int` (router-call path infers `long`; prefer `int` for documented integers) |
-| wiki type `string`, or anything else                        | `string` |
-| a documented enumerated set of values                       | a nested `enum` (see below) |
-| time/MAC/IP-ish values                                      | `string` — keep as string; annotate `string/*time*/`, `/*MAC*/` etc. |
+| `.id`                                                       | `string?` (always `[TikProperty(".id", IsReadOnly = true, IsMandatory = true)]`, `{ get; private set; }`) |
+| `comment`                                                   | `TikValue<string?>` |
+| `disabled`, `invalid`, `active`, `dynamic`, `running`       | `TikValue<bool?>` |
+| value is `true/false/yes/no`, or wiki type `yes \| no`      | `TikValue<bool?>` |
+| wiki type `integer`, or value parses as a whole number      | `TikValue<int?>` / `TikValue<long?>` |
+| a duration (`10s`, `00:00:10`, `none`)                      | `TikValue<TikDuration?>` — see ARCHITECTURE.md *Adding an entity* rule 6 |
+| a paired rate (`1M/2M`)                                     | `TikValue<TikRatePair?>`; one rate: `TikValue<TikDataRate?>` |
+| a documented enumerated set of values                       | `TikValue<TheEnum?>` with a nested `enum` (see below) |
+| wiki type `string`, MAC/IP-ish values, anything else        | `TikValue<string?>` — annotate intent inline: `TikValue<string?> /*MAC*/ Foo` |
 
 Important conventions:
-- **bool on the wire**: writable `yes`/`no`, read-only `true`/`false` — the mapper handles both. Declare a
-  writable flag as `bool?` and a read-only one as `bool` (see the next two bullets).
-- **A writable bool is `bool?`, never `bool`** (B4). A flag has three states on the router — `yes`, `no`, and
-  "you did not say" — and only `bool?` holds all three: `null` is not sent on `/add`, so the router applies
-  its own default, and an explicitly assigned `false` still reaches it. A plain `bool` collapses two of those
-  into one, and no `DefaultValue` rescues it — A10 measured both ways round and reverted. **Read-only** bools
-  stay `bool` (nothing is ever sent from them). Enforced in CI by `EntityDefaultValueConventionTests`.
-- **`DefaultValue` on a `bool?` is the ROUTER's default**, written `"no"`/`"yes"` — never the C# spellings
-  `"false"`/`"true"`, which `ConvertToString` can never produce, so they match nothing and the field is
-  force-sent on every add and set (which also makes the native WinBox transport fail: it then has to resolve
-  an M2 key for a field nobody asked to write). Declaring the router's default means "the caller explicitly
-  asked for what the router would do anyway" is left off the wire, which is right and harmless.
-- **`null` on update means unset** — but only for a field that was *loaded with a value* and then cleared.
-  A field that was already null, or one on an entity that was never loaded, is left alone: silence is not an
-  instruction.
-- **Valueless presence-flags** (e.g. `/routing/table fib`): some fields are toggles whose "on" state reads back
-  as `field=` (**empty string**), not `field=yes`. The *write* path works (`Fib=true` → sends `=fib=yes`, router
-  accepts), but the mapper's bool `ConvertFromString` treats empty string as `false`, so the *read* path always
-  yields `false` regardless of the router's real state. Model it as `bool` anyway (write works), document the
-  read-back limitation in the property's XML `///` comment, and in the Add test **do NOT assert the loaded
-  value of that flag** (assert the other round-tripped fields instead).
-- **Keep "typed-looking" fields as `string`** (time, MAC, IP, rates). Per the wiki: many MikroTik fields
-  accept exotic values (`none`, version-specific tokens) that don't fit a strict type. Mark intent with an
-  inline `/*type*/` comment, e.g. `public string/*time*/ ArpTimeout { get; set; }`. There are
-  `Ipv4Address`/`MacAddress` helper types in the project — use them only when you're sure the field is always
-  a plain IP/MAC.
-- **R/O properties default to `string`** even when the doc names a richer type (strong typing isn't needed
-  for read-only display) — matches `DetermineFieldTypeFromDocumentation`'s `isReadOnly` fallback.
+- **The value type is always nullable** (`TikValue<int?>`, never `TikValue<int>` — the mapper refuses it), and
+  that is the whole add-path story: **an add sends exactly what the caller assigned.** No `IsMandatory`, no
+  `UnsetOnDefault` on a `TikValue` property (both refused at metadata build); assigning `null` unsets a field on
+  update. There is no longer a "fresh entity sends its CLR default" trap to design around.
+- **`DefaultValue` is documentation of the ROUTER's default**, in its wire spelling — `"no"`/`"yes"` for a bool,
+  never `"false"`/`"true"` (`EntityDefaultValueConventionTests` checks the spelling). It does not act at run time.
+  Take it from the router, not the wiki: `EntityJgCatalogProbe` compares it with the WinBox catalog `def`, and a
+  freshly created row (`add` with only the required fields, then `print`) is the tie-breaker — the catalog `def` is
+  the WinBox dialog's pre-fill and is occasionally not the router's `add` default.
+- **`WinboxLabel`**: the field's label in the router's `.jg` catalog (`WinboxLabel = "New Packet Mark"`, qualified
+  as `"pcq: Rate"` where a label repeats in a window). Generate it — `EntityJgCatalogProbe` prints a `LABELS`
+  section (`type|property|field|label`) for every property it can pair — rather than typing it.
+- **A field the router requires on add** even though it documents a default (`/interface/wifi/provisioning
+  action`): the caller must assign it — document that in the property's `<summary>`, and assign it in the
+  entity's Add test.
+- **Valueless presence-flags** (e.g. `/routing/table fib`): the "on" state reads back as `field=` (empty). Mark
+  the property `IsPresenceFlag = true`; it then reads `true` when printed and `Absent` when not (the router omits
+  an off flag) — test it with `== true`.
+- **R/O properties use a private setter**: `public TikValue<string?> Foo { get; private set; }`. Read-only
+  status fields may stay `TikValue<string?>` even when the doc names a richer type.
 
 ### Enums
 
-When a field has a fixed value set, declare a nested enum decorated with `[TikEnum("wire-value")]`, give it
-a `DefaultValue`, and `<seealso cref="...">` it from the property. Pattern (copy from `InterfaceVlan.Arp` or
+When a field has a fixed value set, declare a nested enum decorated with `[TikEnum("wire-value")]` and a
+`TikValue<TheEnum?>` property; `<seealso cref="...">` the enum from the property. **No `[TikEnumUnknown]` member**
+— a word the enum does not know reads `Unparsed`, the rest of the row and menu still read, and
+`TolerantEnumReadTests` fails when a built-in enum carries one. Pattern (copy from `InterfaceVlan.Arp` or
 `FirewallFilter.ActionType`):
 
 ```csharp
@@ -231,13 +229,12 @@ public enum ArpMode
 
 /// <summary>arp - Address Resolution Protocol setting</summary>
 /// <seealso cref="ArpMode"/>
-[TikProperty("arp", DefaultValue = "enabled")]
-public ArpMode Arp { get; set; }
+[TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
+public TikValue<ArpMode?> Arp { get; set; }
 ```
 
-**Take the member list from the router, not from the wiki, and add it to the vocabulary table.** A value the
-enum does not know is not a missing property: the parse throws and the mapper fails the read of the **whole**
-menu, so one unknown value makes the entity unusable for everyone whose router uses it. Ask
+**Take the member list from the router, not from the wiki, and add it to the vocabulary table.** An unknown word
+no longer fails the read, but it reads `Unparsed` — a value the caller cannot switch on. Ask
 `mikrotik_cli_complete("<menu> add <field>=")` — completion lists what the menu ACCEPTS, while reading rows
 only ever shows what the lab happens to use — then add a row to `EntityEnumVocabularyTests` in
 `tik4net.unittests`, which fails when a new enum property has no measured list. `EnumVocabularySweepProbe`
@@ -248,58 +245,14 @@ inline and lists nothing (`tokens` is empty and `raw` is the completed line, e.g
 re-ask with that prefix, and never prepend it to the values the listing then gives, which already carry it); a long list is elided as `stem-...` (ask for the stem); and what a menu **accepts** is not what it
 **sends** — `/interface/pppoe-client` takes `yes`/`no` and reads back `true`/`false`.
 
-### The add-path `DefaultValue` rule (critical — get this right or `Add` tests fail)
-
-On **create** (`/add`), the mapper sends a field only when its current **wire value ≠ the property's
-`DefaultValue`** (mandatory fields are always sent). `HasDefaultValue` compares
-`Convert.ToString(<wire value>) == DefaultValue` as strings. So a *fresh* entity sends exactly those fields
-whose CLR-default wire value differs from `DefaultValue` — and the router rejects any it considers invalid /
-out-of-range. Two recurring traps (both cost a failed test run on Tier 1/2):
-
-- **Optional ranged `int`/`long` (ports, counts, periods, power): declare it `int?`.** A fresh entity has
-  CLR-default `0`, so giving the property the *real* default (`DefaultValue = "1500"`) makes the mapper see
-  `0 != "1500"` and send `0`, which the router rejects (`value out of range (1..255)`).
-  ```csharp
-  // dtim-period valid range 1..255; unassigned means "let the router choose".
-  [TikProperty("dtim-period", DefaultValue = "1")] public int? DtimPeriod { get; set; }
-  ```
-  **Do not write `DefaultValue = "0"` instead** — that is A10's mistake one type over: it makes an
-  *explicitly assigned* `0` indistinguishable from unassigned, so it is dropped, and `0` is meaningful on
-  plenty of these fields (`max-sessions=0` means *unlimited*). Nullable is the fix; the router's default
-  stays declared. (Exception: a genuinely `IsMandatory` field is always sent regardless.)
-- **Enums:** a fresh entity's enum is the **first (zero) member**, so either order the enum so the **router
-  default is the first member** and set `DefaultValue` to that member's wire value, **or** declare the
-  property nullable and leave the order alone. Otherwise the mapper sends the zero member on add — a
-  certificate created with `md5`/1024 instead of `sha256`/2048 (A12) — and where the value is invalid for the
-  field the add fails outright (`input does not match any value of <field>`). Reach for nullable when the
-  member order carries meaning of its own (`SyslogFacilityType` IS the syslog facility numbering, `KeySizeType`
-  is ascending sizes); reordering those to move a default to the front trades one wrong for another. Verify
-  the router's default via `cli_complete` (`set <field>=` completion or the wiki "Default:" column).
-
-Both reduce to the same rule: **whatever a freshly-constructed entity holds must be something the router is
-content to receive — or must not be sent at all.** When in doubt make the property **nullable**, which buys
-the second half of that outright: unassigned is `null`, `null` is never sent, and the router applies its own
-default. Do *not* reach for "set `DefaultValue` to the CLR-default wire form" — it satisfies the rule by
-making an explicitly assigned default indistinguishable from silence, which is the defect A10 measured and
-reverted.
-
-- **Server-mandatory field despite a documented default:** some menus reject `/add` unless a field is sent
-  *even though the wiki documents a default* (the router does not apply that default server-side on add). If
-  add fails with `missing =field=` / a required-field trap, mark the property `IsMandatory = true` so the
-  mapper always sends it (the create path sends mandatory fields regardless of `DefaultValue`). Example:
-  `/interface/wifi/provisioning action` (default `none`, yet required on add) → `IsMandatory = true`.
-
 ## Step 4 — Read-only vs read-write
 
 - Always R/O + mandatory: `.id`.
 - Always R/O: `invalid`, `dynamic` (and read-only status fields like `running`, `*-status`, counters
   `rx-byte`/`tx-byte`/`bytes`/`packets`, `last-seen`, `uptime`, `mac-address` when reported, etc.).
 - Everything in the wiki **"Read-only properties"** table → `IsReadOnly = true`.
-- R/O properties use a **private setter**: `public string Foo { get; private set; }`.
-- Mandatory: `.id` and usually `name`. Mark `IsMandatory = true` only for fields always present in the
-  result set (the mapper expects them). `comment` is never mandatory.
-- `DefaultValue` from the wiki "Default:" column. Add `UnsetOnDefault = true` only when setting the field
-  back to its default must issue an `unset` (rare; the wiki/old tool fed these from a manual list).
+- R/O properties use a **private setter**: `public TikValue<string?> Foo { get; private set; }`.
+- `DefaultValue` as in Step 3 — the router's default, verified, in wire spelling.
 
 ## Step 5 — `[TikEntity(...)]` attribute parameters
 
@@ -423,21 +376,21 @@ namespace tik4net.Objects.<Domain>
     {
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>name</summary>
-        [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        [TikProperty("name", WinboxLabel = "Name")]
+        public TikValue<string?> Name { get; set; }
 
-        // … writable properties (public get/set), enums where applicable …
-        // … read-only properties (public get; private set;) …
+        // … writable properties (TikValue<T?>, public get/set), enums where applicable …
+        // … read-only properties (TikValue<T?>, public get; private set;) …
 
         /// <summary>comment</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name.Value;
     }
 
     // Only when the menu is an action or needs a typed query:

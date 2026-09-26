@@ -47,7 +47,7 @@ CI (`.github/workflows/build.yml`) builds on Windows and Linux, runs the unit te
 
 **Nullable reference types are on** (`<Nullable>enable</Nullable>`, `<LangVersion>latest</LangVersion>`)
 in all four shipping projects — `tik4net`, `tik4net.objects`, `tik4net.ssh`, `tik4net.testing`. Every
-mapped reference-typed `[TikEntity]` property is `string?` by convention (see
+mapped `[TikEntity]` property except `.id` is a `TikValue<T?>` (`.id` is `string?`; see
 [Adding an entity](#adding-an-entity) below); write new code nullable-clean rather than adding `#nullable
 disable`.
 
@@ -168,8 +168,8 @@ change (`TIK4NET_UPDATE_DOCS=1 dotnet test tik4net.unittests/tik4net.unittests.c
 EntityCatalogTests`) and paste the block into the wiki's *Entity reference* page. A helper class is
 named after the entity it serves (`ToolPingConnectionExtensions` for `ToolPing`) — the same test holds
 that, because a misnamed one silently drops its verbs out of the catalog. The conventions themselves are in
-[ARCHITECTURE.md](ARCHITECTURE.md#adding-an-entity), including the nullable-reference-type convention:
-every mapped reference-typed property (`string`) is declared `string?`.
+[ARCHITECTURE.md](ARCHITECTURE.md#adding-an-entity), including the entity value model: every mapped property
+except `.id` is a `TikValue<T?>`, and `DefaultValue` documents the router's default without acting on it.
 
 ### Secrets and local paths
 
