@@ -98,6 +98,42 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
+        public void AFieldTheRouterDoesNotPrint_IsAnUpdateEveryRun_UnlessTheFieldIsIfPrintedIn()
+        {
+            // Mangle passthrough on a jump rule: the row was added with the field, the router does not print it there,
+            // and writing it again changes nothing - so a plain Field would update the row on every run.
+            var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x" });
+            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+            var expected = new[] { new TikValueMapperTests.Box { Name = "x", Port = 80 } };
+
+            connection.CreateMerge(expected, original)
+                .WithKey(b => b.Name.ToString())
+                .Field(b => b.Port)
+                .Simulate(out _, out int plainUpdates, out _, out _);
+            connection.CreateMerge(expected, original)
+                .WithKey(b => b.Name.ToString())
+                .Field(b => b.Port, (wanted, current) => wanted.IfPrintedIn(current))
+                .Simulate(out _, out int ruleUpdates, out _, out _);
+
+            Assert.AreEqual(1, plainUpdates);
+            Assert.AreEqual(0, ruleUpdates);
+        }
+
+        [TestMethod]
+        public void IfPrintedIn_StillUpdatesAFieldTheRouterPrints()
+        {
+            var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["port"] = "8080" });
+            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+
+            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x", Port = 80 } }, original)
+                .WithKey(b => b.Name.ToString())
+                .Field(b => b.Port, (wanted, current) => wanted.IfPrintedIn(current))
+                .Save();
+
+            Assert.IsTrue(connection.SentCommands.Any(c => c.First() == "/box/set" && c.Contains("=port=80")));
+        }
+
+        [TestMethod]
         public void EqualValues_SendNothing()
         {
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["mode"] = "false" });

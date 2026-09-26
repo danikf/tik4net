@@ -149,6 +149,20 @@ namespace tik4net.Objects
         /// </summary>
         public TikValue<T> IfAbsent(TikValue<T> fallback) => _state == TikValueState.Absent ? fallback : this;
 
+        /// <summary>
+        /// This value where the router prints the field on <paramref name="current"/>; <paramref name="current"/> itself
+        /// (<see cref="TikValueState.Absent"/>) where it does not — the field-level "this field does not apply to this row"
+        /// of a merge: <c>.Field(e =&gt; e.Passthrough, (expected, current) =&gt; expected.IfPrintedIn(current))</c>.
+        /// </summary>
+        /// <remarks>
+        /// RouterOS leaves a field out of a row it does not apply to — mangle <c>passthrough</c> on a <c>jump</c> rule, a
+        /// field this version or this hardware lacks — and writing it changes nothing it prints. Without this rule an
+        /// expected row that assigns such a field never equals the loaded one, and every merge run updates the row. A
+        /// field that is merely unset is left out too, and is then never written by this rule: use it only for fields
+        /// that do not apply, not for ones that are optional.
+        /// </remarks>
+        public TikValue<T> IfPrintedIn(TikValue<T> current) => current._state == TikValueState.Absent ? current : this;
+
         /// <summary>True, with the value, when <see cref="State"/> is <see cref="TikValueState.Present"/>.</summary>
         public bool TryGetValue(out T value)
         {

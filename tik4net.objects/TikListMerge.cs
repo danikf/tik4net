@@ -131,6 +131,10 @@ namespace tik4net.Objects
         /// (<see cref="TikValueState.Absent"/>) unsets it on the router. When the expected rows come from another RouterOS
         /// version, which may simply lack the field, keep the current value instead:
         /// <code>.Field(e =&gt; e.Comment, (expected, current) =&gt; expected.IfAbsent(current))</code>
+        /// When the router does not print a field on some rows because it does not apply to them (mangle
+        /// <c>passthrough</c> on a <c>jump</c>), an expected value never matches there and every run updates the row;
+        /// leave such rows alone:
+        /// <code>.Field(e =&gt; e.Passthrough, (expected, current) =&gt; expected.IfPrintedIn(current))</code>
         /// </remarks>
         /// <typeparam name="TProperty">Field property.</typeparam>
         /// <param name="fieldExpression">Field extraction expression. example: (entity=}entity.Name)</param>
