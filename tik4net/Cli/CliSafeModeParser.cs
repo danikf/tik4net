@@ -9,6 +9,13 @@ namespace tik4net.Cli
     /// <c>&lt;SAFE&gt;</c> form; the notable failure is a conflict when another session already owns safe mode,
     /// where RouterOS asks an interactive question instead of entering safe mode.
     /// </summary>
+    /// <remarks>
+    /// The success message says "taken" too, so "taken" is no sign of a conflict. RouterOS 6.49.13 prints
+    /// <c>[Safe Mode taken]</c> into the captured output; reading it as a refusal made the caller walk away from a
+    /// session that DID hold Safe Mode (and a WinBox CLI session ending that way wedged the router's console). The
+    /// conflict is the question RouterOS asks, measured on 7.24.4:
+    /// <c>Safe Mode is taken by current user in another session. Unroll, release or abort [u/r]?</c>
+    /// </remarks>
     internal static class CliSafeModeParser
     {
         internal static void ThrowIfTakeFailed(string output, ITikCommand cmd)
@@ -18,11 +25,12 @@ namespace tik4net.Cli
 
             string lower = output.ToLowerInvariant();
 
-            // Another session holds safe mode → RouterOS prompts e.g.
-            //   "safe mode is taken by someone else, [u]ndo,[r]elease,[d]on't take – which one?"
+            // Another session holds safe mode → RouterOS asks what to do with it rather than taking it.
             // We do not auto-answer (any choice has side effects on the other session); report it instead.
-            if (lower.Contains("which one")
-                || (lower.Contains("safe mode") && lower.Contains("taken"))
+            // Older wordings ("… which one?", "[d]on't take") are kept alongside the measured one.
+            if (lower.Contains("another session")
+                || lower.Contains("[u/r]")
+                || lower.Contains("which one")
                 || lower.Contains("[d]on't take"))
                 throw new TikCommandTrapException(cmd, new TikTrapSentenceResult(
                     "Safe mode is already held by another session — RouterOS would not grant it. " +

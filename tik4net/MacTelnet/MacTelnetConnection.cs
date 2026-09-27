@@ -167,7 +167,7 @@ namespace tik4net.MacTelnet
                 string agentRomonId = await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
                 RomonEntered(TikConnectionType.MacTelnet, host, user, agentRomonId);
             };
-            Action close = () => { client.TryCloseSession(); client.Dispose(); };
+            Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
 
             Func<CancellationToken, Task> reopen = async ct =>
             {

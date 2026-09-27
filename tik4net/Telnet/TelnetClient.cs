@@ -237,12 +237,19 @@ namespace tik4net.Telnet
 
         // ── Close / Dispose ───────────────────────────────────────────────────
 
-        internal void Close()
+        /// <summary>Asks RouterOS to leave the console (<c>/quit</c>), then closes the socket.</summary>
+        /// <param name="answerSafeModeQuestion">The session holds Safe Mode. RouterOS then answers <c>/quit</c> with
+        /// "You are in Safe Mode. Quitting will unroll changes. Quit? [y/N]" (7.24.4) instead of quitting, so <c>y</c> is
+        /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
+        /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
+        /// reboot.</param>
+        internal void Close(bool answerSafeModeQuestion = false)
         {
             // Ask RouterOS to exit cleanly before closing the socket. This releases the
             // interactive session on the router side immediately rather than waiting for
             // the TCP timeout to expire. Errors are silently ignored (e.g. already closed).
-            try { _stream?.Write(_encoding.GetBytes("/quit\r\n"), 0, _encoding.GetByteCount("/quit\r\n")); } catch { /* ignore */ }
+            string quit = answerSafeModeQuestion ? "/quit\r\ny" : "/quit\r\n";
+            try { _stream?.Write(_encoding.GetBytes(quit), 0, _encoding.GetByteCount(quit)); } catch { /* ignore */ }
             try { _stream?.Close(); } catch { /* ignore */ }
             try { _tcpClient?.Close(); } catch { /* ignore */ }
         }

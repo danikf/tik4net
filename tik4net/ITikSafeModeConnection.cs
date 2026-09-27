@@ -42,9 +42,12 @@ namespace tik4net
         void SafeModeRelease();
 
         /// <summary>
-        /// Discards every change made since <see cref="SafeModeTake"/> <b>now</b>, without disconnecting,
-        /// and leaves Safe Mode (mirrors <c>/safe-mode/unroll</c> or the terminal <c>Ctrl+D</c>). No-op when
-        /// safe mode is not held.
+        /// Discards every change made since <see cref="SafeModeTake"/> <b>now</b> and leaves Safe Mode (mirrors
+        /// <c>/safe-mode/unroll</c>). No-op when safe mode is not held.
+        /// <para>The connection stays open where the router has the scriptable <c>/safe-mode/unroll</c> (RouterOS
+        /// 7.18+). On an older router a terminal transport cannot unroll in place — the terminal's own discard key
+        /// ends the session too — so it closes the connection, which unrolls the changes: check
+        /// <see cref="ITikConnection.IsOpened"/> and open a new connection to continue.</para>
         /// <para>Not available on the native WinBox transport (WebFig exposes only take/release); there,
         /// drop the connection without releasing to roll back.</para>
         /// </summary>

@@ -186,9 +186,14 @@ namespace tik4net.WinboxCli
         // ── Close ─────────────────────────────────────────────────────────────
 
         /// <summary>Asks RouterOS to leave the console (<c>/quit</c>); errors are ignored.</summary>
-        internal void TryCloseSession()
+        /// <param name="answerSafeModeQuestion">The session holds Safe Mode. RouterOS then answers <c>/quit</c> with
+        /// "You are in Safe Mode. Quitting will unroll changes. Quit? [y/N]" (7.24.4) instead of quitting, so <c>y</c> is
+        /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
+        /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
+        /// reboot.</param>
+        internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
-            try { if (_sessionId >= 0) SendInput(_encoding.GetBytes("/quit\r")); } catch { /* ignore */ }
+            try { if (_sessionId >= 0) SendInput(_encoding.GetBytes(answerSafeModeQuestion ? "/quit\ry" : "/quit\r")); } catch { /* ignore */ }
         }
 
         public void Dispose() => _session.Dispose();

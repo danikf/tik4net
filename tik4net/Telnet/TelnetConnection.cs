@@ -96,7 +96,7 @@ namespace tik4net.Telnet
                 RomonEntered(TikConnectionType.Telnet, host, user, agentRomonId);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);
+                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, () => client.Close(SafeModeHeld));
         }
     }
 }
