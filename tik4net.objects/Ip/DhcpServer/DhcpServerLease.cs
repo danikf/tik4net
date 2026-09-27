@@ -59,10 +59,12 @@ namespace tik4net.Objects.Ip.DhcpServer
         public TikValue<string?> ClientId { get; set; }
 
         /// <summary>
-        /// lease-time: Time that the client may use the address. If set to TimeSpan.Min lease will never expire.
+        /// lease-time: Time that the client may use the address; <c>0s</c> means the lease never expires. A
+        /// <see cref="TikDuration"/>, as on <see cref="IpDhcpServer.LeaseTime"/>: the binary API prints <c>1d2h</c>, the
+        /// CLI transports <c>1d02:00:00</c>, and both read as one value.
         /// </summary>
         [TikProperty("lease-time", DefaultValue = "0s", WinboxLabel = "Lease Time")]
-        public TikValue<TimeSpan?> LeaseTime { get; set; }
+        public TikValue<TikDuration?> LeaseTime { get; set; }
 
         /// <summary>
         /// mac-address: If specified, must match the MAC address of the client
