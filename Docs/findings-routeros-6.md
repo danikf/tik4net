@@ -14,7 +14,7 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 | `Telnet`, `Ssh`, `MacTelnet` | all pass | — |
 | `WinboxCli`, `WinboxCliMac` | all pass | — |
 | `WinboxNative`, `WinboxNativeMac` | 20 of 21 | route `scope` is not in the record; the path-map audit finds more — open problem 1 |
-| `Rest`, `RestSsl` | cannot work | RouterOS 6 has no REST API (§3) |
+| `Rest`, `RestSsl` | not run | RouterOS 6 has no REST API (§3); the `chr2` profile leaves these legs out (problem 2) |
 
 Beyond the smoke subset, the path-map audit has been run over every transport 6.x has (open problems 1 and 4),
 and `CliFlagFieldsTest` over every CLI transport (open problem 4).
@@ -295,11 +295,9 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    |---|---|---|---|
    | ApiSsl | 144 | 0 | 0 |
    | Telnet, Ssh | 132 | 9 | 3 |
-   | WinboxCli | 92 | 50 | 2 |
-   | WinboxCliMac | 114 | 27 | 3 |
-   | MacTelnet | 7 | 137 | 0 (the session was lost after 7 paths — problem 7) |
+   | WinboxCli, WinboxCliMac, MacTelnet (2026-09-28) | 132 | 9 | 3 — the same paths as Telnet |
    | WinboxNative (2026-09-27) | 137 | 0 | 5 (problem 1) |
-   | WinboxNativeMac (before the 2026-09-27 fixes) | 132 | 2 | 8 |
+   | WinboxNativeMac (2026-09-28) | 136 | 1 | 5 (problem 1); the mismatch is `/ip/firewall/address-list` 234 rows against 235, a dynamic table read twice |
 
    - **Flags: the audit's raw rows lack them, entities do not.** Over every CLI transport the audit's print has
      no `disabled`/`dynamic`/`invalid`/`running`/`slave`; the entity read gets them through the id-list path
@@ -312,10 +310,10 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      `/routing/ospf/instance` `metric-bgp`/`metric-other-ospf` `auto` against `4294967295`. The CLI prints an
      empty `comment=` for a row with none, where the API omits it; the CLI read drops it
      ([findings-cli.md](findings-cli.md) §1).
-   - **WinboxCli/WinboxCliMac** added incomplete reads and refusals with the prompt text inside them: 6.x repaints
-     the typed line after every character, and the read stopped on a prompt inside that echo
-     ([findings-cli.md](findings-cli.md) §4). Every entity now reads over WinboxCli as over Telnet — the audit's
-     raw reads were not re-run.
+   - **WinboxCli, WinboxCliMac and MacTelnet** now answer the audit exactly as Telnet: the same 9 mismatches (the
+     flags and counters above) and the same 3 value forms. 6.x repaints the typed line after every character; the
+     read no longer stops on a prompt inside that echo ([findings-cli.md](findings-cli.md) §4), and MAC-Telnet no
+     longer loses the session under it (problem 7).
    - **Every entity, one session, 2026-09-24** (`LoadAll`/`LoadSingle` of all 163 readable entities): Telnet and
      WinboxCli read all but `/routing/bgp/advertisements` (problem 9) and the
      menus 6.x does not have. WinboxCliMac and MacTelnet added `/ip/ipsec/policy` and `/system/package`, a
