@@ -184,7 +184,28 @@ namespace tik4net.Cli
         /// 6.49.13 and 7.24.4.
         /// </summary>
         internal static string BuildFieldValueQuery(string apiPath, string fieldName)
-            => ":put [" + MenuPathToCli(apiPath) + " get [:pick [find] 0] " + fieldName + "]";
+            => BuildFieldValueQuery(apiPath, "[:pick [find] 0]", fieldName);
+
+        /// <summary>
+        /// One row's value of a field, printed as stored: <c>:put [/system script get *5 source]</c>, or for a singleton
+        /// (<paramref name="rowSelector"/> empty) <c>:put [/system note get note]</c>. Unlike <c>as-value</c> it does not
+        /// run a value's <c>;</c> and <c>=</c> into further fields — measured on 6.49.13 and 7.24.4.
+        /// </summary>
+        internal static string BuildFieldValueQuery(string apiPath, string rowSelector, string fieldName)
+            => ":put [" + MenuPathToCli(apiPath) + " get " + (rowSelector.Length > 0 ? rowSelector + " " : "") + fieldName + "]";
+
+        /// <summary>Ends a <see cref="BuildFreeTextQuery"/> answer, after one line break of its own.</summary>
+        internal const string FreeTextEnd = "#tik4net-end-of-value";
+
+        /// <summary>
+        /// A free-text value exactly as stored: <c>:put ([/system script get *5 source] . "\n#tik4net-end-of-value")</c>.
+        /// The terminal read trims every line ending at the end of an answer, so a value's own trailing line breaks
+        /// would be lost with <see cref="BuildFieldValueQuery(string, string, string)"/>; behind the marker they are
+        /// not. An empty value answers nothing at all (6.49.13 and 7.24.4).
+        /// </summary>
+        internal static string BuildFreeTextQuery(string apiPath, string rowSelector, string fieldName)
+            => ":put ([" + MenuPathToCli(apiPath) + " get " + (rowSelector.Length > 0 ? rowSelector + " " : "") + fieldName
+               + "] . \"\\n" + FreeTextEnd + "\")";
 
         /// <summary>
         /// <c>:put [expression]</c>, or <c>:put [:serialize to=json [expression]]</c> — how a print is made
@@ -1045,12 +1066,13 @@ namespace tik4net.Cli
         /// carrying either MUST be quoted as well — hence they are in the trigger set below.
         /// </para>
         /// <para>Escapes, in this order (backslash first, or it would double the ones we add):
-        /// <c>\</c> → <c>\\</c>, <c>"</c> → <c>\"</c>, <c>$</c> → <c>\$</c>. A literal newline/tab is
-        /// left as a real character: RouterOS accepts a line break inside an open quoted value (that
-        /// is how a multi-line script source round-trips today), and rewriting it to <c>\n</c> would
-        /// be indistinguishable from a value that really carries a backslash and an <c>n</c>. CR/LF
-        /// are in the trigger set for the opposite reason — *unquoted* they would end the command
-        /// line and the tail would be executed as one.</para>
+        /// <c>\</c> → <c>\\</c>, <c>"</c> → <c>\"</c>, <c>$</c> → <c>\$</c>, CR → <c>\r</c>, LF → <c>\n</c>. A line break
+        /// typed into an open quoted value is kept by RouterOS 7 but DROPPED by RouterOS 6 — a three-line script written
+        /// over Telnet was stored as one line on 6.49.13 — while the escapes store the same break on 6.49.13 and 7.24.4
+        /// alike. They cannot be confused with a value that really carries a backslash and an <c>n</c>: its backslash is
+        /// doubled first, and <c>C:\\new</c> is stored as <c>C:\new</c> on both. A tab is left as it is: <c>\t</c> stores
+        /// a tab on 6.49.13 but four spaces on 7.24.4. CR/LF are in the trigger set for the opposite reason too —
+        /// *unquoted* they would end the command line and the tail would be executed as one.</para>
         /// </summary>
         internal static string? QuoteIfNeeded(string? value)
         {
@@ -1114,7 +1136,9 @@ namespace tik4net.Cli
             return value
                 .Replace("\\", "\\\\")
                 .Replace("\"", "\\\"")
-                .Replace("$", "\\$");
+                .Replace("$", "\\$")
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n");
         }
     }
 }

@@ -862,7 +862,63 @@ namespace tik4net.Cli
                 records = MergeById(records, statsRecords);
             }
 
+            if (wantJson && _serializeSupported == false)
+                records = await RereadFreeTextAsync(descriptor, records, cancellationToken).ConfigureAwait(false);
+
             return await SupplyFlagsAsync(descriptor, records, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// On a router without <c>:serialize</c> (before 7.13) the free-text fields the <see cref="TikSpecialProperties.CliJson"/>
+        /// marker names are read again, row by row, with <c>get</c>: the <c>as-value</c> read cut a script source at its
+        /// first <c>;</c> and ran the rest into further fields (<c>:local a 1</c> for a three-line source, 6.49.13).
+        /// <c>get</c> prints the value as stored, <c>;</c>, <c>=</c>, <c>$</c> and <c>\</c> included, and a marker behind it
+        /// keeps its trailing line breaks, which the terminal read would otherwise trim
+        /// (<see cref="CliCommandBuilder.BuildFreeTextQuery"/>). The terminal ends its lines with CRLF, so a stored CRLF
+        /// reads as LF.
+        /// </summary>
+        /// <remarks>
+        /// One command per row and field — affordable for the menus that carry free text (scripts, schedulers, files,
+        /// profiles), and only on such a router. A field the menu refuses is left as the plain read gave it.
+        /// </remarks>
+        private async Task<IList<TikRecordSentence>> RereadFreeTextAsync(TikCommandDescriptor descriptor,
+            IList<TikRecordSentence> records, CancellationToken cancellationToken)
+        {
+            string[] fields = (descriptor.Parameters.First(p => p.Name == TikSpecialProperties.CliJson).Value ?? string.Empty)
+                .Split(',').Select(f => f.Trim()).Where(f => f.Length > 0).ToArray();
+            if (fields.Length == 0 || records.Count == 0)
+                return records;
+
+            var result = new List<TikRecordSentence>(records.Count);
+            foreach (var row in records)
+            {
+                string? id = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                var words = row.Words.ToDictionary(w => w.Key, w => w.Value, StringComparer.OrdinalIgnoreCase);
+                foreach (string field in fields)
+                {
+                    string output;
+                    try
+                    {
+                        output = await ExecuteCliCommandAsync(
+                            CliCommandBuilder.BuildFreeTextQuery(descriptor.CommandText, id ?? string.Empty, field),
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (TikCommandException)
+                    {
+                        continue;
+                    }
+
+                    // value + "\n" + marker; nothing at all for an empty value; anything else is the router refusing.
+                    string text = output.Replace("\r\n", "\n");
+                    string end = "\n" + CliCommandBuilder.FreeTextEnd;
+                    if (text.EndsWith(end, StringComparison.Ordinal))
+                        words[field] = text.Substring(0, text.Length - end.Length);
+                    else if (text.Trim().Length == 0 && words.ContainsKey(field))
+                        words[field] = string.Empty;
+                }
+                result.Add(new TikRecordSentence(words));
+            }
+            return result;
         }
 
         /// <summary>

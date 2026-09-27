@@ -114,17 +114,20 @@ namespace tik4net.unittests.Cli
             // of them. Before the fix the router stored  :put ( . )  and nothing trapped.
             const string source = ":local a 1;\n:put ($a . $b)\n";
 
-            Assert.AreEqual("\":local a 1;\n:put (\\$a . \\$b)\n\"",
+            Assert.AreEqual("\":local a 1;\\n:put (\\$a . \\$b)\\n\"",
                 CliCommandBuilder.QuoteIfNeeded(source));
         }
 
         [TestMethod]
-        public void QuoteIfNeeded_NewlineAndTab_AreLeftAsRealCharacters()
+        public void QuoteIfNeeded_LineBreaks_AreEscaped_ATabIsNot()
         {
-            // RouterOS accepts a real line break inside an open quoted value — that is how a
-            // multi-line script source round-trips today (P2.17). Do not turn it into \n, which
-            // would only work by accident and would break a value carrying a literal backslash-n.
-            Assert.AreEqual("\"a\nb\"", CliCommandBuilder.QuoteIfNeeded("a\nb"));
+            // A line break typed into an open quoted value is dropped by RouterOS 6 (a three-line script written
+            // over Telnet was stored as one line, 6.49.13); \n and \r store the break on 6.49.13 and 7.24.4 alike.
+            // A real backslash-n cannot be mistaken for one: its backslash is doubled first. \t is not used: it
+            // stores a tab on 6.49.13 but four spaces on 7.24.4.
+            Assert.AreEqual("\"a\\nb\"", CliCommandBuilder.QuoteIfNeeded("a\nb"));
+            Assert.AreEqual("\"a\\r\\nb\"", CliCommandBuilder.QuoteIfNeeded("a\r\nb"));
+            Assert.AreEqual("\"C:\\\\new\"", CliCommandBuilder.QuoteIfNeeded("C:\\new"));
             Assert.AreEqual("\"a\tb\"", CliCommandBuilder.QuoteIfNeeded("a\tb"));
         }
 
