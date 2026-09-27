@@ -37,7 +37,19 @@ namespace tik4net.integrationtests.Cli
                 Assert.IsTrue(apiInterfaces.Any(i => i.Running.GetValueOrDefault()),
                     "no interface is running on this router, so a Running that defaulted to false would pass unseen");
 
-                Compare("interface", apiInterfaces, other.LoadAll<Interface>().ToList(), i => i.Id,
+                List<Interface> otherInterfaces;
+                try
+                {
+                    otherInterfaces = other.LoadAll<Interface>().ToList();
+                }
+                catch (TikNoSuchCommandException ex) when (transport == TikConnectionType.Rest)
+                {
+                    // RouterOS 6 (CHR2) has no REST API: the www service answers webfig's 404 page.
+                    Assert.Inconclusive("this router has no REST API: " + ex.Message);
+                    return;
+                }
+
+                Compare("interface", apiInterfaces, otherInterfaces, i => i.Id,
                     i => new object[] { i.Running, i.Disabled });
                 Compare("ip address", api.LoadAll<IpAddress>().ToList(), other.LoadAll<IpAddress>().ToList(), a => a.Id,
                     a => new object[] { a.Disabled, a.Dynamic, a.Invalid });

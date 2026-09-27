@@ -66,6 +66,25 @@ namespace tik4net.unittests.Cli
             public string? TimeZoneName { get; set; }
         }
 
+        [TikEntity("/ip/route")]
+        private sealed class RouteProbe
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string? Id { get; set; }
+
+            [TikProperty("dst-address")]
+            public TikValue<string?> DstAddress { get; set; }
+
+            [TikProperty("active", IsReadOnly = true)]
+            public TikValue<bool?> Active { get; set; }
+
+            [TikProperty("connect", IsReadOnly = true)]
+            public TikValue<bool?> Connect { get; set; }
+
+            [TikProperty("static", IsReadOnly = true)]
+            public TikValue<bool?> Static { get; set; }
+        }
+
         [TikEntity("/iface")]
         private sealed class NoFlagProbe
         {
@@ -379,6 +398,40 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // A route's origin is one numbered field on RouterOS 6, and its API names only the member the row is: the
+        // connected route carries connect=true and no static, the static route the reverse (6.49.13). The id-list
+        // read must leave the other member absent too, not write false where the API writes nothing. `active` is
+        // not an origin member: the API sends it on every route, so it stays explicit.
+        [TestMethod]
+        public void OnRouterOs6_ARouteOriginFlag_IsAbsentOnTheRowsItIsNotSetOn_AsOverTheApi()
+        {
+            using (var conn = new RouteRouter6())
+            {
+                conn.OpenScripted();
+
+                var rows = conn.LoadAll<RouteProbe>().OrderBy(r => r.Id).ToList();
+
+                Assert.AreEqual(true, rows[0].Connect.Value);
+                Assert.IsFalse(rows[0].Static.IsPresent, "the connected route carries no static over the API");
+                Assert.AreEqual(true, rows[1].Static.Value);
+                Assert.IsFalse(rows[1].Connect.IsPresent, "the static route carries no connect over the API");
+                CollectionAssert.AreEqual(new bool?[] { true, false }, rows.Select(r => r.Active.Value).ToList(),
+                    "a flag outside the origin is still explicit on every row");
+            }
+        }
+
+        // A flag the entity declares as a writable setting is never asked for: only disabled and read-only bools
+        // are. The API prints `default` on both menus (6.49.13); a 6.x CLI read left it null. Neither menu's `set`
+        // completes the name, so it is the router's flag, not a setting.
+        [TestMethod]
+        public void TheDefaultFlag_IsReadByName_OnQueueTypeAndBgpInstance()
+        {
+            CollectionAssert.Contains(
+                TikEntityMetadataCache.GetMetadata<tik4net.Objects.Queue.QueueType>().CliFlagFields.ToList(), "default");
+            CollectionAssert.Contains(
+                TikEntityMetadataCache.GetMetadata<tik4net.Objects.Routing.Bgp.BgpInstance>().CliFlagFields.ToList(), "default");
+        }
+
         // ── What does not ask ────────────────────────────────────────────────
 
         [TestMethod]
@@ -570,6 +623,49 @@ namespace tik4net.unittests.Cli
                 if ((asked == null && _printsFlags) || (asked != null && asked.Contains("running")))
                     fields.Add("running=" + (RunningValues[i] ? "true" : "false"));
                 return string.Join(";", fields);
+            }
+
+            public override void Open(string host, string user, string password) => OpenScripted();
+            public override void Open(string host, int port, string user, string password) => OpenScripted();
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
+        }
+
+        /// <summary>
+        /// <c>/ip route</c> on RouterOS 6.49.13: no <c>proplist=</c>, no flag in <c>as-value</c>, and a
+        /// <c>find (&lt;flag&gt;=yes)</c> per flag. Route <c>*1</c> is connected and active, <c>*2</c> static and
+        /// inactive.
+        /// </summary>
+        private sealed class RouteRouter6 : CliConnectionBase
+        {
+            private const string SyntaxError = "expected end of command (line 1 column 24)";
+
+            private static readonly Dictionary<string, string> FlagIds = new Dictionary<string, string>
+            {
+                ["active"] = "*1", ["connect"] = "*1", ["static"] = "*2",
+            };
+
+            protected override string TransportName => "Route6";
+
+            public void OpenScripted()
+                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+
+            private Task<string> SendAsync(string cliText, CancellationToken ct)
+            {
+                if (cliText == CliCommandBuilder.ProplistSupportProbe || cliText.Contains("proplist="))
+                    return Task.FromResult(SyntaxError);
+                if (cliText == CliCommandBuilder.FlagsProbe)
+                    return Task.FromResult(".id=*1;address=;name=ftp;port=21");
+
+                var flagFind = Regex.Match(cliText, @"^:put \[/ip route find \((?<flag>[a-z-]+)=yes\)\]$");
+                if (flagFind.Success)
+                    return Task.FromResult(FlagIds.TryGetValue(flagFind.Groups["flag"].Value, out var ids)
+                        ? ids : "bad parameter " + flagFind.Groups["flag"].Value);
+
+                if (!cliText.Contains("/ip route print"))
+                    return Task.FromResult(SyntaxError);
+                return Task.FromResult(".id=*1;dst-address=192.0.2.0/24;.id=*2;dst-address=0.0.0.0/0"
+                    + (char)10 + "#n=2/num");
             }
 
             public override void Open(string host, string user, string password) => OpenScripted();

@@ -1023,7 +1023,8 @@ namespace tik4net.Cli
         /// Reads the flag fields on a router with no <c>proplist=</c>: one
         /// <c>find (&lt;flag&gt;=yes)</c> per flag, whose answer is the ids the flag is set on
         /// (<see cref="CliCommandBuilder.BuildFlagIdQuery"/>). Every row read is then given each flag
-        /// explicitly — <c>true</c> for an id the query named, <c>false</c> for the rest.
+        /// explicitly — <c>true</c> for an id the query named, <c>false</c> for the rest — except a flag the API
+        /// names only where it is set (<see cref="FlagsSentOnlyWhenSet"/>), which the other rows then lack too.
         /// </summary>
         /// <remarks>
         /// <para>The queries are not filtered or windowed like the read they supplement, because they do not need
@@ -1087,12 +1088,41 @@ namespace tik4net.Cli
                 foreach (var kv in row.Words)
                     fields[kv.Key] = kv.Value;
                 foreach (var kv in flagIds)
-                    if (!fields.ContainsKey(kv.Key))
-                        fields[kv.Key] = kv.Value.Contains(id) ? "true" : "false";
+                {
+                    if (fields.ContainsKey(kv.Key))
+                        continue;
+                    if (kv.Value.Contains(id))
+                        fields[kv.Key] = "true";
+                    else if (!IsSentOnlyWhenSet(descriptor.CommandText, kv.Key))
+                        fields[kv.Key] = "false";
+                }
                 supplied.Add(new TikRecordSentence(fields));
             }
 
             return supplied;
+        }
+
+        /// <summary>
+        /// The flags the RouterOS 6 binary API names only on the rows they are set on, per menu. A route's origin
+        /// is one numbered field there (the <c>.jg</c> <c>numflag</c> <c>u7</c>: connected, static, RIP, OSPF, MME,
+        /// BGP), and the API prints the member the row is and nothing for the others — measured on 6.49.13: the
+        /// connected route carries <c>connect=true</c> and no <c>static</c>, the static route the reverse. Every other
+        /// flag of every mapped entity it sends as an explicit <c>true</c>/<c>false</c> or not at all (scan of all
+        /// mapped menus with rows, 6.49.13), so the id-list read gives them <c>false</c> as before.
+        /// </summary>
+        private static readonly Dictionary<string, HashSet<string>> FlagsSentOnlyWhenSet =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["/ip/route"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "connect", "static", "rip", "ospf", "mme", "bgp" },
+            };
+
+        private static bool IsSentOnlyWhenSet(string commandText, string flag)
+        {
+            string trimmed = (commandText ?? string.Empty).TrimEnd('/');
+            int lastSlash = trimmed.LastIndexOf('/');
+            string menu = lastSlash > 0 ? trimmed.Substring(0, lastSlash) : trimmed;
+            return FlagsSentOnlyWhenSet.TryGetValue(menu, out var set) && set.Contains(flag);
         }
 
         /// <summary>

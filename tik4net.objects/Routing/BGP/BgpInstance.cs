@@ -74,10 +74,10 @@ namespace tik4net.Objects.Routing.Bgp
         public TikValue<bool?> IgnoreAsPathLen { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether this is the default instance.
+        /// Gets a value indicating whether this is the default instance. A flag, not a setting.
         /// </summary>
-        [TikProperty("default")]
-        public TikValue<bool?> Default { get; set; }
+        [TikProperty("default", IsReadOnly = true)]
+        public TikValue<bool?> Default { get; private set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is disabled.

@@ -36,6 +36,17 @@ tik4net's read path: once per connection, and only on a router that already leav
 flags an entity maps are then read with one `find (<flag>=yes)` per flag and every row is given each one
 explicitly, merged by `.id`. A flag the menu does not have is refused, asked once, and left out.
 
+The one exception is the route's origin. The binary API sends every other mapped flag as an explicit
+`true`/`false` or not at all (every mapped menu with rows, 6.49.13), but a route's origin is one numbered field
+(§4), and the API names only the member the row is: the connected route carries `connect=true` and no `static`,
+the DHCP-installed one the reverse. The id-list read leaves the other members absent in the same way
+(`CliConnectionBase.FlagsSentOnlyWhenSet`: `connect`, `static`, `rip`, `ospf`, `mme`, `bgp`).
+
+What counts as a flag is the entity's declaration: `disabled` and every read-only `bool`. A flag declared as a
+writable setting is never asked for, so it reads absent over CLI. `default` on `/queue/type` and
+`/routing/bgp/instance` is read-only for that reason. Neither menu's `set` completes it, and the API prints it on
+every row.
+
 ## 3. No REST API
 
 `/rest` arrived in 7.1. On 6.49.13 the `www` service serves webfig only, and every REST request gets its HTML
@@ -246,6 +257,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
 2. **What a suite run should say about REST on a 6.x router.** REST now refuses clearly (§3), but a leg run
    against 6.x still counts every REST test as a failure. To decide: gate REST on the router's version so those
    tests are Inconclusive, or keep them failing as the honest answer and not run the REST legs there.
+   `CliFlagFieldsTest`, the one test meant to run against CHR2, already reports its REST row Inconclusive on
+   that refusal.
 
 3. **The pre-7.20 flag path of RouterOS 7 has no lab router.** CHR2 on 7.19.6 was the one router where flags
    are read by name through `proplist=`; on 6.49.13 the id-list path runs instead, and CHR runs neither. The
@@ -266,8 +279,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
 
    - **Flags: the audit's raw rows lack them, entities do not.** Over every CLI transport the audit's print has
      no `disabled`/`dynamic`/`invalid`/`running`/`slave`; the entity read gets them through the id-list path
-     (§2), and `CliFlagFieldsTest` agrees with the binary API over Ssh, MacTelnet, WinboxCli, WinboxCliMac and
-     WinboxNative (Telnet failed at login until §6; REST cannot work, §3).
+     (§2), and `CliFlagFieldsTest` agrees with the binary API over all five CLI transports and WinboxNative,
+     presence included; its REST row is Inconclusive there (§3).
    - **Counters: the same.** The audit's CLI rows also lack `bytes`, `packets`, `rx-byte`…; the entity's
      `IncludeCliStats` read fills them — `Interface` counters over Telnet, Ssh and WinboxCli track the binary API's
      on 6.49.13 as on 7.24.4.
@@ -280,7 +293,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      ([findings-cli.md](findings-cli.md) §4). Every entity now reads over WinboxCli as over Telnet — the audit's
      raw reads were not re-run.
    - **Every entity, one session, 2026-09-24** (`LoadAll`/`LoadSingle` of all 163 readable entities): Telnet and
-     WinboxCli read all but `/routing/bgp/advertisements` (the read ends without its count, on both) and the
+     WinboxCli read all but `/routing/bgp/advertisements` (problem 9) and the
      menus 6.x does not have. WinboxCliMac and MacTelnet add `/ip/ipsec/policy` (`Missing field '.id'`) and
      `/system/package` (13 rows counted, 1 read) — MAC carriers only, the same on the code before these fixes —
      and MacTelnet a run of 30 s timeouts (problem 7).
@@ -322,3 +335,10 @@ Each is a statement of what is measured and what is not, to be settled one at a 
 8. **MAC carriers: `/ip/ipsec/policy` and `/system/package` on 6.x.** Over WinboxCliMac and MacTelnet the policy
     read fails with `Missing field '.id'` and the package read counts 13 rows and parses 1; Telnet and WinboxCli
     read both. Not yet traced.
+
+9. **`/routing bgp advertisements print` has no `as-value` on 6.x.** Its `print` completes only `file`,
+    `interval`, `peer` and `where` (6.49.13), so the CLI read's `as-value` is taken as a peer name. The router answers
+    `input does not match any value of peer`, and the read is refused as incomplete (no count line) on every CLI
+    transport. The binary API reads the menu (empty with no peer). This is the §8 situation on a list menu. The
+    likely fix is the same plain-print-and-table fallback. Not built: a table needs a peer with advertisements to
+    measure its columns.

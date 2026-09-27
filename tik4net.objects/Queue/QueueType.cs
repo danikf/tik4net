@@ -36,10 +36,10 @@ namespace tik4net.Objects.Queue
         public TikValue<long?> PfifoLimit { get; set; }
 
         /// <summary>
-        /// default: indicates if this is a pre-configured queue type provided by RouterOS.
+        /// default: indicates if this is a pre-configured queue type provided by RouterOS. A flag, not a setting.
         /// </summary>
-        [TikProperty("default")]
-        public TikValue<bool?> Default { get; set; }
+        [TikProperty("default", IsReadOnly = true)]
+        public TikValue<bool?> Default { get; private set; }
 
         /// <summary>
         /// sfq-perturb: interval in seconds for re-hashing SFQ algorithm to prevent hash collisions.
