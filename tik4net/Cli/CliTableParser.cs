@@ -65,6 +65,11 @@ namespace tik4net.Cli
 
         private List<Column>? _columns;
 
+        // A 'Flags: A - active' legend was printed: the flag letters then fill the columns in front of the first
+        // header, and the first column may not own them (RoMON discover, 6.49.13: 'A AA:BB:CC:DD:EE:FF …' read as
+        // address='A AA:BB:CC:DD:EE:FF'). The API reports no such field for these rows.
+        private bool _flagsLegend;
+
         /// <summary>True once a header row has been seen and the column layout is known.</summary>
         internal bool HasHeader => _columns != null;
 
@@ -81,12 +86,23 @@ namespace tik4net.Cli
             if (trimmed.Length == 0)
                 return null;
 
+            // The interactive footer of a paused-screen command ('-- [Q quit|D dump|C-z pause]', RoMON discover and
+            // torch on RouterOS 6.49.13) is no row; read as one it became address='-- [Q quit|D dump|C-z'.
+            if (trimmed.TrimStart().StartsWith("-- [", StringComparison.Ordinal))
+                return null;
+
             // A header can appear more than once: traceroute repaints the whole table every round, so a
             // second header means "new frame", not "bad input". Re-deriving the layout also means a table
             // whose column widths change between frames stays parseable.
+            if (trimmed.StartsWith("Flags:", StringComparison.Ordinal))
+            {
+                _flagsLegend = true;
+                return null;
+            }
+
             if (IsHeaderLine(trimmed))
             {
-                _columns = BuildColumns(trimmed);
+                _columns = BuildColumns(trimmed, _flagsLegend);
                 return null;
             }
 
@@ -127,6 +143,11 @@ namespace tik4net.Cli
         // echo ('/ping address=…'), a data row carrying any text value ('107us', 'timeout') and the
         // aggregate line. A hypothetical all-numeric data row would pass that test, but cannot be mistaken
         // for the header in practice: the header is printed before any row, so it is always seen first.
+        //
+        // Every header token also carries a letter (or is the '#' ordinal), which no numeric cell does: a RoMON
+        // discover row reads 'A AA:BB:CC:DD:EE:FF 200 1 AA:BB:CC:DD:EE:FF 1500 CHR 7.24.4 CHR' — no lower-case letter
+        // anywhere, since the neighbour is called CHR — and was taken for a new header, so the next row was read
+        // against it with values for field names (6.49.13).
         private static bool IsHeaderLine(string line)
         {
             var tokens = Tokens(line);
@@ -136,16 +157,19 @@ namespace tik4net.Cli
             bool anyUpper = false;
             foreach (Match t in tokens)
             {
+                bool hasLetter = false;
                 foreach (char ch in t.Value)
                 {
                     if (char.IsLower(ch)) return false;
-                    if (char.IsUpper(ch)) anyUpper = true;
+                    if (char.IsUpper(ch)) { anyUpper = true; hasLetter = true; }
                 }
+                if (!hasLetter && t.Value != "#")
+                    return false;
             }
             return anyUpper;
         }
 
-        private static List<Column> BuildColumns(string header)
+        private static List<Column> BuildColumns(string header, bool flagsInFront)
         {
             var tokens = Tokens(header);
             var columns = new List<Column>(tokens.Count);
@@ -153,8 +177,9 @@ namespace tik4net.Cli
             for (int i = 0; i < tokens.Count; i++)
             {
                 // One character of left pad belongs to the column, except for the first, which owns
-                // everything from the start of the line (its value may be wider than its own header).
-                int start = i == 0 ? 0 : tokens[i].Index - 1;
+                // everything from the start of the line (its value may be wider than its own header) — unless the
+                // flag letters are printed there.
+                int start = i == 0 && !flagsInFront ? 0 : Math.Max(tokens[i].Index - 1, 0);
                 int end = i == tokens.Count - 1 ? int.MaxValue : Math.Max(tokens[i + 1].Index - 1, start);
                 string name = tokens[i].Value.ToLowerInvariant();
                 // '#' is the terminal's row ordinal (traceroute prints one; ping does not), not a field —
