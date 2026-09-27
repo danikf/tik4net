@@ -848,12 +848,31 @@ namespace tik4net.Cli
                 wantSensitive = false;
             }
 
+            if (_printWithoutAsValue.Contains(descriptor.CommandText))
+                return await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false)
+                    ?? throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                        new TikTrapSentenceResult("the plain print of " + descriptor.CommandText + " printed no table"));
+
             IList<TikRecordSentence> records;
             try
             {
                 records = await RunPrintQueryAsync(descriptor, wantJson,
                     (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from),
                     cancellationToken).ConfigureAwait(false);
+            }
+            catch (TikCommandTrapException ex) when (RefusedArgumentLine.IsMatch(ex.Message.Trim())
+                                                     && descriptor.Parameters.All(p => p.Name.StartsWith(".", StringComparison.Ordinal)))
+            {
+                // A print with no as-value: RouterOS 6's '/routing bgp advertisements print' completes only file,
+                // interval, peer and where, so 'as-value' is taken for a peer name ("input does not match any value
+                // of peer", 6.49.13). The plain print is its table, read by column as a monitor's is; the menu is
+                // remembered for the connection once that table has answered. Only for an unfiltered read — the
+                // table cannot carry the caller's arguments — and never when the plain form printed no header.
+                var table = await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                if (table == null)
+                    throw;
+                _printWithoutAsValue.Add(descriptor.CommandText);
+                return table;
             }
             catch (TikCommandTrapException ex) when (wantSensitive && SyntaxErrorLine.IsMatch(ex.Message.Trim()))
             {
@@ -1384,6 +1403,34 @@ namespace tik4net.Cli
             return rows;
         }
 
+        /// <summary>Print commands this router has no <c>as-value</c> for (RouterOS 6), read as their plain table instead.</summary>
+        private readonly HashSet<string> _printWithoutAsValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The plain <c>print</c> of a menu, read by column (<see cref="CliTableParser"/>), or <c>null</c> when it
+        /// printed no table header — the router's refusal, which the caller reports as the as-value read's own.
+        /// </summary>
+        /// <remarks>
+        /// Sent inside <c>:put [ … ]</c>, which still prints the table (6.49.13) but is a script, so it does not page and
+        /// the terminal transports do not add <c>without-paging</c> to it — a word such a print takes for an argument
+        /// value too (<c>input does not match any value of peer</c>).
+        /// </remarks>
+        private async Task<IList<TikRecordSentence>?> RunPlainTablePrintAsync(TikCommandDescriptor descriptor,
+            CancellationToken cancellationToken)
+        {
+            string plain = await ExecuteCliCommandAsync(":put [" + CliCommandBuilder.ApiPathToCli(descriptor.CommandText) + "]",
+                cancellationToken).ConfigureAwait(false) ?? string.Empty;
+            var table = new CliTableParser();
+            var rows = new List<TikRecordSentence>();
+            foreach (string line in plain.Split((char)10))
+            {
+                TikRecordSentence? row = table.Feed(line.TrimEnd((char)13));
+                if (row != null)
+                    rows.Add(row);
+            }
+            return table.HasHeader ? rows : null;
+        }
+
         /// <summary>Torch commands this router refused <c>proplist=</c> for (RouterOS 6), read as its plain table instead.</summary>
         private readonly HashSet<string> _torchWithoutProplist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -1746,8 +1793,9 @@ namespace tik4net.Cli
         /// <summary>
         /// Throws the router's own complaint when a read's whole answer is one parse error — a line ending in
         /// <c>(line N column M)</c>, such as <c>expected yes or no (line 1 column 62)</c> for a boolean compared
-        /// with <c>true</c>. None of the phrases <see cref="CliErrorParser"/> knows covers it, so without this the
-        /// read reported "the answer is incomplete", and a window at offset 0 switched paging off for the path.
+        /// with <c>true</c>, or the refusal of an argument value, such as <c>input does not match any value of peer</c>.
+        /// None of the phrases <see cref="CliErrorParser"/> knows covers them, so without this the read reported "the
+        /// answer is incomplete", and a window at offset 0 switched paging off for the path.
         /// </summary>
         /// <remarks>
         /// Called only where the answer is already known to lack its closing marker, so a record whose text
@@ -1759,12 +1807,21 @@ namespace tik4net.Cli
                 .Select(line => line.Trim())
                 .Where(line => line.Length > 0)
                 .ToList();
-            if (lines.Count == 1 && SyntaxErrorLine.IsMatch(lines[0]))
+            if (lines.Count == 1 && (SyntaxErrorLine.IsMatch(lines[0]) || RefusedArgumentLine.IsMatch(lines[0])))
                 throw new TikCommandTrapException(CreateDummyCommand(descriptor), new TikTrapSentenceResult(lines[0]));
         }
 
         private static readonly System.Text.RegularExpressions.Regex SyntaxErrorLine =
             new System.Text.RegularExpressions.Regex(@"\(line \d+ column \d+\)$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// The router's refusal of an argument value it cannot resolve — <c>input does not match any value of peer</c>
+        /// for the <c>as-value</c> a 6.x <c>/routing bgp advertisements print</c> takes for a peer name. A whole answer
+        /// of that one line is the router's error, not a read that lost its count.
+        /// </summary>
+        private static readonly System.Text.RegularExpressions.Regex RefusedArgumentLine =
+            new System.Text.RegularExpressions.Regex(@"^input does not match any value of [\w-]+$",
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
         /// <summary>

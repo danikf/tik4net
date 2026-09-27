@@ -369,9 +369,13 @@ Each is a statement of what is measured and what is not, to be settled one at a 
     again one id at a time — `:foreach i in=$w do={ :put (".id=" . $i . ";" . [:tostr [print … from=$i]]) }` —
     and the menu is remembered for the connection; the `.nextid` is dropped, as the API does not print it there.
 
-9. **`/routing bgp advertisements print` has no `as-value` on 6.x.** Its `print` completes only `file`,
-    `interval`, `peer` and `where` (6.49.13), so the CLI read's `as-value` is taken as a peer name. The router answers
-    `input does not match any value of peer`, and the read is refused as incomplete (no count line) on every CLI
-    transport. The binary API reads the menu (empty with no peer). This is the §8 situation on a list menu. The
-    likely fix is the same plain-print-and-table fallback. Not built: a table needs a peer with advertisements to
-    measure its columns.
+9. **Settled for an empty table: `/routing bgp advertisements print` has no `as-value` on 6.x.** Its `print` completes
+   only `file`, `interval`, `peer` and `where` (6.49.13), so the read's `as-value` — and the `without-paging` the terminal
+   transports add to a bare print — are taken for a peer name: `input does not match any value of peer`. That whole
+   answer is now reported as the router's error rather than as an incomplete read, and an unfiltered read that gets it
+   asks `:put [/routing bgp advertisements print]` instead: a script, so neither paged nor given `without-paging`, which
+   still prints the table (`PEER PREFIX NEXTHOP AS-PATH ORIGIN LOCAL-PREF`). It is read by column (`CliTableParser`, as
+   §8), and the menu is remembered for the connection. Verified over Telnet and WinboxCli with no peer: no rows, as the
+   binary API. Not measured: a row. The table carries no `.id` and none of the API's other fields (`communities`, …), so
+   `BgpAdvertisements`, whose `.id` is mandatory, would refuse a row read this way; measuring one needs a BGP peer
+   with advertisements.
