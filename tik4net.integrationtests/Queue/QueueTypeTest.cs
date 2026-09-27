@@ -66,6 +66,21 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        public void BuiltInQueueTypeReadsItsDefaultFlag()
+        {
+            EnsureCommandAvailable("/queue/type");
+
+            // `default` is a flag (no `set` takes it): the API prints default=true on every factory row, 6.49 and
+            // 7.24 alike. A CLI read on a router whose as-value leaves the flags out must ask for it by name.
+            var pcq = Connection.LoadAll<QueueType>()
+                .FirstOrDefault(q => q.Name == "pcq-download-default");
+            if (pcq == null)
+                Assert.Inconclusive("the built-in 'pcq-download-default' queue type is not on this router");
+
+            Assert.AreEqual(true, pcq.Default, "a factory queue type is the router's default");
+        }
+
+        [TestMethod]
         public void AddPcqQueueTypeWillNotFail()
         {
             EnsureCommandAvailable("/queue/type");

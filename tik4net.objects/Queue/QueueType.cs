@@ -36,9 +36,10 @@ namespace tik4net.Objects.Queue
         public long PfifoLimit { get; set; }
 
         /// <summary>
-        /// default: indicates if this is a pre-configured queue type provided by RouterOS.
+        /// default: indicates if this is a pre-configured queue type provided by RouterOS. A flag, not a setting:
+        /// the router reports it and never takes it, so a save does not send it.
         /// </summary>
-        [TikProperty("default")]
+        [TikProperty("default", IsReadOnly = true)]
         public bool? Default { get; set; }
 
         /// <summary>

@@ -74,9 +74,10 @@ namespace tik4net.Objects.Routing.Bgp
         public bool? IgnoreAsPathLen { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether this is the default instance.
+        /// Gets a value indicating whether this is the default instance. A flag, not a setting: the router reports
+        /// it and never takes it, so a save does not send it.
         /// </summary>
-        [TikProperty("default")]
+        [TikProperty("default", IsReadOnly = true)]
         public bool? Default { get; set; }
 
         /// <summary>

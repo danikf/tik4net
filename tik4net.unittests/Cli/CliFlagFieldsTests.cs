@@ -379,6 +379,18 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // A flag the entity declares as a writable setting is never asked for: only disabled and read-only bools
+        // are. The API prints `default` on both menus (6.49.13); a 6.x CLI read left it null. Neither menu's `set`
+        // completes the name, so it is the router's flag, not a setting.
+        [TestMethod]
+        public void TheDefaultFlag_IsReadByName_OnQueueTypeAndBgpInstance()
+        {
+            CollectionAssert.Contains(
+                TikEntityMetadataCache.GetMetadata<tik4net.Objects.Queue.QueueType>().CliFlagFields.ToList(), "default");
+            CollectionAssert.Contains(
+                TikEntityMetadataCache.GetMetadata<tik4net.Objects.Routing.Bgp.BgpInstance>().CliFlagFields.ToList(), "default");
+        }
+
         // ── What does not ask ────────────────────────────────────────────────
 
         [TestMethod]

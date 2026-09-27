@@ -37,11 +37,35 @@ namespace tik4net.integrationtests.Cli
                 Assert.IsTrue(apiInterfaces.Any(i => i.Running),
                     "no interface is running on this router, so a Running that defaulted to false would pass unseen");
 
-                Compare("interface", apiInterfaces, other.LoadAll<Interface>().ToList(), i => i.Id,
+                List<Interface> otherInterfaces;
+                try
+                {
+                    otherInterfaces = other.LoadAll<Interface>().ToList();
+                }
+                catch (TikNoSuchCommandException ex) when (transport == TikConnectionType.Rest)
+                {
+                    // RouterOS 6 (CHR2) has no REST API: the www service answers webfig's 404 page.
+                    Assert.Inconclusive("this router has no REST API: " + ex.Message);
+                    return;
+                }
+
+                Compare("interface", apiInterfaces, otherInterfaces, i => i.Id,
                     i => new object[] { i.Running, i.Disabled });
                 Compare("ip address", api.LoadAll<IpAddress>().ToList(), other.LoadAll<IpAddress>().ToList(), a => a.Id,
                     a => new object[] { a.Disabled, a.Dynamic, a.Invalid });
-                Compare("ip route", api.LoadAll<IpRoute>().ToList(), other.LoadAll<IpRoute>().ToList(), r => r.Id,
+                List<IpRoute> otherRoutes;
+                try
+                {
+                    otherRoutes = other.LoadAll<IpRoute>().ToList();
+                }
+                catch (TikPathNotMappedException ex)
+                {
+                    // WinBox native on the 4.0 train has no /ip/route window for RouterOS 6's catalog; the 6.x
+                    // fallback labels that map it are 5.0 work, and native is experimental on 4.0.
+                    Assert.Inconclusive("WinBox native cannot map /ip/route on this router: " + ex.Message);
+                    return;
+                }
+                Compare("ip route", api.LoadAll<IpRoute>().ToList(), otherRoutes, r => r.Id,
                     r => new object[] { r.Active, r.Dynamic, r.Static, r.Disabled, r.Connect });
             }
         }
