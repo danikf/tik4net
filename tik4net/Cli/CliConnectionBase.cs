@@ -768,6 +768,11 @@ namespace tik4net.Cli
                 wantSensitive = false;
             }
 
+            if (_printWithoutAsValue.Contains(descriptor.CommandText))
+                return await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false)
+                    ?? throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                        new TikTrapSentenceResult("the plain print of " + descriptor.CommandText + " printed no table"));
+
             IList<TikRecordSentence> configRecords;
             try
             {
@@ -775,6 +780,21 @@ namespace tik4net.Cli
                 configRecords = await RunPrintQueryAsync(asked, wantJson,
                     from => CliCommandBuilder.BuildPrintExpression(asked.CommandText, asked.Parameters, from),
                     cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (RefusedArgument(ex) is string refusal
+                                       && descriptor.Parameters.All(p => p.Name.StartsWith(".", StringComparison.Ordinal)))
+            {
+                // A print with no as-value: RouterOS 6's '/routing bgp advertisements print' completes only file,
+                // interval, peer and where, so 'as-value' is taken for a peer name ("input does not match any value
+                // of peer", 6.49.13). The plain print is its table, read by column as a monitor's is; the menu is
+                // remembered for the connection once that table has answered. Only for an unfiltered read — the
+                // table cannot carry the caller's arguments. When the plain form printed no header either, the
+                // router's refusal is the answer.
+                var table = await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                if (table == null)
+                    throw new TikCommandTrapException(CreateDummyCommand(descriptor), new TikTrapSentenceResult(refusal));
+                _printWithoutAsValue.Add(descriptor.CommandText);
+                return table;
             }
             catch (Exception ex) when (wantSensitive && IsParseErrorRefusal(ex))
             {
@@ -1222,6 +1242,25 @@ namespace tik4net.Cli
             || (ex is TikConnectionResponseIncompleteException incomplete && incomplete.PartialResponse != null
                 && ParseErrorLine.IsMatch(incomplete.PartialResponse));
 
+        /// <summary>
+        /// The router's refusal of an argument value it cannot resolve — <c>input does not match any value of peer</c>
+        /// for the <c>as-value</c> a 6.x <c>/routing bgp advertisements print</c> takes for a peer name — as the whole
+        /// answer, whether surfaced as the router's error or as a counted read without its marker; otherwise null.
+        /// </summary>
+        private static string? RefusedArgument(Exception ex)
+            => RefusedArgument(ex is TikConnectionResponseIncompleteException incomplete ? incomplete.PartialResponse
+                             : ex is TikCommandTrapException ? ex.Message : null);
+
+        private static string? RefusedArgument(string? text)
+        {
+            var lines = (text ?? string.Empty).Split((char)10).Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
+            return lines.Count == 1 && RefusedArgumentLine.IsMatch(lines[0]) ? lines[0] : null;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex RefusedArgumentLine =
+            new System.Text.RegularExpressions.Regex(@"^input does not match any value of [\w-]+$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
         private static bool IsDetailRefusal(string? response)
             => response != null && response.IndexOf("bad parameter detail", StringComparison.OrdinalIgnoreCase) >= 0;
 
@@ -1287,6 +1326,34 @@ namespace tik4net.Cli
                     new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(plain)));
             _monitorWithoutAsValue.Add(descriptor.CommandText);
             return rows;
+        }
+
+        /// <summary>Print commands this router has no <c>as-value</c> for (RouterOS 6), read as their plain table instead.</summary>
+        private readonly HashSet<string> _printWithoutAsValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The plain <c>print</c> of a menu, read by column (<see cref="CliTableParser"/>), or <c>null</c> when it
+        /// printed no table header — the router's refusal, which the caller reports as the as-value read's own.
+        /// </summary>
+        /// <remarks>
+        /// Sent inside <c>:put [ … ]</c>, which still prints the table (6.49.13) but is a script, so it does not page and
+        /// the terminal transports do not add <c>without-paging</c> to it — a word such a print takes for an argument
+        /// value too (<c>input does not match any value of peer</c>).
+        /// </remarks>
+        private async Task<IList<TikRecordSentence>?> RunPlainTablePrintAsync(TikCommandDescriptor descriptor,
+            CancellationToken cancellationToken)
+        {
+            string plain = await ExecuteCliCommandAsync(":put [" + CliCommandBuilder.ApiPathToCli(descriptor.CommandText) + "]",
+                cancellationToken).ConfigureAwait(false) ?? string.Empty;
+            var table = new CliTableParser();
+            var rows = new List<TikRecordSentence>();
+            foreach (string line in plain.Split((char)10))
+            {
+                TikRecordSentence? row = table.Feed(line.TrimEnd((char)13));
+                if (row != null)
+                    rows.Add(row);
+            }
+            return table.HasHeader ? rows : null;
         }
 
         /// <summary>Torch commands this router refused <c>proplist=</c> for (RouterOS 6), read as its plain table instead.</summary>
@@ -1785,6 +1852,9 @@ namespace tik4net.Cli
             if (at >= 0 && (at == 0 || text[at - 1] == (char)10 || text[at - 1] == (char)13))
                 expected = CliCommandBuilder.ExpectedRecordCount(text.Substring(at + CliCommandBuilder.CountMarker.Length));
 
+            // The router's refusal of an argument value, as the whole answer, is its error rather than a lost count.
+            if (expected < 0 && RefusedArgument(text) is string refusal)
+                throw new TikCommandTrapException(CreateDummyCommand(descriptor), new TikTrapSentenceResult(refusal));
             if (expected < 0)
                 throw new TikConnectionResponseIncompleteException(
                     TransportName + ": the read of '" + descriptor.CommandText + "' ended without the router's "
