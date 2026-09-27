@@ -177,12 +177,13 @@ namespace tik4net.Cli
             => ":put [" + MenuPathToCli(apiPath) + " find (" + flagName + "=yes)]";
 
         /// <summary>
-        /// Whether the menu has a field of this name: <c>:put [/ip route get [:pick [find] 0] connect]</c>. Asked when
+        /// The first row's value of a field: <c>:put [/ip route get [:pick [find] 0] connect]</c>. Asked when
         /// <see cref="BuildFlagIdQuery"/> named no row, because RouterOS 6 answers <c>find (x=yes)</c> with nothing for a
-        /// name the menu does not have too (6.49.13) — a flag set on no row and an unknown name look the same there.
-        /// <c>get</c> refuses an unknown name with <see cref="ProplistRefusal"/> on 6.49.13 and 7.24.4 alike.
+        /// flag set nowhere, for a field that is no flag, and for a name the menu does not have alike (6.49.13). A flag
+        /// answers <c>true</c>/<c>false</c>; <c>get</c> refuses an unknown name with <see cref="ProplistRefusal"/> on
+        /// 6.49.13 and 7.24.4.
         /// </summary>
-        internal static string BuildFieldExistsQuery(string apiPath, string fieldName)
+        internal static string BuildFieldValueQuery(string apiPath, string fieldName)
             => ":put [" + MenuPathToCli(apiPath) + " get [:pick [find] 0] " + fieldName + "]";
 
         /// <summary>
