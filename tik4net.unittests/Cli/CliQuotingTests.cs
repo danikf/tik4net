@@ -197,10 +197,12 @@ namespace tik4net.unittests.Cli
         // ── BuildWhereClause: '?name' (is set) vs '?name=' (equals empty) ───────
 
         [TestMethod]
-        public void WhereClause_NullFilterValue_IsTheBareFieldName()
+        public void WhereClause_NullFilterValue_AsksForAnyValue()
         {
-            // The binary API's '?comment' — "the property is set". The CLI spells that as the bare name.
-            Assert.AreEqual("comment", BuildWhere("comment", null));
+            // The binary API's '?comment' — "the property has a value". Not the bare name: that tests the value's
+            // truth, and RouterOS 6.49.13 finds no interface by 'where name'. A one-character match agrees with the
+            // API's bare query on 6.49.13 and 7.24.4 for every field type measured.
+            Assert.AreEqual("comment~\".\"", BuildWhere("comment", null));
         }
 
         [TestMethod]

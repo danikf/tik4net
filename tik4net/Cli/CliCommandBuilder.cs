@@ -735,14 +735,15 @@ namespace tik4net.Cli
 
         private static string BuildCondition(string name, string? val)
         {
-            // A NULL value is the binary API's '?name' — "the property is set" — which the CLI spells as the
-            // bare field name. An EMPTY value is '?name=' — "the property equals the empty string" — and is
-            // spelled 'name=""'. Emitting the bare name for both INVERTED the empty case: measured on
-            // 7.23.2 against two /system/script rows (one with a comment, one without), 'where comment'
-            // returns the row that HAS a comment, while '?comment=' over the binary API and
-            // 'where comment=""' over the CLI both return none.
+            // A NULL value is the binary API's '?name' — "the property has a value" — spelled 'name~"."': a match
+            // needs at least one character, so an absent or empty field fails it whatever its type. The bare name
+            // is NOT that on every version: it tests the value's truth, and RouterOS 6.49.13 finds no interface by
+            // 'where name' (an address field, 'where pref-src', does match). '~"."' agrees with the API's bare query
+            // on 6.49.13 and 7.24.4 for string, bool, number, address and prefix fields alike.
+            // An EMPTY value is '?name=' — "the property equals the empty string" — and is spelled 'name=""'
+            // (measured on 7.23.2: '?comment=' and 'where comment=""' both return no row that has a comment).
             if (val == null)
-                return name;
+                return name + "~\".\"";
 
             // Negation: ?name=!value → name!=value
             if (val.StartsWith("!"))
