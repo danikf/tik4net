@@ -70,6 +70,12 @@ namespace tik4net.unittests.Cli
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {
                 Sent.Add(cliText);
+
+                // The per-row re-read of a free-text field after the as-value fallback: 'get' prints the value as stored.
+                var get = Regex.Match(cliText, @"^:put \(\[/\w+ get \*(?<row>\d+) comment\] \. ""\\n#tik4net-end-of-value""\)$");
+                if (get.Success)
+                    return Task.FromResult("c" + get.Groups["row"].Value + "\r\n#tik4net-end-of-value");
+
                 bool json = cliText.Contains(":serialize");
                 var menu = Regex.Match(cliText, @"\[(/\w+) ");
                 int count = menu.Success && _rows.TryGetValue(menu.Groups[1].Value, out int n) ? n : 0;

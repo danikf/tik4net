@@ -69,7 +69,9 @@ namespace tik4net
         /// </para>
         /// <para>
         /// Requires RouterOS 7.13+ (where <c>:serialize</c> was introduced). Older routers reject the
-        /// command; the CLI transports detect that once per connection and fall back to <c>as-value</c>.
+        /// command; the CLI transports detect that once per connection and fall back to <c>as-value</c>,
+        /// then re-read each field the marker's value names (comma-separated) row by row with <c>get</c>, which
+        /// prints the text as stored — so the value survives there too, except that a CRLF line ending reads as LF.
         /// API, REST and WinBox-native transports silently ignore this parameter.
         /// </para>
         /// </summary>

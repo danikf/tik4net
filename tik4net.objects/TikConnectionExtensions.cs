@@ -389,8 +389,11 @@ namespace tik4net.Objects
                 command.AddParameter(TikSpecialProperties.CliStats, "", TikCommandParameterFormat.NameValue);
             // CLI-only marker: read via ':serialize to=json' because at least one field holds free-form
             // text, which the unescaped as-value format cannot represent unambiguously (P2.17).
+            // Its value names those fields, for a router without ':serialize' to re-read them one by one.
             if (metadata.HasFreeTextProperties)
-                command.AddParameter(TikSpecialProperties.CliJson, "", TikCommandParameterFormat.NameValue);
+                command.AddParameter(TikSpecialProperties.CliJson,
+                    string.Join(",", metadata.Properties.Where(p => p.IsFreeText).Select(p => p.FieldName)),
+                    TikCommandParameterFormat.NameValue);
             // CLI-only marker: 'print show-sensitive', because RouterOS 7 leaves secrets out of a terminal print.
             if (metadata.HasSensitiveProperties)
                 command.AddParameter(TikSpecialProperties.CliSensitive, "", TikCommandParameterFormat.NameValue);
