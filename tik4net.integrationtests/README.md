@@ -49,7 +49,8 @@ version is 7.1` and boots the old version again). A test that should also hold o
 with its router profile — `run-integration-tests.ps1 -Router chr2`, which selects the `chr2.*` entries of
 `App.config` (`LabConfig.cs`) without editing the file — and `CliFlagFieldsTest` (flags over every transport
 against the binary API) is the one that matters. The full suite is not run there: CHR2 has CHR's two ports but none of
-its provisioned topology, so topology tests fail for reasons that are not defects.
+its provisioned topology, so topology tests fail for reasons that are not defects. Nor are the REST legs: its profile
+carries `chr2.noRest`, so the script leaves `rest` and `restssl` out of a run against it and refuses them by name.
 
 ## The lab VM, if the router is virtual
 

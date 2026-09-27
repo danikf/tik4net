@@ -121,6 +121,18 @@ if ($Router) {
         throw "App.config defines no router profile '$Router' (no '$Router.host'). Defined: $(if ($profiles) { $profiles } else { 'none' })."
     }
     if (-not $PSBoundParameters.ContainsKey('ResultsDirectory')) { $ResultsDirectory = Join-Path 'TestResults' $Router }
+    # A profile marked noRest (RouterOS 6 has no REST API) gets no REST legs: every test there would fail on the
+    # router's refusal, which says nothing about the library. Named explicitly, the leg is refused, not dropped.
+    if ((Get-LabSetting "$Router.noRest") -eq 'true') {
+        $restLegs = @($Transport | Where-Object { $_ -in 'rest', 'restssl' })
+        if ($restLegs -and $PSBoundParameters.ContainsKey('Transport')) {
+            throw "Router profile '$Router' has no REST API ($Router.noRest in App.config); do not run $($restLegs -join ', ') against it."
+        }
+        if ($restLegs) {
+            $Transport = @($Transport | Where-Object { $_ -notin 'rest', 'restssl' })
+            Write-Host "router profile '$Router' has no REST API - leaving out: $($restLegs -join ', ')" -ForegroundColor DarkGray
+        }
+    }
 }
 $previousRouter = $env:TIK4NET_ROUTER
 if ($Router) { $env:TIK4NET_ROUTER = $Router } else { Remove-Item Env:\TIK4NET_ROUTER -ErrorAction SilentlyContinue }

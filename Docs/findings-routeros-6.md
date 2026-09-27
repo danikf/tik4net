@@ -277,11 +277,11 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    it reading them is the ground truth. The audit report is written per transport, not per router, so a run
    against CHR2 replaces the 7.x report of the same transport.
 
-2. **What a suite run should say about REST on a 6.x router.** REST now refuses clearly (§3), but a leg run
-   against 6.x still counts every REST test as a failure. To decide: gate REST on the router's version so those
-   tests are Inconclusive, or keep them failing as the honest answer and not run the REST legs there.
-   `CliFlagFieldsTest`, the one test meant to run against CHR2, already reports its REST row Inconclusive on
-   that refusal.
+2. **Settled: REST legs are not run against 6.x.** MikroTik moves everyone to RouterOS 7, so a REST test failing on a
+   6.x router is the expected answer, not a gap worth gating on the version. The `chr2` router profile carries
+   `chr2.noRest`, and `run-integration-tests.ps1 -Router chr2` leaves the `rest` and `restssl` legs out (named
+   explicitly, they are refused). `CliFlagFieldsTest`, the one test meant to run against CHR2, reports its REST row
+   Inconclusive on the router's refusal (§3).
 
 3. **The pre-7.20 flag path of RouterOS 7 has no lab router.** CHR2 on 7.19.6 was the one router where flags
    are read by name through `proplist=`; on 6.49.13 the id-list path runs instead, and CHR runs neither. The
