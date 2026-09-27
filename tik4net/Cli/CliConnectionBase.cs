@@ -1568,6 +1568,10 @@ namespace tik4net.Cli
         // fallback costs one wasted request per menu per connection rather than one per read.
         private readonly HashSet<string> _pagingUnavailable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // Menus whose windowed print leaves '.id' out (see CliCommandBuilder.BuildPagedWindowIdPerRow), found the
+        // same way and remembered for the same reason.
+        private readonly HashSet<string> _windowPrintsNoId = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
         /// Reads a table one window of rows at a time and concatenates them.
         /// </summary>
@@ -1649,6 +1653,19 @@ namespace tik4net.Cli
                     continue;
                 }
                 interruptions = 0;
+
+                if (window.WindowSize > 0 && !_windowPrintsNoId.Contains(descriptor.CommandText)
+                    && window.Records.All(r => !r.Words.ContainsKey(TikSpecialProperties.Id)))
+                {
+                    // The window held rows and its print named none of them — the menu's 'print from=' leaves
+                    // '.id' out (RouterOS 6.49.13: /system/package, /ip/ipsec/policy), and without it the parser
+                    // cannot even tell the rows apart. Take the same window again one id at a time.
+                    _windowPrintsNoId.Add(descriptor.CommandText);
+                    TikWireTrace.Emit("cli.page", TikWireDir.Note,
+                        "'" + descriptor.CommandText + "' prints no .id for a window — taking it one id at a time");
+                    offset -= pageSize;   // the loop's increment brings it back to the same window
+                    continue;
+                }
 
                 if (window.WindowSize < 0)
                 {
@@ -1773,12 +1790,17 @@ namespace tik4net.Cli
             Func<IList<ITikCommandParameter>, string?, string> buildExpression,
             int offset, int pageSize, CancellationToken cancellationToken)
         {
-            bool asJson = wantJson && _serializeSupported != false;
+            bool idPerRow = _windowPrintsNoId.Contains(descriptor.CommandText);
+            bool asJson = wantJson && _serializeSupported != false && !idPerRow;
             string findClause = CliCommandBuilder.BuildWhereClause(descriptor.Parameters);
-            string inner = CliCommandBuilder.WrapPut(
-                buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.WindowVariable), asJson);
-            string cliText = CliCommandBuilder.BuildPagedWindow(descriptor.CommandText, inner, offset, pageSize,
-                findClause);
+            string cliText = idPerRow
+                ? CliCommandBuilder.BuildPagedWindowIdPerRow(descriptor.CommandText,
+                    buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.RowVariable),
+                    offset, pageSize, findClause)
+                : CliCommandBuilder.BuildPagedWindow(descriptor.CommandText,
+                    CliCommandBuilder.WrapPut(
+                        buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.WindowVariable), asJson),
+                    offset, pageSize, findClause);
 
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
@@ -1794,6 +1816,8 @@ namespace tik4net.Cli
             IList<TikRecordSentence> parsed = asJson
                 ? CliJsonParser.ParseJson(body)
                 : ParseRecords(body, descriptor);
+            if (idPerRow)
+                parsed = parsed.Select(WithoutNextId).ToList();
             // Only a window that held ids ran its print — the print sits inside ':if ([:len $w] > 0) do={ … }' —
             // so an empty one says nothing about ':serialize'. Concluding from it let a free-text menu with no
             // rows mark RouterOS 6.49.13 as supporting it, and the next such menu with rows failed with
@@ -1801,6 +1825,16 @@ namespace tik4net.Cli
             if (asJson && windowSize > 0)
                 _serializeSupported = true;
             return new PagedWindow(parsed, windowSize, body);
+        }
+
+        // The '.nextid' a per-row print carries where 6.49.13 left '.id' out: the ordered-list cursor, which the API
+        // does not print for these rows and which is not a field of the row.
+        private static TikRecordSentence WithoutNextId(TikRecordSentence record)
+        {
+            if (!record.Words.ContainsKey(".nextid"))
+                return record;
+            return new TikRecordSentence(record.Words.Where(w => w.Key != ".nextid")
+                .ToDictionary(w => w.Key, w => w.Value));
         }
 
         /// <summary>
