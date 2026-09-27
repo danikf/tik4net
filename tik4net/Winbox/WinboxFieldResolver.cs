@@ -959,6 +959,16 @@ namespace tik4net.Winbox
                         ["available"] = Tuple.Create("installed", "false"),
                     }),
 
+                // /ip/firewall/mangle: action=route's destination is u3f4, labelled 'Route Dst.' on 7.x but
+                // 'Dst. Address' on 6.49.13 — the rule matcher's own label, so there it loses the name to
+                // dst-address and the value (on the wire, 10.99.3.1 at 0x3F4) was reported under no name and
+                // could not be written. Same key and type on both versions.
+                ["/ip/firewall/mangle"] = new FieldAliasSet(Ci(), Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["route-dst"] = new WinboxJgField("route-dst", 0x3F4, "u32", false, uiType: "ipaddr"),
+                    }),
+
                 // /ip/firewall/connection: 'helper used' is the API's uses-helper, and the GRE key is a key the
                 // Connections window does not declare — the one GRE row (to 10.99.0.8) carried the API's
                 // gre-key=26642 at 0x15, which no other row sent (7.24.2). Read-only, as the table is.

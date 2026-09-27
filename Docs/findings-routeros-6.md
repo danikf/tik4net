@@ -234,7 +234,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      `/routing/bgp/instance` `ignore-as-path-len`.
    - **1b. Fields native does not report, on paths that otherwise agree.** Reported now: the address list's
      `list`, the route's `pref-src` and the OSPF area's `name` (6.x labels them 'Name', 'Pref. Source' and
-     'Area Name'), `default-name` and conntrack `total-entries`, keys the 6.x windows do not declare but
+     'Area Name'), the mangle rule's `route-dst` (6.x labels it 'Dst. Address', the matcher's own label, so it
+     lost the name; shipped as a synthetic field on `u3f4`, read and written), `default-name` and conntrack `total-entries`, keys the 6.x windows do not declare but
      the router sends, the route's `connect` and `static` (its origin `numflag`), and the fields the API
      itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail` `address`, the OSPF area's `invalid` —
      and the remote action's `syslog-severity=auto` (§4). Still missing, each for a reason of its own:
