@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using tik4net.Connection;
@@ -293,6 +294,95 @@ namespace tik4net.Cli
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Parses torch run WITHOUT <c>proplist</c> — RouterOS 6, whose torch refuses it — from its plain table: frames
+        /// between <see cref="TorchFooter"/> lines, each a header of upper-case column names, one row per flow and a
+        /// last row with only the totals. Only the last frame with a header is read, as in <see cref="ParseTorchFrame"/>.
+        /// The columns are the ones the caller's own arguments asked for (<c>interface</c> alone prints the totals only),
+        /// which is what the binary API returns for the same arguments, totals row included (6.49.13).
+        /// </summary>
+        /// <remarks>
+        /// Not <see cref="CliTableParser"/>: its span rule assumes left-aligned values, and torch right-aligns the
+        /// numbers — <c>1664bps</c> starts well left of its <c>TX</c> header and was split across two columns. Here a
+        /// value is the column whose header it overlaps: a left-aligned value starts under its header, a right-aligned
+        /// one ends under it, and either way they share characters. A cell can be empty (the totals row has only the
+        /// last four), which a split on whitespace alone would shift. A port keeps its service name,
+        /// <c>8291 (winbox)</c>, as the binary API reports it.
+        /// </remarks>
+        internal static IList<TikRecordSentence> ParseTorchTable(string output)
+        {
+            var result = new List<TikRecordSentence>();
+            if (string.IsNullOrWhiteSpace(output))
+                return result;
+
+            var segments = output.Replace("\r", "").Split(new[] { TorchFooter }, StringSplitOptions.None);
+            for (int i = segments.Length - 1; i >= 0; i--)
+            {
+                string[] lines = segments[i].Split('\n');
+                int headerIndex = Array.FindIndex(lines, IsTorchHeader);
+                if (headerIndex < 0)
+                    continue;
+
+                var columns = Tokens(lines[headerIndex], attachAnnotation: false);
+                for (int l = headerIndex + 1; l < lines.Length; l++)
+                {
+                    var values = Tokens(lines[l], attachAnnotation: true);
+                    if (values.Count == 0 || RouterOsCliLogin.IsShellPrompt(lines[l].Trim()))
+                        continue;
+
+                    var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var v in values)
+                    {
+                        int best = -1, bestScore = int.MinValue;
+                        for (int c = 0; c < columns.Count; c++)
+                        {
+                            int overlap = Math.Min(v.End, columns[c].End) - Math.Max(v.Start, columns[c].Start);
+                            if (overlap > bestScore) { bestScore = overlap; best = c; }
+                        }
+                        string name = columns[best].Text.ToLowerInvariant();
+                        string value = v.Text;
+                        if (name == "tx" || name == "rx")
+                            value = ParseBitrate(value);
+                        fields[name] = value;
+                    }
+                    result.Add(new TikRecordSentence(fields));
+                }
+                break;
+            }
+            return result;
+        }
+
+        private static bool IsTorchHeader(string line)
+        {
+            string t = line.Trim();
+            return t.Length > 0 && t.IndexOf(' ') > 0 && t.Any(char.IsUpper) && !t.Any(char.IsLower);
+        }
+
+        private struct TableToken { internal int Start; internal int End; internal string Text; }
+
+        /// <summary>
+        /// The non-blank runs of a table line with their character positions; with <paramref name="attachAnnotation"/>
+        /// a parenthesised run (a port's service name) is joined to the run before it.
+        /// </summary>
+        private static List<TableToken> Tokens(string line, bool attachAnnotation)
+        {
+            var tokens = new List<TableToken>();
+            foreach (Match m in Regex.Matches(line, @"\S+"))
+            {
+                if (attachAnnotation && tokens.Count > 0 && m.Value.StartsWith("(", StringComparison.Ordinal))
+                {
+                    var last = tokens[tokens.Count - 1];
+                    tokens[tokens.Count - 1] = new TableToken
+                    {
+                        Start = last.Start, End = m.Index + m.Length, Text = line.Substring(last.Start, m.Index + m.Length - last.Start),
+                    };
+                    continue;
+                }
+                tokens.Add(new TableToken { Start = m.Index, End = m.Index + m.Length, Text = m.Value });
+            }
+            return tokens;
         }
 
         private static readonly Regex BitrateToken = new Regex(
