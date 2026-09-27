@@ -385,8 +385,11 @@ namespace tik4net.integrationtests
                 Assert.Inconclusive("no route on this router carries an origin flag the API prints");
 
             // Named in .proplist: flags are not in a plain CLI print before RouterOS 7.20, asked for by name they are.
+            // Only the origins the API printed here: RouterOS 6 has no 'dhcp', and its API drops EVERY field listed
+            // after a name the menu does not have ('.proplist=.id,dhcp,connect,static' returns only .id, 6.49.13).
+            string origins = string.Join(",", expected.Values.SelectMany(f => f.Keys).Distinct());
             var rows = Connection.CreateCommand("/ip/route/print",
-                    Connection.CreateParameter(TikSpecialProperties.Proplist, ".id,connect,dhcp,static",
+                    Connection.CreateParameter(TikSpecialProperties.Proplist, ".id," + origins,
                         TikCommandParameterFormat.NameValue))
                 .ExecuteList().ToDictionary(r => r.GetId(), r => r);
 

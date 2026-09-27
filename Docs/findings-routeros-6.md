@@ -47,6 +47,12 @@ writable setting is never asked for, so it reads absent over CLI. `default` on `
 `/routing/bgp/instance` is read-only for that reason. Neither menu's `set` completes it, and the API prints it on
 every row.
 
+**The binary API's `.proplist` stops at the first unknown name.** RouterOS 7 ignores a name the menu does not have.
+6.49.13 drops every field listed after it: `/ip/route/print =.proplist=.id,connect,static` returns the origin flags,
+`=.proplist=.id,dhcp,connect,static` (6.x has no `dhcp` origin) returns `.id` alone, and any unknown name does the
+same (`t4n-nothing`). The library builds no `.proplist` of its own for an entity; a caller's is sent as written, so a
+list meant for both versions puts the names only the newer one has last.
+
 ## 3. No REST API
 
 `/rest` arrived in 7.1. On 6.49.13 the `www` service serves webfig only, and every REST request gets its HTML
