@@ -45,7 +45,7 @@ namespace tik4net.unittests.Winbox
 
             Assert.IsTrue(catalog.IsActionOnlyHandler(new[] { 24 }));
             Assert.AreEqual(-1, catalog.GetSoleActionCmd(new[] { 24 }, out _), "two actions share the handler");
-            Assert.AreEqual(5, catalog.GetActionCmd(new[] { 24 }, "reboot", out string? reboot));
+            Assert.AreEqual(5, catalog.GetActionCmd(new[] { 24 }, "reboot", out string reboot));
             Assert.AreEqual("reboot", reboot);
             Assert.AreEqual(6, catalog.GetActionCmd(new[] { 24 }, "shutdown", out _));
             Assert.AreEqual(-1, catalog.GetActionCmd(new[] { 24 }, "restart", out _), "no guessing");
