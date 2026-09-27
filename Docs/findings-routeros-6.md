@@ -339,14 +339,16 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    rejects the lab's self-signed certificate on both routers, with no option to accept it the way the suite's
    `restAllowInvalidCert` does.
 
-6. **CLI completion cannot list values that share a prefix on 6.x.** `ITikCliCompletion.CompleteCli` on
-   `/interface bridge add frame-types=` completes inline to `admit-` (as on 7.x), but asked again with that prefix,
-   6.49.13 returns nothing at all where 7.x lists `admit-all`, `admit-only-untagged-and-priority-tagged`,
-   `admit-only-vlan-tagged`. Not yet told apart: RouterOS 6 needing a second Tab to list, or our echo parsing dropping
-   a listing 6.x lays out differently — a byte trace of the second ask decides. It leaves four enum vocabularies
-   unmeasured on 6.x (`frame-types`, bonding `transmit-hash-policy`, vrrp `v3-protocol`, security-profile
-   `static-transmit-key`). Also measured with it: completion answers only for the SPACE form of a menu path on 6.x
-   (`/ip firewall filter add action=`); after the slash form it lists nothing, so a caller must use spaces.
+6. **Settled: CLI completion of a shared prefix on 6.x.** `/interface bridge add frame-types=` completes inline to
+   `admit-` on both versions; asked again with that prefix, RouterOS 7 lists the three `admit-*` values on the first
+   Tab, while 6.49.13 only echoes the line and lists them on a **second** Tab (raw Telnet). `CompleteCli` now sends
+   the second Tab when the first changed nothing; verified over Telnet and WinboxCli on 6.49.13, and over Telnet on
+   7.24.4. The four enum vocabularies it left unmeasured match the entities on 6.49.13: `frame-types`, vrrp
+   `v3-protocol` (`ipv4`, `ipv6`), security-profile `static-transmit-key` (`key-0`…`key-3`), and bonding
+   `transmit-hash-policy`, which lists only `layer-2`, `layer-2-and-3`, `layer-3-and-4` — the `encap-*` members are
+   7.x additions. Completion answers only for the SPACE form of a menu path on 6.x
+   (`/ip firewall filter add action=`); after the slash form it answers nothing, a second Tab included, so a caller
+   must use spaces.
 
 7. **Settled: MAC-Telnet on one long session.** 6.49.13 repaints the whole typed line after every character of a
     command, and MAC-Telnet logged in without the `+c` every other PTY login uses, so the repaint came in colour:

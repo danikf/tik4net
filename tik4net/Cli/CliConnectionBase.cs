@@ -666,6 +666,18 @@ namespace tik4net.Cli
                 string reaction = settle(tab, CompletionSettleQuietMs, CancellationToken.None).GetAwaiter().GetResult();
                 FireReadRow(VtStripper.StripAnsi(reaction));
 
+                // RouterOS 6 lists only on a SECOND Tab when the typed stem already is the candidates' common
+                // prefix (`frame-types=admit-`): the first one echoes the line and nothing else. RouterOS 7 lists
+                // on the first. So a first Tab that changed nothing is followed by one more, and its listing wins.
+                if (CliCompletionParser.Clean(reaction, partialInput).Length == 0)
+                {
+                    FireWriteRow("<tab-complete> <second tab>");
+                    string again = settle(new[] { Tab }, CompletionSettleQuietMs, CancellationToken.None).GetAwaiter().GetResult();
+                    FireReadRow(VtStripper.StripAnsi(again));
+                    if (CliCompletionParser.Clean(again, partialInput).Length > 0)
+                        reaction = again;
+                }
+
                 // Abort the half-typed line (Ctrl-C → fresh prompt). Prompt-based read returns promptly here.
                 try { SendRawAndReadAsync(new[] { CtrlC }, CancellationToken.None).GetAwaiter().GetResult(); }
                 catch { /* best-effort cleanup — the listing is already captured */ }

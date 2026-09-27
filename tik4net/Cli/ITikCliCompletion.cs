@@ -28,7 +28,8 @@ namespace tik4net.Cli
         /// they are the settable parameter names. Empty when RouterOS completes the word inline rather than
         /// listing — a unique completion (<c>/interface/vl</c> → <c>vlan/</c>), or the prefix every candidate
         /// shares (<c>frame-types=</c> → <c>admit-</c>) — and when there is nothing to complete.
-        /// <see cref="CompleteCliRaw"/> tells those apart.
+        /// <see cref="CompleteCliRaw"/> tells those apart. Asked again with that prefix, it lists the candidates on
+        /// every RouterOS version: RouterOS 6 lists only on a second Tab, which is sent when the first changed nothing.
         /// </summary>
         /// <param name="partialInput">The partial command line to complete, e.g. <c>/interface/vlan add </c>
         /// (include the trailing space to list the next word — exactly as you would type before pressing Tab).</param>
