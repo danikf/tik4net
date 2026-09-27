@@ -980,6 +980,9 @@ namespace tik4net.Cli
         /// <summary>The menus whose flag read by <c>find</c> the router has already refused — asked once each.</summary>
         private readonly HashSet<string> _noFlagFind = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>The menus and names confirmed as fields after a flag read that named no row — asked once each.</summary>
+        private readonly HashSet<string> _flagFieldExists = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
         /// Whether this router's <c>print</c> takes <c>proplist=</c>, asked once per connection with
         /// <see cref="CliCommandBuilder.ProplistSupportProbe"/>. RouterOS 6 does not have the argument at all.
@@ -1063,6 +1066,30 @@ namespace tik4net.Cli
                 {
                     _noFlagFind.Add(key);
                     continue;
+                }
+
+                // No row named: a flag set nowhere, or a name the menu does not have — RouterOS 6 answers both with
+                // nothing. Asked once per menu and name; an unknown one is left out, as the API leaves it out.
+                if (tokens.Length == 0 && !_flagFieldExists.Contains(key))
+                {
+                    string check;
+                    try
+                    {
+                        check = await ExecuteCliCommandAsync(
+                            CliCommandBuilder.BuildFieldExistsQuery(descriptor.CommandText, name), cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (TikCommandException)
+                    {
+                        _noFlagFind.Add(key);
+                        continue;
+                    }
+                    if (check.IndexOf(CliCommandBuilder.ProplistRefusal, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        _noFlagFind.Add(key);
+                        continue;
+                    }
+                    _flagFieldExists.Add(key);
                 }
 
                 flagIds[name] = new HashSet<string>(tokens, StringComparer.OrdinalIgnoreCase);
