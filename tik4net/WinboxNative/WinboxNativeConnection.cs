@@ -660,6 +660,7 @@ namespace tik4net.WinboxNative
             // cache miss (see WinboxRecordCodec.PrimeReferencesAsync).
             await _codec.PrimeReferencesAsync(records, keyToName, keyToField, cancellationToken).ConfigureAwait(false);
 
+            _codec.LearnKindWords(records, keyToField);
             var rows = new List<TikRecordSentence>(records.Count);
             foreach (var rec in records)
                 rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,

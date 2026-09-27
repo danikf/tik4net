@@ -242,7 +242,12 @@ aliases. Only stable text/keys are shipped — types still come live from `.jg`.
 
 **Interface `type` label**: `.jg` type is a number (`0x10001`); the API string ("ether"/"loopback")
 lives in the record at **`0x1001E`** (verified live + cross-checked against the API). `/interface`
-alias: `0x1001E`→`type`, `0x10001`→`type-id`.
+alias: `0x1001E`→`type`, `0x10001`→`type-id`. On an enslaved interface `0x1001E` holds the master's id instead,
+and the row is named by its type id: every row carrying both keys pairs an id with its name
+(`WinboxJgField.KindIdKey`), learned over the whole answer before any row is decoded — ether2 in a bridge carries
+`0x1001E=1840` beside `0x10001=1`, and ether1's `0x10001=1` beside `"ether"` names it (7.24.4). A type id no
+row has named stays unnamed: the API's word (`ether`, `bond`, `wg`) is not the subtype window's title, so it is
+never guessed.
 
 **Two `M2Message` classes exist** in the solution: the library one
 (`tik4net/Winbox/M2Message.cs`, which has `MessageSys`) and a separate one in the integration test
@@ -1970,9 +1975,10 @@ into families rather than being fifteen unrelated bugs:
   MASTER's numeric id instead, because WinBox nests a slave under its master in the list. Reported as
   `type=474` where the API says `eoip`, and only visible once a fixture made a bonding out of an EoIP
   tunnel. A row whose wire value contradicts the field's declared kind — a string against a number, and
-  nothing weaker — now gets no value at all, and says so on the trace channel. **Still open on the same
-  row:** the type is then simply absent there. Nothing on the wire carries it in a form we can read, and
-  saying nothing is not the same as saying a number.
+  nothing weaker — gets no value from that key, and says so on the trace channel. The row's own type id
+  (`0x10001`) then names it, from the id → name pairs the other rows carry (see *Interface `type` label*); a
+  type no other row names stays absent, which the audit keeps as a named gap (its fixture's bonding slave is
+  the one EoIP tunnel).
 * **An unresolved reference** — **closed**. A dynamic reference no row answers to, and that no static
   member names either, is what an all-ones "not set" looks like where the `.jg` wraps it in no
   `defenum`. RouterOS prints the raw `.id` token there — `/caps-man/provisioning`'s

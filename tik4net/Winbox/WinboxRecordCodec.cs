@@ -168,9 +168,11 @@ namespace tik4net.Winbox
                 // not the same as saying a number.
                 if (IsWireKindContradiction(jf, kv.Value.Item1))
                 {
+                    if (TryLearnedKindWord(jf!, rec, out string? kindWord)) { fields[apiName] = kindWord!; continue; }
                     TraceWireKindContradiction(jf!, kv.Value.Item1);
                     continue;
                 }
+                if (jf != null && jf.KindIdKey != 0) Learn(jf, rec, kv.Value.Item2);
                 fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
             }
 
@@ -973,6 +975,45 @@ namespace tik4net.Winbox
         /// a number) is a width or a rendering question, not a different kind of thing, and the router is
         /// entitled to it.
         /// </summary>
+        // (name key, kind id) → the kind's name, learned from the router's own rows (see WinboxJgField.KindIdKey).
+        private readonly Dictionary<long, string> _kindWords = new Dictionary<long, string>();
+        private readonly object _kindWordsLock = new object();
+
+        private static long KindWordKey(int nameKey, long kindId) => ((long)nameKey << 32) ^ (kindId & 0xFFFFFFFFL);
+
+        private void Learn(WinboxJgField jf, Dictionary<int, Tuple<string, object>> rec, object value)
+        {
+            if (!(value is string word) || word.Length == 0) return;
+            if (!rec.TryGetValue(jf.KindIdKey, out var id) || !WinboxFieldResolver.TryToInt64(id.Item2, out long kindId)) return;
+            lock (_kindWordsLock) _kindWords[KindWordKey(jf.Key, kindId)] = word;
+        }
+
+        private bool TryLearnedKindWord(WinboxJgField jf, Dictionary<int, Tuple<string, object>> rec, out string? word)
+        {
+            word = null;
+            if (jf.KindIdKey == 0 || !rec.TryGetValue(jf.KindIdKey, out var id)
+                || !WinboxFieldResolver.TryToInt64(id.Item2, out long kindId)) return false;
+            lock (_kindWordsLock) return _kindWords.TryGetValue(KindWordKey(jf.Key, kindId), out word);
+        }
+
+        /// <summary>
+        /// Learns every kind name a batch of records carries before any of them is decoded, so a row whose name
+        /// key holds something else (an enslaved interface's master id) is named by its kind id even when its
+        /// peers come later in the same answer.
+        /// </summary>
+        internal void LearnKindWords(IEnumerable<Dictionary<int, Tuple<string, object>>> records,
+            IReadOnlyDictionary<int, WinboxJgField>? keyToField)
+        {
+            if (keyToField == null) return;
+            WinboxJgField? kindField = null;
+            foreach (var f in keyToField.Values)
+                if (f != null && f.KindIdKey != 0) { kindField = f; break; }
+            if (kindField == null) return;
+            foreach (var rec in records)
+                if (rec.TryGetValue(kindField.Key, out var v))
+                    Learn(kindField, rec, v.Item2);
+        }
+
         private static bool IsWireKindContradiction(WinboxJgField? jf, string wireType)
         {
             if (jf == null || jf.WireType == null) return false;

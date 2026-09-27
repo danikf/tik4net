@@ -540,6 +540,16 @@ namespace tik4net.Winbox
         internal IReadOnlyList<int[]>? RefHandlers { get; }
 
         /// <summary>
+        /// For a text field that names a record's KIND: the key whose number names the same kind, or <c>0</c>.
+        /// </summary>
+        /// <remarks>
+        /// <c>/interface</c>'s <c>type</c> is the name at <c>0x1001E</c> and the type id at <c>0x10001</c>, and on
+        /// an enslaved interface the name key carries its master's id instead. The codec learns id → name from
+        /// the rows that carry both and names the slave by its id (see <c>WinboxRecordCodec.LearnKindWords</c>).
+        /// </remarks>
+        internal int KindIdKey { get; set; }
+
+        /// <summary>
         /// The <c>on:</c> condition that decides whether RouterOS reports this field on a given row, or
         /// <c>null</c> for a field that is always reported. See <see cref="WinboxJgCondition"/>.
         /// </summary>
@@ -560,13 +570,13 @@ namespace tik4net.Winbox
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, 0, null, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition };
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey };
 
         internal WinboxJgField WithApiName(string apiName)
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition };
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey };
     }
 }

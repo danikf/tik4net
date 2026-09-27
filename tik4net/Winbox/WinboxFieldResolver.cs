@@ -1476,8 +1476,9 @@ namespace tik4net.Winbox
                     // 'type' is a synthetic rather than a key alias so it can say what KIND of value it is:
                     // 0x1001E carries the type NAME on almost every row, and on an ENSLAVED interface it
                     // carries its master's numeric id instead — WinBox nests a slave under its master in the
-                    // list. Declared `string`, the number is refused and the row simply has no type, which
-                    // beats reporting the master's id as one. See IsWireKindContradiction.
+                    // list. Declared `string`, the number is refused; the row's own type id (0x10001) then names
+                    // it, from the id → name pairs the other rows carry (KindIdKey, WinboxRecordCodec.LearnKindWords).
+                    // A type no row has named yet stays absent, which beats reporting the master's id as one.
                     //
                     // The generic Interface window declares no MAC Address at all — WinBox paints the box in
                     // the SUBTYPE dialog beside it (the Ethernet tab of Interface > ether1), so /interface
@@ -1498,7 +1499,7 @@ namespace tik4net.Winbox
                     // NOT see these — a synthetic an ethernet row needs goes in that set.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["type"] = new WinboxJgField("type", 0x1001E, "string", true),
+                        ["type"] = new WinboxJgField("type", 0x1001E, "string", true) { KindIdKey = 0x10001 },
                         ["mac-address"] = new WinboxJgField("mac-address", 0x3E9, "raw", false,
                                                             uiType: "macaddr"),
                         // 7.x declares it ('Default Name', s10031); the 6.49.13 window does not, but the router

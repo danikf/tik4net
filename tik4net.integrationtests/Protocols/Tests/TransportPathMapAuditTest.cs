@@ -411,7 +411,7 @@ namespace tik4net.integrationtests
                 // master's numeric id instead, so the row has no type (see the 'type' synthetic in
                 // WinboxFieldResolver). The row still has type-id; the .jg declares 'Type' as an `objtype`, which
                 // webfig names from the type id through the subtype windows — not implemented yet.
-                ["type"] = "native: an enslaved interface's type-name key holds its master's id; the objtype mapping is not implemented",
+                ["type"] = "native: an enslaved interface's type-name key holds its master's id, and its type id is named only by a peer row of the same type — the fixture's bonding slave is the one EoIP tunnel",
             },
             ["/system/ntp/client"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
