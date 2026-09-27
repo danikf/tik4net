@@ -112,7 +112,7 @@ namespace tik4net.WinboxCli
         {
             var client = new WinboxCliClient(new tik4net.Winbox.WinboxM2Session(), Encoding, ReceiveTimeout, ConnectTimeout, SendTimeout);
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
-            Action close = () => { client.TryCloseSession(); client.Dispose(); };
+            Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, close);
         }

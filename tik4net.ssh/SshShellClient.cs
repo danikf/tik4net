@@ -207,11 +207,17 @@ namespace tik4net.Ssh
 
         // ── Close / Dispose ───────────────────────────────────────────────────
 
-        internal void Close()
+        /// <summary>Asks RouterOS to leave the console (<c>/quit</c>), then tears the shell down.</summary>
+        /// <param name="answerSafeModeQuestion">The session holds Safe Mode. RouterOS then answers <c>/quit</c> with
+        /// "You are in Safe Mode. Quitting will unroll changes. Quit? [y/N]" (7.24.4) instead of quitting, so <c>y</c> is
+        /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
+        /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
+        /// reboot.</param>
+        internal void Close(bool answerSafeModeQuestion = false)
         {
             // Ask RouterOS to exit cleanly before tearing down, releasing the interactive session
             // on the router immediately. Errors are silently ignored (e.g. already closed).
-            try { _shell?.Write("/quit\r\n"); _shell?.Flush(); } catch { /* ignore */ }
+            try { _shell?.Write(answerSafeModeQuestion ? "/quit\r\ny" : "/quit\r\n"); _shell?.Flush(); } catch { /* ignore */ }
             try { _shell?.Dispose(); } catch { /* ignore */ }
             try { if (_ssh?.IsConnected == true) _ssh.Disconnect(); } catch { /* ignore */ }
             SafeDispose(_ssh);

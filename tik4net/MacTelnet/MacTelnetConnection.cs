@@ -133,7 +133,7 @@ namespace tik4net.MacTelnet
             var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
 
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, user, password, ct);
-            Action close = () => { client.TryCloseSession(); client.Dispose(); };
+            Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
 
             Func<CancellationToken, Task> reopen = async ct =>
             {

@@ -85,35 +85,10 @@ namespace tik4net.Ssh
                 await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);
+                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, () => client.Close(SafeModeHeld));
         }
 
         // ── Safe Mode ───────────────────────────────────────────────────────────
 
-        /// <summary>Ctrl+D — the RouterOS safe-mode discard key in the live terminal. Byte 0x04.</summary>
-        private const byte CtrlD = 0x04;
-
-        /// <summary>
-        /// The pre-7.18 fallback for <see cref="CliConnectionBase.SafeModeUnroll"/>. Over SSH the terminal
-        /// discard key <c>Ctrl+D</c> (0x04) is the SSH EOF convention, and RouterOS's SSH server interprets it
-        /// as end-of-input and closes the channel — requested raw PTY modes do not change this — so unlike the
-        /// other CLI transports it cannot roll back in place. It does still roll back: dropping an uncommitted
-        /// safe-mode session discards it exactly like a disconnect. The connection is therefore closed here
-        /// rather than left in an unusable state. Take/Release (Ctrl+X) work in place over SSH and are
-        /// unaffected; the scriptable path in the base class keeps the connection open on 7.18+.
-        /// </summary>
-        protected override void SafeModeUnrollByControlKey()
-        {
-            try
-            {
-                SendRawAndReadAsync(new[] { CtrlD }, CancellationToken.None).GetAwaiter().GetResult();
-            }
-            catch
-            {
-                // Expected: the SSH channel closes on the EOF byte. The change is rolled back regardless.
-            }
-            SafeModeHeld = false;
-            Close();
-        }
     }
 }

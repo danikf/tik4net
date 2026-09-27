@@ -129,7 +129,7 @@ namespace tik4net.WinboxCliMac
             // scope here), but null is its documented meaning: discover the router via MNDP.
             var client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, ReceiveTimeout, ConnectTimeout, SendTimeout);
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
-            Action close = () => { client.TryCloseSession(); client.Dispose(); };
+            Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
 
             // The re-login goes through RouterLoginRetry for the same reason the initial one does: RouterOS
             // refuses roughly 1 % of WinBox logins that use correct credentials (P2.41), and a recovery path

@@ -88,11 +88,10 @@ namespace tik4net.integrationtests
             var transport = ResolveConnectionType();
             if (transport == TikConnectionType.WinboxNative || transport == TikConnectionType.WinboxNativeMac)
                 Assert.Inconclusive("Native WinBox does not support in-place SafeModeUnroll (rollback is disconnect-only).");
-            // SSH cannot use the Ctrl+D discard key (the SSH EOF convention closes the channel); it unrolls
-            // in place via the scriptable /safe-mode/unroll command, available on RouterOS 7.18+. On older
-            // RouterOS SSH degrades to a disconnect-rollback, so the in-place assertion below does not apply.
-            if (transport == TikConnectionType.Ssh && GetMikrotikVersion() < new Version(7, 18))
-                Assert.Inconclusive("SSH in-place SafeModeUnroll requires the scriptable /safe-mode/unroll command (RouterOS 7.18+).");
+            // In place only where the router has the scriptable /safe-mode/unroll (RouterOS 7.18+). Before that a
+            // terminal transport unrolls by ending the session (the discard key ends it too): the connection is
+            // closed, and the change must be gone from the next one.
+            bool inPlace = GetMikrotikVersion() >= new Version(7, 18);
 
             string name = "safemode-unroll-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             try
@@ -101,8 +100,23 @@ namespace tik4net.integrationtests
                 Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
                 Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
 
-                SafeModeConnection.SafeModeUnroll();   // roll back NOW, stay connected
+                SafeModeConnection.SafeModeUnroll();
                 Assert.IsFalse(SafeModeConnection.SafeModeGet(), "SafeModeGet should report not-held after unroll.");
+                if (!inPlace)
+                {
+                    Assert.IsFalse(Connection.IsOpened, "without /safe-mode/unroll the unroll ends the session, and says so");
+                    RecreateConnection();
+                    // The router finishes the unroll once the session is gone, not before the close returns: about
+                    // half a second over MAC-Telnet (6.49.13), so the next connection can still see the row.
+                    int remaining = CountItems(Connection, name);
+                    for (int i = 0; i < 20 && remaining > 0; i++)
+                    {
+                        Thread.Sleep(500);
+                        remaining = CountItems(Connection, name);
+                    }
+                    Assert.AreEqual(0, remaining, "Ending the session to unroll must discard the change.");
+                    return;
+                }
 
                 // Same connection, no reconnect — the change must be gone.
                 Assert.AreEqual(0, CountItems(Connection, name), "Unroll must discard the change in place.");

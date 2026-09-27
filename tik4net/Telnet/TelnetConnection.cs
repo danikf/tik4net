@@ -79,7 +79,7 @@ namespace tik4net.Telnet
                 await client.LoginAsync(user, password, ct).ConfigureAwait(false);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);
+                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, () => client.Close(SafeModeHeld));
         }
     }
 }

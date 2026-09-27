@@ -284,7 +284,8 @@ namespace tik4net.Cli
             // closed this" from "the transport broke". Tearing down first left a window in which the failure
             // arrived while the connection still looked open, and it was reported as a transport error.
             SetClosed();
-            _close?.Invoke();
+            _close?.Invoke();   // reads SafeModeHeld: a session holding it answers the /quit question (see the clients)
+            SafeModeHeld = false;
             _send = null;
             _sendRaw = null;
             _close = null;
@@ -444,8 +445,6 @@ namespace tik4net.Cli
 
         /// <summary>Ctrl+X — toggles Safe Mode in the RouterOS terminal (take, then commit). Byte 0x18.</summary>
         private const byte CtrlX = 0x18;
-        /// <summary>Ctrl+D — quits Safe Mode discarding the changes (rollback now). Byte 0x04.</summary>
-        private const byte CtrlD = 0x04;
 
         /// <summary>
         /// Sends raw bytes (a control key such as Ctrl+X, with no line terminator) to the terminal and returns
@@ -498,16 +497,18 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Discards the safe-mode changes immediately and leaves Safe Mode without dropping the connection.
-        /// Uses the scriptable <c>/safe-mode/unroll</c> command (RouterOS 7.18+), falling back to the
-        /// terminal <c>Ctrl+D</c> on older versions. No-op when safe mode is not held.
+        /// Discards the safe-mode changes immediately and leaves Safe Mode. On RouterOS 7.18+ this uses the
+        /// scriptable <c>/safe-mode/unroll</c> and the connection stays open. On an older router (RouterOS 6, and
+        /// 7.x before 7.18) there is no way to unroll in place: the connection is closed, which unrolls the
+        /// changes, and <see cref="ITikConnection.IsOpened"/> is <c>false</c> afterwards. No-op when safe mode is
+        /// not held.
         /// </summary>
         /// <remarks>
-        /// The control key is the slow path: measured on 7.23.2 over Telnet,
-        /// <c>Ctrl+D</c> is answered with nothing but a cursor save/restore (<c>&lt;CR&gt;&lt;ESC&gt;7&lt;ESC&gt;8</c>)
-        /// — no confirmation line and no repainted prompt — so the read has nothing to terminate on and runs
-        /// to the full receive deadline. The rollback itself does happen, which is why that path costs 30 s
-        /// per call instead of failing. The scriptable command answers normally and ends on a prompt.
+        /// The terminal's own discard key does not keep the session either: <c>Ctrl+D</c> in Safe Mode unrolls and
+        /// ends the terminal session, with no reply to read — measured on 6.49.13 and 7.24.4 over Telnet (the session
+        /// leaves <c>/user active</c>, and the next write is refused by the host). Sent anyway, it left a connection that
+        /// looked open and swallowed every later command for its full receive timeout. Closing instead answers
+        /// <c>/quit</c>'s "Quitting will unroll changes. Quit? [y/N]" with <c>y</c>: the same unroll, done at once.
         /// </remarks>
         public virtual void SafeModeUnroll()
         {
@@ -534,15 +535,11 @@ namespace tik4net.Cli
         public bool SafeModeGet() => SafeModeHeld;
 
         /// <summary>
-        /// Leaves Safe Mode with the terminal <c>Ctrl+D</c> key — the pre-7.18 path, and the only one on a
-        /// router without the scriptable <c>/safe-mode</c> menu. Overridden where the key has a second
-        /// meaning at the transport layer (on SSH it is VEOF and tears the channel down).
+        /// Unrolls on a router without the scriptable <c>/safe-mode/unroll</c> (before 7.18) by ending the session:
+        /// <see cref="Close"/> answers <c>/quit</c>'s Safe Mode question with <c>y</c>, which unrolls. See
+        /// <see cref="SafeModeUnroll"/> for why no in-place key exists.
         /// </summary>
-        protected virtual void SafeModeUnrollByControlKey()
-        {
-            SendControlKey(CtrlD);
-            SafeModeHeld = false;
-        }
+        protected virtual void SafeModeUnrollByControlKey() => Close();
 
         // ── Tab-completion probe (ITikCliCompletion) ───────────────────────────
 

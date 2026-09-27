@@ -203,10 +203,15 @@ namespace tik4net.MacTelnet
         /// Sends a graceful session-end sequence: first asks RouterOS to exit the console
         /// (<c>/quit</c>), then sends the MAC-layer <c>PKT_END</c>. Errors are ignored.
         /// </summary>
-        internal void TryCloseSession()
+        /// <param name="answerSafeModeQuestion">The session holds Safe Mode. RouterOS then answers <c>/quit</c> with
+        /// "You are in Safe Mode. Quitting will unroll changes. Quit? [y/N]" (7.24.4) instead of quitting, so <c>y</c> is
+        /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
+        /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
+        /// reboot.</param>
+        internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
             StopPump();
-            try { Send(PKT_DATA, _encoding.GetBytes("/quit\r")); } catch { /* ignore */ }
+            try { Send(PKT_DATA, _encoding.GetBytes(answerSafeModeQuestion ? "/quit\ry" : "/quit\r")); } catch { /* ignore */ }
             try { Send(PKT_END, null); } catch { /* ignore */ }
         }
 
