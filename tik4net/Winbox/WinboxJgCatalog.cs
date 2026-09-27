@@ -397,6 +397,25 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// The SYS_CMD an action window's path names: the handler's sole action, or — where several windows share
+        /// one handler — the action whose label is the path's last segment. The system handler [24] carries Reboot (5),
+        /// Shutdown (6), Reset Configuration (7) and a package downgrade (9), one window each (6.49.13, 7.24.4), so
+        /// <c>/system/reboot</c> is cmd 5. <c>-1</c> when neither rule names exactly one action.
+        /// </summary>
+        internal int GetActionCmd(int[] handler, string lastSegment, out string? label)
+        {
+            int sole = GetSoleActionCmd(handler, out label);
+            if (sole >= 0) return sole;
+
+            label = null;
+            var actions = GetHandlerActions(handler);
+            if (actions == null) return -1;
+            foreach (var kv in actions)
+                if (string.Equals(kv.Key, lastSegment, StringComparison.OrdinalIgnoreCase)) { label = kv.Key; return kv.Value; }
+            return -1;
+        }
+
+        /// <summary>
         /// Finds a SINGLETON (<c>type:'item'</c>) window whose derived menu-label leaf contains
         /// <paramref name="leaf"/> (case-insensitive), returning its handler — or <c>null</c> when none match.
         /// </summary>

@@ -855,7 +855,7 @@ namespace tik4net.WinboxNative
         private async Task<IList<TikRecordSentence>> RunActionWindowAsync(
             string apiPath, int[] handler, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            int cmd = _catalog.GetSoleActionCmd(handler, out string? actionLabel);
+            int cmd = _catalog.GetActionCmd(handler, TikPath.Verb(apiPath), out string? actionLabel);
             if (cmd < 0)
                 throw new NotSupportedException(
                     $"WinBox native: '{apiPath}' maps to an action window with no single action to invoke. " +

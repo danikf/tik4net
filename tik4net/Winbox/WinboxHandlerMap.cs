@@ -269,6 +269,11 @@ namespace tik4net.Winbox
 
             // ── System ──
             ["/system/identity"]             = "/system/identity/identity",          // singleton
+            // Commands, not windows: System → Reboot / Shutdown each open a window whose one doit is on the
+            // system handler [24] (cmd 5 / 6), next to Reset Configuration (7) and a package downgrade (9) — the
+            // action is picked by the path's last segment (WinboxJgCatalog.GetActionCmd). 6.49.13 and 7.24.4 alike.
+            ["/system/reboot"]               = "/system/reboot/reboot",
+            ["/system/shutdown"]             = "/system/shutdown/shutdown",
             ["/system/resource"]             = "/system/resources/resources",        // singleton
             ["/system/health"]               = "/system/health/health",
             // The login-banner singleton: menu 'System ▸ Note', but the window is titled 'System Note'
