@@ -886,10 +886,11 @@ in the existing per-path alias set — `pcq-limit` ↔ WinBox 'Queue Size', `red
 'Avg. Packet Size', `remember` ↔ the echo pane's 'Save'.
 
 An alias is only shipped when the NAME **and** the VALUE match what the router prints. The remote pane's
-'Timestamp Format' looks like the API's `syslog-time-format` and is deliberately left unaliased: the API
-reports that field only when the log format is syslog or CEF (`on:'timestamp'`, §27.4) and spells the value
-`bsd-syslog` where the window's enum says `BSD`. Aliasing it would hand the
-mapper a field the API had not reported, carrying a value it could not convert.
+'Timestamp Format' is the API's `syslog-time-format` on both counts only with two more pieces: its condition
+(`on:'timestamp'` — reported for the syslog and CEF formats only, §27.4) and its members, which the window
+captions `BSD`/`ISO8601` where the router says `bsd-syslog`/`iso8601` (`EnumMemberAliases`, as for the format's
+own `BSD syslog` = `syslog`). Without the condition the alias would hand the mapper a field the API had not
+reported; without the member rename, a value it could not convert.
 
 ### 27.3 A record only carries the fields of its own kind
 
@@ -935,8 +936,8 @@ four (a default hotspot user's `server`, traffic-flow's packet-sampling fields, 
 So a condition is acted on only when it is in `WinboxJgCondition.HonouredByTheApi`, keyed by its name and the
 label its first clause reads, and only after it was measured both ways: the API omits the field while the M2
 record carries a real value, and prints it once the condition holds. Today that is ethernet `noautoneg` (`speed`),
-the hotspot profile's `radius`, `account`, `trial`, `mac` and `macauth`, and the logging action's `bsd`, `cef` and
-`timestamp`. The evaluation is three-valued and only a definite false hides a field: an unresolved `on`, a
+the hotspot profile's `radius`, `account`, `trial`, `mac` and `macauth`, and the logging action's `bsd`, `cef`,
+`timestamp` and `tls`. The evaluation is three-valued and only a definite false hides a field: an unresolved `on`, a
 router-level predicate or an unported one keeps it.
 
 Two neighbouring cases stay outside this rule, on purpose:

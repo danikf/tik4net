@@ -117,6 +117,48 @@ namespace tik4net.unittests.Winbox
             Assert.IsFalse(byDefault.ContainsKey("cef-event-delimiter"));
         }
 
+        // roteros.jg Log Action [3,1] (7.24.4), the remote pane's format fields exactly as declared.
+        private const string RemoteLogActionWindow =
+            "[{name:'Log Action',title:'Actions',type:'map',path:[ 3,1 ],c:[" +
+            "{name:'Name',type:'string',id:'s1'}," +
+            "{name:'Remote Log Format',type:'enm',id:'u14',values:{type:'static',map:[ 'default','BSD syslog','CEF' ]}}," +
+            "{name:'Remote Log Protocol',type:'enm',id:'u15',values:{type:'static',map:{0:'UDP',1:'TCP',2:'TLS'}}}," +
+            "{name:'Add Topics',type:'bool',id:'b23',on:'bsd'}," +
+            "{name:'Timestamp Format',type:'enm',id:'u13',on:'timestamp',values:{type:'static',map:[ 'BSD','ISO8601' ]}}," +
+            "{name:'Check certificate',type:'bool',id:'b24',on:'tls'}," +
+            "{name:'bsd',type:'cond',c:[{on:'Remote Log Format',pred:{type:'number',value:[ 1 ]}}]}," +
+            "{name:'timestamp',type:'cond',c:[{on:'Remote Log Format',pred:{type:'or',pred:[{type:'number',value:[ 1 ]},{type:'number',value:[ 2 ]}]}}]}," +
+            "{name:'tls',type:'cond',c:[{on:'Remote Log Protocol',pred:{type:'number',value:[ 2 ]}}]}" +
+            "]}]";
+
+        [TestMethod]
+        public void ARemoteLogActionReadsInTheRoutersWords()
+        {
+            // A t4n action with remote-log-format=syslog over the API (7.24.4): remote-log-format=syslog,
+            // syslog-time-format=bsd-syslog, add-topics-string=false, and no check-certificate over UDP.
+            var decoded = Decode(RemoteLogActionWindow, "/system/logging/action", LogAction,
+                (0x1, "str", "t4n"), (0x14, "u32", (uint)1), (0x15, "u32", (uint)0), (0x23, "bool", false),
+                (0x13, "u32", (uint)0), (0x24, "bool", false));
+
+            Assert.AreEqual("syslog", decoded["remote-log-format"]);
+            Assert.AreEqual("bsd-syslog", decoded["syslog-time-format"]);
+            Assert.AreEqual("false", decoded["add-topics-string"]);
+            Assert.IsFalse(decoded.ContainsKey("check-certificate"), "reported for TLS only");
+        }
+
+        [TestMethod]
+        public void ADefaultFormatActionHasNoSyslogFields()
+        {
+            var decoded = Decode(RemoteLogActionWindow, "/system/logging/action", LogAction,
+                (0x1, "str", "remote"), (0x14, "u32", (uint)0), (0x15, "u32", (uint)2), (0x23, "bool", false),
+                (0x13, "u32", (uint)0), (0x24, "bool", false));
+
+            Assert.AreEqual("default", decoded["remote-log-format"]);
+            Assert.IsFalse(decoded.ContainsKey("syslog-time-format"));
+            Assert.IsFalse(decoded.ContainsKey("add-topics-string"));
+            Assert.AreEqual("false", decoded["check-certificate"], "TLS: reported");
+        }
+
         [TestMethod]
         public void AControllingFieldTheRowDoesNotCarryReadsAsItsDefault()
         {

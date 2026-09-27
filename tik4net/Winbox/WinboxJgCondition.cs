@@ -101,6 +101,7 @@ namespace tik4net.Winbox
             "bsd|Remote Log Format",    // /system/logging/action syslog-facility, syslog-severity
             "cef|Remote Log Format",    // /system/logging/action cef-event-delimiter
             "timestamp|Remote Log Format", // /system/logging/action syslog-time-format
+            "tls|Remote Log Protocol",  // /system/logging/action check-certificate
             "bsd|BSD Syslog",           // the same, in the catalogs before remote-log-format replaced the bool
         };
 

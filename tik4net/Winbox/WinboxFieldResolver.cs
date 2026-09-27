@@ -569,19 +569,22 @@ namespace tik4net.Winbox
                                ("remote", "remote-address"),          // remote pane, 'Remote Address'
                                ("remote-protocol", "remote-log-protocol"),
                                ("email-to", "email"),                 // email pane, 'Email' (already kind-named)
-                               ("remember", "save")),                 // echo pane, 'Save'
+                               ("remember", "save"),                  // echo pane, 'Save'
+                               ("syslog-time-format", "timestamp-format"),
+                               ("add-topics-string", "add-topics")),
                     jgToApi: Ci(("type", "target"),
                                ("remote-address", "remote"),
                                ("remote-log-protocol", "remote-protocol"),
                                ("email", "email-to"),
-                               ("save", "remember"))),
-                // NOT aliased here, deliberately: the remote pane's 'Timestamp Format' (u13) looks like the
-                // API's syslog-time-format, but the API reports that field only when the action's log format
-                // is BSD syslog (the .jg marks it `on:'timestamp'`, a condition this catalog does not model),
-                // and it spells the value 'bsd-syslog' where the window's enum says 'BSD'. Naming it would
-                // hand the mapper a field the API does not report for the row, with a value it cannot convert
-                // — which is exactly what it did. Same for 'Syslog Facility'/'Add Topics'. An alias is only
-                // shipped when the NAME and the VALUE both match what the router prints.
+                               ("save", "remember"),
+                               ("timestamp-format", "syslog-time-format"),
+                               ("add-topics", "add-topics-string"))),
+                // The remote pane's 'Timestamp Format' (u13) and 'Add Topics' (b23) are the API's
+                // syslog-time-format and add-topics-string. Both ride on a format condition (on:'timestamp',
+                // on:'bsd') that WinboxJgCondition honours, so they are reported exactly where the API reports
+                // them; the members the window captions differently ('BSD' is bsd-syslog, the format's 'BSD
+                // syslog' is syslog) are renamed in EnumMemberAliases. Name and value measured on 7.24.4 against
+                // a t4n action with remote-log-format=syslog: syslog-time-format=bsd-syslog, add-topics-string=false.
 
                 // /queue/type: every pane IS kind-prefixed, so the prefix is derived and only the leaf text
                 // differs — WinBox calls the queue depth 'Queue Size' where the API says 'limit', and the RED
@@ -995,7 +998,12 @@ namespace tik4net.Winbox
                 // webfig declares it as a flag ON THE RECORD ID (ufe0001) — no key of its own. The API prints
                 // default=true on exactly the *0 row of each table (7.24.2), so it is derived from the id.
                 ["/ip/hotspot/user"] = HotspotDefault(),
-                ["/ip/hotspot/user/profile"] = HotspotDefault(),
+                // The user profile's 'Rate Limit (rx/tx)' carries its units in the label, as on the server
+                // profile: the API says rate-limit, with the same value (1M/2M on a t4n profile, 7.24.4).
+                ["/ip/hotspot/user/profile"] = new FieldAliasSet(
+                    apiToJg: Ci(("rate-limit", "rate-limit-(rx/tx)")),
+                    jgToApi: Ci(("rate-limit-(rx/tx)", "rate-limit")),
+                    derivedBools: HotspotDefault().DerivedBools),
 
                 // /ip/hotspot/ip-binding: `bypassed` is the binding's type, as a flag (type=bypassed, bypassed=true).
                 ["/ip/hotspot/ip-binding"] = new FieldAliasSet(
@@ -1536,6 +1544,16 @@ namespace tik4net.Winbox
                 {
                     ["30-s"] = "30secs",
                     ["1-s"]  = "1sec",
+                },
+                // /system/logging/action: the window captions the formats; `add remote-log-format=?` completes
+                // default cef syslog, `syslog-time-format=?` bsd-syslog iso8601 (7.24.4).
+                ["remote-log-format"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["bsd-syslog"] = "syslog",
+                },
+                ["timestamp-format"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["bsd"] = "bsd-syslog",
                 },
                 // Only the zero differs here: the router's members are 0, 4-bytes and 8-bytes, and the
                 // window calls the first '0 bytes'.
@@ -3880,7 +3898,11 @@ namespace tik4net.Winbox
         /// <c>false</c> for an enum MEMBER: the override map renames FIELD labels ('Tx' is the interface's
         /// tx-byte counter), and applied to a member it turned /interface/vxlan rem-csum's 'tx' into 'tx-byte'.
         /// </param>
-        internal static string NormalizeLabel(string label, bool applyOverrides = true)
+        /// <param name="keepDecimalPoints">
+        /// <c>true</c> for an enum MEMBER: a point between two digits is a version or a decimal
+        /// (<c>802.3ad</c>, <c>wireless-802.11</c>), which RouterOS keeps. A field label never carries one.
+        /// </param>
+        internal static string NormalizeLabel(string label, bool applyOverrides = true, bool keepDecimalPoints = false)
         {
             if (string.IsNullOrWhiteSpace(label)) return "";
             string trimmed = label.Trim();
@@ -3888,8 +3910,16 @@ namespace tik4net.Winbox
 
             var sb = new StringBuilder(trimmed.Length);
             bool lastDash = false;
-            foreach (char c in trimmed)
+            for (int i = 0; i < trimmed.Length; i++)
             {
+                char c = trimmed[i];
+                if (keepDecimalPoints && c == '.' && i > 0 && i + 1 < trimmed.Length
+                    && char.IsDigit(trimmed[i - 1]) && char.IsDigit(trimmed[i + 1]))
+                {
+                    sb.Append('.');
+                    lastDash = false;
+                    continue;
+                }
                 if (c == '.' || c == '\'')
                 {
                     // Abbreviation dot in a UI label ("Dst. Address" → "dst-address"), and the apostrophe of a

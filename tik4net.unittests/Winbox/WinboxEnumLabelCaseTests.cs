@@ -69,11 +69,11 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>
-        /// The same defect without any case involved: the abbreviation-dot rule turns '2.5Gbps' into
-        /// '25gbps', which is already a member. The API prints <c>rate=1Gbps</c>, i.e. the raw label.
+        /// A rate is a quantity, and RouterOS keeps its case and its point: the API prints <c>rate=1Gbps</c>, and
+        /// '2.5Gbps' stays distinct from '25Gbps'.
         /// </summary>
         [TestMethod]
-        public void ADotStrippedLabelThatCollidesAlsoKeepsItsRawForm()
+        public void ARateMemberKeepsItsCaseAndItsPoint()
         {
             var window =
                 "[{name:'Interfaces',c:[{name:'Interface',title:'Interface',type:'map',path:[ 20,0 ],c:[" +
@@ -81,9 +81,49 @@ namespace tik4net.unittests.Winbox
                 "'unknown','10Mbps','100Mbps','1Gbps','2.5Gbps','5Gbps','10Gbps','25Gbps']}}]}]}]";
             var map = MapOf(Parse(window), new[] { 20, 0 }, "rate");
 
-            Assert.AreEqual("2.5Gbps", map[4], "'2.5Gbps' and '25Gbps' both normalize to 25gbps");
+            Assert.AreEqual("2.5Gbps", map[4]);
             Assert.AreEqual("25Gbps", map[7]);
             Assert.AreEqual("1Gbps", map[3], "and the API prints exactly this");
+        }
+
+        /// <summary>
+        /// An ethernet link mode is led by a quantity, and RouterOS joins its words with dashes and keeps the rest:
+        /// completion of <c>/interface ethernet set advertise=</c> lists <c>100M-baseT-full</c> and
+        /// <c>2.5G-baseX</c> (7.24.4).
+        /// </summary>
+        [TestMethod]
+        public void ALinkModeKeepsItsCaseAndJoinsItsWords()
+        {
+            var window =
+                "[{name:'Interfaces',c:[{name:'Ethernet',title:'Ethernet',type:'map',path:[ 20,1 ],c:[" +
+                "{name:'Speed',type:'enm',id:'u41b',values:{type:'static',map:{0:'10M baseT half',3:'100M baseT full'," +
+                "15:'2.5G baseX',25:'40G baseSR4 LR4'}}}]}]}]";
+            var map = MapOf(Parse(window), new[] { 20, 1 }, "speed");
+
+            Assert.AreEqual("10M-baseT-half", map[0]);
+            Assert.AreEqual("100M-baseT-full", map[3]);
+            Assert.AreEqual("2.5G-baseX", map[15]);
+            Assert.AreEqual("40G-baseSR4-LR4", map[25]);
+        }
+
+        /// <summary>
+        /// A point between two digits is a version, not an abbreviation: the router completes
+        /// <c>/interface bonding add mode=</c> with <c>802.3ad</c> and hotspot <c>nas-port-type=</c> with
+        /// <c>wireless-802.11</c> (7.24.4). An abbreviation point in the same map still goes.
+        /// </summary>
+        [TestMethod]
+        public void AVersionPointInAMemberStays()
+        {
+            var window =
+                "[{name:'Interfaces',c:[{name:'Bonding',title:'Bonding',type:'map',path:[ 20,9 ],c:[" +
+                "{name:'Mode',type:'enm',id:'u1',values:{type:'static',map:['balance rr','active backup','802.3ad','Std. Mode']}}," +
+                "{name:'NAS Port Type',type:'number',id:'u2',values:{type:'static',map:{15:'ethernet',19:'wireless-802.11'}}}]}]}]";
+            var mode = MapOf(Parse(window), new[] { 20, 9 }, "mode");
+            var nas = MapOf(Parse(window), new[] { 20, 9 }, "nas-port-type");
+
+            Assert.AreEqual("802.3ad", mode[2]);
+            Assert.AreEqual("std-mode", mode[3], "an abbreviation point is still dropped");
+            Assert.AreEqual("wireless-802.11", nas[19]);
         }
 
         /// <summary>

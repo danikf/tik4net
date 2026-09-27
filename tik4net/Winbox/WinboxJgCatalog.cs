@@ -2171,17 +2171,15 @@ namespace tik4net.Winbox
         /// <para>Normalizing is what makes a label match the API's spelling at all: WinBox's
         /// <c>'as username'</c> is the API's <c>as-username</c> and <c>'key 0'</c> is <c>key-0</c>. But it
         /// lowercases and folds separators, and a handful of maps distinguish members by exactly those.
-        /// A whole-catalog sweep of 7.24 finds three:</para>
+        /// A whole-catalog sweep of 7.24 finds two:</para>
         /// <list type="bullet">
         /// <item><c>/interface/wireless/security-profiles</c> 'MAC Format' — the same seven formats twice,
         /// uppercase then lowercase, and the case SELECTS how the MAC is sent to RADIUS. 14 labels collapse
         /// to 6. The router agrees they are 14 distinct values (tab-completion offers all of them).</item>
         /// <item><c>/ip/hotspot/profile</c> 'MAC Format' — 7 labels, where <c>'XX XX XX XX XX XX'</c> and
         /// <c>'XX-XX-XX-XX-XX-XX'</c> both fold to the same thing.</item>
-        /// <item>'Rate' — <c>'2.5Gbps'</c> and <c>'25Gbps'</c> both fold to <c>25gbps</c>, because the
-        /// abbreviation-dot rule drops the point. The API prints <c>rate=1Gbps</c>, i.e. the raw label.</item>
         /// </list>
-        /// <para>In all three the raw label is exactly what RouterOS prints and accepts, so keeping it is
+        /// <para>In both the raw label is exactly what RouterOS prints and accepts, so keeping it is
         /// not a compromise — normalizing was simply wrong for them. Detected from the map itself rather
         /// than listed per field, so a new such map on a later RouterOS is handled without a code change.</para>
         /// </remarks>
@@ -2224,15 +2222,27 @@ namespace tik4net.Winbox
         /// <item>In a router-token vocabulary (<see cref="IsRouterTokenVocabulary"/>), a member with no lower-case
         /// letter is the router's own token and is kept; a caption beside it still folds — the certificate
         /// subject-alt-name completion lists <c>DNS IP email</c> for the catalog's <c>DNS IP Email</c>.</item>
+        /// <item>A member LED by a quantity (<c>100M baseT full</c>, <c>2.5G baseX</c>, <c>5.5Mbps</c>): an
+        /// ethernet link mode or a rate. RouterOS keeps its case and its point and joins the words with dashes —
+        /// completion of <c>/interface ethernet set advertise=</c> lists <c>100M-baseT-full</c> and
+        /// <c>2.5G-baseT</c> (7.24.4), and the API prints <c>rate=1Gbps</c>.</item>
+        /// <item>Anywhere else, a point between two digits is a version or a decimal, not an abbreviation, and
+        /// stays: <c>802.3ad</c> (bonding mode), <c>wireless-802.11</c> (hotspot nas-port-type).</item>
         /// </list>
         /// </remarks>
         private static string NormalizeMember(string member, bool routerTokens)
         {
             if (IsQuantity(member)) return member;
             if (routerTokens && !member.Any(char.IsLower)) return member;
+            if (LedByQuantity.IsMatch(member))
+                return string.Join("-", member.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
             // A member, not a field label: the field-name overrides do not apply (see NormalizeLabel).
-            return WinboxFieldResolver.NormalizeLabel(member, applyOverrides: false);
+            return WinboxFieldResolver.NormalizeLabel(member, applyOverrides: false, keepDecimalPoints: true);
         }
+
+        private static readonly System.Text.RegularExpressions.Regex LedByQuantity =
+            new System.Text.RegularExpressions.Regex(@"^\d+(\.\d+)?[kMG](bps)?( |$)",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
         private static bool IsQuantity(string member)
         {
