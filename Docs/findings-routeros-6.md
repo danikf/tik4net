@@ -219,20 +219,20 @@ table is read by which header a value overlaps rather than by the column spans `
 Each is a statement of what is measured and what is not, to be settled one at a time.
 
 1. **WinBox native against the API on 6.x.** Measured with the path-map audit (`TransportPathMapAuditTest`,
-   WinboxNative, against CHR2): OK 132, unmapped 0, value differences 8, field-name mismatches 2, not on this
-   RouterOS 20, no WinBox window 2; writes OK 184 with no value differing, refused 1, not probeable 53 (the
-   router refused the row on both transports). 41 of 1174 API field names are never reported over native
-   (4 %). Before the fallback labels and the windows' own commands (§4) it was OK 111, unmapped 22, writes
-   refused 27. Each part below is separate work:
+   WinboxNative, against CHR2, 2026-09-27): OK 136, unmapped 0, value differences 5, field-name mismatches 1,
+   not on this RouterOS 20, no WinBox window 2; writes OK 184 with no value differing, refused 0, not probeable
+   54 (the router refused the row on both transports). 30 of 1175 API field names are never reported over
+   native (2 %). The same audit against 7.24.4 is unchanged by the 6.x fixes (OK 154, nothing differing). Each
+   part below is separate work:
 
    - **1a. Mapping is complete; two lists are unproven beyond it.** Every path the audit covers now reaches
      its window. CHR2 has no wireless and no CAP interface, so for `/interface/wireless` and
      `/caps-man/interface` what is shown is only that the subtype filter applies (no rows, where the
      unfiltered interface table has two) — not that their fields decode.
-   - **Newly reached paths that still disagree** (same kinds as 1b–1c): `/ip/accounting` `enabled` (6.x labels
-     it *Enable Accounting*), `/system/ntp/client` `primary-ntp`, `secondary-ntp`, `last-update-before`,
-     `/routing/bgp/instance` `ignore-as-path-len`.
-   - **1b. Fields native does not report, on paths that otherwise agree.** Reported now: the address list's
+   - **1b. Fields native does not report, on paths that otherwise agree.** Reported now, under the API's name
+     where the 6.x window spells it out: `/ip/accounting` `enabled` (*Enable Accounting*), `/system/ntp/client`
+     `primary-ntp`, `secondary-ntp` (*Primary/Secondary NTP Server*) and `last-update-before` (*Last Update*),
+     `/routing/bgp/instance` `ignore-as-path-len`; the address list's
      `list`, the route's `pref-src` and the OSPF area's `name` (6.x labels them 'Name', 'Pref. Source' and
      'Area Name'), the mangle rule's `route-dst` (6.x labels it 'Dst. Address', the matcher's own label, so it
      lost the name; shipped as a synthetic field on `u3f4`, read and written), `default-name` and conntrack `total-entries`, keys the 6.x windows do not declare but
@@ -250,25 +250,27 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      - `/ip/ipsec/active-peers` `natt-peer`: the 6.x window has no 'NATT Peer' (7.x: `be`); needs a peer.
      - Shared with 7.x, not a 6.x matter: `/interface` `fp-*` counters, `/interface/bridge/port`
        `debug-info` and `hw`.
-   - **1c. Field names that differ.** `/routing/ospf/instance`: the 6.x API says `redistribute-connected`,
-     `metric-static`, `distribute-default`; native derives `redistribute-connected-routes`,
-     `static-routes-metric`, `redistribute-default-route` from the 6.x labels. `/ip/dhcp-server/config`:
-     `accounting` and `interim-update` are not reported.
+   - **1c. Field names that differ.** `/routing/ospf/instance` reads under the API's names (the 6.x window
+     spells them *Redistribute Connected Routes*, *Static Routes Metric*, …) and its `distribute-default`
+     members without the window's parentheses. Still missing there: `metric-bgp` and `metric-other-ospf`
+     (optional in the window, default 4294967295, which the API prints `auto`; the router sends no key for them
+     at the default) and `state`. `/ip/dhcp-server/config`: `accounting` and `interim-update` are not reported —
+     the 6.x window has only *Store Leases On Disk*; whether the router sends keys `b3`/`u2` (7.x's) anyway is
+     unmeasured.
    - **1d. Values rendered the 7.x way.** Dates: the 6.x API prints `sep/21/2026`, native `2026-09-21`
      (`/system/clock` `date`, `/system/scheduler` `start-date`). Timestamps left as epoch seconds:
-     `/certificate` `invalid-before`/`invalid-after`, `/tool/netwatch` `since`. Enum spelling:
-     `/interface/ethernet` `advertise` `10M-half` against `10m-half`, `/interface/ovpn-server/server` `cipher`
-     `blowfish128` against `blowfish-128`. `/queue/simple` limits: `0/0` against `unlimited/unlimited`.
-     `/system/package` `bundle`: `routeros-x86` against `1`, a reference not resolved.
+     `/certificate` `invalid-before`/`invalid-after`, `/tool/netwatch` `since`. `/system/package` `bundle`:
+     `routeros-x86` against `1` — the window's unnamed `u6` holds the parent package's record id, and native has
+     no way to resolve a reference to a row of the same table (no entity maps the field). The enum spellings
+     (`advertise`, `cipher`) and the queue limits' `0/0` now read as the API prints them.
 
      **Dates and timestamps are postponed to the typed values of 5.0, deliberately.** The difference is not
      native's: the binary API itself prints a date `sep/21/2026` on 6.x and `2026-09-21` on 7.x, so "the API's
      spelling" is a per-version target, and the library does not read the router's version. What is
      version-neutral is a typed date property that reads either spelling — the value-type work of the 5.0
-     entity model. Until then a date or timestamp is a string, spelled as the transport delivered it. The enum
-     spellings, `unlimited` and `bundle` are 6.x catalog mapping and stay open here.
-   - **1e. One write refused over native only.** Enabling an `/ip/dhcp-server` row: `can not run on slave
-     interface` (M2 error `0xFE0006`). Not yet compared against the same step over the API.
+     entity model. Until then a date or timestamp is a string, spelled as the transport delivered it.
+   - **1e. Not a defect: enabling the audit's `/ip/dhcp-server` row** is refused over the API as well
+     (`can not run on slave interface` — on CHR2 the fixture's interface is a bridge port).
 
    Unknown for 1b's route fields: whether any request makes 6.49.13 send Scope and Target Scope — another
    getall flag, a `get` of the single row — since WinBox 6 itself shows a Scope for these routes; a capture of
@@ -296,7 +298,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    | WinboxCli | 92 | 50 | 2 |
    | WinboxCliMac | 114 | 27 | 3 |
    | MacTelnet | 7 | 137 | 0 (the session was lost after 7 paths — problem 7) |
-   | WinboxNative, WinboxNativeMac | 132 | 2 | 8 (problem 1) |
+   | WinboxNative (2026-09-27) | 136 | 1 | 5 (problem 1) |
+   | WinboxNativeMac (before the 2026-09-27 fixes) | 132 | 2 | 8 |
 
    - **Flags: the audit's raw rows lack them, entities do not.** Over every CLI transport the audit's print has
      no `disabled`/`dynamic`/`invalid`/`running`/`slave`; the entity read gets them through the id-list path

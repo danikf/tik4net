@@ -505,8 +505,18 @@ namespace tik4net.integrationtests
             }
             catch (Exception ex)
             {
+                // Refused over the probe: ask the API the same thing, or a row the router will not enable (a DHCP
+                // server on a bridge port) reads as our defect.
+                try { Verb(_api, path, id, verb); }
+                catch (Exception apiEx)
+                {
+                    r.Outcome = Outcome.NotProbeable;
+                    r.Detail = "both transports were refused, so the router is refusing the ROW: " + apiEx.Message;
+                    return r;
+                }
                 r.Outcome = Outcome.Refused;
-                r.Detail = _probeName + " " + verb + " threw: " + ex.GetType().Name + ": " + ex.Message;
+                r.Detail = _probeName + " " + verb + " threw: " + ex.GetType().Name + ": " + ex.Message
+                    + " (the api's " + verb + " was accepted)";
                 return r;
             }
 

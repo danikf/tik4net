@@ -739,9 +739,22 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("cache-hit-dscp", "cache-hit-dscp-(tos)")),
                     jgToApi: Ci(("cache-hit-dscp-(tos)", "cache-hit-dscp"))),
 
+                // 7.x: 'NTP Servers'. 6.49.13 has two boxes instead, 'Primary/Secondary NTP Server' (u2, u3), and
+                // calls the API's last-update-before 'Last Update' (u6a, an age); no 7.x NTP label collides.
                 ["/system/ntp/client"] = new FieldAliasSet(
-                    apiToJg: Ci(("servers", "ntp-servers")),
-                    jgToApi: Ci(("ntp-servers", "servers"))),
+                    apiToJg: Ci(("servers", "ntp-servers"),
+                                ("primary-ntp", "primary-ntp-server"),
+                                ("secondary-ntp", "secondary-ntp-server"),
+                                ("last-update-before", "last-update")),
+                    jgToApi: Ci(("ntp-servers", "servers"),
+                                ("primary-ntp-server", "primary-ntp"),
+                                ("secondary-ntp-server", "secondary-ntp"),
+                                ("last-update", "last-update-before"))),
+
+                // /ip/accounting (RouterOS 6 only): the window says 'Enable Accounting' (b15).
+                ["/ip/accounting"] = new FieldAliasSet(
+                    apiToJg: Ci(("enabled", "enable-accounting")),
+                    jgToApi: Ci(("enable-accounting", "enabled"))),
 
                 // /system/resource: the window declares BOTH 'freq' and 'CPU Frequency' on u5 and first-wins
                 // took 'freq'. One key, one value, and the API's name for it is cpu-frequency.
@@ -1188,10 +1201,40 @@ namespace tik4net.Winbox
                 // The BGP instance window calls the router id 'IP'. Confirmed by value: with the API's
                 // router-id set to 10.99.0.13, native reports ip=10.99.0.13. The state flag 0xFE0008 is the API's
                 // `inactive` here too — told apart on the BGP connection, where a row reads true on both sides.
+                // On 6.49.13 the window also spells out 'Ignore AS Path Length' (b12), the API's ignore-as-path-len.
                 ["/routing/bgp/instance"] = new FieldAliasSet(
-                    apiToJg: Ci(("router-id", "ip")),
-                    jgToApi: Ci(("ip", "router-id")),
+                    apiToJg: Ci(("router-id", "ip"), ("ignore-as-path-len", "ignore-as-path-length")),
+                    jgToApi: Ci(("ip", "router-id"), ("ignore-as-path-length", "ignore-as-path-len")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
+
+                // /routing/ospf/instance on RouterOS 6: the 6.49.13 window (and its OSPFv3 twin) spells each field
+                // out — 'Redistribute Static Routes', 'Static Routes Metric' — where the API says
+                // redistribute-static and metric-static. 7.x's window has none of these labels.
+                ["/routing/ospf/instance"] = new FieldAliasSet(
+                    apiToJg: Ci(("distribute-default", "redistribute-default-route"),
+                                ("redistribute-connected", "redistribute-connected-routes"),
+                                ("redistribute-static", "redistribute-static-routes"),
+                                ("redistribute-rip", "redistribute-rip-routes"),
+                                ("redistribute-bgp", "redistribute-bgp-routes"),
+                                ("redistribute-other-ospf", "redistribute-other-ospf-routes"),
+                                ("metric-default", "default-route-metric"),
+                                ("metric-connected", "connected-routes-metric"),
+                                ("metric-static", "static-routes-metric"),
+                                ("metric-rip", "rip-routes-metric"),
+                                ("metric-bgp", "bgp-routes-metric"),
+                                ("metric-other-ospf", "other-ospf-routes-metric")),
+                    jgToApi: Ci(("redistribute-default-route", "distribute-default"),
+                                ("redistribute-connected-routes", "redistribute-connected"),
+                                ("redistribute-static-routes", "redistribute-static"),
+                                ("redistribute-rip-routes", "redistribute-rip"),
+                                ("redistribute-bgp-routes", "redistribute-bgp"),
+                                ("redistribute-other-ospf-routes", "redistribute-other-ospf"),
+                                ("default-route-metric", "metric-default"),
+                                ("connected-routes-metric", "metric-connected"),
+                                ("static-routes-metric", "metric-static"),
+                                ("rip-routes-metric", "metric-rip"),
+                                ("bgp-routes-metric", "metric-bgp"),
+                                ("other-ospf-routes-metric", "metric-other-ospf"))),
 
                 // /system/health: the router sends both of the API's fields and the catalog names neither.
                 //
@@ -1572,7 +1615,44 @@ namespace tik4net.Winbox
                 {
                     ["0-bytes"] = "0",
                 },
+                // OpenVPN: the window captions 'blowfish 128', 'aes 128' (6.49.13) and 'aes 128 cbc' (7.x);
+                // RouterOS writes the key size onto the algorithm — the 6.x API printed cipher=blowfish128,aes128.
+                // The 7.x words (aes128-cbc, …) are the RouterOS 7 manual's; the 7.x lab has no OpenVPN row to
+                // measure them on.
+                ["cipher"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["blowfish-128"] = "blowfish128",
+                    ["aes-128"] = "aes128", ["aes-192"] = "aes192", ["aes-256"] = "aes256",
+                    ["aes-128-cbc"] = "aes128-cbc", ["aes-192-cbc"] = "aes192-cbc", ["aes-256-cbc"] = "aes256-cbc",
+                    ["aes-128-gcm"] = "aes128-gcm", ["aes-192-gcm"] = "aes192-gcm", ["aes-256-gcm"] = "aes256-gcm",
+                },
+                // The 6.x OSPF instance's 'Redistribute Default Route' (the API's distribute-default): the window
+                // parenthesises the type, RouterOS does not.
+                ["redistribute-default-route"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["if-installed-(as-type-1)"] = "if-installed-as-type-1",
+                    ["if-installed-(as-type-2)"] = "if-installed-as-type-2",
+                    ["always-(as-type-1)"] = "always-as-type-1",
+                    ["always-(as-type-2)"] = "always-as-type-2",
+                },
+                // The 6.x ethernet window says '2.5G full', '5G full', '10G full'; RouterOS 6 counts those in
+                // megabits like the rest of its list. 7.x's members ('2.5G baseT', '10G baseT') are its own tokens.
+                ["advertise"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["2.5G-full"] = "2500M-full",
+                    ["5G-full"] = "5000M-full",
+                    ["10G-full"] = "10000M-full",
+                },
+                // The 6.x simple queue's rate halves caption 0 as 'unlimited'; the API prints max-limit=0/0
+                // (6.49.13). 7.x declares no such member on them.
+                ["upload-max-limit"] = UnlimitedIsZero(), ["download-max-limit"] = UnlimitedIsZero(),
+                ["upload-limit-at"] = UnlimitedIsZero(), ["download-limit-at"] = UnlimitedIsZero(),
+                ["upload-burst-limit"] = UnlimitedIsZero(), ["download-burst-limit"] = UnlimitedIsZero(),
+                ["upload-burst-threshold"] = UnlimitedIsZero(), ["download-burst-threshold"] = UnlimitedIsZero(),
             };
+
+        private static Dictionary<string, string> UnlimitedIsZero()
+            => new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["unlimited"] = "0" };
 
         /// <summary>
         /// Fields the <c>.jg</c> declares as an enum but RouterOS prints as the plain NUMBER.

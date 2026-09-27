@@ -665,7 +665,9 @@ namespace tik4net.Winbox
                         var present = jf.EnumMap.Where(kv => (bits & (1L << kv.Key)) != 0);
                         var labels = (SetPrintedDescending.Contains(jf.ApiName ?? "")
                                 ? present.OrderByDescending(kv => kv.Key)
-                                : present.OrderBy(kv => kv.Key))
+                                : SetPrintedBySpeed.Contains(jf.ApiName ?? "")
+                                    ? present.OrderBy(kv => LinkSpeedMbps(kv.Value)).ThenBy(kv => kv.Key)
+                                    : present.OrderBy(kv => kv.Key))
                             .Select(kv => kv.Value);
                         string joined = string.Join(",", labels);
                         bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
@@ -837,6 +839,31 @@ namespace tik4net.Winbox
                 // entries hide the distinction by being spelled the same on both sides.
                 "encryption-algorithm", "encr-algorithms",
             };
+
+        /// <summary>
+        /// Set fields RouterOS prints slowest link mode first, whatever bit the window gives each mode.
+        /// </summary>
+        /// <remarks>
+        /// RouterOS 6's ethernet <c>advertise</c> (a <c>set</c> there; 7.x's is a list and keeps its own order):
+        /// the window numbers 10G as bit 12 and 2.5G/5G as bits 30/31, and 6.49.13 prints
+        /// <c>…,1000M-full,2500M-full,5000M-full,10000M-full</c>. Within one speed the bit order stands (half
+        /// before full).
+        /// </remarks>
+        private static readonly HashSet<string> SetPrintedBySpeed =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "advertise" };
+
+        // The leading quantity of a link-mode member in Mbit/s ('2500M-full' → 2500, '10G-full' → 10000);
+        // a member with none sorts last.
+        private static double LinkSpeedMbps(string member)
+        {
+            int i = 0;
+            while (i < member.Length && (char.IsDigit(member[i]) || member[i] == '.')) i++;
+            if (i == 0 || !double.TryParse(member.Substring(0, i), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double n))
+                return double.MaxValue;
+            char unit = i < member.Length ? char.ToUpperInvariant(member[i]) : 'M';
+            return unit == 'G' ? n * 1000 : n;
+        }
 
         /// <summary>
         /// Fields where RouterOS spells a zero as a WORD, and the <c>.jg</c> gives that word nowhere: the

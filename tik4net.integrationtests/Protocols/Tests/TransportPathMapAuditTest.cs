@@ -1,4 +1,4 @@
-﻿// TransportPathMapAuditTest.cs — diagnostic: does the transport under test reach everything the binary
+// TransportPathMapAuditTest.cs — diagnostic: does the transport under test reach everything the binary
 // API reaches, and does it come back with the SAME table?
 //
 // Every transport promises the same contract over a different wire, and each has its own way of getting a
@@ -538,7 +538,10 @@ namespace tik4net.integrationtests
                     }
                     if (agrees) continue;
                     if (!seen.Add(f.Key)) continue;
-                    diffs.Add($"{f.Key} [{kv.Key}]: api='{Trim(f.Value)}' probe='{Trim(probeValue)}'");
+                    // Two long values that differ late would both print as the same first 37 characters, so the
+                    // report starts them where they part (6.49.13's `advertise` list differed only at its end).
+                    int from = DifferingFrom(f.Value, probeValue);
+                    diffs.Add($"{f.Key} [{kv.Key}]: api='{Trim(f.Value, from)}' probe='{Trim(probeValue, from)}'");
                 }
             }
 
@@ -553,8 +556,22 @@ namespace tik4net.integrationtests
         private static bool IsNotARouterField(string name)
             => name == TikSpecialProperties.Id || name == TikSpecialProperties.Tag || name == ".nextid";
 
-        private static string Trim(string v)
-            => v == null ? "" : (v.Length > 40 ? v.Substring(0, 37) + "..." : v);
+        private static string Trim(string v, int from = 0)
+        {
+            if (v == null) return "";
+            if (from > 0 && v.Length > 40) v = "..." + v.Substring(Math.Min(from, v.Length));
+            return v.Length > 40 ? v.Substring(0, 37) + "..." : v;
+        }
+
+        // Where two values part, backed up to the start of the list member it falls in; 0 when they part early.
+        private static int DifferingFrom(string a, string b)
+        {
+            if (a == null || b == null) return 0;
+            int i = 0;
+            while (i < a.Length && i < b.Length && a[i] == b[i]) i++;
+            while (i > 0 && a[i - 1] != ',') i--;
+            return i < 20 ? 0 : i;
+        }
 
         /// <summary>
         /// For each field only the API reports, the field(s) only native reports that carry the SAME value
