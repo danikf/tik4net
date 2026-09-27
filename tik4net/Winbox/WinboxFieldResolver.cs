@@ -693,9 +693,17 @@ namespace tik4net.Winbox
                     jgToApi: Ci(("allowed-address", "address"))),
 
                 // The rest: one WinBox label, one API name, no structure to derive it from.
+                // accounting and interim-update are 7.x's 'Accounting' (b3) and 'Interim Update' (u2); the 6.49.13
+                // window declares neither, but the router sends both keys. Confirmed by value there:
+                // accounting=no moved 0x3 True -> False, interim-update=1m30s moved 0x2 0 -> 90.
                 ["/ip/dhcp-server/config"] = new FieldAliasSet(
                     apiToJg: Ci(("store-leases-disk", "store-leases-on-disk")),
-                    jgToApi: Ci(("store-leases-on-disk", "store-leases-disk"))),
+                    jgToApi: Ci(("store-leases-on-disk", "store-leases-disk")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["accounting"] = new WinboxJgField("accounting", 0x3, "bool", false),
+                        ["interim-update"] = new WinboxJgField("interim-update", 0x2, "u32", false, uiType: "interval"),
+                    }),
 
                 // /ip/dns: 'mDNS Repeater Interfaces' is the API's mdns-repeat-ifaces. Both read empty on a
                 // stock router, so the audit could not propose it; settled by setting it to ether2 and

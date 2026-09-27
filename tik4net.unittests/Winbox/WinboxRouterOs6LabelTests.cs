@@ -41,7 +41,42 @@ namespace tik4net.unittests.Winbox
             "{name:'Redistribute Connected Routes',type:'enm',id:'u3',def:2,values:{type:'static',map:[ 'as type 1','as type 2','no' ]}}," +
             "{name:'Redistribute Static Routes',type:'enm',id:'u2',def:2,values:{type:'static',map:[ 'as type 1','as type 2','no' ]}}," +
             "{name:'Metrics',type:'tab'},{name:'Default Route Metric',type:'number',id:'uc',def:1,max:16777214}," +
-            "{name:'Static Routes Metric',type:'number',id:'u9',def:20,max:16777214}]}]";
+            "{name:'Static Routes Metric',type:'number',id:'u9',def:20,max:16777214}," +
+            "{name:'BGP Routes Metric',type:'number',id:'ud',def:4294967295,max:16777214,opt:1}," +
+            "{name:'Other OSPF Routes Metric',type:'number',id:'u12',def:4294967295,max:16777214,opt:1}]}]";
+
+        [TestMethod]
+        public void OspfInstance_TheUnsetMetricsReadAuto()
+        {
+            // The stock 6.49.13 instance: 0xD and 0x12 carry the marker, and the API prints metric-bgp=auto.
+            var fields = Decode(OspfInstance, "/routing/ospf/instance", new[] { 44, 120 },
+                new Dictionary<int, Tuple<string, object>>
+                {
+                    [0xD] = Tuple.Create("u32", (object)4294967295u),
+                    [0x12] = Tuple.Create("u32", (object)25u),
+                });
+
+            Assert.AreEqual("auto", fields["metric-bgp"], Dump(fields));
+            Assert.AreEqual("25", fields["metric-other-ospf"], Dump(fields));
+        }
+
+        [TestMethod]
+        public void DhcpServerConfig_ReadsTheKeysThe6xWindowDoesNotDeclare()
+        {
+            const string config = "[{title:'DHCP Config',type:'item',path:[ 23,5 ],c:[{name:'Store Leases On Disk'," +
+                "type:'interval',id:'u1',values:{type:'static',map:{0:'immediately',4294967295:'never'}}}]}]";
+            var fields = Decode(config, "/ip/dhcp-server/config", new[] { 23, 5 },
+                new Dictionary<int, Tuple<string, object>>
+                {
+                    [0x1] = Tuple.Create("u32", (object)300u),
+                    [0x2] = Tuple.Create("u32", (object)90u),
+                    [0x3] = Tuple.Create("bool", (object)false),
+                });
+
+            Assert.AreEqual("5m", fields["store-leases-disk"], Dump(fields));
+            Assert.AreEqual("1m30s", fields["interim-update"], Dump(fields));
+            Assert.AreEqual("false", fields["accounting"], Dump(fields));
+        }
 
         [TestMethod]
         public void OspfInstance_ReadsUnderTheApiNamesAndWords()

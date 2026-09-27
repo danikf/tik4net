@@ -219,9 +219,9 @@ table is read by which header a value overlaps rather than by the column spans `
 Each is a statement of what is measured and what is not, to be settled one at a time.
 
 1. **WinBox native against the API on 6.x.** Measured with the path-map audit (`TransportPathMapAuditTest`,
-   WinboxNative, against CHR2, 2026-09-27): OK 136, unmapped 0, value differences 5, field-name mismatches 1,
+   WinboxNative, against CHR2, 2026-09-27): OK 137, unmapped 0, value differences 5, field-name mismatches 0,
    not on this RouterOS 20, no WinBox window 2; writes OK 184 with no value differing, refused 0, not probeable
-   54 (the router refused the row on both transports). 30 of 1175 API field names are never reported over
+   54 (the router refused the row on both transports). 26 of 1175 API field names are never reported over
    native (2 %). The same audit against 7.24.4 is unchanged by the 6.x fixes (OK 154, nothing differing). Each
    part below is separate work:
 
@@ -252,11 +252,11 @@ Each is a statement of what is measured and what is not, to be settled one at a 
        `debug-info` and `hw`.
    - **1c. Field names that differ.** `/routing/ospf/instance` reads under the API's names (the 6.x window
      spells them *Redistribute Connected Routes*, *Static Routes Metric*, …) and its `distribute-default`
-     members without the window's parentheses. Still missing there: `metric-bgp` and `metric-other-ospf`
-     (optional in the window, default 4294967295, which the API prints `auto`; the router sends no key for them
-     at the default) and `state`. `/ip/dhcp-server/config`: `accounting` and `interim-update` are not reported —
-     the 6.x window has only *Store Leases On Disk*; whether the router sends keys `b3`/`u2` (7.x's) anyway is
-     unmeasured.
+     members without the window's parentheses. `metric-bgp` and `metric-other-ospf` arrive as 4294967295 at
+     their default and read `auto`, as the API prints them. Still missing there: `state` (the API's `down`
+     against the window's *Running* bool `u65`=0; only `down` has been seen, so no mapping is shipped).
+     `/ip/dhcp-server/config` `accounting` and `interim-update` are keys the 6.x window does not declare but the
+     router sends (7.x's `b3`/`u2`, confirmed by setting both and watching the keys move).
    - **1d. Values rendered the 7.x way.** Dates: the 6.x API prints `sep/21/2026`, native `2026-09-21`
      (`/system/clock` `date`, `/system/scheduler` `start-date`). Timestamps left as epoch seconds:
      `/certificate` `invalid-before`/`invalid-after`, `/tool/netwatch` `since`. `/system/package` `bundle`:
@@ -298,7 +298,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    | WinboxCli | 92 | 50 | 2 |
    | WinboxCliMac | 114 | 27 | 3 |
    | MacTelnet | 7 | 137 | 0 (the session was lost after 7 paths — problem 7) |
-   | WinboxNative (2026-09-27) | 136 | 1 | 5 (problem 1) |
+   | WinboxNative (2026-09-27) | 137 | 0 | 5 (problem 1) |
    | WinboxNativeMac (before the 2026-09-27 fixes) | 132 | 2 | 8 |
 
    - **Flags: the audit's raw rows lack them, entities do not.** Over every CLI transport the audit's print has

@@ -951,6 +951,10 @@ namespace tik4net.Winbox
                 // window's on:'bsd' condition, which 7.24's API applies to the field and 6.49.13's does not;
                 // native applies it to none of the remote pane's fields, syslog-facility included).
                 ["syslog-severity"] = "auto",
+                // The 6.49.13 OSPF instance's BGP and Other OSPF metrics (the API's metric-bgp,
+                // metric-other-ospf): the stock instance carries the marker on 0xD and 0x12, the API prints auto.
+                ["bgp-routes-metric"]        = "auto",
+                ["other-ospf-routes-metric"] = "auto",
             };
 
         private static bool TrySentinelWord(WinboxJgField? jf, object value, out string? word)
