@@ -359,6 +359,26 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // An unset text field ('connection-mark' after unset) went through the same flag read and came back 'false' on
+        // every row; the API leaves it out (VerbMatrixTest.Verb_Unset_ClearsTheField on 6.49.13).
+        [TestMethod]
+        public void OnRouterOs6_ATextFieldNoRowHas_IsLeftOut_NotReadAsFalse()
+        {
+            using (var conn = new FlagRouter(printsFlags: false, hasProplist: false))
+            {
+                conn.OpenScripted();
+
+                var rows = conn.CreateCommand("/iface/print",
+                        conn.CreateParameter(TikSpecialProperties.Proplist, ".id,name,running,mark", TikCommandParameterFormat.NameValue))
+                    .ExecuteList().ToList();
+
+                Assert.IsFalse(rows.Any(r => r.Words.ContainsKey("mark")),
+                    string.Join(" | ", rows.Select(r => string.Join(",", r.Words.Select(w => w.Key + "=" + w.Value)))));
+                CollectionAssert.AreEqual(new[] { "true", "false", "true" },
+                    rows.Select(r => r.GetResponseFieldOrDefault("running", "(missing)")).ToList());
+            }
+        }
+
         [TestMethod]
         public void OnRouterOs6_TheSupportProbeIsAskedOncePerConnection()
         {
@@ -533,7 +553,7 @@ namespace tik4net.unittests.Cli
             private static readonly bool[] RunningValues = { true, false, true };
             private static readonly bool[] DisabledValues = { false, true, false };
             private static readonly HashSet<string> KnownFields =
-                new HashSet<string>(StringComparer.Ordinal) { "name", "disabled", "running", "log", "comment" };
+                new HashSet<string>(StringComparer.Ordinal) { "name", "disabled", "running", "log", "comment", "mark" };
 
             private const string SyntaxError = "expected end of command (line 1 column 24)";
 
@@ -578,11 +598,16 @@ namespace tik4net.unittests.Cli
                     return Task.FromResult(SyntaxError);
 
                 // The flag id list a router without proplist= is read with.
-                // Does the menu have this field? 'get' refuses an unknown name on every version (6.49.13, 7.24.4).
+                // The first row's value: a flag answers false (it is false on row 0 here), 'mark' is a text field no row
+                // has a value in and answers nothing, and an unknown name is refused (6.49.13, 7.24.4).
                 var fieldGet = Regex.Match(cliText, @"^:put \[/iface get \[:pick \[find\] 0\] (?<field>[a-z-]+)\]$");
                 if (fieldGet.Success)
-                    return Task.FromResult(KnownFields.Contains(fieldGet.Groups["field"].Value)
-                        ? string.Empty : ProplistRefusal);
+                {
+                    string field = fieldGet.Groups["field"].Value;
+                    if (!KnownFields.Contains(field))
+                        return Task.FromResult(ProplistRefusal);
+                    return Task.FromResult(field == "disabled" || field == "running" ? "false" : string.Empty);
+                }
 
                 var flagFind = Regex.Match(cliText, @"^:put \[/iface find \((?<flag>[a-z-]+)=yes\)\]$");
                 if (flagFind.Success)

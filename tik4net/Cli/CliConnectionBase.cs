@@ -980,7 +980,7 @@ namespace tik4net.Cli
         /// <summary>The menus whose flag read by <c>find</c> the router has already refused — asked once each.</summary>
         private readonly HashSet<string> _noFlagFind = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>The menus and names confirmed as fields after a flag read that named no row — asked once each.</summary>
+        /// <summary>The menus and names confirmed as flags after a flag read that named no row — asked once each.</summary>
         private readonly HashSet<string> _flagFieldExists = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
@@ -1068,15 +1068,19 @@ namespace tik4net.Cli
                     continue;
                 }
 
-                // No row named: a flag set nowhere, or a name the menu does not have — RouterOS 6 answers both with
-                // nothing. Asked once per menu and name; an unknown one is left out, as the API leaves it out.
+                // No row named: a flag set nowhere, a field that is no flag at all (a .proplist name such as an unset
+                // connection-mark), or a name the menu does not have — RouterOS 6 answers all three with nothing. The
+                // first row's 'get' tells them apart (6.49.13): a flag it answers 'true'/'false', and every row then gets
+                // 'false', as the API prints it; an unknown name it refuses; and it answers nothing for a text field
+                // without a value and for a flag this menu prints only when set ('slave'), both of which the API leaves
+                // out too — so they are left out. Asked once per menu and name.
                 if (tokens.Length == 0 && !_flagFieldExists.Contains(key))
                 {
                     string check;
                     try
                     {
                         check = await ExecuteCliCommandAsync(
-                            CliCommandBuilder.BuildFieldExistsQuery(descriptor.CommandText, name), cancellationToken)
+                            CliCommandBuilder.BuildFieldValueQuery(descriptor.CommandText, name), cancellationToken)
                             .ConfigureAwait(false);
                     }
                     catch (TikCommandException)
@@ -1084,7 +1088,9 @@ namespace tik4net.Cli
                         _noFlagFind.Add(key);
                         continue;
                     }
-                    if (check.IndexOf(CliCommandBuilder.ProplistRefusal, StringComparison.OrdinalIgnoreCase) >= 0)
+                    string answer = check.Trim();
+                    if (!string.Equals(answer, "true", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(answer, "false", StringComparison.OrdinalIgnoreCase))
                     {
                         _noFlagFind.Add(key);
                         continue;
