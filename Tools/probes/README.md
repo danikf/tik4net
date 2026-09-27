@@ -34,6 +34,10 @@ read through `LabConfig.cs`) by setting `TIK4NET_ROUTER` for the run, and writes
 `TestResults/<name>`. A name the file does not define is refused before anything runs; without `-Router`, an
 inherited `TIK4NET_ROUTER` is cleared.
 
+`-NoBuild` runs the already-built assembly. Use it when two runs go at once, one per router — build once, then
+start both with `-NoBuild`, or they race building the same output folder. Never run two at once against one
+router; the `mikrotik-tests` skill has the rules.
+
 The default transport order runs the API-based transports before the CLI ones, because CLI transports
 are the ones that leave orphans on the router and an orphan changes the error a later transport sees.
 

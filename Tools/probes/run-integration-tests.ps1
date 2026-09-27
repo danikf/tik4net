@@ -37,6 +37,11 @@
     Where TRX files are written. Defaults to ./TestResults, or ./TestResults/<Router> with -Router, so a
     run against another router never moves the default router's results aside (git-ignored).
 
+.PARAMETER NoBuild
+    Run the already-built test assembly (dotnet test --no-build). Needed when two runs go at once, one per
+    router: both would otherwise build the same project into the same output folder and race on its files.
+    Build once first (dotnet build tik4net.integrationtests), then start each run with -NoBuild.
+
 .PARAMETER WireTrace
     Enable byte-level wire tracing for the run by setting TIK4NET_WIRETRACE. Pass a file path, or
     'auto' to name the file after the transport and timestamp. Test boundaries are written into the
@@ -65,6 +70,7 @@ param(
     [switch]   $Smoke,
     [string]   $Filter,
     [string]   $Router,
+    [switch]   $NoBuild,
     [string]   $ResultsDirectory = 'TestResults',
     [string]   $WireTrace
 )
@@ -162,6 +168,7 @@ foreach ($t in $Transport) {
         '--verbosity', 'normal'
     )
     if ($effectiveFilter) { $args += @('--filter', $effectiveFilter) }
+    if ($NoBuild) { $args += '--no-build' }
 
     $started = Get-Date
     & dotnet @args

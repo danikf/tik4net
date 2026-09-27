@@ -127,6 +127,36 @@ the CLI parsers) or for release preparation.
 CLI ones, and `winboxcli` before `winboxclimac`, because CLI transports are the ones that leave orphans
 and an orphan changes the error a later transport sees.
 
+**One router: one run at a time. Two routers: one run each, at the same time.** Two runs against the same
+router interfere: each one's orphan cleaner deletes the other's `t4n` rows mid-test, row counts move under a
+comparison, and more connections only reach the router's throughput ceiling sooner
+(`Docs/findings-router-throughput-ceiling.md`). Runs against *different* routers share nothing on the router side,
+so the default router and CHR2 can be tested in parallel — measured 2026-09-27: smoke over api/telnet/mactelnet on
+the default router beside `CliFlagFieldsTest` + `QueueTypeTest` on CHR2, both green, each leg as fast as alone.
+Three conditions:
+
+- **Build once, then start both with `-NoBuild`.** Otherwise both `dotnet test` calls build the same project into
+  the same output folder and race on its files (a failure that reports "build failed" with 0 errors).
+- **Keep `RomonRelayTest` out of the default-router run.** It writes `tik4net-romon-…` rows to CHR2 through the
+  relay, which the CHR2 run then sees in its tables and its orphan cleaner deletes:
+  `-Filter 'FullyQualifiedName!~RomonRelayTest'`. `-Smoke` is safe as it is (its classes never relay). The `chr2`
+  profile already switches the RoMON target off, so the CHR2 run never reaches back.
+- **Each run gets its own results folder** — `-Router` does that by itself; give the default run
+  `-ResultsDirectory` only if a second default-router run could overwrite it.
+
+Both CHRs are VMs on one host; two full matrices at once have not been measured, so compare durations with a
+sequential run before trusting a slow one.
+
+```bash
+dotnet build tik4net.integrationtests/tik4net.integrationtests.csproj
+```
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -NoBuild -Transport @('api') -Filter 'FullyQualifiedName!~RomonRelayTest'"
+```
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -NoBuild -Router chr2 -Transport @('api') -Filter 'FullyQualifiedName~CliFlagFieldsTest'"
+```
+
 **`--filter` cannot run an `[Ignore]`d test.** MSTest applies `[Ignore]` before the filter, so naming the
 test still reports it `Přeskočeno`/skipped and the run passes — a green result that measured nothing.
 Comment the attribute out, run, then put it back. The audit and dump tests are the ones this bites:
