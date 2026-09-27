@@ -382,6 +382,13 @@ The mangle read is roughly 45 KB/s. Holding out-of-order packets in a reorder bu
 retransmit instead of a backlog replay, remains the untried candidate for everything a window does not
 cover — a single large answer to a command that is not a read.
 
+**The echo of the command counts too.** RouterOS 6 repaints the whole typed line after every character, so
+the echo of a command grows with the square of its length. The terminal user name carries `+c`, as every PTY
+login's does (the EC-SRP5 exchange keeps the bare name): without it the repaint is coloured, ~65 KB for one
+180-character window command on 6.49.13, and under that volume the router re-sent packets already acknowledged
+and then stopped mid-echo — 21 of 425 reads of a one-session entity sweep waited out the 30 s deadline at
+17–24 KB. With `+c` the same echo is ~19 KB and the sweep had none. RouterOS 7 echoes a typed line once.
+
 ## 10. Router-side prerequisites
 
 - `/tool mac-server set allowed-interface-list=all` (or a specific allowed interface) — otherwise
