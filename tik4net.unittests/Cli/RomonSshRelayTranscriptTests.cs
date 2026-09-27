@@ -276,6 +276,40 @@ namespace tik4net.unittests.Cli
             Assert.IsFalse(RouterOsCliLogin.IsRomonRelayEnd("say \"Welcome back!\" to the user"));
         }
 
+        // ── the relay's status line spliced into the target's output ───────────
+
+        // Two rows of a 6.49.13 target's `print detail as-value`, as the relay delivered them on 2026-09-27: the
+        // status line lands at any byte — inside a value and inside a field name — ended by a bare LF.
+        private const string CleanRows =
+            ".id=*22c6;address=198.18.1.81;comment=c #330;list=l;.id=*22c7;address=198.18.1.82;comment=c #331;list=l";
+
+        [DataTestMethod]
+        [DataRow(".id=*22c6;address=1waiting for head\n98.18.1.81;comment=c #330;list=l;.id=*22c7;address=198.18.1.82;comment=c #331;list=l")]
+        [DataRow(".id=*22c6;address=198.18.1.81;comment=c #330;list=l;.id=*22c7;addrwaiting for head\ness=198.18.1.82;comment=c #331;list=l")]
+        public void RelayNoise_IsRemovedFromARelayedRead_GivingBackTheTargetsExactRows(string received)
+        {
+            var got = CliOutputParser.ParseAsValue(VtStripper.StripAnsi(
+                RouterOsCliLogin.WithoutRomonRelayNoise(Target, received)));
+            var expected = CliOutputParser.ParseAsValue(CleanRows);
+
+            Assert.AreEqual(2, got.Count);
+            for (int i = 0; i < expected.Count; i++)
+                CollectionAssert.AreEquivalent(expected[i].Words.ToList(), got[i].Words.ToList(), "row " + i);
+        }
+
+        [TestMethod]
+        public void RelayNoise_LeftIn_CorruptsTheRow_SoADirectSessionIsTheOnlyOneLeftAlone()
+        {
+            const string received = ".id=*22c6;address=1waiting for head\n98.18.1.81;list=l";
+
+            // What the parser makes of it unaided: a value that is neither the address nor an error.
+            var rows = CliOutputParser.ParseAsValue(received);
+            Assert.AreEqual("1waiting for head,98.18.1.81", rows[0].Words["address"]);
+
+            // A direct session has no relay to write the line, so its text is never touched.
+            Assert.AreSame(received, RouterOsCliLogin.WithoutRomonRelayNoise(null, received));
+        }
+
         [TestMethod]
         public void RelayEnded_MidCommand_SaysTheCommandMayHaveRun_AndNeverThrowsForADirectSession()
         {

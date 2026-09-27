@@ -332,6 +332,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    - 1 large read over MAC-Telnet: the id-list flag query on the 450-row table,
      `:put [/ip firewall address-list find (dynamic=yes)]`, was refused as incomplete after four MAC backlogs
      on 2026-09-24 and passed on 2026-09-25; the same read passes over Telnet and SSH.
+   - Not a gap of the target's CLI: the relay's `waiting for head` status line, spliced into about one large read in
+     fifteen, is removed by the relaying transports ([findings-romon.md](findings-romon.md) §4).
 
 5. **Two MCP-side gaps seen while measuring.** `mikrotik_call` over `MacTelnet` failed against both routers,
    6.x and 7.x alike, while the suite's own MAC-Telnet legs passed — so the server, not the router; it was a

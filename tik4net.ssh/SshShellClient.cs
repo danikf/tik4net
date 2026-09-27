@@ -307,7 +307,7 @@ namespace tik4net.Ssh
                     accumulated.Append(await ProcessChunkAsync(buffer, available, ct).ConfigureAwait(false));
                 }
 
-                string stripped = VtStripper.StripAnsi(accumulated.ToString());
+                string stripped = VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(_romonTarget, accumulated.ToString()));
                 if (predicate(stripped))
                     return stripped;
 
@@ -366,7 +366,7 @@ namespace tik4net.Ssh
                 if (gotData)
                     settleUntil = null; // fresh data → the prompt (if any) is not yet stable
 
-                string stripped = VtStripper.StripAnsi(accumulated.ToString());
+                string stripped = VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(_romonTarget, accumulated.ToString()));
                 streamer.Feed(stripped);
 
                 // The relay ended mid-command: no prompt will follow, the agent's session is over.

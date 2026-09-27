@@ -471,6 +471,28 @@ namespace tik4net.Cli
         }
 
         /// <summary>
+        /// A status line the RoMON relay writes into the relayed session's byte stream, at any byte — inside a
+        /// field name or a value of the target's output, not at a line boundary — ended by a bare LF
+        /// (findings-romon.md §4, "Large reads").
+        /// </summary>
+        internal const string RomonRelayNoiseText = "waiting for head\n";
+
+        /// <summary>
+        /// For a terminal relayed to <paramref name="relayedTo"/> (<c>null</c> when it is not relayed): the raw
+        /// terminal text <paramref name="raw"/> without the <see cref="RomonRelayNoiseText"/> the relay splices
+        /// into it. The splice is a pure insertion, so removing it gives back exactly the target's bytes. A direct
+        /// session is returned unchanged. Apply it before <see cref="VtStripper.StripAnsi"/>: the splice can
+        /// land inside an escape sequence.
+        /// </summary>
+        internal static string WithoutRomonRelayNoise(string? relayedTo, string raw)
+        {
+            if (relayedTo == null || string.IsNullOrEmpty(raw)
+                || raw.IndexOf(RomonRelayNoiseText, StringComparison.Ordinal) < 0)
+                return raw;
+            return raw.Replace(RomonRelayNoiseText, string.Empty);
+        }
+
+        /// <summary>
         /// For a terminal relayed to <paramref name="relayedTo"/> (<c>null</c> when it is not relayed): throws
         /// <see cref="TikRomonRelayEndedException"/> when <paramref name="received"/> shows the relay ended.
         /// </summary>

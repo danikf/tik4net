@@ -528,7 +528,7 @@ namespace tik4net.MacTelnet
                 rawLength = _rx.Length;
                 raw       = _rx.ToString();
             }
-            return VtStripper.StripAnsi(raw);
+            return VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(_romonTarget, raw));
         }
 
         // ── Synchronous terminal I/O used during login (before the pump starts) ─

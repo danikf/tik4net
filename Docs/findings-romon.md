@@ -145,6 +145,19 @@ removed that one. It lands either as a refusal (the router left a prompt) or as 
 for this reason. A pre-7.20 target doubles the exposure, because the flags read repeats the same rows and
 `proplist=` does not drop their comments (`findings-cli.md`).
 
+**A status line spliced into the target's output.** With the 6.49.13 target, the relayed byte stream now and then
+carries `waiting for head` and a bare LF that the target's output does not contain: about one 450-row read
+in fifteen, over Telnet and SSH to the 7.24.4 agent alike. It lands at any byte — inside a value
+(`address=1waiting for head\n98.18.1.29`) or a field name (`addrwaiting for head\ness=…`), not at a line
+boundary — and the target's own bytes continue unbroken on either side, so it is a pure insertion. It arrives on the agent's
+session 200 ms after the client last sent anything. Neither router logs anything matching it, and it is in
+no tik4net assembly. It has not been seen on a direct session to the target, nor in the same reads through a 7.x
+target; which of the two routers writes it is not established. Unhandled, the as-value parser reads the LF as a
+field separator: inside a value it returns a wrong value (`1waiting for head,98.18.1.29`) with no error, and inside
+a name the row is missing that field. The relaying transports remove the exact text from a relayed session's raw
+terminal text before anything parses it (`RouterOsCliLogin.WithoutRomonRelayNoise`). A different status line
+from the same source would still get through.
+
 **Tab-completion.** The Tab and the Ctrl-C that clears the line afterwards reach the target's line editor, not
 the agent's `/tool romon ssh` client: the listing is the target's menus, and the relay is still on the target
 after each call (findings-cli §14).
@@ -159,7 +172,8 @@ router's menus are a subset of the newer one's.
 
 tik4net's implementation: `RouterOsCliLogin.RomonSshLoginAsync`, used by Telnet, SSH and MAC-Telnet through
 `TikConnectionSetup.RomonAgentSetup`. A `Welcome back!` line in what a relayed session reads raises
-`TikRomonRelayEndedException` and closes the connection; MAC-Telnet's reconnect after an idle logout relays to the
+`TikRomonRelayEndedException` and closes the connection, and the relay's `waiting for head` line is removed from
+what it reads; MAC-Telnet's reconnect after an idle logout relays to the
 target again before it resends.
 
 ## 5. Capture notes
