@@ -250,6 +250,9 @@ namespace tik4net.Winbox
         /// <c>digest-algorithm</c> arrives as <c>0</c> where the API prints nothing. This one is webfig's own
         /// rule, read off <c>types.enm.tostr</c>, and it is why the <c>opt</c> ATTRIBUTE has to be carried
         /// separately from the <c>opt</c> WRAPPER's flag key.</para>
+        /// <para>The fourth is a window condition (<c>on:</c>) that is false on this row, for the conditions the
+        /// API is measured to honour (<see cref="WinboxJgCondition"/>): a hotspot profile with RADIUS off prints
+        /// no <c>radius-*</c> field.</para>
         /// </remarks>
         /// <summary>
         /// Whether <paramref name="key"/> — a flag key of <paramref name="consumer"/> — is the value key of a
@@ -291,6 +294,7 @@ namespace tik4net.Winbox
                 && opt?.Item2 is bool present && !present)
                 return true;
             if (IsAnotherKindsField(jf, rec)) return true;
+            if (jf.Condition != null && jf.Condition.IsFalseOn(rec)) return true;
             if (jf.UiType == "macaddr" && !IsSixByteRaw(value)) return true;
             if (WinboxFieldResolver.TryToInt64(value, out long n))
             {

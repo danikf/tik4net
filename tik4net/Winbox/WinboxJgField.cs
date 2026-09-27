@@ -540,6 +540,13 @@ namespace tik4net.Winbox
         internal IReadOnlyList<int[]>? RefHandlers { get; }
 
         /// <summary>
+        /// The <c>on:</c> condition that decides whether RouterOS reports this field on a given row, or
+        /// <c>null</c> for a field that is always reported. See <see cref="WinboxJgCondition"/>.
+        /// </summary>
+        /// <remarks>Set once, after the window is parsed: a condition names fields declared anywhere in it.</remarks>
+        internal WinboxJgCondition? Condition { get; set; }
+
+        /// <summary>
         /// The same field under a different API name — for a field a window gives a label another field of
         /// that window already claimed, and which is therefore reachable only under a qualified name.
         /// </summary>
@@ -553,13 +560,13 @@ namespace tik4net.Winbox
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, 0, null, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers);
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition };
 
         internal WinboxJgField WithApiName(string apiName)
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers);
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition };
     }
 }

@@ -887,8 +887,8 @@ in the existing per-path alias set — `pcq-limit` ↔ WinBox 'Queue Size', `red
 
 An alias is only shipped when the NAME **and** the VALUE match what the router prints. The remote pane's
 'Timestamp Format' looks like the API's `syslog-time-format` and is deliberately left unaliased: the API
-reports that field only when the log format is BSD syslog (`on:'timestamp'`, a condition this catalog does
-not model) and spells the value `bsd-syslog` where the window's enum says `BSD`. Aliasing it would hand the
+reports that field only when the log format is syslog or CEF (`on:'timestamp'`, §27.4) and spells the value
+`bsd-syslog` where the window's enum says `BSD`. Aliasing it would hand the
 mapper a field the API had not reported, carrying a value it could not convert.
 
 ### 27.3 A record only carries the fields of its own kind
@@ -909,9 +909,49 @@ actions it applies to (IPv4 and IPv6 alike); IPsec identity aliases `certificate
 every pane of the same deck that aliases it; without the aliases the decoder dropped `passthrough` from every
 mark-connection rule (`0x3F1` is on the wire there, and the API prints it).
 
+### 27.4 A condition (`on:`) hides a field only where the API is measured to agree
+
+A field may name a `type:'cond'` of its window with `on:`, and webfig's list renders no cell for it while the
+condition is false (`types.def.cell`). A condition is `c:[{on:<label>, pred}]` — every clause must hold, `on`
+names a field of the same window (nonpublic ones included: `autoneg`, `def`), and a value the row does not carry
+reads as that field's `def`. The predicates are webfig's `pred.*.isTrue`: `bool` (`value ? !!val : !val`),
+`number` (the value, or an array's first element, is one of a list), `bitmap` (`(val & mask) == value`),
+`string`, `not`, `or`. The rest (`addon`, `board`, `syscap`, `quickset`, …) are about the router, not the row.
+
+```js
+{name:'Use RADIUS',type:'bool',id:'b8c'},
+{name:'NAS Port Type',type:'number',id:'u90',def:19,on:'radius',values:{…}},
+{name:'radius',type:'cond',c:[{on:'Use RADIUS',pred:{type:'bool',value:1}}]}
+```
+
+**The `.jg` cannot say which conditions the API honours.** `/ip/hotspot/profile` with `use-radius=no` prints
+none of the fields on `on:'radius'` and prints every one — empty ones included — once it is `yes`; but
+`/interface/l2tp-server/server` with `use-ipsec=no` still prints `ipsec-secret`, whose `on:'ipsec'` is a
+condition of exactly the same shape. Neither `hide:1` nor `hidedynamicly:1` separates the two groups: honouring
+every condition dropped fields the API prints on six paths, honouring the `hide`/`hidedynamicly` ones still on
+four (a default hotspot user's `server`, traffic-flow's packet-sampling fields, a DHCP server's DNS suffix, DoH)
+(7.24.4, measured with the path-map audit).
+
+So a condition is acted on only when it is in `WinboxJgCondition.HonouredByTheApi`, keyed by its name and the
+label its first clause reads, and only after it was measured both ways: the API omits the field while the M2
+record carries a real value, and prints it once the condition holds. Today that is ethernet `noautoneg` (`speed`),
+the hotspot profile's `radius`, `account`, `trial`, `mac` and `macauth`, and the logging action's `bsd`, `cef` and
+`timestamp`. The evaluation is three-valued and only a definite false hides a field: an unresolved `on`, a
+router-level predicate or an unported one keeps it.
+
+Two neighbouring cases stay outside this rule, on purpose:
+
+- **An empty or zero `opt:1` field.** The API omits some (a hotspot user's `email`, `limit-uptime`) and prints
+  others (`/interface/eoip` `local-address=0.0.0.0`, `/ip/hotspot/profile` `dns-name=""`, `/ppp/secret`
+  `routes=""`) — dropping every one of them lost fields on twenty paths. The router decides per field.
+- **A field the API never prints.** `/ip/hotspot/user/profile` stores `advertise=yes`, and neither `print`
+  (even with `.proplist=advertise`) nor `get` reports it on 7.24.4; the M2 record does. Native reporting it is
+  an addition, not a wrong value.
+
 **Coverage:** `QueueTypeTest` (four methods — including a window labelled 'Type Name' whose API field is
 `name`), plus `SystemLoggingActionTest`, `IpsecIdentityTest` and `IpFirewallTest.ManglePassthrough_IsReadOnEveryActionItAppliesTo`;
-the pane rules, aliases included, are pinned router-free by `WinboxDeckPaneTests`.
+the pane rules, aliases included, are pinned router-free by `WinboxDeckPaneTests`, and the conditions by
+`WinboxConditionDecodeTests`.
 
 ---
 

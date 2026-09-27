@@ -501,9 +501,16 @@ namespace tik4net.integrationtests
                 foreach (string name in api.FieldNames.Where(probe.FieldNames.Contains))
                 {
                     if (IsNotARouterField(name) || IsVolatile(path, name)) continue;
-                    if (excused != null && excused.ContainsKey(name)) continue;
                     bool onApi = kv.Value.TryGetValue(name, out string av);
                     bool onProbe = probeRow.TryGetValue(name, out string pv);
+                    // An excused field one side leaves out still disagrees: the value loop below only sees rows
+                    // where both print it, so without this the enslaved interface whose native row has no type
+                    // made /interface type look fixed and failed the run as a stale exception.
+                    if (excused != null && excused.ContainsKey(name))
+                    {
+                        if (onApi != onProbe) disagreeing.Add(name);
+                        continue;
+                    }
                     if (onApi == onProbe || !seen.Add(name)) continue;
                     diffs.Add($"{name} [{kv.Key}]: api={(onApi ? "'" + Trim(av) + "'" : "(absent)")} "
                               + $"probe={(onProbe ? "'" + Trim(pv) + "'" : "(absent)")}");

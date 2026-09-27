@@ -753,6 +753,7 @@ namespace tik4net.Winbox
                 object tree = new JgParser(text).Parse();
                 Walk(tree, null, new List<string>());
                 SettleTitleNames();
+                ResolveConditions();
                 return true;
             }
             catch (Exception ex)
@@ -760,6 +761,45 @@ namespace tik4net.Winbox
                 TraceNote("PARSE FAILED (" + text.Length + " chars): " + ex.Message);
                 return false;
             }
+        }
+
+        // The type:'cond' nodes of each window (owner key -> name -> node), every field of it by its raw .jg label
+        // (a condition's `on` names one, nonpublic ones included), and the fields waiting for their condition.
+        private readonly Dictionary<string, Dictionary<string, Dictionary<string, object>>> _condNodes =
+            new Dictionary<string, Dictionary<string, Dictionary<string, object>>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Dictionary<string, WinboxJgField>> _fieldsByLabel =
+            new Dictionary<string, Dictionary<string, WinboxJgField>>(StringComparer.Ordinal);
+        private readonly List<Tuple<WinboxJgField, string, string>> _pendingConditions =
+            new List<Tuple<WinboxJgField, string, string>>();
+        private string? _currentOn;
+
+        /// <summary>
+        /// Gives every field declared with <c>on:'name'</c> the condition of that name from its own window
+        /// (see <see cref="WinboxJgCondition"/>). Run once the plugin is parsed, because a condition may name a
+        /// field declared after the field it governs.
+        /// </summary>
+        private void ResolveConditions()
+        {
+            var built = new Dictionary<string, WinboxJgCondition?>(StringComparer.Ordinal);
+            foreach (var pending in _pendingConditions)
+                pending.Item1.Condition = ConditionOf(pending.Item2, pending.Item3, built, 0);
+            _pendingConditions.Clear();
+        }
+
+        private WinboxJgCondition? ConditionOf(string owner, string name,
+            Dictionary<string, WinboxJgCondition?> built, int depth)
+        {
+            string id = owner + "|" + name;
+            if (built.TryGetValue(id, out var known)) return known;
+            built[id] = null;   // an oron cycle resolves to "no fallback" rather than recursing
+            if (!(_condNodes.TryGetValue(owner, out var conds) && conds.TryGetValue(name, out var node))) return null;
+            _fieldsByLabel.TryGetValue(owner, out var labels);
+            var cond = WinboxJgCondition.From(name, node,
+                label => labels != null && labels.TryGetValue(label, out var f) ? f : null);
+            if (cond != null && depth < 8 && WinboxJgCondition.OrOnName(node) is string orName)
+                cond.OrOn = ConditionOf(owner, orName, built, depth + 1);
+            built[id] = cond;
+            return cond;
         }
 
         /// <summary>
@@ -1109,6 +1149,14 @@ namespace tik4net.Winbox
                 // this the group registered as a plain bool and took the name first, so `mac-protocol` meant
                 // the present FLAG: the read answered 'true' and a write of `arp` sent bool:False. A group
                 // with no id (64 more) is pure layout and its children are fields in their own right.
+                if (owner != null && ty == "cond" && !string.IsNullOrEmpty(nodeName))
+                {
+                    if (!_condNodes.TryGetValue(owner, out var ownConds))
+                        _condNodes[owner] = ownConds = new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal);
+                    if (!ownConds.ContainsKey(nodeName)) ownConds[nodeName] = dict;
+                }
+                // Whatever the chain below registers for this node is governed by the node's `on:`.
+                _currentOn = owner != null && dict.TryGetValue("on", out var onv) && onv is string onName ? onName : null;
                 if (owner != null && (ty == "opt" || ty == "not" || (ty == "group" && dict.ContainsKey("id")))
                     && dict.ContainsKey("c") && !string.IsNullOrEmpty(nodeName))
                 {
@@ -1178,6 +1226,8 @@ namespace tik4net.Winbox
                             relative: RelativeOf(dict), refHandlers: ExtractRefHandlers(dict));
                     }
                 }
+
+                _currentOn = null;
 
                 // Per-record action verb: a named doit/action carrying a cmd (no own field id) invokes that
                 // SYS_CMD on the owning handler against a record .id — e.g. the scripts window's
@@ -1418,6 +1468,9 @@ namespace tik4net.Winbox
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
                 prefix: prefix, elementScale: elementScale, relative: relative, refHandlers: refHandlers);
             _labels[field] = label;
+            if (!_fieldsByLabel.TryGetValue(handlerKey, out var ownLabels))
+                _fieldsByLabel[handlerKey] = ownLabels = new Dictionary<string, WinboxJgField>(StringComparer.Ordinal);
+            if (!ownLabels.ContainsKey(label)) ownLabels[label] = field;
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
@@ -1434,6 +1487,12 @@ namespace tik4net.Winbox
                 apiName = qualified;
             }
             Put(handlerKey, apiName, field);
+            if (_currentOn != null)
+            {
+                _pendingConditions.Add(Tuple.Create(field, handlerKey, _currentOn));
+                if (extraRegistrations != null)
+                    foreach (var extra in extraRegistrations) _pendingConditions.Add(Tuple.Create(extra, handlerKey, _currentOn));
+            }
             // A pane field is ALSO filed under the kind-prefixed name the API uses for it (memory-lines,
             // pcq-rate). Both registrations are needed: the plain one keeps every name that resolved before
             // resolving, and the prefixed one is the only way to reach a field whose label another pane
