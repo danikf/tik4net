@@ -320,6 +320,26 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // RouterOS 6 answers 'find (no-such-field=yes)' with no row, as for a flag set nowhere. Read as a flag, the
+        // unknown name came back as 'false' on every row, where the API leaves it out (6.49.13, TikCommandTest).
+        [TestMethod]
+        public void OnRouterOs6_AnUnknownNameInProplist_IsIgnored_AndTheFlagStillArrives()
+        {
+            using (var conn = new FlagRouter(printsFlags: false, hasProplist: false))
+            {
+                conn.OpenScripted();
+
+                var rows = conn.CreateCommand("/iface/print",
+                        conn.CreateParameter(TikSpecialProperties.Proplist, ".id,name,running,no-such-field", TikCommandParameterFormat.NameValue))
+                    .ExecuteList().ToList();
+
+                CollectionAssert.AreEqual(new[] { "true", "false", "true" },
+                    rows.Select(r => r.GetResponseFieldOrDefault("running", "(missing)")).ToList());
+                Assert.IsFalse(rows.Any(r => r.Words.ContainsKey("no-such-field")),
+                    string.Join(" | ", rows.Select(r => string.Join(",", r.Words.Keys))));
+            }
+        }
+
         [TestMethod]
         public void OnRouterOs6_TheSupportProbeIsAskedOncePerConnection()
         {
@@ -517,12 +537,20 @@ namespace tik4net.unittests.Cli
                     return Task.FromResult(SyntaxError);
 
                 // The flag id list a router without proplist= is read with.
+                // Does the menu have this field? 'get' refuses an unknown name on every version (6.49.13, 7.24.4).
+                var fieldGet = Regex.Match(cliText, @"^:put \[/iface get \[:pick \[find\] 0\] (?<field>[a-z-]+)\]$");
+                if (fieldGet.Success)
+                    return Task.FromResult(KnownFields.Contains(fieldGet.Groups["field"].Value)
+                        ? string.Empty : ProplistRefusal);
+
                 var flagFind = Regex.Match(cliText, @"^:put \[/iface find \((?<flag>[a-z-]+)=yes\)\]$");
                 if (flagFind.Success)
                 {
                     string flag = flagFind.Groups["flag"].Value;
+                    // RouterOS 6 does NOT refuse a find on a field the menu lacks: it names no row, exactly as for a
+                    // flag set nowhere (6.49.13). A newer router refuses it.
                     if (!KnownFields.Contains(flag))
-                        return Task.FromResult("bad parameter " + flag);   // as an unknown field is refused
+                        return Task.FromResult(_hasProplist ? "bad parameter " + flag : string.Empty);
                     bool[] values = flag == "disabled" ? DisabledValues
                         : flag == "running" ? RunningValues
                         : new bool[Names.Length];
