@@ -411,8 +411,11 @@ namespace tik4net.integrationtests
                 return Connection.CreateRawCommand(
                     Path + "/set\n=" + TikSpecialProperties.Id + "=" + id + "\n=comment=" + newComment);
 
+            // The menu in its space-separated CLI form: RouterOS 7 also accepts '/ip/firewall/filter', but RouterOS 6
+            // refuses the slash form ("expected command name (line 1 column 4)"), and raw means the router's own syntax.
             return Connection.CreateRawCommand(
-                Path + " set [find comment=\"" + currentComment + "\"] comment=\"" + newComment + "\"");
+                "/" + Path.Trim('/').Replace('/', ' ') + " set [find comment=\"" + currentComment + "\"] comment=\""
+                + newComment + "\"");
         }
 
         // ── cross-transport value parity ──────────────────────────────────────
