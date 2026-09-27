@@ -314,6 +314,33 @@ namespace tik4net.Cli
                  + ":put (\"" + WindowMarker + "\" . [:len $w])";
         }
 
+        /// <summary>
+        /// The same window as <see cref="BuildPagedWindow"/>, printed one id at a time with the id written in front
+        /// of each row: <c>:foreach i in=$w do={ :put (".id=" . $i . ";" . [:tostr [print … from=$i]]) }</c>.
+        /// </summary>
+        /// <remarks>
+        /// For the menus whose <c>print as-value from=</c> leaves <c>.id</c> out. RouterOS 6.49.13 does it on
+        /// <c>/system/package</c> and <c>/ip/ipsec/policy</c> (the policy row carries <c>.nextid</c> in its place),
+        /// while the unwindowed print of the same menus carries it — and the parser starts a record at each
+        /// <c>.id=</c>, so the package's 13 rows read as one. <c>:tostr</c> of the print writes the row exactly as
+        /// <c>:put</c> does (measured there). A menu that does print ids would get the id twice, so this form is a
+        /// fallback taken only after a window came back without one.
+        /// </remarks>
+        internal static string BuildPagedWindowIdPerRow(string apiPath, string printExpression, int offset,
+                                                        int pageSize, string? findClause = null)
+        {
+            string menu = MenuPathToCli(apiPath);
+            string find = string.IsNullOrEmpty(findClause) ? " find" : " find (" + findClause + ")";
+            return ":local w [:pick [" + menu + find + "] "
+                 + offset.ToString(CultureInfo.InvariantCulture) + " "
+                 + (offset + pageSize).ToString(CultureInfo.InvariantCulture) + "]; "
+                 + ":foreach i in=$w do={ :put (\".id=\" . $i . \";\" . [:tostr [" + printExpression + "]]) }; "
+                 + ":put (\"" + WindowMarker + "\" . [:len $w])";
+        }
+
+        /// <summary>The selector a per-row window's print uses — the one id <see cref="BuildPagedWindowIdPerRow"/> binds.</summary>
+        internal const string RowVariable = "$i";
+
         /// <summary>The selector a paged window's print uses — the window array the wrapper bound.</summary>
         internal const string WindowVariable = "$w";
 

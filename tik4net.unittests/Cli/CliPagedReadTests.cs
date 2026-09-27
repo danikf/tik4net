@@ -279,6 +279,61 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // ── A menu whose windowed print names no row ──────────────────────────
+        //
+        // RouterOS 6.49.13 leaves '.id' out of 'print as-value from=' on /system/package and /ip/ipsec/policy,
+        // while their unwindowed print carries it. The parser starts a record at each '.id=', so the package's 13
+        // rows read as one and the read was refused — on the MAC transports only, since they are the ones that page.
+
+        [TestMethod]
+        public void AWindowWhosePrintNamesNoRowIsTakenAgainOneIdAtATime()
+        {
+            using (var conn = new PagingCliConnection(rowCount: 5) { WindowPrintsNoId = true })
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var rows = conn.LoadList<PagedProbe>().ToList();
+
+                CollectionAssert.AreEqual(new[] { "r0", "r1", "r2", "r3", "r4" }, rows.Select(r => r.Name).ToList());
+                CollectionAssert.AreEqual(new[] { "*0", "*1", "*2", "*3", "*4" }, rows.Select(r => r.Id).ToList());
+                Assert.AreEqual(4, conn.Sent.Count,
+                    "the first window once as usual, then every window per row — the menu is remembered: "
+                        + string.Join(" | ", conn.Sent));
+                StringAssert.Contains(conn.Sent[0], "from=$w");
+                Assert.IsTrue(conn.Sent.Skip(1).All(s => s.Contains("from=$i")), string.Join(" | ", conn.Sent));
+            }
+        }
+
+        [TestMethod]
+        public void APerRowReadLeavesTheCursorOut()
+        {
+            using (var conn = new PagingCliConnection(rowCount: 1) { WindowPrintsNoId = true })
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var row = conn.CreateCommand("/probe/print").ExecuteList().Single();
+
+                Assert.AreEqual("*0", row.GetId());
+                Assert.IsFalse(row.Words.ContainsKey(".nextid"), string.Join(";", row.Words.Keys));
+            }
+        }
+
+        [TestMethod]
+        public void APerRowWindowWritesEachIdInFrontOfItsRow()
+        {
+            string inner = CliCommandBuilder.BuildPrint("/system/package/print", NoParams(), false,
+                CliCommandBuilder.RowVariable);
+            inner = inner.Substring(":put [".Length, inner.Length - ":put [".Length - 1);
+
+            string cli = CliCommandBuilder.BuildPagedWindowIdPerRow("/system/package/print", inner, 0, 100);
+
+            Assert.AreEqual(":local w [:pick [/system package find] 0 100]; "
+                + ":foreach i in=$w do={ :put (\".id=\" . $i . \";\" . [:tostr [/system package print as-value from=$i]]) }; "
+                + ":put (\"#w=\" . [:len $w])", cli);
+        }
+
         // ── A row that vanishes under a window ────────────────────────────────
         //
         // A window is 'find' then 'print from=$w'. When an id vanishes between the two — conntrack reaps its
@@ -388,6 +443,9 @@ namespace tik4net.unittests.Cli
             public int DropOneRecordForOffset = -1;
             public int ExtraRecordForOffset = -1;
 
+            /// <summary>The window's print leaves '.id' out, as 6.49.13 does on some menus.</summary>
+            public bool WindowPrintsNoId;
+
             /// <summary>Window offset → how many more times it answers 'interrupted', as the router does.</summary>
             public readonly Dictionary<int, int> InterruptOffsets = new Dictionary<int, int>();
 
@@ -417,9 +475,15 @@ namespace tik4net.unittests.Cli
                 }
                 int window = Math.Max(0, Math.Min(to, _rowCount) - Math.Min(from, _rowCount));
 
+                bool perRow = cliText.Contains(":foreach i in=$w do={");
                 string body = from == DropRecordsForOffset ? string.Empty
                     : from == DropOneRecordForOffset ? Rows(from + 1, from + window)
                     : from == ExtraRecordForOffset ? Rows(from, from + window) + ";.id=*99;name=split"
+                    // RouterOS 6.49.13 on /system/package and /ip/ipsec/policy: 'print as-value from=$w' names no
+                    // row, and the id-per-row form writes each id in front (the policy row keeps its '.nextid').
+                    : WindowPrintsNoId && perRow
+                        ? string.Join(((char)10).ToString(), Enumerable.Range(from, window).Select(r => ".id=*" + r + ";.nextid=*ffffffff;name=r" + r))
+                    : WindowPrintsNoId ? string.Join(";", Enumerable.Range(from, window).Select(r => "name=r" + r))
                     : Rows(from, from + window);
                 string marker = OmitMarker ? string.Empty : ((char)10) + "#w=" + window;
                 return Task.FromResult(body + marker);
