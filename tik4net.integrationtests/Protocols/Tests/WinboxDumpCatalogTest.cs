@@ -5,7 +5,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -28,10 +27,10 @@ namespace tik4net.integrationtests
         public void DumpAllWebfigFiles()
         {
             // ── Config ───────────────────────────────────────────────────────────
-            string host  = ConfigurationManager.AppSettings["host"]           ?? "192.168.4.236";
-            string user  = ConfigurationManager.AppSettings["user"]           ?? "admin";
-            string pass  = ConfigurationManager.AppSettings["pass"]           ?? "";
-            string dumpDir = ResolvePath(ConfigurationManager.AppSettings["catalogDumpDir"] ?? DefaultDumpDir);
+            string host  = LabConfig.Get("host")           ?? "192.168.4.236";
+            string user  = LabConfig.Get("user")           ?? "admin";
+            string pass  = LabConfig.Get("pass")           ?? "";
+            string dumpDir = ResolvePath(LabConfig.Get("catalogDumpDir") ?? DefaultDumpDir);
 
             Directory.CreateDirectory(dumpDir);
             Console.WriteLine($"=== WINBOX CATALOG DUMP ===");

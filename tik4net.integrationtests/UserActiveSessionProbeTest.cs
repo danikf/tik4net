@@ -46,7 +46,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using System.Threading;
 
@@ -76,9 +75,9 @@ namespace tik4net.integrationtests
         };
 
         private static (string host, string user, string pass) Cfg() => (
-            ConfigurationManager.AppSettings["host"],
-            ConfigurationManager.AppSettings["user"],
-            ConfigurationManager.AppSettings["pass"] ?? "");
+            LabConfig.Get("host"),
+            LabConfig.Get("user"),
+            LabConfig.Get("pass") ?? "");
 
         // The lifetime watch runs for the best part of an hour, and MSTest's console logger hands nothing
         // over until the test method returns — so its progress is invisible exactly while it is being

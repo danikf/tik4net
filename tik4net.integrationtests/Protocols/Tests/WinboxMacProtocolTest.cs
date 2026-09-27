@@ -11,7 +11,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 
 namespace tik4net.integrationtests
 {
@@ -22,9 +21,9 @@ namespace tik4net.integrationtests
         [ClassInitialize]
         public static void EnableMacWinboxServer(TestContext _)
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
             {
@@ -53,9 +52,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxMac_Login_ListInterfaces_ReturnsAtLeastOne()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var client = new WinboxMacClient())
             {
@@ -73,9 +72,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxMac_SetAndVerify_InterfaceEther1Comment()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var client = new WinboxMacClient())
             {

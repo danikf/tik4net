@@ -17,7 +17,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
@@ -36,9 +35,9 @@ namespace tik4net.integrationtests
         private const int KEY_ID      = 0xFE0001;  // ufe0001 — record .id
 
         private static (string host, string user, string pass) Cfg() => (
-            ConfigurationManager.AppSettings["host"],
-            ConfigurationManager.AppSettings["user"],
-            ConfigurationManager.AppSettings["pass"] ?? "");
+            LabConfig.Get("host"),
+            LabConfig.Get("user"),
+            LabConfig.Get("pass") ?? "");
 
         private static string Str(Dictionary<int, Tuple<string, object>> rec, int key)
             => rec.TryGetValue(key, out var t) ? t.Item2?.ToString() ?? "" : null;

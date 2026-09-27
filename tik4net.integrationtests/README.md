@@ -45,9 +45,10 @@ check `/tool romon discover` on CHR.
 `print as-value` — so the CLI transports read its flags as id lists (`Docs/findings-routeros-6.md`, which also
 lists what is still open on 6.x). It is not upgraded along with CHR. Going the other way takes a new disk
 image: a CHR refuses any package older than its `factory-software` version (a 7.x-built VM logs `min RouterOS
-version is 7.1` and boots the old version again). A test that should also hold on the older version is run against it by pointing `host` / `routerMac` at
-CHR2 for that run and putting them back afterwards — `CliFlagFieldsTest` (flags over every transport against
-the binary API) is the one that matters. The full suite is not run there: CHR2 has CHR's two ports but none of
+version is 7.1` and boots the old version again). A test that should also hold on the older version is run against it
+with its router profile — `run-integration-tests.ps1 -Router chr2`, which selects the `chr2.*` entries of
+`App.config` (`LabConfig.cs`) without editing the file — and `CliFlagFieldsTest` (flags over every transport
+against the binary API) is the one that matters. The full suite is not run there: CHR2 has CHR's two ports but none of
 its provisioned topology, so topology tests fail for reasons that are not defects.
 
 ## The lab VM, if the router is virtual

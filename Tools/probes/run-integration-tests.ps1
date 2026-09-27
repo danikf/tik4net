@@ -9,8 +9,8 @@
     tik4net.integrationtests/.
 
     Router coordinates are NOT arguments to this script: they live in
-    tik4net.integrationtests/App.config, which is the single source of truth. Point that file at the
-    router first.
+    tik4net.integrationtests/App.config, which is the single source of truth. -Router picks one of the
+    router profiles that file defines; nothing tracked is edited to switch routers.
 
     Results are always written as TRX so that skips remain inspectable after the run — a summary line
     of "Failed: 0" does not prove two runs were identical. Use parse-trx.ps1 to read them.
@@ -27,8 +27,15 @@
 .PARAMETER Filter
     An explicit --filter expression, overriding -Smoke.
 
+.PARAMETER Router
+    The App.config router profile to run against - its '<name>.<key>' entries override the default keys
+    (tik4net.integrationtests/LabConfig.cs). Omit it for the default router. The script sets
+    TIK4NET_ROUTER for the run and clears one inherited from the shell when -Router is omitted, so a
+    variable left over from an earlier session cannot redirect a run silently.
+
 .PARAMETER ResultsDirectory
-    Where TRX files are written. Defaults to ./TestResults (git-ignored).
+    Where TRX files are written. Defaults to ./TestResults, or ./TestResults/<Router> with -Router, so a
+    run against another router never moves the default router's results aside (git-ignored).
 
 .PARAMETER WireTrace
     Enable byte-level wire tracing for the run by setting TIK4NET_WIRETRACE. Pass a file path, or
@@ -44,6 +51,10 @@
     Smoke subset over every transport.
 
 .EXAMPLE
+    ./run-integration-tests.ps1 -Router chr2 -Transport api -Filter 'FullyQualifiedName~CliFlagFieldsTest'
+    The flag test against the second lab router (RouterOS 6), results in ./TestResults/chr2.
+
+.EXAMPLE
     ./run-integration-tests.ps1 -Transport telnet -WireTrace auto
     Full Telnet run with a byte trace, for hunting an intermittent failure.
 #>
@@ -53,6 +64,7 @@ param(
                               'winboxnative', 'winboxnativemac', 'winboxcli', 'winboxclimac'),
     [switch]   $Smoke,
     [string]   $Filter,
+    [string]   $Router,
     [string]   $ResultsDirectory = 'TestResults',
     [string]   $WireTrace
 )
@@ -89,6 +101,25 @@ if ($unknown) {
           '(Passing a comma-separated list to -Transport via "powershell -File" makes it a single ' +
           'string - use "powershell -Command" with -Transport @(''api'',''rest'') instead.)'
 }
+
+# The router profile. Checked against App.config before anything runs: a profile the file does not define
+# would otherwise fail every test at its first connection (LabConfig throws), a matrix-long way to learn of a typo.
+$appConfig = [xml](Get-Content (Join-Path $repoRoot 'tik4net.integrationtests\App.config'))
+function Get-LabSetting([string] $key) {
+    ($appConfig.configuration.appSettings.add | Where-Object { $_.key -eq $key } | Select-Object -First 1).value
+}
+if ($Router) {
+    if ($null -eq (Get-LabSetting "$Router.host")) {
+        $profiles = ($appConfig.configuration.appSettings.add | Where-Object { $_.key -like '*.host' } |
+                     ForEach-Object { $_.key -replace '\.host$', '' }) -join ', '
+        throw "App.config defines no router profile '$Router' (no '$Router.host'). Defined: $(if ($profiles) { $profiles } else { 'none' })."
+    }
+    if (-not $PSBoundParameters.ContainsKey('ResultsDirectory')) { $ResultsDirectory = Join-Path 'TestResults' $Router }
+}
+$previousRouter = $env:TIK4NET_ROUTER
+if ($Router) { $env:TIK4NET_ROUTER = $Router } else { Remove-Item Env:\TIK4NET_ROUTER -ErrorAction SilentlyContinue }
+$routerHost = if ($Router) { Get-LabSetting "$Router.host" } else { Get-LabSetting 'host' }
+Write-Host ("router: {0} ({1})" -f $(if ($Router) { $Router } else { 'default' }), $routerHost) -ForegroundColor Cyan
 
 $resultsPath = Join-Path $repoRoot $ResultsDirectory
 if (-not (Test-Path $resultsPath)) { New-Item -ItemType Directory -Path $resultsPath | Out-Null }
@@ -140,12 +171,16 @@ foreach ($t in $Transport) {
     if ($WireTrace) { Remove-Item Env:\TIK4NET_WIRETRACE -ErrorAction SilentlyContinue }
 
     $summary += [pscustomobject]@{
+        Router    = $(if ($Router) { $Router } else { 'default' })
         Transport = $t
         Duration  = '{0:hh\:mm\:ss}' -f $elapsed
         ExitCode  = $exitCode
         Trx       = Join-Path $resultsPath $trxName
     }
 }
+
+# Put the shell back as it was: the variable is this run's choice, not the caller's.
+if ($null -ne $previousRouter) { $env:TIK4NET_ROUTER = $previousRouter } else { Remove-Item Env:\TIK4NET_ROUTER -ErrorAction SilentlyContinue }
 
 Write-Host ''
 Write-Host '=== run summary ===' -ForegroundColor Cyan

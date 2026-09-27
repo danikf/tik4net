@@ -5,7 +5,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
@@ -20,9 +19,9 @@ namespace tik4net.integrationtests
         [ClassInitialize]
         public static void EnableMacWinboxServer(TestContext _)
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
             {
@@ -39,9 +38,9 @@ namespace tik4net.integrationtests
 
         private static WinboxCliMacConnection OpenWinboxCliMacConnection()
         {
-            var user    = ConfigurationManager.AppSettings["user"];
-            var pass    = ConfigurationManager.AppSettings["pass"] ?? "";
-            var macAddr = ConfigurationManager.AppSettings["routerMac"];
+            var user    = LabConfig.Get("user");
+            var pass    = LabConfig.Get("pass") ?? "";
+            var macAddr = LabConfig.Get("routerMac");
 
             var conn = new WinboxCliMacConnection { RouterMac = macAddr };
             conn.TransportDiagnostic = msg => Console.Write(msg);
@@ -71,9 +70,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxCliMac_SetAndVerify_InterfaceEther1Comment()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             string original;
             using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))

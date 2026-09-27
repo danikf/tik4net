@@ -16,7 +16,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Sockets;
@@ -48,7 +47,7 @@ namespace tik4net.integrationtests
             if (Environment.GetEnvironmentVariable("TIK_PROBE") != "1")
                 Assert.Inconclusive("Diagnostic harness; set TIK_PROBE=1.");
 
-            string host = ConfigurationManager.AppSettings["host"];
+            string host = LabConfig.Get("host");
             var transport = (TikConnectionType)Enum.Parse(typeof(TikConnectionType),
                 Environment.GetEnvironmentVariable("TIK4NET_PROBE_TRANSPORTS") ?? "Telnet", ignoreCase: true);
             int page = EnvInt("TIK4NET_CHURN_PAGE", 100);
@@ -67,12 +66,12 @@ namespace tik4net.integrationtests
 
                     using (ITikConnection connection = ConnectionFactory.CreateConnection(transport))
                     {
-                        string mac = ConfigurationManager.AppSettings["routerMac"];
+                        string mac = LabConfig.Get("routerMac");
                         if (!string.IsNullOrEmpty(mac) && connection is ITikMacLayerConnection macConn)
                             macConn.RouterMac = mac;
                         ((ITikCliPagedReadConnection)connection).CliReadPageSize = page;
-                        connection.Open(host, ConfigurationManager.AppSettings["user"],
-                                        ConfigurationManager.AppSettings["pass"] ?? "");
+                        connection.Open(host, LabConfig.Get("user"),
+                                        LabConfig.Get("pass") ?? "");
 
                         int ok = 0, vanished = 0, other = 0;
                         for (int i = 1; i <= reads; i++)

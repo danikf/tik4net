@@ -1,5 +1,4 @@
 using System;
-using System.Configuration;
 using System.Linq;
 
 namespace tik4net.integrationtests
@@ -18,7 +17,7 @@ namespace tik4net.integrationtests
     {
         /// <summary>Primary wired interface used by most tests (App.config 'testInterface', default ether1).</summary>
         public static string Interface =>
-            ConfigurationManager.AppSettings["testInterface"] ?? "ether1";
+            LabConfig.Get("testInterface") ?? "ether1";
 
         /// <summary>
         /// A wired interface that is NOT <see cref="Interface"/>, for the fixtures that must not be built on
@@ -42,7 +41,7 @@ namespace tik4net.integrationtests
 
         private static string ResolveSecondInterface()
         {
-            var configured = ConfigurationManager.AppSettings["testSecondInterface"];
+            var configured = LabConfig.Get("testSecondInterface");
             if (!string.IsNullOrEmpty(configured))
                 return configured;
 
@@ -68,10 +67,10 @@ namespace tik4net.integrationtests
 
         /// <summary>Wireless interface used by the wireless tests (App.config 'testWirelessInterface', default wlan1).</summary>
         public static string WirelessInterface =>
-            ConfigurationManager.AppSettings["testWirelessInterface"] ?? "wlan1";
+            LabConfig.Get("testWirelessInterface") ?? "wlan1";
 
         /// <summary>Disposable IP+mask added/removed by the CRUD tests (App.config 'testAddress', default 192.168.1.1/24).</summary>
         public static string Address =>
-            ConfigurationManager.AppSettings["testAddress"] ?? "192.168.1.1/24";
+            LabConfig.Get("testAddress") ?? "192.168.1.1/24";
     }
 }

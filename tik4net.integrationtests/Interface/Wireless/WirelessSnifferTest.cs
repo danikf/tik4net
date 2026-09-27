@@ -1,4 +1,3 @@
-using System.Configuration;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -27,9 +26,9 @@ namespace tik4net.integrationtests
             var viaTransport = Connection.LoadSingle<WirelessSniffer>();
             Assert.IsNotNull(viaTransport);
 
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             using (var apiConnection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {

@@ -6,7 +6,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 
 namespace tik4net.integrationtests
@@ -14,9 +13,9 @@ namespace tik4net.integrationtests
     [TestClass]
     public class RouterPrerequisiteTest
     {
-        private static string Host => ConfigurationManager.AppSettings["host"];
-        private static string User => ConfigurationManager.AppSettings["user"];
-        private static string Pass => ConfigurationManager.AppSettings["pass"] ?? "";
+        private static string Host => LabConfig.Get("host");
+        private static string User => LabConfig.Get("user");
+        private static string Pass => LabConfig.Get("pass") ?? "";
 
         // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -221,7 +220,7 @@ namespace tik4net.integrationtests
         [TestCategory("Prerequisites")]
         public void Router_MndpOrRouterMac_Configured()
         {
-            var macOverride = ConfigurationManager.AppSettings["routerMac"];
+            var macOverride = LabConfig.Get("routerMac");
             if (!string.IsNullOrEmpty(macOverride))
             {
                 Console.WriteLine($"routerMac override in App.config: {macOverride} — MNDP will be skipped.");

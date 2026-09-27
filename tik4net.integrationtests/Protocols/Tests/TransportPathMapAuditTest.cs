@@ -25,7 +25,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -618,7 +617,7 @@ namespace tik4net.integrationtests
         public void AuditPathMapAgainstApi()
         {
             string dumpDir = Path.GetFullPath(Environment.ExpandEnvironmentVariables(
-                ConfigurationManager.AppSettings["catalogDumpDir"] ?? @".\.tik4net"));
+                LabConfig.Get("catalogDumpDir") ?? @".\.tik4net"));
             Directory.CreateDirectory(dumpDir);
             var probeType = TransportUnderTest;
             string probeName = probeType.ToString().ToLowerInvariant();

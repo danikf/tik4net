@@ -28,7 +28,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Globalization;
 using System.Linq;
 
@@ -46,9 +45,9 @@ namespace tik4net.integrationtests
         private const long FreeMemoryFloorBytes = 512L * 1024 * 1024;
 
         private static (string host, string user, string pass) Cfg() => (
-            ConfigurationManager.AppSettings["host"],
-            ConfigurationManager.AppSettings["user"],
-            ConfigurationManager.AppSettings["pass"] ?? "");
+            LabConfig.Get("host"),
+            LabConfig.Get("user"),
+            LabConfig.Get("pass") ?? "");
 
         // Always over the binary API, so the measurement cannot perturb (or be perturbed by) the M2
         // channel whose opens are being counted.

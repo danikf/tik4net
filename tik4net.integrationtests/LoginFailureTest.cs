@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Diagnostics;
 
 namespace tik4net.integrationtests
@@ -35,9 +34,9 @@ namespace tik4net.integrationtests
         public void RejectedPassword_FailsWithLoginException_Promptly()
         {
             var connType = ResolveConnectionType();
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             // An account with an EMPTY password authenticates over SSH with method "none": the router hands
             // out a shell without ever checking the password, so the wrong one is accepted — verified with

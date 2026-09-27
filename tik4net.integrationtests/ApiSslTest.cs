@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.Configuration;
 using System.Text;
 using tik4net.Objects.Interface;
 using tik4net.Objects;
@@ -22,8 +21,8 @@ namespace tik4net.integrationtests
         {
             _connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl);
             TestBase.ApplyLabPolicy(_connection);   // the lab CHR's certificate is self-signed
-            _connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"],
-                ConfigurationManager.AppSettings["pass"]);
+            _connection.Open(LabConfig.Get("host"), LabConfig.Get("user"),
+                LabConfig.Get("pass"));
         }
 
         [TestCleanup]

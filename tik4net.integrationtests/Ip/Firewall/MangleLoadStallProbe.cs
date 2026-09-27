@@ -1,5 +1,4 @@
 using System;
-using System.Configuration;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
@@ -57,9 +56,9 @@ namespace tik4net.integrationtests
                         gapTicks.Add(now - lastTick);
                         lastTick = now;
                     };
-                    connection.Open(ConfigurationManager.AppSettings["host"],
-                                    ConfigurationManager.AppSettings["user"],
-                                    ConfigurationManager.AppSettings["pass"] ?? "");
+                    connection.Open(LabConfig.Get("host"),
+                                    LabConfig.Get("user"),
+                                    LabConfig.Get("pass") ?? "");
 
                     long openedAt = sw.ElapsedMilliseconds;
                     try
@@ -112,9 +111,9 @@ namespace tik4net.integrationtests
                         gapTicks.Add(now - lastTick);
                         lastTick = now;
                     };
-                    connection.Open(ConfigurationManager.AppSettings["host"],
-                                    ConfigurationManager.AppSettings["user"],
-                                    ConfigurationManager.AppSettings["pass"] ?? "");
+                    connection.Open(LabConfig.Get("host"),
+                                    LabConfig.Get("user"),
+                                    LabConfig.Get("pass") ?? "");
 
                     long openedAt = sw.ElapsedMilliseconds;
                     try

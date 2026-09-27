@@ -1,5 +1,4 @@
 using System;
-using System.Configuration;
 using System.Linq;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -32,9 +31,9 @@ namespace tik4net.integrationtests
         {
             try
             {
-                string host = ConfigurationManager.AppSettings["host"];
-                string user = ConfigurationManager.AppSettings["user"];
-                string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+                string host = LabConfig.Get("host");
+                string user = LabConfig.Get("user");
+                string pass = LabConfig.Get("pass") ?? "";
                 using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
                     api.CreateCommand("/safe-mode/release").ExecuteNonQuery();
             }

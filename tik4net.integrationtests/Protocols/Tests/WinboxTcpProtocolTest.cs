@@ -4,7 +4,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -21,9 +20,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxTcp_Login_ListInterfaces_ReturnsAtLeastOne()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var client = new WinboxM2Client())
             {
@@ -45,9 +44,9 @@ namespace tik4net.integrationtests
         [Ignore("Flaky WinBox mepty session open ('No SESSION_ID in M2 response') — drain timing between terminal sessions; to be resolved later.")]
         public void WinboxTcp_SetAndVerify_InterfaceEther1Comment()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var client = new WinboxM2Client())
             {
@@ -87,8 +86,8 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxM2_IpLayer_TcpPort8291_EcSrp5ChallengeExchange_Works()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"] ?? "admin";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user") ?? "admin";
 
             using (var tcp = new TcpClient())
             {
@@ -158,9 +157,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxTcp_ReadListCatalog_ReturnsPackageEntries()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var client = new WinboxM2Client())
             {
@@ -183,9 +182,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxTcp_ParseCatalog_EntriesHaveValidFields()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var client = new WinboxM2Client())
             {
@@ -213,9 +212,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxTcp_GetSystemInfo_HasVersionAndBoard()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var client = new WinboxM2Client())
             {
@@ -235,9 +234,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxTcp_GetSystemInfo_PrintsAllFields()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var client = new WinboxM2Client())
             {

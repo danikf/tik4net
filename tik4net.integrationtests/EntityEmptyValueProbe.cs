@@ -24,7 +24,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -131,9 +130,9 @@ namespace tik4net.integrationtests
             if (!romonTarget)
                 return TestBase.LabSetup(type).Create(type);
             return new TikConnectionSetup(
-                    TikRouterAddress.FromHost(ConfigurationManager.AppSettings["romonTargetHost"]),
-                    ConfigurationManager.AppSettings["romonTargetUser"],
-                    ConfigurationManager.AppSettings["romonTargetPass"] ?? "")
+                    TikRouterAddress.FromHost(LabConfig.Get("romonTargetHost")),
+                    LabConfig.Get("romonTargetUser"),
+                    LabConfig.Get("romonTargetPass") ?? "")
                 { AllowInvalidCertificate = true }
                 .Create(type);
         }

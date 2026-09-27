@@ -33,7 +33,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using tik4net.Diagnostics;
@@ -114,12 +113,12 @@ namespace tik4net.integrationtests
         private static ITikConnection Open(TikConnectionType type)
         {
             var conn = ConnectionFactory.CreateConnection(type);
-            string mac = ConfigurationManager.AppSettings["routerMac"];
+            string mac = LabConfig.Get("routerMac");
             if (!string.IsNullOrEmpty(mac) && conn is ITikMacLayerConnection macConn)
                 macConn.RouterMac = mac;
-            conn.Open(ConfigurationManager.AppSettings["host"],
-                      ConfigurationManager.AppSettings["user"],
-                      ConfigurationManager.AppSettings["pass"] ?? "");
+            conn.Open(LabConfig.Get("host"),
+                      LabConfig.Get("user"),
+                      LabConfig.Get("pass") ?? "");
             return conn;
         }
 

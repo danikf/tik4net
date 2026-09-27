@@ -4,7 +4,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using tik4net.MacTelnet;
 using tik4net.Objects;
@@ -17,9 +16,9 @@ namespace tik4net.integrationtests
     {
         private static MacTelnetConnection OpenMacTelnetConnection()
         {
-            var user    = ConfigurationManager.AppSettings["user"];
-            var pass    = ConfigurationManager.AppSettings["pass"] ?? "";
-            var macAddr = ConfigurationManager.AppSettings["routerMac"];
+            var user    = LabConfig.Get("user");
+            var pass    = LabConfig.Get("pass") ?? "";
+            var macAddr = LabConfig.Get("routerMac");
 
             var conn = new MacTelnetConnection { RouterMac = macAddr };
             // Capture transport-level diagnostics to test output.
@@ -50,9 +49,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void MacTelnet_SetAndVerify_InterfaceEther1Comment()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             string original;
             using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))

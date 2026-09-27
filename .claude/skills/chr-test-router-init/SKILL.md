@@ -382,8 +382,9 @@ Provision it with steps 0–6 like the first, with these differences:
   - Step 4 works unchanged, `sign` included.
   - Step 6: `Rest` and `RestSsl` fail — RouterOS 6 has no REST API, and the library says so. Everything else
     should answer.
-- To run a test against it, point `host` / `routerMac` in `App.config` at it for that run only, e.g.
-  `CliFlagFieldsTest` (flags over every transport against the binary API), and put them back afterwards.
+- To run a test against it, use its `App.config` router profile: `run-integration-tests.ps1 -Router chr2`, e.g.
+  with `CliFlagFieldsTest` (flags over every transport against the binary API). A re-provisioned CHR2 with a new
+  address or MAC needs only its `chr2.*` entries updated.
 
 ---
 

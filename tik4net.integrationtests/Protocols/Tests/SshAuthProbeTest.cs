@@ -9,7 +9,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 
 namespace tik4net.integrationtests
@@ -23,7 +22,7 @@ namespace tik4net.integrationtests
     [TestClass]
     public class SshAuthProbeTest
     {
-        private static string Host => ConfigurationManager.AppSettings["host"];
+        private static string Host => LabConfig.Get("host");
 
         [TestMethod]
         public void Ssh_WrongPassword_WhatHappens()

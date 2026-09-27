@@ -1,5 +1,4 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.Configuration;
 using System.Linq;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
@@ -36,9 +35,9 @@ namespace tik4net.integrationtests
         {
             var viaTransport = Connection.LoadAll<IpRoute>().ToList();
 
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             using (var apiConnection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {

@@ -16,7 +16,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using tik4net.Objects;
 using tik4net.Winbox;
@@ -40,8 +39,8 @@ namespace tik4net.integrationtests
             if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
                 Assert.Inconclusive("RoMON agent probe — set TIK4NET_ROMON_PROBE=1 to run.");
             var session = new WinboxM2Session();
-            session.Open(ConfigurationManager.AppSettings["host"], 8291, ConfigurationManager.AppSettings["user"],
-                ConfigurationManager.AppSettings["pass"] ?? "", 5000, 5000);
+            session.Open(LabConfig.Get("host"), 8291, LabConfig.Get("user"),
+                LabConfig.Get("pass") ?? "", 5000, 5000);
             return session;
         }
 
@@ -185,8 +184,8 @@ namespace tik4net.integrationtests
             if (string.IsNullOrEmpty(target) || Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
                 Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1 and TIK4NET_ROMON_TARGET=<romon id>.");
             using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.WinboxNative,
-                ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"],
-                ConfigurationManager.AppSettings["pass"] ?? ""))
+                LabConfig.Get("host"), LabConfig.Get("user"),
+                LabConfig.Get("pass") ?? ""))
             {
                 var cmd = conn.CreateCommandAndParameters("/tool/romon/ping", "id", target, "count", "1");
                 foreach (var row in cmd.ExecuteList())
@@ -251,8 +250,8 @@ namespace tik4net.integrationtests
         // Over the MAC layer the agent is named by its MAC as well, so no MNDP lookup is needed.
         private static TikRouterAddress AgentAddress()
         {
-            string host = ConfigurationManager.AppSettings["host"];
-            string mac = ConfigurationManager.AppSettings["routerMac"];
+            string host = LabConfig.Get("host");
+            string mac = LabConfig.Get("routerMac");
             return AgentTransport() == TikConnectionType.MacTelnet && !string.IsNullOrEmpty(mac)
                 ? TikRouterAddress.FromHostAndMac(host, mac)
                 : TikRouterAddress.FromHost(host);
@@ -261,7 +260,7 @@ namespace tik4net.integrationtests
         private static ITikConnection OpenRelay(string targetId, string user, string password, string agentUser = null)
         {
             var agentSetup = new TikRomonAgentSetup(AgentAddress(),
-                agentUser ?? ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"] ?? "");
+                agentUser ?? LabConfig.Get("user"), LabConfig.Get("pass") ?? "");
             var targetSetup = new TikConnectionSetup(TikRouterAddress.FromRomonId(targetId), user, password)
             {
                 RomonAgentSetup = agentSetup,
@@ -277,7 +276,7 @@ namespace tik4net.integrationtests
                 Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
             var targetSetup = new TikConnectionSetup(TikRouterAddress.FromRomonId("AA:BB:CC:DD:EE:FF"), "nobody", "x")
             {
-                RomonAgentSetup = new TikRomonAgentSetup(ConfigurationManager.AppSettings["host"], "u", "p"),
+                RomonAgentSetup = new TikRomonAgentSetup(LabConfig.Get("host"), "u", "p"),
             };
             var ex = Assert.ThrowsException<NotSupportedException>(() => targetSetup.CreateUnopened(TikConnectionType.WinboxCli));
             Log("refused: " + ex.Message);

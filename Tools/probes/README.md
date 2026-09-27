@@ -26,7 +26,13 @@ Tools/probes/run-integration-tests.ps1 -Transport api          # one transport, 
 Tools/probes/run-integration-tests.ps1 -Smoke                  # smoke subset, every transport
 Tools/probes/run-integration-tests.ps1                         # full matrix
 Tools/probes/run-integration-tests.ps1 -Transport telnet -WireTrace auto
+Tools/probes/run-integration-tests.ps1 -Router chr2 -Transport api   # the second lab router
 ```
+
+`-Router <name>` selects a router profile in `tik4net.integrationtests/App.config` (the `<name>.<key>` entries,
+read through `LabConfig.cs`) by setting `TIK4NET_ROUTER` for the run, and writes the TRX to
+`TestResults/<name>`. A name the file does not define is refused before anything runs; without `-Router`, an
+inherited `TIK4NET_ROUTER` is cleared.
 
 The default transport order runs the API-based transports before the CLI ones, because CLI transports
 are the ones that leave orphans on the router and an orphan changes the error a later transport sees.

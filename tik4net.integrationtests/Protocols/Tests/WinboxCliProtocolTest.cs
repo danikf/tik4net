@@ -4,7 +4,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
@@ -17,9 +16,9 @@ namespace tik4net.integrationtests
     {
         private static WinboxCliConnection OpenWinboxConnection()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             var conn = new WinboxCliConnection();
             conn.TransportDiagnostic = msg => Console.Write(msg);
@@ -46,9 +45,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void WinboxCli_SetAndVerify_InterfaceEther1Comment()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             string original;
             using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))

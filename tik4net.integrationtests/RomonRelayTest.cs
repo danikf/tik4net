@@ -13,7 +13,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -33,20 +32,21 @@ namespace tik4net.integrationtests
         // Rows this class creates carry this list name, so a sweep can find what an interrupted run left.
         private const string TestList = "tik4net-romon";
 
-        private static string TargetId => ConfigurationManager.AppSettings["romonTargetId"];
-        private static string TargetHost => ConfigurationManager.AppSettings["romonTargetHost"];
-        private static string TargetUser => ConfigurationManager.AppSettings["romonTargetUser"];
-        private static string TargetPass => ConfigurationManager.AppSettings["romonTargetPass"] ?? "";
+        private static string TargetId => LabConfig.Get("romonTargetId");
+        private static string TargetHost => LabConfig.Get("romonTargetHost");
+        private static string TargetUser => LabConfig.Get("romonTargetUser");
+        private static string TargetPass => LabConfig.Get("romonTargetPass") ?? "";
 
-        private static string AgentHost => ConfigurationManager.AppSettings["host"];
-        private static string AgentUser => ConfigurationManager.AppSettings["user"];
-        private static string AgentPass => ConfigurationManager.AppSettings["pass"] ?? "";
-        private static string AgentMac => ConfigurationManager.AppSettings["routerMac"];
+        private static string AgentHost => LabConfig.Get("host");
+        private static string AgentUser => LabConfig.Get("user");
+        private static string AgentPass => LabConfig.Get("pass") ?? "";
+        private static string AgentMac => LabConfig.Get("routerMac");
 
         private static void RequireTarget()
         {
             if (string.IsNullOrEmpty(TargetId))
-                Assert.Inconclusive("No romonTargetId in App.config — there is no second router to relay to.");
+                Assert.Inconclusive("No romonTargetId in App.config" + (LabConfig.Profile != null ? $" for router profile '{LabConfig.Profile}'" : "")
+                    + " — there is no second router to relay to.");
         }
 
         private static void RequireTargetHost()

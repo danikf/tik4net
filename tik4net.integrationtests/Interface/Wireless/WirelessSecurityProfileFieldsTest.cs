@@ -1,5 +1,4 @@
 using System;
-using System.Configuration;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -34,9 +33,9 @@ namespace tik4net.integrationtests
         private static ITikConnection OpenApi()
         {
             var api = ConnectionFactory.CreateConnection(TikConnectionType.Api);
-            api.Open(ConfigurationManager.AppSettings["host"],
-                     ConfigurationManager.AppSettings["user"],
-                     ConfigurationManager.AppSettings["pass"] ?? "");
+            api.Open(LabConfig.Get("host"),
+                     LabConfig.Get("user"),
+                     LabConfig.Get("pass") ?? "");
             return api;
         }
 

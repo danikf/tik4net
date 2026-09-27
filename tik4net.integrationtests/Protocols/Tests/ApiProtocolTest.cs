@@ -4,7 +4,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
@@ -17,9 +16,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void Api_Login_ListInterfaces_ReturnsAtLeastOne()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
             {
@@ -39,9 +38,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void Api_SetAndVerify_InterfaceEther1Comment()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
             {
@@ -61,9 +60,9 @@ namespace tik4net.integrationtests
         [DataRow(TikConnectionType.RestSsl)]
         public void AllTransports_Login_ListInterfaces_SetComment(TikConnectionType type)
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass") ?? "";
 
             Console.WriteLine($"=== Transport: {type} ===");
             try

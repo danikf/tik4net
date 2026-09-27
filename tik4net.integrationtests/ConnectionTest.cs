@@ -1,7 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,9 +16,9 @@ namespace tik4net.integrationtests
         {
             var result = ConnectionFactory.CreateConnection(connectionTypeOverride ?? DEFAULT_CONNECTION_TYPE);
             TestBase.ApplyLabPolicy(result);   // one of these tests opens API-SSL against a self-signed cert
-            result.Open(hostOverride ?? ConfigurationManager.AppSettings["host"],
-                userOverride ?? ConfigurationManager.AppSettings["user"],
-                passwordOverride ?? ConfigurationManager.AppSettings["pass"]);
+            result.Open(hostOverride ?? LabConfig.Get("host"),
+                userOverride ?? LabConfig.Get("user"),
+                passwordOverride ?? LabConfig.Get("pass"));
 
             return result;
         }
@@ -27,9 +26,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void AllConnectionModes_WilWorkTheSameWay()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"];
+            var host = LabConfig.Get("host");
+            var user = LabConfig.Get("user");
+            var pass = LabConfig.Get("pass");
 
             OpenConnectionAndExecuteSimpleCommand(TikConnectionType.Api, host, user, pass);
             OpenConnectionAndExecuteSimpleCommand(TikConnectionType.ApiSsl, host, user, pass);
@@ -161,7 +160,7 @@ namespace tik4net.integrationtests
         {
             using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
             {
-                connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                connection.Open(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass"));
                 connection.ReceiveTimeout = 1; //very short timeout
                 connection.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "192.0.2.1", "count", "2").ExecuteList();
                 connection.Close();
@@ -185,7 +184,7 @@ namespace tik4net.integrationtests
             using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
             {
                 connection.ReceiveTimeout = 500; //wait for 2x 500ms
-                connection.Open("192.168.99.1" /*Not accessible IP*/, ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                connection.Open("192.168.99.1" /*Not accessible IP*/, LabConfig.Get("user"), LabConfig.Get("pass"));
                 connection.Close();
             }
         }
@@ -198,7 +197,7 @@ namespace tik4net.integrationtests
                     using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
                     {
                         connection.ReceiveTimeout = 500; //wait for 2x 500ms
-                        await connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                        await connection.OpenAsync(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass"));
                     }
                 }).GetAwaiter().GetResult();
         }
@@ -211,7 +210,7 @@ namespace tik4net.integrationtests
             {
                 using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
                 {
-                    await connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                    await connection.OpenAsync(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass"));
                     connection.ReceiveTimeout = 1; //very short timeout + using async version
                     // A read the router cannot answer inside the timeout whatever its speed — see the sync test.
                     await connection.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "192.0.2.1", "count", "2")

@@ -37,7 +37,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using tik4net.Diagnostics;
 using tik4net.Winbox;
@@ -120,7 +119,7 @@ namespace tik4net.integrationtests
         private static ITikConnection OpenOne(TikConnectionType type)
         {
             var conn = ConnectionFactory.CreateConnection(type);
-            string mac = ConfigurationManager.AppSettings["routerMac"];
+            string mac = LabConfig.Get("routerMac");
             if (!string.IsNullOrEmpty(mac))
             {
                 switch (conn)
@@ -130,9 +129,9 @@ namespace tik4net.integrationtests
                     case tik4net.WinboxNativeMac.WinboxNativeMacConnection nm: nm.RouterMac = mac; break;
                 }
             }
-            conn.Open(ConfigurationManager.AppSettings["host"],
-                      ConfigurationManager.AppSettings["user"],
-                      ConfigurationManager.AppSettings["pass"] ?? "");
+            conn.Open(LabConfig.Get("host"),
+                      LabConfig.Get("user"),
+                      LabConfig.Get("pass") ?? "");
             return conn;
         }
 
@@ -325,11 +324,11 @@ namespace tik4net.integrationtests
         {
             var (xWA, parityA) = tik4net.Crypto.EcSrp5.GenPublicKey(privA);
             var transport = new tik4net.Winbox.WinboxTcpTransport();
-            transport.Connect(ConfigurationManager.AppSettings["host"], 8291, 15000, 15000);
+            transport.Connect(LabConfig.Get("host"), 8291, 15000, 15000);
             try
             {
-                string user = ConfigurationManager.AppSettings["user"];
-                string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+                string user = LabConfig.Get("user");
+                string pass = LabConfig.Get("pass") ?? "";
 
                 byte[] hello = System.Text.Encoding.UTF8.GetBytes(user)
                     .Concat(new byte[] { 0 }).Concat(xWA).Concat(new byte[] { (byte)parityA }).ToArray();
@@ -490,9 +489,9 @@ namespace tik4net.integrationtests
             {
                 using (var conn = ConnectionFactory.CreateConnection(TikConnectionType.Api))
                 {
-                    conn.Open(ConfigurationManager.AppSettings["host"],
-                              ConfigurationManager.AppSettings["user"],
-                              ConfigurationManager.AppSettings["pass"] ?? "");
+                    conn.Open(LabConfig.Get("host"),
+                              LabConfig.Get("user"),
+                              LabConfig.Get("pass") ?? "");
                     return true;
                 }
             }

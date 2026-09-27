@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -288,7 +287,7 @@ namespace tik4net.integrationtests
 
             // 2. App.config
             if (string.IsNullOrEmpty(raw))
-                raw = ConfigurationManager.AppSettings["connectionType"];
+                raw = LabConfig.Get("connectionType");
 
             // 3. Default
             if (string.IsNullOrEmpty(raw))
@@ -354,8 +353,8 @@ namespace tik4net.integrationtests
         /// </remarks>
         public static TikRouterAddress LabAddress(TikConnectionType connectionType)
         {
-            string host = ConfigurationManager.AppSettings["host"];
-            string mac = ConfigurationManager.AppSettings["routerMac"];
+            string host = LabConfig.Get("host");
+            string mac = LabConfig.Get("routerMac");
 
             if (!IsMacLayer(connectionType))
                 return TikRouterAddress.FromHost(host);
@@ -385,8 +384,8 @@ namespace tik4net.integrationtests
         public static TikConnectionSetup LabSetup(TikConnectionType connectionType)
             => new TikConnectionSetup(
                 LabAddress(connectionType),
-                ConfigurationManager.AppSettings["user"],
-                ConfigurationManager.AppSettings["pass"] ?? "")
+                LabConfig.Get("user"),
+                LabConfig.Get("pass") ?? "")
             {
                 // Since 4.0 an invalid certificate is rejected by default and the CHR presents a
                 // self-signed one, so apissl/restssl only connect because this says so, out loud, in one
@@ -446,7 +445,7 @@ namespace tik4net.integrationtests
         /// </summary>
         private static void ApplyRouterMac(ITikConnection conn)
         {
-            string mac = ConfigurationManager.AppSettings["routerMac"];
+            string mac = LabConfig.Get("routerMac");
             if (string.IsNullOrEmpty(mac))
                 return;
 

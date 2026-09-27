@@ -21,7 +21,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using tik4net;
 
@@ -34,11 +33,11 @@ namespace tik4net.integrationtests
         /// The MAC of the lab router. Without it there is nothing to address a MAC-only session by — MNDP
         /// cannot help, because looking a MAC up by MNDP needs the host address this test refuses to use.
         /// </summary>
-        private static string RouterMac => ConfigurationManager.AppSettings["routerMac"];
+        private static string RouterMac => LabConfig.Get("routerMac");
 
-        private static string Host => ConfigurationManager.AppSettings["host"];
-        private static string User => ConfigurationManager.AppSettings["user"];
-        private static string Password => ConfigurationManager.AppSettings["pass"] ?? "";
+        private static string Host => LabConfig.Get("host");
+        private static string User => LabConfig.Get("user");
+        private static string Password => LabConfig.Get("pass") ?? "";
 
         private static TikConnectionType[] MacTransports => new[]
         {

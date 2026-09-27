@@ -6,7 +6,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using System.Text;
 using tik4net.Objects;
@@ -32,9 +31,9 @@ namespace tik4net.integrationtests
         private const int KEY_INACTIVE = 0xFE0008; // bool 'inactive'
 
         private static (string host, string user, string pass) Cfg() => (
-            ConfigurationManager.AppSettings["host"],
-            ConfigurationManager.AppSettings["user"],
-            ConfigurationManager.AppSettings["pass"] ?? "");
+            LabConfig.Get("host"),
+            LabConfig.Get("user"),
+            LabConfig.Get("pass") ?? "");
 
         // ── Helpers ───────────────────────────────────────────────────────────
 

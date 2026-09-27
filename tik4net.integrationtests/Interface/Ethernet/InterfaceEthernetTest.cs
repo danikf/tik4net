@@ -6,7 +6,6 @@ using System.Text;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
 using tik4net.Objects.Interface.Ethernet;
-using System.Configuration;
 
 namespace tik4net.integrationtests
 {
@@ -61,9 +60,9 @@ namespace tik4net.integrationtests
             var viaTransport = Connection.LoadAll<InterfaceEthernet>().ToList();
             Assert.IsTrue(viaTransport.Count > 0, "the router reported no ethernet interfaces");
 
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             using (var apiConnection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {
@@ -100,9 +99,9 @@ namespace tik4net.integrationtests
             var eth = Connection.LoadAll<InterfaceEthernet>().FirstOrDefault(e => e.Name == TestConstants.Interface);
             if (eth == null) Assert.Inconclusive("the router has no " + TestConstants.Interface);
 
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             using (var apiConnection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {
@@ -150,9 +149,9 @@ namespace tik4net.integrationtests
             var eth = viaTransport.FirstOrDefault(e => e.Name == TestConstants.Interface);
             if (eth == null) Assert.Inconclusive("the router has no " + TestConstants.Interface);
 
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             using (var apiConnection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {
@@ -186,9 +185,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void EthernetArpTimeoutReadsAndWritesLikeTheApi()
         {
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             // A CLI print without 'detail' is the summary columns, which do not include arp-timeout; the API
             // prints every field either way. 'detail' is what the O/R mapper sends (IncludeDetails).

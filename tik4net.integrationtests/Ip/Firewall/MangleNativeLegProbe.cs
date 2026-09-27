@@ -31,7 +31,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using tik4net.Diagnostics;
@@ -156,9 +155,9 @@ namespace tik4net.integrationtests
                         using (ITikConnection connection = ConnectionFactory.CreateConnection(
                                    TikConnectionType.WinboxNative))
                         {
-                            connection.Open(ConfigurationManager.AppSettings["host"],
-                                            ConfigurationManager.AppSettings["user"],
-                                            ConfigurationManager.AppSettings["pass"] ?? "");
+                            connection.Open(LabConfig.Get("host"),
+                                            LabConfig.Get("user"),
+                                            LabConfig.Get("pass") ?? "");
                             // Login and the catalog fetch use the same socket; start the series at the read
                             // under test so their events cannot own the largest gap.
                             sink.Reset();
@@ -232,10 +231,10 @@ namespace tik4net.integrationtests
             {
                 using (var client = new WinboxM2Client())
                 {
-                    client.Connect(ConfigurationManager.AppSettings["host"], WinboxPort);
-                    client.Authenticate(ConfigurationManager.AppSettings["host"], WinboxPort,
-                                        ConfigurationManager.AppSettings["user"],
-                                        ConfigurationManager.AppSettings["pass"] ?? "");
+                    client.Connect(LabConfig.Get("host"), WinboxPort);
+                    client.Authenticate(LabConfig.Get("host"), WinboxPort,
+                                        LabConfig.Get("user"),
+                                        LabConfig.Get("pass") ?? "");
 
                     object cont = null;
                     byte reqId = 1;
@@ -358,10 +357,10 @@ namespace tik4net.integrationtests
             {
                 using (var client = new WinboxM2Client())
                 {
-                    client.Connect(ConfigurationManager.AppSettings["host"], WinboxPort);
-                    client.Authenticate(ConfigurationManager.AppSettings["host"], WinboxPort,
-                                        ConfigurationManager.AppSettings["user"],
-                                        ConfigurationManager.AppSettings["pass"] ?? "");
+                    client.Connect(LabConfig.Get("host"), WinboxPort);
+                    client.Authenticate(LabConfig.Get("host"), WinboxPort,
+                                        LabConfig.Get("user"),
+                                        LabConfig.Get("pass") ?? "");
 
                     object cont = null;
                     byte reqId = 1;
@@ -572,7 +571,7 @@ namespace tik4net.integrationtests
 
             using (ITikConnection connection = ConnectionFactory.CreateConnection(leg))
             {
-                string mac = ConfigurationManager.AppSettings["routerMac"];
+                string mac = LabConfig.Get("routerMac");
                 if (!string.IsNullOrEmpty(mac) && connection is ITikMacLayerConnection macConn)
                     macConn.RouterMac = mac;
 
@@ -582,9 +581,9 @@ namespace tik4net.integrationtests
                     pageTicks.Add(now - lastTick);
                     lastTick = now;
                 };
-                connection.Open(ConfigurationManager.AppSettings["host"],
-                                ConfigurationManager.AppSettings["user"],
-                                ConfigurationManager.AppSettings["pass"] ?? "");
+                connection.Open(LabConfig.Get("host"),
+                                LabConfig.Get("user"),
+                                LabConfig.Get("pass") ?? "");
 
                 long openedAtMs = sw.ElapsedMilliseconds;
                 // The catalog fetch and login also raise OnReadRow; drop what they logged so the gap series

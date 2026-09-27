@@ -16,7 +16,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
 using tik4net.Winbox;
 
@@ -30,9 +29,9 @@ namespace tik4net.integrationtests
         private static readonly int[] LOG = { 3, 4 };   // .jg: name:'Log Entry', path:[ 3,4 ]
 
         private static (string host, string user, string pass) Cfg() => (
-            ConfigurationManager.AppSettings["host"],
-            ConfigurationManager.AppSettings["user"],
-            ConfigurationManager.AppSettings["pass"] ?? "");
+            LabConfig.Get("host"),
+            LabConfig.Get("user"),
+            LabConfig.Get("pass") ?? "");
 
         [TestMethod]
         public void MaxObjs_PageSizeOrCap()

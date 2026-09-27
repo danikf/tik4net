@@ -69,7 +69,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -95,7 +94,7 @@ namespace tik4net.integrationtests
         private static ITikConnection Open(TikConnectionType type)
         {
             var conn = ConnectionFactory.CreateConnection(type);
-            string mac = ConfigurationManager.AppSettings["routerMac"];
+            string mac = LabConfig.Get("routerMac");
             if (!string.IsNullOrEmpty(mac))
             {
                 switch (conn)
@@ -105,9 +104,9 @@ namespace tik4net.integrationtests
                     case tik4net.WinboxNativeMac.WinboxNativeMacConnection nm: nm.RouterMac = mac; break;
                 }
             }
-            conn.Open(ConfigurationManager.AppSettings["host"],
-                      ConfigurationManager.AppSettings["user"],
-                      ConfigurationManager.AppSettings["pass"] ?? "");
+            conn.Open(LabConfig.Get("host"),
+                      LabConfig.Get("user"),
+                      LabConfig.Get("pass") ?? "");
             return conn;
         }
 

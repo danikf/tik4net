@@ -12,7 +12,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using tik4net;
 
@@ -24,9 +23,9 @@ namespace tik4net.integrationtests
     public class WinboxNativePaginationTest
     {
         private static (string host, string user, string pass) Cfg() => (
-            ConfigurationManager.AppSettings["host"],
-            ConfigurationManager.AppSettings["user"],
-            ConfigurationManager.AppSettings["pass"] ?? "");
+            LabConfig.Get("host"),
+            LabConfig.Get("user"),
+            LabConfig.Get("pass") ?? "");
 
         /// <summary>
         /// Reads <c>/log</c> over WinBox native and over the binary API and compares the counts. The API is

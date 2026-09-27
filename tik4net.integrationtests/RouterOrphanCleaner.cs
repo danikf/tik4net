@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 
 namespace tik4net.integrationtests
@@ -78,9 +77,9 @@ namespace tik4net.integrationtests
         /// </summary>
         internal static void PurgeTestResidue()
         {
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             ITikConnection conn;
             try

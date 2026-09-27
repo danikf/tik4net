@@ -30,7 +30,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -63,9 +62,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void SweepEveryEnumTypedPropertyAgainstTheRouter()
         {
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+            string host = LabConfig.Get("host");
+            string user = LabConfig.Get("user");
+            string pass = LabConfig.Get("pass") ?? "";
 
             var table = new StringBuilder();
             var defects = new List<string>();

@@ -5,7 +5,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Linq;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
@@ -38,14 +37,14 @@ namespace tik4net.integrationtests
         }
 
         private static (string host, string user, string pass) Cfg() => (
-            ConfigurationManager.AppSettings["host"],
-            ConfigurationManager.AppSettings["user"],
-            ConfigurationManager.AppSettings["pass"] ?? "");
+            LabConfig.Get("host"),
+            LabConfig.Get("user"),
+            LabConfig.Get("pass") ?? "");
 
         private static WinboxNativeMacConnection OpenWinboxNativeMacConnection()
         {
             var (_, user, pass) = Cfg();
-            var macAddr = ConfigurationManager.AppSettings["routerMac"];
+            var macAddr = LabConfig.Get("routerMac");
 
             var conn = new WinboxNativeMacConnection { RouterMac = macAddr };
             // No host: these transports are for a router that has no IP address, so the suite must open

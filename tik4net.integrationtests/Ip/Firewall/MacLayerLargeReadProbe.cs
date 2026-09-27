@@ -11,7 +11,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using tik4net.Objects;
@@ -49,12 +48,12 @@ namespace tik4net.integrationtests
                 Log($"══ {transport} — {reads} read(s) of each table ══");
                 using (ITikConnection connection = ConnectionFactory.CreateConnection(transport))
                 {
-                    string mac = ConfigurationManager.AppSettings["routerMac"];
+                    string mac = LabConfig.Get("routerMac");
                     if (!string.IsNullOrEmpty(mac) && connection is ITikMacLayerConnection macConn)
                         macConn.RouterMac = mac;
-                    connection.Open(ConfigurationManager.AppSettings["host"],
-                                    ConfigurationManager.AppSettings["user"],
-                                    ConfigurationManager.AppSettings["pass"] ?? "");
+                    connection.Open(LabConfig.Get("host"),
+                                    LabConfig.Get("user"),
+                                    LabConfig.Get("pass") ?? "");
                     Log($"  page size {((ITikCliPagedReadConnection)connection).CliReadPageSize}");
 
                     for (int i = 1; i <= reads; i++)

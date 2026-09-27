@@ -24,10 +24,21 @@ Router coordinates come from `tik4net.integrationtests/App.config` (`host`, `use
 truth — read it, never restate its values. The `romonTarget*` keys name the **second** lab router, CHR2: the
 RoMON target `RomonRelayTest` reaches through the first (and writes to), kept on **RouterOS 6.49.13** as the
 older router — no REST, no `proplist=`, flags read as id lists (`Docs/findings-routeros-6.md`, which also
-holds the numbered list of what is still open on 6.x). Run `CliFlagFieldsTest` against it (point
-`host` / `routerMac` at it for that run only) after any change to the CLI read path; not the full suite, which
-assumes the first router's topology. Empty `romonTargetId` = the RoMON tests are Inconclusive. The table is in
-`tik4net.integrationtests/README.md`, *The lab routers*.
+holds the numbered list of what is still open on 6.x). Run `CliFlagFieldsTest` against it after any change to
+the CLI read path; not the full suite, which assumes the first router's topology. Empty `romonTargetId` = the
+RoMON tests are Inconclusive. The table is in `tik4net.integrationtests/README.md`, *The lab routers*.
+
+**Switch routers with `-Router`, never by editing `App.config`.** A router profile is a set of `<name>.<key>`
+entries in `App.config` (`chr2.host`, `chr2.routerMac`, …) that override the plain keys; `-Router chr2` sets
+`TIK4NET_ROUTER` for the run, writes to `TestResults/chr2`, and the `chr2` profile switches the RoMON target off
+(CHR2 would relay to itself). Every test reads its settings through `LabConfig.Get`, and
+`IntegrationTestConfigReadTests` in the unit suite fails on a direct `AppSettings` read, which would reach the
+default router whatever the run selected. Without `-Router` the script clears an inherited `TIK4NET_ROUTER`, so
+a leftover variable cannot redirect a run.
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -Router chr2 -Transport @('api') -Filter 'FullyQualifiedName~CliFlagFieldsTest'"
+```
 
 `TestBase.LabAddress` picks which of them a run uses, and the choice is not cosmetic: the **MAC-layer
 transports run with no host at all**, addressed by `routerMac` alone. That is the case those transports

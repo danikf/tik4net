@@ -1,5 +1,4 @@
 using System;
-using System.Configuration;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -64,9 +63,9 @@ namespace tik4net.integrationtests
         private static void WriteMarkerOverApi(string marker)
         {
             using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api,
-                       ConfigurationManager.AppSettings["host"],
-                       ConfigurationManager.AppSettings["user"],
-                       ConfigurationManager.AppSettings["pass"]))
+                       LabConfig.Get("host"),
+                       LabConfig.Get("user"),
+                       LabConfig.Get("pass")))
             {
                 api.LogInfo(marker);
             }
