@@ -318,9 +318,9 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      raw reads were not re-run.
    - **Every entity, one session, 2026-09-24** (`LoadAll`/`LoadSingle` of all 163 readable entities): Telnet and
      WinboxCli read all but `/routing/bgp/advertisements` (problem 9) and the
-     menus 6.x does not have. WinboxCliMac and MacTelnet add `/ip/ipsec/policy` (`Missing field '.id'`) and
-     `/system/package` (13 rows counted, 1 read) — MAC carriers only, the same on the code before these fixes —
-     and MacTelnet a run of 30 s timeouts (problem 7).
+     menus 6.x does not have. WinboxCliMac and MacTelnet added `/ip/ipsec/policy` and `/system/package`, a
+     windowed print that names no row (problem 8, settled), and MacTelnet a run of 30 s timeouts (problem 7,
+     settled).
    - Not a finding: the audit's "refusing to CLEAR the field" lines appear against 7.24.4 too.
    - Still not run: the full suite — CHR2's missing topology will fail tests for reasons that are not defects, so
      its failures need sorting before any counts as a 6.x gap.
@@ -348,17 +348,24 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    `static-transmit-key`). Also measured with it: completion answers only for the SPACE form of a menu path on 6.x
    (`/ip firewall filter add action=`); after the slash form it lists nothing, so a caller must use spaces.
 
-7. **MAC-Telnet on one long session.** The path-map audit lost its session after seven paths (every call then
-    `Connection is not open`); the entity sweep over one session hit 23 reads that time out after 30 s with
-    17–24 KB received and no prompt, each costing the session — the same list on the code before the echo fix.
-    ~18 KB is what 6.x's per-character echo of a windowed read's command amounts to, so the suspicion is the MAC
-    carrier and that echo volume (the MAC backlog-replay drop, [findings-mactelnet.md](findings-mactelnet.md)),
-    not the reads themselves. The suite's own MAC-Telnet legs pass against 6.49.13. Next step: a byte trace of
-    one of them (`/ip/firewall/filter`) against the same read over Telnet.
+7. **Settled: MAC-Telnet on one long session.** 6.49.13 repaints the whole typed line after every character of a
+    command, and MAC-Telnet logged in without the `+c` every other PTY login uses, so the repaint came in colour:
+    ~65 KB of echo for one 180-character window command. Under that volume the router's MAC-Telnet server
+    re-sends packets we had already acknowledged — even ones whose exact ACK it had been sent — and then drops its
+    own output: the echo stops mid-escape-sequence, nothing is re-sent, and the read waits 30 s at 17–24 KB (the
+    MAC backlog-replay drop, [findings-mactelnet.md](findings-mactelnet.md)). The terminal user name now carries `+c`
+    (the EC-SRP5 exchange keeps the bare name, and RouterOS accepts it). The one-session sweep of every entity over
+    MAC-Telnet on 6.49.13, before → after: 21 load errors → 0, 55 → 62 entities with rows (the API's 62),
+    856 s → 91 s. The uncoloured repaint is still quadratic in the command's length (~19 KB for 180 characters).
 
-8. **MAC carriers: `/ip/ipsec/policy` and `/system/package` on 6.x.** Over WinboxCliMac and MacTelnet the policy
-    read fails with `Missing field '.id'` and the package read counts 13 rows and parses 1; Telnet and WinboxCli
-    read both. Not yet traced.
+8. **Settled: a windowed print that names no row.** On 6.49.13 `print as-value from=<ids>` leaves `.id` out on
+    `/system/package` (13 rows, no id in any) and `/ip/ipsec/policy` (its one row carries `.nextid=*ffffffff`
+    instead), while the unwindowed print of both carries it and `/interface` keeps it windowed too. The parser
+    starts a record at each `.id=`, so the packages read as one row and the policy as a row with no id. Seen only
+    over the MAC transports because they are the ones that page (Telnet read the same menus unpaged); the
+    router prints the same over Telnet when asked the windowed command (telnet-cli-probe). A window whose answer holds rows but no `.id` is now taken
+    again one id at a time — `:foreach i in=$w do={ :put (".id=" . $i . ";" . [:tostr [print … from=$i]]) }` —
+    and the menu is remembered for the connection; the `.nextid` is dropped, as the API does not print it there.
 
 9. **`/routing bgp advertisements print` has no `as-value` on 6.x.** Its `print` completes only `file`,
     `interval`, `peer` and `where` (6.49.13), so the CLI read's `as-value` is taken as a peer name. The router answers
