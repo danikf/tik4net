@@ -183,6 +183,12 @@ Two conventions it relies on, both of which are also information for the reader:
   receiver-type check below alive; only a page that genuinely opens one connection at the top and continues
   from it should declare otherwise.
 
+**An undeclared variable switches the check off for everything reached through it.** The test ignores CS0103
+(a name that does not exist) so fragments can continue one another — which means `lease.LeaseTime?.Value` with no
+`lease` in scope passes whatever `LeaseTime`'s type is. That is how samples treating a `TikValue<T>` property as a
+bare value survived the 5.0 conversion. Declare the entity the sample reads (`var server =
+connection.LoadAll<IpDhcpServer>().First();`) so its property uses are actually typed.
+
 The rest of this check is what the compiler cannot judge:
 
 * Every type, member and namespace exists, spelled as in the source.

@@ -65,10 +65,22 @@ namespace tik4net.unittests.Docs
         private static readonly Regex NoCompileMarker =
             new Regex(@"^\s*<!--\s*no-compile\s*:\s*(?<reason>.+?)\s*-->\s*$", RegexOptions.Compiled);
 
+        // A fence may sit under a list item (indented) or inside a blockquote ("> "); both are ordinary markdown, and
+        // a finder that matched only column 0 silently skipped every such block - ten on one page alone.
         private static readonly Regex Fence =
-            new Regex(@"^```(?<lang>cs|csharp|c\#)[ \t]*\r?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            new Regex(@"^(?<prefix>[ \t]*(?:>[ \t]?)*)```(?<lang>cs|csharp|c\#)[ \t]*\r?$",
+                RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private static readonly Regex FenceEnd = new Regex(@"^```[ \t]*\r?$", RegexOptions.Compiled);
+        private static readonly Regex FenceEnd = new Regex(@"^[ \t]*(?:>[ \t]?)*```[ \t]*\r?$", RegexOptions.Compiled);
+
+        /// <summary>A body line without the fence's own prefix (its indent, or its blockquote marker).</summary>
+        private static string StripPrefix(string line, string prefix)
+        {
+            if (prefix.Length == 0) return line;
+            if (line.StartsWith(prefix, StringComparison.Ordinal)) return line.Substring(prefix.Length);
+            string trimmedPrefix = prefix.TrimEnd();
+            return line.StartsWith(trimmedPrefix, StringComparison.Ordinal) ? line.Substring(trimmedPrefix.Length) : line;
+        }
 
         /// <summary>The page-level declaration of what its snippets assume <c>connection</c> to be.</summary>
         private static readonly Regex ConnectionTypeMarker =
@@ -123,7 +135,9 @@ namespace tik4net.unittests.Docs
 
             for (int i = 0; i < lines.Length; i++)
             {
-                if (!Fence.IsMatch(lines[i])) continue;
+                Match fence = Fence.Match(lines[i]);
+                if (!fence.Success) continue;
+                string prefix = fence.Groups["prefix"].Value;
 
                 // The marker sits on the line before the fence, optionally separated by blanks - a blank line
                 // between an HTML comment and a fence is normal markdown formatting, not a different block.
@@ -139,7 +153,7 @@ namespace tik4net.unittests.Docs
                 var body = new List<string>();
                 int j = i + 1;
                 for (; j < lines.Length && !FenceEnd.IsMatch(lines[j]); j++)
-                    body.Add(lines[j]);
+                    body.Add(StripPrefix(lines[j], prefix));
 
                 result.Add(new WikiSample
                 {
