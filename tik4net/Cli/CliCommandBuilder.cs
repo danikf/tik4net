@@ -481,7 +481,14 @@ namespace tik4net.Cli
         /// confirmed live (ROS 7.21.4) as the minimum that reliably flushes one complete frame; a
         /// <c>duration</c> equal to a single interval can complete with zero frames flushed.
         /// </summary>
-        internal static string BuildTorchSnapshot(string apiPath, IList<ITikCommandParameter> parameters, int freezeFrameSeconds)
+        /// <param name="apiPath">The torch path (<c>/tool/torch</c>).</param>
+        /// <param name="parameters">The caller's torch arguments; <c>duration</c>, <c>freeze-frame-interval</c> and
+        /// <c>proplist</c> are owned by this builder.</param>
+        /// <param name="freezeFrameSeconds">The frame interval; the duration is twice it.</param>
+        /// <param name="withProplist"><c>false</c> on a router whose torch has no <c>proplist=</c> (RouterOS 6.49.13 refuses
+        /// it: "expected end of command"); it then prints its plain table, read by <see cref="CliOutputParser.ParseTorchTable"/>.</param>
+        internal static string BuildTorchSnapshot(string apiPath, IList<ITikCommandParameter> parameters, int freezeFrameSeconds,
+            bool withProplist = true)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(":put [");
@@ -509,7 +516,8 @@ namespace tik4net.Cli
 
             sb.Append(" duration=").Append(freezeFrameSeconds * 2);
             sb.Append(" freeze-frame-interval=").Append(freezeFrameSeconds);
-            sb.Append(" proplist=").Append(string.Join(",", TorchFields));
+            if (withProplist)
+                sb.Append(" proplist=").Append(string.Join(",", TorchFields));
             sb.Append(']');
             return sb.ToString();
         }

@@ -194,6 +194,20 @@ and asks that command in the plain form for the rest of the connection. The rows
 `RomonRelayTest.Relay_SyncMonitor_ReturnsRows_AndKeepsTheRelay` covers it through the relay on Telnet, SSH and
 MAC-Telnet.
 
+A polled stream of a continuous monitor (`/tool profile`, `ExecuteWithCallback` over a CLI transport) takes the
+same snapshot every round, so it falls back the same way.
+
+**Torch has no `proplist=`.** `:put [/tool torch interface=ether1 duration=4 freeze-frame-interval=2 proplist=…]`
+is refused at the column `proplist=` starts on (`expected end of command (line 1 column 71)`); without it the
+command prints its plain table, even inside `:put`: frames between `-- [Q quit|D dump|C-z pause]` lines, a header,
+one row per flow, and a last row with only `TX`, `RX`, `TX-PACKETS`, `RX-PACKETS` — the totals. The columns are the
+ones the arguments ask for: `interface` alone prints the totals only, `src-address=0.0.0.0/0 port=any
+ip-protocol=any` adds `MAC-PROTOCOL`, `IP-PROTOCOL`, `SRC-ADDRESS`, `SRC-PORT`, `DST-PORT`. That is what the binary
+API returns for the same arguments, totals row included, and a port keeps its service name there too
+(`dst-port=8291 (winbox)`). The rates are right-aligned under their header (`1664bps` starts left of `TX`), so the
+table is read by which header a value overlaps rather than by the column spans `CliTableParser` uses
+(`CliOutputParser.ParseTorchTable`).
+
 ## Open problems
 
 Each is a statement of what is measured and what is not, to be settled one at a time.

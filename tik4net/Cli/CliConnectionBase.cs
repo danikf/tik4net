@@ -1259,14 +1259,22 @@ namespace tik4net.Cli
         /// here, <c>TikGenericCommand.ResolveParamsForRead</c> has rewritten the caller's parameters to Filter
         /// format, and a monitor has no query semantics for them to mean anything else.
         /// </remarks>
-        private async Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(
+        private Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(
             TikCommandDescriptor descriptor, string verb, CancellationToken cancellationToken)
+            => RunMonitorSnapshotAsync(descriptor, CliMonitorVerbs.SnapshotModifier(verb), includeFilters: true,
+                cancellationToken);
+
+        /// <summary>
+        /// One monitor snapshot — the as-value form, or on a router that refuses it (RouterOS 6) the plain table —
+        /// for a one-shot read and for each round of a polled stream alike.
+        /// </summary>
+        private async Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(TikCommandDescriptor descriptor,
+            string modifier, bool includeFilters, CancellationToken cancellationToken)
         {
-            string modifier = CliMonitorVerbs.SnapshotModifier(verb);
             if (!_monitorWithoutAsValue.Contains(descriptor.CommandText))
             {
                 string cliText = CliCommandBuilder.BuildMonitorSnapshot(
-                    descriptor.CommandText, descriptor.Parameters, modifier, includeFilters: true);
+                    descriptor.CommandText, descriptor.Parameters, modifier, includeFilters);
 
                 string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
                 if (!IsSyntaxErrorOnly(output))
@@ -1281,7 +1289,7 @@ namespace tik4net.Cli
             // The plain command prints its table, read by column like a streaming monitor. Remembered per command
             // once the plain form has answered with its table, so a syntax error the inputs caused is not.
             string plainText = CliCommandBuilder.BuildInteractiveMonitor(
-                descriptor.CommandText, descriptor.Parameters, modifier, includeFilters: true);
+                descriptor.CommandText, descriptor.Parameters, modifier, includeFilters);
             string plain = await ExecuteCliCommandAsync(plainText, cancellationToken).ConfigureAwait(false) ?? string.Empty;
             CliErrorParser.ThrowIfError(plain, CreateDummyCommand(descriptor));
 
@@ -1301,6 +1309,9 @@ namespace tik4net.Cli
             _monitorWithoutAsValue.Add(descriptor.CommandText);
             return rows;
         }
+
+        /// <summary>Torch commands this router refused <c>proplist=</c> for (RouterOS 6), read as its plain table instead.</summary>
+        private readonly HashSet<string> _torchWithoutProplist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Monitor commands whose as-value form this router refused (RouterOS 6), read as a table instead.</summary>
         private readonly HashSet<string> _monitorWithoutAsValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2096,17 +2107,15 @@ namespace tik4net.Cli
         {
             try
             {
-                string cliText = CliCommandBuilder.BuildMonitorSnapshot(
-                    descriptor.CommandText, descriptor.Parameters, snapshotModifier);
-
                 while (!handle.CancelRequested)
                 {
-                    string output = ExecuteCliCommand(cliText);
-                    CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-                    // ParseRecords, not ParseAsValue: a rejected monitor (bad interface name) prints a
-                    // diagnostic no phrase list catches, and a poll loop that shrugs it off spins forever
-                    // delivering nothing instead of reporting the error once (P2.51).
-                    foreach (var row in ParseRecords(output, descriptor))
+                    // The same snapshot a one-shot read takes, so RouterOS 6 — which has no as-value on its
+                    // monitors — is polled through the plain table too. A rejected monitor (bad interface name)
+                    // throws out of it rather than being shrugged off, so the loop reports the error once
+                    // instead of spinning with nothing to deliver (P2.51).
+                    var rows = RunMonitorSnapshotAsync(descriptor, snapshotModifier, includeFilters: false,
+                        CancellationToken.None).GetAwaiter().GetResult();
+                    foreach (var row in rows)
                     {
                         if (handle.CancelRequested) break;
                         onRow?.Invoke(row);
@@ -2190,14 +2199,32 @@ namespace tik4net.Cli
         {
             try
             {
+                bool plain = _torchWithoutProplist.Contains(descriptor.CommandText);
                 string cliText = CliCommandBuilder.BuildTorchSnapshot(
-                    descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds);
+                    descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds, withProplist: !plain);
 
                 while (!handle.CancelRequested)
                 {
                     string output = ExecuteCliCommand(cliText);
+                    if (!plain && IsSyntaxErrorOnly(output))
+                    {
+                        // RouterOS 6's torch has no proplist= (6.49.13: "expected end of command (line 1 column 71)",
+                        // the column proplist starts on). Its plain table carries the columns the caller's arguments
+                        // ask for; remembered per command once that answer has a table, so another refusal is not.
+                        string plainText = CliCommandBuilder.BuildTorchSnapshot(
+                            descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds, withProplist: false);
+                        string plainOutput = ExecuteCliCommand(plainText);
+                        CliErrorParser.ThrowIfError(plainOutput, CreateDummyCommand(descriptor));
+                        if (plainOutput.IndexOf("-- [Q quit", StringComparison.Ordinal) < 0)
+                            throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                                new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
+                        _torchWithoutProplist.Add(descriptor.CommandText);
+                        plain = true;
+                        cliText = plainText;
+                        output = plainOutput;
+                    }
                     CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-                    foreach (var row in CliOutputParser.ParseTorchFrame(output))
+                    foreach (var row in plain ? CliOutputParser.ParseTorchTable(output) : CliOutputParser.ParseTorchFrame(output))
                     {
                         if (handle.CancelRequested) break;
                         onRow?.Invoke(row);
