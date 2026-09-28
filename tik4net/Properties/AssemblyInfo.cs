@@ -20,3 +20,6 @@ using System.Runtime.InteropServices;
 // The MCP server shares the command-row parser rather than keeping a second copy of the same rules:
 // two parsers of one format drift, and this one decides which rows are an error.
 [assembly: InternalsVisibleTo("tik4net.mcp")]
+// tik4net.objects ships in the same tik4net package and shares the argument guards and LINQ helpers,
+// which are not part of the public surface.
+[assembly: InternalsVisibleTo("tik4net.objects")]

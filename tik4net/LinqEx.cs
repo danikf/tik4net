@@ -8,13 +8,13 @@ namespace tik4net
     /// <summary>
     /// IEnumerable extensions.
     /// </summary>
-    public static class LinqEx
+    internal static class LinqEx
     {
         /// <summary>
         ///  Creates a Dictionary from an IEnumerable
         ///  according to a specified keySelector function.
         /// </summary>
-        public static Dictionary<TKey, TValue> ToDictionaryEx<TKey, TValue>(this IEnumerable<TValue> values, Func<TValue, TKey> keySelector)
+        internal static Dictionary<TKey, TValue> ToDictionaryEx<TKey, TValue>(this IEnumerable<TValue> values, Func<TValue, TKey> keySelector)
             where TKey : notnull
         {
             var result = new Dictionary<TKey, TValue>();
@@ -37,7 +37,7 @@ namespace tik4net
         ///  Creates a Dictionary from an IEnumerable
         ///  according to a specified keySelector and valueSelector functions.
         /// </summary>
-        public static Dictionary<TKey, TValue> ToDictionaryEx<TItem, TKey, TValue>(this IEnumerable<TItem> values, Func<TItem, TKey> keySelector, Func<TItem, TValue> valueSelector)
+        internal static Dictionary<TKey, TValue> ToDictionaryEx<TItem, TKey, TValue>(this IEnumerable<TItem> values, Func<TItem, TKey> keySelector, Func<TItem, TValue> valueSelector)
             where TKey : notnull
         {
             var result = new Dictionary<TKey, TValue>();

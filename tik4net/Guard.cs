@@ -10,14 +10,14 @@ namespace tik4net
     /// Helper class with methods used for checking arguments, type compatibility and so on.
     /// Main idea comes from MS-CAB.
     /// </summary>
-    public static class Guard
+    internal static class Guard
     {
         /// <summary>
         /// Checks a string argument to ensure it isn't null or empty.
         /// </summary>
         /// <param name="argumentValue">The argument value to check.</param>
         /// <param name="argumentName">The name of the argument.</param>
-        public static void ArgumentNotNullOrEmptyString(string argumentValue, string argumentName)
+        internal static void ArgumentNotNullOrEmptyString(string argumentValue, string argumentName)
         {
             ArgumentNotNull(argumentValue, argumentName);
 
@@ -30,7 +30,7 @@ namespace tik4net
         /// </summary>
         /// <param name="argumentValue">The argument value to check.</param>
         /// <param name="argumentName">The name of the argument.</param>
-        public static void ArgumentNotNull(object argumentValue, string argumentName)
+        internal static void ArgumentNotNull(object argumentValue, string argumentName)
         {
             if (argumentValue == null)
                 throw new ArgumentNullException(argumentName);
@@ -42,7 +42,7 @@ namespace tik4net
         /// <typeparam name="TExpectedType">Expected type.</typeparam>
         /// <param name="argumentValue">The argument value to check.</param>
         /// <param name="argumentName">The name of the argument.</param>
-        public static void ArgumentOfType<TExpectedType>(object argumentValue, string argumentName)
+        internal static void ArgumentOfType<TExpectedType>(object argumentValue, string argumentName)
         {
             if (argumentName is TExpectedType)
                 throw new ArgumentException(string.Format(CultureInfo.CurrentCulture, "The provided argument {0} must of '{1}' type.", argumentName, typeof(TExpectedType)), argumentName);            
