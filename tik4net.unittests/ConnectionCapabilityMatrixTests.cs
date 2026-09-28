@@ -26,6 +26,9 @@ namespace tik4net.unittests
         // text), the binary API does (sentence words), REST and native WinBox do not. It gates BOTH raw
         // levels; there is no separate flag for the sentence level. See RawSentenceCapabilityTests.
 
+        // MenuSchema on every transport: /console/inspect (API, REST, CLI on RouterOS 7), Tab completion (CLI on 6),
+        // the .jg catalog (native). RouterOS 6 over the API still refuses the question — a router refusal, not a flag.
+
         // AsyncCommands, but deliberately NOT CancelInFlight (P2.2 step 3): the terminal clients await their
         // socket, so the Task-based surface is real — while the response is an unframed byte stream, so a read
         // abandoned mid-command would leave output for the next command to misread. The second flag's absence
@@ -33,7 +36,7 @@ namespace tik4net.unittests
         private const TikConnectionCapability Cli =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.SafeMode | TikConnectionCapability.RawCommand
-            | TikConnectionCapability.AsyncCommands;
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.MenuSchema;
 
         // Listen is polled, like the CLI and native transports — RouterOS's own REST 'listen' is accepted and
         // then never flushes anything (P2.26). No Streaming: an HTTP response arrives in one lump.
@@ -41,7 +44,8 @@ namespace tik4net.unittests
         // the bottom, and aborting one stateless request cannot desynchronize the next.
         private const TikConnectionCapability Rest =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
-            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
+            | TikConnectionCapability.MenuSchema;
 
         // AsyncCommands + CancelInFlight since P2.8. Async because the M2 reader loop dispatches replies by
         // request id, so an awaiting command holds a registration rather than a thread. CancelInFlight because
@@ -53,7 +57,7 @@ namespace tik4net.unittests
         private const TikConnectionCapability Native =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
-            | TikConnectionCapability.FieldLabels;
+            | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema;
 
         // The binary API declares everything, including CancelInFlight — the only transport where cancelling
         // is the protocol's own operation (`/cancel tag=N`) rather than an abandon we hope is safe: the router
@@ -63,7 +67,8 @@ namespace tik4net.unittests
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.Streaming | TikConnectionCapability.RawCommand
             | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
+            | TikConnectionCapability.MenuSchema;
 
         private static readonly Dictionary<TikConnectionType, TikConnectionCapability> Expected =
             new Dictionary<TikConnectionType, TikConnectionCapability>

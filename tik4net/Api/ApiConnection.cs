@@ -12,7 +12,7 @@ using System.Threading;
 
 namespace tik4net.Api
 {  
-    internal sealed class ApiConnection : ITikApiConnection
+    internal sealed class ApiConnection : ITikApiConnection, ITikMenuSchemaConnection
     {
         ///// <summary>
         ///// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login
@@ -93,7 +93,14 @@ namespace tik4net.Api
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.Streaming | TikConnectionCapability.RawCommand
             | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
+            | TikConnectionCapability.MenuSchema;
+
+        // The menus described on this open; replaced when the connection opens.
+        private TikMenuSchemaCache _menuSchemas = new TikMenuSchemaCache();
+
+        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
+            => _menuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 
         public bool IsOpened
         {
@@ -375,6 +382,7 @@ namespace tik4net.Api
                     _tcpConnectionStream = sslStream;
                 }
 
+                _menuSchemas = new TikMenuSchemaCache();
                 _isOpened = true;
                 StartReaderLoop();        // login is an ordinary exchange — it goes through the reader too
                 try

@@ -25,6 +25,8 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
   7.24.4, 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions))
 * **[TikValue](https://github.com/danikf/tik4net/wiki/TikValue)** — a property knows whether the router printed the field; it never invents a default, and
   a value from a newer RouterOS does not break the read
+* **[Ask the router what a menu takes](https://github.com/danikf/tik4net/wiki/RouterOS-versions#asking-the-router-what-a-menu-takes)** — `DescribeMenu` lists a
+  menu's commands, the arguments `add` and `set` take and the words an argument accepts, from the router's own grammar
 * **Connection string** *(planned)* — choose the transport in config, not in code
 * **Negation and sets** *(planned)* — typed `!10.0.0.0/8` and `established,related` instead of strings
 * **[List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge)** — merge and `SaveListDifferences` reorder firewall rules
@@ -48,6 +50,8 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 * **[Streaming and async](https://github.com/danikf/tik4net/wiki/High-level-API-advanced#asynchronous-loading)** — `IAsyncEnumerable` reads and parallel
   commands such as torch, with in-flight cancellation
 * **`TikConnectionSetup`, one entry point** — for `netstandard2.0` and `net8.0`, with nullable annotations
+* **[Upgrade with an AI agent](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0-with-an-AI-agent)** — a ready-to-paste prompt that does
+  the 3.x → 4.0 migration
 
 Every change, version by version: [History](https://github.com/danikf/tik4net/wiki/History).
 
@@ -84,13 +88,13 @@ for what each capability means in practice, and for the per-transport detail beh
 
 | Transport | Port | What it is | Capabilities |
 |---|---|---|---|
-| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight` |
-| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` — stateless HTTP, so no streaming and no Safe Mode |
-| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
-| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
-| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
-| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
-| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal — **experimental**: fields are addressed by number, and the API-name ↔ M2 mapping is reconstructed rather than published | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight`, `FieldLabels` |
+| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight`, `MenuSchema` |
+| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight`, `MenuSchema` — stateless HTTP, so no streaming and no Safe Mode |
+| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`, `MenuSchema` |
+| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`, `MenuSchema` |
+| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`, `MenuSchema` |
+| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`, `MenuSchema` |
+| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal — **experimental**: fields are addressed by number, and the API-name ↔ M2 mapping is reconstructed rather than published | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight`, `FieldLabels`, `MenuSchema` |
 
 What the table does not say, in one line each — the
 [capabilities page](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) has the rest:

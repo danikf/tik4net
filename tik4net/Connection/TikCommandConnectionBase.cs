@@ -170,7 +170,15 @@ namespace tik4net.Connection
         /// <summary>
         /// Subclasses must call this after a successful login to mark the connection as open.
         /// </summary>
-        protected void SetOpened() => _isOpened = true;
+        protected void SetOpened()
+        {
+            // What the previous open learnt about its router's menus is not true of this one.
+            MenuSchemas = new TikMenuSchemaCache();
+            _isOpened = true;
+        }
+
+        /// <summary>The menus described on this open (<see cref="TikMenuSchemaExtensions.DescribeMenu(ITikConnection, string)"/>).</summary>
+        internal TikMenuSchemaCache MenuSchemas { get; private set; } = new TikMenuSchemaCache();
 
         /// <summary>
         /// Subclasses must call this when closing or on a fatal error to mark the connection as closed.

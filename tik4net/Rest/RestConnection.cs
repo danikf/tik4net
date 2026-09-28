@@ -88,7 +88,7 @@ namespace tik4net.Rest
     /// </para>
     /// </remarks>
     public sealed class RestConnection : TikCommandConnectionBase, ITikRestConnection,
-        ITikMonitorTransport, IPollingMonitorHost
+        ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection
     {
         // How often a listen diff / a continuous monitor re-reads the router. Same cadence as the CLI and
         // native transports, which poll the same way for the same reason.
@@ -120,7 +120,11 @@ namespace tik4net.Rest
         /// </summary>
         public override TikConnectionCapability Capabilities =>
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
-            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
+            | TikConnectionCapability.MenuSchema;
+
+        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
+            => MenuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 
         /// <inheritdoc/>
         /// <remarks>

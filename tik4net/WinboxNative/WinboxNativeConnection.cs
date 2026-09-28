@@ -56,7 +56,7 @@ namespace tik4net.WinboxNative
     /// state, and the router's shared throughput ceiling — is on <see cref="ITikConnection"/>.</para>
     /// </remarks>
     public class WinboxNativeConnection : TikCommandConnectionBase, ITikWinboxNativeConnection,
-        ITikMonitorTransport, IPollingMonitorHost
+        ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly); the MAC-layer
         // subclass constructor is internal too and calls this one.
@@ -1095,7 +1095,47 @@ namespace tik4net.WinboxNative
         public override TikConnectionCapability Capabilities =>
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
-            | TikConnectionCapability.FieldLabels;
+            | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema;
+
+        /// <summary>
+        /// A menu from the <c>.jg</c> catalog: the fields of its window the resolver maps to API names, writable ones as
+        /// the arguments, and each field's enum words. No round trip. The names are tik4net's reconstruction, so a missing
+        /// one can be a gap in the mapping (<see cref="TikMenuSchemaSource.WinboxCatalog"/>). A path with no WinBox window
+        /// throws <see cref="TikPathNotMappedException"/>.
+        /// </summary>
+        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
+            => MenuSchemas.GetOrAdd(path, p =>
+            {
+                EnsureNativeOpen();
+                // The hints name the fields: set them for this call alone. Left as the previous command's, a path
+                // described after an entity read got that entity's names, and one described first did not.
+                var previous = _labelHints.Value;
+                _labelHints.Value = WinboxFieldResolver.ParseLabelHints(winboxLabels);
+                int[] handler;
+                WinboxFieldResolver resolver;
+                try { (handler, resolver) = ResolveHandlerAndFields(p); }
+                finally { _labelHints.Value = previous; }
+                // The names from BuildKeyToApiName, which applies the hints and the overrides as a read does; the
+                // field itself (read-only, enum words) by key from BuildKeyToField, whose names are the catalog's.
+                var byKey = resolver.BuildKeyToField();
+                var named = resolver.BuildKeyToApiName()
+                    .Where(kv => kv.Value.Length > 0 && kv.Value != TikSpecialProperties.Id)
+                    .Select(kv => new { Name = kv.Value, Field = byKey.TryGetValue(kv.Key, out var f) ? f : null })
+                    .ToList();
+                var readable = named.Select(n => n.Name).Distinct(StringComparer.Ordinal).ToList();
+                var writable = named.Where(n => n.Field == null || !n.Field.ReadOnly)
+                    .Select(n => n.Name).Distinct(StringComparer.Ordinal).ToList();
+                var words = named
+                    .GroupBy(n => n.Name, StringComparer.Ordinal)
+                    .ToDictionary(g => g.Key,
+                        g => (IReadOnlyList<string>)g.SelectMany(n => n.Field?.EnumMap?.Values ?? Enumerable.Empty<string>())
+                            .Distinct(StringComparer.Ordinal).ToList(),
+                        StringComparer.Ordinal);
+                bool singleton = IsSingletonWindow(p, handler);
+                return new TikMenuSchema(p, TikMenuSchemaSource.WinboxCatalog, Array.Empty<string>(),
+                    singleton ? null : writable, writable, readable,
+                    (verb, argument) => words.TryGetValue(argument, out var w) ? w : Array.Empty<string>());
+            }, winboxLabels);
 
         // ── Safe Mode (system handler [17]) ──────────────────────────────────────
         // Take/release map to the webfig toggleSafeMode() M2 commands. WebFig exposes no in-place

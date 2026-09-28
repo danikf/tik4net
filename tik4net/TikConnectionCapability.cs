@@ -117,6 +117,13 @@ namespace tik4net
         /// catalog names one where the API name has to be matched by heuristic.
         /// </summary>
         FieldLabels = 512,
+        /// <summary>
+        /// The transport can describe a menu from the router's own grammar
+        /// (<see cref="TikMenuSchemaExtensions.DescribeMenu(ITikConnection, string)"/>): <c>/console/inspect</c> on the
+        /// API, REST and the CLI family (RouterOS 7), Tab completion on the CLI family (RouterOS 6), the <c>.jg</c> catalog
+        /// on WinBox native. The router can still refuse: RouterOS 6 over the API has no way to answer.
+        /// </summary>
+        MenuSchema = 1024,
     }
 
     /// <summary>

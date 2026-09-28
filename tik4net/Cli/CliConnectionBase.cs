@@ -55,7 +55,7 @@ namespace tik4net.Cli
     /// </remarks>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
         ITikMonitorTransport, IPollingMonitorHost, ITikCliPagedReadConnection,
-        ITikCliFieldSeparatorConnection
+        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection
     {
         /// <inheritdoc/>
         public string? CliFieldSeparator
@@ -221,7 +221,32 @@ namespace tik4net.Cli
         /// </summary>
         public override TikConnectionCapability Capabilities
             => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
-             | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands;
+             | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands
+             | TikConnectionCapability.MenuSchema;
+
+        /// <summary>
+        /// <c>/console/inspect</c> where the router has it (RouterOS 7), Tab completion where it does not (RouterOS 6):
+        /// whether it does is asked by the first menu described and remembered for the open.
+        /// </summary>
+        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
+            => MenuSchemas.GetOrAdd(path, p =>
+            {
+                if (_features.ConsoleInspect != false)
+                {
+                    try
+                    {
+                        var schema = ConsoleInspectSchemaReader.Read(this, p);
+                        _features.ConsoleInspect = true;
+                        return schema;
+                    }
+                    catch (TikNoSuchCommandException ex) when (_features.ConsoleInspect == null
+                        && ex.Message.IndexOf("bad command name inspect", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        _features.ConsoleInspect = false;
+                    }
+                }
+                return CliCompletionSchemaReader.Read(this, p);
+            });
 
         /// <inheritdoc/>
         /// <remarks>
@@ -824,8 +849,7 @@ namespace tik4net.Cli
             // answer indistinguishable from a real one. The monitor snapshot passes the arguments through; with no
             // modifier it is ':put [/console inspect request=child path=ip,route,add as-value]' (7.24.4: 14 rows).
             if (IsArgumentRead(printVerb))
-                return await RunMonitorSnapshotAsync(descriptor, modifier: string.Empty, includeFilters: true,
-                    cancellationToken).ConfigureAwait(false);
+                return await RunArgumentReadAsync(descriptor, cancellationToken).ConfigureAwait(false);
 
             // .proplist: the fields the caller asked for, and only those — the binary API's contract. It never
             // reaches the wire: the CLI's own proplist= refuses the whole read when one name is unknown
@@ -2281,6 +2305,31 @@ namespace tik4net.Cli
 
         // Reads whose arguments are the question, not a filter over a table (see RunPrintCoreAsync).
         private static bool IsArgumentRead(string verb) => verb == "inspect";
+
+        /// <summary>
+        /// A read whose arguments are the question (<see cref="IsArgumentRead"/>), as per-row DSV where the router takes
+        /// it: inspect's completion rows carry values as-value cannot frame — <c>completion="</c>, which opened a quote
+        /// that swallowed the rest of the answer (7.24.4), and free text with spaces. Elsewhere the as-value snapshot.
+        /// </summary>
+        private async Task<IList<TikRecordSentence>> RunArgumentReadAsync(TikCommandDescriptor descriptor,
+            CancellationToken cancellationToken)
+        {
+            await EnsureDsvSupportKnownAsync(cancellationToken).ConfigureAwait(false);
+            if (CliFieldSeparator != null && _features.Dsv == true && _features.DsvProbedSeparator == CliFieldSeparator)
+            {
+                // ":put [/console inspect request=… path=… as-value]" → the expression inside the brackets.
+                string snapshot = CliCommandBuilder.BuildMonitorSnapshot(descriptor.CommandText, descriptor.Parameters,
+                    string.Empty, includeFilters: true);
+                string expression = snapshot.Substring(":put [".Length, snapshot.Length - ":put [".Length - 1);
+                string output = await ExecuteCliCommandAsync(
+                    CliCommandBuilder.BuildCountedDsvRead(expression, CliFieldSeparator), cancellationToken).ConfigureAwait(false);
+                CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                string body = SplitOffCountMarker(output, descriptor, out int expected);
+                return EnsureCounted(ParseDsvRecords(body, descriptor), expected, descriptor, body);
+            }
+            return await RunMonitorSnapshotAsync(descriptor, modifier: string.Empty, includeFilters: true,
+                cancellationToken).ConfigureAwait(false);
+        }
 
         // Misuse of a read method (ExecuteList/ExecuteScalar/…) on an action command — guide to ExecuteNonQuery.
         private NotSupportedException ActionVerbOnReadPath(string commandText)

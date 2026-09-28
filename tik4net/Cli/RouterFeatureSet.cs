@@ -34,6 +34,12 @@ namespace tik4net.Cli
 
         /// <summary>The separator <see cref="Dsv"/> was answered for: a caller may change it on an open connection.</summary>
         internal string? DsvProbedSeparator;
+
+        /// <summary>
+        /// Whether the router has <c>/console/inspect</c> (RouterOS 7; 6.49.13 answers <c>bad command name inspect</c>).
+        /// Without it a menu is described by Tab completion.
+        /// </summary>
+        internal bool? ConsoleInspect;
     }
 
     /// <summary>
