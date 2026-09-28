@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 // CliDsvReadTests.cs — the CLI read that keeps a ';' inside a value.
 //
 // as-value separates fields with ';' and writes values raw, so 'comment=a; b' reads as a list and 'a;b=c' as a comment
@@ -190,6 +190,27 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void ReopenedAgainstAnotherRouter_TheConnectionAsksAgain()
+        {
+            // What a connection learnt about one router is not true of the next: the same object opened against a
+            // RouterOS 7 and then a RouterOS 6 must not send the second one the DSV read the first one took.
+            using (var conn = new DsvRouter(refusesSerialize: false))
+            {
+                conn.OpenScripted();
+                conn.LoadAll<Box>().ToList();
+                conn.Close();
+
+                conn.RefusesSerialize = true;
+                conn.Sent.Clear();
+                conn.OpenScripted();
+
+                Assert.AreEqual(2, conn.LoadAll<Box>().Count());
+                Assert.AreEqual(CliCommandBuilder.BuildDsvProbe(Sep), conn.Sent[0], "asked again: " + string.Join(" | ", conn.Sent));
+                Assert.IsFalse(conn.Sent[1].Contains(":serialize"), conn.Sent[1]);
+            }
+        }
+
+        [TestMethod]
         public void ASeparatorTheRouterRefuses_IsNotUsed()
         {
             Assert.IsFalse(CliCommandBuilder.IsDsvProbeAccepted("invalid delimiter"));
@@ -216,10 +237,10 @@ namespace tik4net.unittests.Cli
         /// </summary>
         private sealed class DsvRouter : CliConnectionBase
         {
-            private readonly bool _refusesSerialize;
+            public bool RefusesSerialize;
             public readonly List<string> Sent = new List<string>();
 
-            public DsvRouter(bool refusesSerialize) => _refusesSerialize = refusesSerialize;
+            public DsvRouter(bool refusesSerialize) => RefusesSerialize = refusesSerialize;
 
             protected override string TransportName => "Dsv";
 
@@ -230,9 +251,9 @@ namespace tik4net.unittests.Cli
             {
                 Sent.Add(cliText);
                 if (cliText == CliCommandBuilder.BuildDsvProbe(Sep))
-                    return Task.FromResult(_refusesSerialize ? "bad command name serialize (line 1 column 17)" : "str");
+                    return Task.FromResult(RefusesSerialize ? "bad command name serialize (line 1 column 17)" : "str");
                 bool dsv = cliText.Contains(":serialize to=dsv");
-                if (dsv && _refusesSerialize)
+                if (dsv && RefusesSerialize)
                     return Task.FromResult("bad command name serialize (line 1 column 60)");
 
                 string body = dsv

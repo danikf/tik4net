@@ -70,6 +70,11 @@ namespace tik4net.Cli
 
         private string? _cliFieldSeparator = TikConnectionSetup.DefaultCliFieldSeparator;
 
+        // What this connection has learnt about its router (RouterFeatureSet.cs). Replaced on every open: an object
+        // reopened against another router would otherwise send it what only the first one took.
+        private RouterFeatureSet _features = new RouterFeatureSet();
+        private RouterMenuFacts _menuFacts = new RouterMenuFacts();
+
         /// <inheritdoc/>
         public int CliReadPageSize
         {
@@ -301,6 +306,8 @@ namespace tik4net.Cli
                 throw new NotSupportedException(TransportName + " cannot relay to a RoMON target (" + RomonTarget +
                     "); use Telnet, SSH or MAC-Telnet to the agent.");
             RomonConnectionInfo = null;
+            _features = new RouterFeatureSet();
+            _menuFacts = new RouterMenuFacts();
             try
             {
                 // The login delegate has always taken a token; it used to be handed CancellationToken.None,
@@ -876,13 +883,13 @@ namespace tik4net.Cli
             // without it — and not asked again on this connection. Remembered only once the plain read succeeds:
             // a syntax error the word did not cause fails that read too, and is the caller's to see.
             bool wantSensitive = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliSensitive);
-            if (wantSensitive && _showSensitiveRefused.Contains(descriptor.CommandText))
+            if (wantSensitive && _menuFacts.ShowSensitiveRefused.Contains(descriptor.CommandText))
             {
                 descriptor = WithoutParameter(descriptor, TikSpecialProperties.CliSensitive);
                 wantSensitive = false;
             }
 
-            if (_printWithoutAsValue.Contains(descriptor.CommandText))
+            if (_menuFacts.PrintWithoutAsValue.Contains(descriptor.CommandText))
                 return await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false)
                     ?? throw new TikCommandTrapException(CreateDummyCommand(descriptor),
                         new TikTrapSentenceResult("the plain print of " + descriptor.CommandText + " printed no table"));
@@ -905,7 +912,7 @@ namespace tik4net.Cli
                 var table = await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false);
                 if (table == null)
                     throw;
-                _printWithoutAsValue.Add(descriptor.CommandText);
+                _menuFacts.PrintWithoutAsValue.Add(descriptor.CommandText);
                 return table;
             }
             catch (TikCommandTrapException ex) when (wantSensitive && SyntaxErrorLine.IsMatch(ex.Message.Trim()))
@@ -914,7 +921,7 @@ namespace tik4net.Cli
                 records = await RunPrintQueryAsync(plain, wantJson,
                     (pars, from) => CliCommandBuilder.BuildPrintExpression(plain.CommandText, pars, from),
                     cancellationToken).ConfigureAwait(false);
-                _showSensitiveRefused.Add(descriptor.CommandText);
+                _menuFacts.ShowSensitiveRefused.Add(descriptor.CommandText);
                 descriptor = plain;
             }
 
@@ -927,7 +934,7 @@ namespace tik4net.Cli
                 records = MergeById(records, statsRecords);
             }
 
-            if (wantJson && _serializeSupported == false)
+            if (wantJson && _features.SerializeJson == false)
                 records = await RereadFreeTextAsync(descriptor, records, cancellationToken).ConfigureAwait(false);
 
             return await SupplyFlagsAsync(descriptor, records, cancellationToken).ConfigureAwait(false);
@@ -1027,15 +1034,6 @@ namespace tik4net.Cli
 
         // ── Flag fields on RouterOS before 7.20 ────────────────────────────────
 
-        /// <summary>
-        /// Whether this router's <c>print as-value</c> leaves the flag fields out (RouterOS before 7.20);
-        /// <c>null</c> = not established yet. See <see cref="AsValueOmitsFlagsAsync"/>.
-        /// </summary>
-        private bool? _asValueOmitsFlags;
-
-        /// <summary>Menus (print command texts) whose print refused <c>show-sensitive</c> on this connection.</summary>
-        private readonly HashSet<string> _showSensitiveRefused = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
         private static TikCommandDescriptor WithoutParameter(TikCommandDescriptor descriptor, string name)
             => new TikCommandDescriptor(descriptor.CommandText, descriptor.Parameters.Where(p => p.Name != name).ToList());
 
@@ -1095,15 +1093,6 @@ namespace tik4net.Cli
             return MergeById(records, flagRecords);
         }
 
-        /// <summary><c>null</c> = not established yet. See <see cref="SupportsProplistAsync"/>.</summary>
-        private bool? _supportsProplist;
-
-        /// <summary>The menus whose flag read by <c>find</c> the router has already refused — asked once each.</summary>
-        private readonly HashSet<string> _noFlagFind = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>The menus and names confirmed as flags after a flag read that named no row — asked once each.</summary>
-        private readonly HashSet<string> _flagFieldExists = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
         /// <summary>
         /// Whether this router's <c>print</c> takes <c>proplist=</c>, asked once per connection with
         /// <see cref="CliCommandBuilder.ProplistSupportProbe"/>. RouterOS 6 does not have the argument at all.
@@ -1116,7 +1105,7 @@ namespace tik4net.Cli
         /// </remarks>
         private async Task<bool> SupportsProplistAsync(CancellationToken cancellationToken)
         {
-            if (_supportsProplist == null)
+            if (_features.PrintProplist == null)
             {
                 string output;
                 try
@@ -1129,15 +1118,15 @@ namespace tik4net.Cli
                     output = string.Empty;
                 }
 
-                _supportsProplist = output.IndexOf(CliCommandBuilder.ArgumentRefusal,
+                _features.PrintProplist = output.IndexOf(CliCommandBuilder.ArgumentRefusal,
                     StringComparison.OrdinalIgnoreCase) < 0;
-                if (_supportsProplist == false)
+                if (_features.PrintProplist == false)
                     TikWireTrace.Emit("cli.flags", TikWireDir.Note,
                         "this router's 'print' has no 'proplist=' argument (RouterOS 6) — the flags an entity maps "
                             + "are read as the id list of each flag for the rest of this connection");
             }
 
-            return _supportsProplist.Value;
+            return _features.PrintProplist.Value;
         }
 
         /// <summary>
@@ -1162,7 +1151,7 @@ namespace tik4net.Cli
             foreach (string name in wanted)
             {
                 string key = descriptor.CommandText + "|" + name;
-                if (_noFlagFind.Contains(key))
+                if (_menuFacts.NoFlagFind.Contains(key))
                     continue;
 
                 string output;
@@ -1174,7 +1163,7 @@ namespace tik4net.Cli
                 }
                 catch (TikCommandException)
                 {
-                    _noFlagFind.Add(key);
+                    _menuFacts.NoFlagFind.Add(key);
                     continue;
                 }
 
@@ -1185,7 +1174,7 @@ namespace tik4net.Cli
                     .Where(s => s.Length > 0).ToArray();
                 if (tokens.Any(t => !t.StartsWith("*", StringComparison.Ordinal)))
                 {
-                    _noFlagFind.Add(key);
+                    _menuFacts.NoFlagFind.Add(key);
                     continue;
                 }
 
@@ -1195,7 +1184,7 @@ namespace tik4net.Cli
                 // 'false', as the API prints it; an unknown name it refuses; and it answers nothing for a text field
                 // without a value and for a flag this menu prints only when set ('slave'), both of which the API leaves
                 // out too — so they are left out. Asked once per menu and name.
-                if (tokens.Length == 0 && !_flagFieldExists.Contains(key))
+                if (tokens.Length == 0 && !_menuFacts.FlagFieldExists.Contains(key))
                 {
                     string check;
                     try
@@ -1206,17 +1195,17 @@ namespace tik4net.Cli
                     }
                     catch (TikCommandException)
                     {
-                        _noFlagFind.Add(key);
+                        _menuFacts.NoFlagFind.Add(key);
                         continue;
                     }
                     string answer = check.Trim();
                     if (!string.Equals(answer, "true", StringComparison.OrdinalIgnoreCase)
                         && !string.Equals(answer, "false", StringComparison.OrdinalIgnoreCase))
                     {
-                        _noFlagFind.Add(key);
+                        _menuFacts.NoFlagFind.Add(key);
                         continue;
                     }
-                    _flagFieldExists.Add(key);
+                    _menuFacts.FlagFieldExists.Add(key);
                 }
 
                 flagIds[name] = new HashSet<string>(tokens, StringComparer.OrdinalIgnoreCase);
@@ -1288,7 +1277,7 @@ namespace tik4net.Cli
         private async Task<bool> AsValueOmitsFlagsAsync(IList<TikRecordSentence> records, string[] wanted,
             CancellationToken cancellationToken)
         {
-            if (_asValueOmitsFlags == null)
+            if (_features.AsValueOmitsFlags == null)
             {
                 IList<TikRecordSentence> probe;
                 try
@@ -1304,16 +1293,16 @@ namespace tik4net.Cli
 
                 if (probe.Count > 0)
                 {
-                    _asValueOmitsFlags = !probe[0].Words.ContainsKey("disabled");
-                    if (_asValueOmitsFlags == true)
+                    _features.AsValueOmitsFlags = !probe[0].Words.ContainsKey("disabled");
+                    if (_features.AsValueOmitsFlags == true)
                         TikWireTrace.Emit("cli.flags", TikWireDir.Note,
                             "this router's 'print as-value' carries no flag fields (RouterOS before 7.20) — the flags "
                                 + "an entity maps are read by name with a second print for the rest of this connection");
                 }
             }
 
-            if (_asValueOmitsFlags != null)
-                return _asValueOmitsFlags.Value;
+            if (_features.AsValueOmitsFlags != null)
+                return _features.AsValueOmitsFlags.Value;
             return !records.Any(r => wanted.Any(w => r.Words.ContainsKey(w)));
         }
 
@@ -1398,7 +1387,7 @@ namespace tik4net.Cli
         private async Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(TikCommandDescriptor descriptor,
             string modifier, bool includeFilters, CancellationToken cancellationToken)
         {
-            if (!_monitorWithoutAsValue.Contains(descriptor.CommandText))
+            if (!_menuFacts.MonitorWithoutAsValue.Contains(descriptor.CommandText))
             {
                 string cliText = CliCommandBuilder.BuildMonitorSnapshot(
                     descriptor.CommandText, descriptor.Parameters, modifier, includeFilters);
@@ -1433,12 +1422,9 @@ namespace tik4net.Cli
             if (!table.HasHeader && !string.IsNullOrWhiteSpace(plain))
                 throw new TikCommandTrapException(CreateDummyCommand(descriptor),
                     new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(plain)));
-            _monitorWithoutAsValue.Add(descriptor.CommandText);
+            _menuFacts.MonitorWithoutAsValue.Add(descriptor.CommandText);
             return rows;
         }
-
-        /// <summary>Print commands this router has no <c>as-value</c> for (RouterOS 6), read as their plain table instead.</summary>
-        private readonly HashSet<string> _printWithoutAsValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// The plain <c>print</c> of a menu, read by column (<see cref="CliTableParser"/>), or <c>null</c> when it
@@ -1496,12 +1482,6 @@ namespace tik4net.Cli
         /// <summary>Put in front of the ids a plain-table read asks <c>find</c> for, so the line is told from the table's.</summary>
         private const string PlainTableIdsMarker = "#t4n-ids=";
 
-        /// <summary>Torch commands this router refused <c>proplist=</c> for (RouterOS 6), read as its plain table instead.</summary>
-        private readonly HashSet<string> _torchWithoutProplist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>Monitor commands whose as-value form this router refused (RouterOS 6), read as a table instead.</summary>
-        private readonly HashSet<string> _monitorWithoutAsValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
         /// <summary>True when the whole answer is one parse error: <c>… (line N column M)</c>.</summary>
         private static bool IsSyntaxErrorOnly(string? output)
         {
@@ -1549,25 +1529,6 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Tri-state record of whether this router understands <c>:serialize</c> (RouterOS 7.13+):
-        /// <c>null</c> = not established yet, <c>true</c> = a JSON read has succeeded, <c>false</c> = the
-        /// router refused one and the plain form worked. Detected from what the router actually answers
-        /// rather than from a parsed version string — a prompt/version assumption we cannot see failing is
-        /// exactly the kind that costs 30 s a command with nothing going red.
-        /// </summary>
-        private bool? _serializeSupported;
-
-        /// <summary>
-        /// Whether this router takes <c>:serialize to=dsv</c> with <see cref="CliFieldSeparator"/> (RouterOS 7; see
-        /// <see cref="ITikCliFieldSeparatorConnection"/>): <c>null</c> until <see cref="EnsureDsvSupportKnownAsync"/>
-        /// has asked, once per connection.
-        /// </summary>
-        private bool? _dsvSupported;
-
-        // The separator the answer in _dsvSupported was given for: a caller may change it on an open connection.
-        private string? _dsvProbedSeparator;
-
-        /// <summary>
         /// Asks the router, once per connection and separator, whether it serializes DSV — with a command of ~50
         /// characters rather than by trying the first read.
         /// </summary>
@@ -1582,14 +1543,14 @@ namespace tik4net.Cli
         private async Task EnsureDsvSupportKnownAsync(CancellationToken cancellationToken)
         {
             string? separator = CliFieldSeparator;
-            if (separator == null || (_dsvSupported != null && _dsvProbedSeparator == separator))
+            if (separator == null || (_features.Dsv != null && _features.DsvProbedSeparator == separator))
                 return;
 
             string answer = await ExecuteCliCommandAsync(
                 CliCommandBuilder.BuildDsvProbe(separator), cancellationToken).ConfigureAwait(false);
-            _dsvProbedSeparator = separator;
-            _dsvSupported = CliCommandBuilder.IsDsvProbeAccepted(answer);
-            if (_dsvSupported == false)
+            _features.DsvProbedSeparator = separator;
+            _features.Dsv = CliCommandBuilder.IsDsvProbeAccepted(answer);
+            if (_features.Dsv == false)
                 TikWireTrace.Emit("cli.dsv", TikWireDir.Note,
                     "':serialize to=dsv' not available (" + answer.Trim() + ") — reading as-value on this connection; "
                         + "a value holding ';' (a comment) is not read intact on this router");
@@ -1598,9 +1559,9 @@ namespace tik4net.Cli
         // Whether this read is written as DSV: a separator is set, the router takes it, the read is not on the JSON
         // path, and the menu is not one read one id at a time (RouterOS 6 only).
         private bool UsesDsv(TikCommandDescriptor descriptor, bool wantJson)
-            => CliFieldSeparator != null && _dsvSupported == true && _dsvProbedSeparator == CliFieldSeparator
-               && !(wantJson && _serializeSupported != false)
-               && !_windowPrintsNoId.Contains(descriptor.CommandText);
+            => CliFieldSeparator != null && _features.Dsv == true && _features.DsvProbedSeparator == CliFieldSeparator
+               && !(wantJson && _features.SerializeJson != false)
+               && !_menuFacts.WindowPrintsNoId.Contains(descriptor.CommandText);
 
         // ParseRecords for a DSV answer: output that yields no record is the router's complaint, as there.
         private IList<TikRecordSentence> ParseDsvRecords(string output, TikCommandDescriptor descriptor)
@@ -1731,7 +1692,7 @@ namespace tik4net.Cli
             // it (49 of 1672 mangle rows: 1190 ms that way, 72 ms with the filter in the 'find', router-side
             // at page size 20) and it breaks what '#w=' means, since a filter legitimately prints fewer rows
             // than the window held.
-            return !_pagingUnavailable.Contains(descriptor.CommandText);
+            return !_menuFacts.PagingUnavailable.Contains(descriptor.CommandText);
         }
 
         /// <summary>
@@ -1744,14 +1705,6 @@ namespace tik4net.Cli
 
         private int _windowedReadDepth;
         private int _countedReadDepth;
-
-        // Menus this connection has already found cannot be windowed — asked once, then remembered, so the
-        // fallback costs one wasted request per menu per connection rather than one per read.
-        private readonly HashSet<string> _pagingUnavailable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // Menus whose windowed print leaves '.id' out (see CliCommandBuilder.BuildPagedWindowIdPerRow), found the
-        // same way and remembered for the same reason.
-        private readonly HashSet<string> _windowPrintsNoId = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Reads a table one window of rows at a time and concatenates them.
@@ -1785,11 +1738,11 @@ namespace tik4net.Cli
                     window = await RunOneWindowAsync(descriptor, wantJson, buildExpression, offset, pageSize,
                         cancellationToken).ConfigureAwait(false);
                 }
-                catch (TikCommandException) when (offset == 0 && wantJson && _serializeSupported == null)
+                catch (TikCommandException) when (offset == 0 && wantJson && _features.SerializeJson == null)
                 {
                     // The router refused ':serialize' and we did not yet know whether it can. Nothing has
                     // been handed back, so settle the question and take the same table again as as-value.
-                    _serializeSupported = false;
+                    _features.SerializeJson = false;
                     TikWireTrace.Emit("cli.json", TikWireDir.Note,
                         "':serialize to=json' refused inside a paged read — this router is pre-7.13; "
                             + "re-reading as-value for the rest of this connection");
@@ -1803,7 +1756,7 @@ namespace tik4net.Cli
                     // this menu does not pay for the discovery again.
                     if (offset > 0)
                         throw;   // mid-table: this is a real failure, not a menu that cannot be paged
-                    _pagingUnavailable.Add(descriptor.CommandText);
+                    _menuFacts.PagingUnavailable.Add(descriptor.CommandText);
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
                         "'" + descriptor.CommandText + "' has no 'find' verb — reading it in a single command");
                     return null;
@@ -1835,13 +1788,13 @@ namespace tik4net.Cli
                 }
                 interruptions = 0;
 
-                if (window.WindowSize > 0 && !_windowPrintsNoId.Contains(descriptor.CommandText)
+                if (window.WindowSize > 0 && !_menuFacts.WindowPrintsNoId.Contains(descriptor.CommandText)
                     && window.Records.All(r => !r.Words.ContainsKey(TikSpecialProperties.Id)))
                 {
                     // The window held rows and its print named none of them — the menu's 'print from=' leaves
                     // '.id' out (RouterOS 6.49.13: /system/package, /ip/ipsec/policy), and without it the parser
                     // cannot even tell the rows apart. Take the same window again one id at a time.
-                    _windowPrintsNoId.Add(descriptor.CommandText);
+                    _menuFacts.WindowPrintsNoId.Add(descriptor.CommandText);
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
                         "'" + descriptor.CommandText + "' prints no .id for a window — taking it one id at a time");
                     offset -= pageSize;   // the loop's increment brings it back to the same window
@@ -1855,7 +1808,7 @@ namespace tik4net.Cli
                         throw new TikSentenceException(
                             "A paged read must be able to tell how many rows the window held, and the window "
                             + "at offset " + offset + " of '" + descriptor.CommandText + "' did not say.", null);
-                    _pagingUnavailable.Add(descriptor.CommandText);
+                    _menuFacts.PagingUnavailable.Add(descriptor.CommandText);
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
                         "'" + descriptor.CommandText + "' did not report a window size — reading it in a single command");
                     return null;
@@ -1981,8 +1934,8 @@ namespace tik4net.Cli
             Func<IList<ITikCommandParameter>, string?, string> buildExpression,
             int offset, int pageSize, CancellationToken cancellationToken)
         {
-            bool idPerRow = _windowPrintsNoId.Contains(descriptor.CommandText);
-            bool asJson = wantJson && _serializeSupported != false && !idPerRow;
+            bool idPerRow = _menuFacts.WindowPrintsNoId.Contains(descriptor.CommandText);
+            bool asJson = wantJson && _features.SerializeJson != false && !idPerRow;
             bool asDsv = UsesDsv(descriptor, wantJson);
             string findClause = CliCommandBuilder.BuildWhereClause(descriptor.Parameters);
             string cliText = idPerRow
@@ -2020,7 +1973,7 @@ namespace tik4net.Cli
             // rows mark RouterOS 6.49.13 as supporting it, and the next such menu with rows failed with
             // 'bad command name serialize' and no fallback.
             if (asJson && windowSize > 0)
-                _serializeSupported = true;
+                _features.SerializeJson = true;
             return new PagedWindow(parsed, windowSize, body);
         }
 
@@ -2078,7 +2031,7 @@ namespace tik4net.Cli
         private async Task<IList<TikRecordSentence>> RunOnePrintQueryAsync(
             TikCommandDescriptor descriptor, bool wantJson, string expression, CancellationToken cancellationToken)
         {
-            if (wantJson && _serializeSupported != false)
+            if (wantJson && _features.SerializeJson != false)
             {
                 try
                 {
@@ -2087,10 +2040,10 @@ namespace tik4net.Cli
                     CliErrorParser.ThrowIfError(jsonOutput, CreateDummyCommand(descriptor));
                     string jsonBody = SplitOffCountMarker(jsonOutput, descriptor, out int expectedJson);
                     IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonBody);
-                    _serializeSupported = true;
+                    _features.SerializeJson = true;
                     return EnsureCounted(records, expectedJson, descriptor, jsonBody);
                 }
-                catch (TikCommandException ex) when (_serializeSupported == null)
+                catch (TikCommandException ex) when (_features.SerializeJson == null)
                 {
                     // Router refused the wrapped command and we do not yet know whether it can serialise at
                     // all. Fall through to the plain form; if THAT works, the router is pre-7.13.
@@ -2114,12 +2067,12 @@ namespace tik4net.Cli
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
             string body = SplitOffCountMarker(output, descriptor, out int expected);
 
-            if (wantJson && _serializeSupported == null)
+            if (wantJson && _features.SerializeJson == null)
             {
                 // The plain form worked where the wrapped one did not: RouterOS < 7.13. Say so — a
                 // connection reading free-text fields through as-value can silently shred them (P2.17),
                 // and a degradation nobody can observe is the P2.23/P2.25 failure mode.
-                _serializeSupported = false;
+                _features.SerializeJson = false;
                 TikWireTrace.Emit("cli.json", TikWireDir.Note,
                     "router does not support ':serialize' (pre-7.13) — falling back to as-value for the "
                         + "rest of this connection; fields holding free-form text may parse incorrectly");
@@ -2504,7 +2457,7 @@ namespace tik4net.Cli
         {
             try
             {
-                bool plain = _torchWithoutProplist.Contains(descriptor.CommandText);
+                bool plain = _menuFacts.TorchWithoutProplist.Contains(descriptor.CommandText);
                 string cliText = CliCommandBuilder.BuildTorchSnapshot(
                     descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds, withProplist: !plain);
 
@@ -2523,7 +2476,7 @@ namespace tik4net.Cli
                         if (plainOutput.IndexOf("-- [Q quit", StringComparison.Ordinal) < 0)
                             throw new TikCommandTrapException(CreateDummyCommand(descriptor),
                                 new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
-                        _torchWithoutProplist.Add(descriptor.CommandText);
+                        _menuFacts.TorchWithoutProplist.Add(descriptor.CommandText);
                         plain = true;
                         cliText = plainText;
                         output = plainOutput;
