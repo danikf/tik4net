@@ -316,7 +316,7 @@ namespace tik4net.Cli
                 close();
                 throw;
             }
-            catch (TikConnectionLoginException)
+            catch (Exception ex) when (ex is TikConnectionLoginException || ex is TikRomonRelayException)
             {
                 close();
                 throw;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace tik4net
 {
@@ -142,7 +142,12 @@ namespace tik4net
     /// <see cref="Reason"/>. A failed login to the agent itself is a plain
     /// <see cref="TikConnectionLoginException"/>.
     /// </summary>
-    public class TikRomonRelayException : TikConnectionLoginException
+    /// <remarks>
+    /// It is not a <see cref="TikConnectionLoginException"/>: a target the agent cannot reach, or RoMON switched off on
+    /// the agent, is not a credential problem, and a <c>catch</c> for the login exception would report it as one. A
+    /// target that refused the login is <see cref="TikRomonRelayFailure.TargetRefusedLogin"/>.
+    /// </remarks>
+    public class TikRomonRelayException : TikConnectionException
     {
         /// <summary>Which step of the relay failed.</summary>
         public TikRomonRelayFailure Reason { get; }
@@ -152,7 +157,7 @@ namespace tik4net
         /// <param name="message">The complete message.</param>
         /// <param name="innerException">What the connection itself raised, when anything did.</param>
         public TikRomonRelayException(TikRomonRelayFailure reason, string message, Exception? innerException = null)
-            : base(message, innerException!)   // System.Exception takes a null inner exception
+            : base(message, innerException)
         {
             Reason = reason;
         }

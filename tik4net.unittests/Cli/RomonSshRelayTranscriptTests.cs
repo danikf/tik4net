@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -194,9 +194,44 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void TheRelayExceptionIsALoginException_SoExistingCatchBlocksStillCatchIt()
-            => Assert.IsInstanceOfType(
-                new TikRomonRelayException(TikRomonRelayFailure.TargetUnreachable, "x"), typeof(TikConnectionLoginException));
+        public void AnUnreachableTargetIsNotALoginFailure()
+        {
+            var ex = new TikRomonRelayException(TikRomonRelayFailure.TargetUnreachable, "x");
+
+            Assert.IsNotInstanceOfType(ex, typeof(TikConnectionLoginException), "a catch for a wrong password would take it");
+            Assert.IsInstanceOfType(ex, typeof(TikConnectionException));
+        }
+
+        [TestMethod]
+        public void ARelayFailureLeavesTheOpenAsItself_NotWrappedAsALoginFailure()
+        {
+            // Open wraps whatever the login throws in a login exception, except what already says why.
+            using (var conn = new RelayFailingConnection())
+            {
+                var ex = Assert.ThrowsException<TikRomonRelayException>(() => conn.Open("agent", "u", "p"));
+
+                Assert.AreEqual(TikRomonRelayFailure.TargetUnreachable, ex.Reason);
+                Assert.IsTrue(conn.Closed, "the agent's session is closed");
+            }
+        }
+
+        private sealed class RelayFailingConnection : CliConnectionBase
+        {
+            public bool Closed;
+
+            protected override string TransportName => "RelayFailing";
+
+            public override void Open(string host, string user, string password)
+                => OpenWith(_ => throw new TikRomonRelayException(TikRomonRelayFailure.TargetUnreachable, "unreachable"),
+                    (text, ct) => Task.FromResult(string.Empty), (raw, ct) => Task.FromResult(string.Empty),
+                    () => Closed = true);
+
+            public override void Open(string host, int port, string user, string password) => Open(host, user, password);
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+        }
 
         // ── the target refuses ────────────────────────────────────────────────
 
