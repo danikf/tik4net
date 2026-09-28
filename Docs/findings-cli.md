@@ -530,6 +530,24 @@ form only appears in human-readable `print detail` and is never used for parsing
 
 ## 2. Quoting and escaping — `where` clauses and `name=value` arguments
 
+### A filter on a field the menu does not have can match every row
+
+The API and REST answer a query on a field the menu does not have with no rows. The CLI evaluates a `where` clause as a
+script expression, and an unknown name is not an error there (measured 2026-09-28, `print count-only`):
+
+| `/ip route … where …` | 7.24.4 | 6.49.13 |
+|---|---|---|
+| `t4n-x=1`, `t4n-y-z=1` | 0 | 0 |
+| `routing-mark=main` (7.x) / `routing-table=main` (6.x) — the other version's name, an unquoted word | **all** | **all** |
+| `routing-mark="main"` — the same, quoted | 0 | — |
+| `t4n-no=1`, `abc-no=1`, `t4n-yes=1` — a `no`/`yes` segment in the name | **all** | — |
+| `("t4n-no-such-field"=1)` | 0 | — |
+
+Parentheses change nothing (`where (routing-mark=main)` is still all rows). The pattern fits an unknown name and an
+unquoted unknown word each evaluating to nothing, with `nothing = nothing` true for every row, and `no`/`yes` read as
+the boolean words — a reading, not something RouterOS documents. It is a real divergence from the API: a filtered
+load on a renamed field's other name returns the whole table over the five CLI transports. **Open** (5.0 TODO).
+
 ### `where` values with special characters must be quoted
 
 `where address=192.168.1.1/24` (unquoted) **matches nothing** — in a `where` expression context, `/`
