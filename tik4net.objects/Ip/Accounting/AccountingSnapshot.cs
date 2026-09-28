@@ -17,6 +17,7 @@ namespace tik4net.Objects.Ip
     /// </para>
     /// </summary>
     [TikEntity("/ip/accounting/snapshot", SupportedOperations = TikEntityOperations.None)]
+    [Obsolete("RouterOS 7 removed /ip/accounting (7.24.4: 'no such command'). Kept for RouterOS 6.")]
     public class AccountingSnapshot
     {
         /// <summary>
