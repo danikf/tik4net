@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using tik4net.Connection;
 
 namespace tik4net.Cli
 {
@@ -103,9 +104,12 @@ namespace tik4net.Cli
             sb.Append(" as-value");
             if (!string.IsNullOrEmpty(proplist))
                 sb.Append(" proplist=").Append(proplist);
-            AppendFrom(sb, fromIndices);
 
             string whereClause = BuildWhereClause(parameters);
+            if (fromIndices == WindowVariable && WindowByWhere.Contains(TikPath.Parent(apiPath)))
+                whereClause = string.IsNullOrEmpty(whereClause) ? WindowWhereClause : WindowWhereClause + " && (" + whereClause + ")";
+            else
+                AppendFrom(sb, fromIndices);
             if (!string.IsNullOrEmpty(whereClause))
             {
                 sb.Append(" where ");
@@ -357,6 +361,24 @@ namespace tik4net.Cli
 
         /// <summary>The selector a paged window's print uses — the window array the wrapper bound.</summary>
         internal const string WindowVariable = "$w";
+
+        /// <summary>
+        /// Menus whose windowed print selects the window's rows with a <c>where</c> over its ids instead of
+        /// <c>from=</c>, because <c>from=</c> makes the print say more than the API does.
+        /// </summary>
+        /// <remarks>
+        /// <c>/file</c>: RouterOS prints a file's <c>contents</c> only up to 4095 bytes — the API, REST and an
+        /// unwindowed CLI print all leave it out from 4096 on (measured on 7.21.5 with files of 4094–4097 bytes) —
+        /// but <c>print … from=</c> prints the contents of EVERY row it names, whatever the size. A windowed read
+        /// of a router with User Manager's files then carried a 103 KB SQLite WAL and a PNG, ~216 KB in all, and
+        /// MAC-Telnet's session died under it; WinBox-over-MAC read the binary PNG the API leaves out. The
+        /// <c>where</c> form costs a pass over the table per window, which is why it is not the default.
+        /// </remarks>
+        private static readonly HashSet<string> WindowByWhere =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "/file" };
+
+        /// <summary>The rows of window <see cref="WindowVariable"/>, as a <c>where</c> clause (7.21.5).</summary>
+        internal const string WindowWhereClause = "([:typeof [:find $w $\".id\"]]=\"num\")";
 
         /// <summary>
         /// Prefix of the trailing line a paged window emits, carrying how many <b>ids the window held</b>.

@@ -88,6 +88,17 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void AFileWindowSelectsItsRowsWithWhereNotFrom()
+        {
+            // 'print from=' prints the contents of every file it names; the API and an unwindowed print stop at
+            // 4095 bytes (7.21.5). A where over the window's ids keeps the router's own rule.
+            string inner = CliCommandBuilder.BuildPrint("/file/print", NoParams(), false, CliCommandBuilder.WindowVariable);
+
+            Assert.AreEqual(":put [/file print as-value where ([:typeof [:find $w $\".id\"]]=\"num\")]", inner);
+            Assert.IsFalse(inner.Contains("from="), inner);
+        }
+
+        [TestMethod]
         public void TheWindowIsTakenFromTheMenuNotTheVerb()
         {
             string cli = CliCommandBuilder.BuildPagedWindow("/ip/firewall/mangle/print", ":put [x]", 0, 10);

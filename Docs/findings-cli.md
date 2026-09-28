@@ -84,6 +84,13 @@ A read can be split into windows instead of asking for the whole table at once �
 | an `.id` that is gone | the line is **aborted**, never shortened — but what it prints depends on how the id went: a nonexistent id answers `interrupted`, a prompt, then `no such item (4)` written over that prompt and a second prompt; an id that **vanished between the window's `find` and its `print`** answers `interrupted` and one prompt, with no rows and no error text at all |
 | replies | in **the order the selector lists**, not table order — `from=1,0` returns row 1 then row 0 |
 | combines with | `detail`, and with `where` |
+| prints more than the API | on `/file`, the `contents` of **every** row it names; the API, REST and a print without `from=` stop at 4095 bytes (a file of 4096 bytes or more has no `contents`), measured on 7.21.5 with files of 4094–4097 bytes. 6.49.13 does not do this |
+
+A `/file` window therefore names its rows with a `where` over the window's ids instead,
+`where ([:typeof [:find $w $".id"]]="num")` — the same rows in the same order, and the API's `contents` rule,
+at the cost of one pass over the table per window (`CliCommandBuilder.WindowByWhere`). With `from=`, a router
+with User Manager's files sent ~216 KB for one read (a 103 KB SQLite WAL among them), and RouterOS dropped its
+own MAC-Telnet output under it ([findings-mactelnet.md](findings-mactelnet.md)).
 
 **It must come before `where`.** RouterOS lets a `where` expression consume the rest of the line, so
 `… as-value where chain=x from=0,1` swallows the selector and the router answers with the **whole table** —
