@@ -323,6 +323,9 @@ namespace tik4net.WinboxNative
             // Through _ops, not the raw channel: the catalog's mproxy transfer must share the same
             // request-id correlation as every other operation, or a stray frame during it desyncs the
             // channel for the rest of the connection (worst on MAC, which has no stale drain).
+            // A fresh, empty catalog first: on a reopen the previous router's would otherwise survive a failed load
+            // and answer for this one.
+            _catalog = new WinboxJgCatalog();
             try { _catalog = WinboxJgCatalog.Load(_ops, ResolvePath(CatalogCachePath), routerKey); }
             catch { /* catalog is best-effort; seeds + normalizer still work */ }
             // Never silently: a seeds-only catalog answers "no" to singleton/dynamic-field/monitor lookups,
