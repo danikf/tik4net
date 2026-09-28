@@ -67,6 +67,24 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
+        public void ANeighbourHeardOnSeveralInterfacesReadsThemAll()
+        {
+            // 7.21.5: a neighbour heard on a bridge port is heard on its bridge too. The API prints
+            // interface=ether2,t4n-prio-br; the window's 'Interface' (u4) holds 3, the first; the undeclared 0x13
+            // holds [3,283], the whole list. The synthetic field REPLACES the window's by key as well as by name,
+            // or the row reads whichever of the two keys the frame lists first.
+            const string neighbours =
+                "[{name:'Neighbors',c:[{name:'Neighbour',title:'Neighbors',type:'map',path:[ 10,1 ],c:[" +
+                "{name:'Interface',type:'enm',id:'u4',values:{type:'dynamic',path:[ 20,0 ]}}," +
+                "{name:'Identity',type:'string',id:'s6'}]}]}]";
+            var names = Resolver(neighbours, "/ip/neighbor", new[] { 10, 1 }).BuildKeyToApiName();
+            Assert.AreEqual("interface", names[0x13]);
+            Assert.IsFalse(names.TryGetValue(0x4, out string first) && first == "interface",
+                "the first-element key must not answer to the list's name");
+            Assert.AreEqual("identity", names[0x6], "the window's other fields are untouched");
+        }
+
+        [TestMethod]
         public void TheKeysThatAreWritableWriteBackTheValueTheyRead()
         {
             var ether = Written(Resolver("[]", "/interface/ethernet", new[] { 20, 0 }), "cable-settings", "standard");

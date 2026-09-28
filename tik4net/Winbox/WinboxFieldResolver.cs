@@ -129,18 +129,24 @@ namespace tik4net.Winbox
             var synthetic = OwnSyntheticFields;
             if (synthetic != null)
                 foreach (var kv in synthetic) yield return kv;
+            // A synthetic field REPLACES the catalog's field of the same name, as it does in JgFields. By key the
+            // catalog's would otherwise keep its own key under that name, and a row carrying both keys would read
+            // whichever the frame happened to list first: /ip/neighbor's 'Interface' u4 holds the first element
+            // of the list the synthetic 0x13 holds whole.
+            bool Replaced(KeyValuePair<string, WinboxJgField> kv)
+                => synthetic != null && synthetic.TryGetValue(kv.Key, out var own) && own.Key != kv.Value.Key;
             if (_actionFields != null)
-                foreach (var kv in Scoped(_actionFields)) yield return kv;
+                foreach (var kv in Scoped(_actionFields)) if (!Replaced(kv)) yield return kv;
             var windowFields = _catalog?.GetWindowFields(_windowKey);
             if (windowFields != null)
-                foreach (var kv in Scoped(windowFields)) yield return kv;
+                foreach (var kv in Scoped(windowFields)) if (!Replaced(kv)) yield return kv;
             // Shipped for an ancestor path: below the window, which may declare the key itself.
             var inherited = InheritedSyntheticFields;
             if (inherited != null)
-                foreach (var kv in inherited) yield return kv;
+                foreach (var kv in inherited) if (!Replaced(kv)) yield return kv;
             var handlerFields = _catalog?.GetHandlerFields(_handler);
             if (handlerFields != null)
-                foreach (var kv in Scoped(handlerFields)) yield return kv;
+                foreach (var kv in Scoped(handlerFields)) if (!Replaced(kv)) yield return kv;
         }
 
         /// <summary>
@@ -669,11 +675,20 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("address", "ip-address")),
                     jgToApi: Ci(("ip-address", "address"))),
 
+                // `interface` is a LIST on the API — a neighbour heard on a bridge port is heard on its bridge too,
+                // `interface=ether2,t4n-prio-br` — and the window's 'Interface' (u4) holds only the first of them.
+                // The whole list rides the undeclared u32[] 0x13: [3,283] beside 0x4=3 on that row, [2] beside
+                // 0x4=2 on a neighbour heard on one interface (7.21.5, 2026-09-28).
                 ["/ip/neighbor"] = new FieldAliasSet(
                     apiToJg: Ci(("address", "ip-address"), ("address6", "ipv6-address"),
                                ("board", "board-name"), ("unpack", "unpacking")),
                     jgToApi: Ci(("ip-address", "address"), ("ipv6-address", "address6"),
-                               ("board-name", "board"), ("unpacking", "unpack"))),
+                               ("board-name", "board"), ("unpacking", "unpack")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["interface"] = new WinboxJgField("interface", 0x13, "u32[]", true,
+                                                          uiType: "multinumber", refHandler: new[] { 20, 0 }),
+                    }),
 
                 // /ip/dhcp-client: three, all moving a distinctive value in one read — the lease address
                 // (192.168.4.236/24), the reconfigure flag, and the routing-table list.
