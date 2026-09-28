@@ -69,7 +69,7 @@ namespace tik4net.examples
 
                 PrintSystemResource(connection);
 
-                ModifyIpAccounting(connection);
+                ModifyIpDns(connection);
 
                 AddFirewalFilter(connection);
 
@@ -357,11 +357,11 @@ namespace tik4net.examples
                 .Field(q => q.Comment)
                 .Save();
         }
-        private static void ModifyIpAccounting(ITikConnection connection)
+        private static void ModifyIpDns(ITikConnection connection)
         {
-            var accounting = connection.LoadSingle<IpAccounting>();
-            accounting.Threshold = 257;
-            connection.Save(accounting);
+            var dns = connection.LoadSingle<IpDns>();
+            dns.CacheSize = "4096";
+            connection.Save(dns);
         }
 
         private static void AddFirewalFilter(ITikConnection connection)
