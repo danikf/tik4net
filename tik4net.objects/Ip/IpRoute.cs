@@ -34,6 +34,18 @@
         public TikValue<string?> Gateway { get; set; }
 
         /// <summary>
+        /// Gets or sets the routing table this route belongs to (<c>main</c> unless set).
+        /// </summary>
+        /// <remarks>
+        /// RouterOS 7 names the field <c>routing-table</c> and RouterOS 6 <c>routing-mark</c>, and each refuses the
+        /// other name. It is read under whichever the router prints, and a route read with a mark is saved under that
+        /// name again. Otherwise it is written as <c>routing-table</c>: RouterOS 6 prints no <c>routing-mark</c> for a
+        /// route in the main table, so on RouterOS 6 giving a new route, or a main-table route, a mark is refused.
+        /// </remarks>
+        [TikProperty("routing-table", AlternateNames = new[] { "routing-mark" })]
+        public TikValue<string?> RoutingTable { get; set; }
+
+        /// <summary>
         /// Gets the gateway status of this route.
         /// </summary>
         [TikProperty("gateway-status", IsReadOnly = true)]
@@ -74,6 +86,12 @@
         /// </summary>
         [TikProperty("disabled")]
         public TikValue<bool?> Disabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the route's comment.
+        /// </summary>
+        [TikProperty("comment")]
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>
         /// Gets the BGP autonomuous system path as comma-separated list.

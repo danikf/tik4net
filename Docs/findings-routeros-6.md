@@ -13,7 +13,7 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 | `Api`, `ApiSsl` | all pass | — |
 | `Telnet`, `Ssh`, `MacTelnet` | all pass | — |
 | `WinboxCli`, `WinboxCliMac` | all pass | — |
-| `WinboxNative`, `WinboxNativeMac` | 20 of 21 | route `scope` is not in the record; the path-map audit finds more — open problem 1 |
+| `WinboxNative`, `WinboxNativeMac` | 20 of 22 | route `scope` and `routing-mark` are not in the record; the path-map audit finds more — open problem 1 |
 | `Rest`, `RestSsl` | not run | RouterOS 6 has no REST API (§3); the `chr2` profile leaves these legs out (problem 2) |
 
 Beyond the smoke subset, the path-map audit has been run over every transport 6.x has (open problems 1 and 4),
@@ -146,7 +146,9 @@ singleton `[24,2]`, which is where webfig's `fetchBoardInfo` reads it
 
 **A renamed field is one property with several names.** `IpService.Address` reads `address` (6.x) or
 `available-from` (7.x), `ToolEmail.Server` reads `server` (7.x) or `address` (6.x)
-(`TikPropertyAttribute.AlternateNames`), and saves under the name it was read under. Each version refuses the
+(`TikPropertyAttribute.AlternateNames`), and saves under the name it was read under. `IpRoute.RoutingTable` reads
+`routing-table` (7.x) or `routing-mark` (6.x); 6.x prints no mark for a main-table route, so on 6.x a route read
+without one, or a new one, is written as `routing-table` and refused. Each version refuses the
 other's name on a write — 6.49.13 with a bare `unknown parameter` that names no field — except that 7.24 still
 accepts `/ip/service address`, which is why that entity declares `address` first. A filter spelled with the 7.x
 name silently matches nothing on 6.x, over the API and the CLI alike; 7.24 accepts the old name in a filter.
@@ -239,7 +241,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      the router sends, the route's `connect` and `static` (its origin `numflag`), and the fields the API
      itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail` `address`, the OSPF area's `invalid` —
      and the remote action's `syslog-severity=auto` (§4). Still missing, each for a reason of its own:
-     - `/ip/route` `scope`, `target-scope`: the router does not send them (§4).
+     - `/ip/route` `scope`, `target-scope`, `routing-mark`: the router does not send them (§4). The 6.x window
+       declares them as `uf`, `u10` and `s13`; a row with a mark set carries no `0x13` in the `getall` reply.
      - `/ip/route` `gateway-status`: the API's `<gateway> reachable via  ether1` is composed from the
        gateway tuple's read-only parts (status enum, `via` interface), which the decode drops.
      - `/ip/route` `vrf-interface`: no key in the record identified.
@@ -272,7 +275,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    - **1e. Not a defect: enabling the audit's `/ip/dhcp-server` row** is refused over the API as well
      (`can not run on slave interface` — on CHR2 the fixture's interface is a bridge port).
 
-   Unknown for 1b's route fields: whether any request makes 6.49.13 send Scope and Target Scope — another
+   Unknown for 1b's route fields: whether any request makes 6.49.13 send Scope, Target Scope and Routing Mark — another
    getall flag, a `get` of the single row — since WinBox 6 itself shows a Scope for these routes; a capture of
    it reading them is the ground truth. The audit report is written per transport, not per router, so a run
    against CHR2 replaces the 7.x report of the same transport.

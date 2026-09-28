@@ -1,7 +1,9 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 using System.Linq;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
+using tik4net.Objects.Routing;
 
 namespace tik4net.integrationtests
 {
@@ -13,6 +15,48 @@ namespace tik4net.integrationtests
         {
             var list = Connection.LoadAll<IpRoute>();
             Assert.IsNotNull(list);
+        }
+
+        /// <summary>
+        /// The routing table is <c>routing-table</c> on RouterOS 7 and <c>routing-mark</c> on RouterOS 6, and each
+        /// refuses the other name: read under either, and a route read with a mark is saved under that name again.
+        /// </summary>
+        /// <remarks>
+        /// RouterOS 6 prints no mark for a main-table route, so there the mark is given with a command and the entity
+        /// only changes it. A table other than <c>main</c> on both sides, so an unmapped field cannot pass as a default.
+        /// </remarks>
+        [TestMethod]
+        public void TheRoutingTableIsReadAndSavedUnderTheNameTheRouterUses()
+        {
+            bool v6 = GetMikrotikVersion().Major < 7;
+            string tag = Guid.NewGuid().ToString("N").Substring(0, 8);
+            string first = "t4n-rt-a-" + tag, second = "t4n-rt-b-" + tag;
+            if (!v6)
+            {
+                SaveTracked(new RoutingTable { Name = first, Fib = true, Comment = "t4n-rt-" + tag });
+                SaveTracked(new RoutingTable { Name = second, Fib = true, Comment = "t4n-rt-" + tag });
+            }
+
+            var route = new IpRoute
+            {
+                DstAddress = "203.0.113.77/32",
+                Gateway = "127.0.0.1",
+                Disabled = true,
+                Comment = "t4n-rt-" + tag,
+            };
+            if (!v6)
+                route.RoutingTable = first;
+            SaveTracked(route);
+            if (v6)
+                Connection.CreateCommandAndParameters("/ip/route/set", ".id", route.Id, "routing-mark", first).ExecuteNonQuery();
+
+            var read = Connection.LoadById<IpRoute>(route.Id);
+            Assert.AreEqual(first, read.RoutingTable.Value, "read");
+
+            read.RoutingTable = second;
+            Connection.Save(read);
+
+            Assert.AreEqual(second, Connection.LoadById<IpRoute>(route.Id).RoutingTable.Value, "saved");
         }
 
         /// <summary>
