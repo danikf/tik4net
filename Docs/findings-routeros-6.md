@@ -283,13 +283,12 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    explicitly, they are refused). `CliFlagFieldsTest`, the one test meant to run against CHR2, reports its REST row
    Inconclusive on the router's refusal (§3).
 
-3. **The pre-7.20 flag path of RouterOS 7 has no lab router.** CHR2 on 7.19.6 was the one router where flags
-   are read by name through `proplist=`; on 6.49.13 the id-list path runs instead, and CHR runs neither. The
-   by-name path has unit coverage only (`CliFlagFieldsTests`). The third lab router, CHR3 (profile `chr3`), runs
-   **7.21.5** — the oldest 7.x the download page's version picker offers — so it adds a second 7.x version but sits
-   after 7.20 too: `CliFlagFieldsTest` is 7/7 there over every transport, REST included, through the same path as
-   on CHR. Older images are still served by their direct download URL (`chr-7.19.6.vhdx.zip` answered 200); a router
-   on one of them is what would close this.
+3. **Settled: the pre-7.20 flag path of RouterOS 7 is not tested on a router.** CHR2 on 7.19.6 was the one router
+   where flags are read by name through `proplist=`; on 6.49.13 the id-list path runs instead, and CHR runs neither.
+   The by-name path has unit coverage only (`CliFlagFieldsTests`), and that is the decision: no 7.x router before
+   7.20 is kept. The third lab router, CHR3 (profile `chr3`), runs **7.21.5** — the oldest 7.x the download page's
+   version picker offers — so it adds a second 7.x version but sits after 7.20: `CliFlagFieldsTest` is 7/7 there over
+   every transport, REST included, through the same path as on CHR.
 
 4. **Coverage beyond the smoke subset.** Measured 2026-09-23/24 against 6.49.13 (the same audit against
    7.24.4 is clean on all ten transports):
