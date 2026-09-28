@@ -242,7 +242,7 @@ the client type identifier in the packet header:
 |---|---|---|
 | **Transport** | UDP 20561, broadcast | UDP 20561, broadcast |
 | **Client type ID** | `0x0015` | `0x0f90` |
-| **Authentication (ROS ≥ 6.45.1)** | EC-SRP5 | EC-SRP5 (identical) |
+| **Authentication (ROS ≥ 6.43)** | EC-SRP5 | EC-SRP5 (identical) |
 | **Payload after authentication** | raw VT100 terminal | Winbox M2 binary protocol |
 | **Output** | terminal shell session | GUI management (proprietary binary format) |
 

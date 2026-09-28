@@ -566,20 +566,21 @@ public static class VtStripper
 | Method | Implementation over CLI | Note |
 |---|---|---|
 | `ExecuteNonQuery()` | `/path verb numbers=*N params` | empty output = success; a missing row is `no such item (4)` |
-| `ExecuteList()` | `/path print as-value [where ...]` | parses the lines |
-| `ExecuteSingleRow()` | `/path print as-value [where ...]` | asserts exactly 1 line |
-| `ExecuteScalar()` | `/path print as-value [where ...]`, value picked from the row | `get` cannot return `.id` |
+| `ExecuteList()` | a `print` inside `:put [ … ]`, whole or in windows | the row format is per version and field ([findings-cli.md](findings-cli.md) §1) |
+| `ExecuteSingleRow()` | as `ExecuteList()` | asserts exactly 1 row |
+| `ExecuteScalar()` | as `ExecuteList()`, value picked from the row | `get` cannot return `.id` |
 | `ExecuteScalar(target)` | as above, `target` picked from the row | |
 | an explicit `/path/get` | `:put [/path get number=*N value-name=x]` | the verb named by the caller |
-| `ExecuteWithCallback(cb,...)` | ⚠️ emulated via thread + sync exec | no true push |
-| `ExecuteListWithDuration` | ❌ not possible | needs streaming |
-| `ExecuteListUntilDone` | ⚠️ only for self-terminating commands | `/ping count=N` |
-| `CallCommandSync` | ❌ low-level, can't be mapped | raw API sentences |
-| `CallCommandAsync` | ❌ not possible | |
-| `Cancel()` | ❌ not possible | no in-flight command |
+| a monitor verb (`/ping`, `monitor-traffic`, …) | one snapshot: `once`, `count=1` or `duration=1` per verb | [findings-cli.md](findings-cli.md) §9 |
+| `ExecuteWithCallback(cb,...)` | the snapshot or print re-issued on a background timer | `Listen` by polling; `Cancel()` stops it |
+| `ExecuteListWithDuration` | ❌ `TikConnectionCapabilityNotSupportedException` | `Streaming` is binary-API only |
+| `ExecuteListUntilDone` | `ExecuteList()` | a self-terminating command (`/ping count=N`) |
+| `CallCommandSync` | the CLI text, sent verbatim | raw = the transport's own language |
+| `Execute*Async` | awaits the terminal client | a token cancels before dispatch; after it, see `TikCancellationMode` |
 
-**Capabilities for a CLI-based connection:**
-- `Read = ✅`, `Write = ✅`, `Listen = ❌`, `Streaming = ❌`, `Async = ⚠️`
+**Capabilities of a CLI connection:** `Crud`, `Listen` (polled), `SafeMode`, `RawCommand`, `AsyncCommands`. Not
+`Streaming`, `Tagging` or `CancelInFlight`: a terminal answers one command at a time in an unframed byte stream, so
+an abandoned read would leave output for the next command.
 
 ---
 
@@ -589,93 +590,26 @@ The entity mapper (`LoadAll<T>()`, `Save<T>()`, `Delete<T>()`, …) calls:
 
 | Entities operation | Calls on ITikConnection/Command | CLI result |
 |---|---|---|
-| `LoadAll<IpAddress>()` | `ExecuteList()` on `/ip/address/print` | `as-value` parsing → `CliReSentence` list |
+| `LoadAll<IpAddress>()` | `ExecuteList()` on `/ip/address/print` | parsed rows → `TikRecordSentence` list |
 | `LoadById<IpAddress>("*1")` | `ExecuteSingleRow()` on `/ip/address/print ?=.id=*1` | 1 `as-value` line |
 | `Save<IpAddress>(newEntity)` | `ExecuteNonQuery()` on `/ip/address/add` with params | `:put [add ...]` → new `.id` |
 | `Save<IpAddress>(existing)` | `ExecuteNonQuery()` on `/ip/address/set` with `.id` + changes | `set numbers=*N ...` |
 | `Delete<IpAddress>(entity)` | `ExecuteNonQuery()` on `/ip/address/remove` with `.id` | `remove numbers=*N` |
 | `LoadSingle<SystemResource>()` | `ExecuteSingleRow()` on `/system/resource/print` | 1 `as-value` line (no `.id`) |
 
-**The entities mapper has no knowledge** of CLI — it only sees `ITikReSentence` objects, populated
-from `CliReSentence`.
+**The entities mapper has no knowledge** of CLI — it only sees `ITikReSentence` objects (`TikRecordSentence`).
 
 ---
 
 ## Boundaries and limitations
 
-### Reliable (production-ready)
-
-- Read operations via `LoadAll`, `LoadList`, `LoadById`, `LoadSingle`
-- Write operations: `Save` (both add and set), `Delete`, `Enable`, `Disable`, `Move`
-- Filters via `?name=value` parameters → `where name=value`
-- Singleton entities (no `.id`)
-- Boolean values: both the RouterOS CLI and the API use `yes`/`no`
-
-### Conditionally reliable (with caveats)
-
+- **One command at a time.** The terminal is a single session; commands on one connection are serialized.
 - **Values containing a semicolon (`;`):** read intact on RouterOS 7, where each row is written as DSV with its
   own separator ([findings-cli.md](findings-cli.md) §1); on RouterOS 6 a value holding `;` is not.
-- **SSH vs. MACTelnet:** SSH is more robust (exit code, separate stderr). MACTelnet is fragile
-  (heuristics).
-- **RouterOS version:** the `as-value` format has been consistent since ROS 6.x. It may differ on
-  ROS < 6.
-
-### Not possible, or only with major effort
-
-- **Listen (`/listen`)** — real-time push notifications are not possible over a terminal.
-- **Streaming commands** — incremental results for `/tool/torch`, `/tool/ping`: SSH could handle
-  this via a streaming `RunCommand`, but integrating it with
-  `ITikCommand.ExecuteListWithDuration` is complex.
-- **Async cancel** — `Cancel()` has no equivalent for a synchronous SSH `RunCommand`.
-- **Batch commands** — no pipelining.
+- **The router's version shapes the read.** Flag fields are missing from `as-value` and ids are lowercase hex
+  before RouterOS 7.20, and RouterOS 6 has no `:serialize` and no CLI `proplist=`. Each is handled, and each is in
+  [findings-cli.md](findings-cli.md) §1.
 - **Proplist on the wire** — `.proplist` is honoured by trimming the rows client-side, so the router still
   sends every field. RouterOS's own CLI `proplist=` would cut the transfer, but it refuses the whole read
   over a single unknown name, which the API's `.proplist` ignores.
-
----
-
-## Implementation approach — recommended order
-
-1. **CLI layer in `tik4net`** — implement `CliCommandBuilder` + `CliOutputParser` +
-   `CliReSentence` + `CliConnectionBase` with the semaphore (these are independent of each other
-   and testable without a network). Part of the same milestone: `TikConnectionSetup` with
-   `CreateApiConnection()` / `CreateApiSslConnectionAsync()` — replacing `ConnectionFactory`.
-2. **`tik4net.ssh` — `SshConnection`** — the simplest CLI transport (clean stdout, exit code);
-   verify the entity mapper works against it. Extension method
-   `TikConnectionSetup.CreateSshConnection(privateKeyPath?)`.
-3. **Parser unit tests** — test `CliOutputParser` against recorded RouterOS output (no live
-   router needed).
-4. **`tik4net.mactelnet` — `MacTelnetConnection`** — add `VtStripper` and prompt detection;
-   fragile, needs integration tests against a live router. Extension method
-   `TikConnectionSetup.CreateMacTelnetConnection()`.
-5. **`tik4net.telnet` — `TelnetConnection`** — add a `TelnetNegotiator` (~30 LOC), login/password
-   prompt detection; reuse `VtStripper` unchanged. Implementation effort roughly 20% of
-   MACTelnet's. Extension method `TikConnectionSetup.CreateTelnetConnection()`.
-
----
-
-## Open questions
-
-1. **`add` and the new `.id`**: `:put [/path add ...]` only returns a `.id` if `add` returns a
-   handle.
-   Not every RouterOS entity returns a `.id` from `add` — this needs testing across different
-   entities.
-
-2. **MACTelnet prompt-detection reliability**: the RouterOS prompt can contain a custom identity
-   with arbitrary characters.
-   A more robust pattern: detect `] > ` (the end of the prompt) rather than the whole prompt.
-
-3. **Sharing `tik4net.cli`**: as a separate NuGet package, or an internal dependency
-   (InternalsVisibleTo)?
-   Recommendation: a separate NuGet package from the start — lets other projects reuse the
-   parsing.
-
-4. **`ExecuteWithCallback` emulation**: `CliConnectionBase.ExecuteCliCommandAsync` plus the semaphore is
-   the right foundation. `ITikCommand.ExecuteWithCallback(callback, done, trap)` can be emulated as
-   `Task.Run(() => { /* sync exec */; callback(each_re); done(); })` — it returns immediately, and
-   results arrive via the callback. Cancel is not possible (no in-flight command). Recommendation:
-   implement it, but document the limitation.
-
-5. **Telnet vs. MACTelnet prompt detection**: the RouterOS Telnet prompt is identical to the
-   MACTelnet prompt (`[user@identity] > `). `VtStripper.RemovePromptAndEcho` can be reused
-   unchanged — verify against a live router.
+- **`print stats` counters** need a second query ([findings-cli.md](findings-cli.md) §1).
