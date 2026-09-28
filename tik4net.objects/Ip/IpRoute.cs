@@ -40,7 +40,9 @@
         /// RouterOS 7 names the field <c>routing-table</c> and RouterOS 6 <c>routing-mark</c>, and each refuses the
         /// other name. It is read under whichever the router prints, and a route read with a mark is saved under that
         /// name again. Otherwise it is written as <c>routing-table</c>: RouterOS 6 prints no <c>routing-mark</c> for a
-        /// route in the main table, so on RouterOS 6 giving a new route, or a main-table route, a mark is refused.
+        /// route in the main table, so on RouterOS 6 giving a new route, or a main-table route, a mark is refused — unless
+        /// <see cref="TikConnectionSetup.ValidateWrites"/> is on, which asks the router which name it takes (over a CLI
+        /// transport; RouterOS 6 over the API cannot say).
         /// </remarks>
         [TikProperty("routing-table", AlternateNames = new[] { "routing-mark" })]
         public TikValue<string?> RoutingTable { get; set; }

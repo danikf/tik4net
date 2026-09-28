@@ -48,6 +48,23 @@ namespace tik4net
     }
 
     /// <summary>
+    /// An entity write carried arguments the router's own argument list for that menu does not have, and was not sent
+    /// (<see cref="TikConnectionSetup.ValidateWrites"/>). <see cref="Arguments"/> names every one.
+    /// </summary>
+    public class TikUnknownArgumentException : TikCommandException
+    {
+        /// <summary>The arguments the router has no such name for.</summary>
+        public IReadOnlyList<string> Arguments { get; }
+
+        internal TikUnknownArgumentException(ITikCommand command, IReadOnlyList<string> arguments)
+            : base(command, "The router takes no argument " + string.Join(", ", arguments) + " in '" + command.CommandText
+                  + "' (its /console/inspect or Tab completion lists none by that name); nothing was sent.")
+        {
+            Arguments = arguments;
+        }
+    }
+
+    /// <summary>
     /// Exception thrown if any error is returned from mikrotik router call. (!TRAP)
     /// </summary>
     /// <seealso cref="ITikTrapSentence"/>

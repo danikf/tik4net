@@ -292,6 +292,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
 
             var plan = TikConnectionExtensions.PlanListDifferences(modifiedList, unmodifiedList);
+            TikConnectionExtensions.ValidateListDifferences(connection, plan);
 
             foreach (var entity in plan.Deletes)
             {

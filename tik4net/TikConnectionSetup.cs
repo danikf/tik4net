@@ -103,6 +103,21 @@ namespace tik4net
         public string? CliFieldSeparator { get; set; } = DefaultCliFieldSeparator;
 
         /// <summary>
+        /// Checks an entity write against the router's own argument list before sending it
+        /// (<see cref="TikMenuSchemaExtensions.DescribeMenu(ITikConnection, string)"/>, asked once per menu). A renamed
+        /// field (<c>TikPropertyAttribute.AlternateNames</c>) is written under the name the router takes; a field it takes
+        /// under none of its names throws <see cref="TikUnknownArgumentException"/> and nothing is sent —
+        /// <c>SaveListDifferences</c> checks every row before the first one is written. Default <c>false</c>.
+        /// </summary>
+        /// <remarks>
+        /// Entity writes only (<c>Save</c>, <c>SaveListDifferences</c>); a command a caller builds is sent as written.
+        /// Skipped where the router cannot describe the menu (RouterOS 6 over the API) and on WinBox native, which
+        /// already refuses a field it has no key for before sending. Applied to every transport that declares
+        /// <see cref="TikConnectionCapability.MenuSchema"/>.
+        /// </remarks>
+        public bool ValidateWrites { get; set; }
+
+        /// <summary>
         /// How long opening the connection may take before it fails. Default 15 s.
         /// Applied to <see cref="ITikConnection.ConnectTimeout"/> on every transport.
         /// </summary>
@@ -373,6 +388,8 @@ namespace tik4net
             if (CliReadPageSize.HasValue && connection is ITikCliPagedReadConnection paged)
                 paged.CliReadPageSize = CliReadPageSize.Value;
 
+            if (connection is ITikMenuSchemaConnection described)
+                described.ValidateWrites = ValidateWrites;
             if (connection is ITikCliFieldSeparatorConnection separated)
                 separated.CliFieldSeparator = CliFieldSeparator;
 

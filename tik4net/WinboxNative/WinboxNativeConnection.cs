@@ -1097,6 +1097,8 @@ namespace tik4net.WinboxNative
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
             | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema;
 
+        bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
+
         /// <summary>
         /// A menu from the <c>.jg</c> catalog: the fields of its window the resolver maps to API names, writable ones as
         /// the arguments, and each field's enum words. No round trip. The names are tik4net's reconstruction, so a missing

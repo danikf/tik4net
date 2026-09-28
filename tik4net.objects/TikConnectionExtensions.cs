@@ -653,6 +653,7 @@ namespace tik4net.Objects
                 }
             }
 
+            TikWriteValidation.Validate(connection, metadata, new[] { createCmd });
             return createCmd;
         }
 
@@ -780,6 +781,10 @@ namespace tik4net.Objects
                 unsetCommands.Add(unsetCmd);
             }
 
+            // Before anything is sent: the unsets run first, so a refused set must not follow a sent unset.
+            TikWriteValidation.Validate(connection, metadata,
+                unsetCommands.Concat(setCmd.Parameters.Any() ? new[] { setCmd } : Array.Empty<ITikCommand>()));
+
             if (!setCmd.Parameters.Any())
                 return (null, unsetCommands);
 
@@ -846,6 +851,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             var plan = PlanListDifferences(modifiedList, unmodifiedList);
+            ValidateListDifferences(connection, plan);
 
             foreach (var entity in plan.Deletes)
                 Delete(connection, entity);
@@ -856,6 +862,31 @@ namespace tik4net.Objects
             else
                 foreach (var entity in plan.Creates)
                     Save(connection, entity);
+        }
+
+        /// <summary>
+        /// <see cref="TikConnectionSetup.ValidateWrites"/> over a whole list before its first write: every update and
+        /// create is built — which checks it — and thrown away. A row that would be refused stops the pass before any
+        /// row, delete or move has gone out. A FullUpdate row, whose fields need a read of the router, is checked
+        /// when it is saved.
+        /// </summary>
+        internal static void ValidateListDifferences<TEntity>(ITikConnection connection, ListDifferencesPlan<TEntity> plan)
+            where TEntity : new()
+        {
+            if (!(connection is ITikMenuSchemaConnection described) || !described.ValidateWrites)
+                return;
+            var metadata = plan.Metadata;
+            foreach (var entity in plan.Updates)
+            {
+                var (kind, filter) = ResolveUpdateFilter(connection, entity, metadata, TikSaveMode.Default);
+                if (kind == UpdateFilterKind.UseFilter)
+                    BuildUpdateCommands(connection, entity, metadata, filter, ResolveSaveId(entity, metadata));
+            }
+            var creates = plan.OrderSteps != null
+                ? plan.Desired.Where(entity => IsCreate(metadata, ResolveSaveId(entity, metadata)))
+                : plan.Creates;
+            foreach (var entity in creates)
+                BuildCreateCommand(connection, entity, metadata, null);
         }
 
         /// <summary>

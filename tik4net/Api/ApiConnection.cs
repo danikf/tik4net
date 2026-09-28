@@ -99,6 +99,9 @@ namespace tik4net.Api
         // The menus described on this open; replaced when the connection opens.
         private TikMenuSchemaCache _menuSchemas = new TikMenuSchemaCache();
 
+        bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
+
+
         TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
             => _menuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 

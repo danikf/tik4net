@@ -224,6 +224,8 @@ namespace tik4net.Cli
              | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands
              | TikConnectionCapability.MenuSchema;
 
+        bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
+
         /// <summary>
         /// <c>/console/inspect</c> where the router has it (RouterOS 7), Tab completion where it does not (RouterOS 6):
         /// whether it does is asked by the first menu described and remembered for the open.

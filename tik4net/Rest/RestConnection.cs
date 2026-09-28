@@ -123,6 +123,8 @@ namespace tik4net.Rest
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
             | TikConnectionCapability.MenuSchema;
 
+        bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
+
         TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
             => MenuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 

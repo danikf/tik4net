@@ -111,6 +111,9 @@ namespace tik4net
         /// <param name="winboxLabels">An entity's API-name → WinBox-label pairs (<see cref="TikSpecialProperties.WinboxLabels"/>'s
         /// format), which WinBox native names its fields by; ignored elsewhere. <c>null</c> for a path alone.</param>
         TikMenuSchema DescribeMenu(string path, string? winboxLabels);
+
+        /// <summary><see cref="TikConnectionSetup.ValidateWrites"/>, read by the O/R mapper before an entity write.</summary>
+        bool ValidateWrites { get; set; }
     }
 
     /// <summary>Asks the router what a menu takes.</summary>
