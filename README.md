@@ -16,7 +16,40 @@ surface is large, and the first working program is five lines.
 Tested and debugged against **RouterOS 7.24.4** — every transport verified against a live router — and also tested
 on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions)).
 
-> **🆕 4.0 — Many new connection types!** Beyond the classic API, tik4net now drives the router over REST, Telnet, SSH, MAC-Telnet, and WinBox (terminal + native-M2, over IP or MAC layer). See [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities). tik4net is the **only .NET library** that speaks **MAC-Telnet** and the **WinBox** protocols.
+## What's new
+
+**5.0** — in development on `master`, not released yet:
+* **[RoMON](https://github.com/danikf/tik4net/wiki/RoMON-connection)** — reach a router you have no IP route to, through a neighbouring router, over Telnet,
+  SSH or MAC-Telnet; RoMON discover and ping included
+* **One codebase from RouterOS 6.49 to 7.24** — the same entities read and write correctly on each version, tested on
+  7.24.4, 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions))
+* **[TikValue](https://github.com/danikf/tik4net/wiki/TikValue)** — a property knows whether the router printed the field; it never invents a default, and
+  a value from a newer RouterOS does not break the read
+* **Connection string** *(planned)* — choose the transport in config, not in code
+* **Negation and sets** *(planned)* — typed `!10.0.0.0/8` and `established,related` instead of strings
+* **[List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge)** — merge and `SaveListDifferences` reorder firewall rules
+  with minimal moves, sync and async
+* **[Filtered CLI reads run on the router](https://github.com/danikf/tik4net/wiki/Command-translation-on-non-API-transports#read-runprint)** — the filter goes
+  into the command instead of the whole table coming back
+* **[Upgrade with an AI agent](https://github.com/danikf/tik4net/wiki/Upgrading-from-4.x-to-5.0-with-an-AI-agent)** — a ready-to-paste prompt that does
+  the 4.x → 5.0 migration
+
+**4.0** — the current release:
+* **[Eleven ways into the router, one contract](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities)** — API and API-SSL, REST, Telnet,
+  SSH, MAC-Telnet and WinBox (terminal or native); switching transport is one enum value
+* **Manage a router that has no IP address** — MAC-Telnet and WinBox over the MAC layer, found by
+  [MNDP](https://github.com/danikf/tik4net/wiki/MNDP) discovery; the **only .NET library** that speaks MAC-Telnet and the WinBox protocols
+* **[Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode)** — take, release, unroll, and automatic rollback when the connection drops
+* **[MCP server](https://github.com/danikf/tik4net/wiki/MCP-server)** — an AI assistant drives a router over any transport, with a raw protocol trace
+* **[Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking)** — `Save` sends only the fields you changed; a save with no changes sends
+  nothing
+* **[Fail-closed capabilities and typed per-transport interfaces](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities)** — a
+  transport's limits are compile errors or clear refusals, never quiet wrong behaviour
+* **[Streaming and async](https://github.com/danikf/tik4net/wiki/High-level-API-advanced#asynchronous-loading)** — `IAsyncEnumerable` reads and parallel
+  commands such as torch, with in-flight cancellation
+* **`TikConnectionSetup`, one entry point** — for `netstandard2.0` and `net8.0`, with nullable annotations
+
+Every change, version by version: [History](https://github.com/danikf/tik4net/wiki/History).
 
 | Package | NuGet | Description |
 |---|---|---|
@@ -35,9 +68,9 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 * Broad range of .NET runtimes supported (including .NET Framework, Xamarin and Unity)
 * Both API login handshakes, [old and v6.43+](https://github.com/danikf/tik4net/wiki/login-versions), negotiated automatically
 * [MNDP](https://github.com/danikf/tik4net/wiki/MNDP) discovery helper — find routers on the segment with no connection at all
-* 🆕 4.0 [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect (lockout protection)
-* 🆕 4.0 [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — `Save` sends only the fields you changed; no-op saves skip the API call
-* 🆕 4.0 [Connection capability model](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — `connection.Supports(TikConnectionCapability.Listen)`; unsupported features fail closed
+* [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect (lockout protection)
+* [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — `Save` sends only the fields you changed; no-op saves skip the API call
+* [Connection capability model](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — `connection.Supports(TikConnectionCapability.Listen)`; unsupported features fail closed
 * [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Unit-testing-without-a-router) via `tik4net.testing` (`TikFakeConnection`)
 * Uniform [exception tree](https://github.com/danikf/tik4net/wiki/Exception-handling) across all transports
 * [Entity scaffolding](https://github.com/danikf/tik4net/wiki/High-level-API-tools) from a live router, and an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) that lets an AI assistant drive a router over any tik4net transport

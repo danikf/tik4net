@@ -41,6 +41,23 @@ Run the gates first — they are cheap and they can invalidate the reviews.
 
 # Part 1 — Gates
 
+## 1.0 Is the version ready?
+
+A version is ready when **its key features are done and no bug is open** — measured by exactly that, not by
+how long it has been in development or how much else landed.
+
+* **Key features:** the version's list under *What's new* in `README.md` (mirrored on the wiki's `Home`). Every
+  bullet ships and works; none still says *(planned)*. A feature that will not make it is moved to the next
+  version's list, not left planned in a tagged one.
+* **No open bug:** nothing open in the version's todo (the maintainer's local release notes — ask for them), and no
+  open GitHub issue labelled as a bug against it. A known defect is fixed or explicitly moved out with the
+  maintainer's decision, never shipped unmentioned.
+
+```bash
+grep -n "(planned)" README.md ../tik4net.wiki/Home.md
+gh issue list --label bug --state open
+```
+
 ## 1.1 Build, tests, packages
 
 ```bash
