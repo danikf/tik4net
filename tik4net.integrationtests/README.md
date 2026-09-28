@@ -22,15 +22,15 @@ To provision a router from scratch, use the **`chr-test-router-init` skill**.
 
 ## The lab routers
 
-The lab runs two CHRs. Only the first is needed for the suite; the second covers what one router cannot.
+The lab runs three CHRs. Only the first is needed for the suite; the others cover what one router cannot.
 
-| | **CHR** — the suite's router | **CHR2** — RoMON target, older RouterOS |
-|---|---|---|
-| `App.config` keys | `host`, `user`, `pass`, `routerMac`, `routerIdentity` | `romonTargetId`, `romonTargetHost`, `romonTargetUser`, `romonTargetPass` |
-| RouterOS | the version README promises (current stable) | **6.49.13**, kept there on purpose |
-| Identity | `CHR` | `CHR2` — must differ from the first |
-| Ports | two (`testInterface`, `testSecondInterface`) | two, the same names — aligned with CHR on purpose |
-| Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router |
+| | **CHR** — the suite's router | **CHR2** — RoMON target, older RouterOS | **CHR3** — a second RouterOS 7 |
+|---|---|---|---|
+| `App.config` keys | `host`, `user`, `pass`, `routerMac`, `routerIdentity` | `romonTargetId`, `romonTargetHost`, `romonTargetUser`, `romonTargetPass`; profile `chr2.*` | profile `chr3.*` |
+| RouterOS | the version README promises (current stable) | **6.49.13**, kept there on purpose | **7.21.5** (long-term), kept there on purpose |
+| Identity | `CHR` | `CHR2` — must differ from the first | `CHR3` |
+| Ports | two (`testInterface`, `testSecondInterface`) | two, the same names — aligned with CHR on purpose | two, the same names |
+| Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router | an older 7.x for the version-sensitive tests (`-Router chr3`) |
 
 **RoMON.** `RomonRelayTest` opens CHR2 *through* CHR (Telnet, SSH and MAC-Telnet to CHR, `/tool romon ssh`
 beyond it) and writes to it, checking each write over CHR2's own API connection (`romonTargetHost`). RoMON is
@@ -51,6 +51,19 @@ with its router profile — `run-integration-tests.ps1 -Router chr2`, which sele
 against the binary API) is the one that matters. The full suite is not run there: CHR2 has CHR's two ports but none of
 its provisioned topology, so topology tests fail for reasons that are not defects. Nor are the REST legs: its profile
 carries `chr2.noRest`, so the script leaves `rest` and `restssl` out of a run against it and refuses them by name.
+
+**CHR3, a second RouterOS 7.** 7.21.5 is the oldest 7.x the download page offers, so it sits after 7.20, where the CLI
+began printing flag fields in `print as-value` — the pre-7.20 read path still has unit coverage only. It carries no
+topology either, so, as with CHR2, run the version-sensitive tests there (`CliFlagFieldsTest`, the path-map audit), not
+the full suite.
+
+**BGP between CHR and CHR2.** CHR2 advertises two TEST-NET prefixes (`192.0.2.0/24`, `198.51.100.0/24`, its
+`/routing bgp network` rows) to CHR over an eBGP session, so `/routing bgp advertisements` has rows on the RouterOS 6
+router — what `BgpTest.AdvertisementsMatchTheBinaryApi` compares against the binary API (`-Router chr2`). CHR 65001 /
+CHR2 65002. On CHR the session is `/routing/bgp/instance` `lab-bgp` plus the connection `lab-bgp-chr2`, whose input and
+output filter chain `lab-bgp-in` rejects everything: CHR installs no route from it and advertises nothing. On CHR2 it
+is the default instance (AS 65002) and the peer `lab-bgp-chr`. Every row is commented `lab BGP …`. The names avoid the
+`t4n` prefix, which marks test residue for cleanup.
 
 ## The lab VM, if the router is virtual
 

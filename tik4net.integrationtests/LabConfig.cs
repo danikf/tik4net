@@ -42,9 +42,14 @@ namespace tik4net.integrationtests
         /// The value of <paramref name="key"/> for the selected router: the profile's own entry when it has one (an
         /// empty value included — that is how a profile switches a setting off), otherwise the unprefixed entry.
         /// </summary>
-        public static string Get(string key)
+        public static string Get(string key) => GetFor(Profile, key);
+
+        /// <summary>
+        /// The value of <paramref name="key"/> for the named <paramref name="profile"/> (<c>null</c> = the default router),
+        /// whatever <see cref="ProfileVariable"/> selects — for a test that talks to two lab routers at once.
+        /// </summary>
+        public static string GetFor(string profile, string key)
         {
-            string profile = Profile;
             if (profile != null)
             {
                 string own = ConfigurationManager.AppSettings[profile + "." + key];
