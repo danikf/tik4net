@@ -372,13 +372,30 @@ Each is a statement of what is measured and what is not, to be settled one at a 
     again one id at a time — `:foreach i in=$w do={ :put (".id=" . $i . ";" . [:tostr [print … from=$i]]) }` —
     and the menu is remembered for the connection; the `.nextid` is dropped, as the API does not print it there.
 
-9. **Settled for an empty table: `/routing bgp advertisements print` has no `as-value` on 6.x.** Its `print` completes
-   only `file`, `interval`, `peer` and `where` (6.49.13), so the read's `as-value` — and the `without-paging` the terminal
-   transports add to a bare print — are taken for a peer name: `input does not match any value of peer`. That whole
-   answer is now reported as the router's error rather than as an incomplete read, and an unfiltered read that gets it
-   asks `:put [/routing bgp advertisements print]` instead: a script, so neither paged nor given `without-paging`, which
-   still prints the table (`PEER PREFIX NEXTHOP AS-PATH ORIGIN LOCAL-PREF`). It is read by column (`CliTableParser`, as
-   §8), and the menu is remembered for the connection. Verified over Telnet and WinboxCli with no peer: no rows, as the
-   binary API. Not measured: a row. The table carries no `.id` and none of the API's other fields (`communities`, …), so
-   `BgpAdvertisements`, whose `.id` is mandatory, would refuse a row read this way; measuring one needs a BGP peer
-   with advertisements.
+9. **Settled: `/routing bgp advertisements print` has no `as-value` on 6.x.** Its `print` completes only `file`,
+   `interval`, `peer` and `where` (6.49.13), so the read's `as-value` — and the `without-paging` the terminal transports
+   add to a bare print — are taken for a peer name: `input does not match any value of peer`. `detail` and `terse` are
+   refused the same way. That whole answer is reported as the router's error rather than as an incomplete read, and an
+   unfiltered read that gets it asks for the plain table instead, remembered for the connection:
+
+   ```
+   :put ("#t4n-ids=" . [:tostr [/routing bgp advertisements find]]); :put [/routing bgp advertisements print]
+   ```
+
+   A script, so neither paged nor given `without-paging`; it still prints the table
+   (`PEER PREFIX NEXTHOP AS-PATH ORIGIN LOCAL-PREF`), read by column (`CliTableParser`, as §8). Measured with rows over
+   the lab BGP session (CHR2 advertising two TEST-NET prefixes to the first router):
+   - **No `.id` column, and `get` has no fields.** `find` lists the ids (`*1;*2`), but `get $i` answers `.id=*1` alone
+     and `get $i peer` nothing. The ids therefore come from the `find` on the line in front of the table: `find` and
+     `print` walk the rows in the same order, and they match the binary API's. Rows whose count differs from the ids'
+     are returned without ids rather than paired wrongly.
+   - **Fixed-width columns cut a value and end it in `...`.** `PEER` is 8 characters wide: the peer `lab-bgp-chr` prints
+     as `lab-b...`. A cut value is not the field's value, so the table reader leaves it out (the property reads absent),
+     for every table it reads. `PREFIX` is 20 wide and `NEXTHOP` 16, so an IPv4 prefix or next hop is never cut; an
+     IPv6 one can be (not measured: the lab session is IPv4 only).
+   - `where` and `peer=` narrow the plain print (`print where prefix="198.51.100.0/24"`, `print peer=lab-bgp-chr`), but a
+     filtered read still keeps the refusal: the table path takes no caller arguments.
+   - The table carries none of the API's other fields (`communities`, …): they read absent over the CLI.
+
+   `BgpTest.AdvertisementsMatchTheBinaryApi` (run with `-Router chr2`) compares every row with the binary API's: green
+   over the five CLI transports and both API legs, Inconclusive over WinBox native (no window).

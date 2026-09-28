@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Routing.Bgp;
@@ -21,6 +23,41 @@ namespace tik4net.integrationtests
             {
                 var list = Connection.LoadAll<BgpAdvertisements>();
                 Assert.IsNotNull(list);
+            });
+        }
+
+        /// <summary>
+        /// The rows a transport reads are the binary API's: same ids, same values. Needs an established BGP session
+        /// that advertises something (the lab's is on the second router, CHR2, peering with the first — run with
+        /// <c>-Router chr2</c>); with none the API has no rows and the test is Inconclusive.
+        /// </summary>
+        /// <remarks>
+        /// On RouterOS 6 the CLI transports read this menu as its plain table (no <c>as-value</c>), ids from <c>find</c>
+        /// in the same script; the table cuts a peer name to 8 characters, and a cut value is left out, never read as the
+        /// name. So <c>peer</c> is either the API's or absent, and every other field must agree.
+        /// </remarks>
+        [TestMethod]
+        public void AdvertisementsMatchTheBinaryApi()
+        {
+            SkipIfWinboxNativeCannot("/routing/bgp/advertisements", () =>
+            {
+                List<BgpAdvertisements> apiRows;
+                using (var api = LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api))
+                    apiRows = api.LoadAll<BgpAdvertisements>().ToList();
+                if (apiRows.Count == 0)
+                    Assert.Inconclusive("no advertisements on this router: needs an established BGP session (lab: -Router chr2)");
+
+                var rows = Connection.LoadAll<BgpAdvertisements>().ToDictionary(r => r.Id);
+                Assert.AreEqual(apiRows.Count, rows.Count, "row count");
+                foreach (var apiRow in apiRows)
+                {
+                    Assert.IsTrue(rows.TryGetValue(apiRow.Id, out var row), $"no row {apiRow.Id}");
+                    Assert.AreEqual(apiRow.Prefix, row.Prefix, $"{apiRow.Id} prefix");
+                    Assert.AreEqual(apiRow.Nexthop, row.Nexthop, $"{apiRow.Id} nexthop");
+                    Assert.AreEqual(apiRow.Origin, row.Origin, $"{apiRow.Id} origin");
+                    if (row.Peer.IsPresent)
+                        Assert.AreEqual(apiRow.Peer, row.Peer, $"{apiRow.Id} peer");
+                }
             });
         }
 

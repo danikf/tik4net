@@ -1414,22 +1414,53 @@ namespace tik4net.Cli
         /// Sent inside <c>:put [ … ]</c>, which still prints the table (6.49.13) but is a script, so it does not page and
         /// the terminal transports do not add <c>without-paging</c> to it — a word such a print takes for an argument
         /// value too (<c>input does not match any value of peer</c>).
+        /// <para>
+        /// The table has no <c>.id</c> column, and <c>get</c> answers such a menu with the id alone (6.49.13), so the ids
+        /// come from the menu's <c>find</c> in the same script, one line in front of the table: <c>find</c> and
+        /// <c>print</c> walk the rows in one order. When the counts differ the rows are returned without ids rather
+        /// than paired wrongly.
+        /// </para>
         /// </remarks>
         private async Task<IList<TikRecordSentence>?> RunPlainTablePrintAsync(TikCommandDescriptor descriptor,
             CancellationToken cancellationToken)
         {
-            string plain = await ExecuteCliCommandAsync(":put [" + CliCommandBuilder.ApiPathToCli(descriptor.CommandText) + "]",
+            string print = CliCommandBuilder.ApiPathToCli(descriptor.CommandText);
+            string menu = print.Substring(0, print.LastIndexOf(' '));
+            string plain = await ExecuteCliCommandAsync(
+                ":put (\"" + PlainTableIdsMarker + "\" . [:tostr [" + menu + " find]]); :put [" + print + "]",
                 cancellationToken).ConfigureAwait(false) ?? string.Empty;
             var table = new CliTableParser();
             var rows = new List<TikRecordSentence>();
-            foreach (string line in plain.Split((char)10))
+            string[]? ids = null;
+            foreach (string raw in plain.Split((char)10))
             {
-                TikRecordSentence? row = table.Feed(line.TrimEnd((char)13));
+                string line = raw.TrimEnd((char)13);
+                // Starts with the marker: the echo of the command carries it too, after ':put ("'.
+                if (ids == null && !table.HasHeader && line.TrimStart().StartsWith(PlainTableIdsMarker, StringComparison.Ordinal))
+                {
+                    ids = line.TrimStart().Substring(PlainTableIdsMarker.Length).Trim()
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                    continue;
+                }
+                TikRecordSentence? row = table.Feed(line);
                 if (row != null)
                     rows.Add(row);
             }
-            return table.HasHeader ? rows : null;
+            if (!table.HasHeader)
+                return null;
+            if (ids == null || ids.Length != rows.Count)
+                return rows;
+            return rows.Select((row, i) =>
+            {
+                var words = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [TikSpecialProperties.Id] = ids[i] };
+                foreach (var word in row.Words)
+                    words[word.Key] = word.Value;
+                return new TikRecordSentence(words);
+            }).ToList();
         }
+
+        /// <summary>Put in front of the ids a plain-table read asks <c>find</c> for, so the line is told from the table's.</summary>
+        private const string PlainTableIdsMarker = "#t4n-ids=";
 
         /// <summary>Torch commands this router refused <c>proplist=</c> for (RouterOS 6), read as its plain table instead.</summary>
         private readonly HashSet<string> _torchWithoutProplist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

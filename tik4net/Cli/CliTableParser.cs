@@ -130,13 +130,23 @@ namespace tik4net.Cli
                     continue;
 
                 string value = line.Substring(col.Start, end - col.Start).Trim();
-                if (value.Length > 0)
+                if (value.Length > 0 && !IsCutToColumn(line, col, value))
                     words[col.Name] = value;
             }
 
             // Every column empty → not a row at all (a separator or a stray repaint fragment).
             return words.Count == 0 ? null : new TikRecordSentence(words);
         }
+
+        // A value too wide for a fixed-width column is cut to it and ends in '...': a 6.49.13 BGP advertisements row
+        // prints the peer 'lab-bgp-chr' as 'lab-b...' in its 8-character PEER column. The cut value is not the field's
+        // value, so the field is left out rather than read as it. The last column is never cut (it runs to the line end),
+        // and a value that ends in '...' but stops short of its column's end is the value itself.
+        private static bool IsCutToColumn(string line, Column col, string value)
+            => col.End != int.MaxValue
+               && line.Length >= col.End
+               && line[col.End - 1] != ' '
+               && value.EndsWith("...", StringComparison.Ordinal);
 
         // RouterOS prints its column headers in upper case. A header line therefore has at least two
         // tokens, contains an upper-case letter and contains no lower-case one — which rejects the command
