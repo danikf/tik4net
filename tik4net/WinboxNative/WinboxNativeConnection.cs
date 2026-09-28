@@ -662,9 +662,16 @@ namespace tik4net.WinboxNative
 
             _codec.LearnKindWords(records, keyToField);
             var rows = new List<TikRecordSentence>(records.Count);
+            RowsTheApiHides.TryGetValue(apiPath, out var hidden);
             foreach (var rec in records)
-                rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
-                            resolver.ExtraSpellings)));
+            {
+                var row = new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
+                            resolver.ExtraSpellings));
+                if (hidden != null && row.Words.TryGetValue(hidden.Item1, out var hiddenValue)
+                    && string.Equals(hiddenValue, hidden.Item2, StringComparison.Ordinal))
+                    continue;
+                rows.Add(row);
+            }
 
             // Apply Filter parameters (?name=value) in-memory — RouterOS-side filtering is not used here.
             // The filters form a postfix query stack (?#| OR, ?#& AND, ?#! NOT), so they are evaluated as such
@@ -681,6 +688,21 @@ namespace tik4net.WinboxNative
             // value-name=name answered "7.24", the RouterOS version. A wrong answer, with no error.
             return TikGetResult.Shape(descriptor, rows);
         }
+
+        /// <summary>
+        /// Rows a WinBox window lists that the API's <c>print</c> of the same path leaves out, as (decoded field, value).
+        /// </summary>
+        /// <remarks>
+        /// <c>/ip/route</c>: the routes window lists a route a routing filter rejected (<c>contribution=filtered</c>,
+        /// inactive); the API's <c>/ip/route print</c> does not, and shows it only under <c>/routing/route</c>
+        /// (<c>filtered=true</c>). Measured on 7.24.4 with two BGP routes rejected by an input filter: the API printed 2
+        /// routes, native read 4. <c>/ipv6/route</c> is the same window family but unmeasured, so it is not listed.
+        /// </remarks>
+        private static readonly Dictionary<string, Tuple<string, string>> RowsTheApiHides =
+            new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["/ip/route"] = Tuple.Create("contribution", "filtered"),
+            };
 
         // Attempts a "monitor [once]" snapshot (e.g. /interface/ethernet/monitor numbers=ether1). The monitored
         // values (rate, link status, auto-negotiation, full-duplex) are read-only fields on the parent

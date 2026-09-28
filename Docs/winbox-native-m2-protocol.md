@@ -1476,10 +1476,14 @@ were the same mistake in two costumes: the path named a window that shares a han
 prints, so the read succeeded and answered from the wrong table. The sniffer named the running capture's
 statistics rather than its settings; `/ip/route` named the hidden `All Routes` base rather than the IPv4
 subtype over it, so it returned the IPv6 routes as well and carried only the columns the list view
-sketches. What `/ip/route` still does not read is named rather than left to be rediscovered:
-`immediate-gw` (the 'Immediate Gateway' hyperlink `u21`, an unresolved handle into `[44,16]`), `dynamic`,
-and the `dhcp`/`connect` source flags — for which native reports the same fact under one field,
-`belongs-to` (`dhcp` / `connected` / `interface`).
+sketches.
+
+The routes window also lists a route a routing filter **rejected** — `contribution=filtered`, inactive — which the
+API's `/ip/route print` leaves out and shows only under `/routing/route` (`filtered=true`). Measured on 7.24.4 with two
+BGP routes rejected by an input filter: the API printed 2 routes, the window 4. The native read drops those rows for
+`/ip/route` (`RowsTheApiHides` in `WinboxNativeConnection`); `/ipv6/route` is unmeasured and keeps them. Besides the
+API's fields, native reports `belongs-to` (`dhcp` / `connected` / `bgp-IP-<peer>` …), `contribution`, `rtype` and
+`afi`, which the API does not print for this path.
 
 ## 31. A field written with the wrong wire type is accepted and ignored
 
