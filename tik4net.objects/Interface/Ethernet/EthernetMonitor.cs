@@ -144,17 +144,6 @@ namespace tik4net.Objects.Interface.Ethernet
         /// </summary>
         [TikProperty("eeprom")]
         public TikValue<string?> Eeprom { get; set; }
-
-        /// <summary>
-        /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
-        /// </summary>
-        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
-        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
-        public static EthernetMonitor GetSnapshot(ITikConnection connection, string interfaceName)
-        {
-            return EthernetMonitorConnectionExtensions.GetEthernetMonitorSnapshot(connection, interfaceName);
-        }
-
     }
 
     /// <summary>

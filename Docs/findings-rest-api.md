@@ -291,7 +291,7 @@ POST /rest/tool/traceroute {"address":"127.0.0.1","count":"1"}
 and is also on the ordinary write-verb list — both routes produce the same URL for it.
 
 **`once` (or the bound the verb needs) is mandatory for REST** — see §12.2 for why and the exact bound per
-verb. The `tik4net.objects` mapper already supplies it (e.g. `InterfaceMonitorTraffic.GetSnapshot`); a
+verb. The `tik4net.objects` mapper already supplies it (e.g. `GetInterfaceMonitorTrafficSnapshot`); a
 caller building the command by hand has to add it.
 
 Source: `tik4net/Rest/RestRequestBuilder.cs`; tests in

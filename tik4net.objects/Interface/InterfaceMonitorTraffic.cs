@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface
 {
     /// <summary>
     /// /interface/monitor-traffic
-    /// NOTE: use <see cref="InterfaceMonitorTraffic.GetSnapshot"/> or with some kind of bulk/async load
+    /// NOTE: use <see cref="InterfaceMonitorTrafficConnectionExtensions.GetInterfaceMonitorTrafficSnapshot"/> or with some kind of bulk/async load
     /// </summary>
     [TikEntity("/interface/monitor-traffic", LoadCommand ="", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, SupportedOperations = TikEntityOperations.None)]
     public class InterfaceMonitorTraffic
@@ -76,16 +76,6 @@ namespace tik4net.Objects.Interface
         /// </summary>
         [TikProperty("tx-queue-drops-per-second", IsMandatory = false, IsReadOnly = true)]
         public TikValue<string?> TxQueueDropsPerSecond { get; private set; }
-
-        /// <summary>
-        /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
-        /// </summary>
-        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
-        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
-        public static InterfaceMonitorTraffic GetSnapshot(ITikConnection connection, string interfaceName)
-        {
-            return InterfaceMonitorTrafficConnectionExtensions.GetInterfaceMonitorTrafficSnapshot(connection, interfaceName);
-        }
     }
 
     /// <summary>

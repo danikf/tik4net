@@ -52,16 +52,6 @@ namespace tik4net.Objects.Interface
         /// <summary>remote-address — Remote (server) IP address for the current connection (read-only).</summary>
         [TikProperty("remote-address", IsMandatory = false, IsReadOnly = true)]
         public TikValue<string?> RemoteAddress { get; private set; }
-
-        /// <summary>
-        /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
-        /// </summary>
-        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
-        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
-        public static InterfacePppoeClientMonitor GetSnapshot(ITikConnection connection, string interfaceName)
-        {
-            return connection.GetInterfacePppoeClientMonitorSnapshot(interfaceName);
-        }
     }
 
     /// <summary>

@@ -220,7 +220,7 @@ namespace tik4net.integrationtests
         public void EthernetMonitorForEth1WillNotFail()
         {
             string INTERFACE_NAME = TestConstants.Interface;
-            var result = EthernetMonitor.GetSnapshot(Connection, INTERFACE_NAME);
+            var result = Connection.GetEthernetMonitorSnapshot(INTERFACE_NAME);
 
             Assert.IsNotNull(result);
             Assert.AreEqual(result.Name, INTERFACE_NAME);
