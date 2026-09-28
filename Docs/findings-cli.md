@@ -375,23 +375,52 @@ render the date.
 failure that only occurs when a value carries the format's own separators, and it costs precision on every
 value that does not.
 
-### A comment can shred an as-value read, and is deliberately not on the JSON path
+### On RouterOS 7 a read is per-row DSV, so a value keeps its `;`
 
-`comment` is arbitrary user text on every menu, so it can carry the separators too — and the failure is
-worse than a wrong value. Measured on 7.24, `comment=a;b=c d` on an interface reads back over every CLI
-transport as:
+`comment` is arbitrary user text on every menu, so it can carry as-value's separators — and the failure is
+worse than a wrong value. Printed as-value, `comment=a;b=c d` on an interface reads:
 
 ```
 .id=*3;actual-mtu=1500;comment=a;b=c d;disabled=false;name=ether2;…
 ```
 
-— a truncated comment **plus a field called `b` that the router never sent**.
+— a truncated comment **plus a field called `b` that the router never sent** — and `a; b` is indistinguishable
+from a list field (below). The parser cannot repair that. So where the router serializes, every as-value read
+writes each row on its own as DSV (`CliCommandBuilder.DsvRows`):
 
-Marking `comment` free-text on every entity would fix it and put every entity on the lossy JSON path
-above: `/interface/bonding`, for instance, has no free-form field other than its comment, and would lose
-`arp-interval=100ms` on every read to protect a comment that almost never contains a `;`. The trade is not
-worth it, so this stays a known limitation: a comment containing `;`, `=` or a newline is not read
-correctly over a CLI transport unless its entity is on the JSON path for another reason.
+```
+:local d [/system scheduler print detail as-value]; :if ([:len $d] > 0) do={ … :foreach r in=$d do={:put [:serialize to=dsv delimiter="~^~" options=dsv.remap ({$r})]} }; :put ("#n=" …)
+```
+```
+.id~^~comment~^~disabled~^~interval~^~name~^~policy
+*0~^~a; b "q" c\d;e=f~^~true~^~1d00:00:00~^~t4n-semi~^~ftp;reboot;read
+.id~^~disabled~^~interval~^~name~^~policy
+*2~^~true~^~00:05:00~^~t4n-semi3~^~ftp;reboot;read
+```
+
+Measured on 7.24.4 and 7.21.5 (2026-09-28):
+
+| | |
+|---|---|
+| the values | spelled exactly as as-value spells them (`1d00:00:00`, not the JSON read's `1970-01-02`), so the same normaliser applies |
+| `delimiter` | one to three characters ("value of delimiter should not be longer than 3"), printable only — `\07`, `\1E` are an "invalid delimiter" |
+| `dsv.wrap-strings` | quotes the HEADER row only; values are never quoted or escaped |
+| `dsv.remap` over the whole array | ONE header for every row: a field a row lacks becomes an empty cell (the API leaves it out), and on `/interface` a value landed under another row's column. Hence one `:serialize` per row, `({$r})` — each names exactly the fields it has |
+| without `dsv.remap` | the delimiter separates ROWS, each still as-value text — no help |
+| a line break in a value | printed as is, so a row's values are gathered until they count as many separators as its header |
+| a list | still `;` between elements (`policy=ftp;reboot;read`); DSV carries no type, so `CliDsvParser` joins it with `,` as the API prints it — except `comment`, which is text on every menu |
+| cost | 16 720 row serializations in about a second: ~0.1 s on a 1672-row table; the command is ~250 characters longer, which RouterOS 7 echoes once |
+
+The separator is `TikConnectionSetup.CliFieldSeparator` (default `~^~`, `null` = as-value only); a value that holds
+it makes the row's count disagree, and the read is refused rather than shifted into the wrong columns. RouterOS 6
+has no `:serialize` (`bad command name serialize`), and the connection reads as-value there, where a value holding
+`;` is still not read intact. Which one a router is, the connection asks once before its first read, with
+`:put [:typeof [:serialize to=dsv delimiter="~^~" ({1})]]` — `str` on RouterOS 7, the refusal on 6.x, and
+`invalid delimiter` for a separator RouterOS will not take. Trying the read itself instead failed on 6.x: its
+~300 characters echoed through the RoMON relay after the refusal and spoiled the as-value read that followed.
+Quoting the comment in the read's own script
+works there too (nested `:set ($d->$i->"comment")`), and was measured and rejected: 6.x repaints the typed line
+after every character, so ~450 more characters cost ~90 KB of echo per read and timed the RoMON relay out.
 
 ### An IPv4 in an IPv6-shaped slot
 

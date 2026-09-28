@@ -29,6 +29,8 @@ namespace tik4net.unittests.Connection
         /// <summary>A terminal whose send blocks until the test lets it through, then fails as a dead socket would.</summary>
         private sealed class BlockingCliConnection : CliConnectionBase
         {
+            public BlockingCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+
             private readonly TaskCompletionSource<bool> _inFlight = new TaskCompletionSource<bool>();
             private readonly TaskCompletionSource<bool> _release = new TaskCompletionSource<bool>();
 

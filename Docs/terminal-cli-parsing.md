@@ -613,8 +613,8 @@ from `CliReSentence`.
 
 ### Conditionally reliable (with caveats)
 
-- **Values containing a semicolon (`;`):** comments or values containing `;` will break parsing.
-  Workaround: restrict to entities where this can't happen, or implement an escape-aware parser.
+- **Values containing a semicolon (`;`):** read intact on RouterOS 7, where each row is written as DSV with its
+  own separator ([findings-cli.md](findings-cli.md) §1); on RouterOS 6 a value holding `;` is not.
 - **SSH vs. MACTelnet:** SSH is more robust (exit code, separate stderr). MACTelnet is fragile
   (heuristics).
 - **RouterOS version:** the `as-value` format has been consistent since ROS 6.x. It may differ on
@@ -656,30 +656,26 @@ from `CliReSentence`.
 
 ## Open questions
 
-1. **Escape-aware `;` parser**: Is this needed for robust production use? Comments containing
-   semicolons are a real occurrence.
-   Option: parse left to right, track `=`, and skip over quoted values (if RouterOS quotes them).
-
-2. **`add` and the new `.id`**: `:put [/path add ...]` only returns a `.id` if `add` returns a
+1. **`add` and the new `.id`**: `:put [/path add ...]` only returns a `.id` if `add` returns a
    handle.
    Not every RouterOS entity returns a `.id` from `add` — this needs testing across different
    entities.
 
-3. **MACTelnet prompt-detection reliability**: the RouterOS prompt can contain a custom identity
+2. **MACTelnet prompt-detection reliability**: the RouterOS prompt can contain a custom identity
    with arbitrary characters.
    A more robust pattern: detect `] > ` (the end of the prompt) rather than the whole prompt.
 
-4. **Sharing `tik4net.cli`**: as a separate NuGet package, or an internal dependency
+3. **Sharing `tik4net.cli`**: as a separate NuGet package, or an internal dependency
    (InternalsVisibleTo)?
    Recommendation: a separate NuGet package from the start — lets other projects reuse the
    parsing.
 
-5. **`ExecuteWithCallback` emulation**: `CliConnectionBase.ExecuteCliCommandAsync` plus the semaphore is
+4. **`ExecuteWithCallback` emulation**: `CliConnectionBase.ExecuteCliCommandAsync` plus the semaphore is
    the right foundation. `ITikCommand.ExecuteWithCallback(callback, done, trap)` can be emulated as
    `Task.Run(() => { /* sync exec */; callback(each_re); done(); })` — it returns immediately, and
    results arrive via the callback. Cancel is not possible (no in-flight command). Recommendation:
    implement it, but document the limitation.
 
-6. **Telnet vs. MACTelnet prompt detection**: the RouterOS Telnet prompt is identical to the
+5. **Telnet vs. MACTelnet prompt detection**: the RouterOS Telnet prompt is identical to the
    MACTelnet prompt (`[user@identity] > `). `VtStripper.RemovePromptAndEcho` can be reused
    unchanged — verify against a live router.

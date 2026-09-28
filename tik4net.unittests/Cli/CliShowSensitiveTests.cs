@@ -136,7 +136,11 @@ namespace tik4net.unittests.Cli
             public IEnumerable<string> Reads => Sent.Where(s => s.Contains("/box print"));
             public bool AlwaysSyntaxError;
 
-            public SecretRouter(bool knowsShowSensitive) { _knowsShowSensitive = knowsShowSensitive; }
+            public SecretRouter(bool knowsShowSensitive)
+            {
+                _knowsShowSensitive = knowsShowSensitive;
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
+            }
 
             protected override string TransportName => "Secrets";
 

@@ -449,7 +449,11 @@ namespace tik4net.unittests.Cli
             /// <summary>Window offset → how many more times it answers 'interrupted', as the router does.</summary>
             public readonly Dictionary<int, int> InterruptOffsets = new Dictionary<int, int>();
 
-            public PagingCliConnection(int rowCount) => _rowCount = rowCount;
+            public PagingCliConnection(int rowCount)
+            {
+                _rowCount = rowCount;
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
+            }
 
             protected override string TransportName => "Paging";
 

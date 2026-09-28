@@ -240,6 +240,68 @@ namespace tik4net.Cli
         internal const string CountMarker = "#n=";
 
         /// <summary>
+        /// Refuses a field separator RouterOS or the command line cannot take (see
+        /// <see cref="ITikCliFieldSeparatorConnection.CliFieldSeparator"/>). <c>null</c> is allowed: as-value only.
+        /// </summary>
+        internal static void ValidateFieldSeparator(string? separator)
+        {
+            if (separator == null)
+                return;
+            if (separator.Length == 0 || separator.Length > 3)
+                throw new ArgumentException("A CLI field separator is one to three characters (RouterOS: \"value of "
+                    + "delimiter should not be longer than 3\"); use null to read as-value only.", nameof(separator));
+            foreach (char c in separator)
+                if (c < '!' || c > '~' || c == '"' || c == '\\' || c == '$' || c == ';')
+                    throw new ArgumentException("A CLI field separator takes printable characters other than "
+                        + "'\"', '\\', '$' and ';': RouterOS refuses a control character (\"invalid delimiter\"), the "
+                        + "command line would need the others escaped, and ';' is the separator it replaces.",
+                        nameof(separator));
+        }
+
+        /// <summary>
+        /// Writes each row of the array <c>$d</c> as its own DSV block — the row's field names on one line, its values
+        /// on the next, separated by <paramref name="separator"/> (see <see cref="CliDsvParser"/>).
+        /// </summary>
+        /// <remarks>
+        /// <para>Per row, not the whole array: <c>dsv.remap</c> over the array writes ONE header for every row, so a
+        /// field one row lacks becomes an empty cell — the API leaves it out — and on <c>/interface</c> a value landed
+        /// under another row's column (7.24.4). Serialized alone, each row names exactly the fields it has.</para>
+        /// <para>A singleton's print is one keyed array, not a list of them; <c>[:find $d [:pick $d 0]]</c> tells
+        /// them apart as in <see cref="BuildCountedRead"/>.</para>
+        /// </remarks>
+        internal static string DsvRows(string separator, bool maybeSingleton)
+        {
+            string one(string v) => ":put [:serialize to=dsv delimiter=\"" + separator + "\" options=dsv.remap ({" + v + "})]";
+            string rows = ":foreach r in=$d do={" + one("$r") + "}";
+            return maybeSingleton
+                ? ":if ([:len $d] > 0) do={:if ([:typeof [:find $d [:pick $d 0]]]=\"nil\") do={" + one("$d") + "} else={" + rows + "}}"
+                : rows;
+        }
+
+        /// <summary>
+        /// <see cref="BuildCountedRead"/> with every row written as DSV (<see cref="DsvRows"/>) instead of as-value.
+        /// </summary>
+        internal static string BuildCountedDsvRead(string expression, string separator)
+            => ":local d [" + expression + "]; " + DsvRows(separator, maybeSingleton: true) + "; "
+             + ":put (\"" + CountMarker + "\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
+
+        /// <summary>
+        /// Whether the router serializes DSV with <paramref name="separator"/>: <c>:put [:typeof [:serialize …]]</c>
+        /// answers <c>str</c> on RouterOS 7; 6.x answers <c>bad command name serialize</c>, and a separator RouterOS
+        /// refuses <c>invalid delimiter</c>.
+        /// </summary>
+        internal static string BuildDsvProbe(string separator)
+            => ":put [:typeof [:serialize to=dsv delimiter=\"" + separator + "\" ({1})]]";
+
+        /// <summary>True when <see cref="BuildDsvProbe"/> was answered <c>str</c>.</summary>
+        internal static bool IsDsvProbeAccepted(string answer)
+            => string.Equals((answer ?? string.Empty).Trim(), "str", StringComparison.Ordinal);
+
+        /// <summary>A window's print written as DSV rows — a window is a list, never a singleton.</summary>
+        internal static string WrapDsv(string expression, string separator)
+            => ":local d [" + expression + "]; " + DsvRows(separator, maybeSingleton: false);
+
+        /// <summary>
         /// The number of records a counted read's answer must carry, from its marker's tail
         /// (<c>1672/num</c>), or <c>-1</c> when the tail is not one this builder produces.
         /// </summary>

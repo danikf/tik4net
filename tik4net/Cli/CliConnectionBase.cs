@@ -53,8 +53,22 @@ namespace tik4net.Cli
     /// <see cref="ITikConnection"/>.</para>
     /// </remarks>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
-        ITikMonitorTransport, IPollingMonitorHost, ITikCliPagedReadConnection
+        ITikMonitorTransport, IPollingMonitorHost, ITikCliPagedReadConnection,
+        ITikCliFieldSeparatorConnection
     {
+        /// <inheritdoc/>
+        public string? CliFieldSeparator
+        {
+            get => _cliFieldSeparator;
+            set
+            {
+                CliCommandBuilder.ValidateFieldSeparator(value);
+                _cliFieldSeparator = value;
+            }
+        }
+
+        private string? _cliFieldSeparator = TikConnectionSetup.DefaultCliFieldSeparator;
+
         /// <inheritdoc/>
         public int CliReadPageSize
         {
@@ -1418,6 +1432,61 @@ namespace tik4net.Cli
         private bool? _serializeSupported;
 
         /// <summary>
+        /// Whether this router takes <c>:serialize to=dsv</c> with <see cref="CliFieldSeparator"/> (RouterOS 7; see
+        /// <see cref="ITikCliFieldSeparatorConnection"/>): <c>null</c> until <see cref="EnsureDsvSupportKnownAsync"/>
+        /// has asked, once per connection.
+        /// </summary>
+        private bool? _dsvSupported;
+
+        // The separator the answer in _dsvSupported was given for: a caller may change it on an open connection.
+        private string? _dsvProbedSeparator;
+
+        /// <summary>
+        /// Asks the router, once per connection and separator, whether it serializes DSV — with a command of ~50
+        /// characters rather than by trying the first read.
+        /// </summary>
+        /// <remarks>
+        /// Trying the read itself cost too much where it fails. RouterOS 6 answers <c>bad command name serialize</c>,
+        /// but only after echoing the whole typed line, and it repaints that line after every character: over the
+        /// RoMON relay the ~300-character DSV read left its echo behind and spoiled the as-value read that followed
+        /// (RomonRelayTest, 6.49.13 target, every leg). RouterOS 7 answers <c>str</c>, and a separator it refuses
+        /// ("invalid delimiter") reads as unsupported too, so the connection falls back to as-value instead of failing
+        /// every read.
+        /// </remarks>
+        private async Task EnsureDsvSupportKnownAsync(CancellationToken cancellationToken)
+        {
+            string? separator = CliFieldSeparator;
+            if (separator == null || (_dsvSupported != null && _dsvProbedSeparator == separator))
+                return;
+
+            string answer = await ExecuteCliCommandAsync(
+                CliCommandBuilder.BuildDsvProbe(separator), cancellationToken).ConfigureAwait(false);
+            _dsvProbedSeparator = separator;
+            _dsvSupported = CliCommandBuilder.IsDsvProbeAccepted(answer);
+            if (_dsvSupported == false)
+                TikWireTrace.Emit("cli.dsv", TikWireDir.Note,
+                    "':serialize to=dsv' not available (" + answer.Trim() + ") — reading as-value on this connection; "
+                        + "a value holding ';' (a comment) is not read intact on this router");
+        }
+
+        // Whether this read is written as DSV: a separator is set, the router takes it, the read is not on the JSON
+        // path, and the menu is not one read one id at a time (RouterOS 6 only).
+        private bool UsesDsv(TikCommandDescriptor descriptor, bool wantJson)
+            => CliFieldSeparator != null && _dsvSupported == true && _dsvProbedSeparator == CliFieldSeparator
+               && !(wantJson && _serializeSupported != false)
+               && !_windowPrintsNoId.Contains(descriptor.CommandText);
+
+        // ParseRecords for a DSV answer: output that yields no record is the router's complaint, as there.
+        private IList<TikRecordSentence> ParseDsvRecords(string output, TikCommandDescriptor descriptor)
+        {
+            IList<TikRecordSentence> rows = CliDsvParser.Parse(output, CliFieldSeparator!);
+            if (rows.Count == 0 && !string.IsNullOrWhiteSpace(output))
+                throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                    new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
+            return rows;
+        }
+
+        /// <summary>
         /// Runs the <c>get</c> verb and returns its answer as a single record.
         /// </summary>
         /// <remarks>
@@ -1477,6 +1546,8 @@ namespace tik4net.Cli
             TikCommandDescriptor descriptor, bool wantJson, Func<string?, string> buildExpression,
             CancellationToken cancellationToken)
         {
+            await EnsureDsvSupportKnownAsync(cancellationToken).ConfigureAwait(false);
+
             if (CanPage(descriptor, wantJson))
             {
                 var paged = await RunPagedPrintQueryAsync(descriptor, wantJson, buildExpression,
@@ -1726,11 +1797,14 @@ namespace tik4net.Cli
         {
             bool idPerRow = _windowPrintsNoId.Contains(descriptor.CommandText);
             bool asJson = wantJson && _serializeSupported != false && !idPerRow;
+            bool asDsv = UsesDsv(descriptor, wantJson);
             string cliText = idPerRow
                 ? CliCommandBuilder.BuildPagedWindowIdPerRow(descriptor.CommandText,
                     buildExpression(CliCommandBuilder.RowVariable), offset, pageSize)
                 : CliCommandBuilder.BuildPagedWindow(descriptor.CommandText,
-                    CliCommandBuilder.WrapPut(buildExpression(CliCommandBuilder.WindowVariable), asJson),
+                    asDsv
+                        ? CliCommandBuilder.WrapDsv(buildExpression(CliCommandBuilder.WindowVariable), CliFieldSeparator!)
+                        : CliCommandBuilder.WrapPut(buildExpression(CliCommandBuilder.WindowVariable), asJson),
                     offset, pageSize);
 
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
@@ -1742,7 +1816,9 @@ namespace tik4net.Cli
 
             IList<TikRecordSentence> parsed = asJson
                 ? CliJsonParser.ParseJson(body)
-                : ParseRecords(body, descriptor);
+                : asDsv
+                    ? ParseDsvRecords(body, descriptor)
+                    : ParseRecords(body, descriptor);
             if (idPerRow)
                 parsed = parsed.Select(WithoutNextId).ToList();
             // Only a window that held ids ran its print — the print sits inside ':if ([:len $w] > 0) do={ … }' —
@@ -1812,6 +1888,15 @@ namespace tik4net.Cli
                         "':serialize to=json' refused (" + ex.GetType().Name
                             + ") — retrying as-value to establish whether this router supports it");
                 }
+            }
+
+            if (UsesDsv(descriptor, wantJson))
+            {
+                string dsvOutput = await ExecuteCliCommandAsync(
+                    CliCommandBuilder.BuildCountedDsvRead(expression, CliFieldSeparator!), cancellationToken).ConfigureAwait(false);
+                CliErrorParser.ThrowIfError(dsvOutput, CreateDummyCommand(descriptor));
+                string dsvBody = SplitOffCountMarker(dsvOutput, descriptor, out int expectedDsv);
+                return EnsureCounted(ParseDsvRecords(dsvBody, descriptor), expectedDsv, descriptor, dsvBody);
             }
 
             string output = await ExecuteCliCommandAsync(

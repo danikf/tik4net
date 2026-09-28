@@ -91,6 +91,18 @@ namespace tik4net
         public int? CliReadPageSize { get; set; }
 
         /// <summary>
+        /// The default <see cref="CliFieldSeparator"/>: three printable characters no RouterOS value is expected to hold.
+        /// </summary>
+        public const string DefaultCliFieldSeparator = "~^~";
+
+        /// <summary>
+        /// The separator between fields of a read on a terminal transport, or <c>null</c> to read as-value only — see
+        /// <see cref="ITikCliFieldSeparatorConnection.CliFieldSeparator"/>. Defaults to
+        /// <see cref="DefaultCliFieldSeparator"/>.
+        /// </summary>
+        public string? CliFieldSeparator { get; set; } = DefaultCliFieldSeparator;
+
+        /// <summary>
         /// How long opening the connection may take before it fails. Default 15 s.
         /// Applied to <see cref="ITikConnection.ConnectTimeout"/> on every transport.
         /// </summary>
@@ -308,6 +320,9 @@ namespace tik4net
             // their constructors. Writing an unasked-for value here would flatten that.
             if (CliReadPageSize.HasValue && connection is ITikCliPagedReadConnection paged)
                 paged.CliReadPageSize = CliReadPageSize.Value;
+
+            if (connection is ITikCliFieldSeparatorConnection separated)
+                separated.CliFieldSeparator = CliFieldSeparator;
         }
 
         /// <summary>

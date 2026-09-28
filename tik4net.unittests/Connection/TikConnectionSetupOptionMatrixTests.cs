@@ -103,6 +103,7 @@ namespace tik4net.unittests.Connection
             RouterMac = "AA:BB:CC:DD:EE:FF",
             CancellationMode = TikCancellationMode.AbandonAndClose,
             CliReadPageSize = 37,
+            CliFieldSeparator = "#|#",
             AllowInvalidCertificate = false,
             CertificateValidationCallback = new System.Net.Security.RemoteCertificateValidationCallback(CertCallback),
         };
@@ -229,6 +230,35 @@ namespace tik4net.unittests.Connection
                     if (expected)
                         Assert.AreEqual(37, ((ITikCliPagedReadConnection)conn).CliReadPageSize, type.ToString());
                 }
+            }
+        }
+
+        [TestMethod]
+        public void TheCliFieldSeparatorReachesExactlyTheTerminalTransports()
+        {
+            var setup = NonDefaultSetup();
+            foreach (var type in AllTransports)
+            {
+                using (var conn = setup.CreateUnopened(type))
+                {
+                    bool expected = PagedReadTransports.Contains(type);
+                    Assert.AreEqual(expected, conn is ITikCliFieldSeparatorConnection, type + ": ITikCliFieldSeparatorConnection");
+                    if (expected)
+                        Assert.AreEqual("#|#", ((ITikCliFieldSeparatorConnection)conn).CliFieldSeparator, type.ToString());
+                }
+            }
+        }
+
+        [TestMethod]
+        public void ASetupThatSaysNothingGivesTheTerminalTransportsTheDefaultSeparator_AndNullTurnsItOff()
+        {
+            foreach (var type in PagedReadTransports)
+            {
+                using (var conn = new TikConnectionSetup("192.0.2.1", "user", "pwd").CreateUnopened(type))
+                    Assert.AreEqual(TikConnectionSetup.DefaultCliFieldSeparator,
+                        ((ITikCliFieldSeparatorConnection)conn).CliFieldSeparator, type.ToString());
+                using (var conn = new TikConnectionSetup("192.0.2.1", "user", "pwd") { CliFieldSeparator = null }.CreateUnopened(type))
+                    Assert.IsNull(((ITikCliFieldSeparatorConnection)conn).CliFieldSeparator, type.ToString());
             }
         }
 

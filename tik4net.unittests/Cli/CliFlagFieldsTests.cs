@@ -530,6 +530,7 @@ namespace tik4net.unittests.Cli
             /// </param>
             public FlagRouter(bool printsFlags, bool hasProplist = true)
             {
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
                 _printsFlags = printsFlags;
                 _hasProplist = hasProplist;
             }

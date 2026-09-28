@@ -72,7 +72,11 @@ namespace tik4net.unittests.Cli
         {
             private readonly string _reply;
 
-            public AddAnsweringConnection(string reply) => _reply = reply;
+            public AddAnsweringConnection(string reply)
+            {
+                _reply = reply;
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
+            }
 
             protected override string TransportName => "Scripted";
 

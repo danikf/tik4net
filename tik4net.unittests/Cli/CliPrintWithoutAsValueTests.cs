@@ -78,7 +78,11 @@ namespace tik4net.unittests.Cli
             private readonly string _plain;
             public readonly List<string> Sent = new List<string>();
 
-            public AdvertisementsRouter(string plain) => _plain = plain;
+            public AdvertisementsRouter(string plain)
+            {
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
+                _plain = plain;
+            }
 
             protected override string TransportName => "Six";
 
