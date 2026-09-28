@@ -106,7 +106,11 @@ namespace tik4net.unittests.Cli
             private readonly Func<string, string> _answer;
             public readonly List<string> Sent = new List<string>();
 
-            public AnsweringCliConnection(Func<string, string> answer) => _answer = answer;
+            public AnsweringCliConnection(Func<string, string> answer)
+            {
+                _answer = answer;
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
+            }
 
             protected override string TransportName => "Answering";
 

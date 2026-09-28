@@ -118,6 +118,7 @@ namespace tik4net.unittests.Cli
             // The ids line in front of the table, as ':put ("#t4n-ids=" . [:tostr [find]])' prints it; "" = no rows.
             public AdvertisementsRouter(string ids, string plain)
             {
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
                 _ids = ids;
                 _plain = plain;
             }

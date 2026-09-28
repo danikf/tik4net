@@ -60,7 +60,11 @@ namespace tik4net.unittests.Cli
             private readonly Dictionary<string, int> _rows;
             public readonly List<string> Sent = new List<string>();
 
-            public Pre713Connection(Dictionary<string, int> rows) => _rows = rows;
+            public Pre713Connection(Dictionary<string, int> rows)
+            {
+                _rows = rows;
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
+            }
 
             protected override string TransportName => "Pre713";
 

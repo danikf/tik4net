@@ -249,6 +249,8 @@ namespace tik4net.unittests.Connection
         /// <summary>A relaying CLI connection that records what it is opened with and simulates a relay that succeeds.</summary>
         private sealed class RecordingRomonConnection : CliConnectionBase, ITikRomonConnection
         {
+            public RecordingRomonConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+
             public string? OpenHost, OpenUser, OpenPassword;
             public int? OpenPort;
 
@@ -282,6 +284,8 @@ namespace tik4net.unittests.Connection
         /// <summary>A CLI connection that does not relay (no <see cref="ITikRomonConnection"/>).</summary>
         private sealed class PlainCli : CliConnectionBase
         {
+            public PlainCli() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+
             public bool LoginRan;
 
             protected override string TransportName => "Plain";

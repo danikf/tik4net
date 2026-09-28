@@ -71,6 +71,7 @@ namespace tik4net.unittests.Cli
 
             public TabRouter(bool listsOnFirstTab, bool nothing = false)
             {
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
                 _listsOnFirstTab = listsOnFirstTab;
                 _nothing = nothing;
             }

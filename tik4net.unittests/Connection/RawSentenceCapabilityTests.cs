@@ -39,6 +39,8 @@ namespace tik4net.unittests.Connection
         /// </summary>
         private sealed class RecordingCliConnection : CliConnectionBase
         {
+            public RecordingCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+
             public readonly List<string> Sent = new List<string>();
             public string Reply = string.Empty;
 

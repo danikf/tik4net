@@ -83,6 +83,8 @@ namespace tik4net.unittests.Cli
 
         private sealed class SixPingRouter : CliConnectionBase
         {
+            public SixPingRouter() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+
             public readonly List<string> Sent = new List<string>();
             public bool RefuseEverything;
 

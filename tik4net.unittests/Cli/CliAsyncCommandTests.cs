@@ -32,6 +32,8 @@ namespace tik4net.unittests.Cli
         /// </summary>
         private sealed class ScriptedCliConnection : CliConnectionBase
         {
+            public ScriptedCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+
             public readonly List<string> Sent = new List<string>();
             public readonly List<CancellationToken> SeenTokens = new List<CancellationToken>();
             public string Reply = string.Empty;

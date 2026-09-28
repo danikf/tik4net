@@ -31,6 +31,8 @@ namespace tik4net.unittests.Cli
         /// <summary>A CLI connection that records the command text instead of sending it.</summary>
         private sealed class RecordingCliConnection : CliConnectionBase
         {
+            public RecordingCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+
             internal readonly List<string> Sent = new List<string>();
             internal string Reply = string.Empty;
 

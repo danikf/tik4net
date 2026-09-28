@@ -571,6 +571,7 @@ namespace tik4net.unittests.Cli
             /// </param>
             public FlagRouter(bool printsFlags, bool hasProplist = true)
             {
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
                 _printsFlags = printsFlags;
                 _hasProplist = hasProplist;
             }
@@ -691,6 +692,8 @@ namespace tik4net.unittests.Cli
         /// </summary>
         private sealed class RouteRouter6 : CliConnectionBase
         {
+            public RouteRouter6() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+
             private const string SyntaxError = "expected end of command (line 1 column 24)";
 
             private static readonly Dictionary<string, string> FlagIds = new Dictionary<string, string>

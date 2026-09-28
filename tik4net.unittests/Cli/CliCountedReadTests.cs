@@ -169,7 +169,11 @@ namespace tik4net.unittests.Cli
             private readonly string _reply;
             public readonly List<string> Sent = new List<string>();
 
-            public ReplyingCliConnection(string reply) => _reply = reply;
+            public ReplyingCliConnection(string reply)
+            {
+                _reply = reply;
+                CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
+            }
 
             protected override string TransportName => "Replying";
 
