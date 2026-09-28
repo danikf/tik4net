@@ -9,7 +9,9 @@
 // risk is not a missed conversion — it is a timestamp, an address or an identifier rewritten into
 // nonsense because it happened to contain digits and colons.
 
+using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.Cli;
 
 namespace tik4net.unittests.Cli
@@ -150,7 +152,8 @@ namespace tik4net.unittests.Cli
 
         /// <summary>
         /// as-value prints <c>icmp-rate-mask</c> in decimal where the API prints <c>0x</c> and upper-case
-        /// digits with no padding. Bridge <c>priority</c> comes out of as-value in hex already.
+        /// digits with no padding. A bare <c>priority</c> is not in the name-keyed table: it is decimal over the
+        /// API on most menus (see <see cref="TheBridgePrioritiesAreHexOnTheirMenusOnly"/>).
         /// </summary>
         [TestMethod]
         public void SpellsTheHexFieldsInBaseSixteen()
@@ -163,6 +166,32 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual("0x1818", N("icmp-rate-mask", "0x1818"));
             Assert.AreEqual("0x7000", N("priority", "0x7000"));
             Assert.AreEqual("6168", N("icmp-rate-limit", "6168"));
+        }
+
+        /// <summary>
+        /// Bridge and bridge-port <c>priority</c> are hex over the API on every version measured (6.49.13,
+        /// 7.21.5, 7.24.4) and decimal from as-value before 7.24 — on those two menus only. VRRP's and a queue's
+        /// <c>priority</c> are decimal over the API and must stay so.
+        /// </summary>
+        [TestMethod]
+        public void TheBridgePrioritiesAreHexOnTheirMenusOnly()
+        {
+            string Read(string command, string field, string value)
+            {
+                var rows = new List<TikRecordSentence>
+                {
+                    new TikRecordSentence(new Dictionary<string, string> { [".id"] = "*1", [field] = value }),
+                };
+                CliValueNormalizer.NormalizeForMenu(command, rows);
+                return rows[0].GetResponseField(field);
+            }
+
+            Assert.AreEqual("0x7000", Read("/interface/bridge/print", "priority", "28672"));
+            Assert.AreEqual("0x70", Read("/interface/bridge/port/print", "priority", "112"));
+            Assert.AreEqual("0x8000", Read("/interface/bridge/print", "priority", "0x8000"), "7.24 already prints hex");
+            Assert.AreEqual("100", Read("/interface/vrrp/print", "priority", "100"));
+            Assert.AreEqual("8", Read("/queue/tree/print", "priority", "8"));
+            Assert.AreEqual("128", Read("/interface/bridge/print", "mlag-priority", "128"));
         }
 
         /// <summary>Seconds east of UTC, which the API prints as a signed clock offset.</summary>

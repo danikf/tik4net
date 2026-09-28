@@ -719,6 +719,17 @@ namespace tik4net.Cli
         protected override async Task<IList<TikRecordSentence>> RunPrintAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
+            IList<TikRecordSentence> rows = await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+            // The spellings that depend on the menu as well as the field (bridge priorities): the parse that
+            // built the rows knows only field names. A raw command's text is a CLI line, not a menu path.
+            if (!descriptor.IsRaw)
+                CliValueNormalizer.NormalizeForMenu(descriptor.CommandText, rows);
+            return rows;
+        }
+
+        private async Task<IList<TikRecordSentence>> RunPrintCoreAsync(
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
             EnsureOpened();
 
             // Raw pass-through (CreateRawCommand): send the command line verbatim — no CliCommandBuilder,

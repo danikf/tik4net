@@ -30,10 +30,13 @@ namespace tik4net.Objects.Interface.Bridge
         public TikValue<string?> Bridge { get; set; }
 
         /// <summary>
-        /// priority: The priority of the interface in comparison with other going to the same subnet
+        /// priority: The priority of the interface in comparison with other going to the same subnet.
+        /// The router writes it in hex, and the CLI before 7.24 in decimal — both read to the same
+        /// <see cref="TikHexNumber"/>, which is written back in hex: RouterOS 7.24 refuses a decimal one.
+        /// Router default: <c>0x80</c>.
         /// </summary>
-        [TikProperty("priority", DefaultValue = "128", WinboxLabel = "Priority")]
-        public TikValue<int?> Priority { get; set; }
+        [TikProperty("priority", DefaultValue = "0x80", WinboxLabel = "Priority")]
+        public TikValue<TikHexNumber?> Priority { get; set; }
 
         /// <summary>
         /// path-cost: Path cost to the interface, used by STP to determine the "best" path

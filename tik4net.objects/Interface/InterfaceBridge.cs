@@ -159,10 +159,11 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// priority
         /// Spanning tree protocol priority for bridge interface. Bridge with the smallest (lowest) bridge ID becomes a Root-Bridge. Bridge ID consists of two numbers - priority and MAC address of the bridge. To compare two bridge IDs, the priority is compared first. If two bridges have equal priority, then the MAC addresses are compared.
-        /// The router writes it in hex; router default: <c>0x8000</c>.
+        /// The router writes it in hex, and the CLI before 7.24 in decimal — both read to the same
+        /// <see cref="TikHexNumber"/>, which is written back in hex. Router default: <c>0x8000</c>.
         /// </summary>
         [TikProperty("priority", DefaultValue = "0x8000", WinboxLabel = "Priority")]
-        public TikValue<string?> Priority { get; set; }
+        public TikValue<TikHexNumber?> Priority { get; set; }
 
         /// <summary>
         /// protocol-mode: Select Spanning tree protocol (STP), Rapid spanning tree protocol (RSTP) or Multiple spanning tree protocol (MSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change; MSTP runs one tree per group of VLANs.

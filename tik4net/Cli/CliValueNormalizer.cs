@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using tik4net.Connection;
 
 namespace tik4net.Cli
 {
@@ -83,10 +84,28 @@ namespace tik4net.Cli
         /// <remarks>
         /// <c>icmp-rate-mask=0x1AB</c> reads <c>427</c> from as-value and <c>0x1AB</c> over the API and REST:
         /// <c>0x</c>, upper-case digits, no padding (<c>0x19</c>, <c>0x1818</c>). Not every hex field does
-        /// this — bridge <c>priority=0x7000</c> comes out of as-value already in hex — so the table holds only
-        /// the fields measured to.
+        /// this, so the table holds only the fields measured to; the bridge priorities do it on some versions
+        /// only and are keyed by menu (<see cref="HexFieldsByMenu"/>).
         /// </remarks>
         private static readonly string[] HexFields = { "icmp-rate-mask" };
+
+        /// <summary>
+        /// Fields as-value renders in decimal on some RouterOS versions only, where the API prints them in
+        /// base 16 on all of them — keyed by menu, because the field name alone does not decide it.
+        /// </summary>
+        /// <remarks>
+        /// Bridge and bridge-port <c>priority</c>: <c>0x7000</c> / <c>0x70</c> over the API on 6.49.13, 7.21.5 and
+        /// 7.24.4; as-value gives <c>28672</c> / <c>112</c> on the first two and the API's hex on 7.24. A
+        /// <c>priority</c> elsewhere is decimal over the API too (<c>/interface/vrrp</c>, <c>/queue/tree</c>,
+        /// OSPF), so a name-keyed entry in <see cref="HexFields"/> would turn those into hex. Applied after the
+        /// parse (<see cref="NormalizeForMenu"/>), the first point that knows the menu.
+        /// </remarks>
+        private static readonly Dictionary<string, string[]> HexFieldsByMenu =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["/interface/bridge"]      = new[] { "priority" },
+                ["/interface/bridge/port"] = new[] { "priority" },
+            };
 
         /// <summary>
         /// Duration fields whose ZERO the API spells <c>0ms</c> rather than <c>0s</c>.
@@ -135,6 +154,25 @@ namespace tik4net.Cli
                 if (!hex) return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Rewrites, in place, the fields of <paramref name="rows"/> whose spelling depends on the menu they
+        /// were read from as well as on their name (see <see cref="HexFieldsByMenu"/>).
+        /// </summary>
+        /// <param name="commandText">The read's command path, verb included (<c>/interface/bridge/print</c>).</param>
+        /// <param name="rows">The rows the read produced.</param>
+        internal static void NormalizeForMenu(string commandText, IList<TikRecordSentence> rows)
+        {
+            if (rows.Count == 0
+                || !HexFieldsByMenu.TryGetValue(TikPath.Parent(commandText), out string[]? fields))
+                return;
+
+            foreach (TikRecordSentence row in rows)
+                foreach (string field in fields!)
+                    if (row.TryGetResponseField(field, out string value)
+                        && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong number))
+                        row.SetField(field, "0x" + number.ToString("X", CultureInfo.InvariantCulture));
         }
 
         /// <summary>

@@ -51,6 +51,12 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public IReadOnlyDictionary<string, string> Words => _fields;
 
+        /// <summary>
+        /// Replaces one field's value — for a transport correcting a spelling once it knows which menu the
+        /// record came from, which is later than the parse that built it.
+        /// </summary>
+        internal void SetField(string fieldName, string value) => _fields[fieldName] = value;
+
         /// <inheritdoc/>
         public string Tag => string.Empty;
 

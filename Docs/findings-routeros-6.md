@@ -308,7 +308,10 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    - **Counters: the same.** The audit's CLI rows also lack `bytes`, `packets`, `rx-byte`…; the entity's
      `IncludeCliStats` read fills them — `Interface` counters over Telnet, Ssh and WinboxCli track the binary API's
      on 6.49.13 as on 7.24.4.
-   - **Telnet/Ssh value forms:** bridge `priority` `0x8000` (API) against `32768` (CLI), port `0x80` against `128`;
+   - **Telnet/Ssh value forms:** bridge `priority` `0x8000` (API) against `32768` (CLI), port `0x80` against `128`
+     — the CLI read now spells both in hex on those two menus (7.21.5 does the same; 7.24 prints hex itself), and the
+     entities read either form into a `TikHexNumber` that is written in hex, which every version accepts and
+     7.24 requires on a port (it refuses `priority=112`);
      `/routing/ospf/instance` `metric-bgp`/`metric-other-ospf` `auto` against `4294967295`. The CLI prints an
      empty `comment=` for a row with none, where the API omits it; the CLI read drops it
      ([findings-cli.md](findings-cli.md) §1).

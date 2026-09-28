@@ -484,6 +484,9 @@ namespace tik4net.Objects
                     return value.Length == 0 ? (IsNullable ? (object?)null : default(TikDataRate)) : TikDataRate.Parse(value);
                 else if (ValueType == typeof(TikRatePair))
                     return value.Length == 0 ? (IsNullable ? (object?)null : default(TikRatePair)) : TikRatePair.Parse(value);
+                // Hex over the API, decimal over the CLI before 7.24 — both read to the same number.
+                else if (ValueType == typeof(TikHexNumber))
+                    return value.Length == 0 ? (IsNullable ? (object?)null : default(TikHexNumber)) : TikHexNumber.Parse(value);
                 else if (ValueType == typeof(TikDuration))
                 {
                     // An empty value is the router saying the field carries nothing, which is not the same
@@ -592,6 +595,8 @@ namespace tik4net.Objects
                 return ((TikDataRate)propValue).ToString();
             else if (ValueType == typeof(TikRatePair))
                 return ((TikRatePair)propValue).ToString();
+            else if (ValueType == typeof(TikHexNumber))
+                return ((TikHexNumber)propValue).ToString();
             else if (ValueType == typeof(int))
                 return ((int)propValue).ToString(CultureInfo.InvariantCulture);
             else if (ValueType == typeof(long))
@@ -671,6 +676,9 @@ namespace tik4net.Objects
 
             if (ValueType == typeof(TikRatePair))
                 return TikRatePair.TryParse(declared, out TikRatePair pair) ? pair.ToString() : declared;
+
+            if (ValueType == typeof(TikHexNumber))
+                return TikHexNumber.TryParse(declared, out TikHexNumber hex) ? hex.ToString() : declared;
 
             return declared;
         }

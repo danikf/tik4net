@@ -13,7 +13,7 @@ namespace tik4net.Objects
     /// <remarks>
     /// <list type="table">
     /// <item><term>Present</term><description>the value itself — an enum as the word the router prints (<c>"auto"</c>),
-    /// the mapper's value types (TikDuration, TikDataRate, TikRatePair, MacAddress) as the router spells them, anything else as <see cref="JsonSerializer"/> writes it with the caller's options.</description></item>
+    /// the mapper's value types (TikDuration, TikDataRate, TikRatePair, TikHexNumber, MacAddress) as the router spells them, anything else as <see cref="JsonSerializer"/> writes it with the caller's options.</description></item>
     /// <item><term>Absent</term><description><c>null</c>.</description></item>
     /// <item><term>Unparsed</term><description><c>{"$raw":"word"}</c>, read back as the same Unparsed value.</description></item>
     /// </list>
@@ -103,12 +103,13 @@ namespace tik4net.Objects
         // parses back; written as JSON objects they would collide with the {"$raw":…} form.
         private static bool IsWireStringType
             => ValueType == typeof(TikDuration) || ValueType == typeof(TikDataRate)
-               || ValueType == typeof(TikRatePair) || ValueType == typeof(MacAddress);
+               || ValueType == typeof(TikRatePair) || ValueType == typeof(TikHexNumber) || ValueType == typeof(MacAddress);
 
         private static object ParseWireString(string text)
             => ValueType == typeof(TikDuration) ? TikDuration.Parse(text)
              : ValueType == typeof(TikDataRate) ? TikDataRate.Parse(text)
              : ValueType == typeof(TikRatePair) ? TikRatePair.Parse(text)
+             : ValueType == typeof(TikHexNumber) ? TikHexNumber.Parse(text)
              : (object)new MacAddress(text);
 
         private static TikValue<T> ReadEnum(string word)

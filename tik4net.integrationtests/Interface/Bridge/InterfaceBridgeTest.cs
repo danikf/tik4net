@@ -50,6 +50,8 @@ namespace tik4net.integrationtests
             // The fields the 4.0 upgrade added, across the three groups the router only prints while their
             // feature is on (VLAN filtering, IGMP snooping, DHCP snooping), each set to a non-default value so
             // a field that is silently dropped on the way out reads back as the router's default instead.
+            // RouterOS 6.49.13 has no port-cost-mode and refuses the add ("unknown parameter").
+            EnsureMinRouterOsVersion(7, "the RouterOS 7 bridge fields");
             var bridge = new InterfaceBridge
             {
                 Name = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12),
@@ -93,6 +95,34 @@ namespace tik4net.integrationtests
             var updated = Connection.LoadById<InterfaceBridge>(bridge.Id);
             Assert.AreEqual(8, updated.Pvid);
             Assert.AreEqual(false, updated.IgmpSnooping);
+        }
+
+        [TestMethod]
+        public void TheBridgeAndPortPrioritiesAreWrittenAndReadInHex()
+        {
+            // The API prints both priorities in hex on every RouterOS version; the CLI's as-value prints them
+            // in decimal before 7.24. And a write must be hex: 7.24 refuses 'priority=112' on a port
+            // ("input does not match any value of priority") and takes 'priority=0x70'. Non-default values, so
+            // a field dropped on the way out reads back as the router's default instead.
+            string tag = Guid.NewGuid().ToString("N").Substring(0, 8);
+            var bridge = new InterfaceBridge { Name = "t4n-br-" + tag, Priority = new TikHexNumber(0x7000) };
+            SaveTracked(bridge);
+            var vlan = new InterfaceVlan { Name = "t4n-vl-" + tag, VlanId = "3998", Interface = TestConstants.Interface };
+            SaveTracked(vlan);
+            var port = new BridgePort { Bridge = bridge.Name, Interface = vlan.Name, Priority = new TikHexNumber(0x70) };
+            SaveTracked(port);
+
+            var loadedBridge = Connection.LoadById<InterfaceBridge>(bridge.Id);
+            Assert.AreEqual(TikValueState.Present, loadedBridge.Priority.State, loadedBridge.Priority.RawValue);
+            Assert.AreEqual(0x7000L, loadedBridge.Priority.Value?.Value);
+
+            var loadedPort = Connection.LoadAll<BridgePort>().Single(p => p.Interface == vlan.Name);
+            Assert.AreEqual(TikValueState.Present, loadedPort.Priority.State, loadedPort.Priority.RawValue);
+            Assert.AreEqual(0x70L, loadedPort.Priority.Value?.Value);
+
+            loadedPort.Priority = new TikHexNumber(0x60);
+            Connection.Save(loadedPort);
+            Assert.AreEqual(0x60L, Connection.LoadAll<BridgePort>().Single(p => p.Interface == vlan.Name).Priority.Value?.Value);
         }
 
         [TestMethod]
