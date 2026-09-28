@@ -29,8 +29,9 @@ namespace tik4net
     /// <remarks>
     /// <para>The argument lists are what the router parses, so a name missing from them is a name the router refuses
     /// (except on <see cref="TikMenuSchemaSource.WinboxCatalog"/>, see there).</para>
-    /// <para><see cref="ReadableFields"/> is <b>not complete</b>: RouterOS 7.24 prints <c>gateway-status</c> in
-    /// <c>/ip/route</c> and does not list it. A field missing there is not evidence that the router lacks it.</para>
+    /// <para><see cref="ReadableFields"/> is the names <c>get value-name=</c> takes. It matched every field the API
+    /// printed in the menus measured (<c>/ip/route</c> on 7.24.4 and 6.49.13); that it holds for every menu is not
+    /// proven.</para>
     /// </remarks>
     public sealed class TikMenuSchema
     {
@@ -67,7 +68,7 @@ namespace tik4net
         public IReadOnlyCollection<string>? SetArguments { get; }
 
         /// <summary>
-        /// Fields the router says it can read (<c>get value-name=</c>). Known present, not complete — see the remarks.
+        /// Fields the router says it can read (<c>get value-name=</c>) — see the remarks.
         /// </summary>
         public IReadOnlyCollection<string> ReadableFields { get; }
 
