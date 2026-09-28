@@ -941,12 +941,12 @@ namespace tik4net.WinboxNative
                     if (_handlerMap.TryResolveSubtypeFilter(apiPath, out int addTypeKey, out int addTypeValue))
                         fields.Add(M2Message.U32Sys(addTypeKey, addTypeValue));
                     await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
-                    int newId = await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
+                    int? newId = await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
                     // A new row is a name the reference cache has never seen (see ForgetReferenceNames).
                     _codec.ForgetReferenceNames();
                     // RunAddAsync's declared return type is non-nullable, matching RunAdd's contract across
-                    // every transport, but a failed add (newId < 0) genuinely yields null here (see the report).
-                    return (newId >= 0 ? "*" + ((uint)newId).ToString("X") : null)!;
+                    // every transport, but an add whose reply carries no id genuinely yields null here (see the report).
+                    return (newId.HasValue ? "*" + unchecked((uint)newId.Value).ToString("X") : null)!;
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }

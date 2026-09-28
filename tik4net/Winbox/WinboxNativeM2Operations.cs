@@ -532,14 +532,15 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// Sends <c>add</c> (<see cref="WinboxM2Protocol.Command.Add"/> + fields, no .id) and returns the
-        /// new record's M2 id (reply field <see cref="WinboxM2Protocol.RecordKey.Id"/>), or <c>-1</c> if
-        /// the reply carries no id.
+        /// new record's M2 id (reply field <see cref="WinboxM2Protocol.RecordKey.Id"/>), or <c>null</c> if
+        /// the reply carries no id. The id is a u32 held in an <c>int</c> by its bits, as every id here is: a
+        /// route's is <c>*80000019</c> on RouterOS 7, which no <c>int</c> holds as a value.
         /// </summary>
-        internal int Add(int[] handler, IList<byte[]> fields)
+        internal int? Add(int[] handler, IList<byte[]> fields)
             => InterpretAdd(SendReceive(BuildAdd(handler, fields)), handler);
 
         /// <inheritdoc cref="Add"/>
-        internal async Task<int> AddAsync(int[] handler, IList<byte[]> fields, CancellationToken cancellationToken)
+        internal async Task<int?> AddAsync(int[] handler, IList<byte[]> fields, CancellationToken cancellationToken)
             => InterpretAdd(
                 await SendReceiveAsync(BuildAdd(handler, fields), cancellationToken).ConfigureAwait(false),
                 handler);
@@ -556,11 +557,13 @@ namespace tik4net.Winbox
             return M2Message.BuildM2(head.ToArray());
         }
 
-        private static int InterpretAdd(byte[] resp, int[] handler)
+        internal static int? InterpretAdd(byte[] resp, int[] handler)
         {
             ThrowOnStatus(resp, "add", handler);
             var f = M2Message.ParseAllFields(resp);
-            return f.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null ? Convert.ToInt32(t.Item2) : -1;
+            return f.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null
+                ? unchecked((int)Convert.ToUInt32(t.Item2))
+                : (int?)null;
         }
 
         /// <summary>
