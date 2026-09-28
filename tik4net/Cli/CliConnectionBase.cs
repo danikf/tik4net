@@ -811,6 +811,15 @@ namespace tik4net.Cli
             if (printVerb == "get")
                 return await RunGetAsync(descriptor, cancellationToken).ConfigureAwait(false);
 
+            // A command whose rows answer a question its own arguments ask — /console/inspect request=child
+            // path=ip,route,add. BuildPrint knows only print modifiers and 'where', so it dropped request= and
+            // path= and sent ':put [/console inspect as-value]', which the router answered with no rows: an empty
+            // answer indistinguishable from a real one. The monitor snapshot passes the arguments through; with no
+            // modifier it is ':put [/console inspect request=child path=ip,route,add as-value]' (7.24.4: 14 rows).
+            if (IsArgumentRead(printVerb))
+                return await RunMonitorSnapshotAsync(descriptor, modifier: string.Empty, includeFilters: true,
+                    cancellationToken).ConfigureAwait(false);
+
             // .proplist: the fields the caller asked for, and only those — the binary API's contract. It never
             // reaches the wire: the CLI's own proplist= refuses the whole read when one name is unknown
             // ("input does not match any value of value-name", 7.24) where the API ignores the name. So the
@@ -2316,6 +2325,9 @@ namespace tik4net.Cli
         // Actions reached through a read method because the binary API returns an empty row for them.
         // Kept minimal and explicit (like CliCommandBuilder.CliPresenceFlagFields); extend as more surface.
         private static bool IsEmptyRowAction(string verb) => verb == "wol";
+
+        // Reads whose arguments are the question, not a filter over a table (see RunPrintCoreAsync).
+        private static bool IsArgumentRead(string verb) => verb == "inspect";
 
         // Misuse of a read method (ExecuteList/ExecuteScalar/…) on an action command — guide to ExecuteNonQuery.
         private NotSupportedException ActionVerbOnReadPath(string commandText)

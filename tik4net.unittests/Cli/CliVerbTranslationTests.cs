@@ -60,6 +60,27 @@ namespace tik4net.unittests.Cli
         private static ITikCommandParameter NameValue(ITikConnection c, string name, string value)
             => c.CreateParameter(name, value, TikCommandParameterFormat.NameValue);
 
+        // ── inspect ───────────────────────────────────────────────────────────
+
+        [TestMethod]
+        public void InspectKeepsItsArguments_TheyAreTheQuestion()
+        {
+            // Read through the print path, request= and path= were dropped: ':put [/console inspect as-value]',
+            // which 7.24.4 answers with no rows — an empty result that looked like a real one.
+            using (var conn = Open("name=add;node-type=cmd;type=self;name=routing-table;node-type=arg;type=child"))
+            {
+                var rows = conn.CreateCommand("/console/inspect",
+                    NameValue(conn, "request", "child"),
+                    NameValue(conn, "path", "ip,route,add")).ExecuteList().ToList();
+
+                StringAssert.StartsWith(conn.Sent.Single(), ":put [/console inspect request=child path=");
+                StringAssert.Contains(conn.Sent.Single(), "ip,route,add");
+                StringAssert.EndsWith(conn.Sent.Single(), " as-value]");
+                Assert.AreEqual(2, rows.Count);
+                Assert.AreEqual("routing-table", rows[1].GetResponseField("name"));
+            }
+        }
+
         // ── get ───────────────────────────────────────────────────────────────
 
         [TestMethod]

@@ -926,6 +926,13 @@ as a duplicated row.
   *read* method because the binary API returns an empty row for them, even though they act rather than
   query (`CliConnectionBase.IsEmptyRowAction`).
 
+**`/console inspect` is read with its arguments.** `:put [/console inspect request=child path="ip,route,add" as-value]`
+answers the rows (7.24.4: 14, one per argument plus the verb itself); the print path would drop `request=`/`path=`
+and `:put [/console inspect as-value]` answers nothing at all — an empty result that looks like a real one. The rows
+carry no `.id`, so as-value gives `name=add;node-type=cmd;type=self;name=blackhole;…`: a row ends where a field comes
+round again (`CliOutputParser.ParseAsValue`). RouterOS 6.49.13 has no `inspect` (`bad command name inspect`); its
+grammar is reachable only by Tab completion (§14).
+
 ---
 
 ## 9. Monitor and streaming commands

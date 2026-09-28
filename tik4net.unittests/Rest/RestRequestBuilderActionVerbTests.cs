@@ -103,6 +103,17 @@ namespace tik4net.unittests.Rest
         }
 
         [TestMethod]
+        public void Inspect_IsPostedToItsOwnPath_NotAnImplicitPrint()
+        {
+            // POST /rest/console/inspect/print → 400 "no such command"; POST /rest/console/inspect answers (7.24.4).
+            var req = RestRequestBuilder.Build("/console/inspect", Params(("request", "child"), ("path", "ip,route,add")));
+
+            Assert.AreEqual("POST", req.Method.Method);
+            Assert.AreEqual("/console/inspect", req.RelativePath);
+            StringAssert.Contains(req.JsonBody, "\"path\":\"ip,route,add\"");
+        }
+
+        [TestMethod]
         public void NonQuery_ActionWithNoParameters_PostsWithoutABody()
         {
             // 'renew' is deliberately NOT on the write-verb allow-list — this exercises the new fallback

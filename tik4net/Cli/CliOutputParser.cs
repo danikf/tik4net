@@ -42,7 +42,10 @@ namespace tik4net.Cli
             foreach (char c in output)
                 flat.Append(c == '\r' || c == '\n' ? ';' : c);
 
-            // Parse the ordered key=value sequence, then group into records at '.id' boundaries.
+            // Parse the ordered key=value sequence, then group into records at '.id' boundaries — or, for rows
+            // that carry no .id (/console inspect: name=add;node-type=cmd;type=self;name=blackhole;…), where a
+            // key comes round again: a row never holds one field twice, and without this every row merged into
+            // one, the last value of each field winning.
             var pairs = ParseOrderedFields(flat.ToString());
 
             var records = new List<Dictionary<string, string>>();
@@ -50,7 +53,7 @@ namespace tik4net.Cli
             foreach (var kv in pairs)
             {
                 bool isId = string.Equals(kv.Key, TikSpecialProperties.Id, StringComparison.OrdinalIgnoreCase);
-                if (current == null || (isId && current.Count > 0))
+                if (current == null || (isId && current.Count > 0) || current.ContainsKey(kv.Key))
                 {
                     current = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     records.Add(current);

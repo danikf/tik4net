@@ -258,6 +258,10 @@ configuration) — `200` with nothing in the log is correct router behaviour, no
 stays in `RestRequestBuilder`'s explicit write-verb list rather than relying on `RestCallKind.NonQuery`
 alone; both paths produce the same URL.
 
+**`/console/inspect` is the same shape**: a read whose parameters (`request=`, `path=`) are the question.
+`POST /rest/console/inspect` with `{"request":"child","path":"ip,route,add"}` answers the argument rows (7.24.4);
+the implicit-`print` form `POST /rest/console/inspect/print` answers `400 no such command`. It is on the same list.
+
 **WinBox native cannot write a log row at all** — `/log` maps to handler `[3,4]` with `cmds={}` in the
 `.jg` catalog, and no window across the whole catalog exposes a `doit`/action for it. That transport
 reports `NotSupportedException` rather than attempting the write, so cross-checking against it would not
