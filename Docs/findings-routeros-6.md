@@ -151,11 +151,11 @@ other's name on a write — 6.49.13 with a bare `unknown parameter` that names n
 accepts `/ip/service address`, which is why that entity declares `address` first. A filter spelled with the 7.x
 name silently matches nothing on 6.x, over the API and the CLI alike; 7.24 accepts the old name in a filter.
 
-**A field 6.x does not have reads as the entity's default.** The mapper fills a field the row lacks with the
-property's default, so `ToolEmail` loaded from 6.49.13 reads `tls=no`, `certificate-verification=no`,
-`vrf=main` — none of which that router has. A loaded entity saves only what changed, singletons included, so
-those values are never written back; an entity saved without being loaded sends everything it holds, and on 6.x
-that is refused as soon as it holds a 7.x-only field.
+**A field 6.x does not have reads absent.** `ToolEmail` loaded from 6.49.13 has no `tls`,
+`certificate-verification` or `vrf` — the router does not print them, and `DefaultValue` only documents the 7.x
+default. A loaded entity saves only what changed, singletons included, so nothing 7.x-only is written back; an
+entity saved without being loaded sends everything it holds, and on 6.x that is refused as soon as it holds a
+7.x-only field.
 
 **A menu can change shape.** `/interface/ovpn-server/server` is one unnamed server on 6.49.13 (no `.id`, no
 `add`) and a list of named servers on RouterOS 7. `OvpnServer` maps the list; on 6.x `LoadAll` reads the one
