@@ -93,13 +93,30 @@ namespace tik4net.Connection
         public Encoding Encoding { get; set; } = Encoding.UTF8;
 
         /// <inheritdoc/>
-        public int SendTimeout { get; set; } = 30000;
+        public TimeSpan SendTimeout
+        {
+            get => TimeSpan.FromMilliseconds(SendTimeoutMs);
+            set => SendTimeoutMs = TikTimeouts.ToMilliseconds(value);
+        }
 
         /// <inheritdoc/>
-        public int ReceiveTimeout { get; set; } = 30000;
+        public TimeSpan ReceiveTimeout
+        {
+            get => TimeSpan.FromMilliseconds(ReceiveTimeoutMs);
+            set => ReceiveTimeoutMs = TikTimeouts.ToMilliseconds(value);
+        }
 
         /// <inheritdoc/>
-        public int ConnectTimeout { get; set; } = 15000;
+        public TimeSpan ConnectTimeout
+        {
+            get => TimeSpan.FromMilliseconds(ConnectTimeoutMs);
+            set => ConnectTimeoutMs = TikTimeouts.ToMilliseconds(value);
+        }
+
+        // The transports' sockets and read loops count in milliseconds; these are the public timeouts in that unit.
+        internal int SendTimeoutMs { get; set; } = 30000;
+        internal int ReceiveTimeoutMs { get; set; } = 30000;
+        internal int ConnectTimeoutMs { get; set; } = 15000;
 
         /// <inheritdoc/>
         public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;

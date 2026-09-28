@@ -344,9 +344,9 @@ namespace tik4net
             Guard.ArgumentNotNull(connection, nameof(connection));
             RequireUsableAddress(connection);
 
-            connection.ConnectTimeout = ToMilliseconds(ConnectTimeout);
-            connection.ReceiveTimeout = ToMilliseconds(ReceiveTimeout);
-            connection.SendTimeout = ToMilliseconds(SendTimeout);
+            connection.ConnectTimeout = ConnectTimeout;
+            connection.ReceiveTimeout = ReceiveTimeout;
+            connection.SendTimeout = SendTimeout;
             connection.Encoding = Encoding;
             if (DebugEnabled.HasValue)
                 connection.DebugEnabled = DebugEnabled.Value;
@@ -449,14 +449,6 @@ namespace tik4net
         // A TimeSpan is the friendlier option type; the connections take milliseconds. Saturating rather
         // than overflowing keeps "effectively no bound" (TimeSpan.MaxValue) from arriving as a negative
         // millisecond count, which several transports would read as "no wait at all".
-        private static int ToMilliseconds(TimeSpan value)
-        {
-            double ms = value.TotalMilliseconds;
-            if (ms >= int.MaxValue) return int.MaxValue;
-            if (ms <= int.MinValue) return int.MinValue;
-            return (int)ms;
-        }
-
         // ── Per-transport factories live in the transport's own namespace ─────
         //
         // CreateApiConnection(), CreateTelnetConnection(), CreateWinboxNativeConnection(…) and the rest are

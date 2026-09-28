@@ -118,9 +118,9 @@ namespace tik4net.unittests.Connection
             {
                 using (var conn = setup.CreateUnopened(type))
                 {
-                    Assert.AreEqual(7000, conn.ConnectTimeout, type + ": ConnectTimeout");
-                    Assert.AreEqual(11000, conn.ReceiveTimeout, type + ": ReceiveTimeout");
-                    Assert.AreEqual(13000, conn.SendTimeout, type + ": SendTimeout");
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(7000), conn.ConnectTimeout, type + ": ConnectTimeout");
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(11000), conn.ReceiveTimeout, type + ": ReceiveTimeout");
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(13000), conn.SendTimeout, type + ": SendTimeout");
                     Assert.AreSame(Encoding.ASCII, conn.Encoding, type + ": Encoding");
                     Assert.IsTrue(conn.DebugEnabled, type + ": DebugEnabled");
                 }
@@ -153,9 +153,9 @@ namespace tik4net.unittests.Connection
             };
             using (var conn = setup.CreateUnopened(TikConnectionType.Api))
             {
-                Assert.AreEqual(int.MaxValue, conn.ConnectTimeout);
-                Assert.AreEqual(int.MaxValue, conn.ReceiveTimeout);
-                Assert.AreEqual(int.MaxValue, conn.SendTimeout);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(int.MaxValue), conn.ConnectTimeout);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(int.MaxValue), conn.ReceiveTimeout);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(int.MaxValue), conn.SendTimeout);
             }
         }
 
@@ -391,8 +391,8 @@ namespace tik4net.unittests.Connection
             {
                 using (var conn = ConnectionFactory.CreateConnection(type))
                 {
-                    Assert.AreEqual(15000, conn.ConnectTimeout, type + ": ConnectTimeout");
-                    Assert.AreEqual(30000, conn.ReceiveTimeout, type + ": ReceiveTimeout");
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(15000), conn.ConnectTimeout, type + ": ConnectTimeout");
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(30000), conn.ReceiveTimeout, type + ": ReceiveTimeout");
                     // Tagging is on by default since 4.0, and that default belongs to the transport rather
                     // than to the setup — a connection from the shim carries it too.
                     if (conn is ITikTaggedConnection tagged)

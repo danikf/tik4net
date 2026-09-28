@@ -254,7 +254,7 @@ namespace tik4net.WinboxNative
                 session = CreateChannel();
                 try
                 {
-                    session.Open(host, port, user, password, ConnectTimeout, ReceiveTimeout, SendTimeout);
+                    session.Open(host, port, user, password, ConnectTimeoutMs, ReceiveTimeoutMs, SendTimeoutMs);
                 }
                 catch (TikConnectionLoginException)
                 {
@@ -315,7 +315,7 @@ namespace tik4net.WinboxNative
             // ReceiveTimeout, not ConnectTimeout: this bounds each M2 operation, not the connect phase.
             // (P1.8 left this as ConnectTimeout because per-read socket deadlines made the distinction
             // moot; with per-request deadlines in the multiplexer it is now the value that actually fires.)
-            _ops = new WinboxNativeM2Operations(session, ReceiveTimeout);
+            _ops = new WinboxNativeM2Operations(session, ReceiveTimeoutMs);
             // Participate in the shared row-level diagnostics: render each raw M2 request/reply to the
             // OnWriteRow/OnReadRow events (gated so the describe is only built when something listens).
             _ops.OnRequest = msg => { if (RowTracingEnabled) FireWriteRow(M2Message.Describe(msg)); };
@@ -1285,15 +1285,15 @@ namespace tik4net.WinboxNative
                 // republishes a longer table every autorefresh until the last hop is probed. A continuous
                 // window has no end to wait for, so for those the first pass IS the answer.
                 bool waitForDone = TikMonitorVerbs.SelfTerminating(TikPath.Verb(descriptor.CommandText));
-                var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeout);
+                var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
 
                 // A caller's duration= keeps a continuous window open for that long and returns every pass, the
                 // way the API streams a report per refresh until the duration ends (/tool/romon/discover
                 // duration=3 → three reports). The window has no input for it — see IsMonitorSnapshotModifier.
                 TimeSpan? duration = waitForDone ? null : MonitorDuration(descriptor);
                 DateTime? runUntil = duration.HasValue ? DateTime.UtcNow + duration.Value : (DateTime?)null;
-                if (runUntil.HasValue && runUntil.Value.AddMilliseconds(ReceiveTimeout) > deadline)
-                    deadline = runUntil.Value.AddMilliseconds(ReceiveTimeout);
+                if (runUntil.HasValue && runUntil.Value.AddMilliseconds(ReceiveTimeoutMs) > deadline)
+                    deadline = runUntil.Value.AddMilliseconds(ReceiveTimeoutMs);
 
                 WinboxM2Continuation? continuation = null;
                 while (true)
@@ -1321,9 +1321,9 @@ namespace tik4net.WinboxNative
                     // Bounded so a command that never finishes fails like any other unfinished read instead of
                     // hanging on this thread forever.
                     if (DateTime.UtcNow >= deadline)
-                        throw new TikConnectionReceiveTimeoutException(ReceiveTimeout,
+                        throw new TikConnectionReceiveTimeoutException(ReceiveTimeoutMs,
                             $"WinBox native: '{descriptor.CommandText}' produced {rows.Count} row(s) but never " +
-                            $"reported itself finished within {ReceiveTimeout} ms.");
+                            $"reported itself finished within {ReceiveTimeoutMs} ms.");
                     await Task.Delay(Math.Max(100, spec.AutorefreshMs), cancellationToken).ConfigureAwait(false);
                 }
             }

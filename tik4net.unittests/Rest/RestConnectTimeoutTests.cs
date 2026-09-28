@@ -35,8 +35,8 @@ namespace tik4net.unittests.Rest
             using (var server = new ScriptedHttpServer()) // no scripted reply: the probe stalls
             using (var conn = new RestConnection(useSsl: false))
             {
-                conn.ConnectTimeout = ShortTimeoutMs;
-                Assert.AreEqual(30000, conn.ReceiveTimeout, "precondition: the receive timeout is the longer one");
+                conn.ConnectTimeout = TimeSpan.FromMilliseconds(ShortTimeoutMs);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(30000), conn.ReceiveTimeout, "precondition: the receive timeout is the longer one");
 
                 var sw = Stopwatch.StartNew();
                 var ex = Assert.ThrowsException<IOException>(
@@ -72,7 +72,7 @@ namespace tik4net.unittests.Rest
             using (var conn = new RestConnection(useSsl: false))
             using (var cts = new CancellationTokenSource())
             {
-                conn.ConnectTimeout = 30000;   // far longer than the cancel below, so the cancel is what ends the wait
+                conn.ConnectTimeout = TimeSpan.FromMilliseconds(30000);   // far longer than the cancel below, so the cancel is what ends the wait
                 cts.CancelAfter(250);
 
                 Exception caught = null;
@@ -127,9 +127,9 @@ namespace tik4net.unittests.Rest
             using (var server = new ScriptedHttpServer("{}")) // the probe is answered, the command is not
             using (var conn = new RestConnection(useSsl: false))
             {
-                conn.ConnectTimeout = 120000;
-                conn.SendTimeout = ShortTimeoutMs;
-                conn.ReceiveTimeout = ShortTimeoutMs;
+                conn.ConnectTimeout = TimeSpan.FromMilliseconds(120000);
+                conn.SendTimeout = TimeSpan.FromMilliseconds(ShortTimeoutMs);
+                conn.ReceiveTimeout = TimeSpan.FromMilliseconds(ShortTimeoutMs);
                 conn.Open("127.0.0.1", server.Port, "admin", "");
 
                 var descriptor = new TikCommandDescriptor("/ip/address/print", new List<ITikCommandParameter>());

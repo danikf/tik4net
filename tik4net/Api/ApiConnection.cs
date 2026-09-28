@@ -117,21 +117,28 @@ namespace tik4net.Api
             set { _sendTagWithSyncCommand = value; }
         }
 
-        public int SendTimeout
+        public TimeSpan SendTimeout
         {
-            get { return _sendTimeout; }
-            set { _sendTimeout = value; }
+            get { return TimeSpan.FromMilliseconds(_sendTimeout); }
+            set { _sendTimeout = TikTimeouts.ToMilliseconds(value); }
         }
 
-        public int ReceiveTimeout
+        public TimeSpan ReceiveTimeout
         {
-            get { return _receiveTimeout; }
-            set { _receiveTimeout = value; }
+            get { return TimeSpan.FromMilliseconds(_receiveTimeout); }
+            set { _receiveTimeout = TikTimeouts.ToMilliseconds(value); }
         }
 
         /// <inheritdoc/>
         /// <remarks>Bounds the initial TCP handshake (and, on API-SSL, the TLS handshake).</remarks>
-        public int ConnectTimeout { get; set; } = 15000;
+        public TimeSpan ConnectTimeout
+        {
+            get { return TimeSpan.FromMilliseconds(ConnectTimeoutMs); }
+            set { ConnectTimeoutMs = TikTimeouts.ToMilliseconds(value); }
+        }
+
+        internal int ReceiveTimeoutMs => _receiveTimeout;
+        internal int ConnectTimeoutMs { get; private set; } = 15000;
 
         public bool IsSsl
         {
@@ -297,7 +304,7 @@ namespace tik4net.Api
                 // The delay carries the token, so the same WhenAny races BOTH the deadline and the caller's
                 // cancellation. Which of the two ended the wait is then read off the token, because a
                 // cancelled open must not be reported as a router that timed out.
-                var timeoutTask = System.Threading.Tasks.Task.Delay(ConnectTimeout, cancellationToken);
+                var timeoutTask = System.Threading.Tasks.Task.Delay(ConnectTimeoutMs, cancellationToken);
                 if (await System.Threading.Tasks.Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false) == timeoutTask)
                 {
                     // Observe the abandoned connect so a later "connection refused" cannot surface as an
@@ -332,7 +339,7 @@ namespace tik4net.Api
                         // port reads it as a word length and waits for the rest of a sentence that will
                         // never come), and Open would then hang for as long as the process lived.
                         var authTask = sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false);
-                        var authTimeout = System.Threading.Tasks.Task.Delay(ConnectTimeout, cancellationToken);
+                        var authTimeout = System.Threading.Tasks.Task.Delay(ConnectTimeoutMs, cancellationToken);
                         if (await System.Threading.Tasks.Task.WhenAny(authTask, authTimeout).ConfigureAwait(false) == authTimeout)
                         {
                             _ = authTask.ContinueWith(tsk => { _ = tsk.Exception; },
@@ -342,7 +349,7 @@ namespace tik4net.Api
                                 API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
                                 "The peer on port " + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
                                 + " never answered the TLS handshake within "
-                                + (ConnectTimeout / 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                + (ConnectTimeoutMs / 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
                                 + " s, so it is not serving API-SSL.", null);
                         }
                         await authTask.ConfigureAwait(false);   // observe/rethrow the handshake's own failure

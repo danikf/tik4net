@@ -55,7 +55,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = 5000;        // keep a mis-addressed reply short, not 30 s
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(5000);        // keep a mis-addressed reply short, not 30 s
                 connection.SendTagWithSyncCommand = tagged;
                 open(connection, "127.0.0.1", server.Port).GetAwaiter().GetResult();
                 Assert.IsTrue(connection.IsOpened);
@@ -144,7 +144,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = 5000;
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(5000);
                 connection.SendTagWithSyncCommand = true;
                 connection.OpenAsync("127.0.0.1", server.Port, TestUser, TestPassword).GetAwaiter().GetResult();
                 connection.Close();

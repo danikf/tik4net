@@ -62,7 +62,7 @@ namespace tik4net.unittests.Api
 
                 using (var connection = new ApiConnection(false))
                 {
-                    connection.ReceiveTimeout = receiveTimeoutMs;
+                    connection.ReceiveTimeout = TimeSpan.FromMilliseconds(receiveTimeoutMs);
                     connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                     var sw = Stopwatch.StartNew();
@@ -100,7 +100,7 @@ namespace tik4net.unittests.Api
 
                 using (var connection = new ApiConnection(false))
                 {
-                    connection.ReceiveTimeout = receiveTimeoutMs;
+                    connection.ReceiveTimeout = TimeSpan.FromMilliseconds(receiveTimeoutMs);
                     connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                     var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(

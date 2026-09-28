@@ -52,7 +52,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = 2000;    // keep the failure short if the tag is not understood
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(2000);    // keep the failure short if the tag is not understood
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                 var rows = connection.CallCommandSync(new[] { "/interface/print", "=.tag=77" }).ToList();
@@ -76,7 +76,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = 2000;
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(2000);
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                 var rows = connection.CallCommandSync(new[] { "/interface/print", $"{TikSpecialProperties.Tag}=88" }).ToList();

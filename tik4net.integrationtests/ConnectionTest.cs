@@ -161,7 +161,7 @@ namespace tik4net.integrationtests
             using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
             {
                 connection.Open(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass"));
-                connection.ReceiveTimeout = 1; //very short timeout
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(1); //very short timeout
                 connection.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "192.0.2.1", "count", "2").ExecuteList();
                 connection.Close();
             }
@@ -183,7 +183,7 @@ namespace tik4net.integrationtests
         {
             using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
             {
-                connection.ReceiveTimeout = 500; //wait for 2x 500ms
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(500); //wait for 2x 500ms
                 connection.Open("192.168.99.1" /*Not accessible IP*/, LabConfig.Get("user"), LabConfig.Get("pass"));
                 connection.Close();
             }
@@ -196,7 +196,7 @@ namespace tik4net.integrationtests
                 {
                     using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
                     {
-                        connection.ReceiveTimeout = 500; //wait for 2x 500ms
+                        connection.ReceiveTimeout = TimeSpan.FromMilliseconds(500); //wait for 2x 500ms
                         await connection.OpenAsync(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass"));
                     }
                 }).GetAwaiter().GetResult();
@@ -211,7 +211,7 @@ namespace tik4net.integrationtests
                 using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
                 {
                     await connection.OpenAsync(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass"));
-                    connection.ReceiveTimeout = 1; //very short timeout + using async version
+                    connection.ReceiveTimeout = TimeSpan.FromMilliseconds(1); //very short timeout + using async version
                     // A read the router cannot answer inside the timeout whatever its speed — see the sync test.
                     await connection.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "192.0.2.1", "count", "2")
                         .ExecuteListAsync();

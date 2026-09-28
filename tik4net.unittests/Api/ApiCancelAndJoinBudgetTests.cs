@@ -60,7 +60,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = ReceiveTimeoutMs;
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(ReceiveTimeoutMs);
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                 var rows = new List<ITikReSentence>();

@@ -64,9 +64,9 @@ namespace tik4net.unittests.Connection
             {
                 using (var conn = ConnectionFactory.CreateConnection(type, setup))
                 {
-                    Assert.AreEqual(7000, conn.ConnectTimeout, $"ConnectTimeout on {type}");
-                    Assert.AreEqual(11000, conn.ReceiveTimeout, $"ReceiveTimeout on {type}");
-                    Assert.AreEqual(13000, conn.SendTimeout, $"SendTimeout on {type}");
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(7000), conn.ConnectTimeout, $"ConnectTimeout on {type}");
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(11000), conn.ReceiveTimeout, $"ReceiveTimeout on {type}");
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(13000), conn.SendTimeout, $"SendTimeout on {type}");
                     Assert.AreSame(Encoding.ASCII, conn.Encoding, $"Encoding on {type}");
                     Assert.IsTrue(conn.DebugEnabled, $"DebugEnabled on {type}");
                     Assert.IsFalse(conn.IsOpened, $"{type} must be created unopened");

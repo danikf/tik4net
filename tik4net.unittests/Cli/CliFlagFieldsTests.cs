@@ -528,7 +528,7 @@ namespace tik4net.unittests.Cli
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = 2000;
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(2000);
                 connection.Open("127.0.0.1", server.Port, "admin", "secret");
 
                 var row = connection.LoadAll<FlagProbe>().Single();

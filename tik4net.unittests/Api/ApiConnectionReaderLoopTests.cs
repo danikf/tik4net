@@ -67,7 +67,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = receiveTimeoutMs;
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(receiveTimeoutMs);
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                 var firstDispatched = new ManualResetEventSlim(false);
@@ -167,7 +167,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = 300;
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(300);
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                 Thread.Sleep(1000);                          // > 3× the receive timeout, with no traffic
@@ -250,7 +250,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                connection.ReceiveTimeout = 500;
+                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(500);
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                 var sw = Stopwatch.StartNew();

@@ -147,7 +147,7 @@ namespace tik4net
         Encoding Encoding { get; set; }
 
         /// <summary>
-        /// How long a send may block before it fails, in milliseconds. Defaults to 30 000 on every
+        /// How long a send may block before it fails. Defaults to 30 s on every
         /// transport. Must be set before <see cref="Open(string, string, string)"/>: it is applied to the
         /// socket as the connection opens.
         /// </summary>
@@ -157,7 +157,7 @@ namespace tik4net
         /// a <i>write</i> may block, not how long the router may take to answer.
         /// <list type="bullet">
         /// <item><c>Api</c>, <c>ApiSsl</c>, <c>Telnet</c>, <c>WinboxCli</c>, <c>WinboxNative</c> — applied to
-        /// the TCP socket and its stream. Zero means no send bound.</item>
+        /// the TCP socket and its stream. <see cref="TimeSpan.Zero"/> means no send bound.</item>
         /// <item><c>Rest</c>, <c>RestSsl</c> — HTTP gives no separate send phase to bound, so the request is
         /// bounded by the larger of this and <see cref="ReceiveTimeout"/>.</item>
         /// <item><c>MacTelnet</c>, <c>WinboxCliMac</c>, <c>WinboxNativeMac</c> — <b>ignored.</b> These write
@@ -170,10 +170,10 @@ namespace tik4net
         /// setter for a value that is merely inapplicable — would make a portable configuration object
         /// impossible to write.
         /// </remarks>
-        int SendTimeout { get; set; }
+        TimeSpan SendTimeout { get; set; }
 
         /// <summary>
-        ///     Gets or sets the amount of time a ITikConnection will wait to receive data once a read operation is initiated. In miliseconds.
+        /// Gets or sets how long a command waits for its answer. Defaults to 30 s.
         /// </summary>
         /// <remarks>
         /// <para>Must be called before <see cref="Open(string, string, string)"/> call.</para>
@@ -184,11 +184,11 @@ namespace tik4net
         /// other's.
         /// </para>
         /// </remarks>
-        int ReceiveTimeout { get; set; }
+        TimeSpan ReceiveTimeout { get; set; }
 
         /// <summary>
         /// Gets or sets the amount of time <see cref="Open(string, string, string)"/> may spend reaching the
-        /// router before it fails. In milliseconds, default 15 000.
+        /// router before it fails. Defaults to 15 s.
         /// </summary>
         /// <remarks>
         /// <para>Must be set before the <c>Open</c> call; changing it afterwards has no effect.</para>
@@ -202,7 +202,7 @@ namespace tik4net
         /// each transport's own documentation says which.
         /// </para>
         /// </remarks>
-        int ConnectTimeout { get; set; }
+        TimeSpan ConnectTimeout { get; set; }
 
         /// <summary>
         /// Event called when row (word) from mikrotik is read by connection.
@@ -279,7 +279,7 @@ namespace tik4net
 
         /// <summary>
         /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
-        /// Awaitable version. <see cref="ConnectTimeout"/> (default 15 000 ms) bounds the connect and the login
+        /// Awaitable version. <see cref="ConnectTimeout"/> (default 15 s) bounds the connect and the login
         /// exchange; what else falls inside it differs per transport — MNDP discovery on the MAC-layer
         /// transports and the <c>.jg</c> catalog load on native WinBox are bounded separately, and each
         /// transport's own type documents which.

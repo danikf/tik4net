@@ -195,7 +195,7 @@ namespace tik4net.unittests.Connection
             var setup = RomonSetup();
             setup.ReceiveTimeout = TimeSpan.FromSeconds(11);
             using (var conn = setup.CreateUnopened(TikConnectionType.Telnet))
-                Assert.AreEqual(11000, conn.ReceiveTimeout);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(11000), conn.ReceiveTimeout);
         }
 
         [TestMethod]

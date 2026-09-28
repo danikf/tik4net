@@ -277,14 +277,14 @@ namespace tik4net.Testing
         // code under test can set it without knowing it is talking to a fake.
 
         /// <inheritdoc/>
-        public int SendTimeout { get; set; }
+        public TimeSpan SendTimeout { get; set; }
 
         /// <inheritdoc/>
-        public int ReceiveTimeout { get; set; }
+        public TimeSpan ReceiveTimeout { get; set; }
 
         /// <inheritdoc/>
         /// <remarks>Accepted and ignored — the fake connection reaches no router to be slow.</remarks>
-        public int ConnectTimeout { get; set; } = 15000;
+        public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
 
         /// <inheritdoc/>
         public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow { add { } remove { } }

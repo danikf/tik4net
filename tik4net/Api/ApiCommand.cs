@@ -309,7 +309,7 @@ namespace tik4net.Api
         }
 
 
-        public void ExecuteNonQuery() => ExecuteNonQuery(_connection?.ReceiveTimeout ?? 0);
+        public void ExecuteNonQuery() => ExecuteNonQuery(_connection?.ReceiveTimeoutMs ?? 0);
 
         /// <summary>
         /// <see cref="ExecuteNonQuery()"/> with an explicit reply deadline. Used by
@@ -906,7 +906,7 @@ namespace tik4net.Api
                 // only the first one says the connection is in trouble. What changes is when you hear it.
                 int budgetStart = Environment.TickCount;
                 cancellCommand.ExecuteNonQuery(
-                    milisecondsTimeout > 0 ? milisecondsTimeout : _connection.ReceiveTimeout);
+                    milisecondsTimeout > 0 ? milisecondsTimeout : _connection.ReceiveTimeoutMs);
 
                 if (joinLoadingThread)
                 {

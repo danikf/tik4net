@@ -127,7 +127,7 @@ namespace tik4net.WinboxCliMac
             // and every delegate below must then be talking to the new one.
             // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of
             // scope here), but null is its documented meaning: discover the router via MNDP.
-            var client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, ReceiveTimeout, ConnectTimeout, SendTimeout);
+            var client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
             Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
 
@@ -147,7 +147,7 @@ namespace tik4net.WinboxCliMac
                 await RouterLoginRetry.RunAsync(async () =>
                 {
                     // See the comment on the first WinboxMacM2Session construction above.
-                    client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, ReceiveTimeout, ConnectTimeout, SendTimeout);
+                    client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
                     await client.LoginAsync(host, port, user, password, ct).ConfigureAwait(false);
                 }).ConfigureAwait(false);
             };

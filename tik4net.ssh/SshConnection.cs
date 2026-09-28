@@ -83,7 +83,7 @@ namespace tik4net.Ssh
             Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
-            var client = new SshShellClient(Encoding, ReceiveTimeout);
+            var client = new SshShellClient(Encoding, ReceiveTimeoutMs);
             var romonTarget = RomonTarget;
             Func<CancellationToken, Task> login = async ct =>
             {
@@ -91,7 +91,7 @@ namespace tik4net.Ssh
                 // reusing the send budget for it was how this transport ignored the option entirely (D1).
                 if (romonTarget == null)
                 {
-                    client.Connect(host, port, user, password, ConnectTimeout);
+                    client.Connect(host, port, user, password, ConnectTimeoutMs);
                     await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
                     return;
                 }
@@ -99,7 +99,7 @@ namespace tik4net.Ssh
                 // Through a RoMON agent: host/user/password are the agent's, the target comes after.
                 try
                 {
-                    client.Connect(host, port, user, password, ConnectTimeout);
+                    client.Connect(host, port, user, password, ConnectTimeoutMs);
                     await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
                 }
                 // Only the agent answering and saying no is its login failing; a port that refuses or never

@@ -110,7 +110,7 @@ namespace tik4net.WinboxCli
             Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
-            var client = new WinboxCliClient(new tik4net.Winbox.WinboxM2Session(), Encoding, ReceiveTimeout, ConnectTimeout, SendTimeout);
+            var client = new WinboxCliClient(new tik4net.Winbox.WinboxM2Session(), Encoding, ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
             Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,

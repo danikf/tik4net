@@ -49,7 +49,7 @@ namespace tik4net.integrationtests
 
                 using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
                 {
-                    connection.ReceiveTimeout = ReceiveTimeoutMs;
+                    connection.ReceiveTimeout = TimeSpan.FromMilliseconds(ReceiveTimeoutMs);
                     connection.OnReadRow += (s, e) =>
                     {
                         long now = sw.ElapsedTicks;
@@ -104,7 +104,7 @@ namespace tik4net.integrationtests
 
                 using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
                 {
-                    connection.ReceiveTimeout = ReceiveTimeoutMs;
+                    connection.ReceiveTimeout = TimeSpan.FromMilliseconds(ReceiveTimeoutMs);
                     connection.OnReadRow += (s, e) =>
                     {
                         long now = sw.ElapsedTicks;

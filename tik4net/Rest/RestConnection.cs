@@ -220,7 +220,7 @@ namespace tik4net.Rest
             try
             {
                 await SendHttpAsync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"),
-                    ConnectTimeout, cancellationToken).ConfigureAwait(false);
+                    ConnectTimeoutMs, cancellationToken).ConfigureAwait(false);
                 // 401 = wrong credentials, already handled by SendHttpAsync → TikConnectionLoginException
                 SetOpened();
             }
@@ -239,7 +239,7 @@ namespace tik4net.Rest
                 _httpClient = null;
                 throw new System.IO.IOException(
                     $"REST connection to {host}:{port} timed out: the router did not answer the open probe " +
-                    $"within ConnectTimeout ({ConnectTimeout} ms).", ex);
+                    $"within ConnectTimeout ({ConnectTimeoutMs} ms).", ex);
             }
             catch (OperationCanceledException)
             {
@@ -489,7 +489,7 @@ namespace tik4net.Rest
             var req = RestRequestBuilder.Build(commandText, parameters, kind);
             FireWriteRow(req.Method.Method + " " + req.RelativePath);
 
-            var httpResp = await SendHttpAsync(BuildHttpRequest(req), Math.Max(SendTimeout, ReceiveTimeout),
+            var httpResp = await SendHttpAsync(BuildHttpRequest(req), Math.Max(SendTimeoutMs, ReceiveTimeoutMs),
                 cancellationToken).ConfigureAwait(false);
             var body = await httpResp.Content.ReadAsStringAsync().ConfigureAwait(false);
             FireReadRow(body);
