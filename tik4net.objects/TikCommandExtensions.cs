@@ -32,7 +32,7 @@ namespace tik4net.Objects
 
             var responseSentences = command.ExecuteList();
 
-            return responseSentences.Select(sentence => CreateObject<TEntity>(sentence)).ToList();
+            return Materialize<TEntity>(command, responseSentences);
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace tik4net.Objects
 
             var responseSentences = command.ExecuteListWithDuration(durationSec);
 
-            return responseSentences.Select(sentence => CreateObject<TEntity>(sentence)).ToList();
+            return Materialize<TEntity>(command, responseSentences);
         }
 
         /// <summary>
@@ -136,7 +136,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(onLoadItemCallback, "onLoadItemCallback");
 
             command.ExecuteWithCallback(
-                reSentence => onLoadItemCallback(CreateObject<TEntity>(reSentence)),
+                reSentence => onLoadItemCallback(MaterializeOne<TEntity>(command, reSentence)),
                 trapSentence =>
                 {
                     if (onExceptionCallback != null)
@@ -190,7 +190,7 @@ namespace tik4net.Objects
                     }
                     else
                     {
-                        onChangeCallback(CreateObject<TEntity>(reSentence));
+                        onChangeCallback(MaterializeOne<TEntity>(command, reSentence));
                     }
                 },
                 trapSentence =>
@@ -201,13 +201,27 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Materializes one <c>!re</c> row into an entity. Internal rather than private so the Task-based
-        /// half of the mapper (<see cref="TikObjectsCommandAsyncExtensions"/>) deserializes through this same
-        /// method — an async load that materialized rows its own way would be a second mapper.
+        /// Materializes a whole read and reports it to the connection's <see cref="ITikEntityDiagnostics"/>. Internal
+        /// rather than private so the Task-based half of the mapper (<see cref="TikObjectsCommandAsyncExtensions"/>) reads
+        /// through this same method — an async load that materialized rows its own way would be a second mapper.
         /// </summary>
-        internal static TEntity CreateEntity<TEntity>(ITikReSentence sentence)
+        internal static List<TEntity> Materialize<TEntity>(ITikCommand command, IEnumerable<ITikReSentence> sentences)
             where TEntity : new()
-            => CreateObject<TEntity>(sentence);
+        {
+            var rows = sentences as IReadOnlyList<ITikReSentence> ?? sentences.ToList();
+            var entities = rows.Select(sentence => CreateObject<TEntity>(sentence)).ToList();
+            TikEntityDiagnosticsExtensions.Report(command, rows, entities, isComplete: true);
+            return entities;
+        }
+
+        // One row of a callback or listen read: reported on its own, with no end of the read to judge "every row" by.
+        private static TEntity MaterializeOne<TEntity>(ITikCommand command, ITikReSentence sentence)
+            where TEntity : new()
+        {
+            var entity = CreateObject<TEntity>(sentence);
+            TikEntityDiagnosticsExtensions.Report(command, new[] { sentence }, new[] { entity }, isComplete: false);
+            return entity;
+        }
 
         private static TEntity CreateObject<TEntity>(ITikReSentence sentence)
             where TEntity : new()

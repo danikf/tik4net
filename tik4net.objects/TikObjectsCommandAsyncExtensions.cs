@@ -37,7 +37,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(command, "command");
 
             var responseSentences = await command.ExecuteListAsync(cancellationToken).ConfigureAwait(false);
-            return responseSentences.Select(sentence => TikCommandExtensions.CreateEntity<TEntity>(sentence)).ToList();
+            return TikCommandExtensions.Materialize<TEntity>(command, responseSentences);
         }
 
         /// <summary>
