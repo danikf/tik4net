@@ -667,7 +667,8 @@ namespace tik4net.integrationtests
             try
             {
             fixtures.SeedAll();
-            using (var probe = Open(probeType))
+            ITikConnection probe = Open(probeType);
+            try
             {
                 foreach (string path in EntityPaths())
                 {
@@ -676,6 +677,14 @@ namespace tik4net.integrationtests
                         foreach (var f in row)
                             if (IsClockShaped(f.Value)) clockShaped.Add(path + " " + f.Key);
                     var n = Read(probe, path);
+                    // A read that killed the connection is that path's failure, not every later path's: MAC-Telnet
+                    // died on CHR3's /file and the other 145 paths read "Connection is not open", which the report
+                    // counted as 145 mismatches. Open a new one for the next path.
+                    if (n.Error != null && !probe.IsOpened)
+                    {
+                        probe.Dispose();
+                        probe = Open(probeType);
+                    }
 
                     if (a.Error != null)
                     {
@@ -823,6 +832,10 @@ namespace tik4net.integrationtests
                 write.RunToggles(fixtures);
                 write.RunUnsets(fixtures);
                 write.RunMoves(fixtures);
+            }
+            finally
+            {
+                probe.Dispose();
             }
             }
             finally
