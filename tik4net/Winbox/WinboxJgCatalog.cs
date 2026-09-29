@@ -2079,9 +2079,10 @@ namespace tik4net.Winbox
         // First child dict inside a node's 'c' list (skips non-dict entries), or null.
         // A scalar numberrange's high end rides its own key (webfig types.numberrange: obj[id] = low, obj[highid] = high),
         // carried as the field's MaskKey like a network's netmask. packet-size=100-200 read '100' without it. A range with
-        // a `unit` (types.unit) is left out: its halves are not plain numbers and nothing here spells them.
+        // a `unit` (connection-rate, connection-bytes) is the same two plain numbers on the wire, and the API prints them
+        // plain (connection-rate=0-100000, 7.24.4) where webfig would write 100k.
         private static int HighKeyOf(Dictionary<string, object> node)
-            => node.TryGetValue("type", out var tv) && (tv as string) == "numberrange" && !node.ContainsKey("unit")
+            => node.TryGetValue("type", out var tv) && (tv as string) == "numberrange"
                 ? DecodedKeyOf(node, "highid") : 0;
 
         // A group's {name:'Invert', type:'bool', id} child: the RouterOS 6 form of a `not` wrapper (AddOptionField).
