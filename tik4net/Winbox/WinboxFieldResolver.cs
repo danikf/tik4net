@@ -3559,7 +3559,7 @@ namespace tik4net.Winbox
         // /system/note's 'note' field as unencodable when it is a plain string.
         // The list types whose members carry their own '!' (webfig multitristate / multitristatearray), as
         // opposed to a scalar whose leading '!' is the field-wide `not` container flag.
-        private static bool IsPerMemberNegatedList(string? uiType)
+        internal static bool IsPerMemberNegatedList(string? uiType)
             => string.Equals(uiType, "multitristate", StringComparison.OrdinalIgnoreCase)
                || string.Equals(uiType, "multitristatearray", StringComparison.OrdinalIgnoreCase);
 

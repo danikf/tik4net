@@ -174,6 +174,29 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual("GET", set["method"], "with the flag up it is a value like any other");
         }
 
+        // roteros.jg Firewall Rule: a scalar under a `not` wrapper — an address and a list name — whose flag is the
+        // '!' the API prints on the whole value (7.24.4: src-address=!10.0.0.0/8, src-address-list=!t4nlist).
+        private const string NegatedScalarWindow =
+            "[{name:'Firewall Rule',type:'map',path:[ 9,8 ],c:[" +
+            "{name:'Src. Address',type:'opt',id:'bcf',c:[{type:'not',id:'b10',c:[{type:'network',id:'u6',maskid:'u7'}]}]}," +
+            "{name:'Src. Address List',type:'opt',id:'bd1',c:[{type:'not',id:'b12',c:[{type:'string',id:'s13'}]}]}]}]";
+
+        [TestMethod]
+        public void ANotWrappedScalarWhoseFlagIsUpReadsWithTheBang()
+        {
+            var catalog = Parse(NegatedScalarWindow);
+
+            var negated = Decode(catalog, new[] { 9, 8 }, Rec(
+                (0xCF, "bool", true), (0x10, "bool", true), (0x6, "u32", (uint)0x0000000A), (0x7, "u32", 0x000000FFu),
+                (0xD1, "bool", true), (0x12, "bool", true), (0x13, "str", "t4nlist")));
+            Assert.AreEqual("!10.0.0.0/8", negated["src-address"], "reading the value alone turns the matcher into its opposite");
+            Assert.AreEqual("!t4nlist", negated["src-address-list"]);
+
+            var plain = Decode(catalog, new[] { 9, 8 }, Rec(
+                (0xCF, "bool", true), (0x10, "bool", false), (0x6, "u32", (uint)0x0000000A), (0x7, "u32", 0x000000FFu)));
+            Assert.AreEqual("10.0.0.0/8", plain["src-address"]);
+        }
+
         // roteros.jg Log Action [3,1] 'Syslog Severity': a number whose declared default IS the u32 unset
         // marker (its real domain is 0-7), versus 'Max. Cache Size', where 4294967295 is a NAMED value.
         private const string SentinelWindow =

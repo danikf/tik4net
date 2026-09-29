@@ -173,7 +173,7 @@ namespace tik4net.Winbox
                     continue;
                 }
                 if (jf != null && jf.KindIdKey != 0) Learn(jf, rec, kv.Value.Item2);
-                fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
+                fields[apiName] = Negated(jf, rec, FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables));
             }
 
             // The comment key rides every record, empty on a row with no comment, where the API prints nothing.
@@ -260,6 +260,17 @@ namespace tik4net.Winbox
         /// Whether <paramref name="key"/> — a flag key of <paramref name="consumer"/> — is the value key of a
         /// different field this path decodes under a name of its own.
         /// </summary>
+        // A not-wrapped field's own bool is RouterOS's leading '!' on the whole value, whatever the value's type:
+        // /ip/firewall/filter src-address=!10.0.0.0/8, in-interface=!ether1, src-address-list=!x. Only the set and
+        // number-list cases rendered it, so every negated address, interface or list name read back as its
+        // opposite. A per-member list carries its '!'s on the members instead, and a value that already starts
+        // with one was negated by its own case.
+        private static string Negated(WinboxJgField? jf, Dictionary<int, Tuple<string, object>> rec, string text)
+            => jf != null && jf.NotKey != 0 && text.Length > 0 && !text.StartsWith("!", StringComparison.Ordinal)
+               && !WinboxFieldResolver.IsPerMemberNegatedList(jf.UiType)
+               && rec.TryGetValue(jf.NotKey, out var flag) && flag.Item2 is bool negated && negated
+                ? "!" + text : text;
+
         private static bool OwnedByAnotherField(IReadOnlyDictionary<int, WinboxJgField> keyToField,
             IReadOnlyDictionary<int, string> keyToName, WinboxJgField consumer, int key)
             => keyToName != null && keyToName.ContainsKey(key)
