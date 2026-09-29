@@ -28,7 +28,8 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 * **[Ask the router what a menu takes](https://github.com/danikf/tik4net/wiki/RouterOS-versions#asking-the-router-what-a-menu-takes)** — `DescribeMenu` lists a
   menu's sub-menus and commands, the arguments each command takes, the fields it reads and can clear, and the words an
   argument accepts, from the router's own grammar
-* **Connection string** *(planned)* — choose the transport in config, not in code
+* **[Connection string](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities#from-a-connection-string)** — `TikConnectionSetup.FromConnectionString`: the router, the
+  credentials and the transport come from config, not code
 * **[Negated matchers](https://github.com/danikf/tik4net/wiki/TikValue#negated-matchers)** — `src-address=!10.0.0.0/8`
   reads as a negated `10.0.0.0/8`, not as a string starting with `!`
 * **[List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge)** — merge and `SaveListDifferences` reorder firewall rules

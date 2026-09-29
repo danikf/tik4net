@@ -48,6 +48,25 @@ namespace tik4net.integrationtests
         }
 
 
+        /// <summary>
+        /// A connection string carries the transport too: an IP one addressed by host, and a MAC-layer one by the
+        /// router's MAC alone, each opened with <c>Create()</c> and no transport argument.
+        /// </summary>
+        [TestMethod]
+        public void AConnectionStringOpensTheTransportItNames()
+        {
+            string credentials = "user=\"" + LabConfig.Get("user") + "\";password=\"" + (LabConfig.Get("pass") ?? "") + "\"";
+            foreach (string connectionString in new[]
+            {
+                "transport=Api;host=" + LabConfig.Get("host") + ";" + credentials,
+                "transport=MacTelnet;routerMac=" + LabConfig.Get("routerMac") + ";" + credentials,
+            })
+            {
+                using (var connection = TikConnectionSetup.FromConnectionString(connectionString).Create())
+                    Assert.IsNotNull(connection.CreateCommand("/system/identity/print").ExecuteScalar(), connectionString);
+            }
+        }
+
         [TestMethod]
         public void OpenConnectionWillNotFail()
         {

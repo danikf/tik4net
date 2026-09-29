@@ -34,7 +34,7 @@ namespace tik4net
     /// <para>
     /// The router is named by a <see cref="TikRouterAddress"/> — a host, a MAC, or both. A MAC-only setup is
     /// legitimate and is what the MAC-layer transports exist for (a router with no IP address); asking an IP
-    /// transport for one fails at <see cref="CreateUnopened"/> with a message naming the missing coordinate.
+    /// transport for one fails at <see cref="CreateUnopened(TikConnectionType, Action{ITikConnection})"/> with a message naming the missing coordinate.
     /// </para>
     /// <example>
     /// <code>
@@ -55,7 +55,7 @@ namespace tik4net
     {
         /// <summary>
         /// Where the router is: a host name / IP address, a MAC address, or both. Which of the two a
-        /// transport needs is decided when the connection is created — see <see cref="CreateUnopened"/>.
+        /// transport needs is decided when the connection is created — see <see cref="CreateUnopened(TikConnectionType, Action{ITikConnection})"/>.
         /// </summary>
         public TikRouterAddress Address { get; }
 
@@ -171,7 +171,7 @@ namespace tik4net
         /// <c>null</c> (the default) means "whatever the address says". With no MAC from either, a MAC
         /// transport discovers one by MNDP broadcast from <see cref="Host"/>, which costs up to 5 s on
         /// every open — and a setup that has no host either cannot do that and is rejected at
-        /// <see cref="CreateUnopened"/>.
+        /// <see cref="CreateUnopened(TikConnectionType, Action{ITikConnection})"/>.
         /// </remarks>
         public string? RouterMac { get; set; }
 
@@ -217,7 +217,7 @@ namespace tik4net
         /// <remarks>
         /// <para>
         /// Which transports relay: <b>Telnet, SSH and MAC-Telnet</b>, through <c>/tool romon ssh</c> on the agent
-        /// (<see cref="SupportsRomon"/>). Every other transport is refused at <see cref="CreateUnopened"/>, before
+        /// (<see cref="SupportsRomon"/>). Every other transport is refused at <see cref="CreateUnopened(TikConnectionType, Action{ITikConnection})"/>, before
         /// anything connects. The session options (timeouts, encoding, paging, cancellation) come from this setup;
         /// the agent contributes only where it is and who logs in to it. <see cref="Port"/> and
         /// <see cref="RouterMac"/> must stay unset here — the port dialled and the MAC reached are the agent's, from
@@ -268,7 +268,7 @@ namespace tik4net
         /// <see cref="RomonAgentSetup"/>.
         /// <para>
         /// A MAC-only address is accepted here and rejected later, by the transports that cannot use it —
-        /// see <see cref="CreateUnopened"/>. It has to be that way round: which coordinate is required is a
+        /// see <see cref="CreateUnopened(TikConnectionType, Action{ITikConnection})"/>. It has to be that way round: which coordinate is required is a
         /// property of the transport, and the transport is not named until <c>Create</c>.
         /// </para>
         /// </remarks>
@@ -284,6 +284,72 @@ namespace tik4net
             User = user;
             Password = password;
         }
+
+        // ── The connection string ─────────────────────────────────────────────
+
+        /// <summary>
+        /// The transport <see cref="Create()"/>, <see cref="CreateAsync(CancellationToken)"/> and
+        /// <see cref="CreateUnopened()"/> open, or <c>null</c> to name it at the call. Set by a connection string's
+        /// <c>transport</c>; an explicit <c>Create(TikConnectionType)</c> ignores it.
+        /// </summary>
+        public TikConnectionType? ConnectionType { get; set; }
+
+        /// <summary>
+        /// A setup read from a connection string, so that the router, the credentials and the transport come from
+        /// configuration rather than code:
+        /// <code>
+        /// var setup = TikConnectionSetup.FromConnectionString("transport=ApiSsl;host=192.168.88.1;user=admin;password=secret");
+        /// using var connection = setup.Create();
+        /// </code>
+        /// </summary>
+        /// <param name="connectionString">
+        /// <c>key=value</c> pairs separated by <c>;</c>, as in ADO.NET; keys are case-insensitive, and a value holding
+        /// <c>;</c> or <c>=</c> is quoted with <c>"</c> or <c>'</c>. The keys are this class's options:
+        /// <c>transport</c> (alias <c>connectionType</c>; a <see cref="TikConnectionType"/> name), <c>host</c>
+        /// (<c>server</c>, <c>address</c>), <c>routerMac</c> (<c>mac</c>), <c>user</c> (<c>username</c>, <c>uid</c>),
+        /// <c>password</c> (<c>pwd</c>), <c>port</c>, <c>connectTimeout</c> / <c>receiveTimeout</c> /
+        /// <c>sendTimeout</c> (seconds, or a <see cref="TimeSpan"/> such as <c>00:00:15</c>), <c>encoding</c> (a name such
+        /// as <c>utf-8</c>), <c>allowInvalidCertificate</c>, <c>cancellationMode</c>, <c>cliReadPageSize</c>,
+        /// <c>cliFieldSeparator</c> (empty for none), <c>validateWrites</c>, <c>sendTagWithSyncCommand</c>, <c>debug</c>,
+        /// and for a router behind a RoMON agent <c>romon.host</c>, <c>romon.user</c>, <c>romon.password</c>,
+        /// <c>romon.port</c> — <c>host</c> is then the target's RoMON id.
+        /// </param>
+        /// <remarks>
+        /// <c>user</c> and one of <c>host</c> / <c>routerMac</c> are required; <c>password</c> defaults to empty. An unknown
+        /// key, a key named twice or a value of the wrong kind throws, rather than open a connection with a default the
+        /// configuration did not ask for. <see cref="CertificateValidationCallback"/> is code and has no key: set it on
+        /// the returned setup. <see cref="ToString"/> writes the setup back with the passwords masked.
+        /// </remarks>
+        /// <exception cref="ArgumentException">The string is empty, or names an unknown key, or a value it cannot read.</exception>
+        public static TikConnectionSetup FromConnectionString(string connectionString)
+            => TikConnectionString.Parse(connectionString);
+
+        /// <summary>
+        /// The setup as a connection string (<see cref="FromConnectionString"/>) with the passwords written as <c>***</c> —
+        /// safe to log. It carries the router, the user, the transport and the RoMON agent, not every option.
+        /// </summary>
+        public override string ToString() => TikConnectionString.Format(this);
+
+        /// <summary>
+        /// Creates and opens a connection of <see cref="ConnectionType"/> — the transport a connection string named.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"><see cref="ConnectionType"/> is not set.</exception>
+        public ITikConnection Create() => Create(RequireConnectionType(), null);
+
+        /// <summary>Async version of <see cref="Create()"/>.</summary>
+        /// <exception cref="InvalidOperationException"><see cref="ConnectionType"/> is not set.</exception>
+        public Task<ITikConnection> CreateAsync(CancellationToken ct = default)
+            => CreateAsync(RequireConnectionType(), null, ct);
+
+        /// <summary>
+        /// Creates a connection of <see cref="ConnectionType"/> with every option applied, without opening it.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"><see cref="ConnectionType"/> is not set.</exception>
+        public ITikConnection CreateUnopened() => CreateUnopened(RequireConnectionType());
+
+        private TikConnectionType RequireConnectionType()
+            => ConnectionType ?? throw new InvalidOperationException(
+                "No transport: set ConnectionType (a connection string's 'transport') or name it in Create(TikConnectionType).");
 
         // ── The general entry point ───────────────────────────────────────────
 
