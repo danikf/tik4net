@@ -169,6 +169,21 @@ namespace tik4net.unittests.Cli
         }
 
         /// <summary>
+        /// The terminal abbreviates <c>connection-rate</c>'s ends with decimal units (<c>0-100k</c>, <c>!1500-2M</c>), the
+        /// API prints them spelled out (<c>0-100000</c>, <c>!1500-2000000</c>) — 6.49.13 and 7.24.4.
+        /// <c>connection-bytes</c> is printed plain by both.
+        /// </summary>
+        [TestMethod]
+        public void SpellsOutTheConnectionRateUnits()
+        {
+            Assert.AreEqual("0-100000", N("connection-rate", "0-100k"));
+            Assert.AreEqual("!1500-2000000", N("connection-rate", "!1500-2M"));
+            Assert.AreEqual("3000000000", N("connection-rate", "3G"));
+            Assert.AreEqual("0-100000", N("connection-rate", "0-100000"));
+            Assert.AreEqual("2000000-0", N("connection-bytes", "2000000-0"));
+        }
+
+        /// <summary>
         /// Bridge and bridge-port <c>priority</c> are hex over the API on every version measured (6.49.13,
         /// 7.21.5, 7.24.4) and decimal from as-value before 7.24 — on those two menus only. VRRP's and a queue's
         /// <c>priority</c> are decimal over the API and must stay so.

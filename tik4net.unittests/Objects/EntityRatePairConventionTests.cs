@@ -99,7 +99,9 @@ namespace tik4net.unittests.Objects
                 ["PppProfile"] = new[] { "rate-limit" },
                 ["HotspotUserProfile"] = new[] { "rate-limit" },
                 // 'limit' is count,time,burst and 'dst-limit' adds a mode — comma-separated, not a pair.
-                ["FirewallFilter"] = new[] { "limit", "dst-limit" },
+                // 'connection-rate' is a low-high RANGE ('0-100000', 7.24.4) and 'connection-limit' is
+                // limit,netmask ('10,32') — neither an upload/download pair.
+                ["FirewallFilter"] = new[] { "limit", "dst-limit", "connection-rate", "connection-limit" },
                 ["FirewallRaw"] = new[] { "limit", "dst-limit" },
 
                 // ── A duration, caught here only because its name contains 'limit' ─────────────────
