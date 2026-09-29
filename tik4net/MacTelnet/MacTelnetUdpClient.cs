@@ -511,6 +511,8 @@ namespace tik4net.MacTelnet
                 }
                 else if ((lastLength > 0 || !requireData) && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
                     break;
+                else if (lastLength == 0 && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs * CliCompletionParser.NoReactionQuietFactor)
+                    break;   // a Tab the router leaves unanswered: not the receive deadline
 
                 await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
             }

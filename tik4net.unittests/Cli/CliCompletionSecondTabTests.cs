@@ -40,17 +40,44 @@ namespace tik4net.unittests.Cli
             router.OpenScripted();
 
             CollectionAssert.AreEqual(Expected, router.CompleteCli(Typed).ToArray());
-            Assert.AreEqual(2, router.Tabs, "the first Tab changed nothing, so a second one is sent");
+            Assert.AreEqual(3, router.Tabs, "the first Tab changed nothing, so a second one is sent; the third asks for more");
         }
 
         [TestMethod]
-        public void RouterOs7_ListsOnTheFirstTab_AndNoSecondIsSent()
+        public void RouterOs7_ListsOnTheFirstTab_AndOneMoreTabAsksForWhatItLeftOut()
         {
             using var router = new TabRouter(listsOnFirstTab: true);
             router.OpenScripted();
 
-            CollectionAssert.AreEqual(Expected, router.CompleteCli(Typed).ToArray());
-            Assert.AreEqual(1, router.Tabs);
+            CollectionAssert.AreEqual(Expected, router.CompleteCli(Typed).ToArray(), "a repeat of the listing adds nothing");
+            Assert.AreEqual(2, router.Tabs);
+        }
+
+        [TestMethod]
+        public void WhatTheNextTabLists_IsAddedToTheListing()
+        {
+            // 7.24.4 '/tool ping ': 'interface' and 'vrf' come only on the second Tab.
+            using var router = new TabRouter(listsOnFirstTab: true, more: "interface  vrf");
+            router.OpenScripted();
+
+            CollectionAssert.AreEqual(Expected.Concat(new[] { "interface", "vrf" }).ToArray(), router.CompleteCli(Typed).ToArray());
+            StringAssert.Contains(router.CompleteCliRaw(Typed), "vrf");
+        }
+
+        [TestMethod]
+        public void ASlowLink_WidensTheSettleWindow_AFastOneKeepsTheFloor()
+        {
+            using var slow = new TabRouter(listsOnFirstTab: true) { DelayMs = 400 };
+            slow.OpenScripted();
+            slow.CompleteCli(Typed);
+
+            Assert.AreEqual(300, slow.QuietWindows[0], "nothing measured yet: the floor");
+            Assert.IsTrue(slow.QuietWindows[1] >= 700, "twice a ~400 ms response: " + string.Join(",", slow.QuietWindows));
+
+            using var fast = new TabRouter(listsOnFirstTab: true);
+            fast.OpenScripted();
+            fast.CompleteCli(Typed);
+            CollectionAssert.AreEqual(new[] { 300, 300 }, fast.QuietWindows);
         }
 
         [TestMethod]
@@ -67,13 +94,18 @@ namespace tik4net.unittests.Cli
         {
             private readonly bool _listsOnFirstTab;
             private readonly bool _nothing;
+            private readonly string? _more;
+            private bool _listed;
             public int Tabs;
+            public int DelayMs;
+            public readonly List<int> QuietWindows = new List<int>();
 
-            public TabRouter(bool listsOnFirstTab, bool nothing = false)
+            public TabRouter(bool listsOnFirstTab, bool nothing = false, string? more = null)
             {
                 CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
                 _listsOnFirstTab = listsOnFirstTab;
                 _nothing = nothing;
+                _more = more;
             }
 
             protected override string TransportName => "Tab";
@@ -88,10 +120,22 @@ namespace tik4net.unittests.Cli
             private Task<string> Settle(byte[] bytes, int quietMs, CancellationToken ct)
             {
                 Tabs++;
+                QuietWindows.Add(quietMs);
+                if (DelayMs > 0)
+                    Thread.Sleep(DelayMs + quietMs);   // the response, then the quiet window a real read waits out
                 string listed = "\r\n" + Listing + "\r\n\r\x1b[9999B" + Prompt + Typed + "\x1b[K";
                 if (bytes.Length > 1)   // the stem and its Tab
-                    return Task.FromResult(_listsOnFirstTab && !_nothing ? Typed + listed : SixEcho());
-                return Task.FromResult(_nothing ? string.Empty : listed);
+                {
+                    _listed = _listsOnFirstTab && !_nothing;
+                    return Task.FromResult(_listed ? Typed + listed : SixEcho());
+                }
+                if (_nothing)
+                    return Task.FromResult(string.Empty);
+                // After a listing, the next Tab lists what it left out, or (on a real router: the third) repeats it.
+                if (_listed && _more != null)
+                    return Task.FromResult("\r\n" + _more + "\r\n\r\x1b[9999B" + Prompt + Typed + "\x1b[K");
+                _listed = true;
+                return Task.FromResult(listed);
             }
 
             public override void Open(string host, string user, string password) => OpenScripted();

@@ -1169,8 +1169,11 @@ in [findings-mepty-byte-ack.md](findings-mepty-byte-ack.md).
 
 ## 14. Tab-completion
 
-`ITikCliCompletion` types `<partial line><Tab>`, reads until the output has been quiet for 300 ms (a listing
-ends at a redrawn prompt with the typed stem, never a bare prompt), then sends Ctrl-C to clear the line. The
+`ITikCliCompletion` types `<partial line><Tab>`, reads until the output has been quiet for a settle window (a listing
+ends at a redrawn prompt with the typed stem, never a bare prompt), then sends Ctrl-C to clear the line. The window is
+twice the connection's measured Tab response (a running average, reset on open), never under 300 ms and never over 5 s,
+so a MAC or RoMON link is not cut short. A Tab that draws nothing at all within four windows answers empty: RouterOS
+writes nothing for a Tab with nothing more to list, and the receive deadline (30 s) is not waited out. The
 settle drivers hand the reaction over **with its escape sequences**, because an inline completion is written in
 cursor moves. Measured over Telnet, SSH, MAC-Telnet and WinBox CLI:
 
@@ -1201,6 +1204,28 @@ completion there reads as the echo, the word and a second copy of the line run t
   prompt a repaint drew on it — the input line as completed (`/interface/vlan/`, `… frame-types=admit-`) — or an
   empty string when it is still what was typed. A caller that needs the candidates behind a common prefix
   re-asks with the completed line.
+
+**A second Tab lists what the first left out**, and a third repeats the first (measured 2026-09-29 on 6.49.13 and
+7.24.4 over raw Telnet): a menu's `..` and `get` (`/ip firewall filter `), a command's less common arguments (7.24.4
+`/tool ping ` → `interface vrf`; 6.49.13 `/tool ping-speed ` → `file`). The `add`, `set`, `get value-name=` and
+`print where ` lists measured print nothing on it. So `ITikCliCompletion` sends one more Tab after every listing and
+merges what it adds. A name listing is not cut otherwise: 6.49.13 lists all 103 fields of
+`/interface wireless print where` in one Tab.
+
+**The colour says what a word is**, Linux-style, on a terminal that has colour (WinBox CLI, MAC-Telnet; Telnet and
+SSH log in with `+c` and get none):
+
+| SGR | Word |
+|---|---|
+| `36` cyan | a sub-menu (and `..`) |
+| `35` magenta | a command |
+| `32` green | an argument or a field; `32;1` bold the unnamed one (`numbers`, `address`; 6.49.13 also `chain` on `add`) |
+| `34;1` bold blue | the `...` of an elided `stem-...` |
+
+6.49.13 sets the colour once and draws a run of words and rows in it, the sub-menus' block and the commands' block side
+by side on each row; 7.24.4 colours every word. `CliCompletionParser.Items` reads the colour off the replayed screen.
+Without colour a word is told by a Tab on itself: a sub-menu's listing has `..`, a command's lists its arguments.
+RouterOS 7 needs neither: `/console/inspect request=child` gives `node-type` `dir`/`cmd`/`arg`.
 
 Through a RoMON relay the Tab and the Ctrl-C reach the target's line editor; the relay stays up
 (`RomonRelayTest.Relay_TabCompletion_ListsTheTarget_AndKeepsTheRelay`).

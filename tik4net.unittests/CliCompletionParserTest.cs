@@ -37,6 +37,41 @@ namespace tik4net.unittests
                 System.Linq.Enumerable.ToArray(tokens));
         }
 
+        // '/tool ' over a colour terminal, as 6.49.13 drew it (Telnet without +c, 2026-09-29, shortened): the colour set
+        // once per run, the sub-menus' block and the commands' block side by side on every row.
+        private const string ToolReaction649 =
+            "\r\n\x1b[m\x1b[36mgraphing    netwatch  \x1b[m\x1b[35mfetch       ping-speed\r\n"
+            + "\x1b[m\x1b[36mromon       sms       \x1b[m\x1b[35mtorch       wol\r\n"
+            + "\r\x1b[9999B\x1b[m[\x1b[m\x1b[36madmin\x1b[m@\x1b[m\x1b[32mMikroTik\x1b[m] > \x1b[m\x1b[36m/tool\x1b[m \x1b[K";
+
+        // The same on 7.24.4: the listing glued to the echo, every word coloured on its own.
+        private const string ToolReaction724 =
+            "/tool \r\n\x1b[m\x1b[36mgraphing\x1b[m     \x1b[m\x1b[35mping\x1b[m     \x1b[m\x1b[32;1maddress\x1b[m\r\n"
+            + "\r\x1b[9999B[\x1b[m\x1b[36madmin\x1b[m@\x1b[m\x1b[32mMikroTik\x1b[m] > /tool \x1b[K\x1b[6D\x1b[m\x1b[36m/tool\x1b[m ";
+
+        [TestMethod]
+        public void Items_TheColourSaysSubmenuCommandOrArgument()
+        {
+            var items = CliCompletionParser.Items(ToolReaction649, "/tool ");
+            string Kinds(CliCompletionKind kind) => string.Join(",", System.Linq.Enumerable.Select(
+                System.Linq.Enumerable.Where(items, i => i.Kind == kind), i => i.Name));
+
+            Assert.AreEqual("graphing,netwatch,romon,sms", Kinds(CliCompletionKind.Submenu));
+            Assert.AreEqual("fetch,ping-speed,torch,wol", Kinds(CliCompletionKind.Command));
+
+            items = CliCompletionParser.Items(ToolReaction724, "/tool ");
+            Assert.AreEqual("graphing", Kinds(CliCompletionKind.Submenu));
+            Assert.AreEqual("ping", Kinds(CliCompletionKind.Command));
+            Assert.AreEqual("address", Kinds(CliCompletionKind.Argument), "bold green is still an argument");
+        }
+
+        [TestMethod]
+        public void Items_WithoutColour_SayNothing()
+        {
+            foreach (var item in CliCompletionParser.Items(VlanAddReaction, "/interface/vlan add "))
+                Assert.AreEqual(CliCompletionKind.Unknown, item.Kind, item.Name);
+        }
+
         [TestMethod]
         public void Tokens_ParameterSharingPathSegmentName_IsKept()
         {

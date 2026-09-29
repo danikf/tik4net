@@ -55,6 +55,23 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
+        public void AnUnsetOfAFieldTheRouterCannotClear_IsRefusedAsSuch()
+        {
+            // 6.49.13 /ip route: 'unset value-name=' lists routing-mark and check-gateway, not dst-address or gateway.
+            var schema = new TikMenuSchema("/ip/route", TikMenuSchemaSource.CliCompletion, new[] { "add", "set", "unset" },
+                null, new[] { "numbers", "dst-address", "gateway", "routing-mark" }, Array.Empty<string>(), null,
+                unsetFields: new[] { "routing-mark", "check-gateway" });
+
+            TikWriteValidation.Check(Command("unset", (".id", "*1"), ("value-name", "routing-table")), Route, schema);
+            var ex = Assert.ThrowsException<TikUnknownFieldException>(
+                () => TikWriteValidation.Check(Command("unset", (".id", "*1"), ("value-name", "gateway")), Route, schema));
+
+            Assert.AreEqual(TikUnknownFieldUse.Unset, ex.Use);
+            CollectionAssert.AreEqual(new[] { "gateway" }, ex.Fields.ToArray());
+            StringAssert.Contains(ex.Message, "cannot clear");
+        }
+
+        [TestMethod]
         public void FieldsTheRouterTakesUnderNoName_AreRefusedTogether()
         {
             var set = Command("set", (".id", "*1"), ("scope", "30"), ("t4n-bogus", "1"), ("comment", "c"));

@@ -570,6 +570,8 @@ namespace tik4net.WinboxCli
                     lastData = DateTime.UtcNow;
                 else if (any && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
                     break;
+                else if (!any && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs * CliCompletionParser.NoReactionQuietFactor)
+                    break;   // a Tab the router leaves unanswered: not the receive deadline
             }
 
             return sb.ToString();

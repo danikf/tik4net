@@ -58,12 +58,19 @@ namespace tik4net
         /// (<see cref="TikConnectionSetup.ValidateWrites"/>).
         /// </summary>
         Write,
+
+        /// <summary>
+        /// An entity write cleared a field the router can set but not clear (not in
+        /// <see cref="TikMenuSchema.UnsetFields"/>: a firewall rule's <c>action</c>); nothing was sent
+        /// (<see cref="TikConnectionSetup.ValidateWrites"/>).
+        /// </summary>
+        Unset,
     }
 
     /// <summary>
     /// A filter or an entity write named fields the router says the menu does not have (its own
-    /// <c>/console/inspect</c>, Tab completion or WinBox catalog), and the command was not sent. <see cref="Fields"/>
-    /// names every one.
+    /// <c>/console/inspect</c>, Tab completion or WinBox catalog) — or, for <see cref="TikUnknownFieldUse.Unset"/>, fields
+    /// it cannot clear — and the command was not sent. <see cref="Fields"/> names every one.
     /// </summary>
     public class TikUnknownFieldException : TikCommandException
     {
@@ -74,9 +81,12 @@ namespace tik4net
         public TikUnknownFieldUse Use { get; }
 
         internal TikUnknownFieldException(ITikCommand command, IReadOnlyList<string> fields, TikUnknownFieldUse use)
-            : base(command, (use == TikUnknownFieldUse.Filter ? "Filter on " : "Write of ")
-                  + (fields.Count == 1 ? "field " : "fields ") + string.Join(", ", fields) + ", which "
-                  + TikPath.Parent(command.CommandText) + " does not have on this router; nothing was sent.")
+            : base(command, use == TikUnknownFieldUse.Unset
+                  ? "Unset of " + (fields.Count == 1 ? "field " : "fields ") + string.Join(", ", fields) + ", which "
+                    + TikPath.Parent(command.CommandText) + " cannot clear on this router; nothing was sent."
+                  : (use == TikUnknownFieldUse.Filter ? "Filter on " : "Write of ")
+                    + (fields.Count == 1 ? "field " : "fields ") + string.Join(", ", fields) + ", which "
+                    + TikPath.Parent(command.CommandText) + " does not have on this router; nothing was sent.")
         {
             Fields = fields;
             Use = use;

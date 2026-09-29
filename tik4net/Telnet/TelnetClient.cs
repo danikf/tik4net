@@ -197,7 +197,8 @@ namespace tik4net.Telnet
         /// <summary>
         /// Reads/answers (IAC + VT100 probes) until no new bytes arrive for <paramref name="quietMs"/> after
         /// at least some data, the connection closes, or the receive deadline expires. Returns the
-        /// accumulated text, escape sequences included.
+        /// accumulated text, escape sequences included. Nothing at all for
+        /// <see cref="CliCompletionParser.NoReactionQuietFactor"/> quiet windows is an empty answer.
         /// </summary>
         private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
         {
@@ -227,6 +228,10 @@ namespace tik4net.Telnet
                 if (!gotData && accumulated.Length > 0
                     && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
                     return accumulated.ToString();
+                // A Tab the router leaves unanswered (nothing more to list): not the receive deadline.
+                if (accumulated.Length == 0
+                    && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs * CliCompletionParser.NoReactionQuietFactor)
+                    return string.Empty;
 
                 if (closed || DateTime.UtcNow >= deadline)
                     return accumulated.ToString();

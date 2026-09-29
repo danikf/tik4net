@@ -68,6 +68,24 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
+        public void Inspect_GivesTheSubmenusAnyCommandsArgumentsAndTheUnsetFields()
+        {
+            var answers = Route();
+            answers["child ip,route"] = answers["child ip,route"].Concat(new[] { Node("child", "unset", "cmd"), Node("child", "move", "cmd"),
+                Node("child", "check", "cmd") }).ToArray();
+            answers["child ip,route,check"] = new[] { Node("self", "check", "cmd"), Node("child", "numbers", "arg") };
+            answers["completion ip,route,unset,value-name"] = new[] { Completion("[", show: false), Completion("routing-table") };
+
+            var schema = ConsoleInspectSchemaReader.Read(Inspect(answers), "/ip/route");
+
+            CollectionAssert.AreEqual(new[] { "nexthop" }, schema.Submenus!.ToArray());
+            CollectionAssert.AreEqual(new[] { "numbers" }, schema.Arguments("check")!.ToArray());
+            Assert.IsNull(schema.Arguments("ping"), "a command the menu does not have");
+            CollectionAssert.AreEqual(new[] { "routing-table" }, schema.UnsetFields!.ToArray());
+            Assert.AreEqual(true, schema.IsOrdered);
+        }
+
+        [TestMethod]
         public void Inspect_ValuesAreTheShownCompletions_AskedOnce()
         {
             var router = Inspect(Route());
@@ -146,6 +164,67 @@ namespace tik4net.unittests.Connection
             var schema = CliCompletionSchemaReader.Read(tab, "/ip/route");
 
             CollectionAssert.AreEquivalent(new[] { "dst-address", "gateway-status", "routing-mark" }, schema.ReadableFields!.ToArray());
+        }
+
+        /// <summary>A colour terminal: each word carries what it is.</summary>
+        private sealed class ColouredTab : ITikCliCompletion, ICliCompletionReaction
+        {
+            private readonly Dictionary<string, CliCompletionItem[]> _listings;
+            public readonly List<string> Asked = new List<string>();
+
+            public ColouredTab(Dictionary<string, CliCompletionItem[]> listings) => _listings = listings;
+
+            public (IReadOnlyList<CliCompletionItem> Items, string Raw) CompleteCliBoth(string partialInput)
+            {
+                Asked.Add(partialInput);
+                return (_listings.TryGetValue(partialInput, out var items) ? items : Array.Empty<CliCompletionItem>(), "");
+            }
+
+            public IReadOnlyList<string> CompleteCli(string partialInput) => CompleteCliBoth(partialInput).Items.Select(i => i.Name).ToList();
+            public string CompleteCliRaw(string partialInput) => "";
+        }
+
+        private static CliCompletionItem Dir(string name) => new CliCompletionItem(name, CliCompletionKind.Submenu);
+        private static CliCompletionItem Cmd(string name) => new CliCompletionItem(name, CliCompletionKind.Command);
+        private static CliCompletionItem Arg(string name) => new CliCompletionItem(name, CliCompletionKind.Argument);
+
+        [TestMethod]
+        public void Tab_TheColourSaysWhatAWordIs_WithoutATabOnIt()
+        {
+            // 6.49.13 over a colour terminal: '/ip route ' draws the sub-menus cyan and the commands magenta; the second
+            // Tab adds '..' and 'get'.
+            var tab = new ColouredTab(new Dictionary<string, CliCompletionItem[]>
+            {
+                ["/ip route "] = new[] { Dir("nexthop"), Dir("rule"), Cmd("add"), Cmd("move"), Cmd("set"), Cmd("unset"), Dir(".."), Cmd("get") },
+                ["/ip route unset value-name="] = new[] { Arg("routing-mark"), Arg("check-gateway") },
+            });
+
+            var schema = CliCompletionSchemaReader.Read(tab, "/ip/route");
+
+            CollectionAssert.AreEquivalent(new[] { "nexthop", "rule" }, schema.Submenus!.ToArray(), "'..' is the parent, not a sub-menu");
+            CollectionAssert.AreEquivalent(new[] { "add", "move", "set", "unset", "get" }, schema.Commands.ToArray());
+            Assert.AreEqual(true, schema.IsOrdered);
+            CollectionAssert.AreEquivalent(new[] { "routing-mark", "check-gateway" }, schema.UnsetFields!.ToArray());
+            CollectionAssert.AreEqual(new[] { "/ip route ", "/ip route unset value-name=" }, tab.Asked);
+        }
+
+        [TestMethod]
+        public void Tab_WithoutColour_AWordIsASubmenuWhenItsOwnListingHasTheParent()
+        {
+            var tab = new ScriptedTab(new Dictionary<string, string[]>
+            {
+                ["/tool "] = new[] { "netwatch", "ping", ".." },
+                ["/tool netwatch "] = new[] { "add", "print", "..", "get" },
+                ["/tool ping "] = new[] { "address", "count", "interface", "vrf" },
+            });
+
+            var schema = CliCompletionSchemaReader.Read(tab, "/tool");
+
+            CollectionAssert.AreEqual(new[] { "netwatch" }, schema.Submenus!.ToArray());
+            CollectionAssert.AreEqual(new[] { "ping" }, schema.Commands.ToArray());
+            Assert.AreEqual(false, schema.IsOrdered);
+            CollectionAssert.AreEquivalent(new[] { "address", "count", "interface", "vrf" }, schema.Arguments("ping")!.ToArray());
+            Assert.IsNull(schema.Arguments("traceroute"));
         }
 
         [TestMethod]

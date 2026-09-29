@@ -22,8 +22,8 @@ namespace tik4net
     }
 
     /// <summary>
-    /// What the router's own grammar says about one menu: its commands, the arguments of <c>add</c> and <c>set</c>, the
-    /// fields it reads, and the words an argument takes. Get it with
+    /// What the router's own grammar says about one menu: its sub-menus and commands, the arguments of each command, the
+    /// fields it reads and can clear, and the words an argument takes. Get it with
     /// <see cref="TikMenuSchemaExtensions.DescribeMenu(ITikConnection, string)"/>.
     /// </summary>
     /// <remarks>
@@ -32,6 +32,7 @@ namespace tik4net
     /// <para><see cref="ReadableFields"/> is the names <c>get value-name=</c> takes. It matched every field the API
     /// printed in the menus measured (<c>/ip/route</c> on 7.24.4 and 6.49.13); that it holds for every menu is not
     /// proven.</para>
+    /// <para>Each list is asked the first time it is read and remembered.</para>
     /// </remarks>
     public sealed class TikMenuSchema
     {
@@ -39,27 +40,38 @@ namespace tik4net
         private readonly Dictionary<string, IReadOnlyList<string>> _valuesCache
             = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
 
-        private readonly Lazy<IReadOnlyCollection<string>?> _add, _set, _readable;
+        private readonly Func<string, IReadOnlyCollection<string>?> _arguments;
+        private readonly Dictionary<string, IReadOnlyCollection<string>?> _argumentsCache
+            = new Dictionary<string, IReadOnlyCollection<string>?>(StringComparer.Ordinal);
 
+        private readonly Lazy<(IReadOnlyCollection<string> Commands, IReadOnlyCollection<string>? Submenus)> _tree;
+        private readonly Lazy<IReadOnlyCollection<string>?> _readable, _unset;
+
+        // A schema from fixed lists: a test's, or one a source knows whole.
         internal TikMenuSchema(string path, TikMenuSchemaSource source, IReadOnlyCollection<string> commands,
             IReadOnlyCollection<string>? addArguments, IReadOnlyCollection<string>? setArguments,
-            IReadOnlyCollection<string>? readableFields, Func<string, string, IReadOnlyList<string>>? values)
-            : this(path, source, commands, () => addArguments, () => setArguments, () => readableFields, values)
+            IReadOnlyCollection<string>? readableFields, Func<string, string, IReadOnlyList<string>>? values,
+            IReadOnlyCollection<string>? unsetFields = null, IReadOnlyCollection<string>? submenus = null)
+            : this(path, source, () => (commands, submenus),
+                  verb => verb == "add" ? addArguments : verb == "set" ? setArguments : null,
+                  () => readableFields, () => unsetFields, values)
         {
         }
 
         // Each list is asked for the first time it is read: a filter check needs only the readable fields, and on a
-        // RouterOS 6 CLI every list is a walk of several Tabs.
-        internal TikMenuSchema(string path, TikMenuSchemaSource source, IReadOnlyCollection<string> commands,
-            Func<IReadOnlyCollection<string>?> addArguments, Func<IReadOnlyCollection<string>?> setArguments,
-            Func<IReadOnlyCollection<string>?> readableFields, Func<string, string, IReadOnlyList<string>>? values)
+        // RouterOS 6 CLI every list costs Tabs.
+        internal TikMenuSchema(string path, TikMenuSchemaSource source,
+            Func<(IReadOnlyCollection<string> Commands, IReadOnlyCollection<string>? Submenus)> tree,
+            Func<string, IReadOnlyCollection<string>?> arguments,
+            Func<IReadOnlyCollection<string>?> readableFields, Func<IReadOnlyCollection<string>?> unsetFields,
+            Func<string, string, IReadOnlyList<string>>? values)
         {
             Path = path;
             Source = source;
-            Commands = commands;
-            _add = new Lazy<IReadOnlyCollection<string>?>(addArguments);
-            _set = new Lazy<IReadOnlyCollection<string>?>(setArguments);
+            _tree = new Lazy<(IReadOnlyCollection<string>, IReadOnlyCollection<string>?)>(tree);
+            _arguments = arguments;
             _readable = new Lazy<IReadOnlyCollection<string>?>(readableFields);
+            _unset = new Lazy<IReadOnlyCollection<string>?>(unsetFields);
             _values = values;
         }
 
@@ -69,14 +81,49 @@ namespace tik4net
         /// <summary>Where this description came from.</summary>
         public TikMenuSchemaSource Source { get; }
 
-        /// <summary>The menu's commands (<c>add</c>, <c>set</c>, <c>print</c>, …). Empty on WinBox native.</summary>
-        public IReadOnlyCollection<string> Commands { get; }
+        /// <summary>
+        /// The menu's commands (<c>add</c>, <c>set</c>, <c>print</c>, <c>ping</c>, …), without its sub-menus. Empty on
+        /// WinBox native.
+        /// </summary>
+        /// <remarks>On a RouterOS 6 CLI without colour (Telnet, SSH) the router does not say which listed word is a
+        /// sub-menu, so the first read asks one Tab per word.</remarks>
+        public IReadOnlyCollection<string> Commands => _tree.Value.Commands;
+
+        /// <summary>
+        /// The menu's sub-menus (<c>/ip/route</c>: <c>rule</c>, <c>vrf</c>, …), or <c>null</c> on WinBox native, which
+        /// cannot say. See <see cref="Commands"/> for the cost on a RouterOS 6 CLI.
+        /// </summary>
+        public IReadOnlyCollection<string>? Submenus => _tree.Value.Submenus;
+
+        /// <summary>
+        /// Whether the rows' order is part of the configuration (the menu has <c>move</c>: firewall rules, queues, …), or
+        /// <c>null</c> on WinBox native, which cannot say.
+        /// </summary>
+        public bool? IsOrdered => Source == TikMenuSchemaSource.WinboxCatalog ? (bool?)null : Commands.Contains("move");
+
+        /// <summary>
+        /// The arguments <paramref name="verb"/> takes (<c>add</c>, <c>set</c>, <c>ping</c>, …), or <c>null</c> when the
+        /// menu has no such command. On WinBox native only <c>add</c> and <c>set</c> are known.
+        /// </summary>
+        public IReadOnlyCollection<string>? Arguments(string verb)
+        {
+            Guard.ArgumentNotNullOrEmptyString(verb, nameof(verb));
+            lock (_argumentsCache)
+            {
+                if (_argumentsCache.TryGetValue(verb, out var cached))
+                    return cached;
+            }
+            var arguments = _arguments(verb);
+            lock (_argumentsCache)
+                _argumentsCache[verb] = arguments;
+            return arguments;
+        }
 
         /// <summary>The arguments <c>add</c> takes, or <c>null</c> when the menu has no <c>add</c>.</summary>
-        public IReadOnlyCollection<string>? AddArguments => _add.Value;
+        public IReadOnlyCollection<string>? AddArguments => Arguments("add");
 
         /// <summary>The arguments <c>set</c> takes, or <c>null</c> when the menu has no <c>set</c>.</summary>
-        public IReadOnlyCollection<string>? SetArguments => _set.Value;
+        public IReadOnlyCollection<string>? SetArguments => Arguments("set");
 
         /// <summary>
         /// Fields the router says it can read and filter on (<c>get value-name=</c>), or <c>null</c> when the menu has no
@@ -85,12 +132,20 @@ namespace tik4net
         public IReadOnlyCollection<string>? ReadableFields => _readable.Value;
 
         /// <summary>
+        /// The names <c>unset value-name=</c> takes: the fields that can be cleared back to "not set" (a firewall rule's
+        /// matchers, not its <c>chain</c> or <c>action</c>). <c>null</c> when the menu has no <c>unset</c>, and on WinBox
+        /// native, which cannot say. The router's own list: 7.24.4 also offers <c>all</c>, <c>dynamic</c> and
+        /// <c>static</c> on <c>/ip/firewall/filter</c>.
+        /// </summary>
+        public IReadOnlyCollection<string>? UnsetFields => _unset.Value;
+
+        /// <summary>
         /// The words <paramref name="argument"/> of <paramref name="verb"/> suggests: an enum's members, or the names a
         /// reference field can point at now (interfaces, lists). Empty for a free value (a number, an address). Asked the
         /// first time and remembered; one round trip on the API, REST and a CLI transport, none on WinBox native.
         /// </summary>
         /// <param name="argument">The argument's RouterOS name (<c>action</c>).</param>
-        /// <param name="verb"><c>add</c> or <c>set</c>.</param>
+        /// <param name="verb">The command: <c>add</c>, <c>set</c>, or any other the menu has.</param>
         public IReadOnlyList<string> ValuesOf(string argument, string verb = "set")
         {
             Guard.ArgumentNotNullOrEmptyString(argument, nameof(argument));
@@ -112,7 +167,7 @@ namespace tik4net
         /// <inheritdoc/>
         public override string ToString()
             => Path + " (" + Source + "): add " + Count(AddArguments) + ", set " + Count(SetArguments) + ", readable "
-               + Count(ReadableFields);
+               + Count(ReadableFields) + ", unset " + Count(UnsetFields);
 
         private static string Count(IReadOnlyCollection<string>? names) => names == null ? "-" : names.Count.ToString();
     }
@@ -226,11 +281,13 @@ namespace tik4net
                     new TikTrapSentenceResult("no such menu " + path + " (/console/inspect lists nothing for it)"));
             }
             var commands = Children(menu, "cmd");
+            var submenus = Children(menu, "dir");
 
-            return new TikMenuSchema(path, TikMenuSchemaSource.ConsoleInspect, commands,
-                () => commands.Contains("add") ? Arguments(connection, inspectPath + ",add") : null,
-                () => commands.Contains("set") ? Arguments(connection, inspectPath + ",set") : null,
+            return new TikMenuSchema(path, TikMenuSchemaSource.ConsoleInspect,
+                () => (commands, submenus),
+                verb => commands.Contains(verb) ? Arguments(connection, inspectPath + "," + verb) : null,
                 () => commands.Contains("get") ? (IReadOnlyCollection<string>?)Completions(connection, inspectPath + ",get,value-name") : null,
+                () => commands.Contains("unset") ? (IReadOnlyCollection<string>?)Completions(connection, inspectPath + ",unset,value-name") : null,
                 (verb, argument) => Completions(connection, inspectPath + "," + verb + "," + argument));
         }
 

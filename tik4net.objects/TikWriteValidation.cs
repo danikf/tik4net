@@ -51,7 +51,10 @@ namespace tik4net.Objects
         internal static void Check(ITikCommand command, TikEntityMetadata metadata, TikMenuSchema schema)
         {
             string verb = TikPath.Verb(command.CommandText);
-            var taken = verb == "add" ? schema.AddArguments : schema.SetArguments;   // an unset names a set argument
+            // An unset is checked against the names 'unset value-name=' takes where the router lists them; a set argument
+            // missing there is a field that cannot be cleared (a firewall rule's action), not an unknown one.
+            var cleared = verb == "unset" ? schema.UnsetFields : null;
+            var taken = verb == "add" ? schema.AddArguments : cleared ?? schema.SetArguments;
             if (taken == null)
                 return;   // the menu has no such verb: the router says so itself
             var names = new HashSet<string>(taken, StringComparer.Ordinal);
@@ -77,8 +80,18 @@ namespace tik4net.Objects
                     parameter.Name = accepted;
             }
 
-            if (unknown.Count > 0)
-                throw new TikUnknownFieldException(command, unknown, TikUnknownFieldUse.Write);
+            if (unknown.Count == 0)
+                return;
+            if (cleared != null)
+            {
+                var settable = new HashSet<string>(schema.SetArguments ?? Array.Empty<string>(), StringComparer.Ordinal);
+                bool Settable(string field) => settable.Contains(field)
+                    || metadata.Properties.Any(p => (p.FieldName == field || p.AlternateNames.Contains(field))
+                        && new[] { p.FieldName }.Concat(p.AlternateNames).Any(settable.Contains));
+                if (unknown.All(Settable))
+                    throw new TikUnknownFieldException(command, unknown, TikUnknownFieldUse.Unset);
+            }
+            throw new TikUnknownFieldException(command, unknown, TikUnknownFieldUse.Write);
         }
     }
 }

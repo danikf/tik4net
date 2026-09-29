@@ -72,6 +72,41 @@ namespace tik4net.integrationtests
             CollectionAssert.IsSubsetOf(new[] { "accept", "drop", "jump" }, words.ToArray(), string.Join(",", words));
         }
 
+        /// <summary>
+        /// The menu tree: sub-menus apart from commands (cyan and magenta on a RouterOS 6 colour terminal, a Tab on each
+        /// word over Telnet and SSH, <c>node-type</c> on RouterOS 7), a command's own arguments including those the
+        /// first Tab leaves out, and what an unset can clear.
+        /// </summary>
+        [TestMethod]
+        public void SubmenusCommandsArgumentsAndUnsetFields()
+        {
+            if (IsNative())
+            {
+                // The .jg catalog knows a window's fields, not the menu tree: the tree is 'cannot say'.
+                var route = Describe("/ip/route");
+                Assert.IsNull(route.Submenus);
+                Assert.IsNull(route.IsOrdered);
+                Assert.IsNull(route.UnsetFields);
+                return;
+            }
+            var tool = Describe("/tool");
+
+            CollectionAssert.Contains(tool.Submenus.ToArray(), "netwatch", tool.ToString());
+            CollectionAssert.DoesNotContain(tool.Submenus.ToArray(), "..");
+            CollectionAssert.Contains(tool.Commands.ToArray(), "traceroute");
+            CollectionAssert.DoesNotContain(tool.Commands.ToArray(), "netwatch");
+            CollectionAssert.Contains(tool.Arguments("traceroute").ToArray(), "count", string.Join(",", tool.Arguments("traceroute")));
+            Assert.IsNull(tool.Arguments("t4n-no-such-command"));
+
+            var filter = Describe("/ip/firewall/filter");
+            Assert.AreEqual(true, filter.IsOrdered);
+            CollectionAssert.Contains(filter.Commands.ToArray(), "get", "a menu lists 'get' only on the second Tab");
+            CollectionAssert.Contains(filter.UnsetFields.ToArray(), "src-address", string.Join(",", filter.UnsetFields));
+            CollectionAssert.DoesNotContain(filter.UnsetFields.ToArray(), "action", "an action cannot be cleared");
+            CollectionAssert.DoesNotContain(filter.UnsetFields.ToArray(), "chain");
+            Assert.AreEqual(false, Describe("/system/identity").IsOrdered);
+        }
+
         [TestMethod]
         public void ASingletonHasSetAndNoAdd()
         {

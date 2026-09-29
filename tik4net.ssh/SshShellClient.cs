@@ -245,6 +245,10 @@ namespace tik4net.Ssh
                 if (!gotData && accumulated.Length > 0
                     && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
                     return accumulated.ToString();
+                // A Tab the router leaves unanswered: not the receive deadline.
+                if (accumulated.Length == 0
+                    && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs * tik4net.Cli.CliCompletionParser.NoReactionQuietFactor)
+                    return string.Empty;
 
                 if (closed || DateTime.UtcNow >= deadline)
                     return accumulated.ToString();

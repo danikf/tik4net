@@ -340,6 +340,7 @@ namespace tik4net.Cli
             RomonConnectionInfo = null;
             _features = new RouterFeatureSet();
             _menuFacts = new RouterMenuFacts();
+            _completionResponseMs = 0;
             try
             {
                 // The login delegate has always taken a token; it used to be handed CancellationToken.None,
@@ -661,8 +662,34 @@ namespace tik4net.Cli
         private const byte Tab = 0x09;
         /// <summary>Ctrl-C — aborts the current input line (leaving a fresh prompt). Byte 0x03.</summary>
         private const byte CtrlC = 0x03;
-        /// <summary>Silence (no new bytes) that marks the completion listing as fully arrived (ms).</summary>
+        /// <summary>The least silence (no new bytes) that marks a completion listing as fully arrived (ms).</summary>
         private const int CompletionSettleQuietMs = 300;
+
+        /// <summary>The most silence a completion waits for, however slow the link (ms).</summary>
+        private const int CompletionSettleQuietMaxMs = 5000;
+
+        // How long an answered Tab takes on this connection (ms, a running average; 0 until the first): the settle
+        // window is twice it, never under CompletionSettleQuietMs, so a slow link (MAC-Telnet, RoMON) is not cut short
+        // and a fast one does not wait longer than it must. Reset on every open.
+        private double _completionResponseMs;
+
+        private int CompletionQuietMs
+            => (int)Math.Min(CompletionSettleQuietMaxMs, Math.Max(CompletionSettleQuietMs, 2 * _completionResponseMs));
+
+        // One settle read, timed: a reaction that came is the link's response time, the settle window after its last byte
+        // taken off. A Tab left unanswered teaches nothing.
+        private string SettleTab(Func<byte[], int, CancellationToken, Task<string>> settle, byte[] bytes)
+        {
+            int quietMs = CompletionQuietMs;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            string reaction = settle(bytes, quietMs, CancellationToken.None).GetAwaiter().GetResult();
+            if (reaction.Length > 0)
+            {
+                double response = Math.Max(0, sw.ElapsedMilliseconds - quietMs);
+                _completionResponseMs = _completionResponseMs == 0 ? response : 0.7 * _completionResponseMs + 0.3 * response;
+            }
+            return reaction;
+        }
 
         // Optional driver for the completion probe: "send raw bytes, then read until the output goes quiet
         // for N ms" (settle), returning the reaction with its escape sequences — an inline completion is written
@@ -683,16 +710,24 @@ namespace tik4net.Cli
 
         /// <inheritdoc/>
         public IReadOnlyList<string> CompleteCli(string partialInput)
-            => CliCompletionParser.Tokens(CompleteCliReaction(partialInput), partialInput);
+            => ((ICliCompletionReaction)this).CompleteCliBoth(partialInput).Items.Select(i => i.Name).ToList();
 
         /// <inheritdoc/>
         public string CompleteCliRaw(string partialInput)
-            => CliCompletionParser.Clean(CompleteCliReaction(partialInput), partialInput);
+            => ((ICliCompletionReaction)this).CompleteCliBoth(partialInput).Raw.TrimEnd();
 
-        (IReadOnlyList<string> Tokens, string Raw) ICliCompletionReaction.CompleteCliBoth(string partialInput)
+        (IReadOnlyList<CliCompletionItem> Items, string Raw) ICliCompletionReaction.CompleteCliBoth(string partialInput)
         {
-            string reaction = CompleteCliReaction(partialInput);
-            return (CliCompletionParser.Tokens(reaction, partialInput), CliCompletionParser.Clean(reaction, partialInput));
+            var (first, more) = CompleteCliReaction(partialInput);
+            var items = CliCompletionParser.Items(first, partialInput).ToList();
+            string raw = CliCompletionParser.Clean(first, partialInput, keepWordEnd: true);
+            if (more != null)
+            {
+                var seen = new HashSet<string>(items.Select(i => i.Name), StringComparer.Ordinal);
+                items.AddRange(CliCompletionParser.Items(more, partialInput).Where(i => seen.Add(i.Name)));
+                raw += "\n" + CliCompletionParser.Clean(more, partialInput);
+            }
+            return (items, raw);
         }
 
         /// <summary>
@@ -701,9 +736,11 @@ namespace tik4net.Cli
         /// settles (RouterOS prints the completions then redraws <c>] &gt; &lt;stem&gt;</c> — never a bare
         /// prompt, so a prompt-based read would hang); then send <c>Ctrl-C</c> to abort the half-typed line
         /// so the session is left at a clean prompt for the next call. <c>?</c> is deliberately not used — it
-        /// emits no listing over a RouterOS PTY.
+        /// emits no listing over a RouterOS PTY. A listing is followed by one more Tab: RouterOS lists on it what
+        /// the first left out (a menu's <c>..</c> and <c>get</c>, a command's less common arguments), and a third
+        /// would repeat the first (findings-cli §14). That second listing is <c>More</c>, null when there is none.
         /// </summary>
-        private string CompleteCliReaction(string partialInput)
+        private (string First, string? More) CompleteCliReaction(string partialInput)
         {
             EnsureOpened();
             if (partialInput == null)
@@ -722,7 +759,7 @@ namespace tik4net.Cli
             try
             {
                 FireWriteRow("<tab-complete> " + partialInput);
-                string reaction = settle(tab, CompletionSettleQuietMs, CancellationToken.None).GetAwaiter().GetResult();
+                string reaction = SettleTab(settle, tab);
                 FireReadRow(VtStripper.StripAnsi(reaction));
 
                 // RouterOS 6 lists only on a SECOND Tab when the typed stem already is the candidates' common
@@ -731,17 +768,29 @@ namespace tik4net.Cli
                 if (CliCompletionParser.Clean(reaction, partialInput).Length == 0)
                 {
                     FireWriteRow("<tab-complete> <second tab>");
-                    string again = settle(new[] { Tab }, CompletionSettleQuietMs, CancellationToken.None).GetAwaiter().GetResult();
+                    string again = SettleTab(settle, new[] { Tab });
                     FireReadRow(VtStripper.StripAnsi(again));
                     if (CliCompletionParser.Clean(again, partialInput).Length > 0)
                         reaction = again;
+                }
+
+                string? more = null;
+                var listed = CliCompletionParser.Tokens(reaction, partialInput);
+                if (listed.Count > 0)
+                {
+                    FireWriteRow("<tab-complete> <more>");
+                    string next = SettleTab(settle, new[] { Tab });
+                    FireReadRow(VtStripper.StripAnsi(next));
+                    var extra = CliCompletionParser.Tokens(next, partialInput);
+                    if (extra.Count > 0 && !extra.All(listed.Contains))
+                        more = next;
                 }
 
                 // Abort the half-typed line (Ctrl-C → fresh prompt). Prompt-based read returns promptly here.
                 try { SendRawAndReadAsync(new[] { CtrlC }, CancellationToken.None).GetAwaiter().GetResult(); }
                 catch { /* best-effort cleanup — the listing is already captured */ }
 
-                return reaction;
+                return (reaction, more);
             }
             finally { _cmdLock.Release(); }
         }
