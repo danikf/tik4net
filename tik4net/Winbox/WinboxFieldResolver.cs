@@ -1468,12 +1468,9 @@ namespace tik4net.Winbox
                 // upload-max-limit and download-max-limit and no max-limit at all, so the field simply did
                 // not exist on this transport.
                 //
-                // Six of the eight paired CONFIGURATION fields are here. The two that are not:
-                //   * burst-time — the halves decode as "10"/"20" where the API says "10s/20s"; the .jg does
-                //     not type them as intervals, so pairing them would join two wrong values into one.
-                //   * queue      — the halves are queue-type IDs (4294967294) where the API says
-                //     "default-small/default-small"; that needs the reference resolved first.
-                // Both are left reporting their halves rather than given a plausible-looking wrong answer.
+                // All eight paired CONFIGURATION fields are here. Each half is formatted by its own typed field
+                // (PairHalves), which is what lets the last two pair at all: burst-time's halves are intervals,
+                // and queue's are queue-type references — each read as its own field, not as the other's type.
                 //
                 // The READ-ONLY statistics pair the same way, and for the same reason. The window's
                 // Statistics tab is a column of {tuple,separate:1,c:[{name:'Upload …'},{name:'Download …'}]}
