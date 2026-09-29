@@ -247,6 +247,46 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(0xAL, Num(encoded[0x49]));
         }
 
+        // ── RouterOS 6: the `not` is the group's 'Invert' sibling ──────────────
+
+        // roteros.jg 6.49.13, Filter Rule: the same keys as 7.x's opt b1aa → not bcc → multibits u49, declared as a
+        // group whose value and 'Invert' bool are siblings.
+        private const string FilterWindow649 =
+            "[{name:'Firewall',title:'Firewall',group:'IP',c:[" +
+            "{name:'Filter Rule',title:'Filter Rules',type:'map',path:[ 12,1 ],c:[" +
+              "{name:'Chain',type:'string',id:'s2'}," +
+              "{name:'Src. Address Type',type:'group',id:'b1aa',c:[" +
+                 "{name:'Address Type',type:'multibits',id:'u49',max:4,c:[{type:'enm',values:{type:'static'," +
+                 "map:{1:'unicast',2:'local',3:'broadcast',5:'multicast'}}}]}," +
+                 "{name:'Invert',type:'bool',id:'bcc'}]}]}" +
+            "]}]";
+
+        [TestMethod]
+        public void OnRouterOs6_TheGroupsInvertBoolIsTheNegation_NotAFieldOfItsOwn()
+        {
+            var catalog = Parse(FilterWindow649);
+            var fields = catalog.GetHandlerFields(FilterHandler);
+
+            Assert.AreEqual(0xCC, fields["src-address-type"].NotKey);
+            Assert.AreEqual(0x1AA, fields["src-address-type"].OptKey);
+            Assert.IsFalse(fields.ContainsKey("invert"), "6.49.13 read an 'invert' field the API does not have");
+
+            var read = Decode(catalog, Rec((0x1AA, "bool", true), (0xCC, "bool", true), (0x49, "u32", 4L)));
+            Assert.AreEqual("!local", read["src-address-type"]);
+            Assert.IsFalse(read.ContainsKey("invert"));
+
+            var written = Decoded(Resolver(catalog).EncodeField("src-address-type", "!local"));
+            Assert.AreEqual(true, written[0xCC]);
+            Assert.AreEqual(4L, Num(written[0x49]));
+        }
+
+        private static Dictionary<int, Tuple<string, object>> Rec(params (int key, string type, object val)[] fields)
+        {
+            var rec = new Dictionary<int, Tuple<string, object>>();
+            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            return rec;
+        }
+
         // ── the `not` flag, both ways ──────────────────────────────────────────
 
         [TestMethod]

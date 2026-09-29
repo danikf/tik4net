@@ -782,6 +782,9 @@ namespace tik4net.Winbox
             }
         }
 
+        // .jg nodes that are another field's flag and not a field themselves (AddOptionField's InvertSibling).
+        private readonly HashSet<Dictionary<string, object>> _flagOnlyNodes = new HashSet<Dictionary<string, object>>();
+
         // The type:'cond' nodes of each window (owner key -> name -> node), every field of it by its raw .jg label
         // (a condition's `on` names one, nonpublic ones included), and the fields waiting for their condition.
         private readonly Dictionary<string, Dictionary<string, Dictionary<string, object>>> _condNodes =
@@ -975,6 +978,8 @@ namespace tik4net.Winbox
         private void Walk(object? node, string? handlerKey, List<string> crumb, PaneContext? pane = null,
             string? tab = null)
         {
+            if (node is Dictionary<string, object> flagOnly && _flagOnlyNodes.Contains(flagOnly))
+                return;   // the negation flag of its group's value (InvertSibling), not a field
             if (node is Dictionary<string, object> dict)
             {
                 string? owner = handlerKey;
@@ -1763,6 +1768,15 @@ namespace tik4net.Winbox
                     // A `group` with an id is an opt under another word — its bool says the match is in
                     // force, exactly as an opt's does.
                     if (dec != null) { if (ty == "not") notKey = dec.Value.key; else optKey = dec.Value.key; }
+                    // RouterOS 6 spells the `not` of a group as a SIBLING of the value: 6.49.13's 'Src. Address
+                    // Type' is {group b1aa, c:[{name:'Address Type',multibits u49}, {name:'Invert',bool bcc}]},
+                    // where 7.x nests the same keys as opt b1aa → not bcc → multibits. Without this the '!' read
+                    // as its own field ('invert', 'extra-invert') and src-address-type=!local as 'local'.
+                    if (ty == "group" && notKey == 0 && InvertSibling(cur) is { } invert)
+                    {
+                        notKey = invert.key;
+                        _flagOnlyNodes.Add(invert.node);
+                    }
                     var child = FirstChildDict(cur);
                     if (child == null)
                     {
@@ -2063,6 +2077,22 @@ namespace tik4net.Winbox
         }
 
         // First child dict inside a node's 'c' list (skips non-dict entries), or null.
+        // A group's {name:'Invert', type:'bool', id} child: the RouterOS 6 form of a `not` wrapper (AddOptionField).
+        // Only in a group of exactly the value and the Invert: ipv6.jg's 'Headers' group is {Match enm, Invert,
+        // Headers set}, whose first child is a selector, not the value an Invert would negate.
+        private static (int key, Dictionary<string, object> node)? InvertSibling(Dictionary<string, object> group)
+        {
+            if (!(group.TryGetValue("c", out var cv) && cv is List<object> list)
+                || list.Count(it => it is Dictionary<string, object>) != 2) return null;
+            foreach (var it in list)
+                if (it is Dictionary<string, object> d
+                    && d.TryGetValue("name", out var nv) && (nv as string) == "Invert"
+                    && d.TryGetValue("type", out var tv) && (tv as string) == "bool"
+                    && d.TryGetValue("id", out var iv) && iv is string ids && DecodeId(ids) is { } dec)
+                    return (dec.key, d);
+            return null;
+        }
+
         private static Dictionary<string, object>? FirstChildDict(Dictionary<string, object> node)
         {
             if (node.TryGetValue("c", out var cv) && cv is List<object> list)
