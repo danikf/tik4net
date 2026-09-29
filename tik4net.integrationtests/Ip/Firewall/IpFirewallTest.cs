@@ -222,6 +222,7 @@ namespace tik4net.integrationtests
                 Action = FirewallFilter.ActionType.Drop,
                 Chain = "forward",
                 Comment = "test-tcp",
+                Disabled = true,    // a traffic-path row: created disabled, the suite runs through this chain
                 DstAddress = "8.8.8.8",
                 DstPort = "53",
                 Protocol = "tcp",
@@ -241,6 +242,7 @@ namespace tik4net.integrationtests
                 Action = FirewallFilter.ActionType.Accept, //default value
                 Chain = "forward",
                 Comment = "test-tcp",
+                Disabled = true,    // a traffic-path row: created disabled, the suite runs through this chain
                 DstAddress = "8.8.8.8",
                 DstPort = "53",
                 Protocol = "tcp",
@@ -325,6 +327,7 @@ namespace tik4net.integrationtests
                 Action = FirewallFilter.ActionType.Accept,
                 Chain = "forward",
                 Comment = "test-flags-read",
+                Disabled = true,    // a traffic-path row: created disabled, the suite runs through this chain
                 ConnectionState = FirewallFilter.ConnectionStateType.Established | FirewallFilter.ConnectionStateType.Related,
             };
             SaveTracked(filter);
@@ -350,6 +353,7 @@ namespace tik4net.integrationtests
                 Action = FirewallFilter.ActionType.Drop,
                 Chain = "forward",
                 Comment = "test-flags-write",
+                Disabled = true,    // a traffic-path row: created disabled, the suite runs through this chain
                 ConnectionState = FirewallFilter.ConnectionStateType.New | FirewallFilter.ConnectionStateType.Invalid,
             };
             SaveTracked(filter);
