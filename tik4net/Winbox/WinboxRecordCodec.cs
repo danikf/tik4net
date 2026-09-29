@@ -260,6 +260,12 @@ namespace tik4net.Winbox
         /// Whether <paramref name="key"/> — a flag key of <paramref name="consumer"/> — is the value key of a
         /// different field this path decodes under a name of its own.
         /// </summary>
+        private static bool OwnedByAnotherField(IReadOnlyDictionary<int, WinboxJgField> keyToField,
+            IReadOnlyDictionary<int, string> keyToName, WinboxJgField consumer, int key)
+            => keyToName != null && keyToName.ContainsKey(key)
+               && keyToField.TryGetValue(key, out var owner) && owner != null
+               && !ReferenceEquals(owner, consumer) && owner.Key == key;
+
         // A not-wrapped field's own bool is RouterOS's leading '!' on the whole value, whatever the value's type:
         // /ip/firewall/filter src-address=!10.0.0.0/8, in-interface=!ether1, src-address-list=!x. Only the set and
         // number-list cases rendered it, so every negated address, interface or list name read back as its
@@ -270,12 +276,6 @@ namespace tik4net.Winbox
                && !WinboxFieldResolver.IsPerMemberNegatedList(jf.UiType)
                && rec.TryGetValue(jf.NotKey, out var flag) && flag.Item2 is bool negated && negated
                 ? "!" + text : text;
-
-        private static bool OwnedByAnotherField(IReadOnlyDictionary<int, WinboxJgField> keyToField,
-            IReadOnlyDictionary<int, string> keyToName, WinboxJgField consumer, int key)
-            => keyToName != null && keyToName.ContainsKey(key)
-               && keyToField.TryGetValue(key, out var owner) && owner != null
-               && !ReferenceEquals(owner, consumer) && owner.Key == key;
 
         /// <summary>
         /// Whether a <c>macaddr</c> field's value is a MAC at all: six raw bytes, as a <c>byte[]</c>, as the
