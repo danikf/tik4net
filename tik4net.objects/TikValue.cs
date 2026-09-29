@@ -11,8 +11,9 @@ namespace tik4net.Objects
     /// value could be read. See <see cref="TikValue{T}"/>.
     /// </summary>
     /// <remarks>
-    /// The three states are exclusive and stay so. A negated matcher (<c>!value</c>) will be a separate flag on the value,
-    /// not a fourth state, so a comparison with <c>==</c> against a state keeps its meaning.
+    /// The three states are exclusive and stay so. A negated matcher (<c>!value</c>) is a flag on a present value
+    /// (<see cref="TikValue{T}.IsNegated"/>), not a fourth state, so a comparison with <c>==</c> against a state keeps its
+    /// meaning.
     /// </remarks>
     public enum TikValueState
     {
@@ -54,6 +55,12 @@ namespace tik4net.Objects
     /// version, and a save never invents one.
     /// </para>
     /// <para>
+    /// A firewall-style matcher can be negated — <c>src-address=!10.0.0.0/8</c> matches everything outside that network.
+    /// On a property that declares <see cref="TikPropertyAttribute.Negatable"/> the <c>!</c> is not part of the value:
+    /// it reads as <see cref="IsNegated"/>, and <see cref="Not"/> writes one (<c>rule.SrcAddress =
+    /// TikValue&lt;string?&gt;.Not("10.0.0.0/8")</c>). A negated value never equals the plain one.
+    /// </para>
+    /// <para>
     /// Assign a value directly (<c>entity.Port = 8080</c>, <c>entity.Comment = null</c>); read it with
     /// <see cref="Value"/> or <see cref="ValueOrDefault"/>. There is deliberately no implicit conversion back to
     /// <typeparamref name="T"/>: it would make <c>==</c> ambiguous and silently turn an unparsed value into
@@ -74,12 +81,14 @@ namespace tik4net.Objects
         private readonly T _value;
         private readonly string? _rawValue;
         private readonly TikValueState _state;
+        private readonly bool _negated;
 
-        private TikValue(TikValueState state, T value, string? rawValue)
+        private TikValue(TikValueState state, T value, string? rawValue, bool negated = false)
         {
             _state = state;
             _value = value;
             _rawValue = rawValue;
+            _negated = negated;
         }
 
         /// <summary>Whether the field was printed, and whether its value could be read.</summary>
@@ -108,8 +117,36 @@ namespace tik4net.Objects
         public string? UnknownFlagWords => _state == TikValueState.Present ? _rawValue : null;
 
         /// <summary>
+        /// True when the value is negated — the router's <c>!</c> in front of a matcher (<c>src-address=!10.0.0.0/8</c>,
+        /// <c>connection-state=!established,related</c>), which matches everything the value does not. Only a present,
+        /// non-null value can be negated, and only a property that declares <see cref="TikPropertyAttribute.Negatable"/>
+        /// reads or writes one.
+        /// </summary>
+        /// <remarks>
+        /// The <c>!</c> negates the whole value, a list included. A field whose members are negated one by one
+        /// (<c>tcp-flags=syn,!ack</c>) keeps its <c>!</c>s in the value itself.
+        /// </remarks>
+        public bool IsNegated => _state == TikValueState.Present && _negated;
+
+        /// <summary>
+        /// A negated value — the router's <c>!value</c>: <c>rule.SrcAddress = TikValue&lt;string?&gt;.Not("10.0.0.0/8")</c>.
+        /// Writing it to a property that does not declare <see cref="TikPropertyAttribute.Negatable"/> throws.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>: there is nothing to negate.</exception>
+        public static TikValue<T> Not(T value)
+            => new TikValue<T>(TikValueState.Present,
+                value ?? throw new ArgumentNullException(nameof(value), "Only a value can be negated."), null, negated: true);
+
+        /// <summary>This value with <see cref="IsNegated"/> cleared — the matcher it negates.</summary>
+        public TikValue<T> WithoutNegation() => new TikValue<T>(_state, _value, _rawValue);
+
+        internal TikValue<T> AsNegated()
+            => new TikValue<T>(_state, _value, _rawValue, negated: _state == TikValueState.Present && _value != null);
+
+        /// <summary>
         /// This <c>[Flags]</c> value with <paramref name="flags"/> added, keeping the router's words the enum does not know
-        /// (<see cref="UnknownFlagWords"/>). An absent or unparsed value becomes <paramref name="flags"/>.
+        /// (<see cref="UnknownFlagWords"/>) and a negation (<see cref="IsNegated"/>). An absent or unparsed value becomes
+        /// <paramref name="flags"/>.
         /// </summary>
         public TikValue<T> With(T flags) => Combine(flags, add: true);
 
@@ -127,11 +164,12 @@ namespace tik4net.Objects
             long change = Convert.ToInt64(flags, CultureInfo.InvariantCulture);
             long result = add ? current | change : current & ~change;
             return new TikValue<T>(TikValueState.Present, (T)Enum.ToObject(enumType, result),
-                _state == TikValueState.Present ? _rawValue : null);
+                _state == TikValueState.Present ? _rawValue : null, IsNegated);
         }
 
-        internal static TikValue<T> FromPresentWithUnknownFlags(T value, string? unknownWords)
-            => new TikValue<T>(TikValueState.Present, value, string.IsNullOrEmpty(unknownWords) ? null : unknownWords);
+        internal static TikValue<T> FromPresentWithUnknownFlags(T value, string? unknownWords, bool negated = false)
+            => new TikValue<T>(TikValueState.Present, value, string.IsNullOrEmpty(unknownWords) ? null : unknownWords,
+                negated && value != null);
 
         /// <summary>True when the router printed the field (or the caller assigned it) and the value was read.</summary>
         public bool IsPresent => _state == TikValueState.Present;
@@ -184,13 +222,14 @@ namespace tik4net.Objects
         internal static TikValue<T> FromUnparsed(string raw) => new TikValue<T>(TikValueState.Unparsed, default!, raw);
 
         /// <summary>
-        /// True when <paramref name="a"/> is present and holds <paramref name="b"/>. Compared with <c>null</c> it means "has no
-        /// value": true when absent or present with <c>null</c>, never when unparsed (the router printed something).
+        /// True when <paramref name="a"/> is present, not negated, and holds <paramref name="b"/>. Compared with <c>null</c> it
+        /// means "has no value": true when absent or present with <c>null</c>, never when unparsed (the router printed
+        /// something). A negated value (<c>!10.0.0.0/8</c>) matches the opposite of <paramref name="b"/>, so it is never equal.
         /// </summary>
         public static bool operator ==(TikValue<T> a, T b)
             => b == null
                 ? a._state == TikValueState.Absent || (a._state == TikValueState.Present && a._value == null)
-                : a._state == TikValueState.Present && EqualityComparer<T>.Default.Equals(a._value, b);
+                : a._state == TikValueState.Present && !a._negated && EqualityComparer<T>.Default.Equals(a._value, b);
 
         /// <summary>The negation of <c>a == b</c>.</summary>
         public static bool operator !=(TikValue<T> a, T b) => !(a == b);
@@ -201,7 +240,7 @@ namespace tik4net.Objects
         /// <summary>The negation of <c>a == b</c>.</summary>
         public static bool operator !=(T a, TikValue<T> b) => !(b == a);
 
-        /// <summary>Same state, same value, same raw word.</summary>
+        /// <summary>Same state, same value, same raw word, same negation.</summary>
         public static bool operator ==(TikValue<T> a, TikValue<T> b) => a.Equals(b);
 
         /// <summary>The negation of <c>a == b</c>.</summary>
@@ -209,7 +248,10 @@ namespace tik4net.Objects
 
         // ── Ordering: nullable semantics against a value; Absent < Unparsed < Present for sorting ──
 
-        /// <summary>True when both have a value and <paramref name="a"/>'s is smaller (like a lifted nullable comparison).</summary>
+        /// <summary>
+        /// True when both have a value and <paramref name="a"/>'s is smaller (like a lifted nullable comparison). A negated
+        /// value is not ordered against a plain one: every comparison with it is false.
+        /// </summary>
         public static bool operator <(TikValue<T> a, T b) => Lifted(a, b, out int c) && c < 0;
         /// <summary>True when both have a value and <paramref name="a"/>'s is larger.</summary>
         public static bool operator >(TikValue<T> a, T b) => Lifted(a, b, out int c) && c > 0;
@@ -221,20 +263,26 @@ namespace tik4net.Objects
         private static bool Lifted(TikValue<T> a, T b, out int comparison)
         {
             comparison = 0;
-            if (a._state != TikValueState.Present || a._value == null || b == null)
+            if (a._state != TikValueState.Present || a._negated || a._value == null || b == null)
                 return false;
             comparison = Comparer<T>.Default.Compare(a._value, b);
             return true;
         }
 
-        /// <summary>Sort order: Absent, then Unparsed (by word), then Present (by value, <c>null</c> first).</summary>
+        /// <summary>
+        /// Sort order: Absent, then Unparsed (by word), then Present (by value, <c>null</c> first; a plain value before its
+        /// negation).
+        /// </summary>
         public int CompareTo(TikValue<T> other)
         {
             if (_state != other._state)
                 return Rank(_state).CompareTo(Rank(other._state));
             if (_state == TikValueState.Unparsed)
                 return string.CompareOrdinal(_rawValue, other._rawValue);
-            return _state == TikValueState.Present ? Comparer<T>.Default.Compare(_value, other._value) : 0;
+            if (_state != TikValueState.Present)
+                return 0;
+            int byValue = Comparer<T>.Default.Compare(_value, other._value);
+            return byValue != 0 ? byValue : _negated.CompareTo(other._negated);
         }
 
         int IComparable.CompareTo(object? obj)
@@ -248,6 +296,7 @@ namespace tik4net.Objects
         /// <inheritdoc/>
         public bool Equals(TikValue<T> other)
             => _state == other._state
+               && _negated == other._negated
                && EqualityComparer<T>.Default.Equals(_value, other._value)
                && string.Equals(_rawValue, other._rawValue, StringComparison.Ordinal);
 
@@ -259,7 +308,7 @@ namespace tik4net.Objects
         {
             unchecked
             {
-                int hash = (int)_state;
+                int hash = (int)_state + (_negated ? 16 : 0);
                 hash = hash * 397 ^ (_value == null ? 0 : EqualityComparer<T>.Default.GetHashCode(_value));
                 return hash * 397 ^ (_rawValue == null ? 0 : _rawValue.GetHashCode());
             }
@@ -267,11 +316,11 @@ namespace tik4net.Objects
 
         /// <summary>
         /// The value for display — grids, logs, string formatting — spelled the way the router prints it: an enum as its
-        /// word (<c>auto</c>, not <c>Auto</c>), a bool as <c>true</c>/<c>false</c>, a number invariantly; the router's word
-        /// when unparsed; an empty string when absent.
+        /// word (<c>auto</c>, not <c>Auto</c>), a bool as <c>true</c>/<c>false</c>, a number invariantly, a negated value
+        /// with its <c>!</c>; the router's word when unparsed; an empty string when absent.
         /// </summary>
         public override string ToString()
-            => _state == TikValueState.Present ? JoinWords(WireText(_value), _rawValue)
+            => _state == TikValueState.Present ? (_negated ? "!" : "") + JoinWords(WireText(_value), _rawValue)
              : _state == TikValueState.Unparsed ? _rawValue ?? string.Empty
              : string.Empty;
 
@@ -302,13 +351,13 @@ namespace tik4net.Objects
             => _state == TikValueState.Absent ? "Absent"
              : _state == TikValueState.Unparsed ? "Unparsed \"" + _rawValue + "\""
              : _value == null ? "null"
-             : _rawValue != null ? WireText(_value) + " +" + _rawValue
-             : WireText(_value);
+             : (_negated ? "!" : "") + (_rawValue != null ? WireText(_value) + " +" + _rawValue : WireText(_value));
 
         TikValueState ITikValue.State => _state;
         object? ITikValue.BoxedValue => _value;
         string? ITikValue.RawValue => RawValue;
         string? ITikValue.UnknownFlagWords => UnknownFlagWords;
+        bool ITikValue.IsNegated => IsNegated;
     }
 
     /// <summary>
@@ -358,5 +407,6 @@ namespace tik4net.Objects
         object? BoxedValue { get; }
         string? RawValue { get; }
         string? UnknownFlagWords { get; }
+        bool IsNegated { get; }
     }
 }

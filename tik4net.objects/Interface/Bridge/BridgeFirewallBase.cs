@@ -26,37 +26,37 @@ namespace tik4net.Objects.Interface.Bridge
         /// <summary>
         /// in-bridge: Bridge interface through which the packet is coming in
         /// </summary>
-        [TikProperty("in-bridge")]
+        [TikProperty("in-bridge", Negatable = true)]
         public TikValue<string?> InBridge { get; set; }
 
         /// <summary>
         /// in-interface: Physical interface (i.e., bridge port) through which the packet is coming in
         /// </summary>
-        [TikProperty("in-interface")]
+        [TikProperty("in-interface", Negatable = true)]
         public TikValue<string?> InInterface { get; set; }
 
         /// <summary>
         /// out-bridge: Outgoing bridge interface
         /// </summary>
-        [TikProperty("out-bridge")]
+        [TikProperty("out-bridge", Negatable = true)]
         public TikValue<string?> OutBridge { get; set; }
 
         /// <summary>
         /// out-interface: Interface that the packet is leaving the bridge through
         /// </summary>
-        [TikProperty("out-interface")]
+        [TikProperty("out-interface", Negatable = true)]
         public TikValue<string?> OutInterface { get; set; }
 
         /// <summary>
         /// src-mac-address: Source MAC address
         /// </summary>
-        [TikProperty("src-mac-address")]
+        [TikProperty("src-mac-address", Negatable = true)]
         public TikValue<string?> SrcMacAddress { get; set; }
 
         /// <summary>
         /// dst-mac-address: Destination MAC address
         /// </summary>
-        [TikProperty("dst-mac-address")]
+        [TikProperty("dst-mac-address", Negatable = true)]
         public TikValue<string?> DstMacAddress { get; set; }
 
         /// <summary>
@@ -75,31 +75,31 @@ namespace tik4net.Objects.Interface.Bridge
         /// rarp - Type 0x8035 - Reverse ARP
         /// vlan - Type 0x8100 - 802.1Q tagged VLAN
         /// </summary>
-        [TikProperty("mac-protocol")]
+        [TikProperty("mac-protocol", Negatable = true)]
         public TikValue<string?> MacProtocol { get; set; }
 
         /// <summary>
         /// src-address: Source IP address (only if MAC protocol is set to IPv4)
         /// </summary>
-        [TikProperty("src-address")]
+        [TikProperty("src-address", Negatable = true)]
         public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// src-port: Source port number or range (only for TCP or UDP protocols)
         /// </summary>
-        [TikProperty("src-port")]
+        [TikProperty("src-port", Negatable = true)]
         public TikValue<string?> SrcPort { get; set; }
 
         /// <summary>
         /// dst-address: Destination IP address (only if MAC protocol is set to IPv4)
         /// </summary>
-        [TikProperty("dst-address")]
+        [TikProperty("dst-address", Negatable = true)]
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>
         /// dst-port: Destination port number or range (only for TCP or UDP protocols)
         /// </summary>
-        [TikProperty("dst-port")]
+        [TikProperty("dst-port", Negatable = true)]
         public TikValue<string?> DstPort { get; set; }
 
         /// <summary>
@@ -150,13 +150,13 @@ namespace tik4net.Objects.Interface.Bridge
         /// <summary>
         /// packet-mark: Matches packets marked via mangle facility with particular packet mark. If no-mark is set, rule will match any unmarked packet.
         /// </summary>
-        [TikProperty("packet-mark")]
+        [TikProperty("packet-mark", Negatable = true)]
         public TikValue<string?> PacketMark { get; set; }
 
         /// <summary>
         /// ingress-priority: Matches ingress priority of the packet. Priority may be derived from VLAN, WMM or MPLS EXP bit.  read more»
         /// </summary>
-        [TikProperty("ingress-priority")]
+        [TikProperty("ingress-priority", Negatable = true)]
         public TikValue<string?> IngressPriority { get; set; }
 
         /// <summary>

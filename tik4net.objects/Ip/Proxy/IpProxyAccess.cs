@@ -35,24 +35,24 @@ namespace tik4net.Objects.Ip.Proxy
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>dst-host — destination hostname or IP to match (e.g. *.example.com).</summary>
-        [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host")]
+        [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host", Negatable = true)]
         public TikValue<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match (e.g. 80 or 80-90).</summary>
-        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port")]
+        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port", Negatable = true)]
         public TikValue<string?> DstPort { get; set; }
 
         /// <summary>local-port — proxy listening port through which the request was received. 0 = not set.</summary>
-        [TikProperty("local-port", DefaultValue = "0", WinboxLabel = "Local Port")]
+        [TikProperty("local-port", DefaultValue = "0", WinboxLabel = "Local Port", Negatable = true)]
         public TikValue<int?> LocalPort { get; set; }
 
         /// <summary>method — HTTP request method to match.
         /// <seealso cref="ProxyHttpMethod"/></summary>
-        [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method")]
+        [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method", Negatable = true)]
         public TikValue<ProxyHttpMethod?> Method { get; set; }
 
         /// <summary>path — requested URL path (without server name) to match (e.g. /ads/*).</summary>
-        [TikProperty("path", DefaultValue = "", WinboxLabel = "Path")]
+        [TikProperty("path", DefaultValue = "", WinboxLabel = "Path", Negatable = true)]
         public TikValue<string?> Path { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>

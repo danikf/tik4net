@@ -190,6 +190,23 @@ namespace tik4net.Objects
         public bool IsSensitive { get; set; }
 
         /// <summary>
+        /// Marks a matcher RouterOS can <b>negate</b> with a leading <c>!</c> — <c>src-address=!10.0.0.0/8</c>,
+        /// <c>in-interface=!ether1</c>, <c>connection-state=!established,related</c>.
+        /// <para>
+        /// On a <see cref="TikValue{T}"/> property the <c>!</c> is then not part of the value: a load reads it as
+        /// <see cref="TikValue{T}.IsNegated"/> and parses the rest as <c>T</c>, and a negated value
+        /// (<see cref="TikValue{T}.Not"/>) is written with it. Every transport spells it the same way — the API, REST
+        /// and the CLI print the <c>!</c>, and WinBox native carries it as the field's <c>not</c> flag. Without the
+        /// marker a leading <c>!</c> is part of the value: a comment or a name may start with one.
+        /// </para>
+        /// <para>
+        /// The <c>!</c> negates the whole value, a list included (<c>dst-port=!22,8291</c>). A field whose members are
+        /// negated one by one (<c>tcp-flags=syn,!ack</c>) is not marked: its <c>!</c>s belong to the value.
+        /// </para>
+        /// </summary>
+        public bool Negatable { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="fieldName">Name of the property (on mikrotik).</param>

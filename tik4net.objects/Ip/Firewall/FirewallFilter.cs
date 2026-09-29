@@ -188,19 +188,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// connection-limit: Restrict connection limit per address or address block up to and including given value 
         /// </summary>
-        [TikProperty("connection-limit")]
+        [TikProperty("connection-limit", Negatable = true)]
         public TikValue<int?> ConnectionLimit { get; set; }
 
         /// <summary>
         /// connection-mark: Matches packets marked via mangle facility with particular connection mark. If no-mark is set, rule will match any unmarked connection.
         /// </summary>
-        [TikProperty("connection-mark", WinboxLabel = "Connection Mark")]
+        [TikProperty("connection-mark", WinboxLabel = "Connection Mark", Negatable = true)]
         public TikValue<string?> ConnectionMark { get; set; }
 
         /// <summary>
         /// connection-rate: Connection Rate is a firewall matcher that allow to capture traffic based on present speed of the connection.  Read more &gt;&gt;
         /// </summary>
-        [TikProperty("connection-rate", WinboxLabel = "Connection Rate")]
+        [TikProperty("connection-rate", WinboxLabel = "Connection Rate", Negatable = true)]
         public TikValue<int?> ConnectionRate { get; set; }
 
         /// <summary>
@@ -210,19 +210,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// new - the packet has started a new connection, or otherwise associated with a connection which has not seen packets in both directions.
         /// related - a packet which is related to, but not part of an existing connection, such as ICMP errors or a packet which begins FTP data connection
         /// </summary>
-        [TikProperty("connection-state", WinboxLabel = "Connection State")]
+        [TikProperty("connection-state", WinboxLabel = "Connection State", Negatable = true)]
         public TikValue<ConnectionStateType?> ConnectionState { get; set; }
 
         /// <summary>
         /// connection-type: Matches packets from related connections based on information from their connection tracking helpers. A relevant connection helper must be enabled under  /ip firewall service-port
         /// </summary>
-        [TikProperty("connection-type", WinboxLabel = "Connection Type")]
+        [TikProperty("connection-type", WinboxLabel = "Connection Type", Negatable = true)]
         public TikValue<string?> ConnectionType { get; set; }
 
         /// <summary>
         /// content: Match packets that contain specified text
         /// </summary>
-        [TikProperty("content", WinboxLabel = "Content")]
+        [TikProperty("content", WinboxLabel = "Content", Negatable = true)]
         public TikValue<string?> Content { get; set; }
 
         /// <summary>
@@ -234,13 +234,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// dst-address: Matches packets which destination is equal to specified IP or falls into specified IP range.
         /// </summary>
-        [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
+        [TikProperty("dst-address", WinboxLabel = "Dst. Address", Negatable = true)]
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>
         /// dst-address-list: Matches destination address of a packet against user-defined address list
         /// </summary>
-        [TikProperty("dst-address-list", WinboxLabel = "Dst. Address List")]
+        [TikProperty("dst-address-list", WinboxLabel = "Dst. Address List", Negatable = true)]
         public TikValue<string?> DstAddressList { get; set; }
 
         /// <summary>
@@ -267,7 +267,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// dst-port: List of destination port numbers or port number ranges
         /// </summary>
-        [TikProperty("dst-port", WinboxLabel = "Dst. Port")]
+        [TikProperty("dst-port", WinboxLabel = "Dst. Port", Negatable = true)]
         public TikValue<string?> DstPort { get; set; }
 
         /// <summary>
@@ -285,25 +285,25 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// icmp-options: Matches ICMP type:code fileds
         /// </summary>
-        [TikProperty("icmp-options", WinboxLabel = "ICMP Options")]
+        [TikProperty("icmp-options", WinboxLabel = "ICMP Options", Negatable = true)]
         public TikValue<string?> IcmpOptions { get; set; }
 
         /// <summary>
         /// in-bridge-port: Actual interface the packet has entered the router, if incoming interface is bridge. Works only if use-ip-firewall is enabled in bridge settings.
         /// </summary>
-        [TikProperty("in-bridge-port", WinboxLabel = "In. Bridge Port")]
+        [TikProperty("in-bridge-port", WinboxLabel = "In. Bridge Port", Negatable = true)]
         public TikValue<string?> InBridgePort { get; set; }
 
         /// <summary>
         /// in-interface: Interface the packet has entered the router
         /// </summary>
-        [TikProperty("in-interface", WinboxLabel = "In. Interface")]
+        [TikProperty("in-interface", WinboxLabel = "In. Interface", Negatable = true)]
         public TikValue<string?> InInterface { get; set; }
 
         /// <summary>
         /// ingress-priority: Matches ingress priority of the packet. Priority may be derived from VLAN, WMM or MPLS EXP bit.  Read more&gt;&gt;
         /// </summary>
-        [TikProperty("ingress-priority", WinboxLabel = "Ingress Priority")]
+        [TikProperty("ingress-priority", WinboxLabel = "Ingress Priority", Negatable = true)]
         public TikValue<int?> IngressPriority { get; set; }
 
         ///// <summary>
@@ -342,7 +342,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// layer7-protocol: Layer7 filter name defined in  layer7 protocol menu.
         /// </summary>
-        [TikProperty("layer7-protocol", WinboxLabel = "Layer7 Protocol")]
+        [TikProperty("layer7-protocol", WinboxLabel = "Layer7 Protocol", Negatable = true)]
         public TikValue<string?> Layer7Protocol { get; set; }
 
         /// <summary>
@@ -351,7 +351,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// time - specifies the time interval in which the packet count cannot be exceeded(optional, 1s will be used if not specified)
         /// burst - initial number of packets to match: this number gets recharged by one every time/count, up to this number
         /// </summary>
-        [TikProperty("limit", WinboxLabel = "Limit")]
+        [TikProperty("limit", WinboxLabel = "Limit", Negatable = true)]
         public TikValue<string?> Limit { get; set; }
 
         /// <summary>
@@ -363,19 +363,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// nth: Matches every nth packet.  Read more &gt;&gt;
         /// </summary>
-        [TikProperty("nth", WinboxLabel = "Nth")]
+        [TikProperty("nth", WinboxLabel = "Nth", Negatable = true)]
         public TikValue<string?> Nth { get; set; }
 
         /// <summary>
         /// out-bridge-port: Actual interface the packet is leaving the router, if outgoing interface is bridge. Works only if use-ip-firewall is enabled in bridge settings.
         /// </summary>
-        [TikProperty("out-bridge-port", WinboxLabel = "Out. Bridge Port")]
+        [TikProperty("out-bridge-port", WinboxLabel = "Out. Bridge Port", Negatable = true)]
         public TikValue<string?> OutBridgePort { get; set; }
 
         /// <summary>
         /// out-interface: Interface the packet is leaving the router
         /// </summary>
-        [TikProperty("out-interface", WinboxLabel = "Out. Interface")]
+        [TikProperty("out-interface", WinboxLabel = "Out. Interface", Negatable = true)]
         public TikValue<string?> OutInterface { get; set; }
 
         /// <summary>
@@ -387,13 +387,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// packet-mark: Matches packets marked via mangle facility with particular packet mark. If no-mark is set, rule will match any unmarked packet.
         /// </summary>
-        [TikProperty("packet-mark", WinboxLabel = "Packet Mark")]
+        [TikProperty("packet-mark", WinboxLabel = "Packet Mark", Negatable = true)]
         public TikValue<string?> PacketMark { get; set; }
 
         /// <summary>
         /// packet-size: Matches packets of specified size or size range in bytes.
         /// </summary>
-        [TikProperty("packet-size", WinboxLabel = "Packet Size")]
+        [TikProperty("packet-size", WinboxLabel = "Packet Size", Negatable = true)]
         public TikValue<string?> PacketSize { get; set; }
 
         /// <summary>
@@ -411,7 +411,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// protocol: Matches particular IP protocol specified by protocol name or number
         /// </summary>
-        [TikProperty("protocol", WinboxLabel = "Protocol")]
+        [TikProperty("protocol", WinboxLabel = "Protocol", Negatable = true)]
         public TikValue<string?> Protocol { get; set; }
 
         /// <summary>
@@ -439,19 +439,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// routing-mark: Matches packets marked by mangle facility with particular routing mark
         /// </summary>
-        [TikProperty("routing-mark", WinboxLabel = "Routing Mark")]
+        [TikProperty("routing-mark", WinboxLabel = "Routing Mark", Negatable = true)]
         public TikValue<string?> RoutingMark { get; set; }
 
         /// <summary>
         /// src-address: Matches packets which source is equal to specified IP or falls into specified IP range.
         /// </summary>
-        [TikProperty("src-address", WinboxLabel = "Src. Address")]
+        [TikProperty("src-address", WinboxLabel = "Src. Address", Negatable = true)]
         public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// src-address-list: Matches source address of a packet against user-defined  address list
         /// </summary>
-        [TikProperty("src-address-list", WinboxLabel = "Src. Address List")]
+        [TikProperty("src-address-list", WinboxLabel = "Src. Address List", Negatable = true)]
         public TikValue<string?> SrcAddressList { get; set; }
 
         /// <summary>
@@ -468,13 +468,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// src-port: List of source ports and ranges of source ports. Applicable only if protocol is TCP or UDP.
         /// </summary>
-        [TikProperty("src-port", WinboxLabel = "Src. Port")]
+        [TikProperty("src-port", WinboxLabel = "Src. Port", Negatable = true)]
         public TikValue<string?> SrcPort { get; set; }
 
         /// <summary>
         /// src-mac-address: Matches source MAC address of the packet
         /// </summary>
-        [TikProperty("src-mac-address", WinboxLabel = "Src. MAC Address")]
+        [TikProperty("src-mac-address", WinboxLabel = "Src. MAC Address", Negatable = true)]
         public TikValue<string?> SrcMacAddress { get; set; }
 
         /// <summary>
@@ -494,7 +494,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// tcp-mss: Matches TCP MSS value of an IP packet
         /// </summary>
-        [TikProperty("tcp-mss", WinboxLabel = "TCP MSS")]
+        [TikProperty("tcp-mss", WinboxLabel = "TCP MSS", Negatable = true)]
         public TikValue<string?> TcpMss { get; set; }
 
         /// <summary>

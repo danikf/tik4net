@@ -178,7 +178,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// src-address-list: references predefined address list for source IP filtering.
         /// </summary>
-        [TikProperty("src-address-list", WinboxLabel = "Src. Address List")]
+        [TikProperty("src-address-list", WinboxLabel = "Src. Address List", Negatable = true)]
         public TikValue<string?> SrcAddressList { get; set; }
 
         /// <summary>
@@ -214,25 +214,25 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// dst-address-list: references predefined address list for destination IP filtering.
         /// </summary>
-        [TikProperty("dst-address-list", WinboxLabel = "Dst. Address List")]
+        [TikProperty("dst-address-list", WinboxLabel = "Dst. Address List", Negatable = true)]
         public TikValue<string?> DstAddressList { get; set; }
 
         /// <summary>
         /// protocol: filters packets by protocol type (TCP, UDP, ICMP, etc.).
         /// </summary>
-        [TikProperty("protocol", WinboxLabel = "Protocol")]
+        [TikProperty("protocol", WinboxLabel = "Protocol", Negatable = true)]
         public TikValue<string?> Protocol { get; set; }
 
         /// <summary>
         /// src-address: matches packets based on source IP address or prefix.
         /// </summary>
-        [TikProperty("src-address", WinboxLabel = "Src. Address")]
+        [TikProperty("src-address", WinboxLabel = "Src. Address", Negatable = true)]
         public TikValue<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// dst-address: matches packets based on destination IP address or prefix.
         /// </summary>
-        [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
+        [TikProperty("dst-address", WinboxLabel = "Dst. Address", Negatable = true)]
         public TikValue<string?> DstAddress { get; set; }
 
         /// <summary>

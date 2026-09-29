@@ -219,7 +219,7 @@ namespace tik4net.Objects
                 IsNullable = true;
                 var factories = typeof(TikEntityPropertyAccessor).GetTypeInfo().GetDeclaredMethod(nameof(MakeWrappers))!
                     .MakeGenericMethod(inner);
-                var wrappers = ((Func<object?, object>, Func<string, object>, Func<object, string, object>))factories.Invoke(null, null)!;
+                var wrappers = ((Func<object?, bool, object>, Func<string, object>, Func<object, string, bool, object>))factories.Invoke(null, null)!;
                 _wrapPresent = wrappers.Item1;
                 _wrapUnparsed = wrappers.Item2;
                 _wrapPresentWithUnknownFlags = wrappers.Item3;
@@ -277,7 +277,19 @@ namespace tik4net.Objects
             WinboxLabel = string.IsNullOrWhiteSpace(propertyAttribute.WinboxLabel) ? null : propertyAttribute.WinboxLabel;
             ChangesOnItsOwn = propertyAttribute.ChangesOnItsOwn;
             IsSensitive = propertyAttribute.IsSensitive;
+            if (propertyAttribute.Negatable && !IsWrapped)
+                // The flag lives on TikValue<T>; a plain property has nowhere to keep it and would drop the '!' on a save.
+                throw new ArgumentException(string.Format(
+                    "{0}.{1}: Negatable needs a TikValue<T> property, which carries the negation.",
+                    propertyInfo.DeclaringType?.Name, propertyInfo.Name), nameof(propertyInfo));
+            IsNegatable = propertyAttribute.Negatable;
         }
+
+        /// <summary>
+        /// Whether the field is a matcher RouterOS negates with a leading <c>!</c> (<see cref="TikPropertyAttribute.Negatable"/>):
+        /// the <c>!</c> reads as <see cref="TikValue{T}.IsNegated"/> rather than as part of the value.
+        /// </summary>
+        public bool IsNegatable { get; private set; }
 
         /// <summary>
         /// Whether a reference-typed property is declared nullable (<c>string?</c>) under nullable reference types.
@@ -384,15 +396,15 @@ namespace tik4net.Objects
         /// </summary>
         public bool IsWrapped { get; private set; }
 
-        private readonly Func<object?, object>? _wrapPresent;
+        private readonly Func<object?, bool, object>? _wrapPresent;
         private readonly Func<string, object>? _wrapUnparsed;
         private readonly object? _absent;
 
-        private static (Func<object?, object>, Func<string, object>, Func<object, string, object>) MakeWrappers<T>()
-            => (value => (TikValue<T>)(T)value!, raw => TikValue<T>.FromUnparsed(raw),
-                (value, unknown) => TikValue<T>.FromPresentWithUnknownFlags((T)value, unknown));
+        private static (Func<object?, bool, object>, Func<string, object>, Func<object, string, bool, object>) MakeWrappers<T>()
+            => ((value, negated) => TikValue<T>.FromPresentWithUnknownFlags((T)value!, null, negated), raw => TikValue<T>.FromUnparsed(raw),
+                (value, unknown, negated) => TikValue<T>.FromPresentWithUnknownFlags((T)value, unknown, negated));
 
-        private readonly Func<object, string, object>? _wrapPresentWithUnknownFlags;
+        private readonly Func<object, string, bool, object>? _wrapPresentWithUnknownFlags;
 
         /// <summary>
         /// Copies this property from <paramref name="source"/> to <paramref name="target"/> as it is - for a
@@ -420,11 +432,16 @@ namespace tik4net.Objects
                 return wrapped.RawValue;
             if (wrapped.BoxedValue == null)
                 return null;
+            if (wrapped.IsNegated && !IsNegatable)
+                // Dropping the '!' would write the opposite matcher; writing it to a field that takes none is refused by
+                // the router on some transports and read as a literal '!' on others.
+                throw new InvalidOperationException(string.Format(
+                    "Property '{0}({1})' holds a negated value, and the field is not marked Negatable.", PropertyName, FieldName));
             string? known = ConvertToString(wrapped.BoxedValue);
-            if (wrapped.UnknownFlagWords == null)
-                return known;
             // The router's words the enum does not know go back with the known ones, as it printed them.
-            return string.IsNullOrEmpty(known) ? wrapped.UnknownFlagWords : known + "," + wrapped.UnknownFlagWords;
+            string? text = wrapped.UnknownFlagWords == null ? known
+                : string.IsNullOrEmpty(known) ? wrapped.UnknownFlagWords : known + "," + wrapped.UnknownFlagWords;
+            return wrapped.IsNegated ? "!" + text : text;
         }
 
         /// <summary>The <see cref="TikValue{T}"/> itself, boxed — only for a wrapped property.</summary>
@@ -726,10 +743,18 @@ namespace tik4net.Objects
             if (propValue == null)
                 return _absent!;
 
+            // A negatable matcher's leading '!' is the negation, not the value's first character; the rest parses as T. A
+            // value that then does not parse stays Unparsed with the whole word, '!' included, so a save writes back
+            // exactly what the router printed.
+            string word = propValue;
+            bool negated = IsNegatable && propValue.Length > 1 && propValue[0] == '!';
+            if (negated)
+                propValue = propValue.Substring(1);
+
             // A plain bool reads every word but true/yes as false; a TikValue<bool?> knows the four the router
             // prints (and a presence flag's empty value), and anything else is a value it cannot hold.
             if (ValueType == typeof(bool) && !(IsPresenceFlag && propValue.Length == 0) && !IsBoolWord(propValue))
-                return _wrapUnparsed!(propValue);
+                return _wrapUnparsed!(word);
 
             // A [Flags] value: the known words OR together, the others are kept in the value itself — not as an Unknown bit
             // inside Value, and not in a side store a copy of the entity would lose.
@@ -748,7 +773,7 @@ namespace tik4net.Objects
                     else
                         unknownParts.Add(part);
                 }
-                return _wrapPresentWithUnknownFlags!(Enum.ToObject(ValueType, known), string.Join(",", unknownParts));
+                return _wrapPresentWithUnknownFlags!(Enum.ToObject(ValueType, known), string.Join(",", unknownParts), negated);
             }
 
             object? value;
@@ -759,12 +784,12 @@ namespace tik4net.Objects
             }
             catch (FormatException)
             {
-                return _wrapUnparsed!(propValue);
+                return _wrapUnparsed!(word);
             }
 
             if (_enumMetadata != null && unknownWord != null)
-                return _wrapUnparsed!(propValue);
-            return _wrapPresent!(value);
+                return _wrapUnparsed!(word);
+            return _wrapPresent!(value, negated);
         }
 
         /// <summary>

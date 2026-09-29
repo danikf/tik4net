@@ -16,6 +16,7 @@ namespace tik4net.Objects
     /// the mapper's value types (TikDuration, TikDataRate, TikRatePair, TikHexNumber, MacAddress) as the router spells them, anything else as <see cref="JsonSerializer"/> writes it with the caller's options.</description></item>
     /// <item><term>Absent</term><description><c>null</c>.</description></item>
     /// <item><term>Unparsed</term><description><c>{"$raw":"word"}</c>, read back as the same Unparsed value.</description></item>
+    /// <item><term>Negated</term><description><c>{"$not":value}</c>, the value as above (<see cref="TikValue{T}.IsNegated"/>).</description></item>
     /// </list>
     /// <c>null</c> reads back Absent. A <c>null</c> assigned as an intent to unset therefore does not survive the round
     /// trip — deliberately the safe direction: a deserialized entity never unsets a field on the strength of JSON.
@@ -42,6 +43,7 @@ namespace tik4net.Objects
     internal sealed class TikValueJsonConverter<T> : JsonConverter<TikValue<T>>
     {
         private const string RawProperty = "$raw";
+        private const string NotProperty = "$not";
         private static readonly Type ValueType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
 
         public override bool HandleNull => true;
@@ -54,17 +56,22 @@ namespace tik4net.Objects
             if (reader.TokenType == JsonTokenType.StartObject)
             {
                 string? raw = null;
+                TikValue<T>? negated = null;
                 while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                 {
                     string? name = reader.GetString();
                     reader.Read();
                     if (name == RawProperty)
                         raw = reader.GetString();
+                    else if (name == NotProperty)
+                        negated = Read(ref reader, typeToConvert, options).AsNegated();
                     else
                         reader.Skip();
                 }
+                if (negated != null)
+                    return negated.Value;
                 if (raw == null)
-                    throw new JsonException("A TikValue object must carry \"" + RawProperty + "\".");
+                    throw new JsonException("A TikValue object must carry \"" + RawProperty + "\" or \"" + NotProperty + "\".");
                 return TikValue<T>.FromWire(raw);
             }
 
@@ -88,6 +95,15 @@ namespace tik4net.Objects
                     writer.WriteString(RawProperty, value.RawValue);
                     writer.WriteEndObject();
                     return;
+            }
+
+            if (value.IsNegated)
+            {
+                writer.WriteStartObject();
+                writer.WritePropertyName(NotProperty);
+                Write(writer, value.WithoutNegation(), options);
+                writer.WriteEndObject();
+                return;
             }
 
             T inner = value.Value;

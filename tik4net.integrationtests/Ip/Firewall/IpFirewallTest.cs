@@ -397,6 +397,51 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// The entity end of the same thing: a negated matcher assigned with <c>TikValue&lt;T&gt;.Not</c> reaches the
+        /// router with its <c>!</c> and reads back as <c>IsNegated</c> — an address, an interface, a port list and a
+        /// <c>[Flags]</c> set, each of which a transport encodes differently (WinBox native: the <c>not</c> flag).
+        /// </summary>
+        [TestMethod]
+        public void FirewallFilter_NegatedMatchers_RoundTripThroughTheEntity()
+        {
+            const string comment = "t4n-negated-matchers";
+            RemoveFirewallFilterByComment(comment);
+            var filter = new FirewallFilter
+            {
+                Chain = "forward",
+                Action = FirewallFilter.ActionType.Accept,
+                Disabled = true,
+                Comment = comment,
+                Protocol = "tcp",
+                SrcAddress = TikValue<string>.Not("10.0.0.0/8"),
+                InInterface = TikValue<string>.Not("ether1"),
+                DstPort = TikValue<string>.Not("22,8291"),
+                ConnectionState = TikValue<FirewallFilter.ConnectionStateType?>.Not(
+                    FirewallFilter.ConnectionStateType.Established | FirewallFilter.ConnectionStateType.Related),
+            };
+            try
+            {
+                SaveTracked(filter);
+                var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
+
+                Assert.AreEqual(filter.SrcAddress, loaded.SrcAddress, $"src-address on {ResolveConnectionType()}");
+                Assert.AreEqual(filter.InInterface, loaded.InInterface, $"in-interface on {ResolveConnectionType()}");
+                Assert.AreEqual(filter.DstPort, loaded.DstPort, $"dst-port on {ResolveConnectionType()}");
+                Assert.AreEqual(filter.ConnectionState, loaded.ConnectionState, $"connection-state on {ResolveConnectionType()}");
+
+                loaded.SrcAddress = loaded.SrcAddress.WithoutNegation();
+                Connection.Save(loaded);
+                var again = Connection.LoadById<FirewallFilter>(filter.Id);
+                Assert.IsTrue(again.SrcAddress == "10.0.0.0/8", $"dropping the '!' on {ResolveConnectionType()}: {again.SrcAddress}");
+                Assert.IsTrue(again.DstPort.IsNegated, "an untouched negation stays");
+            }
+            finally
+            {
+                RemoveFirewallFilterByComment(comment);
+            }
+        }
+
         // Prints the raw row behind the counters, plus (on WinBox native) how many handlers the .jg catalog
         // supplied. A catalog that did not load leaves the connection on the seed table, where the getall
         // stats bit is never set and the counter fields simply do not arrive — indistinguishable from zeros
