@@ -1,9 +1,7 @@
 ﻿# CLI/PTY transports (Telnet, SSH, MAC-Telnet, WinBox terminal) — RouterOS ground truth
 
 How RouterOS's terminal actually behaves, and how the CLI-family transports are built on top of it.
-Complements the design document [terminal-cli-parsing.md](terminal-cli-parsing.md) (the
-`CliConnectionBase`/`CliOutputParser`/`VtStripper` architecture), the MAC-layer specifics in
-[findings-mactelnet.md](findings-mactelnet.md), and the WinBox `mepty` terminal's byte-ack protocol in
+Complements the MAC-layer specifics in [findings-mactelnet.md](findings-mactelnet.md), and the WinBox `mepty` terminal's byte-ack protocol in
 [findings-mepty-byte-ack.md](findings-mepty-byte-ack.md). Probe tool:
 [`telnet-cli-probe.ps1`](../Tools/probes/telnet-cli-probe.ps1).
 
@@ -14,9 +12,9 @@ Complements the design document [terminal-cli-parsing.md](terminal-cli-parsing.m
 
 > **Principle:** Telnet, SSH, MAC-Telnet, WinBox-CLI and WinBox-CLI-MAC are one transport family, not
 > five. All five drive `ITikConnection` the same way: `ITikCommand` is turned into a RouterOS CLI
-> string (`:put [/path print … as-value]` for reads, a bare command line for writes), sent over a raw
+> string (a `print … as-value` read, serialised to DSV or JSON where needed, or a bare command line for a write), sent over a raw
 > VT100 terminal, and the reply is stripped of ANSI/echo/prompt and parsed back into records. No binary
-> `!re` sentences anywhere in this family — `.id` comes from `as-value`/JSON output, not from the API.
+> `!re` sentences anywhere in this family — `.id` comes from the printed output, not from the API.
 
 > Superseded diagnoses, incidents and pinned measurements for this area are in
 > [`findings-cli-history.md`](findings-cli-history.md); this document describes current behaviour only.
@@ -29,6 +27,8 @@ tik4net/Cli/                 shared by every PTY transport
 ├── CliCommandBuilder.cs       ITikCommand → RouterOS CLI text (quoting, print modifiers, :serialize)
 ├── CliOutputParser.cs         as-value text → TikRecordSentence (plus the torch table parser)
 ├── CliJsonParser.cs           :serialize to=json output → TikRecordSentence
+├── CliDsvParser.cs            per-row :serialize to=dsv output → TikRecordSentence (the RouterOS 7 read)
+├── CliValueNormalizer.cs      as-value/JSON spellings → the API's (durations, sentinels, ids)
 ├── CliOutputHelper.cs         echo/prompt trimming, echo alignment, router log-line detection
 ├── CliErrorParser.cs          CLI output text → Tik*Exception
 ├── CliTableParser.cs          interactive (non as-value) table output, by column offset
@@ -48,6 +48,49 @@ tik4net.ssh/                    SshConnection.cs, SshShellClient.cs, Tik4NetSsh.
 
 Each transport owns only its byte I/O and login handshake; `RouterOsCliLogin`, the `Cli/` parsers and
 `CliCommandBuilder` are shared, so a RouterOS behaviour fixed once is fixed on all five transports.
+
+### From `ITikCommand` to a command line
+
+The path becomes the CLI menu by joining its segments with spaces (`/ip/firewall/filter/print` →
+`/ip firewall filter print`, `CliCommandBuilder.ApiPathToCli`). What follows depends on the verb:
+
+| Verb | Sent as | Reference |
+|---|---|---|
+| `print` | a counted read: per-row DSV on RouterOS 7, `:serialize to=json` for an `IsFreeText` entity, plain as-value otherwise — whole-table or in `:pick`/`from=` windows | §1 |
+| `add` | `:put [/path add k=v …]` — the answer is the new `.id` | §8 |
+| `set`, `remove`, `enable`, `disable`, `move`, `unset`, `comment` | `/path verb numbers=*N k=v …` | §8 |
+| `run` (an action verb) | `/path run [find where .id=*N]` | §8 |
+| `get` | `:put [/path get number=*N value-name=x]` | §8 |
+| a monitor verb | a `once` snapshot, or the bare interactive form for `ping`/`traceroute` | §9 |
+| anything else | `/path verb k=v …` | |
+
+**Filters** become the `where` clause (`CliCommandBuilder.BuildWhereClause`), and inside a window the same
+text is the parenthesised `find (…)` clause. The API's query words are a postfix **stack**, not a list to AND:
+`?#|`, `?#&` and `?#!` combine the predicates before them into `(a || b)`, `(a && b)` and `!(a)`, and whatever
+is left is joined with `&&`. A value prefixed `!`, `>`, `<` or `~` becomes `!=`, `>`, `<` or `~`; a filter with
+no value (the API's `?name`, "has a value") is `name~"."`, and an empty one is `name=""` (§3). Quoting and
+boolean spelling are §2.
+
+**`.proplist` never reaches the wire.** RouterOS's own `proplist=` refuses the whole read over one unknown name
+(§1, flag fields), where the API ignores it, so the read asks for the full field set — adding `detail`, and
+retrying without it when a singleton answers `bad parameter detail` — and trims the rows client-side
+(`CliConnectionBase.TrimToProplist`).
+
+**The `ITikCommand` surface over a terminal.** A CLI connection reports `Crud`, `Listen`, `SafeMode`,
+`RawCommand` and `AsyncCommands` — not `Streaming`, and not `CancelInFlight`:
+
+- `ExecuteWithCallback`, `LoadWithCallback` and `LoadListenWithCallback` are emulated by polling on a
+  background worker (`ITikMonitorTransport.RunMonitorAsync`): a `listen` re-reads the table every second and
+  diffs it by `.id` (a vanished row is reported as `.dead=true`), a monitor verb re-issues its snapshot every
+  500 ms. `Cancel()` stops that worker.
+- `ExecuteListWithDuration` throws `TikConnectionCapabilityNotSupportedException`; `ExecuteListUntilDone` is an
+  ordinary `ExecuteList`.
+- `CallCommandSync`/`CallCommandAsync` and `CreateRawCommand` send RouterOS CLI text verbatim — no path
+  rewrite, no `where`, no `proplist`.
+- Commands are serialised on one command lock, so a second caller queues rather than interleaving. A
+  cancellation token is free while queued; after dispatch it takes effect once the response has been read to
+  its end (`Cooperative`, the default), or abandons the read and closes the connection (`AbandonAndClose`) —
+  see `TikCancellationMode`.
 
 ---
 
@@ -228,6 +271,17 @@ API print nothing. RouterOS has no empty comment (`set comment=""` clears it), s
 `CliValueNormalizer` re-spells the five. The durations are the only one of them identifiable from the
 value: the others depend on which field the value belongs to. Two fields' `HH:MM:SS` is a clock TIME and
 not a duration — `/system/clock` `time` and `/system/scheduler` `start-time`, and that is the whole list.
+
+**An upload/download pair is abbreviated.** `/queue/simple` `max-limit` reads `1000000/2000000` over the API
+and `1M/2M` from as-value (`burst-limit`, `burst-threshold` and `limit-at` likewise), measured on 7.24. It is
+the pairing that changes the rendering, not the magnitude: the single-valued `/queue/tree max-limit` is bare
+digits on both. The suffixes are decimal (`limit-at=500k` reads back `500000`), and a pair written with one
+side only is upload with download zero (`max-limit=1M` reads `1000000/0`). Durations run the other way round:
+the paired `/queue/simple burst-time` is `10s/10s` on both, while the single `/queue/tree burst-time` is
+`10s` against `00:00:10` — which is why the first is a `string` in the O/R mapper and the second a
+`TikDuration`. The read-only statistics add a unit: `rate=0bps/0bps` where the API writes `0/0`, as
+`/interface/ethernet monitor` writes `rate=1Gbps`. `TikRatePair` and `TikDataRate` read every spelling
+(ARCHITECTURE.md, entity conventions 6–7).
 
 ### A print the router REFUSES answers with text and no records
 
@@ -906,6 +960,22 @@ as a duplicated row.
 - **`add`**: `:put [/ip/address/add address=10.0.0.1/24 interface=ether1]` returns the new record's
   **`.id`** (e.g. `*3`), the CLI equivalent of the API's `=ret=*3`. Without the `:put [...]` wrapper,
   `add` returns nothing useful, not `*N`.
+  **The id can fail to arrive when the add succeeded.** A reply that lands after the read has settled is
+  lost, not delayed, while the row it names exists on the router — seen mainly on the WinBox terminal
+  transports, whose per-command latency is highest. That is raised as `TikAddIdNotReadException`, carrying
+  what the router did print: an empty id gives the caller nothing to clean up with, and a non-id line would
+  travel into the record selector of the next `set` or `remove` and match nothing there.
+- **A row is addressed with `numbers=*N`, not `[find]`, because a `[find]` that matches nothing is not an
+  error.** Measured on 7.24: `remove [find where .id=*7FFFFFFF]` prints nothing — indistinguishable from
+  success — while `remove numbers=*7FFFFFFF` answers `no such item (4)`, as the API and REST do. `set`,
+  `remove`, `enable`, `disable`, `move`, `unset` and `comment` all take `numbers=` and all report a missing
+  row that way; the `.id` is accepted despite the parameter being named for the ordinal. Two cases keep
+  `[find where …]`: **action verbs** — `/system/script/run numbers=*B` answers `bad parameter numbers`, and
+  `CliCommandBuilder.TakesNumbers` is an allow-list, so an unmeasured verb keeps the form that works for
+  every verb — and **a row addressed by name** (`[find where .id=X or name=X]`), because `numbers=` takes a
+  name only on a menu that has a `name` field and is a `syntax error` on one that does not. The O/R mapper
+  always addresses by `.id`. Where `[find]` is emitted, the `where` keyword is required on 7.24 (a bare
+  `[find .id=X]` is `bad parameter .id`).
 - **Ordered menus: `add place-before=`, `move`, and rows the router made itself.** Measured on 7.24 over the
   API, REST and Telnet (WinBox native in `winbox-native-m2-protocol.md`):
   - `add place-before=*N` creates the row immediately before `*N` — one command instead of add (appended)
@@ -1079,7 +1149,7 @@ Verbs RouterOS answers with **no output at all** on success (`set`, `remove`, `e
 `move`, `unset`, `comment` — `CliErrorParser.IsSilentOnSuccessVerb`) get an extra, purely positional
 rule: any surviving text after echo/prompt trimming is an error, regardless of how it is worded, because
 there is nothing else it could be. This runs last, after the classified kinds above, and is why
-`remove`/`set` against a nonexistent `.id` produces `expected item id` → `TikNoSuchItemException` rather
+`remove`/`set` against a nonexistent `.id` (`no such item (4)`, §8) produces `TikNoSuchItemException` rather
 than a generic trap.
 
 A counted or windowed read has a positional rule of its own. Its answer always ends with the count marker,

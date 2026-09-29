@@ -26,8 +26,7 @@ code was actually wrong.
 
 | Document | Covers |
 |---|---|
-| [`findings-cli.md`](findings-cli.md) | RouterOS terminal/PTY layer: `print as-value`, `:put` framing, `detail`, `print stats`, VT100 negotiation, where-quoting, and why a settled prompt is not proof the router is answering *your* command |
-| [`terminal-cli-parsing.md`](terminal-cli-parsing.md) | Parsing the CLI's as-value output into records |
+| [`findings-cli.md`](findings-cli.md) | RouterOS terminal/PTY layer and the shared CLI stack: how an `ITikCommand` becomes a command line, `print as-value`, DSV/JSON reads, `:put` framing, `detail`, `print stats`, VT100 negotiation, where-quoting, and why a settled prompt is not proof the router is answering *your* command |
 | [`findings-rest-api.md`](findings-rest-api.md) | REST endpoint shapes, verb mapping, error responses, and why the router's own `listen` cannot be used (§12) |
 | [`findings-mactelnet.md`](findings-mactelnet.md) | MAC-Telnet session behaviour, the shared MAC layer's cumulative ACK / retransmission rules, and the login the router refuses *after* reporting the handshake successful |
 | [`mactelnet-protocol.md`](mactelnet-protocol.md) | MAC-Telnet wire protocol: framing, the counter/ACK rule, control packets |
