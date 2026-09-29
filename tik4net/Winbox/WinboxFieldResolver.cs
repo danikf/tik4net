@@ -932,9 +932,10 @@ namespace tik4net.Winbox
                 // /interface/bridge: auto-mac is a key no Bridge window declares. auto-mac=no with
                 // admin-mac=02:00:00:00:00:01 moved the unnamed bool 0x65 True → False (0x66 took the admin MAC)
                 // on a probe bridge (7.24.2). Merged over the base /interface set.
+                // …and the VLAN tab's 'EtherType' is one word where the API says ether-type (6.49.13, 7.21.5, 7.24.4).
                 ["/interface/bridge"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
+                    apiToJg: Ci(("ether-type", "ethertype")),
+                    jgToApi: Ci(("ethertype", "ether-type")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["auto-mac"] = new WinboxJgField("auto-mac", 0x65, "bool", false),
