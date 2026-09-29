@@ -287,6 +287,37 @@ namespace tik4net.unittests.Winbox
             return rec;
         }
 
+        // ── a scalar number range: low on its key, high on its highid ─────────
+
+        // roteros.jg 7.24.4, Filter Rule 'Packet Size'.
+        private const string PacketSizeWindow =
+            "[{name:'Firewall',title:'Firewall',group:'IP',c:[" +
+            "{name:'Filter Rule',title:'Filter Rules',type:'map',path:[ 12,1 ],c:[" +
+              "{name:'Packet Size',type:'opt',id:'b1af',hide:1,c:[{type:'not',id:'bd0',c:[" +
+                 "{type:'numberrange',id:'u50',defhigh:65535,deflow:0,highid:'u51',max:65535}]}]}]}" +
+            "]}]";
+
+        [TestMethod]
+        public void AScalarNumberRange_ReadsAndWritesBothEnds()
+        {
+            // The API prints packet-size=!100-200; native read '!100' and could write the low end only (7.24.4).
+            var catalog = Parse(PacketSizeWindow);
+
+            Assert.AreEqual("!100-200", Decode(catalog,
+                Rec((0x1AF, "bool", true), (0xD0, "bool", true), (0x50, "u32", 100L), (0x51, "u32", 200L)))["packet-size"]);
+            var single = Decode(catalog, Rec((0x1AF, "bool", true), (0xD0, "bool", false), (0x50, "u32", 300L), (0x51, "u32", 300L)));
+            Assert.AreEqual("300", single["packet-size"], "both ends equal read as one number, as webfig's tostr does");
+            Assert.AreEqual(1, single.Count, "the high end is not a field of its own");
+
+            var range = Decoded(Resolver(catalog).EncodeField("packet-size", "!100-200"));
+            Assert.AreEqual(100L, Num(range[0x50]));
+            Assert.AreEqual(200L, Num(range[0x51]));
+            Assert.AreEqual(true, range[0xD0]);
+            var one = Decoded(Resolver(catalog).EncodeField("packet-size", "300"));
+            Assert.AreEqual(300L, Num(one[0x50]));
+            Assert.AreEqual(300L, Num(one[0x51]));
+        }
+
         // ── the `not` flag, both ways ──────────────────────────────────────────
 
         [TestMethod]

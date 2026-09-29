@@ -1219,7 +1219,7 @@ namespace tik4net.Winbox
                     {
                         bool ro = dict.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
                         int maskKey = (dict.TryGetValue("maskid", out var mkv) && mkv is string mks
-                            && DecodeId(mks) is var md && md != null) ? md.Value.key : 0;
+                            && DecodeId(mks) is var md && md != null) ? md.Value.key : HighKeyOf(dict);
                         int[]? refHandler = ExtractRefHandler(dict);
                         bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                         // A LIST's allow-mask lives on the element, not on the list node: wireguard's
@@ -1805,7 +1805,7 @@ namespace tik4net.Winbox
                 {
                     bool ro = cur.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
                     int maskKey = (cur.TryGetValue("maskid", out var mkv) && mkv is string mks
-                        && DecodeId(mks) is var md && md != null) ? md.Value.key : 0;
+                        && DecodeId(mks) is var md && md != null) ? md.Value.key : HighKeyOf(cur);
                     int[]? refHandler = ExtractRefHandler(cur);
                     // 'range' must be read here as well as on the unwrapped path: EVERY firewall address field
                     // is an opt→not→network with range:1, so dropping it here made the range-END sibling decode
@@ -2077,6 +2077,13 @@ namespace tik4net.Winbox
         }
 
         // First child dict inside a node's 'c' list (skips non-dict entries), or null.
+        // A scalar numberrange's high end rides its own key (webfig types.numberrange: obj[id] = low, obj[highid] = high),
+        // carried as the field's MaskKey like a network's netmask. packet-size=100-200 read '100' without it. A range with
+        // a `unit` (types.unit) is left out: its halves are not plain numbers and nothing here spells them.
+        private static int HighKeyOf(Dictionary<string, object> node)
+            => node.TryGetValue("type", out var tv) && (tv as string) == "numberrange" && !node.ContainsKey("unit")
+                ? DecodedKeyOf(node, "highid") : 0;
+
         // A group's {name:'Invert', type:'bool', id} child: the RouterOS 6 form of a `not` wrapper (AddOptionField).
         // Only in a group of exactly the value and the Invert: ipv6.jg's 'Headers' group is {Match enm, Invert,
         // Headers set}, whose first child is a selector, not the value an Invert would negate.

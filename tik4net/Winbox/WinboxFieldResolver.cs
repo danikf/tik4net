@@ -2623,6 +2623,22 @@ namespace tik4net.Winbox
                     }
                     break; // fall through to static-map / numeric handling below
                 }
+                case "numberrange" when jg != null && jg.MaskKey != 0:
+                {
+                    // One range on two keys (webfig types.numberrange.fromstr/put): "100-200" is low 100 on the
+                    // field's key and high 200 on its highid, a bare "100" is [100,100]. Only the low end was
+                    // written before, as a plain number, and "100-200" did not parse at all.
+                    if (value.Length == 0) return result;
+                    int dash = value.IndexOf('-');
+                    string lowText = dash < 0 ? value : value.Substring(0, dash);
+                    string highText = dash < 0 ? value : value.Substring(dash + 1);
+                    if (!uint.TryParse(lowText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint lo)
+                        || !uint.TryParse(highText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint hi))
+                        throw new WinboxFieldValueException($"'{value}' is not a number range for '{apiName}' (expected 100 or 100-200).");
+                    result.Add(EncodeU32(key, lo));
+                    result.Add(EncodeU32(jg.MaskKey, hi));
+                    return result;
+                }
                 case "multinumberrange":
                 case "numberrangelist":
                 {

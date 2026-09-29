@@ -109,6 +109,8 @@ namespace tik4net.Winbox
                     // The port half of an address:port field is not a field of its own to the API.
                     if (f.UiType == WinboxFieldResolver.AddrPortUiType && f.MaskKey != 0)
                         consumedKeys.Add(f.MaskKey);
+                    // Nor is the high end of a scalar number range (WinboxJgCatalog.HighKeyOf).
+                    if (f.UiType == "numberrange" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
                     // Nor is the download half of an upload/download pair.
                     if (f.UiType == WinboxFieldResolver.PairUiType && f.MaskKey != 0)
                         consumedKeys.Add(f.MaskKey);
@@ -602,6 +604,16 @@ namespace tik4net.Winbox
                         if (value is Dictionary<int, Tuple<string, object>> addrMsg)
                             return FormatAddr(addrMsg, collectRefTables);
                         break;
+                    case "numberrange":
+                    {
+                        // webfig types.numberrange.tostr: the low end alone when both ends agree, else low-high —
+                        // the API's packet-size=100-200. The high end rides MaskKey (WinboxJgCatalog.HighKeyOf).
+                        if (jf.MaskKey == 0 || !WinboxFieldResolver.TryToInt64(value, out long low)) break;
+                        long high = rec.TryGetValue(jf.MaskKey, out var ht) && ht?.Item2 != null
+                                    && WinboxFieldResolver.TryToInt64(ht.Item2, out long h) ? h : low;
+                        return high == low ? low.ToString(CultureInfo.InvariantCulture)
+                            : low.ToString(CultureInfo.InvariantCulture) + "-" + high.ToString(CultureInfo.InvariantCulture);
+                    }
                     case "multinumberrange":
                     case "numberrangelist":
                     {
