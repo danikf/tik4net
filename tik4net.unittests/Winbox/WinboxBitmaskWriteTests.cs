@@ -246,5 +246,20 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual(0xAL, Num(encoded[0x49]));
         }
+
+        // ── the `not` flag, both ways ──────────────────────────────────────────
+
+        [TestMethod]
+        public void ANegatedValueSetsTheNotFlag_AndAPlainOneClearsIt()
+        {
+            // The flag is stored on the row: a plain value written over a negated one kept the '!' when only 'true'
+            // was ever sent (7.24.4, src-address=10.0.0.0/8 over !10.0.0.0/8 read back negated).
+            var negated = Decoded(Resolver(Parse(FilterWindow)).EncodeField("src-address-type", "!local"));
+            var plain = Decoded(Resolver(Parse(FilterWindow)).EncodeField("src-address-type", "local"));
+
+            Assert.AreEqual(true, negated[0xCC]);
+            Assert.AreEqual(4L, Num(negated[0x49]), "the value without its '!'");
+            Assert.AreEqual(false, plain[0xCC], "a plain value clears the negation the row may carry");
+        }
     }
 }

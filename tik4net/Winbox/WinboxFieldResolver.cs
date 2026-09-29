@@ -2360,10 +2360,15 @@ namespace tik4net.Winbox
                 // …but NOT on a per-member tri-state list, where '!' negates the MEMBER it precedes rather
                 // than the whole field: "!ack,syn" is two members with opposite senses, and stripping the
                 // leading '!' here would turn it into "the whole rule negated, ack and syn both plain".
-                if (jg.NotKey != 0 && value.StartsWith("!") && !IsPerMemberNegatedList(uiType))
+                if (jg.NotKey != 0 && !IsPerMemberNegatedList(uiType))
                 {
-                    value = value.Substring(1);
-                    result.Add(M2Message.BoolSys(jg.NotKey, true));
+                    // Sent both ways: the flag is stored on the row, so a value written without '!' over a negated
+                    // one kept the negation when only 'true' was ever sent — src-address=10.0.0.0/8 over
+                    // !10.0.0.0/8 read back !10.0.0.0/8 (7.24.4).
+                    bool negated = value.StartsWith("!");
+                    if (negated)
+                        value = value.Substring(1);
+                    result.Add(M2Message.BoolSys(jg.NotKey, negated));
                 }
                 if (jg.OptKey != 0 && value.Length > 0)
                     result.Add(M2Message.BoolSys(jg.OptKey, true));
