@@ -65,9 +65,13 @@ namespace tik4net.Objects.Ip
         [TikProperty("icmp-rate-limit", DefaultValue = "10", WinboxLabel = "ICMP Rate Limit")]
         public TikValue<int?> IcmpRateLimit { get; set; }
 
-        /// <summary>icmp-rate-mask — hex bitmask of ICMP types subject to rate limiting. Default: 0x1818.</summary>
+        /// <summary>
+        /// icmp-rate-mask — bitmask of the ICMP types subject to rate limiting (bit N = ICMP type N). Default: 0x1818.
+        /// Every transport prints it in hex (<c>0x1818</c>) on 6.49 and 7.x; a write takes <c>0x</c> with either case of
+        /// the digits, or decimal, and refuses an upper-case <c>0X</c> — <see cref="TikHexNumber"/> writes <c>0x</c>.
+        /// </summary>
         [TikProperty("icmp-rate-mask", DefaultValue = "0x1818")]
-        public TikValue<string?> IcmpRateMask { get; set; }
+        public TikValue<TikHexNumber?> IcmpRateMask { get; set; }
 
         /// <summary>icmp-errors-use-inbound-interface-address — when yes, ICMP error replies use the primary address of the receiving interface as source. Default: no.</summary>
         [TikProperty("icmp-errors-use-inbound-interface-address", DefaultValue = "no", WinboxLabel = "ICMP Errors Use Inbound Interface Address")]

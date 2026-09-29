@@ -258,11 +258,31 @@ namespace tik4net.Objects.Interface
         public TikValue<bool?> VlanFiltering { get; set; }
 
         /// <summary>
-        /// ether-type: The EtherType the bridge treats as the VLAN tag (<c>0x8100</c>, <c>0x88a8</c> or <c>0x9100</c>).
-        /// Router default: 0x8100.
+        /// The EtherType a VLAN-filtering bridge treats as the VLAN tag. The words are RouterOS's own and fixed: the
+        /// router refuses <c>0x88A8</c> or <c>34984</c> for <c>0x88a8</c> (6.49.13, 7.21.5), so this is a vocabulary,
+        /// not a number.
         /// </summary>
-        [TikProperty("ether-type", DefaultValue = "0x8100")]
-        public TikValue<string?> EtherType { get; set; }
+        /// <seealso cref="EtherType"/>
+        public enum EtherTypeMode
+        {
+            /// <summary>0x8100 - IEEE 802.1Q (C-tag).</summary>
+            [TikEnum("0x8100")]
+            Dot1Q,
+            /// <summary>0x88a8 - IEEE 802.1ad (S-tag, Q-in-Q).</summary>
+            [TikEnum("0x88a8")]
+            Dot1Ad,
+            /// <summary>0x9100 - the pre-standard Q-in-Q tag.</summary>
+            [TikEnum("0x9100")]
+            QinQ9100,
+        }
+
+        /// <summary>
+        /// ether-type: The EtherType the bridge treats as the VLAN tag. Printed only when <see cref="VlanFiltering"/> is
+        /// on. Router default: 0x8100.
+        /// </summary>
+        /// <seealso cref="EtherTypeMode"/>
+        [TikProperty("ether-type", DefaultValue = "0x8100", WinboxLabel = "EtherType")]
+        public TikValue<EtherTypeMode?> EtherType { get; set; }
 
         /// <summary>
         /// Which frames the bridge interface itself admits when <see cref="VlanFiltering"/> is on.

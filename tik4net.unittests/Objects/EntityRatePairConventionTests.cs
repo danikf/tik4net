@@ -118,8 +118,7 @@ namespace tik4net.unittests.Objects
                 // reaches the router, while speed is WRITTEN BACK — and RouterOS takes the unit spelling
                 // there, not the plain number ToString() would send. 'sfp-rate-select' is high|low, an enum.
                 ["InterfaceEthernet"] = new[] { "speed", "sfp-rate-select" },
-                // Measured '0x1818' — a hex mask of which ICMP types the rate limit applies to.
-                ["IpSettings"] = new[] { "icmp-rate-mask" },
+                // IpSettings icmp-rate-mask USED to be here: the hex mask '0x1818' is a TikHexNumber now.
             };
 
         /// <summary>

@@ -110,6 +110,9 @@ namespace tik4net.unittests.Objects
                 "encap-2-and-3", "encap-3-and-4", "layer-2", "layer-2-and-3", "layer-3-and-4"),
             new Vocabulary("/interface/bridge", "arp", typeof(tik4net.Objects.Interface.InterfaceBridge.ArpMode),
                 "disabled", "enabled", "local-proxy-arp", "proxy-arp", "reply-only"),
+            // Tab completion on 6.49.13 and 7.21.5 (`ether-type=0x`): the same three, case-sensitive.
+            new Vocabulary("/interface/bridge", "ether-type", typeof(tik4net.Objects.Interface.InterfaceBridge.EtherTypeMode),
+                "0x8100", "0x88a8", "0x9100"),
             new Vocabulary("/interface/bridge", "frame-types", typeof(tik4net.Objects.Interface.InterfaceBridge.FrameTypesMode),
                 "admit-all", "admit-only-untagged-and-priority-tagged", "admit-only-vlan-tagged"),
             new Vocabulary("/interface/bridge", "multicast-router", typeof(tik4net.Objects.Interface.InterfaceBridge.MulticastRouterMode),

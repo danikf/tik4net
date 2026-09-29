@@ -84,5 +84,30 @@ namespace tik4net.unittests.Connection
             string[] words = connection.SentCommands.Single(c => c.First() == "/interface/bridge/add").ToArray();
             CollectionAssert.Contains(words, "=priority=0x7000", string.Join(" ", words));
         }
+
+        [TestMethod]
+        public void TheIcmpRateMaskIsANumber_AndTheBridgeEtherTypeAWord()
+        {
+            // icmp-rate-mask takes any number (0x181A, 6168); ether-type only its three lower-case words — the router
+            // refuses 0x88A8 and 34984 for it (6.49.13, 7.21.5), so it cannot be a TikHexNumber.
+            var connection = new TikFakeConnection()
+                .WithResponse(cmd => cmd.FirstOrDefault() == "/ip/settings/print",
+                    _ => new ITikSentence[] { new TikFakeReSentence(new Dictionary<string, string> { ["icmp-rate-mask"] = "0x1818" }), new TikFakeDoneSentence() })
+                .WithResponse(cmd => cmd.FirstOrDefault() == "/interface/bridge/print",
+                    _ => new ITikSentence[] { new TikFakeReSentence(new Dictionary<string, string> { [".id"] = "*1", ["ether-type"] = "0x88a8" }), new TikFakeDoneSentence() })
+                .WithNonQuery(cmd => cmd.First() == "/ip/settings/set" || cmd.First() == "/interface/bridge/set");
+
+            var settings = connection.LoadSingle<tik4net.Objects.Ip.IpSettings>();
+            Assert.AreEqual(0x1818L, settings.IcmpRateMask.Value!.Value.Value);
+            settings.IcmpRateMask = new TikHexNumber(0x181A);
+            connection.Save(settings);
+            CollectionAssert.Contains(connection.SentCommands.Single(c => c.First() == "/ip/settings/set").ToArray(), "=icmp-rate-mask=0x181A");
+
+            var bridge = connection.LoadAll<InterfaceBridge>().Single();
+            Assert.IsTrue(bridge.EtherType == InterfaceBridge.EtherTypeMode.Dot1Ad);
+            bridge.EtherType = InterfaceBridge.EtherTypeMode.QinQ9100;
+            connection.Save(bridge);
+            CollectionAssert.Contains(connection.SentCommands.Single(c => c.First() == "/interface/bridge/set").ToArray(), "=ether-type=0x9100");
+        }
     }
 }

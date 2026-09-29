@@ -98,6 +98,27 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        public void TheEtherTypeIsOneOfItsThreeWords()
+        {
+            // Not a number: the router takes 0x88a8 and refuses 0x88A8 or 34984 (6.49.13, 7.21.5). Printed only while
+            // VLAN filtering is on; a bridge with no ports, so turning it on filters nothing.
+            var bridge = new InterfaceBridge
+            {
+                Name = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12),
+                VlanFiltering = true,
+                EtherType = InterfaceBridge.EtherTypeMode.Dot1Ad,
+            };
+            SaveTracked(bridge);
+
+            var loaded = Connection.LoadById<InterfaceBridge>(bridge.Id);
+            Assert.AreEqual(InterfaceBridge.EtherTypeMode.Dot1Ad, loaded.EtherType.Value, loaded.EtherType.ToString());
+
+            loaded.EtherType = InterfaceBridge.EtherTypeMode.QinQ9100;
+            Connection.Save(loaded);
+            Assert.AreEqual(InterfaceBridge.EtherTypeMode.QinQ9100, Connection.LoadById<InterfaceBridge>(bridge.Id).EtherType.Value);
+        }
+
+        [TestMethod]
         public void TheBridgeAndPortPrioritiesAreWrittenAndReadInHex()
         {
             // The API prints both priorities in hex on every RouterOS version; the CLI's as-value prints them
