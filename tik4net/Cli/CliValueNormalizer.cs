@@ -169,6 +169,12 @@ namespace tik4net.Cli
                 && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong hex))
                 return "0x" + hex.ToString("X", CultureInfo.InvariantCulture);
 
+            // A rate range the terminal abbreviates and the API does not: connection-rate=0-100k over the CLI,
+            // 0-100000 over the API and REST (7.24.4). Decimal units, as webfig's types.unit spells them.
+            if (string.Equals(field, "connection-rate", StringComparison.OrdinalIgnoreCase)
+                && TryExpandUnitRange(value, out string? plainRange))
+                return plainRange!;
+
             // Seconds east of UTC, which the API prints as a signed clock offset. Not shaped like anything
             // else here: "7200" is just a number until you know which field it came from.
             if (string.Equals(field, "gmt-offset", StringComparison.OrdinalIgnoreCase)
@@ -209,6 +215,30 @@ namespace tik4net.Cli
                         + (days % 7 > 0 ? (days % 7).ToString(CultureInfo.InvariantCulture) + "d" : string.Empty)
                         + when.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
             return true;
+        }
+
+        // "!0-100k" -> "!0-100000": each end of a range, a k/M/G suffix multiplied out by 1000 per step. False when
+        // an end is not such a number, or when nothing carried a suffix.
+        private static bool TryExpandUnitRange(string value, out string? plain)
+        {
+            plain = null;
+            string sign = value.StartsWith("!", StringComparison.Ordinal) ? "!" : string.Empty;
+            string[] ends = value.Substring(sign.Length).Split('-');
+            if (ends.Length > 2) return false;
+            bool changed = false;
+            for (int i = 0; i < ends.Length; i++)
+            {
+                string end = ends[i];
+                int scale = end.EndsWith("k", StringComparison.Ordinal) ? 1 : end.EndsWith("M", StringComparison.Ordinal) ? 2
+                          : end.EndsWith("G", StringComparison.Ordinal) ? 3 : 0;
+                string digits = scale == 0 ? end : end.Substring(0, end.Length - 1);
+                if (!ulong.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out ulong n)) return false;
+                for (int s = 0; s < scale; s++) n *= 1000;
+                changed |= scale > 0;
+                ends[i] = n.ToString(CultureInfo.InvariantCulture);
+            }
+            plain = sign + string.Join("-", ends);
+            return changed;
         }
 
         private static bool Contains(string[] names, string? field)

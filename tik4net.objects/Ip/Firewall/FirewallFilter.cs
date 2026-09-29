@@ -182,14 +182,16 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// connection-bytes: Matches packets only if a given amount of bytes has been transfered through the particular connection. 0 - means infinity, for example connection-bytes=2000000-0 means that the rule matches if more than 2MB has been transfered through the relevant connection 
         /// </summary>
+        /// <remarks>A range, <c>low-high</c>, as the API prints it (<c>2000000-0</c>); a single number is both ends.</remarks>
         [TikProperty("connection-bytes", UnsetOnDefault = true)]
-        public long ConnectionBytes { get; set; }
+        public string? ConnectionBytes { get; set; }
 
         /// <summary>
         /// connection-limit: Restrict connection limit per address or address block up to and including given value 
         /// </summary>
+        /// <remarks>The limit and the address-block netmask, <c>limit,netmask</c> (<c>10,32</c>).</remarks>
         [TikProperty("connection-limit", UnsetOnDefault = true)]
-        public int ConnectionLimit { get; set; }
+        public string? ConnectionLimit { get; set; }
 
         /// <summary>
         /// connection-mark: Matches packets marked via mangle facility with particular connection mark. If no-mark is set, rule will match any unmarked connection.
@@ -200,8 +202,12 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// connection-rate: Connection Rate is a firewall matcher that allow to capture traffic based on present speed of the connection.  Read more &gt;&gt;
         /// </summary>
+        /// <remarks>
+        /// A range in bits per second, <c>low-high</c>, spelled out as the API prints it (<c>0-100000</c>); the CLI's
+        /// <c>0-100k</c> is read the same.
+        /// </remarks>
         [TikProperty("connection-rate", UnsetOnDefault = true)]
-        public int ConnectionRate { get; set; }
+        public string? ConnectionRate { get; set; }
 
         /// <summary>
         /// connection-state: Interprets the connection tracking analysis data for a particular packet:

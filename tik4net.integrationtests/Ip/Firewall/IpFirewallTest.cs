@@ -328,6 +328,42 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// connection-rate and connection-bytes are low-high ranges and connection-limit is limit,netmask, spelled out
+        /// as the API prints them: the CLI abbreviates the rate (<c>0-100k</c>) and WinBox native keeps the two ends
+        /// on two keys. Any rule carrying one of them failed a FirewallFilter load while the properties were numbers.
+        /// </summary>
+        [TestMethod]
+        public void FirewallFilter_ConnectionRanges_RoundTrip()
+        {
+            const string comment = "t4n-connection-ranges";
+            RemoveFirewallFilterByComment(comment);
+            var filter = new FirewallFilter
+            {
+                Chain = "forward",
+                Action = FirewallFilter.ActionType.Accept,
+                Disabled = true,
+                Comment = comment,
+                Protocol = "tcp",
+                ConnectionRate = "!1500-2000000",
+                ConnectionLimit = "!10,24",
+                ConnectionBytes = "2000000-0",
+            };
+            try
+            {
+                SaveTracked(filter);
+                var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
+
+                Assert.AreEqual(filter.ConnectionRate, loaded.ConnectionRate, $"connection-rate on {ResolveConnectionType()}");
+                Assert.AreEqual(filter.ConnectionBytes, loaded.ConnectionBytes, $"connection-bytes on {ResolveConnectionType()}");
+                Assert.AreEqual(filter.ConnectionLimit, loaded.ConnectionLimit, $"connection-limit on {ResolveConnectionType()}");
+            }
+            finally
+            {
+                RemoveFirewallFilterByComment(comment);
+            }
+        }
+
         // Prints the raw row behind the counters, plus (on WinBox native) how many handlers the .jg catalog
         // supplied. A catalog that did not load leaves the connection on the seed table, where the getall
         // stats bit is never set and the counter fields simply do not arrive — indistinguishable from zeros
