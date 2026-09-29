@@ -185,19 +185,18 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void Tab_AListingCutToItsFirstMatches_IsCompletedByTheInitials()
+        public void Tab_AListingIsOneTab_NotOnePerInitial()
         {
-            // A cut listing looks complete; the Tab on an initial it shows lists what was cut.
+            // A listing of names is not cut (6.49.13: 103 fields in one Tab), and every Tab costs a settle window.
             var tab = new ScriptedTab(new Dictionary<string, string[]>
             {
-                ["/ip route set "] = new[] { "comment", "disabled", "distance" },
-                ["/ip route set d"] = new[] { "disabled", "distance", "dst-address" },
+                ["/ip route set "] = new[] { "comment", "disabled", "distance", "dst-address" },
             });
 
             var names = CliCompletionSchemaReader.Walk(tab, "/ip route set ");
 
-            CollectionAssert.Contains(names, "dst-address");
             Assert.AreEqual(4, names.Count);
+            CollectionAssert.AreEqual(new[] { "/ip route set " }, tab.Asked);
         }
 
         [TestMethod]
@@ -206,20 +205,15 @@ namespace tik4net.unittests.Connection
             // 's' completes inline to 'src-' (the prefix all share), which then lists; 'c' completes to the one
             // candidate. Neither the prefix nor a partial word is a name.
             var tab = new ScriptedTab(
-                new Dictionary<string, string[]>
-                {
-                    ["/x add "] = new[] { "src-address", "comment" },
-                    ["/x add src-"] = new[] { "src-address", "src-port" },
-                },
+                new Dictionary<string, string[]> { ["/x add src-"] = new[] { "src-address", "src-port" } },
                 new Dictionary<string, string>
                 {
                     ["/x add s"] = "/x add src-",
                     ["/x add c"] = "/x add comment=",
                 });
 
-            var names = CliCompletionSchemaReader.Walk(tab, "/x add ");
-
-            CollectionAssert.AreEquivalent(new[] { "src-address", "comment", "src-port" }, names.ToArray());
+            CollectionAssert.AreEquivalent(new[] { "src-address", "src-port" }, CliCompletionSchemaReader.Walk(tab, "/x add s").ToArray());
+            CollectionAssert.AreEqual(new[] { "comment" }, CliCompletionSchemaReader.Walk(tab, "/x add c").ToArray());
         }
 
         [TestMethod]
@@ -227,11 +221,10 @@ namespace tik4net.unittests.Connection
         {
             var tab = new ScriptedTab(new Dictionary<string, string[]>
             {
-                ["/x add "] = new[] { "mode" },
                 ["/x add m"] = new[] { "mode", "ap", "station" },   // the listing of mode='s values, not names
             });
 
-            CollectionAssert.AreEqual(new[] { "mode" }, CliCompletionSchemaReader.Walk(tab, "/x add ").ToArray());
+            CollectionAssert.AreEqual(new[] { "mode" }, CliCompletionSchemaReader.Walk(tab, "/x add m").ToArray());
         }
     }
 }

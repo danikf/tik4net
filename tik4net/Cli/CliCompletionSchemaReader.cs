@@ -5,14 +5,20 @@ using tik4net.Connection;
 
 namespace tik4net.Cli
 {
+    /// <summary>One Tab's reaction as both <see cref="ITikCliCompletion"/> readings: the listing and the completed line.</summary>
+    internal interface ICliCompletionReaction
+    {
+        (IReadOnlyList<string> Tokens, string Raw) CompleteCliBoth(string partialInput);
+    }
+
     /// <summary>
     /// A <see cref="TikMenuSchema"/> from Tab completion, for a router without <c>/console/inspect</c> (RouterOS 6).
     /// </summary>
     /// <remarks>
-    /// One Tab is not one list (Docs/findings-cli.md §14): a long listing elides a family as <c>stem-...</c>, a prefix
-    /// all candidates share is completed inline instead of listed, and a listing may be cut to its first matches, which
-    /// looks exactly like a complete one. So a list is walked: the bare Tab, every <c>stem-...</c> by its stem, and one
-    /// Tab per first character seen, each answer merged in. A cut that hides a whole initial is not found.
+    /// One Tab is not quite one list (Docs/findings-cli.md §14): a long listing elides a family as <c>stem-...</c>, and a
+    /// prefix all candidates share is completed inline instead of listed. So a list is walked: the bare Tab, then every
+    /// <c>stem-...</c> by its stem. A listing of names is not cut (6.49.13 lists all 103 fields of <c>/interface
+    /// wireless print where</c> in one Tab), so no Tab per initial is asked: each Tab costs a settle window of its own.
     /// </remarks>
     internal static class CliCompletionSchemaReader
     {
@@ -54,12 +60,8 @@ namespace tik4net.Cli
                     found.Add(token);
             }
 
-            var first = OneLevel(completion, line);
-            foreach (var token in first)
+            foreach (var token in OneLevel(completion, line))
                 Add(token);
-            foreach (char initial in first.Where(t => t.Length > 0).Select(t => t[0]).Distinct().ToList())
-                foreach (var token in OneLevel(completion, line + initial))
-                    Add(token);
             return found;
         }
 
@@ -72,10 +74,9 @@ namespace tik4net.Cli
             if (depth > 4)
                 return result;                                       // a stem that keeps answering itself
             string typed = Word(line);
-            var tokens = completion.CompleteCli(line);
+            var (tokens, raw) = Complete(completion, line);
             if (tokens.Count == 0)
             {
-                string raw = completion.CompleteCliRaw(line);
                 if (raw.Length <= line.Length || !raw.StartsWith(line, StringComparison.Ordinal))
                     return result;                                   // nothing to complete
                 if (raw.EndsWith(" ", StringComparison.Ordinal) || raw.EndsWith("=", StringComparison.Ordinal))
@@ -105,6 +106,16 @@ namespace tik4net.Cli
                     result.Add(token);
             }
             return result;
+        }
+
+        // One Tab read both ways; a completion that cannot hand over its reaction is asked twice, for the listing and
+        // for the completed line.
+        private static (IReadOnlyList<string> Tokens, string Raw) Complete(ITikCliCompletion completion, string line)
+        {
+            if (completion is ICliCompletionReaction reaction)
+                return reaction.CompleteCliBoth(line);
+            var tokens = completion.CompleteCli(line);
+            return (tokens, tokens.Count == 0 ? completion.CompleteCliRaw(line) : "");
         }
 
         // The partly typed word at the end of 'line' ("" after a space or '=').

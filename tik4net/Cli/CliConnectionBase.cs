@@ -55,7 +55,7 @@ namespace tik4net.Cli
     /// </remarks>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
         ITikMonitorTransport, IPollingMonitorHost, ITikCliPagedReadConnection,
-        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection
+        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection, ICliCompletionReaction
     {
         /// <inheritdoc/>
         public string? CliFieldSeparator
@@ -688,6 +688,12 @@ namespace tik4net.Cli
         /// <inheritdoc/>
         public string CompleteCliRaw(string partialInput)
             => CliCompletionParser.Clean(CompleteCliReaction(partialInput), partialInput);
+
+        (IReadOnlyList<string> Tokens, string Raw) ICliCompletionReaction.CompleteCliBoth(string partialInput)
+        {
+            string reaction = CompleteCliReaction(partialInput);
+            return (CliCompletionParser.Tokens(reaction, partialInput), CliCompletionParser.Clean(reaction, partialInput));
+        }
 
         /// <summary>
         /// Drives one Tab-completion probe and returns the terminal reaction, escape sequences included.

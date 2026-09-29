@@ -52,7 +52,12 @@ namespace tik4net.integrationtests
             if (string.IsNullOrEmpty(path)) Assert.Inconclusive("Set TIK4NET_SCHEMA_DUMP=/ip/route.");
             using (var telnet = TestBase.LabSetup(TikConnectionType.Telnet).Create(TikConnectionType.Telnet))
             {
+                int tabs = 0;
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                telnet.OnWriteRow += (s, e) => { if (e.Word.StartsWith("<tab-complete>")) tabs++; };
                 var schema = telnet.DescribeMenu(path);
+                var fieldsNow = schema.ReadableFields;
+                Console.WriteLine("TIMING " + sw.ElapsedMilliseconds + " ms, tabs=" + tabs);
                 Console.WriteLine("SOURCE " + schema.Source);
                 Console.WriteLine("COMMANDS " + string.Join(",", schema.Commands));
                 Console.WriteLine("READABLE " + (schema.ReadableFields == null ? "null" : string.Join(",", schema.ReadableFields)));
