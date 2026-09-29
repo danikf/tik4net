@@ -51,7 +51,7 @@ namespace tik4net.Benchmarks
                 Chain = "forward",
                 Comment = "benchmark rule",
                 ConnectionState = FirewallFilter.ConnectionStateType.Established | FirewallFilter.ConnectionStateType.Related,
-                ConnectionLimit = 32,
+                ConnectionLimit = "32,32",
                 DstAddress = "10.0.0.0/8",
                 DstPort = "443",
                 InInterface = "ether1",
