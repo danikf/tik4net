@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -291,7 +292,18 @@ namespace tik4net.Connection
         // are that one bridge, internal so they stay inside the assembly, and nothing more than a
         // forwarding call. Adding a hook means adding its shim beside it.
 
-        internal IList<TikRecordSentence> InvokeRunPrint(TikCommandDescriptor descriptor) => RunPrint(descriptor);
+        internal IList<TikRecordSentence> InvokeRunPrint(TikCommandDescriptor descriptor)
+        {
+            CheckFilters(descriptor);
+            return RunPrint(descriptor);
+        }
+
+        // Every read over this base goes through the two InvokeRunPrint*: the one place a filter on a field the menu
+        // does not have is refused (TikFilterValidation).
+        private void CheckFilters(TikCommandDescriptor descriptor)
+            => TikFilterValidation.Check(this, null, descriptor.CommandText,
+                descriptor.Parameters.Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter).Select(p => p.Name),
+                descriptor.Parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.WinboxLabels)?.Value);
 
         internal string InvokeRunAdd(TikCommandDescriptor descriptor) => RunAdd(descriptor);
 
@@ -300,7 +312,10 @@ namespace tik4net.Connection
         internal string InvokeRunRawText(TikCommandDescriptor descriptor) => RunRawText(descriptor);
 
         internal Task<IList<TikRecordSentence>> InvokeRunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => RunPrintAsync(descriptor, cancellationToken);
+        {
+            CheckFilters(descriptor);
+            return RunPrintAsync(descriptor, cancellationToken);
+        }
 
         internal Task<string> InvokeRunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => RunAddAsync(descriptor, cancellationToken);

@@ -546,7 +546,11 @@ script expression, and an unknown name is not an error there (measured 2026-09-2
 Parentheses change nothing (`where (routing-mark=main)` is still all rows). The pattern fits an unknown name and an
 unquoted unknown word each evaluating to nothing, with `nothing = nothing` true for every row, and `no`/`yes` read as
 the boolean words — a reading, not something RouterOS documents. It is a real divergence from the API: a filtered
-load on a renamed field's other name returns the whole table over the five CLI transports. **Open** (5.0 TODO).
+load on a renamed field's other name returned the whole table over the five CLI transports. A known field without a
+value matches nothing either way (`routing-mark=main` on 6.49.13, where main-table routes carry no mark: 0).
+
+The library refuses such a filter before it is sent (`TikFilterValidation`, every transport): the field list is the
+router's `get value-name=` completion. Where it cannot ask — a menu without `get` — the filter goes out as written.
 
 ### `where` values with special characters must be quoted
 

@@ -18,6 +18,29 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// A filter on the other version's name of a renamed field is refused, naming it, before the read is sent. Left to
+        /// the router it came back as no rows on the API and REST and as EVERY row on the CLI transports: 7.24.4 reads
+        /// <c>where routing-mark=main</c> as true for each row. RouterOS 6 over the API cannot describe the menu, so there
+        /// the filter goes out unchecked and the API's own answer stands: no rows.
+        /// </summary>
+        [TestMethod]
+        public void AFilterOnTheOtherVersionsNameOfAField_IsRefused()
+        {
+            string otherName = GetMikrotikVersion().Major < 7 ? "routing-table" : "routing-mark";
+            var filter = Connection.CreateParameter(otherName, "main", TikCommandParameterFormat.Filter);
+
+            var type = ResolveConnectionType();
+            bool api = type == TikConnectionType.Api || type == TikConnectionType.ApiSsl;
+            if (GetMikrotikVersion().Major < 7 && api)
+            {
+                Assert.AreEqual(0, Connection.LoadList<IpRoute>(filter).Count(), "the API matched rows on an unknown field");
+                return;
+            }
+            var ex = Assert.ThrowsException<TikUnknownFieldException>(() => Connection.LoadList<IpRoute>(filter).ToList());
+            CollectionAssert.AreEqual(new[] { otherName }, ex.Fields.ToArray());
+        }
+
+        /// <summary>
         /// The routing table is <c>routing-table</c> on RouterOS 7 and <c>routing-mark</c> on RouterOS 6, and each
         /// refuses the other name: read under either, and a route read with a mark is saved under that name again.
         /// </summary>

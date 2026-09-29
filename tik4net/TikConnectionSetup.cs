@@ -106,7 +106,7 @@ namespace tik4net
         /// Checks an entity write against the router's own argument list before sending it
         /// (<see cref="TikMenuSchemaExtensions.DescribeMenu(ITikConnection, string)"/>, asked once per menu). A renamed
         /// field (<c>TikPropertyAttribute.AlternateNames</c>) is written under the name the router takes; a field it takes
-        /// under none of its names throws <see cref="TikUnknownArgumentException"/> and nothing is sent —
+        /// under none of its names throws <see cref="TikUnknownFieldException"/> and nothing is sent —
         /// <c>SaveListDifferences</c> checks every row before the first one is written. Default <c>false</c>.
         /// </summary>
         /// <remarks>

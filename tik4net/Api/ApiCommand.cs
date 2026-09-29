@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.Api
 {
@@ -160,6 +161,13 @@ namespace tik4net.Api
         private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] additionalParamemeters)
         {
             EnsureCommandTextSet();
+            if (_connection != null)
+                TikFilterValidation.Check(_connection, this, CommandText,
+                    _parameters.Where(p => p.Name.StartsWith("?")
+                            || (!p.Name.StartsWith("=") && !IsSpecialParam(p.Name)
+                                && ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p) == TikCommandParameterFormat.Filter))
+                        .Select(p => p.Name),
+                    null);
             foreach (var additionalParameter in additionalParamemeters)
             {
                 if (_parameters.Any(p => p.Name == additionalParameter.Name))

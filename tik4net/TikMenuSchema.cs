@@ -39,16 +39,27 @@ namespace tik4net
         private readonly Dictionary<string, IReadOnlyList<string>> _valuesCache
             = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
 
+        private readonly Lazy<IReadOnlyCollection<string>?> _add, _set, _readable;
+
         internal TikMenuSchema(string path, TikMenuSchemaSource source, IReadOnlyCollection<string> commands,
             IReadOnlyCollection<string>? addArguments, IReadOnlyCollection<string>? setArguments,
-            IReadOnlyCollection<string> readableFields, Func<string, string, IReadOnlyList<string>>? values)
+            IReadOnlyCollection<string>? readableFields, Func<string, string, IReadOnlyList<string>>? values)
+            : this(path, source, commands, () => addArguments, () => setArguments, () => readableFields, values)
+        {
+        }
+
+        // Each list is asked for the first time it is read: a filter check needs only the readable fields, and on a
+        // RouterOS 6 CLI every list is a walk of several Tabs.
+        internal TikMenuSchema(string path, TikMenuSchemaSource source, IReadOnlyCollection<string> commands,
+            Func<IReadOnlyCollection<string>?> addArguments, Func<IReadOnlyCollection<string>?> setArguments,
+            Func<IReadOnlyCollection<string>?> readableFields, Func<string, string, IReadOnlyList<string>>? values)
         {
             Path = path;
             Source = source;
             Commands = commands;
-            AddArguments = addArguments;
-            SetArguments = setArguments;
-            ReadableFields = readableFields;
+            _add = new Lazy<IReadOnlyCollection<string>?>(addArguments);
+            _set = new Lazy<IReadOnlyCollection<string>?>(setArguments);
+            _readable = new Lazy<IReadOnlyCollection<string>?>(readableFields);
             _values = values;
         }
 
@@ -62,15 +73,16 @@ namespace tik4net
         public IReadOnlyCollection<string> Commands { get; }
 
         /// <summary>The arguments <c>add</c> takes, or <c>null</c> when the menu has no <c>add</c>.</summary>
-        public IReadOnlyCollection<string>? AddArguments { get; }
+        public IReadOnlyCollection<string>? AddArguments => _add.Value;
 
         /// <summary>The arguments <c>set</c> takes, or <c>null</c> when the menu has no <c>set</c>.</summary>
-        public IReadOnlyCollection<string>? SetArguments { get; }
+        public IReadOnlyCollection<string>? SetArguments => _set.Value;
 
         /// <summary>
-        /// Fields the router says it can read (<c>get value-name=</c>) — see the remarks.
+        /// Fields the router says it can read and filter on (<c>get value-name=</c>), or <c>null</c> when the menu has no
+        /// <c>get</c> to ask — see the remarks.
         /// </summary>
-        public IReadOnlyCollection<string> ReadableFields { get; }
+        public IReadOnlyCollection<string>? ReadableFields => _readable.Value;
 
         /// <summary>
         /// The words <paramref name="argument"/> of <paramref name="verb"/> suggests: an enum's members, or the names a
@@ -100,7 +112,7 @@ namespace tik4net
         /// <inheritdoc/>
         public override string ToString()
             => Path + " (" + Source + "): add " + Count(AddArguments) + ", set " + Count(SetArguments) + ", readable "
-               + ReadableFields.Count;
+               + Count(ReadableFields);
 
         private static string Count(IReadOnlyCollection<string>? names) => names == null ? "-" : names.Count.ToString();
     }
@@ -163,6 +175,11 @@ namespace tik4net
     {
         private readonly Dictionary<string, TikMenuSchema> _byPath = new Dictionary<string, TikMenuSchema>(StringComparer.Ordinal);
 
+        // A refusal is remembered too: RouterOS 6 over the API refuses /console/inspect, and every filtered read asks
+        // before it is sent — without this each one would pay a round trip for the same refusal.
+        private readonly Dictionary<string, TikNoSuchCommandException> _refused
+            = new Dictionary<string, TikNoSuchCommandException>(StringComparer.Ordinal);
+
         internal TikMenuSchema GetOrAdd(string path, Func<string, TikMenuSchema> describe, string? variant = null)
         {
             string key = variant == null ? path : path + "|" + variant;
@@ -170,8 +187,20 @@ namespace tik4net
             {
                 if (_byPath.TryGetValue(key, out var schema))
                     return schema;
+                if (_refused.TryGetValue(key, out var refusal))
+                    throw refusal;
             }
-            var described = describe(path);
+            TikMenuSchema described;
+            try
+            {
+                described = describe(path);
+            }
+            catch (TikNoSuchCommandException ex)
+            {
+                lock (_byPath)
+                    _refused[key] = ex;
+                throw;
+            }
             lock (_byPath)
                 _byPath[key] = described;
             return described;
@@ -199,9 +228,9 @@ namespace tik4net
             var commands = Children(menu, "cmd");
 
             return new TikMenuSchema(path, TikMenuSchemaSource.ConsoleInspect, commands,
-                commands.Contains("add") ? Arguments(connection, inspectPath + ",add") : null,
-                commands.Contains("set") ? Arguments(connection, inspectPath + ",set") : null,
-                commands.Contains("get") ? Completions(connection, inspectPath + ",get,value-name") : Array.Empty<string>(),
+                () => commands.Contains("add") ? Arguments(connection, inspectPath + ",add") : null,
+                () => commands.Contains("set") ? Arguments(connection, inspectPath + ",set") : null,
+                () => commands.Contains("get") ? (IReadOnlyCollection<string>?)Completions(connection, inspectPath + ",get,value-name") : null,
                 (verb, argument) => Completions(connection, inspectPath + "," + verb + "," + argument));
         }
 

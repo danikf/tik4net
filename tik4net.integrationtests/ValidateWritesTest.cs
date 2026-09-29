@@ -90,9 +90,9 @@ namespace tik4net.integrationtests
             {
                 var route = new BogusRoute { DstAddress = "203.0.113.79/32", Gateway = "127.0.0.1", Disabled = true, Comment = comment, Bogus = "1" };
 
-                var ex = Assert.ThrowsException<TikUnknownArgumentException>(() => validating.Save(route));
+                var ex = Assert.ThrowsException<TikUnknownFieldException>(() => validating.Save(route));
 
-                CollectionAssert.AreEqual(new[] { "t4n-bogus" }, ex.Arguments.ToArray());
+                CollectionAssert.AreEqual(new[] { "t4n-bogus" }, ex.Fields.ToArray());
                 var created = RoutesCommented(comment);
                 created.ForEach(r => TrackForCleanup(r));
                 Assert.AreEqual(0, created.Count, "the route was created although the write was refused");
@@ -111,7 +111,7 @@ namespace tik4net.integrationtests
                     new BogusRoute { DstAddress = "203.0.113.81/32", Gateway = "127.0.0.1", Disabled = true, Comment = comment, Bogus = "1" },
                 };
 
-                Assert.ThrowsException<TikUnknownArgumentException>(
+                Assert.ThrowsException<TikUnknownFieldException>(
                     () => validating.SaveListDifferences(rows, Enumerable.Empty<BogusRoute>()));
 
                 var created = RoutesCommented(comment);

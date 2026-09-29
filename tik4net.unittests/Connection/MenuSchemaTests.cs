@@ -63,7 +63,7 @@ namespace tik4net.unittests.Connection
             CollectionAssert.AreEquivalent(new[] { "add", "set", "get", "print" }, schema.Commands.ToArray(), "a sub-menu is not a command");
             CollectionAssert.AreEquivalent(new[] { "dst-address", "routing-table", "copy-from" }, schema.AddArguments!.ToArray());
             CollectionAssert.AreEquivalent(new[] { "numbers", "routing-table" }, schema.SetArguments!.ToArray());
-            CollectionAssert.AreEquivalent(new[] { "active", "routing-table" }, schema.ReadableFields.ToArray(),
+            CollectionAssert.AreEquivalent(new[] { "active", "routing-table" }, schema.ReadableFields!.ToArray(),
                 "the syntax helpers ('[', the id prefix '*') are hidden");
         }
 
@@ -131,6 +131,42 @@ namespace tik4net.unittests.Connection
 
             public string CompleteCliRaw(string partialInput)
                 => _inline.TryGetValue(partialInput, out var line) ? line : "";
+        }
+
+        [TestMethod]
+        public void Tab_TheReadableFieldsAreAsked_EvenWhenTheMenuListsNoGet()
+        {
+            // 6.49.13: '/ip route ' lists add … unset and no get, and 'get value-name=' completes every field anyway.
+            var tab = new ScriptedTab(new Dictionary<string, string[]>
+            {
+                ["/ip route "] = new[] { "nexthop", "add", "print", "set" },
+                ["/ip route get value-name="] = new[] { "dst-address", "gateway-status", "routing-mark" },
+            });
+
+            var schema = CliCompletionSchemaReader.Read(tab, "/ip/route");
+
+            CollectionAssert.AreEquivalent(new[] { "dst-address", "gateway-status", "routing-mark" }, schema.ReadableFields!.ToArray());
+        }
+
+        [TestMethod]
+        public void Tab_NothingCompletedAfterGet_MeansTheMenuCannotSay()
+        {
+            var tab = new ScriptedTab(new Dictionary<string, string[]> { ["/x "] = new[] { "print" } });
+
+            Assert.IsNull(CliCompletionSchemaReader.Read(tab, "/x").ReadableFields);
+        }
+
+        [TestMethod]
+        public void Tab_AStemThatIsItselfAWord_IsKept()
+        {
+            // 6.49.13 '/ip arp get value-name=' lists 'published...'; a Tab on 'published' accepts the word and moves on
+            // to the next parameter ('number='), so nothing lists under it.
+            var tab = new ScriptedTab(
+                new Dictionary<string, string[]> { ["/ip arp get value-name="] = new[] { "address", "published..." } },
+                new Dictionary<string, string> { ["/ip arp get value-name=published"] = "number=" });
+
+            CollectionAssert.AreEquivalent(new[] { "address", "published" },
+                CliCompletionSchemaReader.Walk(tab, "/ip arp get value-name=").ToArray());
         }
 
         [TestMethod]

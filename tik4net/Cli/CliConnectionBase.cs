@@ -247,6 +247,11 @@ namespace tik4net.Cli
                         _features.ConsoleInspect = false;
                     }
                 }
+                // No inspect, and no Tab to ask with either: the router cannot be asked, which a caller treats as a
+                // refusal (the filter check then sends the read as before).
+                if (_sendRawSettle == null)
+                    throw new TikNoSuchCommandException(CreateDummyCommand(new TikCommandDescriptor(p, new List<ITikCommandParameter>())),
+                        new TikTrapSentenceResult("no /console/inspect and no Tab completion on this connection"));
                 return CliCompletionSchemaReader.Read(this, p);
             });
 
@@ -2329,8 +2334,13 @@ namespace tik4net.Cli
                 string body = SplitOffCountMarker(output, descriptor, out int expected);
                 return EnsureCounted(ParseDsvRecords(body, descriptor), expected, descriptor, body);
             }
-            return await RunMonitorSnapshotAsync(descriptor, modifier: string.Empty, includeFilters: true,
-                cancellationToken).ConfigureAwait(false);
+            // As-value, once. Not the monitor path's plain-table retry: that is for RouterOS 6's monitors, and the only
+            // argument read, inspect, does not exist there at all — the retry would repeat the refusal, at 6.x's
+            // per-character echo cost.
+            string asValue = await ExecuteCliCommandAsync(CliCommandBuilder.BuildMonitorSnapshot(descriptor.CommandText,
+                descriptor.Parameters, string.Empty, includeFilters: true), cancellationToken).ConfigureAwait(false);
+            CliErrorParser.ThrowIfError(asValue, CreateDummyCommand(descriptor));
+            return ParseRecords(asValue, descriptor);
         }
 
         // Misuse of a read method (ExecuteList/ExecuteScalar/…) on an action command — guide to ExecuteNonQuery.

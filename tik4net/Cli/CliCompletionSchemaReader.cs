@@ -26,9 +26,20 @@ namespace tik4net.Cli
                     new TikTrapSentenceResult("no such menu " + path + " (Tab completion lists nothing for it)"));
 
             return new TikMenuSchema(path, TikMenuSchemaSource.CliCompletion, commands,
-                commands.Contains("add") ? Walk(completion, menu + " add ") : null,
-                commands.Contains("set") ? Walk(completion, menu + " set ") : null,
-                commands.Contains("get") ? Walk(completion, menu + " get value-name=") : Array.Empty<string>(),
+                () => commands.Contains("add") ? Walk(completion, menu + " add ") : null,
+                () => commands.Contains("set") ? Walk(completion, menu + " set ") : null,
+                // Always asked: 6.49.13 leaves 'get' out of a menu's Tab listing (/ip route lists add … unset, no get)
+                // and still completes 'get value-name=' with every field. Nothing listed means it cannot say.
+                // Merged with 'print where ', which lists the same fields unelided and with the flags: 'get value-name='
+                // elides 'published...' on /ip arp, and 6.49.13 filters on 'published' and on /certificate 'trusted'.
+                () =>
+                {
+                    var fields = Walk(completion, menu + " get value-name=")
+                        .Concat(Walk(completion, menu + " print where "))
+                        .Where(f => !f.StartsWith(".", StringComparison.Ordinal))
+                        .Distinct(StringComparer.Ordinal).ToList();
+                    return fields.Count > 0 ? fields : null;
+                },
                 (verb, argument) => Walk(completion, menu + " " + verb + " " + argument + "="));
         }
 
@@ -80,7 +91,16 @@ namespace tik4net.Cli
                 if (!token.StartsWith(typed, StringComparison.Ordinal))
                     continue;
                 if (token.EndsWith("...", StringComparison.Ordinal))
-                    result.AddRange(OneLevel(completion, before + token.Substring(0, token.Length - 3), depth + 1));
+                {
+                    string stem = token.Substring(0, token.Length - 3);
+                    var expanded = OneLevel(completion, before + stem, depth + 1);
+                    // A stem that is itself a word ('published...' for published and published2, 6.49.13) is accepted
+                    // whole by the Tab, which then moves on to the next parameter: nothing comes back, and the stem is
+                    // the one candidate learnt. A stem ending in '-' is only a prefix.
+                    if (expanded.Count == 0 && !stem.EndsWith("-", StringComparison.Ordinal))
+                        expanded.Add(stem);
+                    result.AddRange(expanded);
+                }
                 else
                     result.Add(token);
             }

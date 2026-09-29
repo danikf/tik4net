@@ -78,7 +78,7 @@ namespace tik4net.Objects
             }
 
             if (unknown.Count > 0)
-                throw new TikUnknownArgumentException(command, unknown);
+                throw new TikUnknownFieldException(command, unknown, TikUnknownFieldUse.Write);
         }
     }
 }

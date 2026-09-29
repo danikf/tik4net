@@ -59,10 +59,11 @@ namespace tik4net.unittests.Objects
         {
             var set = Command("set", (".id", "*1"), ("scope", "30"), ("t4n-bogus", "1"), ("comment", "c"));
 
-            var ex = Assert.ThrowsException<TikUnknownArgumentException>(() => TikWriteValidation.Check(set, Route, RouterOs6Route()));
+            var ex = Assert.ThrowsException<TikUnknownFieldException>(() => TikWriteValidation.Check(set, Route, RouterOs6Route()));
 
-            CollectionAssert.AreEqual(new[] { "scope", "t4n-bogus" }, ex.Arguments.ToArray());
+            CollectionAssert.AreEqual(new[] { "scope", "t4n-bogus" }, ex.Fields.ToArray());
             StringAssert.Contains(ex.Message, "nothing was sent");
+            Assert.AreEqual(TikUnknownFieldUse.Write, ex.Use);
         }
 
         [TestMethod]

@@ -47,20 +47,39 @@ namespace tik4net
         }
     }
 
-    /// <summary>
-    /// An entity write carried arguments the router's own argument list for that menu does not have, and was not sent
-    /// (<see cref="TikConnectionSetup.ValidateWrites"/>). <see cref="Arguments"/> names every one.
-    /// </summary>
-    public class TikUnknownArgumentException : TikCommandException
+    /// <summary>Where a <see cref="TikUnknownFieldException"/> was raised.</summary>
+    public enum TikUnknownFieldUse
     {
-        /// <summary>The arguments the router has no such name for.</summary>
-        public IReadOnlyList<string> Arguments { get; }
+        /// <summary>A read's filter named a field the menu does not have; the read was not sent.</summary>
+        Filter,
 
-        internal TikUnknownArgumentException(ITikCommand command, IReadOnlyList<string> arguments)
-            : base(command, "The router takes no argument " + string.Join(", ", arguments) + " in '" + command.CommandText
-                  + "' (its /console/inspect or Tab completion lists none by that name); nothing was sent.")
+        /// <summary>
+        /// An entity write carried a field the menu takes under none of its names; nothing was sent
+        /// (<see cref="TikConnectionSetup.ValidateWrites"/>).
+        /// </summary>
+        Write,
+    }
+
+    /// <summary>
+    /// A filter or an entity write named fields the router says the menu does not have (its own
+    /// <c>/console/inspect</c>, Tab completion or WinBox catalog), and the command was not sent. <see cref="Fields"/>
+    /// names every one.
+    /// </summary>
+    public class TikUnknownFieldException : TikCommandException
+    {
+        /// <summary>The fields the menu does not have.</summary>
+        public IReadOnlyList<string> Fields { get; }
+
+        /// <summary>Whether a filter or a write named them.</summary>
+        public TikUnknownFieldUse Use { get; }
+
+        internal TikUnknownFieldException(ITikCommand command, IReadOnlyList<string> fields, TikUnknownFieldUse use)
+            : base(command, (use == TikUnknownFieldUse.Filter ? "Filter on " : "Write of ")
+                  + (fields.Count == 1 ? "field " : "fields ") + string.Join(", ", fields) + ", which "
+                  + TikPath.Parent(command.CommandText) + " does not have on this router; nothing was sent.")
         {
-            Arguments = arguments;
+            Fields = fields;
+            Use = use;
         }
     }
 

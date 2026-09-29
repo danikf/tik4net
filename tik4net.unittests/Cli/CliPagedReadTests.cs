@@ -606,6 +606,10 @@ namespace tik4net.unittests.Cli
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {
+                // The filter check's question about the menu (FilterValidationTests): this double describes no menu,
+                // so the check stands aside, and the counts below are the read's own requests.
+                if (cliText.Contains("/console inspect"))
+                    return Task.FromResult(string.Empty);
                 Sent.Add(cliText);
 
                 // The clause is optional and lives INSIDE the find's parentheses, exactly as a filtered
