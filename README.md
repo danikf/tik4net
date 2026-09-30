@@ -32,6 +32,8 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
   credentials and the transport come from config, not code
 * **[Negated matchers](https://github.com/danikf/tik4net/wiki/TikValue#negated-matchers)** — `src-address=!10.0.0.0/8`
   reads as a negated `10.0.0.0/8`, not as a string starting with `!`
+* **[A compile-time check for `TikValue` comparisons](https://github.com/danikf/tik4net/wiki/TikValue#pitfalls)** — warning
+  TIK001 flags `object.Equals("x", rule.Comment)` and its kin, which are never equal, with a fix to `.Value`
 * **[List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge)** — merge and `SaveListDifferences` reorder firewall rules
   with minimal moves, sync and async
 * **[Filtered CLI reads run on the router](https://github.com/danikf/tik4net/wiki/Command-translation-on-non-API-transports#read-runprint)** — the filter goes

@@ -2,7 +2,8 @@
 
 Packaging-only project. It compiles nothing: it collects the [`tik4net`](../tik4net/README.md) and
 [`tik4net.objects`](../tik4net.objects/README.md) assemblies (plus their XML docs) into
-`lib/netstandard2.0/` of the single **`tik4net`** NuGet package.
+`lib/<tfm>/` of the single **`tik4net`** NuGet package, and the
+[`tik4net.analyzers`](../tik4net.analyzers/README.md) assembly into its `analyzers/dotnet/cs/`.
 
 ```bash
 dotnet pack tik4net.package/tik4net.package.csproj    # -> ./Build/
@@ -22,7 +23,7 @@ package ID that does not exist on nuget.org.
 
 ## After changing any packaging project
 
-Verify by unzipping the produced `.nupkg` and checking `lib/` and the `.nuspec` dependencies. A wrong
+Verify by unzipping the produced `.nupkg` and checking `lib/`, `analyzers/` and the `.nuspec` dependencies. A wrong
 `ProjectReference` silently produces a package that depends on a nonexistent ID — the build stays
 green and the failure only appears when a consumer restores it. CI has a job that validates
 `dotnet pack`, but the dependency-ID check is worth doing by hand.

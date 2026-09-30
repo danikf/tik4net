@@ -17,6 +17,8 @@
     <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" />
     <ProjectReference Include="..\tik4net\tik4net.csproj" />
     <ProjectReference Include="..\tik4net.testing\tik4net.testing.csproj" />
+    <!-- The analyzers the tik4net package ships, run over this project's own code as a consumer gets them. -->
+    <ProjectReference Include="..\tik4net.analyzers\tik4net.analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\tik4net.ssh\tik4net.ssh.csproj" />
   </ItemGroup>
 </Project>

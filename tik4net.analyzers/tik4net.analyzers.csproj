@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Compile-time checks shipped INSIDE the `tik4net` package (analyzers/dotnet/cs/, see tik4net.package), not as a
+    package of their own: a consumer who installs tik4net gets them without asking, and they never reach runtime.
+
+    netstandard2.0 and Microsoft.CodeAnalysis 3.8 are the compiler's contract, not a choice: an analyzer must load into
+    whatever compiler the consumer builds with, and one built against a newer Roslyn than that compiler is skipped with
+    warning CS8032 — an error under -warnaserror. 3.8 is VS 16.8 / the .NET 5 SDK, and the version Unity requires of an
+    analyzer, which matches the reach the netstandard2.0 build of the library exists for.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>tik4net.analyzers</AssemblyName>
+    <RootNamespace>tik4net.Analyzers</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="3.8.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Release tracking (RS2008): a rule id, once shipped, keeps its meaning. Move a rule to Shipped at the release. -->
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+
+</Project>

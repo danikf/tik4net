@@ -49,6 +49,16 @@ Targets netstandard2.0 and net8.0. The O/R mapper was distributed separately as 
     <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" PrivateAssets="all" />
   </ItemGroup>
 
+  <!--
+    The compile-time analyzers (TIK001, …), shipped in analyzers/dotnet/cs/ where the compiler loads them for every
+    project that references the package. Built, never referenced: nothing at runtime depends on them.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\tik4net.analyzers\tik4net.analyzers.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="..\tik4net.analyzers\bin\$(Configuration)\netstandard2.0\tik4net.analyzers.dll"
+          Pack="true" PackagePath="analyzers/dotnet/cs/" Visible="false" />
+  </ItemGroup>
+
   <!-- Must mirror the PackageReferences of the projects packed above. -->
   <ItemGroup>
     <!-- netstandard2.0 only: net8.0 has System.Text.Json in its shared framework, and a package

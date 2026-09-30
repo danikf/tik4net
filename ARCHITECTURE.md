@@ -25,14 +25,15 @@ ITikConnection / ITikCommand  — transport-neutral contract + capability model
 
 | Package | Project | TFM | Notes |
 |---|---|---|---|
-| `tik4net` | `tik4net/` + `tik4net.objects/`, packed by `tik4net.package/` | `netstandard2.0;net8.0` | Core **and** O/R mapper — two assemblies, one package. Runtime dep on the `netstandard2.0` leg only: `System.Text.Json` (net8.0 has it in the shared framework, so that leg has no dependencies at all) |
+| `tik4net` | `tik4net/` + `tik4net.objects/`, packed by `tik4net.package/` | `netstandard2.0;net8.0` | Core **and** O/R mapper — two assemblies, one package, plus the compile-time analyzers of `tik4net.analyzers/` in `analyzers/dotnet/cs/`. Runtime dep on the `netstandard2.0` leg only: `System.Text.Json` (net8.0 has it in the shared framework, so that leg has no dependencies at all) |
 | `tik4net.ssh` | `tik4net.ssh/` | `netstandard2.0;net8.0` | Satellite — isolates the `Renci.SshNet` dependency |
 | `tik4net.testing` | `tik4net.testing/` | `netstandard2.0;net8.0` | `TikFakeConnection` for router-free consumer tests |
 | `tik4net.mcp` | `Tools/tik4net.mcp/` | .NET tool | Dev/debug MCP helper, not a user-facing library |
 
 `tik4net/` and `tik4net.objects/` are both `IsPackable=false` — they build assemblies, but the
 `tik4net` package itself is produced by `tik4net.package/`, a project that compiles nothing and
-only collects the two DLLs (plus their XML docs) into `lib/<tfm>/` for each target framework. It
+only collects the two DLLs (plus their XML docs) into `lib/<tfm>/` for each target framework, and the
+analyzer DLL into `analyzers/dotnet/cs/`. It
 exists because `tik4net.objects` references `tik4net`, so `tik4net` cannot reference it back to pack it.
 
 `netstandard2.0` is not being phased out — Unity/Xamarin/.NET Framework reach is a stated goal (see the

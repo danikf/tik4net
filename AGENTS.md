@@ -38,8 +38,8 @@ dotnet build tik4net.sln
 
 Pack (output to `./Build/`): `tik4net.package`, `tik4net.testing`, `tik4net.ssh`. `tik4net/` and
 `tik4net.objects/` are `IsPackable=false` — the single `tik4net` package is assembled by
-`tik4net.package/`. If you touch a packaging project, unzip the resulting `.nupkg` and check `lib/`
-and the `.nuspec` dependencies: a wrong `ProjectReference` silently produces a package that depends
+`tik4net.package/`, which also carries the `tik4net.analyzers` assembly in `analyzers/dotnet/cs/`. If you
+touch a packaging project, unzip the resulting `.nupkg` and check `lib/`, `analyzers/` and the `.nuspec` dependencies: a wrong `ProjectReference` silently produces a package that depends
 on a nonexistent ID.
 
 **Warnings are errors in CI**, with no exclusions. The solution is warning-clean and must stay that way.

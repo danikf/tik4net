@@ -60,7 +60,7 @@ jobs:
         with:
           dotnet-version: '8.x'
 
-      # These five are warning-clean and must stay that way — no exclusions here.
+      # These six are warning-clean and must stay that way — no exclusions here.
       - name: Build shipping packages
         run: |
           dotnet build tik4net/tik4net.csproj --configuration Release -warnaserror
@@ -68,6 +68,7 @@ jobs:
           dotnet build tik4net.ssh/tik4net.ssh.csproj --configuration Release -warnaserror
           dotnet build tik4net.testing/tik4net.testing.csproj --configuration Release -warnaserror
           dotnet build Tools/tik4net.mcp/tik4net.mcp.csproj --configuration Release -warnaserror
+          dotnet build tik4net.analyzers/tik4net.analyzers.csproj --configuration Release -warnaserror
 
       - name: Unit tests
         run: dotnet test tik4net.unittests/tik4net.unittests.csproj --configuration Release --logger "trx;LogFileName=unittests.trx"
@@ -113,3 +114,8 @@ jobs:
               echo "$files" | grep -q "^lib/$tfm/" || { echo "MISSING lib/$tfm in $pkg"; exit 1; }
             done
           done
+
+      # The analyzers ride inside the tik4net package; a packing change that drops them still packs clean.
+      - name: Verify the analyzers are in the tik4net package
+        run: |
+          unzip -Z1 ./Build/tik4net.[0-9]*.nupkg | grep -qx "analyzers/dotnet/cs/tik4net.analyzers.dll" || { echo "MISSING analyzers/dotnet/cs/tik4net.analyzers.dll in the tik4net package"; exit 1; }
