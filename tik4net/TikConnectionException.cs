@@ -307,6 +307,13 @@ namespace tik4net
     /// are the client's own; this one is the operating system's, and it is the only one that can say the
     /// router did answer and the client failed to collect it.
     /// </para>
+    /// <para>
+    /// On a terminal transport (Telnet, SSH, MAC-Telnet, WinBox CLI) the rest of the answer is still on its way when
+    /// this is thrown, so the connection first brings itself back in step: Ctrl-C stops the command, and a marker the
+    /// router prints proves the next read starts at its own prompt. The connection stays open and the next command
+    /// reads its own answer; only when the marker never comes back is it closed. The timed-out command itself may
+    /// have run in part.
+    /// </para>
     /// </remarks>
     public class TikConnectionReceiveTimeoutException : TikConnectionException
     {
