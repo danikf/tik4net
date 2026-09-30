@@ -48,7 +48,7 @@ namespace tik4net.unittests.Rest
                 StringAssert.Contains(ex.Message, "ConnectTimeout");
                 var inner = ex.InnerException as TikConnectionReceiveTimeoutException;
                 Assert.IsNotNull(inner, "the connect failure carries the timeout that elapsed");
-                Assert.AreEqual(ShortTimeoutMs, inner.TimeoutMilliseconds);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(ShortTimeoutMs), inner.Timeout);
             }
         }
 
@@ -114,7 +114,7 @@ namespace tik4net.unittests.Rest
                     $"CreateRestConnection took {sw.ElapsedMilliseconds} ms; the setup's ConnectTimeout was not applied.");
                 var inner = ex.InnerException as TikConnectionReceiveTimeoutException;
                 Assert.IsNotNull(inner);
-                Assert.AreEqual(ShortTimeoutMs, inner.TimeoutMilliseconds);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(ShortTimeoutMs), inner.Timeout);
             }
         }
 
@@ -140,7 +140,7 @@ namespace tik4net.unittests.Rest
 
                 Assert.IsTrue(sw.ElapsedMilliseconds < GenerousLimitMs,
                     $"the command took {sw.ElapsedMilliseconds} ms; ReceiveTimeout ({ShortTimeoutMs} ms) did not bound it.");
-                Assert.AreEqual(ShortTimeoutMs, ex.TimeoutMilliseconds);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(ShortTimeoutMs), ex.Timeout);
             }
         }
     }

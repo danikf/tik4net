@@ -559,7 +559,7 @@ namespace tik4net.Rest
                     // a caller that cancelled expects OperationCanceledException, while a request that ran out of
                     // time is a configuration problem the caller has to be able to see (see ITikCommandAsync's
                     // remarks). The token tells them apart.
-                    throw new TikConnectionReceiveTimeoutException(timeoutMs, ex);
+                    throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs), ex);
                 }
                 finally
                 {

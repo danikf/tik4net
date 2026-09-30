@@ -187,55 +187,55 @@ namespace tik4net
         IEnumerable<ITikReSentence> ExecuteList(params string[] proplistFields);
 
         /// <summary>
-        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="duration"/>.
         /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.
-        /// Throws <see cref="TikCommandAbortException"/> if command is aborted before <paramref name="durationSec"/>.
-        /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
+        /// Throws <see cref="TikCommandAbortException"/> if command is aborted before <paramref name="duration"/>.
+        /// Returns data if command ends before <paramref name="duration"/> (!done received).
         /// </summary>
-        /// <param name="durationSec">How long will method wait for results.</param>
+        /// <param name="duration">How long will method wait for results. A negative value is zero.</param>
         /// <returns>List of !re sentences read.</returns>
-        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.
+        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="duration"/>.
         /// A command that ends earlier (<c>!done</c>, <c>!trap</c> or a lost connection) returns as soon as it ends.</remarks>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
-        IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec);
+        IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration);
 
         /// <summary>
-        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="duration"/>.
         /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.
-        /// Don't throw any exception if command is aborted before <paramref name="durationSec"/>. Returns <paramref name="wasAborted"/>=true instead (usefull if incomplete result is still expected).
-        /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
+        /// Don't throw any exception if command is aborted before <paramref name="duration"/>. Returns <paramref name="wasAborted"/>=true instead (usefull if incomplete result is still expected).
+        /// Returns data if command ends before <paramref name="duration"/> (!done received).
         /// </summary>
-        /// <param name="durationSec">How long will method wait for results.</param>
-        /// <param name="wasAborted">If command has been terminated before <paramref name="durationSec"/>.</param>
+        /// <param name="duration">How long will method wait for results. A negative value is zero.</param>
+        /// <param name="wasAborted">If command has been terminated before <paramref name="duration"/>.</param>
         /// <param name="abortReason">
         /// Detail info if <paramref name="wasAborted"/> is true: the router's own <c>!trap</c> message, or the reason
         /// the connection was lost, whichever ended the command. <b>Null when the command was not aborted</b> —
         /// there is no reason to give — so read it only after testing <paramref name="wasAborted"/>.
         /// </param>
         /// <returns>List of !re sentences read.</returns>
-        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.
+        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="duration"/>.
         /// A command that ends earlier (<c>!done</c>, <c>!trap</c> or a lost connection) returns as soon as it ends.</remarks>
-        IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string? abortReason);
+        IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason);
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences collected until the router sends <c>!done</c>.
-        /// Unlike <see cref="ExecuteListWithDuration(int)"/>, this method does NOT send <c>/cancel</c> — it is intended for commands that terminate themselves
+        /// Unlike <see cref="ExecuteListWithDuration(TimeSpan)"/>, this method does NOT send <c>/cancel</c> — it is intended for commands that terminate themselves
         /// (e.g. <c>/tool/traceroute count=N</c>, <c>/tool/ping count=N</c>).
         /// </summary>
-        /// <param name="timeoutSec">
-        /// Optional safety timeout in seconds. If the router does not send <c>!done</c> within this period the command is cancelled
-        /// and <see cref="TikCommandAbortException"/> is thrown. Pass <c>null</c> to wait indefinitely.
+        /// <param name="timeout">
+        /// Optional safety timeout. If the router does not send <c>!done</c> within this period the command is cancelled
+        /// and <see cref="TikCommandAbortException"/> is thrown. Pass <c>null</c> to wait indefinitely; a negative value is zero.
         /// </param>
         /// <returns>List of all <c>!re</c> sentences received before <c>!done</c>.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running.</exception>
         /// <exception cref="TikCommandTrapException"><c>!trap</c> returned from API call.</exception>
-        /// <exception cref="TikCommandAbortException">Command did not finish within <paramref name="timeoutSec"/>.</exception>
+        /// <exception cref="TikCommandAbortException">Command did not finish within <paramref name="timeout"/>.</exception>
         /// <exception cref="System.IO.IOException">Connection was closed before <c>!done</c> was received.</exception>
-        IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null);
+        IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null);
 
         /// <summary>
         /// Calls given <see cref="CommandText"/> to router. Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for tag, which has been dynamically assigned).
@@ -321,7 +321,7 @@ namespace tik4net
         /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
         /// </summary>
         /// <remarks>
-        /// <b><paramref name="milisecondsTimeout"/> bounds the whole call, not just the join.</b> Cancelling is
+        /// <b><paramref name="timeout"/> bounds the whole call, not just the join.</b> Cancelling is
         /// two steps — tell the router to stop the command, then wait for the reading thread to notice — and the
         /// first one is an ordinary command with an ordinary reply. It is given the same budget, and the join
         /// gets whatever is left of it; the method cannot spend the connection's
@@ -335,10 +335,12 @@ namespace tik4net
         /// against a live router a healthy cancel round trip is 0-130 ms.
         /// </para>
         /// </remarks>
-        /// <param name="milisecondsTimeout">Budget for the whole cancel — the round trip to the router and the join together.</param>
-        /// <returns>True if loading thread ends within <paramref name="milisecondsTimeout"/>.</returns>
-        /// <exception cref="TikConnectionReceiveTimeoutException">The router did not answer the cancel within <paramref name="milisecondsTimeout"/>.</exception>
+        /// <param name="timeout">Budget for the whole cancel — the round trip to the router and the join together.
+        /// Positive, or <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> to wait as long as <see cref="CancelAndJoin()"/> does.</param>
+        /// <returns>True if loading thread ends within <paramref name="timeout"/>.</returns>
+        /// <exception cref="TikConnectionReceiveTimeoutException">The router did not answer the cancel within <paramref name="timeout"/>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero, or negative and not infinite.</exception>
         /// <seealso cref="ExecuteWithCallback"/>
-        bool CancelAndJoin(int milisecondsTimeout);
+        bool CancelAndJoin(TimeSpan timeout);
     }
 }

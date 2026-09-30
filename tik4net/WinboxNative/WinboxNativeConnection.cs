@@ -1366,7 +1366,7 @@ namespace tik4net.WinboxNative
                     // Bounded so a command that never finishes fails like any other unfinished read instead of
                     // hanging on this thread forever.
                     if (DateTime.UtcNow >= deadline)
-                        throw new TikConnectionReceiveTimeoutException(ReceiveTimeoutMs,
+                        throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(ReceiveTimeoutMs),
                             $"WinBox native: '{descriptor.CommandText}' produced {rows.Count} row(s) but never " +
                             $"reported itself finished within {ReceiveTimeoutMs} ms.");
                     await Task.Delay(Math.Max(100, spec.AutorefreshMs), cancellationToken).ConfigureAwait(false);

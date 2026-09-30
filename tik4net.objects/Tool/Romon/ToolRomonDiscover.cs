@@ -75,20 +75,22 @@ namespace tik4net.Objects.Tool.Romon
     public static class ToolRomonDiscoverConnectionExtensions
     {
         /// <summary>
-        /// Scans the RoMON overlay for <paramref name="durationSeconds"/> seconds and returns each neighbour
-        /// once — the last report the scan produced for it.
+        /// Scans the RoMON overlay for <paramref name="duration"/> and returns each neighbour once — the last
+        /// report the scan produced for it.
         /// </summary>
         /// <param name="connection">Connection to the router whose neighbours are wanted (RoMON must be enabled on it).</param>
-        /// <param name="durationSeconds">How long to scan. At least 2: over the CLI transports a shorter scan
-        /// reports nothing.</param>
-        public static IEnumerable<ToolRomonDiscover> RomonDiscover(this ITikConnection connection, int durationSeconds = 3)
+        /// <param name="duration">How long to scan; 3 seconds when omitted. At least 2 seconds: over the CLI transports a
+        /// shorter scan reports nothing. The router takes whole seconds, so a fraction is rounded up.</param>
+        public static IEnumerable<ToolRomonDiscover> RomonDiscover(this ITikConnection connection, TimeSpan? duration = null)
         {
-            if (durationSeconds < 2)
-                throw new ArgumentOutOfRangeException(nameof(durationSeconds), durationSeconds,
+            TimeSpan scan = duration ?? TimeSpan.FromSeconds(3);
+            if (scan < TimeSpan.FromSeconds(2))
+                throw new ArgumentOutOfRangeException(nameof(duration), scan,
                     "A RoMON discover shorter than 2 seconds reports nothing over the CLI transports.");
+            long seconds = (long)Math.Ceiling(scan.TotalSeconds);
 
             var rows = connection.LoadList<ToolRomonDiscover>(
-                connection.CreateParameter("duration", durationSeconds.ToString(CultureInfo.InvariantCulture),
+                connection.CreateParameter("duration", seconds.ToString(CultureInfo.InvariantCulture),
                     TikCommandParameterFormat.NameValue));
 
             // The API and REST repeat the whole neighbour set once per refresh; keep the latest report.

@@ -321,7 +321,7 @@ namespace tik4net.Api
 
         /// <summary>
         /// <see cref="ExecuteNonQuery()"/> with an explicit reply deadline. Used by
-        /// <see cref="CancelInternal"/> so a bounded <see cref="CancelAndJoin(int)"/> cannot spend the
+        /// <see cref="CancelInternal"/> so a bounded <see cref="CancelAndJoin(TimeSpan)"/> cannot spend the
         /// connection's <c>ReceiveTimeout</c> before its own budget is even consulted.
         /// </summary>
         private void ExecuteNonQuery(int receiveTimeoutMs)
@@ -732,11 +732,11 @@ namespace tik4net.Api
             }
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
         {
             bool wasAborted;
             string? abortReason;
-            var result = ExecuteListWithDuration(durationSec, out wasAborted, out abortReason);
+            var result = ExecuteListWithDuration(duration, out wasAborted, out abortReason);
 
             if (wasAborted)
                 throw new TikCommandAbortException(this, abortReason!);   // non-null exactly when wasAborted is true
@@ -762,7 +762,7 @@ namespace tik4net.Api
         // (a `!trap` is followed by its own `!done`), and disposing it underneath would throw inside a
         // callback whose exceptions are swallowed by design.
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string? abortReason)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
         {
             ITikTrapSentence? asyncTrap = null;
             string? fatalMessage = null;
@@ -801,7 +801,7 @@ namespace tik4net.Api
                 });
 
             //wait for the command (in calling =UI? thread), no longer than the requested duration
-            if (!finished.Wait(TimeSpan.FromSeconds(Math.Max(0, durationSec))))
+            if (!finished.Wait(TikTimeSpans.ToDuration(duration)))
             {
                 //duration elapsed while the command was still streaming - the normal end of a bounded read
                 CancelInternal(true, -1); //Join loading thread
@@ -829,7 +829,7 @@ namespace tik4net.Api
             return SnapshotResult(result, resultLock);
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null)
+        public IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
         {
             ITikTrapSentence? asyncTrap = null;
             string? fatalMessage = null;
@@ -862,14 +862,13 @@ namespace tik4net.Api
                     finished.Set();
                 });
 
-            int timeoutMs = timeoutSec.HasValue
-                ? (int)Math.Min(Math.Max(0L, timeoutSec.Value * 1000L), int.MaxValue)
-                : Timeout.Infinite;
-            if (!finished.Wait(timeoutMs))
+            bool ended = timeout.HasValue ? finished.Wait(TikTimeSpans.ToDuration(timeout.Value)) : finished.Wait(Timeout.Infinite);
+            if (!ended)
             {
                 // timeout elapsed — cancel and report
                 CancelInternal(true, -1);
-                throw new TikCommandAbortException(this, string.Format("Command did not finish within {0} second(s).", timeoutSec));
+                throw new TikCommandAbortException(this, string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "Command did not finish within {0} second(s).", timeout!.Value.TotalSeconds));
             }
 
             _isRuning = false;
@@ -946,9 +945,9 @@ namespace tik4net.Api
             CancelInternal(true, -1);
         }
 
-        public bool CancelAndJoin(int milisecondsTimeout)
+        public bool CancelAndJoin(TimeSpan timeout)
         {
-            return CancelInternal(true, milisecondsTimeout);
+            return CancelInternal(true, TikTimeSpans.ToWaitMilliseconds(timeout, nameof(timeout)));
         }
 
         public ITikCommandParameter AddParameter(string name, string? value)
@@ -1017,18 +1016,18 @@ namespace tik4net.Api
         // Ending is unchanged and deliberately shared with the synchronous methods: the requested duration
         // (which cancels the command on the router), the command's own !done, a !trap, or a !fatal. A trap or
         // fatal is thrown out of the enumeration as TikCommandAbortException, matching what
-        // ExecuteListWithDuration(int) does with the same event - a caller must not read a truncated stream
+        // ExecuteListWithDuration(TimeSpan) does with the same event - a caller must not read a truncated stream
         // as a complete one.
 
         /// <inheritdoc/>
-        public IAsyncEnumerable<ITikReSentence> ExecuteListWithDurationAsync(int durationSec,
+        public IAsyncEnumerable<ITikReSentence> ExecuteListWithDurationAsync(TimeSpan duration,
             CancellationToken cancellationToken = default)
-            => StreamAsync(TimeSpan.FromSeconds(Math.Max(0, durationSec)), cancelOnEnd: true, cancellationToken);
+            => StreamAsync(TikTimeSpans.ToDuration(duration), cancelOnEnd: true, cancellationToken);
 
         /// <inheritdoc/>
-        public IAsyncEnumerable<ITikReSentence> ExecuteListUntilDoneAsync(int? timeoutSec = null,
+        public IAsyncEnumerable<ITikReSentence> ExecuteListUntilDoneAsync(TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
-            => StreamAsync(timeoutSec.HasValue ? TimeSpan.FromSeconds(Math.Max(0, timeoutSec.Value)) : (TimeSpan?)null,
+            => StreamAsync(timeout.HasValue ? TikTimeSpans.ToDuration(timeout.Value) : (TimeSpan?)null,
                 cancelOnEnd: false, cancellationToken);
 
         private async IAsyncEnumerable<ITikReSentence> StreamAsync(TimeSpan? limit, bool cancelOnEnd,

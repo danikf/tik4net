@@ -1,3 +1,4 @@
+using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
 
@@ -21,7 +22,7 @@ namespace tik4net.unittests.Cli
             StringAssert.Contains(ex.Message, ":put [/log print as-value]");
             StringAssert.Contains(ex.Message, "incomplete");
             StringAssert.Contains(ex.Message, "second", "the tail is what shows where the read stopped");
-            Assert.AreEqual(30000, ex.TimeoutMilliseconds);
+            Assert.AreEqual(TimeSpan.FromMilliseconds(30000), ex.Timeout);
         }
 
         // The partial text is kept reachable rather than thrown away: a caller that genuinely wants it can

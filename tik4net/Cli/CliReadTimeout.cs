@@ -44,7 +44,7 @@ namespace tik4net.Cli
                 + "Raise ReceiveTimeout if the command is genuinely slow; a response that never ends at a "
                 + "prompt otherwise means the terminal is out of step with the router.";
 
-            return new TikConnectionReceiveTimeoutException(timeoutMs, message,
+            return new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs), message,
                 received.Length == 0 ? null : received);
         }
 
@@ -78,7 +78,7 @@ namespace tik4net.Cli
                 + "Command: '" + sentCommand.Trim() + "'. A stream left mid-frame cannot be read in step again, "
                 + "so the connection is closed.";
 
-            return new TikConnectionReceiveTimeoutException(timeoutMs, message,
+            return new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs), message,
                 received.Length == 0 ? null : received, cause);
         }
 

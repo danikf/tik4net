@@ -1,4 +1,5 @@
 #if NET8_0_OR_GREATER
+using System;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -32,28 +33,28 @@ namespace tik4net
     public interface ITikStreamingCommand
     {
         /// <summary>
-        /// Streams rows for <paramref name="durationSec"/> seconds, then cancels the command on the router
+        /// Streams rows for <paramref name="duration"/>, then cancels the command on the router
         /// (<c>/cancel</c>) and ends the enumeration. The async form of
-        /// <see cref="ITikCommand.ExecuteListWithDuration(int)"/>.
+        /// <see cref="ITikCommand.ExecuteListWithDuration(TimeSpan)"/>.
         /// </summary>
-        /// <param name="durationSec">How long to keep the command open, in seconds.</param>
+        /// <param name="duration">How long to keep the command open. A negative value is zero.</param>
         /// <param name="cancellationToken">
         /// Ends the read early. The command is cancelled on the router exactly as the duration would have
         /// cancelled it, so the connection is left usable (<see cref="TikConnectionCapability.CancelInFlight"/>).
         /// </param>
         /// <exception cref="TikCommandAbortException">The router ended the command with an error.</exception>
-        IAsyncEnumerable<ITikReSentence> ExecuteListWithDurationAsync(int durationSec,
+        IAsyncEnumerable<ITikReSentence> ExecuteListWithDurationAsync(TimeSpan duration,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Streams rows until the command ends by itself (<c>!done</c>), or until
-        /// <paramref name="timeoutSec"/> elapses. The async form of
-        /// <see cref="ITikCommand.ExecuteListUntilDone(int?)"/>; it does <b>not</b> send <c>/cancel</c>.
+        /// <paramref name="timeout"/> elapses. The async form of
+        /// <see cref="ITikCommand.ExecuteListUntilDone(TimeSpan?)"/>; it does <b>not</b> send <c>/cancel</c>.
         /// </summary>
-        /// <param name="timeoutSec">Optional upper bound, in seconds. <c>null</c> waits for the command.</param>
+        /// <param name="timeout">Optional upper bound. <c>null</c> waits for the command.</param>
         /// <param name="cancellationToken">Ends the read early.</param>
         /// <exception cref="TikCommandAbortException">The router ended the command with an error.</exception>
-        IAsyncEnumerable<ITikReSentence> ExecuteListUntilDoneAsync(int? timeoutSec = null,
+        IAsyncEnumerable<ITikReSentence> ExecuteListUntilDoneAsync(TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
     }
 
@@ -66,19 +67,19 @@ namespace tik4net
     {
         /// <inheritdoc cref="ITikStreamingCommand.ExecuteListWithDurationAsync"/>
         /// <param name="command">Command to execute.</param>
-        /// <param name="durationSec">How long to keep the command open, in seconds.</param>
+        /// <param name="duration">How long to keep the command open. A negative value is zero.</param>
         /// <param name="cancellationToken">Ends the read early.</param>
         public static IAsyncEnumerable<ITikReSentence> ExecuteListWithDurationAsync(this ITikCommand command,
-            int durationSec, CancellationToken cancellationToken = default)
-            => AsStreaming(command).ExecuteListWithDurationAsync(durationSec, cancellationToken);
+            TimeSpan duration, CancellationToken cancellationToken = default)
+            => AsStreaming(command).ExecuteListWithDurationAsync(duration, cancellationToken);
 
         /// <inheritdoc cref="ITikStreamingCommand.ExecuteListUntilDoneAsync"/>
         /// <param name="command">Command to execute.</param>
-        /// <param name="timeoutSec">Optional upper bound, in seconds.</param>
+        /// <param name="timeout">Optional upper bound. <c>null</c> waits for the command.</param>
         /// <param name="cancellationToken">Ends the read early.</param>
         public static IAsyncEnumerable<ITikReSentence> ExecuteListUntilDoneAsync(this ITikCommand command,
-            int? timeoutSec = null, CancellationToken cancellationToken = default)
-            => AsStreaming(command).ExecuteListUntilDoneAsync(timeoutSec, cancellationToken);
+            TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+            => AsStreaming(command).ExecuteListUntilDoneAsync(timeout, cancellationToken);
 
         /// <summary>
         /// The command as an <see cref="ITikStreamingCommand"/>, or a capability error naming what is missing.

@@ -180,22 +180,22 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
         {
             // No real duration in fake — return all registered sentences immediately
             return ExecuteListCore();
         }
 
         /// <inheritdoc/>
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string? abortReason)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
         {
             wasAborted = false;
             abortReason = null!; // meaningful only when wasAborted is true, per the interface doc
-            return ExecuteListWithDuration(durationSec);
+            return ExecuteListWithDuration(duration);
         }
 
         /// <inheritdoc/>
-        public IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null)
+        public IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
             => ExecuteListCore();
 
         // ── ITikCommandAsync ──────────────────────────────────────────────────
@@ -344,10 +344,14 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public bool CancelAndJoin(int milisecondsTimeout)
+        public bool CancelAndJoin(TimeSpan timeout)
         {
+            // The same contract as the real commands: a positive budget, or Timeout.InfiniteTimeSpan.
+            if (timeout <= TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+                throw new ArgumentOutOfRangeException(nameof(timeout), timeout,
+                    "A wait budget is positive, or Timeout.InfiniteTimeSpan to wait without a bound.");
             Cancel();
-            return _asyncThread?.Join(milisecondsTimeout) ?? true;
+            return _asyncThread?.Join(timeout) ?? true;
         }
 
         /// <inheritdoc/>

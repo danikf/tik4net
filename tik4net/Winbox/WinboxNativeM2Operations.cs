@@ -280,7 +280,7 @@ namespace tik4net.Winbox
                     // this table is simply bigger than the deadline (the fix is a longer one, or filtering
                     // router-side over another transport); nothing read at all on the first page means the
                     // request never got going.
-                    throw new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
+                    throw new TikConnectionReceiveTimeoutException(ex.Timeout,
                         $"WinBox M2 getall on handler [{string.Join(",", handler)}] timed out after "
                         + $"{sw.ElapsedMilliseconds} ms with {records.Count} row(s) from {round} completed "
                         + $"page(s). {ex.Message}",
@@ -354,7 +354,7 @@ namespace tik4net.Winbox
         private static TikConnectionReceiveTimeoutException Truncated(
             int[] handler, Stopwatch sw, int rows, int pages, string why)
             => new TikConnectionReceiveTimeoutException(
-                (int)sw.ElapsedMilliseconds,
+                sw.Elapsed,
                 $"WinBox M2 getall on handler [{string.Join(",", handler)}] could not read the whole table: {why}. "
                 + $"{rows} row(s) from {pages} completed page(s) in {sw.ElapsedMilliseconds} ms are discarded rather "
                 + "than returned as a complete answer. A native read is proportional to the TABLE, not to the "

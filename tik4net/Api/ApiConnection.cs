@@ -767,7 +767,7 @@ namespace tik4net.Api
             {
                 _isOpened = _tcpConnection.Connected;
                 if (IsTimeout(ex))
-                    throw new TikConnectionReceiveTimeoutException(_receiveTimeout, ex);
+                    throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(_receiveTimeout), ex);
                 throw;
             }
         }
@@ -984,7 +984,7 @@ namespace tik4net.Api
         {
             NoteReceiveTimeout();
             string partial = string.Join(Environment.NewLine, received.Select(DescribeSentence));
-            return new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
+            return new TikConnectionReceiveTimeoutException(ex.Timeout,
                 ex.Message + " " + received.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 + " sentence(s) had already arrived — see PartialResponse." + DescribeReaderLiveness(waitingTag),
                 partial, ex.InnerException);
@@ -1002,7 +1002,7 @@ namespace tik4net.Api
             TikConnectionReceiveTimeoutException ex, string waitingTag)
         {
             NoteReceiveTimeout();
-            return new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
+            return new TikConnectionReceiveTimeoutException(ex.Timeout,
                 ex.Message + DescribeReaderLiveness(waitingTag), ex.PartialResponse, ex.InnerException);
         }
 
@@ -1080,7 +1080,7 @@ namespace tik4net.Api
         /// <see cref="CallCommandSync(string[])"/> with an explicit reply deadline instead of the connection's
         /// <see cref="ReceiveTimeout"/>.
         /// <para>
-        /// Exists for <c>/cancel</c>. <see cref="ITikCommand.CancelAndJoin(int)"/> documents a bounded wait and
+        /// Exists for <c>/cancel</c>. <see cref="ITikCommand.CancelAndJoin(TimeSpan)"/> documents a bounded wait and
         /// answers "did it stop in time", but the cancel it sends first is an ordinary command: on the
         /// connection's timeout it could block for 30 s and throw where the caller had asked for 2 s and a
         /// <c>bool</c>. Measured against a live router a healthy cancel round trip is 0-130 ms, so the caller's

@@ -98,7 +98,7 @@ namespace tik4net.unittests.Cli
             using (var conn = OpenConnection(".id=*1;name=ether1"))
             {
                 conn.BeforeReply = ct => throw new TikConnectionReceiveTimeoutException(
-                    1000, "Scripted: the router did not finish answering within 1000 ms",
+                    TimeSpan.FromSeconds(1), "Scripted: the router did not finish answering within 1000 ms",
                     "partial=output");
 
                 Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
@@ -119,7 +119,7 @@ namespace tik4net.unittests.Cli
             using (var conn = OpenConnection(".id=*1;name=ether1"))
             {
                 conn.BeforeReply = ct => throw new TikConnectionReceiveTimeoutException(
-                    1000, "Scripted: the router did not finish answering within 1000 ms", "partial=output");
+                    TimeSpan.FromSeconds(1), "Scripted: the router did not finish answering within 1000 ms", "partial=output");
                 Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
                     () => conn.CreateCommand("/interface/print").ExecuteList());
 

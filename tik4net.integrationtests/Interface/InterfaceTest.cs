@@ -174,7 +174,7 @@ namespace tik4net.integrationtests
                 "a monitor-traffic row must name the interface it is monitoring");
             Assert.IsNotNull(got[0].GetResponseField("rx-bits-per-second"),
                 "a monitor-traffic row must carry the reading the command exists for");
-            cmd.CancelAndJoin(2 * 1000);
+            cmd.CancelAndJoin(TimeSpan.FromSeconds(2));
         }
 
         [TestMethod]

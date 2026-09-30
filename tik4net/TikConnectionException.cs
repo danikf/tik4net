@@ -317,18 +317,18 @@ namespace tik4net
     /// </remarks>
     public class TikConnectionReceiveTimeoutException : TikConnectionException
     {
-        /// <summary>The configured receive timeout (milliseconds) that elapsed.</summary>
-        public int TimeoutMilliseconds { get; }
+        /// <summary>The configured receive timeout that elapsed.</summary>
+        public TimeSpan Timeout { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TikConnectionReceiveTimeoutException"/> class.
         /// </summary>
-        /// <param name="timeoutMilliseconds">The configured receive timeout (milliseconds) that elapsed.</param>
+        /// <param name="timeout">The configured receive timeout that elapsed.</param>
         /// <param name="innerException">The underlying socket timeout exception.</param>
-        public TikConnectionReceiveTimeoutException(int timeoutMilliseconds, Exception innerException)
-            : base($"No response received from the router within {timeoutMilliseconds} ms.", innerException)
+        public TikConnectionReceiveTimeoutException(TimeSpan timeout, Exception innerException)
+            : base($"No response received from the router within {(long)timeout.TotalMilliseconds} ms.", innerException)
         {
-            TimeoutMilliseconds = timeoutMilliseconds;
+            Timeout = timeout;
         }
 
         /// <summary>
@@ -337,15 +337,15 @@ namespace tik4net
         /// never reach the end of the answer, which the default "no response received" wording would
         /// misdescribe. See <see cref="PartialResponse"/>.
         /// </summary>
-        /// <param name="timeoutMilliseconds">The configured receive timeout (milliseconds) that elapsed.</param>
+        /// <param name="timeout">The configured receive timeout that elapsed.</param>
         /// <param name="message">Diagnostic message describing what was and was not received.</param>
         /// <param name="partialResponse">The incomplete text received before the timeout, if any.</param>
         /// <param name="innerException">The underlying exception, if any.</param>
-        public TikConnectionReceiveTimeoutException(int timeoutMilliseconds, string message,
+        public TikConnectionReceiveTimeoutException(TimeSpan timeout, string message,
                                                     string? partialResponse = null, Exception? innerException = null)
             : base(message, innerException)
         {
-            TimeoutMilliseconds = timeoutMilliseconds;
+            Timeout = timeout;
             PartialResponse = partialResponse;
         }
 

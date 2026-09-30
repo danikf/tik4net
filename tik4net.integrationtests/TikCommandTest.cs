@@ -170,7 +170,7 @@ namespace tik4net.integrationtests
 
             try
             {
-                var result = torchCommand.ExecuteListWithDuration(20);
+                var result = torchCommand.ExecuteListWithDuration(TimeSpan.FromSeconds(20));
                 Thread.Sleep(3000);
             }
             catch
@@ -194,7 +194,7 @@ namespace tik4net.integrationtests
 
             bool wasAborted;
             string abortReason;
-            var result = torchCommand.ExecuteListWithDuration(20, out wasAborted, out abortReason);
+            var result = torchCommand.ExecuteListWithDuration(TimeSpan.FromSeconds(20), out wasAborted, out abortReason);
             Thread.Sleep(3000);
 
             Assert.IsFalse(torchCommand.IsRunning);

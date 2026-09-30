@@ -136,7 +136,7 @@ namespace tik4net.Api
                         if (remaining <= 0 || !System.Threading.Monitor.Wait(_sync, remaining))
                         {
                             if (queue.Items.Count == 0 && _termination == null)
-                                throw new TikConnectionReceiveTimeoutException(timeoutMs,
+                                throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs),
                                     $"No response received from the router within {timeoutMs} ms for "
                                     + (key == UntaggedKey ? "the untagged command." : $"tag '{tag}'."));
                         }
@@ -215,7 +215,7 @@ namespace tik4net.Api
 
                 PruneAbandonedWaiters(key);
                 cancellationToken.ThrowIfCancellationRequested();
-                throw new TikConnectionReceiveTimeoutException(timeoutMs,
+                throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs),
                     $"No response received from the router within {timeoutMs} ms for "
                     + (key == UntaggedKey ? "the untagged command." : $"tag '{tag}'."));
             }

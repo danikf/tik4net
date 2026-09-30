@@ -246,7 +246,7 @@ namespace tik4net.integrationtests
             var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
                 "address", IP,
                 "count", "1");
-            var result = cmd.ExecuteListUntilDone(timeoutSec: 30);
+            var result = cmd.ExecuteListUntilDone(timeout: TimeSpan.FromSeconds(30));
 
             Assert.IsTrue(result.Any());
         }
@@ -259,7 +259,7 @@ namespace tik4net.integrationtests
             // /tool/torch never sends !done on its own — timeout must kick in
             var cmd = Connection.CreateCommandAndParameters("/tool/torch", TikCommandParameterFormat.NameValue,
                 "interface", TestConstants.Interface);
-            cmd.ExecuteListUntilDone(timeoutSec: 2);
+            cmd.ExecuteListUntilDone(timeout: TimeSpan.FromSeconds(2));
         }
 
         #endregion
@@ -279,7 +279,7 @@ namespace tik4net.integrationtests
 
             bool wasAborted;
             string abortReason;
-            var result = cmd.ExecuteListWithDuration(30, out wasAborted, out abortReason);
+            var result = cmd.ExecuteListWithDuration(TimeSpan.FromSeconds(30), out wasAborted, out abortReason);
 
             Assert.IsFalse(wasAborted, "wasAborted must be false when command finishes naturally via !done");
             Assert.IsNull(abortReason);
@@ -296,7 +296,7 @@ namespace tik4net.integrationtests
             var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
                 "address", IP,
                 "count", "1");
-            var result = cmd.ExecuteListWithDuration(30);
+            var result = cmd.ExecuteListWithDuration(TimeSpan.FromSeconds(30));
 
             Assert.IsTrue(result.Any());
         }

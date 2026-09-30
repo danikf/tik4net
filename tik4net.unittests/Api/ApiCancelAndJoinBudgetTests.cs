@@ -9,7 +9,7 @@ using tik4net.Api;
 namespace tik4net.unittests.Api
 {
     /// <summary>
-    /// <see cref="ITikCommand.CancelAndJoin(int)"/> must come back within the budget it was given.
+    /// <see cref="ITikCommand.CancelAndJoin(TimeSpan)"/> must come back within the budget it was given.
     /// </summary>
     /// <remarks>
     /// Cancelling is two steps: <c>/cancel</c> to the router, then a join on the reading thread. Only the
@@ -73,7 +73,7 @@ namespace tik4net.unittests.Api
                 var elapsed = Stopwatch.StartNew();
                 try
                 {
-                    command.CancelAndJoin(CancelBudgetMs);
+                    command.CancelAndJoin(TimeSpan.FromMilliseconds(CancelBudgetMs));
                 }
                 catch (TikConnectionReceiveTimeoutException)
                 {

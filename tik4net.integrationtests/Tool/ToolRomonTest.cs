@@ -41,7 +41,7 @@ namespace tik4net.integrationtests
         public void RomonDiscoverWillNotFail()
         {
             EnsureRomonRunning();
-            var neighbours = Connection.RomonDiscover(2).ToList();
+            var neighbours = Connection.RomonDiscover(TimeSpan.FromSeconds(2)).ToList();
             Assert.IsNotNull(neighbours);
             // Each neighbour once, whatever the transport's repeat-per-refresh habit.
             Assert.AreEqual(neighbours.Count, neighbours.Select(n => n.Address).Distinct().Count());
@@ -66,7 +66,7 @@ namespace tik4net.integrationtests
         public void RomonPingToNeighbourAnswers()
         {
             EnsureRomonRunning();
-            var neighbour = Connection.RomonDiscover(2).FirstOrDefault();
+            var neighbour = Connection.RomonDiscover(TimeSpan.FromSeconds(2)).FirstOrDefault();
             if (neighbour == null)
                 Assert.Inconclusive("The test router has no RoMON neighbour — the lab needs a second RoMON-enabled router on its segment.");
 

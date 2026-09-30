@@ -68,7 +68,7 @@ namespace tik4net.unittests.Api
                 bool wasAborted;
                 string abortReason;
                 var rows = connection.CreateCommand("/tool/traceroute")
-                    .ExecuteListWithDuration(30, out wasAborted, out abortReason).ToList();
+                    .ExecuteListWithDuration(TimeSpan.FromSeconds(30), out wasAborted, out abortReason).ToList();
                 sw.Stop();
 
                 Assert.AreEqual(2, rows.Count);
@@ -114,7 +114,7 @@ namespace tik4net.unittests.Api
 
                 bool wasAborted;
                 string abortReason;
-                connection.CreateCommand("/tool/torch").ExecuteListWithDuration(30, out wasAborted, out abortReason);
+                connection.CreateCommand("/tool/torch").ExecuteListWithDuration(TimeSpan.FromSeconds(30), out wasAborted, out abortReason);
 
                 Assert.IsTrue(wasAborted);
                 Assert.AreEqual(RouterMessage, abortReason);
@@ -152,7 +152,7 @@ namespace tik4net.unittests.Api
                 bool wasAborted;
                 string abortReason;
                 var rows = connection.CreateCommand("/tool/torch")
-                    .ExecuteListWithDuration(30, out wasAborted, out abortReason).ToList();
+                    .ExecuteListWithDuration(TimeSpan.FromSeconds(30), out wasAborted, out abortReason).ToList();
                 sw.Stop();
 
                 Assert.IsTrue(wasAborted);
@@ -201,7 +201,7 @@ namespace tik4net.unittests.Api
                 bool wasAborted;
                 string abortReason;
                 var rows = connection.CreateCommand("/tool/torch")
-                    .ExecuteListWithDuration(1, out wasAborted, out abortReason).ToList();
+                    .ExecuteListWithDuration(TimeSpan.FromSeconds(1), out wasAborted, out abortReason).ToList();
                 sw.Stop();
 
                 Assert.IsFalse(wasAborted);
@@ -345,7 +345,7 @@ namespace tik4net.unittests.Api
 
                 var sw = Stopwatch.StartNew();
                 var ex = Assert.ThrowsException<TikCommandAbortException>(
-                    () => connection.CreateCommand("/tool/torch").ExecuteListUntilDone(timeoutSec: 1).ToList());
+                    () => connection.CreateCommand("/tool/torch").ExecuteListUntilDone(timeout: TimeSpan.FromSeconds(1)).ToList());
                 sw.Stop();
 
                 StringAssert.Contains(ex.Message, "1 second");

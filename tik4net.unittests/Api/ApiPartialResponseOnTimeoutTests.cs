@@ -99,7 +99,7 @@ namespace tik4net.unittests.Api
 
         private static void AssertCarriesBothRows(TikConnectionReceiveTimeoutException ex)
         {
-            Assert.AreEqual(ReceiveTimeoutMs, ex.TimeoutMilliseconds, "the elapsed budget is reported");
+            Assert.AreEqual(TimeSpan.FromMilliseconds(ReceiveTimeoutMs), ex.Timeout, "the elapsed budget is reported");
             Assert.IsNotNull(ex.PartialResponse,
                 "the router sent two !re rows before going quiet; discarding them leaves the caller unable "
                 + "to tell 'the router said nothing' from 'the router stopped half way'");

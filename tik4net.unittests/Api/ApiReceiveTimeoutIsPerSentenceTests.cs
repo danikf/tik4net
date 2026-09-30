@@ -106,7 +106,7 @@ namespace tik4net.unittests.Api
                     var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
                         () => connection.CallCommandSync(new[] { "/interface/print" }).ToList());
 
-                    Assert.AreEqual(receiveTimeoutMs, ex.TimeoutMilliseconds);
+                    Assert.AreEqual(TimeSpan.FromMilliseconds(receiveTimeoutMs), ex.Timeout);
                     StringAssert.Contains(ex.PartialResponse ?? "", "ether1",
                         "the row that did arrive is what tells a stalled stream from a silent router");
                 }

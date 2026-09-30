@@ -63,7 +63,7 @@ namespace tik4net.unittests.Api
 
                 var rows = new List<string>();
                 await foreach (var row in connection.CreateCommand("/interface/monitor-traffic")
-                                                    .ExecuteListUntilDoneAsync(timeoutSec: 20))
+                                                    .ExecuteListUntilDoneAsync(timeout: TimeSpan.FromSeconds(20)))
                 {
                     rows.Add(row.GetResponseField("rx"));
                     firstRowObserved.Set();                  // only reachable if row 1 arrived on its own
@@ -108,7 +108,7 @@ namespace tik4net.unittests.Api
 
                 var sw = Stopwatch.StartNew();
                 var rows = new List<ITikReSentence>();
-                await foreach (var row in connection.CreateCommand("/tool/torch").ExecuteListWithDurationAsync(1))
+                await foreach (var row in connection.CreateCommand("/tool/torch").ExecuteListWithDurationAsync(TimeSpan.FromSeconds(1)))
                     rows.Add(row);
                 sw.Stop();
 
@@ -151,7 +151,7 @@ namespace tik4net.unittests.Api
                 var rows = new List<ITikReSentence>();
                 var ex = await Assert.ThrowsExceptionAsync<TikCommandAbortException>(async () =>
                 {
-                    await foreach (var row in connection.CreateCommand("/tool/torch").ExecuteListUntilDoneAsync(20))
+                    await foreach (var row in connection.CreateCommand("/tool/torch").ExecuteListUntilDoneAsync(TimeSpan.FromSeconds(20)))
                         rows.Add(row);
                 });
 

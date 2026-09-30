@@ -49,7 +49,7 @@ namespace tik4net.unittests.Cli
                 if (TimeOutNext)
                 {
                     TimeOutNext = false;
-                    throw new TikConnectionReceiveTimeoutException(1000, "Scripted: no prompt within 1000 ms", "t4n-early");
+                    throw new TikConnectionReceiveTimeoutException(TimeSpan.FromSeconds(1), "Scripted: no prompt within 1000 ms", "t4n-early");
                 }
                 return Task.FromResult(CountedReadFake.Answer(cliText, Reply));
             }

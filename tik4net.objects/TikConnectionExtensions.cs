@@ -189,29 +189,29 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Calls command and reads all returned rows for given <paramref name="durationSec"/> period.
+        /// Calls command and reads all returned rows for given <paramref name="duration"/>.
         /// After this period calls cancel to mikrotik router and returns all loaded rows.
         /// Throws exception if any 'trap' row occurs.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
-        /// <param name="durationSec">Loading period.</param>
+        /// <param name="duration">Loading period. A negative value is zero.</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
-        /// <seealso cref="TikCommandExtensions.LoadWithDuration{TEntity}(ITikCommand, int)"/>
+        /// <seealso cref="TikCommandExtensions.LoadWithDuration{TEntity}(ITikCommand, TimeSpan)"/>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
-        public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, int durationSec, params ITikCommandParameter[] parameters)
+        public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, TimeSpan duration, params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
             Guard.ArgumentNotNull(connection, "connection");
 
             var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
 
-            return command.LoadWithDuration<TEntity>(durationSec);
+            return command.LoadWithDuration<TEntity>(duration);
         }
 
 

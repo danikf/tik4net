@@ -255,7 +255,7 @@ namespace tik4net.Winbox
                                 // catch for "the router did not answer in time" and expects it to hold on
                                 // every transport. ChannelActivity() is what the channel had been doing, so
                                 // the timeout carries the evidence rather than just the fact.
-                                throw new TikConnectionReceiveTimeoutException(timeoutMs,
+                                throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs),
                                     $"No WinBox M2 reply for request id {id} within {timeoutMs} ms. "
                                     + ChannelActivity(bytesSeen - bytesAtSend,
                                                       lastByteMs < 0 ? -1 : elapsed.ElapsedMilliseconds - lastByteMs));

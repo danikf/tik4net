@@ -39,7 +39,7 @@ namespace tik4net.integrationtests
         public void LoadTrafficWithDurationNotFail()
         {
             EnsureCapability(TikConnectionCapability.Streaming, "monitor-traffic streaming");
-            var tmp = Connection.LoadWithDuration<InterfaceMonitorTraffic>(3,
+            var tmp = Connection.LoadWithDuration<InterfaceMonitorTraffic>(TimeSpan.FromSeconds(3),
                 Connection.CreateParameter("interface", TestConstants.Interface));
 
             Assert.IsNotNull(tmp);

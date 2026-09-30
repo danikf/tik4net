@@ -172,7 +172,7 @@ namespace tik4net.integrationtests
                 }
                 finally
                 {
-                    try { monitor.CancelAndJoin(5000); } catch { /* the probe's outcome is the reads */ }
+                    try { monitor.CancelAndJoin(TimeSpan.FromSeconds(5)); } catch { /* the probe's outcome is the reads */ }
                 }
             }
             return Report(arm);

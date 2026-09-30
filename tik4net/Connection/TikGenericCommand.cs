@@ -546,19 +546,19 @@ namespace tik4net.Connection
 
         // ── Unsupported: streaming / async ────────────────────────────────────
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
         {
             throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Streaming,
                 "This transport does not support streaming commands (ExecuteListWithDuration). Use a transport that reports the Streaming capability (binary API).");
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string? abortReason)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
         {
             throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Streaming,
                 "This transport does not support streaming commands (ExecuteListWithDuration). Use a transport that reports the Streaming capability (binary API).");
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null)
+        public IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
         {
             // CLI is synchronous and single-shot — fallback to regular list (same as REST).
             return ExecuteList();
@@ -595,8 +595,11 @@ namespace tik4net.Connection
 
         public void Cancel() { _monitorHandle?.Cancel(); }
         public void CancelAndJoin() { _monitorHandle?.Join(-1); }
-        public bool CancelAndJoin(int milisecondsTimeout)
-            => _monitorHandle == null || _monitorHandle.Join(milisecondsTimeout);
+        public bool CancelAndJoin(TimeSpan timeout)
+        {
+            int budget = TikTimeSpans.ToWaitMilliseconds(timeout, nameof(timeout));
+            return _monitorHandle == null || _monitorHandle.Join(budget);
+        }
 
         // ── Parameter helpers ─────────────────────────────────────────────────
 
