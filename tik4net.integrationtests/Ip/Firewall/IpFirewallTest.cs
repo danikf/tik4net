@@ -447,8 +447,9 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// connection-rate and connection-bytes are low-high ranges, spelled out as the API prints them: the CLI
-        /// abbreviates the rate (<c>0-100k</c>) and WinBox native keeps the two ends on two keys.
+        /// connection-rate and connection-bytes are low-high ranges, spelled out as the API prints them, and
+        /// connection-limit is limit,netmask: the CLI abbreviates the rate (<c>0-100k</c>) and WinBox native keeps
+        /// each of the three in two keys.
         /// </summary>
         [TestMethod]
         public void FirewallFilter_ConnectionRanges_RoundTrip()
@@ -464,6 +465,7 @@ namespace tik4net.integrationtests
                 Protocol = "tcp",
                 ConnectionRate = TikValue<string>.Not("1500-2000000"),
                 ConnectionBytes = "2000000-0",
+                ConnectionLimit = TikValue<string>.Not("10,24"),
             };
             try
             {
@@ -472,6 +474,7 @@ namespace tik4net.integrationtests
 
                 Assert.AreEqual(filter.ConnectionRate, loaded.ConnectionRate, $"connection-rate on {ResolveConnectionType()}");
                 Assert.AreEqual(filter.ConnectionBytes, loaded.ConnectionBytes, $"connection-bytes on {ResolveConnectionType()}");
+                Assert.AreEqual(filter.ConnectionLimit, loaded.ConnectionLimit, $"connection-limit on {ResolveConnectionType()}");
             }
             finally
             {

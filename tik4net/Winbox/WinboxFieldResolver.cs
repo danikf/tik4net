@@ -2071,6 +2071,14 @@ namespace tik4net.Winbox
         internal const string AddrPortUiType = "addrport";
 
         /// <summary>
+        /// The synthetic UI type of a number RouterOS prints joined to an address-block NETMASK that WinBox keeps
+        /// in a box of its own — firewall <c>connection-limit=10,24</c>. The netmask key rides in
+        /// <see cref="WinboxJgField.MaskKey"/>; derived from the <c>.jg</c> (a group of exactly the number and a
+        /// <c>netmask</c>), see <c>WinboxJgCatalog.NetmaskSibling</c>.
+        /// </summary>
+        internal const string NumberNetmaskUiType = "numbernetmask";
+
+        /// <summary>
         /// The synthetic UI type of a field RouterOS prints as one <c>upload/download</c> pair while the M2
         /// model keeps two scalars — the <c>/queue/simple</c> rate fields. The download half's key rides in
         /// <see cref="WinboxJgField.MaskKey"/>, both halves' typed fields in
@@ -2501,6 +2509,20 @@ namespace tik4net.Winbox
                     uint? ip = PackIpV4(value.Split('/')[0]);
                     if (ip == null) break;
                     result.Add(EncodeU32(key, ip.Value));
+                    return result;
+                }
+                case NumberNetmaskUiType when jg != null && jg.MaskKey != 0:
+                {
+                    // "10,24": the number on the field's key, the prefix as a mask on its netmask key. The API
+                    // always prints both; a bare "10" leaves the netmask as the router has it.
+                    if (value.Length == 0) return result;
+                    int comma = value.IndexOf(',');
+                    string numberText = comma < 0 ? value : value.Substring(0, comma);
+                    if (!uint.TryParse(numberText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint number))
+                        throw new WinboxFieldValueException($"'{value}' is not number,netmask for '{apiName}' (expected 10,32).");
+                    result.Add(EncodeU32(key, number));
+                    if (comma >= 0)
+                        result.Add(EncodeU32(jg.MaskKey, MaskFrom(value.Substring(comma + 1).Trim())));
                     return result;
                 }
                 case "netmask":

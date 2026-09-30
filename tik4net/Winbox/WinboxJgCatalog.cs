@@ -1756,7 +1756,7 @@ namespace tik4net.Winbox
         private void AddOptionField(string handlerKey, string label, Dictionary<string, object> wrapper,
             PaneContext? pane = null)
         {
-            int optKey = 0, notKey = 0;
+            int optKey = 0, notKey = 0, netmaskKey = 0;
             var cur = wrapper;
             for (int guard = 0; guard < 8 && cur != null; guard++)
             {
@@ -1777,6 +1777,20 @@ namespace tik4net.Winbox
                         notKey = invert.key;
                         _flagOnlyNodes.Add(invert.node);
                     }
+                    // 'Connection Limit' is {group b19f, c:[{name:'Limit', not b2a → number u2b}, {name:'Netmask',
+                    // netmask u2c}]}, which the API prints as ONE field: connection-limit=!10,24. The netmask is the
+                    // value's second half (WinboxFieldResolver.NumberNetmaskUiType), not a field of its own.
+                    if (ty == "group" && netmaskKey == 0 && NetmaskSibling(cur) is { } netmask)
+                    {
+                        netmaskKey = netmask.key;
+                        _flagOnlyNodes.Add(netmask.node);
+                    }
+                    // A wrapper drilled through here is part of THIS field, even when it carries a name of its own:
+                    // 'Connection Limit' is {group, c:[{name:'Limit', not b2a, …}]}, and walking that inner 'Limit' as
+                    // a field too registered the connection limit's key under the label 'Limit' — first, since the
+                    // window declares it before the real 'Limit' group — so FirewallFilter.Limit read and wrote
+                    // connection-limit's key and connection-limit read Absent over WinBox native.
+                    if (!ReferenceEquals(cur, wrapper)) _flagOnlyNodes.Add(cur);
                     var child = FirstChildDict(cur);
                     if (child == null)
                     {
@@ -1794,6 +1808,18 @@ namespace tik4net.Winbox
                 // whether the API prints it at all. The EoIP/GRE/IPIP 'Keepalive' is
                 // {opt b7d4,c:[{tuple,sep:',',separate:1,c:[{interval u7d5},{number u7d9}]}]} and reads
                 // keepalive=10s,10 (7.24.2); the tuple has no id, so the leaf below registered nothing.
+                // …and 7.24.4 declares the same 'Connection Limit' as not b2a → {tuple sep:'/', separate:1,
+                // c:[number u2b, netmask u2c]}. The API still prints limit,prefix (10,24), so it is the same
+                // number,netmask field, not a tuple joined by its '/'.
+                if (ty == "tuple" && dec == null && NumberAndNetmask(cur) is { } parts)
+                {
+                    var number = parts.number;
+                    var nd = DecodeId((string)number["id"])!.Value;
+                    _flagOnlyNodes.Add(parts.netmask);
+                    AddField(handlerKey, label, nd.key, nd.type, false, null, WinboxFieldResolver.NumberNetmaskUiType,
+                        parts.netmaskKey, null, optKey, notKey, false, null, ExtractDef(number), pane);
+                    return;
+                }
                 if (ty == "tuple" && dec == null)
                 {
                     AddTupleField(handlerKey, label, cur, pane, optKey, underOption: true);
@@ -1814,6 +1840,11 @@ namespace tik4net.Winbox
                     string? allow = cur.TryGetValue("allow", out var alv) ? alv as string : null;
                     // The wrapper's own opt flag wins; a leaf 'optid' fills in when there is no wrapper flag.
                     if (optKey == 0) optKey = DecodedKeyOf(cur, "optid");
+                    if (netmaskKey != 0 && ty == "number" && maskKey == 0)
+                    {
+                        maskKey = netmaskKey;
+                        ty = WinboxFieldResolver.NumberNetmaskUiType;
+                    }
                     AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
                         ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane,
                         DecodedKeyOf(cur, "oid"), IsOptionalAttr(cur), ElementUiTypeOf(cur), ScaleOf(cur),
@@ -2084,6 +2115,31 @@ namespace tik4net.Winbox
         private static int HighKeyOf(Dictionary<string, object> node)
             => node.TryGetValue("type", out var tv) && (tv as string) == "numberrange"
                 ? DecodedKeyOf(node, "highid") : 0;
+
+        // A group's second child {type:'netmask', id} beside its value: the value's address-block half (AddOptionField).
+        private static (int key, Dictionary<string, object> node)? NetmaskSibling(Dictionary<string, object> group)
+        {
+            if (!(group.TryGetValue("c", out var cv) && cv is List<object> list)) return null;
+            var children = list.OfType<Dictionary<string, object>>().ToList();
+            if (children.Count != 2) return null;
+            var d = children[1];
+            return d.TryGetValue("type", out var tv) && (tv as string) == "netmask"
+                   && d.TryGetValue("id", out var iv) && iv is string ids && DecodeId(ids) is { } dec
+                ? (dec.key, d) : ((int, Dictionary<string, object>)?)null;
+        }
+
+        // A tuple of exactly a number and a netmask (7.24's 'Connection Limit'): the number's node and the netmask's key.
+        private static (Dictionary<string, object> number, int netmaskKey, Dictionary<string, object> netmask)? NumberAndNetmask(
+            Dictionary<string, object> tuple)
+        {
+            if (!(tuple.TryGetValue("c", out var cv) && cv is List<object> list)) return null;
+            var children = list.OfType<Dictionary<string, object>>().ToList();
+            if (children.Count != 2) return null;
+            bool IsType(Dictionary<string, object> d, string t) => d.TryGetValue("type", out var tv) && (tv as string) == t
+                && d.TryGetValue("id", out var iv) && iv is string ids && DecodeId(ids) != null;
+            if (!IsType(children[0], "number") || !IsType(children[1], "netmask")) return null;
+            return (children[0], DecodeId((string)children[1]["id"])!.Value.key, children[1]);
+        }
 
         // A group's {name:'Invert', type:'bool', id} child: the RouterOS 6 form of a `not` wrapper (AddOptionField).
         // Only in a group of exactly the value and the Invert: ipv6.jg's 'Headers' group is {Match enm, Invert,

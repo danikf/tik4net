@@ -109,6 +109,8 @@ namespace tik4net.Winbox
                     // The port half of an address:port field is not a field of its own to the API.
                     if (f.UiType == WinboxFieldResolver.AddrPortUiType && f.MaskKey != 0)
                         consumedKeys.Add(f.MaskKey);
+                    // Nor is the netmask half of a number,netmask field.
+                    if (f.UiType == WinboxFieldResolver.NumberNetmaskUiType && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
                     // Nor is the high end of a scalar number range (WinboxJgCatalog.HighKeyOf).
                     if (f.UiType == "numberrange" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
                     // Nor is the download half of an upload/download pair.
@@ -604,6 +606,15 @@ namespace tik4net.Winbox
                         if (value is Dictionary<int, Tuple<string, object>> addrMsg)
                             return FormatAddr(addrMsg, collectRefTables);
                         break;
+                    case WinboxFieldResolver.NumberNetmaskUiType:
+                    {
+                        // connection-limit=10,24: the number and the netmask's prefix length, as the API prints it.
+                        if (!WinboxFieldResolver.TryToInt64(value, out long number)) break;
+                        string limitText = number.ToString(CultureInfo.InvariantCulture);
+                        return rec.TryGetValue(jf.MaskKey, out var mt) && mt?.Item2 != null
+                            ? limitText + "," + WinboxFieldResolver.MaskToPrefix(mt.Item2).ToString(CultureInfo.InvariantCulture)
+                            : limitText;
+                    }
                     case "numberrange":
                     {
                         // webfig types.numberrange.tostr: the low end alone when both ends agree, else low-high —

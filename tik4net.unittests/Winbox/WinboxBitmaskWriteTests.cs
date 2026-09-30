@@ -318,6 +318,44 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(300L, Num(one[0x51]));
         }
 
+        // ── a number and its netmask, one API field ────────────────────────────
+
+        // roteros.jg 7.24.4 and 6.49.13, Filter Rule 'Connection Limit'.
+        private const string ConnectionLimitWindow =
+            "[{name:'Firewall',title:'Firewall',group:'IP',c:[" +
+            "{name:'Filter Rule',title:'Filter Rules',type:'map',path:[ 12,1 ],c:[" +
+              "{name:'Connection Limit',type:'group',id:'b19f',c:[{name:'Limit',type:'not',id:'b2a',c:[" +
+                 "{type:'number',id:'u2b',def:100}]},{name:'Netmask',type:'netmask',id:'u2c',def:4294967295}]}]}" +
+            "]}]";
+
+        // roteros.jg 7.24.4 (the live one): the same keys under not → tuple.
+        private const string ConnectionLimitWindow724 =
+            "[{name:'Firewall',title:'Firewall',group:'IP',c:[" +
+            "{name:'Filter Rule',title:'Filter Rules',type:'map',path:[ 12,1 ],c:[" +
+              "{name:'Connection Limit',type:'group',id:'b19f',c:[{name:'Limit',type:'not',id:'b2a',c:[" +
+                 "{type:'tuple',sep:'/',separate:1,c:[{type:'number',id:'u2b',def:100}," +
+                 "{name:'Netmask',type:'netmask',id:'u2c',def:4294967295}]}]}]}]}" +
+            "]}]";
+
+        [DataTestMethod]
+        [DataRow(ConnectionLimitWindow)]
+        [DataRow(ConnectionLimitWindow724)]
+        public void ANumberWithItsNetmask_IsOneField(string window)
+        {
+            // The API prints connection-limit=!10,24; native read '!10' and a 'netmask' field the API does not have
+            // (6.49.13), or nothing at all (7.24.4).
+            var catalog = Parse(window);
+
+            var read = Decode(catalog, Rec((0x19F, "bool", true), (0x2A, "bool", true), (0x2B, "u32", 10L), (0x2C, "u32", 0x00FFFFFFL)));
+            Assert.AreEqual("!10,24", read["connection-limit"]);
+            Assert.IsFalse(read.ContainsKey("netmask"));
+
+            var written = Decoded(Resolver(catalog).EncodeField("connection-limit", "!10,24"));
+            Assert.AreEqual(10L, Num(written[0x2B]));
+            Assert.AreEqual(0x00FFFFFFL, Num(written[0x2C]));
+            Assert.AreEqual(true, written[0x2A]);
+        }
+
         // ── the `not` flag, both ways ──────────────────────────────────────────
 
         [TestMethod]
