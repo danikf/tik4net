@@ -342,11 +342,11 @@ namespace tik4net.Cli
                 }
                 catch (TikConnectionReceiveTimeoutException)
                 {
-                    // Same reasoning as the abandoned cancel above, arrived at from the other direction: the
-                    // response never reached a prompt, so its tail is still on its way and the NEXT command
-                    // would read it as its own answer. A terminal has no framing to resynchronize on, so the
-                    // only honest thing left is to stop pretending this session is usable.
-                    CloseAfterAbandonedRead();
+                    // The response never reached a prompt, so its tail is still on its way and the NEXT command
+                    // would read it as its own answer. Bring the session back in step (TryResynchronizeAsync),
+                    // and only when that fails stop pretending it is usable.
+                    if (!await TryResynchronizeAsync().ConfigureAwait(false))
+                        CloseAfterAbandonedRead();
                     throw;
                 }
                 catch (Exception ex) when (!IsOpened && !(ex is TikConnectionException))
@@ -377,6 +377,56 @@ namespace tik4net.Cli
         /// </summary>
         private CancellationToken TransportToken(CancellationToken ct)
             => CancellationMode == TikCancellationMode.AbandonAndClose ? ct : CancellationToken.None;
+
+        /// <summary>How long the terminal must stay silent after the Ctrl-C before the fence is sent.</summary>
+        private const int ResyncQuietMs = 1000;
+
+        /// <summary>How many fences are sent before the session is given up as out of step.</summary>
+        private const int ResyncFenceAttempts = 3;
+
+        /// <summary>
+        /// Brings a terminal whose read timed out back in step, rather than closing it: Ctrl-C aborts whatever still
+        /// runs (and dismisses a pager or a prompt), a settle read drains what the router writes until it goes quiet,
+        /// then <c>:put ("t4n-sync-" . "&lt;guid&gt;")</c> is sent and read to its prompt. The router prints the JOINED
+        /// string; the echo of the typed line never contains it, so finding it in the answer proves the channel is
+        /// at the fence's own prompt. True when it is; false (and the caller closes) otherwise.
+        /// </summary>
+        /// <remarks>
+        /// Only on the unhappy path — a fence before every command would cost a round trip each. Never Enter: it runs
+        /// whatever sits on the input line, and at <c>new password&gt;</c> it would submit one. The timed-out command
+        /// itself may have been cut part-way by the Ctrl-C; its outcome is as unknown as it was before, which the
+        /// timeout exception the caller receives already says.
+        /// </remarks>
+        private async Task<bool> TryResynchronizeAsync()
+        {
+            var settle = _sendRawSettle;
+            var send = _send;
+            if (settle == null || send == null)
+                return false;
+            try
+            {
+                await settle(new byte[] { 0x03 }, ResyncQuietMs, CancellationToken.None).ConfigureAwait(false);
+                for (int attempt = 1; attempt <= ResyncFenceAttempts; attempt++)
+                {
+                    string guid = Guid.NewGuid().ToString("N");
+                    string answer = await send(":put (\"t4n-sync-\" . \"" + guid + "\")", CancellationToken.None)
+                        .ConfigureAwait(false);
+                    if (answer.IndexOf("t4n-sync-" + guid, StringComparison.Ordinal) >= 0)
+                    {
+                        TikWireTrace.Emit("cli.resync", TikWireDir.Note,
+                            "back in step after a receive timeout (fence " + attempt + ")");
+                        return true;
+                    }
+                }
+                TikWireTrace.Emit("cli.resync", TikWireDir.Note,
+                    "no fence came back after " + ResyncFenceAttempts + " tries — closing");
+            }
+            catch (Exception ex)
+            {
+                TikWireTrace.Emit("cli.resync", TikWireDir.Note, "resync failed: " + ex.GetType().Name + ": " + ex.Message);
+            }
+            return false;
+        }
 
         // Closes the session after a read was abandoned. Best-effort: the point is that the connection is
         // marked unusable, and a transport that throws while closing an already-broken channel must not
@@ -443,7 +493,9 @@ namespace tik4net.Cli
                 }
                 catch (TikConnectionReceiveTimeoutException)
                 {
-                    CloseAfterAbandonedRead();   // see ExecuteCliCommandAsync — the tail is still coming
+                    // See ExecuteCliCommandAsync — the tail is still coming.
+                    if (!TryResynchronizeAsync().GetAwaiter().GetResult())
+                        CloseAfterAbandonedRead();
                     throw;
                 }
                 FireReadRow(result);

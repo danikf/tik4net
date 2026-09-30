@@ -853,6 +853,22 @@ commands issued back to back (the poll-and-diff `listen` emulation does this) �
 echo satisfies the gate just as well as the real one, so a splice there is invisible and can only show up
 as a duplicated row.
 
+**After a receive timeout the session is brought back in step, not closed** (`CliConnectionBase.TryResynchronizeAsync`).
+The rest of the timed-out answer is still coming, so the next read would take it as its own. The fence:
+
+1. **Ctrl-C** (0x03), then a settle read until the terminal is quiet for 1 s — it stops a running command, a pager
+   or a prompt, and drains what the router still writes. Never Enter: it would run what sits on the input line,
+   and at `new password>` submit one.
+2. **`:put ("t4n-sync-" . "<guid>")`**, read to its prompt. The router prints the JOINED string; the echo only
+   ever holds the pieces, so finding `t4n-sync-<guid>` in the answer proves the channel is at the fence's own
+   prompt. Up to three fences; none back → the connection is closed as before.
+
+Measured on 6.49.13 and 7.24.4 over Telnet, SSH, MAC-Telnet, WinBox CLI and WinBox CLI over MAC with
+`:put t4n-early; :delay 5s; :put t4n-late` against a 1.5 s timeout: every transport stays open and the next two
+reads return the router's identity (`CliResyncTest`). Not measured through a RoMON relay. A cancel after dispatch
+is not resynchronized — `TikCancellationMode.AbandonAndClose` closes, as its name says — and neither is the end of
+a RoMON relay, whose session is gone.
+
 ---
 
 ## 8. Add, scalar reads, and action commands

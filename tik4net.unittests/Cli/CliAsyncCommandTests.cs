@@ -74,15 +74,15 @@ namespace tik4net.unittests.Cli
         // ── A timeout leaves the terminal out of step ─────────────────────────
 
         /// <summary>
-        /// A receive timeout must take the connection down with it.
+        /// A receive timeout the session cannot recover from must take the connection down with it. This scripted
+        /// terminal has no settle driver, so the resynchronisation (CliResyncTests) cannot run and the close is all
+        /// that is left.
         /// </summary>
         /// <remarks>
         /// <para>
         /// A terminal has no framing. When a read gives up before the response ended at a prompt, the rest
         /// of that response is still coming, and the NEXT command reads it as its own — which is the
-        /// documented reason cancellation is refused mid-command by default. The cancel path already closes
-        /// the connection for exactly this (<c>CloseAfterAbandonedRead</c>); the timeout path did not, so a
-        /// timed-out CLI connection went on serving the previous command's output.
+        /// documented reason cancellation is refused mid-command by default.
         /// </para>
         /// <para>
         /// Found by the release matrix on a router carrying 1672 mangle rules: the table is ~145 KB of
