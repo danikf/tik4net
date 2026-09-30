@@ -176,7 +176,7 @@ namespace tik4net
         /// Gets or sets how long a command waits for its answer. Defaults to 30 s.
         /// </summary>
         /// <remarks>
-        /// <para>Must be called before <see cref="Open(string, string, string)"/> call.</para>
+        /// <para>May be changed on an open connection: the next command waits by the new value, on every transport.</para>
         /// <para>
         /// This bounds <b>one command waiting for its answer</b>, not the connection's right to exist: an
         /// idle connection with no command in flight is not subject to it and stays open. On the binary API

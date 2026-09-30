@@ -21,7 +21,10 @@ namespace tik4net.Telnet
         private TcpClient _tcpClient = null!; // assigned by Connect(), called right after construction
         private NetworkStream _stream = null!; // assigned by Connect(), called right after construction
         private readonly Encoding _encoding;
-        private readonly int _receiveTimeoutMs;
+        private readonly Func<int> _receiveTimeout;
+        // Read at each use rather than taken once: ITikConnection.ReceiveTimeout may change on an open connection,
+        // and the API and REST honour that per command.
+        private int ReceiveTimeoutMs => _receiveTimeout();
 
         // The target's RoMON id once EnterRomonAsync has relayed this terminal; null for a direct session.
         private string? _romonTarget;
@@ -33,13 +36,16 @@ namespace tik4net.Telnet
         private readonly Cli.Vt100State _vt100 = Cli.Vt100State.ForRouterOs();
 
         internal TelnetClient(Encoding encoding, int receiveTimeoutMs, int sendTimeoutMs)
+            : this(encoding, () => receiveTimeoutMs, sendTimeoutMs) { }
+
+        internal TelnetClient(Encoding encoding, Func<int> receiveTimeoutMs, int sendTimeoutMs)
         {
             _encoding = encoding ?? Encoding.UTF8;
-            _receiveTimeoutMs = receiveTimeoutMs;
+            _receiveTimeout = receiveTimeoutMs;
             _sendTimeoutMs = sendTimeoutMs;
         }
 
-        // Separate from _receiveTimeoutMs, which is what the write side used to be given. They are two
+        // Separate from ReceiveTimeoutMs, which is what the write side used to be given. They are two
         // different questions - how long the router may take to answer, and how long a write may block -
         // and ITikConnection exposes them as two properties, so honouring one with the other made
         // SendTimeout a setting the caller could change with no effect.
@@ -72,7 +78,7 @@ namespace tik4net.Telnet
             }
 
             _stream = _tcpClient.GetStream();
-            _stream.ReadTimeout = _receiveTimeoutMs;
+            _stream.ReadTimeout = ReceiveTimeoutMs;
             _stream.WriteTimeout = _sendTimeoutMs > 0 ? _sendTimeoutMs : Timeout.Infinite;
         }
 
@@ -204,7 +210,7 @@ namespace tik4net.Telnet
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
+            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
             DateTime lastData = DateTime.UtcNow;
 
             while (true)
@@ -273,7 +279,7 @@ namespace tik4net.Telnet
             var accumulated = new StringBuilder();
 
             // Deadline based on receive timeout
-            var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
+            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
 
             // IMPORTANT: On .NET Framework, NetworkStream.ReadAsync honours neither ReadTimeout
             // nor CancellationToken cancellation once the read is pending with no data — it would
@@ -338,7 +344,7 @@ namespace tik4net.Telnet
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
+            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
             DateTime? settleUntil = null;
             var streamer = new CliLineStreamer(onLine);
             bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
@@ -381,7 +387,7 @@ namespace tik4net.Telnet
                 if (closed || DateTime.UtcNow >= deadline)
                 {
                     if (sentCommand != null)
-                        throw CliReadTimeout.Create("Telnet", _receiveTimeoutMs, sentCommand, stripped);
+                        throw CliReadTimeout.Create("Telnet", ReceiveTimeoutMs, sentCommand, stripped);
                     return stripped;
                 }
 

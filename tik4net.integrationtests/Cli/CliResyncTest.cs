@@ -42,5 +42,32 @@ namespace tik4net.integrationtests
                 Assert.AreEqual(identity, connection.CreateCommand("/system/identity/print").ExecuteScalar());
             }
         }
+
+        /// <summary>
+        /// ReceiveTimeout set on an OPEN connection bounds the next command, as it does on the API and REST — the
+        /// terminal clients used to take the value once, when they opened.
+        /// </summary>
+        [TestMethod]
+        public void AReceiveTimeoutSetOnAnOpenConnection_BoundsTheNextCommand()
+        {
+            if (!IsCli())
+                Assert.Inconclusive("A terminal transport's behaviour: :delay is a CLI command.");
+
+            TimeSpan original = Connection.ReceiveTimeout;
+            Connection.ReceiveTimeout = TimeSpan.FromSeconds(1.5);
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => RawConnection.CallCommandSync(":delay 8s").ToList());
+            }
+            finally
+            {
+                Connection.ReceiveTimeout = original;
+            }
+            Assert.IsTrue(watch.Elapsed < TimeSpan.FromSeconds(6),
+                $"the timeout took {watch.Elapsed.TotalSeconds:F1} s: the value set after open was not used");
+            Assert.IsNotNull(Connection.CreateCommand("/system/identity/print").ExecuteScalar());
+        }
     }
 }

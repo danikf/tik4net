@@ -315,7 +315,7 @@ namespace tik4net.WinboxNative
             // ReceiveTimeout, not ConnectTimeout: this bounds each M2 operation, not the connect phase.
             // (P1.8 left this as ConnectTimeout because per-read socket deadlines made the distinction
             // moot; with per-request deadlines in the multiplexer it is now the value that actually fires.)
-            _ops = new WinboxNativeM2Operations(session, ReceiveTimeoutMs);
+            _ops = new WinboxNativeM2Operations(session, () => ReceiveTimeoutMs);
             // Participate in the shared row-level diagnostics: render each raw M2 request/reply to the
             // OnWriteRow/OnReadRow events (gated so the describe is only built when something listens).
             _ops.OnRequest = msg => { if (RowTracingEnabled) FireWriteRow(M2Message.Describe(msg)); };

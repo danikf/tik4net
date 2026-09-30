@@ -24,7 +24,10 @@ namespace tik4net.Ssh
         private SshClient _ssh = null!; // assigned in Connect, not the constructor; read only afterwards
         private ShellStream _shell = null!; // assigned in Connect, not the constructor; read only afterwards
         private readonly Encoding _encoding;
-        private readonly int _receiveTimeoutMs;
+        private readonly Func<int> _receiveTimeout;
+        // Read at each use rather than taken once: ITikConnection.ReceiveTimeout may change on an open connection,
+        // and the API and REST honour that per command.
+        private int ReceiveTimeoutMs => _receiveTimeout();
 
         // The target's RoMON id once EnterRomonAsync has relayed this terminal; null for a direct session.
         private string? _romonTarget;
@@ -36,9 +39,12 @@ namespace tik4net.Ssh
         private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
 
         internal SshShellClient(Encoding encoding, int receiveTimeoutMs)
+            : this(encoding, () => receiveTimeoutMs) { }
+
+        internal SshShellClient(Encoding encoding, Func<int> receiveTimeoutMs)
         {
             _encoding = encoding ?? Encoding.UTF8;
-            _receiveTimeoutMs = receiveTimeoutMs;
+            _receiveTimeout = receiveTimeoutMs;
         }
 
         // ── Connect ───────────────────────────────────────────────────────────
@@ -221,7 +227,7 @@ namespace tik4net.Ssh
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
+            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
             DateTime lastData = DateTime.UtcNow;
 
             while (true)
@@ -294,7 +300,7 @@ namespace tik4net.Ssh
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
+            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
 
             // Poll DataAvailable (non-blocking) and only Read when bytes are buffered, enforcing the
             // deadline ourselves between polls — a pending blocking Read could otherwise hang if the
@@ -348,7 +354,7 @@ namespace tik4net.Ssh
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
+            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
             DateTime? settleUntil = null;
             var streamer = new CliLineStreamer(onLine);
             bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
@@ -397,9 +403,9 @@ namespace tik4net.Ssh
                     // like data (P2.25's failure class), so it is always traced.
                     TraceNote(closed
                         ? "shell closed before the prompt settled — response is truncated"
-                        : "receive deadline (" + _receiveTimeoutMs + " ms) hit before the prompt settled — response is truncated");
+                        : "receive deadline (" + ReceiveTimeoutMs + " ms) hit before the prompt settled — response is truncated");
                     if (sentCommand != null)
-                        throw CliReadTimeout.Create("SSH", _receiveTimeoutMs, sentCommand, stripped);
+                        throw CliReadTimeout.Create("SSH", ReceiveTimeoutMs, sentCommand, stripped);
                     return stripped;
                 }
 

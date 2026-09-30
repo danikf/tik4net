@@ -54,7 +54,10 @@ namespace tik4net.WinboxCli
         private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
         private readonly IWinboxM2Channel _session;
         private readonly Encoding _encoding;
-        private readonly int _receiveTimeoutMs;
+        private readonly Func<int> _receiveTimeout;
+        // Read at each use rather than taken once: ITikConnection.ReceiveTimeout may change on an open connection,
+        // and the API and REST honour that per command.
+        private int ReceiveTimeoutMs => _receiveTimeout();
         private readonly int _loginTimeoutMs;
 
         private int _sessionId = -1;
@@ -78,11 +81,15 @@ namespace tik4net.WinboxCli
 
         internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, int receiveTimeoutMs,
             int loginTimeoutMs, int sendTimeoutMs = 0)
+            : this(channel, encoding, () => receiveTimeoutMs, loginTimeoutMs, sendTimeoutMs) { }
+
+        internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, Func<int> receiveTimeoutMs,
+            int loginTimeoutMs, int sendTimeoutMs = 0)
         {
             _session          = channel ?? throw new ArgumentNullException(nameof(channel));
             _encoding         = encoding ?? Encoding.UTF8;
-            _receiveTimeoutMs = receiveTimeoutMs;
-            _loginTimeoutMs   = loginTimeoutMs > 0 ? loginTimeoutMs : receiveTimeoutMs;
+            _receiveTimeout = receiveTimeoutMs;
+            _loginTimeoutMs   = loginTimeoutMs > 0 ? loginTimeoutMs : receiveTimeoutMs();
             _sendTimeoutMs    = sendTimeoutMs;
         }
 
@@ -106,7 +113,7 @@ namespace tik4net.WinboxCli
         {
             return Task.Run(async () =>
             {
-                _session.Open(host, port, user, pass, _loginTimeoutMs, _receiveTimeoutMs, _sendTimeoutMs);
+                _session.Open(host, port, user, pass, _loginTimeoutMs, ReceiveTimeoutMs, _sendTimeoutMs);
 
                 // Open one mepty terminal and keep it for the whole connection. The password is supplied
                 // here (not via a Login:/Password: prompt) — auth already happened at the M2 layer, so the
@@ -402,7 +409,7 @@ namespace tik4net.WinboxCli
             var streamer = new Cli.CliLineStreamer(onLine);
             long lastPullMs = -1;   // -1 = a pull is due now (fire immediately)
 
-            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
                 ct.ThrowIfCancellationRequested();
                 bool gotData = false;
@@ -423,7 +430,7 @@ namespace tik4net.WinboxCli
                         if (sentCommand == null)
                             return soFar;
                         throw Cli.CliReadTimeout.CreateMidFrame(
-                            "WinBox CLI", _receiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, soFar, ex);
+                            "WinBox CLI", ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, soFar, ex);
                     }
                     if (chunk != null)
                     {
@@ -469,7 +476,7 @@ namespace tik4net.WinboxCli
                 }
 
                 // Nothing has come back AND the carrier says the router never took the bytes, even after the
-                // retransmits ran out. Spending the rest of _receiveTimeoutMs would only turn an answer we
+                // retransmits ran out. Spending the rest of ReceiveTimeoutMs would only turn an answer we
                 // already have into "nothing was received within 30000 ms" — a message that blames the read
                 // for what the session did (P2.54). Safe to call the command un-run: see
                 // TikConnectionSessionClosedException. On carriers that cannot tell, SendAbandoned is false
@@ -517,7 +524,7 @@ namespace tik4net.WinboxCli
 
             string strippedSoFar = VtStripper.StripAnsi(sb.ToString());
             if (sentCommand != null)
-                throw Cli.CliReadTimeout.Create("WinBox CLI", _receiveTimeoutMs, sentCommand, strippedSoFar);
+                throw Cli.CliReadTimeout.Create("WinBox CLI", ReceiveTimeoutMs, sentCommand, strippedSoFar);
             return strippedSoFar;
         }
 
@@ -527,7 +534,7 @@ namespace tik4net.WinboxCli
         /// can still finish.
         /// </summary>
         private int RemainingFrameBudget(Stopwatch sw)
-            => (int)Math.Max(MinFrameBudgetMs, _receiveTimeoutMs - sw.ElapsedMilliseconds);
+            => (int)Math.Max(MinFrameBudgetMs, ReceiveTimeoutMs - sw.ElapsedMilliseconds);
 
         private const int MinFrameBudgetMs = 1000;
 
@@ -543,7 +550,7 @@ namespace tik4net.WinboxCli
             DateTime lastData = DateTime.UtcNow;
             bool any = false;
 
-            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
                 bool gotData = false;
                 if (_session.DataAvailable)

@@ -41,7 +41,10 @@ namespace tik4net.MacTelnet
         // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
         private readonly Vt100State     _vt100 = Vt100State.ForRouterOs();
         private readonly Encoding       _encoding;
-        private readonly int            _receiveTimeoutMs;
+        private readonly Func<int> _receiveTimeout;
+        // Read at each use rather than taken once: ITikConnection.ReceiveTimeout may change on an open connection,
+        // and the API and REST honour that per command.
+        private int ReceiveTimeoutMs => _receiveTimeout();
         private readonly int            _loginTimeoutMs;
 
         // ── Receive pump state ───────────────────────────────────────────────
@@ -81,10 +84,13 @@ namespace tik4net.MacTelnet
         // can paper over from here - it has to be handled by reconnecting, not by inventing traffic.
 
         internal MacTelnetUdpClient(Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs, string? routerMac)
+            : this(encoding, () => receiveTimeoutMs, loginTimeoutMs, routerMac) { }
+
+        internal MacTelnetUdpClient(Encoding encoding, Func<int> receiveTimeoutMs, int loginTimeoutMs, string? routerMac)
         {
             _encoding         = encoding ?? Encoding.UTF8;
-            _receiveTimeoutMs = receiveTimeoutMs;
-            _loginTimeoutMs   = loginTimeoutMs > 0 ? loginTimeoutMs : receiveTimeoutMs;
+            _receiveTimeout = receiveTimeoutMs;
+            _loginTimeoutMs   = loginTimeoutMs > 0 ? loginTimeoutMs : receiveTimeoutMs();
             // Opening the session is part of opening the connection, so it gets the connect budget.
             SessionStartBudgetMs = _loginTimeoutMs;
             RouterMacOverride = routerMac;
@@ -157,7 +163,7 @@ namespace tik4net.MacTelnet
         private async Task<string> RelayReadUntilAsync(Func<string, bool> predicate, CancellationToken ct)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
                 ct.ThrowIfCancellationRequested();
                 ThrowIfPumpFaulted();
@@ -438,7 +444,7 @@ namespace tik4net.MacTelnet
             var streamer = new CliLineStreamer(onLine);
             bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
 
-            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
                 ct.ThrowIfCancellationRequested();
                 ThrowIfPumpFaulted();
@@ -477,7 +483,7 @@ namespace tik4net.MacTelnet
 
             string strippedSoFar = Snapshot(out _);
             if (sentCommand != null)
-                throw CliReadTimeout.Create("MAC-Telnet", _receiveTimeoutMs, sentCommand, strippedSoFar);
+                throw CliReadTimeout.Create("MAC-Telnet", ReceiveTimeoutMs, sentCommand, strippedSoFar);
             return strippedSoFar;
         }
 
@@ -497,7 +503,7 @@ namespace tik4net.MacTelnet
             DateTime lastData = DateTime.UtcNow;
             int lastLength = 0;
 
-            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
                 ct.ThrowIfCancellationRequested();
                 ThrowIfPumpFaulted();

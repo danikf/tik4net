@@ -83,7 +83,7 @@ namespace tik4net.Ssh
             Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
-            var client = new SshShellClient(Encoding, ReceiveTimeoutMs);
+            var client = new SshShellClient(Encoding, () => ReceiveTimeoutMs);
             var romonTarget = RomonTarget;
             Func<CancellationToken, Task> login = async ct =>
             {

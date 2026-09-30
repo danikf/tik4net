@@ -28,13 +28,19 @@ namespace tik4net.Winbox
     internal sealed class WinboxNativeM2Operations
     {
         private readonly IWinboxM2Channel _channel;
-        private readonly int _timeoutMs;
+        private readonly Func<int> _timeout;
+        // Read at each use rather than taken once: ITikConnection.ReceiveTimeout may change on an open connection,
+        // and the API and REST honour that per command.
+        private int _timeoutMs => _timeout();
         private WinboxM2Multiplexer? _mux;
 
         internal WinboxNativeM2Operations(IWinboxM2Channel channel, int timeoutMs = 5000)
+            : this(channel, () => timeoutMs) { }
+
+        internal WinboxNativeM2Operations(IWinboxM2Channel channel, Func<int> timeoutMs)
         {
             _channel = channel ?? throw new ArgumentNullException(nameof(channel));
-            _timeoutMs = timeoutMs;
+            _timeout = timeoutMs;
         }
 
         /// <summary>
