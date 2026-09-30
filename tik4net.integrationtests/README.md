@@ -49,8 +49,8 @@ version is 7.1` and boots the old version again). A test that should also hold o
 with its router profile — `run-integration-tests.ps1 -Router chr2`, which selects the `chr2.*` entries of
 `App.config` (`LabConfig.cs`) without editing the file — and `CliFlagFieldsTest` (flags over every transport
 against the binary API) is the one that matters. The full suite is not run there: CHR2 has CHR's two ports but none of
-its provisioned topology, so topology tests fail for reasons that are not defects. Nor are the REST legs: its profile
-carries `chr2.noRest`, so the script leaves `rest` and `restssl` out of a run against it and refuses them by name.
+its provisioned topology, so topology tests fail for reasons that are not defects. A REST leg against it runs, and
+every test in it is Inconclusive: `TestBase` reads the router's "no REST API" refusal once and skips on it.
 
 **CHR3, a second RouterOS 7.** 7.21.5 is the oldest 7.x the download page offers, so it sits after 7.20, where the CLI
 began printing flag fields in `print as-value` — the pre-7.20 read path still has unit coverage only. It carries no

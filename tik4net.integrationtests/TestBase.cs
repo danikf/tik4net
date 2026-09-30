@@ -99,7 +99,40 @@ namespace tik4net.integrationtests
                 AcquireSharedConnection();
             else
                 RecreateConnection();
+            SkipIfTheRouterHasNoRestApi();
             OnInitialize();
+        }
+
+        // Per router and REST transport: the refusal a router without REST gave, or null when it has REST.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _noRestApi =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
+
+        /// <summary>
+        /// A REST run against a router without the REST API (RouterOS 6.x; <c>/rest</c> arrived in 7.1) is
+        /// <b>Inconclusive</b>, test by test, rather than red: the router refuses every request, which says nothing
+        /// about the library. Bound to that refusal, not to a version number — measured once per router and transport
+        /// with one read, and a router that answers it runs the test as usual.
+        /// </summary>
+        private void SkipIfTheRouterHasNoRestApi()
+        {
+            TikConnectionType type = ResolveConnectionType();
+            if (type != TikConnectionType.Rest && type != TikConnectionType.RestSsl)
+                return;
+            string refusal = _noRestApi.GetOrAdd(LabConfig.Get("host") + "|" + type, _ =>
+            {
+                try
+                {
+                    _connection.CreateCommand("/system/identity/print").ExecuteScalar();
+                    return null;
+                }
+                catch (TikNoSuchCommandException ex) when (ex.Message.IndexOf("has no REST API", StringComparison.Ordinal) >= 0)
+                {
+                    return ex.Message;
+                }
+            });
+            if (refusal != null)
+                Assert.Inconclusive("This router has no REST API (RouterOS 6.x); REST tests are Inconclusive on it. "
+                                    + "The router said: " + refusal);
         }
 
         protected virtual void OnInitialize()

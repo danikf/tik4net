@@ -14,7 +14,7 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 | `Telnet`, `Ssh`, `MacTelnet` | all pass | — |
 | `WinboxCli`, `WinboxCliMac` | all pass | — |
 | `WinboxNative`, `WinboxNativeMac` | 20 of 22 | route `scope` and `routing-mark` are not in the record; the path-map audit finds more — open problem 1 |
-| `Rest`, `RestSsl` | not run | RouterOS 6 has no REST API (§3); the `chr2` profile leaves these legs out (problem 2) |
+| `Rest`, `RestSsl` | all Inconclusive | RouterOS 6 has no REST API (§3); `TestBase` skips every test on the router's refusal (problem 2) |
 
 Beyond the smoke subset, the path-map audit has been run over every transport 6.x has (open problems 1 and 4),
 and `CliFlagFieldsTest` over every CLI transport (open problem 4).
@@ -280,11 +280,11 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    it reading them is the ground truth. The audit report is written per transport, not per router, so a run
    against CHR2 replaces the 7.x report of the same transport.
 
-2. **Settled: REST legs are not run against 6.x.** MikroTik moves everyone to RouterOS 7, so a REST test failing on a
-   6.x router is the expected answer, not a gap worth gating on the version. The `chr2` router profile carries
-   `chr2.noRest`, and `run-integration-tests.ps1 -Router chr2` leaves the `rest` and `restssl` legs out (named
-   explicitly, they are refused). `CliFlagFieldsTest`, the one test meant to run against CHR2, reports its REST row
-   Inconclusive on the router's refusal (§3).
+2. **Settled: REST on 6.x is Inconclusive, not red.** MikroTik moves everyone to RouterOS 7, so a REST refusal on a
+   6.x router is the expected answer, not a gap worth gating on the version. A `rest` or `restssl` leg against CHR2
+   runs like any other, and `TestBase.Init` reads the router's refusal (§3) once per router and transport and makes
+   each test Inconclusive on it — bound to the refusal, not to the version, so a router that answers runs the test.
+   `CliFlagFieldsTest` reports its REST row Inconclusive the same way.
 
 3. **Settled: the pre-7.20 flag path of RouterOS 7 is not tested on a router.** CHR2 on 7.19.6 was the one router
    where flags are read by name through `proplist=`; on 6.49.13 the id-list path runs instead, and CHR runs neither.

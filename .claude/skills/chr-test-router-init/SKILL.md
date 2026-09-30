@@ -381,7 +381,7 @@ Provision it with steps 0–6 like the first, with these differences:
     default). `www-ssl` ships disabled and `invalid`; step 4 fixes both.
   - Step 4 works unchanged, `sign` included.
   - Step 6: `Rest` and `RestSsl` fail — RouterOS 6 has no REST API, and the library says so. Everything else
-    should answer.
+    should answer. In the integration suite that refusal makes every REST test Inconclusive (`TestBase`).
 - To run a test against it, use its `App.config` router profile: `run-integration-tests.ps1 -Router chr2`, e.g.
   with `CliFlagFieldsTest` (flags over every transport against the binary API). A re-provisioned CHR2 with a new
   address or MAC needs only its `chr2.*` entries updated.
