@@ -53,6 +53,28 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual("t4n-semi2", rows[1].Words["name"]);
         }
 
+        // What 7.24 printed for two scripts whose source spans lines (2026-10-01): the line breaks are written raw, in
+        // the row's LAST field, so the separator count is complete on the first line of the value.
+        private const string ScriptAnswer =
+            ".id~^~dont-require-permissions~^~invalid~^~name~^~owner~^~run-count~^~source\r\n"
+            + "*1~^~false~^~false~^~t4n-probe-sep~^~admin~^~0~^~:local a 1\r\n"
+            + ":local b \"x=y\"\r\n"
+            + "\r\n"
+            + ".id~^~dont-require-permissions~^~invalid~^~name~^~owner~^~run-count~^~source\r\n"
+            + "*2~^~false~^~false~^~t4n-probe-bs~^~admin~^~0~^~:local p \"C:\\temp\\dir\"\r\n"
+            + ":put $p";
+
+        [TestMethod]
+        public void ALineBreakInTheLastFieldDoesNotStartARow()
+        {
+            var rows = CliDsvParser.Parse(ScriptAnswer, Sep);
+
+            Assert.AreEqual(2, rows.Count, "a continuation line of the last field was read as the next row's field names");
+            Assert.AreEqual(":local a 1\n:local b \"x=y\"", rows[0].Words["source"]);
+            Assert.AreEqual(":local p \"C:\\temp\\dir\"\n:put $p", rows[1].Words["source"]);
+            Assert.AreEqual("t4n-probe-bs", rows[1].Words["name"]);
+        }
+
         [TestMethod]
         public void AFieldTheRowDoesNotHaveIsAbsentNotEmpty()
         {

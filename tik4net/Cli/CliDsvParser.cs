@@ -18,9 +18,10 @@ namespace tik4net.Cli
     /// and DSV carries no type, so a <c>;</c> in a value is turned into the API's <c>,</c> — as the as-value read
     /// does — except in <c>comment</c>, which is text on every menu and never a list. That is the field this read
     /// exists for; free-text fields marked <c>IsFreeText</c> take the JSON read.</para>
-    /// <para>A value holding a line break spans lines, so a row's values are gathered until they count as many
-    /// separators as its header. A value holding the separator itself makes the count disagree, and the read is
-    /// refused rather than shifted into the wrong columns.</para>
+    /// <para>A value holding a line break spans lines — RouterOS writes it unquoted (a script's <c>source</c>,
+    /// measured on 7.24) — so a row's values are gathered until they count as many separators as its header, and
+    /// then up to the next row's field names, for a break in the last field. A value holding the separator itself
+    /// makes the count disagree, and the read is refused rather than shifted into the wrong columns.</para>
     /// </remarks>
     internal static class CliDsvParser
     {
@@ -44,6 +45,18 @@ namespace tik4net.Cli
                 string values = lines[i++].TrimEnd('\r');
                 while (Count(values, separator) < names.Length - 1 && i < lines.Length)
                     values += "\n" + lines[i++].TrimEnd('\r');
+                // A line break in the LAST field leaves the count complete on the first line, so the rest of the
+                // value is every line up to the next row's field names. A row of one field has no separator to
+                // tell its names from its text by, and keeps one line. Blank lines at the end of the gathered text are
+                // dropped: the reader cannot tell a value's trailing line break from a blank line between rows, and
+                // the last row of an answer loses them anyway (the answer is trimmed before the count line).
+                if (names.Length > 1)
+                {
+                    string tail = string.Empty;
+                    while (i < lines.Length && !IsFieldNameLine(lines[i].TrimEnd('\r'), separator))
+                        tail += "\n" + lines[i++].TrimEnd('\r');
+                    values += tail.TrimEnd('\n');
+                }
                 string[] cells = Split(values, separator);
                 if (cells.Length != names.Length)
                     throw Malformed(names.Length + " field names and " + cells.Length + " values — a value holds the "
@@ -61,6 +74,22 @@ namespace tik4net.Cli
                 result.Add(new TikRecordSentence(fields));
             }
             return result;
+        }
+
+        // A row's header: at least two field names, each spelled the way RouterOS names a field.
+        private static bool IsFieldNameLine(string line, string separator)
+        {
+            if (line.IndexOf(separator, StringComparison.Ordinal) < 0)
+                return false;
+            foreach (string name in Split(line, separator))
+            {
+                if (name.Length == 0)
+                    return false;
+                foreach (char c in name)
+                    if (!(char.IsLetterOrDigit(c) || c == '-' || c == '.' || c == '_'))
+                        return false;
+            }
+            return true;
         }
 
         private static string[] Split(string line, string separator)

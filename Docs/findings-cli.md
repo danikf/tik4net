@@ -407,7 +407,7 @@ Measured on 7.24.4 and 7.21.5 (2026-09-28):
 | `dsv.wrap-strings` | quotes the HEADER row only; values are never quoted or escaped |
 | `dsv.remap` over the whole array | ONE header for every row: a field a row lacks becomes an empty cell (the API leaves it out), and on `/interface` a value landed under another row's column. Hence one `:serialize` per row, `({$r})` — each names exactly the fields it has |
 | without `dsv.remap` | the delimiter separates ROWS, each still as-value text — no help |
-| a line break in a value | printed as is, so a row's values are gathered until they count as many separators as its header |
+| a line break in a value | printed as is, so a row's values are gathered until they count as many separators as its header — and, for a break in the row's LAST field (a script's `source`, 7.24.4, 2026-10-01), on up to the next line of field names. Blank lines at the end of a gathered value are dropped: they cannot be told from a blank line between rows, and the answer's last row loses them anyway. A typed read of a free-text field takes the JSON read and keeps them |
 | a list | still `;` between elements (`policy=ftp;reboot;read`); DSV carries no type, so `CliDsvParser` joins it with `,` as the API prints it — except `comment`, which is text on every menu |
 | cost | 16 720 row serializations in about a second: ~0.1 s on a 1672-row table; the command is ~250 characters longer, which RouterOS 7 echoes once |
 
