@@ -1,4 +1,4 @@
-using tik4net.Cli;
+﻿using tik4net.Cli;
 
 namespace tik4net
 {
@@ -110,8 +110,8 @@ namespace tik4net
     /// part is what <c>Supports</c> is still for).
     /// <para>
     /// The two members below are the ones a caller reaches <b>after</b> the connection exists. The rest of
-    /// the native transport's own surface — <c>PathAlias</c>, <c>FieldOverride</c>, <c>PathOverride</c>,
-    /// <c>CatalogCachePath</c> — has to be set <b>before</b> <c>Open</c>, so it is reached through the
+    /// the native transport's own surface — <c>PathAlias</c>, <c>FieldOverride</c>, <c>PathOverride</c> — has to be
+    /// set <b>before</b> <c>Open</c>, so it is reached through the
     /// <c>configure</c> callback of <c>CreateWinboxNativeConnection</c>, which hands you the concrete
     /// <see cref="WinboxNative.WinboxNativeConnection"/>. That is the line: what you configure before
     /// opening comes from the callback, what you use afterwards is on this interface.

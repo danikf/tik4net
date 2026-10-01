@@ -23,6 +23,14 @@ namespace tik4net.integrationtests
     [TestCategory(TestCategories.LegIndependent)]
     public class MenuSchemaCompletenessAuditTest : LockedTestBase
     {
+        // The audit measures what the router answers now: no menu grammar from the on-disk cache.
+        private static TikConnectionSetup GrammarSetup(TikConnectionType type)
+        {
+            var setup = TestBase.LabSetup(type);
+            setup.CatalogCachePath = null;
+            return setup;
+        }
+
         // Menus whose print needs inputs, or runs an action, or is too large to be worth it.
         private static readonly HashSet<string> Skip = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -51,7 +59,7 @@ namespace tik4net.integrationtests
         {
             string path = Environment.GetEnvironmentVariable("TIK4NET_SCHEMA_DUMP");
             if (string.IsNullOrEmpty(path)) Assert.Inconclusive("Set TIK4NET_SCHEMA_DUMP=/ip/route.");
-            using (var telnet = TestBase.LabSetup(TikConnectionType.Telnet).Create(TikConnectionType.Telnet))
+            using (var telnet = GrammarSetup(TikConnectionType.Telnet).Create(TikConnectionType.Telnet))
             {
                 int tabs = 0;
                 var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -80,7 +88,7 @@ namespace tik4net.integrationtests
             {
                 string version = api.CreateCommand("/system/resource/print").ExecuteSingleRow().GetResponseField("version");
                 bool v6 = version.StartsWith("6.");
-                using (var describer = v6 ? TestBase.LabSetup(TikConnectionType.Telnet).Create(TikConnectionType.Telnet) : null)
+                using (var describer = v6 ? GrammarSetup(TikConnectionType.Telnet).Create(TikConnectionType.Telnet) : null)
                 {
                     var describe = describer ?? api;
                     var report = new List<string>();

@@ -25,12 +25,42 @@ namespace tik4net.integrationtests
                 || type == TikConnectionType.WinboxCli || type == TikConnectionType.WinboxCliMac;
         }
 
+        // What the router answers now, not the on-disk menu-grammar cache: on a terminal transport the menus are
+        // described over a connection of the test's own with the cache off. (WinBox native's .jg cache holds the
+        // router's own catalog files, keyed by their version-stamped names; it stays.)
+        private ITikConnection _describer;
+
+        private ITikConnection Describer
+        {
+            get
+            {
+                if (!IsCli())
+                    return Connection;
+                if (_describer == null)
+                {
+                    var type = ResolveConnectionType();
+                    var setup = LabSetup(type);
+                    setup.CatalogCachePath = null;
+                    _describer = setup.Create(type);
+                }
+                return _describer;
+            }
+        }
+
+        [TestCleanup]
+        public void CloseDescriber()
+        {
+            try { _describer?.Dispose(); }
+            catch { /* a failing cleanup here would skip the base class's, which releases the test locks */ }
+            _describer = null;
+        }
+
         private TikMenuSchema Describe(string path)
         {
             EnsureCapability(TikConnectionCapability.MenuSchema);
             try
             {
-                return Connection.DescribeMenu(path);
+                return Describer.DescribeMenu(path);
             }
             catch (TikNoSuchCommandException) when (GetMikrotikVersion().Major < 7 && !IsCli() && !IsNative())
             {
@@ -115,7 +145,7 @@ namespace tik4net.integrationtests
             EnsureCapability(TikConnectionCapability.MenuSchema);
             if (GetMikrotikVersion().Major < 7 && !IsCli() && !IsNative())
                 Assert.Inconclusive("RouterOS 6 over the API has no /console/inspect.");
-            var schema = Connection.DescribeMenu<tik4net.Objects.System.SystemIdentity>();
+            var schema = Describer.DescribeMenu<tik4net.Objects.System.SystemIdentity>();
 
             Assert.IsNull(schema.AddArguments, schema.ToString());
             CollectionAssert.Contains(schema.SetArguments.ToArray(), "name",
@@ -129,7 +159,7 @@ namespace tik4net.integrationtests
             if (GetMikrotikVersion().Major < 7 && !IsCli() && !IsNative())
                 Assert.Inconclusive("RouterOS 6 over the API has no /console/inspect.");
 
-            Assert.AreEqual("/ip/route", Connection.DescribeMenu<IpRoute>().Path);
+            Assert.AreEqual("/ip/route", Describer.DescribeMenu<IpRoute>().Path);
         }
 
         [TestMethod]
@@ -138,7 +168,7 @@ namespace tik4net.integrationtests
             EnsureCapability(TikConnectionCapability.MenuSchema);
             try
             {
-                Connection.DescribeMenu("/ip/t4n-no-such-menu");
+                Describer.DescribeMenu("/ip/t4n-no-such-menu");
                 Assert.Fail("described a menu that does not exist");
             }
             catch (TikNoSuchCommandException)

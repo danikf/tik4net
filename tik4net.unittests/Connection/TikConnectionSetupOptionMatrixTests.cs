@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -83,6 +83,16 @@ namespace tik4net.unittests.Connection
             TikConnectionType.WinboxCli, TikConnectionType.WinboxCliMac,
         };
 
+        private static readonly TikConnectionType[] CatalogCacheTransports =
+        {
+            // What a connection learns about the router's menus and keeps for the next one: the terminal transports'
+            // menu grammar, WinBox native's .jg catalog. The API and REST ask /console/inspect for a few ms and keep
+            // nothing on disk.
+            TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.MacTelnet,
+            TikConnectionType.WinboxCli, TikConnectionType.WinboxCliMac,
+            TikConnectionType.WinboxNative, TikConnectionType.WinboxNativeMac,
+        };
+
         [ClassInitialize]
         public static void RegisterSatelliteTransports(TestContext context)
             => Tik4NetSsh.Register();   // idempotent; makes TikConnectionType.Ssh creatable like a built-in
@@ -104,6 +114,7 @@ namespace tik4net.unittests.Connection
             CancellationMode = TikCancellationMode.AbandonAndClose,
             CliReadPageSize = 37,
             CliFieldSeparator = "#|#",
+            CatalogCachePath = "C:/t4n-matrix-cache",
             AllowInvalidCertificate = false,
             CertificateValidationCallback = new System.Net.Security.RemoteCertificateValidationCallback(CertCallback),
         };
@@ -259,6 +270,35 @@ namespace tik4net.unittests.Connection
                         ((ITikCliFieldSeparatorConnection)conn).CliFieldSeparator, type.ToString());
                 using (var conn = new TikConnectionSetup("192.0.2.1", "user", "pwd") { CliFieldSeparator = null }.CreateUnopened(type))
                     Assert.IsNull(((ITikCliFieldSeparatorConnection)conn).CliFieldSeparator, type.ToString());
+            }
+        }
+
+        [TestMethod]
+        public void TheCatalogCachePathReachesExactlyTheCachingTransports()
+        {
+            var setup = NonDefaultSetup();
+            foreach (var type in AllTransports)
+            {
+                using (var conn = setup.CreateUnopened(type))
+                {
+                    bool expected = CatalogCacheTransports.Contains(type);
+                    Assert.AreEqual(expected, conn is ITikCatalogCacheConnection, type + ": ITikCatalogCacheConnection");
+                    if (expected)
+                        Assert.AreEqual("C:/t4n-matrix-cache", ((ITikCatalogCacheConnection)conn).CatalogCachePath, type.ToString());
+                }
+            }
+        }
+
+        [TestMethod]
+        public void ASetupThatSaysNothingGivesTheCachingTransportsTheDefaultDirectory_AndNullTurnsItOff()
+        {
+            foreach (var type in CatalogCacheTransports)
+            {
+                using (var conn = new TikConnectionSetup("192.0.2.1", "user", "pwd").CreateUnopened(type))
+                    Assert.AreEqual(TikConnectionSetup.DefaultCatalogCachePath,
+                        ((ITikCatalogCacheConnection)conn).CatalogCachePath, type.ToString());
+                using (var conn = new TikConnectionSetup("192.0.2.1", "user", "pwd") { CatalogCachePath = null }.CreateUnopened(type))
+                    Assert.IsNull(((ITikCatalogCacheConnection)conn).CatalogCachePath, type.ToString());
             }
         }
 

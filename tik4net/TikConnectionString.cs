@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Globalization;
@@ -35,6 +35,7 @@ namespace tik4net
             ("cancellationMode", new string[0]),
             ("cliReadPageSize", new string[0]),
             ("cliFieldSeparator", new string[0]),
+            ("catalogCachePath", new string[0]),
             ("validateWrites", new string[0]),
             ("sendTagWithSyncCommand", new string[0]),
             ("debug", new[] { "debugEnabled" }),
@@ -106,6 +107,7 @@ namespace tik4net
                     case "cancellationMode": setup.CancellationMode = ParseEnum<TikCancellationMode>(kv.Key, v); break;
                     case "cliReadPageSize": setup.CliReadPageSize = ParseInt(kv.Key, v); break;
                     case "cliFieldSeparator": setup.CliFieldSeparator = v.Length == 0 ? null : v; break;
+                    case "catalogCachePath": setup.CatalogCachePath = v.Length == 0 ? null : v; break;
                     case "validateWrites": setup.ValidateWrites = ParseBool(kv.Key, v); break;
                     case "sendTagWithSyncCommand": setup.SendTagWithSyncCommand = ParseBool(kv.Key, v); break;
                     case "debug": setup.DebugEnabled = ParseBool(kv.Key, v); break;

@@ -103,6 +103,18 @@ namespace tik4net
         public string? CliFieldSeparator { get; set; } = DefaultCliFieldSeparator;
 
         /// <summary>
+        /// The default <see cref="CatalogCachePath"/>: <c>tik4net</c> under the user's temporary directory.
+        /// </summary>
+        public static string DefaultCatalogCachePath => System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tik4net");
+
+        /// <summary>
+        /// The directory where a transport keeps what it learns about a router's menus for the next connection, or
+        /// <c>null</c> for nothing on disk — see <see cref="ITikCatalogCacheConnection"/>: the WinBox native transports'
+        /// <c>.jg</c> catalog and the terminal transports' menu grammar. Defaults to <see cref="DefaultCatalogCachePath"/>.
+        /// </summary>
+        public string? CatalogCachePath { get; set; } = DefaultCatalogCachePath;
+
+        /// <summary>
         /// Checks an entity write against the router's own argument list before sending it
         /// (<see cref="TikMenuSchemaExtensions.DescribeMenu(ITikConnection, string)"/>, asked once per menu). A renamed
         /// field (<c>TikPropertyAttribute.AlternateNames</c>) is written under the name the router takes; a field it takes
@@ -310,7 +322,8 @@ namespace tik4net
         /// <c>password</c> (<c>pwd</c>), <c>port</c>, <c>connectTimeout</c> / <c>receiveTimeout</c> /
         /// <c>sendTimeout</c> (seconds, or a <see cref="TimeSpan"/> such as <c>00:00:15</c>), <c>encoding</c> (a name such
         /// as <c>utf-8</c>), <c>allowInvalidCertificate</c>, <c>cancellationMode</c>, <c>cliReadPageSize</c>,
-        /// <c>cliFieldSeparator</c> (empty for none), <c>validateWrites</c>, <c>sendTagWithSyncCommand</c>, <c>debug</c>,
+        /// <c>cliFieldSeparator</c> (empty for none), <c>catalogCachePath</c> (empty for none), <c>validateWrites</c>,
+        /// <c>sendTagWithSyncCommand</c>, <c>debug</c>,
         /// and for a router behind a RoMON agent <c>romon.host</c>, <c>romon.user</c>, <c>romon.password</c>,
         /// <c>romon.port</c> — <c>host</c> is then the target's RoMON id.
         /// </param>
@@ -458,6 +471,8 @@ namespace tik4net
                 described.ValidateWrites = ValidateWrites;
             if (connection is ITikCliFieldSeparatorConnection separated)
                 separated.CliFieldSeparator = CliFieldSeparator;
+            if (connection is ITikCatalogCacheConnection cached)
+                cached.CatalogCachePath = CatalogCachePath;
 
             // RequireUsableAddress has already established that a RoMON setup is going to a transport that relays.
             if (connection is ITikRomonConnection romon)

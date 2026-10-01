@@ -55,7 +55,7 @@ namespace tik4net.Cli
     /// </remarks>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
         ITikMonitorTransport, IPollingMonitorHost, ITikCliPagedReadConnection,
-        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection, ICliCompletionReaction
+        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection, ICliCompletionReaction, ITikCatalogCacheConnection
     {
         /// <inheritdoc/>
         public string? CliFieldSeparator
@@ -240,18 +240,18 @@ namespace tik4net.Cli
                 return source != null ? CachedSchema(store, p, source.Value) : Recording(store, p, DescribeMenuLive(p));
             });
 
-        /// <summary>
-        /// Directory of the on-disk catalogs: the WinBox <c>.jg</c> plugins and the CLI menu grammar
-        /// (<see cref="CliSchemaStore"/>). <c>null</c> or empty = no persistent cache, each open asks again.
-        /// </summary>
-        internal string? CatalogCachePath { get; set; } = DefaultCatalogCachePath;
+        /// <inheritdoc/>
+        /// <remarks>On a terminal transport it holds the menu grammar <c>DescribeMenu</c> answers, per RouterOS build.
+        /// The build is asked the first time a menu is described (one command); it is read when that happens, so a
+        /// change before then takes effect.</remarks>
+        public string? CatalogCachePath { get; set; } = DefaultCatalogCachePath;
 
         /// <summary>
         /// What a new CLI connection starts with in <see cref="CatalogCachePath"/>: <c>%TEMP%/tik4net</c>, the WinBox
         /// <c>.jg</c> cache's directory. The router-free unit tests clear it once for the whole assembly, so their fake
         /// routers neither answer the build question nor touch the machine's cache.
         /// </summary>
-        internal static string? DefaultCatalogCachePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tik4net");
+        internal static string? DefaultCatalogCachePath = TikConnectionSetup.DefaultCatalogCachePath;
 
         // The store for this router's build, found once per open: the build is asked the first time a menu is
         // described (one command), not at open — a connection that never describes a menu pays nothing.

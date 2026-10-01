@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -20,7 +20,7 @@ namespace tik4net.unittests.Connection
             var setup = TikConnectionSetup.FromConnectionString(
                 "transport=ApiSsl;host=192.0.2.1;routerMac=AA:BB:CC:DD:EE:FF;user=admin;password=\"p;a=ss\";port=8730;"
                 + "connectTimeout=7;receiveTimeout=00:00:11;sendTimeout=13.5;encoding=us-ascii;allowInvalidCertificate=true;"
-                + "cancellationMode=AbandonAndClose;cliReadPageSize=37;cliFieldSeparator=#|#;validateWrites=yes;"
+                + "cancellationMode=AbandonAndClose;cliReadPageSize=37;cliFieldSeparator=#|#;catalogCachePath=C:/t4n-cache;validateWrites=yes;"
                 + "sendTagWithSyncCommand=false;debug=true");
 
             Assert.AreEqual(TikConnectionType.ApiSsl, setup.ConnectionType);
@@ -37,6 +37,7 @@ namespace tik4net.unittests.Connection
             Assert.AreEqual(TikCancellationMode.AbandonAndClose, setup.CancellationMode);
             Assert.AreEqual(37, setup.CliReadPageSize);
             Assert.AreEqual("#|#", setup.CliFieldSeparator);
+            Assert.AreEqual("C:/t4n-cache", setup.CatalogCachePath);
             Assert.IsTrue(setup.ValidateWrites);
             Assert.IsFalse(setup.SendTagWithSyncCommand);
             Assert.AreEqual(true, setup.DebugEnabled);
@@ -52,7 +53,7 @@ namespace tik4net.unittests.Connection
                 nameof(TikConnectionSetup.ConnectionType), nameof(TikConnectionSetup.Port), nameof(TikConnectionSetup.ConnectTimeout),
                 nameof(TikConnectionSetup.ReceiveTimeout), nameof(TikConnectionSetup.SendTimeout), nameof(TikConnectionSetup.Encoding),
                 nameof(TikConnectionSetup.AllowInvalidCertificate), nameof(TikConnectionSetup.CancellationMode),
-                nameof(TikConnectionSetup.CliReadPageSize), nameof(TikConnectionSetup.CliFieldSeparator),
+                nameof(TikConnectionSetup.CliReadPageSize), nameof(TikConnectionSetup.CliFieldSeparator), nameof(TikConnectionSetup.CatalogCachePath),
                 nameof(TikConnectionSetup.ValidateWrites), nameof(TikConnectionSetup.SendTagWithSyncCommand),
                 nameof(TikConnectionSetup.DebugEnabled), nameof(TikConnectionSetup.RouterMac), nameof(TikConnectionSetup.RomonAgentSetup),
             };

@@ -56,7 +56,7 @@ namespace tik4net.WinboxNative
     /// state, and the router's shared throughput ceiling — is on <see cref="ITikConnection"/>.</para>
     /// </remarks>
     public class WinboxNativeConnection : TikCommandConnectionBase, ITikWinboxNativeConnection,
-        ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection
+        ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection, ITikCatalogCacheConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly); the MAC-layer
         // subclass constructor is internal too and calls this one.
@@ -75,7 +75,8 @@ namespace tik4net.WinboxNative
         /// <summary>
         /// Directory under which the router's <c>.jg</c> menu catalogs are cached, as
         /// <c>&lt;CatalogCachePath&gt;/plugins/&lt;unique&gt;.jg</c>.
-        /// Defaults to <c>%TEMP%/tik4net/</c>. Set before opening to change.
+        /// Defaults to <see cref="TikConnectionSetup.DefaultCatalogCachePath"/>; <c>null</c> or empty keeps nothing on
+        /// disk. Set before opening to change (<see cref="TikConnectionSetup.CatalogCachePath"/> sets it).
         /// Supports environment variables (<c>%APPDATA%</c>, <c>$HOME</c>, …) and relative paths
         /// (resolved against <see cref="Environment.CurrentDirectory"/> at open time).
         /// </summary>
@@ -86,8 +87,7 @@ namespace tik4net.WinboxNative
         /// so the cache is shared across routers that serve the same file, and a RouterOS upgrade simply
         /// resolves new names rather than needing the cache invalidated. Deleting the directory is safe.
         /// </remarks>
-        public string CatalogCachePath { get; set; } =
-            Path.Combine(Path.GetTempPath(), "tik4net");
+        public string? CatalogCachePath { get; set; } = TikConnectionSetup.DefaultCatalogCachePath;
 
         /// <summary>
         /// Number of M2 handlers the <c>.jg</c> catalog supplied for this connection; <c>0</c> until
@@ -1933,7 +1933,7 @@ namespace tik4net.WinboxNative
 
         // Expand environment variables and resolve relative paths against the current directory.
         // Called at open time so %VAR% and paths like ".\.tik4net" or "../cache" work transparently.
-        private static string ResolvePath(string path)
+        private static string? ResolvePath(string? path)
         {
             if (string.IsNullOrEmpty(path)) return path;
             return Path.GetFullPath(Environment.ExpandEnvironmentVariables(path));
