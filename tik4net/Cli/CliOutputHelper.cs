@@ -131,7 +131,11 @@ namespace tik4net.Cli
                 if (end < start)
                     break;
 
-                if (IsPromptLine(lines[end]))
+                // A console log entry after the answer is followed by one more repaint, so the tail can be
+                // "prompt, log line, prompt": the log line is skipped like a prompt, or it ends this loop with the
+                // prompts above it still inside the data — after the count line of a counted read, which then
+                // reads as missing (measured over SSH under load, a WinBox login failure from another session).
+                if (IsPromptLine(lines[end]) || IsRouterLogLine(lines[end]))
                     end--;
                 else
                     break;

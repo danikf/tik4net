@@ -15,6 +15,21 @@ namespace tik4net.unittests.Cli
         // The terminal echoes the command exactly as sent, including the leading '/', while the comparison
         // ran against a copy that had been TrimStart('/')-ed — so for every slash-prefixed command (all of
         // set/remove/enable/disable/move) the echo was never recognised and survived as "output".
+        // Measured over SSH under load (2026-10-01): the answer was complete, then the router repainted its prompt,
+        // wrote a console log entry (a WinBox login failure from another session) and repainted the prompt again.
+        // Only the last prompt was stripped, the log line stopped the trailing loop, and the two prompts above it
+        // stayed in the output — after the count line, so the counted read reported its count missing.
+        [TestMethod]
+        public void CleanOutput_StripsTrailingPromptsAroundALogLineAfterTheAnswer()
+        {
+            const string sent = ":put \"x\"";
+            string raw = sent + "\r\n\rrow1\r\n#n=1/num\r\n\r\r\r" + Prompt + "\r\n\r\r\r\r" + Prompt
+                       + "\r23:30:37 echo: system,error,critical login failure for user admin from 192.0.2.31 via winbox\r\n\r"
+                       + Prompt.TrimEnd();
+
+            Assert.AreEqual("row1\n#n=1/num", CliOutputHelper.CleanOutput(raw, sent));
+        }
+
         [TestMethod]
         public void CleanOutput_StripsTheEchoOfASlashPrefixedCommand()
         {
