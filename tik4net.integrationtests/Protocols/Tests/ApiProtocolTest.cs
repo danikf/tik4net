@@ -1,4 +1,4 @@
-// ApiProtocolTest.cs — MikroTik API protocol: login + list interfaces + set/restore comment on ether1
+﻿// ApiProtocolTest.cs — MikroTik API protocol: login + list interfaces + set/restore comment on ether1
 // Uses the production tik4net + tik4net.objects library (ConnectionFactory + O/R mapper).
 // DataTestMethod variant covers all 4 transports (Api / ApiSsl / Rest / RestSsl) in one run.
 
@@ -11,7 +11,10 @@ using tik4net.Objects.Interface;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class ApiProtocolTest
+    // Writes the comment of the test interface, as InterfaceTest and TikCommandTest do in the transport legs.
+    [TestLock("testInterface-comment")]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class ApiProtocolTest : LockedTestBase
     {
         [TestMethod]
         public void Api_Login_ListInterfaces_ReturnsAtLeastOne()

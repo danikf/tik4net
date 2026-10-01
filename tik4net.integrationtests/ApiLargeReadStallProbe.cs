@@ -40,6 +40,7 @@ namespace tik4net.integrationtests
     /// </para>
     /// </remarks>
     [TestClass]
+    [TestLock(TestLockScope.Router)]
     public class ApiLargeReadStallProbe : TestBase
     {
         // Its own connections throughout, so the suite's shared session is neither used nor disturbed.

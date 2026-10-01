@@ -19,6 +19,7 @@ namespace tik4net.unittests.Winbox
     /// </para>
     /// </summary>
     [TestClass]
+    [DoNotParallelize]
     public class WinboxM2MultiplexerTests
     {
         private const string Host = "127.0.0.1";

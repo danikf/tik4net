@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -9,6 +9,7 @@ namespace tik4net.integrationtests
     /// (Ctrl-C, then a fence the echo cannot contain) rather than closed, and the next command reads its own answer.
     /// </summary>
     [TestClass]
+    [SafeInParallelLegs]
     public class CliResyncTest : TestBase
     {
         private bool IsCli()

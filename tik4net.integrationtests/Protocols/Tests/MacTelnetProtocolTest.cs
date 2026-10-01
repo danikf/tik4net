@@ -1,4 +1,4 @@
-// MacTelnetProtocolTest.cs — MAC-Telnet smoke tests via ITikConnection
+﻿// MacTelnetProtocolTest.cs — MAC-Telnet smoke tests via ITikConnection
 // Router prerequisites are checked by RouterPrerequisiteTest (uses API).
 // Full CRUD parity is verified by the TestBase-based suite via mactelnet.runsettings.
 
@@ -12,7 +12,11 @@ using tik4net.Objects.Interface;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class MacTelnetProtocolTest
+    // Writes the comment of the test interface, as InterfaceTest and TikCommandTest do in the transport legs.
+    [TestLock("testInterface-comment")]
+    [TestLock(TestLockAttribute.MacLayer)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class MacTelnetProtocolTest : LockedTestBase
     {
         private static MacTelnetConnection OpenMacTelnetConnection()
         {

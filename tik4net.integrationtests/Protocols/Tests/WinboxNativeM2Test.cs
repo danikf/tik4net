@@ -1,4 +1,4 @@
-// WinboxNativeM2Test.cs — Phase 3: native M2 object calls (no mepty console).
+﻿// WinboxNativeM2Test.cs — Phase 3: native M2 object calls (no mepty console).
 // Goal: list interfaces + set/restore ether1 comment via structured M2 messages.
 // Reference working native read: GetSystemInfo handler [13,4] cmd=7.
 // Catalog format: Docs/jg-catalog-format.md (interface handler [20,0], Name=key 0x10006).
@@ -20,7 +20,10 @@ namespace tik4net.integrationtests
     // is absent from the 47-id list). The real instance get-record/set command is still unknown.
     [Ignore("Exploratory native-M2 RE probes — manual only. Some methods issue config writes; all hit a live router. Run individually via --filter for research.")]
     [TestClass]
-    public class WinboxNativeM2Test
+    // Writes the comment of the test interface, as InterfaceTest and TikCommandTest do in the transport legs.
+    [TestLock("testInterface-comment")]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxNativeM2Test : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
         private static readonly int[] IFACE = { 20, 0 };

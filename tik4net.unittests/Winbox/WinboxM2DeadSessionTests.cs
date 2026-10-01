@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +22,7 @@ namespace tik4net.unittests.Winbox
     /// fake can produce it deterministically.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class WinboxM2DeadSessionTests
     {
         [TestMethod]

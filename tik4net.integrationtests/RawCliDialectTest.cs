@@ -1,4 +1,4 @@
-// RawCliDialectTest.cs — the low-level API in the terminal transports' own language.
+﻿// RawCliDialectTest.cs — the low-level API in the terminal transports' own language.
 //
 // CallCommandSync takes a command in the connection's format and sends it unchanged. On Api/ApiSsl that is
 // API sentence words (CrudTest's *_With_LowLevel_API tests cover those); on the five CLI transports it is
@@ -40,9 +40,10 @@ namespace tik4net.integrationtests
         {
             EnsureRawDialectIsCliText("CallCommandSync with CLI text");
 
-            int whole = RawConnection.CallCommandSync(":put [/interface print as-value]")
+            // The physical ports only: other legs add and remove interfaces between the two reads.
+            int whole = RawConnection.CallCommandSync(":put [/interface print as-value where type=\"ether\"]")
                                   .OfType<ITikReSentence>().Count();
-            int split = RawConnection.CallCommandSync(":put [/interface print", "as-value]")
+            int split = RawConnection.CallCommandSync(":put [/interface print", "as-value where type=\"ether\"]")
                                   .OfType<ITikReSentence>().Count();
 
             Assert.AreEqual(whole, split,

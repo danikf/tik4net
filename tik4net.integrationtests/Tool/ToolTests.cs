@@ -11,6 +11,7 @@ using tik4net.Objects.Tool;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class ToolTests : TestBase
     {
         #region ping
@@ -49,7 +50,7 @@ namespace tik4net.integrationtests
                 Connection.CreateParameter("count", "1"),
                 Connection.CreateParameter("size", "64"));
 
-            Thread.Sleep(2 * 1000);
+            WaitUntil(() => responseList.Count > 0 || responseException != null, TimeSpan.FromSeconds(2));
 
             // Carry the exception itself: a bare "Assert.IsNull failed" once left a MAC-Telnet failure with
             // nothing to diagnose it by.
@@ -89,7 +90,10 @@ namespace tik4net.integrationtests
         {
             EnsureCapability(TikConnectionCapability.Listen, "async ping");
             const string HOST = "127.0.0.1";
-            const int COUNT = 20;      // must outlast the observation window, so a short ping cannot pass by ending
+            const int COUNT = 12;      // must outlast the observation window, so a short ping cannot pass by ending
+            // The defect stopped the stream at 5 rows, ~4 s in (P2.45). Seven rows are past that cut-off; the old
+            // fixed windows (5 s + 5 s) are the budget, so a stream that stops still fails the same assertions.
+            const int PastTheCutOff = 7;
 
             var responseList = new List<ToolPing>();
             Exception responseException = null;
@@ -102,11 +106,12 @@ namespace tik4net.integrationtests
 
             try
             {
-                Thread.Sleep(5 * 1000);
+                WaitUntil(() => { lock (responseList) return responseList.Count >= 5; }, TimeSpan.FromSeconds(5));
                 int afterFive;
                 lock (responseList) afterFive = responseList.Count;
 
-                Thread.Sleep(5 * 1000);
+                WaitUntil(() => { lock (responseList) return responseList.Count >= Math.Max(afterFive + 1, PastTheCutOff); },
+                          TimeSpan.FromSeconds(5));
                 int afterTen;
                 List<ToolPing> snapshot;
                 lock (responseList) { afterTen = responseList.Count; snapshot = responseList.ToList(); }
@@ -127,7 +132,7 @@ namespace tik4net.integrationtests
                     // REST delivers the whole ping at once when it ends, so "did it stop dead?" cannot be asked
                     // of the first ten seconds — but the property the test exists for still can: every reply
                     // must arrive. Waiting past the ping's own duration is the REST spelling of the same check.
-                    Thread.Sleep((COUNT - 10 + 5) * 1000);
+                    WaitUntil(() => { lock (responseList) return responseList.Count >= COUNT; }, TimeSpan.FromSeconds(COUNT + 5));
                     lock (responseList) snapshot = responseList.ToList();
                     Assert.AreEqual(COUNT, snapshot.Count,
                         $"the ping delivered {snapshot.Count} of {COUNT} replies (see TestBase.DeliversMonitorRowsLive)");
@@ -164,7 +169,8 @@ namespace tik4net.integrationtests
                 Connection.CreateParameter("count", MAX_CNT.ToString()),
                 Connection.CreateParameter("size", "64"));
 
-            Thread.Sleep(2 * 1000);
+            // Close mid-ping: once it answers (the old fixed 2 s is the budget).
+            WaitUntil(() => responseList.Count > 0 || responseException != null, TimeSpan.FromSeconds(2));
             Connection.Close();
             Thread.Sleep(1500);
 

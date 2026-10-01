@@ -21,6 +21,7 @@ namespace tik4net.integrationtests
     /// </para>
     /// </summary>
     [TestClass]
+    [SafeInParallelLegs]
     public class FirewallMangleSaveListDifferencesTest : TestBase
     {
         private string _chain;

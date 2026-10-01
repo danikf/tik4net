@@ -18,7 +18,7 @@ namespace tik4net.integrationtests.Tool
     [TestClass]
     public class TrafficGeneratorIpV6ListTest : TestBase
     {
-        private const string TemplateName = "tik4net-test-tmpl";
+        private static readonly string TemplateName = TestNames.Unique("tik4net-test-tmpl");
 
         // Documentation prefixes (RFC 3849), which nothing in this lab routes.
         private const string Prefix = "2001:db8:1::/64";

@@ -38,6 +38,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        [TestLock("/ppp/secret")]
         public void ExecuteNonQuery_Create_New_PPP_Object_Will_Not_Fail()
         {
             const string TEST_NAME = "test-name";
@@ -54,6 +55,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        [TestLock("/ppp/secret")]
         public void ExecuteNonQuery_Disable_PPP_Object_Will_Not_Fail()
         {
             const string TEST_NAME = "test-name";
@@ -74,6 +76,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        [TestLock("testAddress")]
         public void ExecuteNonQuery_Add_And_Remove_IPAddress_Will_Not_Fail()
         {
             string IP = TestConstants.Address;
@@ -96,6 +99,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        [TestLock("testInterface-comment")]
         public void ExecuteNonQuery_Update_Interface_Via_Name_In_Id_Will_Not_Fail()
         {
             string INTERFACE = TestConstants.Interface;
@@ -132,6 +136,7 @@ namespace tik4net.integrationtests
 
         [Ignore("REBOOTS the router — cannot run inside a suite pass. Run by hand.")]
         [TestMethod]
+        [TestLock(TestLockScope.Router)]
         public void AsyncExecuteClosed_AfterReboot_AndNextCommandThrowsException()
         {
             var torchAsyncCmd = Connection.LoadWithCallback<Objects.Tool.ToolTorch>(t => {; },
@@ -158,6 +163,7 @@ namespace tik4net.integrationtests
         [Ignore("REBOOTS the router — cannot run inside a suite pass. Run by hand.")]
         [TestMethod]
         [ExpectedException(typeof(TikCommandException))]
+        [TestLock(TestLockScope.Router)]
         public void AsyncExecuteWithDurationExecuteThrowsException_AfterReboot()
         {
             var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
@@ -182,6 +188,7 @@ namespace tik4net.integrationtests
 
         [Ignore("REBOOTS the router — cannot run inside a suite pass. Run by hand.")]
         [TestMethod]
+        [TestLock(TestLockScope.Router)]
         public void AsyncExecuteWithDurationExecuteReturnsCorrectReason_AfterReboot()
         {
             var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
@@ -231,15 +238,18 @@ namespace tik4net.integrationtests
             EnsureCapability(TikConnectionCapability.Listen, "ExecuteWithCallback");
             bool onDoneCallbackCalled = false;
 
+            int rows = 0;
             var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
-            torchCommand.ExecuteWithCallback(response => { }, error => { }, () => { onDoneCallbackCalled = true; });
-            Thread.Sleep(3000);
+            torchCommand.ExecuteWithCallback(response => Interlocked.Increment(ref rows), error => { }, () => { onDoneCallbackCalled = true; });
+            // Running before it is cancelled: a row, or done already (a transport that bounds the monitor).
+            WaitUntil(() => Volatile.Read(ref rows) > 0 || onDoneCallbackCalled, TimeSpan.FromSeconds(3));
             torchCommand.CancelAndJoin();
 
             Assert.IsTrue(onDoneCallbackCalled);
         }
 
         [TestMethod]
+        [TestLock("/tool/profile")]   // one profiler per router: a second one is refused "already running"
         public void ExecuteAsync_StreamsMonitorRows()
         {
             // Verifies a streaming monitor actually delivers decoded rows (not just that onDone fires).
@@ -257,7 +267,7 @@ namespace tik4net.integrationtests
                 row => Interlocked.Increment(ref rowCount),
                 trap => error = trap,
                 () => doneCalled = true);
-            Thread.Sleep(3000);
+            WaitUntil(() => Volatile.Read(ref rowCount) > 0 || doneCalled || error != null, TimeSpan.FromSeconds(3));
             profile.CancelAndJoin();
 
             Assert.IsNull(error, $"monitor reported an error: {error?.Message}");

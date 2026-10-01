@@ -1,4 +1,4 @@
-// MacLayerLargeReadProbe — can the MAC-layer CLI carriers read a large table inside the receive deadline?
+﻿// MacLayerLargeReadProbe — can the MAC-layer CLI carriers read a large table inside the receive deadline?
 //
 // Measured before paged reads existed, a single-command read of /queue/tree (681 rows, ~316 KB over two
 // queries) and /ip/firewall/mangle (1672 rows) moved 7-15 KB/s over MacTelnet and WinboxCliMac and hit the 30 s
@@ -22,7 +22,8 @@ namespace tik4net.integrationtests
     // Gated on TIK_PROBE=1 rather than [Ignore], so it can be run from the command line without editing the
     // file (MSTest skips [Ignore] even under --filter) and a normal suite run still never pays for it.
     [TestClass]
-    public class MacLayerLargeReadProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class MacLayerLargeReadProbe : LockedTestBase
     {
         private static void Log(string line)
         {

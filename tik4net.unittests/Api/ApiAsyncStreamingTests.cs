@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -21,6 +21,7 @@ namespace tik4net.unittests.Api
     /// end would satisfy every other assertion here.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class ApiAsyncStreamingTests
     {
         private const string TestUser = "admin";

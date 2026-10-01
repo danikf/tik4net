@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -27,7 +27,8 @@ namespace tik4net.integrationtests
     /// </para>
     /// </remarks>
     [TestClass]
-    public class CrossVersionCopyProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class CrossVersionCopyProbe : LockedTestBase
     {
         private static readonly string[] Addresses = { "192.0.2.10", "192.0.2.0/28", "198.51.100.7", "203.0.113.0/24" };
 

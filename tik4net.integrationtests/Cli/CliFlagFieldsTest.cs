@@ -1,4 +1,4 @@
-// CliFlagFieldsTest.cs — every transport reports the same flags as the binary API.
+﻿// CliFlagFieldsTest.cs — every transport reports the same flags as the binary API.
 //
 // RouterOS before 7.20 leaves every flag field (disabled, dynamic, running, invalid, active, …) out of the CLI's
 // 'print as-value'; the CLI transports ask for them by name there (TikSpecialProperties.CliFlags). A flag that
@@ -18,7 +18,10 @@ using tik4net.Objects.Ip;
 namespace tik4net.integrationtests.Cli
 {
     [TestClass]
-    public class CliFlagFieldsTest
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.AnyRouter)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class CliFlagFieldsTest : LockedTestBase
     {
         [DataTestMethod]
         [DataRow(TikConnectionType.Telnet)]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -20,6 +20,7 @@ namespace tik4net.unittests.Objects
     /// INPUT format was confirmed by filtering a query on a supplied date. See <see cref="TikDateTimeHelper"/>.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class TypeFidelityTests
     {
         [TikEntity("/test/typed-entity")]

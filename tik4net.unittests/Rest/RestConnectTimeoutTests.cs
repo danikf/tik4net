@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -22,6 +22,7 @@ namespace tik4net.unittests.Rest
     /// whether or not any timeout is applied. The failure mode being pinned is a wait that does not end.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class RestConnectTimeoutTests
     {
         private const int ShortTimeoutMs = 1000;

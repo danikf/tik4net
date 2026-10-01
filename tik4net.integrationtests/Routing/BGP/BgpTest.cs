@@ -8,6 +8,7 @@ using tik4net.Objects.Routing.Bgp;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class BgpTest: TestBase
     {
         [TestMethod]
@@ -37,6 +38,7 @@ namespace tik4net.integrationtests
         /// name. So <c>peer</c> is either the API's or absent, and every other field must agree.
         /// </remarks>
         [TestMethod]
+        [TestCategory(TestCategories.AnyRouter)]
         public void AdvertisementsMatchTheBinaryApi()
         {
             SkipIfWinboxNativeCannot("/routing/bgp/advertisements", () =>

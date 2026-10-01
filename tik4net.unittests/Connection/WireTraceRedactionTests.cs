@@ -1,4 +1,4 @@
-// Nullable-enabled on its own: the test project as a whole is not (see the note in
+﻿// Nullable-enabled on its own: the test project as a whole is not (see the note in
 // Directory.Build.props), but this file implements ITikWireTraceSink, whose signature is annotated.
 #nullable enable
 
@@ -28,6 +28,7 @@ namespace tik4net.unittests.Connection
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // TikWireTrace.Capture installs a process-wide sink: a test running beside it writes into it
     public class WireTraceRedactionTests
     {
         private const string Password = "hunter2-NotInTheTrace";

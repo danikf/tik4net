@@ -1,4 +1,4 @@
-// WinboxInstanceProbeTest.cs — locate the handler/command that returns real interface
+﻿// WinboxInstanceProbeTest.cs — locate the handler/command that returns real interface
 // INSTANCES (ether1, lo), not the type registry. [20,0] cmd=3 proved to be the interface
 // TYPE registry (key 0x2 str[] = 47 type names). Decisive method: byte-scan responses for
 // the ASCII "ether1" across handlers/commands/modes.
@@ -13,7 +13,8 @@ namespace tik4net.integrationtests
 {
     [Ignore("Exploratory RE probes (read-only sweeps) — manual only, hits a live router. Run via --filter.")]
     [TestClass]
-    public class WinboxInstanceProbeTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxInstanceProbeTest : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -20,6 +20,7 @@ namespace tik4net.integrationtests
     /// part of this path that stays a difference with a reason.</para>
     /// </remarks>
     [TestClass]
+    [TestLock("/system/health")]
     public class SystemHealthTest : TestBase
     {
         [TestMethod]

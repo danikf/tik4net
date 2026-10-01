@@ -79,7 +79,9 @@ namespace tik4net.integrationtests
     // MSTest skips [Ignore] even under --filter, so comment it out to run these.
     [Ignore("Ad-hoc MAC-session-interference probe against a live router — comment out to run.")]
     [TestClass]
-    public class MacSiblingSessionProbeTest
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class MacSiblingSessionProbeTest : LockedTestBase
     {
         private const int DefaultCycles = 3;
 

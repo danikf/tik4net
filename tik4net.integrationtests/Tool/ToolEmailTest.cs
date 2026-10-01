@@ -1,10 +1,11 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Tool;
 
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [TestLock("/tool/e-mail")]
     public class ToolEmailTest : TestBase
     {
         // Singleton — LoadSingle must not throw and must return a non-null result.

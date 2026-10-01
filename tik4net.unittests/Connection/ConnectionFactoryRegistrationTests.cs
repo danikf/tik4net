@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net;
@@ -16,6 +16,7 @@ namespace tik4net.unittests.Connection
     /// were red on the old code: it stored the factory and returned, and the built-in type kept answering.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class ConnectionFactoryRegistrationTests
     {
         [TestMethod]

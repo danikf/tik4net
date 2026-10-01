@@ -1,4 +1,4 @@
-// WinboxCliProtocolTest.cs — WinBox CLI smoke tests via ITikConnection.
+﻿// WinboxCliProtocolTest.cs — WinBox CLI smoke tests via ITikConnection.
 // Drives the production WinboxCliConnection (TCP 8291, mepty terminal) through the CLI Layer.
 // Full CRUD parity is verified by the TestBase-based suite via winboxcli.runsettings.
 
@@ -12,7 +12,10 @@ using tik4net.WinboxCli;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class WinboxCliProtocolTest
+    // Writes the comment of the test interface, as InterfaceTest and TikCommandTest do in the transport legs.
+    [TestLock("testInterface-comment")]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxCliProtocolTest : LockedTestBase
     {
         private static WinboxCliConnection OpenWinboxConnection()
         {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -60,6 +60,7 @@ namespace tik4net.integrationtests
         // ── Reads ─────────────────────────────────────────────────────────────
 
         [TestMethod]
+        [TestLock(TestLockScope.Router)]
         public async Task ExecuteListAsync_ReturnsWhatExecuteListReturns()
         {
             EnsureCapability(TikConnectionCapability.AsyncCommands, "Execute*Async");

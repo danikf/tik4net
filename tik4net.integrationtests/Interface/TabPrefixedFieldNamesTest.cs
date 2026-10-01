@@ -1,4 +1,4 @@
-// TabPrefixedFieldNamesTest.cs — fields RouterOS names after the WinBox tab they sit on.
+﻿// TabPrefixedFieldNamesTest.cs — fields RouterOS names after the WinBox tab they sit on.
 //
 // The .jg puts three interface fields on a tab called 'Loop Protect' and labels them 'Send Interval',
 // 'Disable Time' and 'Status'; RouterOS calls them loop-protect-send-interval, loop-protect-disable-time
@@ -21,10 +21,12 @@ using tik4net;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    // The fixture VLAN has a fixed id on the second port; RouterOS refuses a second one with that id there.
+    [TestLock("testSecondInterface-vlan")]
     public class TabPrefixedFieldNamesTest : TestBase
     {
-        private const string BridgeName = "tik4net-test-tabprefix-br";
-        private const string VlanName = "tik4net-test-tabprefix-vlan";
+        private static readonly string BridgeName = TestNames.Unique("tik4net-test-tabprefix-br");
+        private static readonly string VlanName = TestNames.Unique("tik4net-test-tabprefix-vlan");
 
         private static ITikConnection OpenSideApi()
             => LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api);

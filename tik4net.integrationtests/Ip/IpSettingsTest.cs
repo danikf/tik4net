@@ -1,10 +1,11 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
 
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [TestLock("/ip/settings")]
     public class IpSettingsTest : TestBase
     {
         [TestMethod]

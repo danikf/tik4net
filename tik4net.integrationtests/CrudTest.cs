@@ -9,6 +9,7 @@ using tik4net.Objects;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [TestLock("testAddress")]
     public class CrudTest: TestBase
     {
         #region Helper methods

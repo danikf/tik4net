@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -16,6 +16,7 @@ namespace tik4net.integrationtests
     /// here is on a field that lives in a deck pane, so it fails on any transport that loses the kind.
     /// </remarks>
     [TestClass]
+    [TestCategory(TestCategories.AnyRouter)]
     public class QueueTypeTest : TestBase
     {
         [TestMethod]

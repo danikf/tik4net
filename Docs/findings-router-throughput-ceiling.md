@@ -182,11 +182,34 @@ and monitor-carrying connections all stall, at rates that do not separate.
 
 - **Nothing to fix in the multiplexer.**
 - **Pace bulk work; do not parallelize it.** More connections reach the ceiling sooner and then
-  queue behind each other. A pause lets the budget refill.
+  queue behind each other. A pause lets the budget refill. A few independent streams of mixed work (the
+  suite's legs, below) are a different load: up to four of them overlap well.
 - **The per-request timeout has to survive a multi-second stall.** 30 s is not generous here; it was
   exceeded during this investigation.
 - `WinboxTcpTransport` sets `NoDelay` (as `TelnetClient` always has). An A/B over six runs and ~950
   round trips found **no significant difference** — protocol hygiene, not a fix for any of this.
+
+## The integration suite in parallel legs
+
+The suite's legs (one per transport) can run as parallel processes (`Tools/probes/run-integration-tests.ps1`).
+Measured on the lab CHR (2 vCPU, RouterOS 7.24) on 2026-09-30, the default router's 12 legs:
+
+| Legs at once | Wall | Tests running, summed over legs | Waiting for test locks |
+|---|---|---|---|
+| 1 (sequential, from the 2026-09-20 TRX minus the leg-independent classes) | ~68 min | ~63 min | — |
+| 2 | 53 min | 78 min | 8 min |
+| 4 | 34 min | 88 min | 29 min |
+| 12 | ~36 min | every leg 4–10× slower than alone | — |
+
+Up to four legs the ceiling costs little — the tests run ~12 % slower than alone, and wall time falls with the
+number of legs. Past that it is the ceiling again: at 12 legs an API leg took ~10× its time alone, CLI reads came
+back cut short (the answer ends without the router's record count), and the run was no faster than at 4.
+
+**Two MAC-layer sessions at once are a load of their own.** With two MAC transports running together the router
+drops datagrams of its own output: MAC-Telnet refuses the answer ("the router ran a backlog past this client"),
+WinBox-MAC logins fail. It appeared in every parallel run that overlapped MAC legs and in no sequential MAC-Telnet
+run since early September. Each session has its own UDP port, so the datagrams are not being delivered to the
+wrong session; the run script keeps the MAC legs in one lane.
 
 ## Reproducing
 

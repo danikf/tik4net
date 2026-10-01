@@ -15,7 +15,11 @@ using System;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class WinboxMacProtocolTest
+    // Writes the comment of the test interface, as InterfaceTest and TikCommandTest do in the transport legs.
+    [TestLock("testInterface-comment")]
+    [TestLock(TestLockAttribute.MacLayer)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxMacProtocolTest : LockedTestBase
     {
         // Enable MAC Winbox on the router before tests run.
         [ClassInitialize]

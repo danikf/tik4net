@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -7,6 +7,7 @@ using tik4net.Objects.System;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [TestLock(TestLockScope.Router)]
     public class FileTest : TestBase
     {
         // 1) List — LoadAll must not throw and must return a (possibly empty) list.

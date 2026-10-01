@@ -30,10 +30,10 @@ namespace tik4net.integrationtests
                 var result = new List<WirelessAccessList>();
                 bool failed = false;
                 var cmd = Connection.LoadWithCallback<WirelessAccessList>(
-                    (item) => { result.Add(item); },
+                    (item) => { lock (result) result.Add(item); },
                     (ex) => { failed = true; }
                 );
-                Thread.Sleep(1000);
+                WaitUntil(() => { lock (result) { if (result.Count > 0) return true; } return failed; }, TimeSpan.FromSeconds(1));
                 cmd.CancelAndJoin();
 
                 Assert.IsFalse(failed);

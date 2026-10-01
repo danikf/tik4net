@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -22,6 +22,7 @@ namespace tik4net.unittests.WinboxCli
     /// (findings-winbox.md §20); between frames that pause gets the full receive deadline, mid-frame it got 5 s.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class WinboxCliMidFrameTests
     {
         private const string Command = ":put \"x\"";

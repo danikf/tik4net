@@ -9,6 +9,7 @@ using tik4net.Objects.Ppp;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [TestLock("/ppp/secret")]
     public class PppTest : TestBase
     {
         [TestMethod]

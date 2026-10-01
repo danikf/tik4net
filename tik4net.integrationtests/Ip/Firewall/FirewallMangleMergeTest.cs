@@ -24,6 +24,7 @@ namespace tik4net.integrationtests
     /// </para>
     /// </summary>
     [TestClass]
+    [SafeInParallelLegs]
     public class FirewallMangleMergeTest : TestBase
     {
         private string _prefix;

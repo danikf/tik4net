@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -28,6 +28,7 @@ namespace tik4net.unittests.WinboxCli
     /// </para>
     /// </summary>
     [TestClass]
+    [DoNotParallelize]
     public class WinboxCliSessionClosedTests
     {
         // Short enough that the "spends the whole timeout" case is a fast test, long enough that the

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -19,6 +19,7 @@ namespace tik4net.unittests.MacTelnet
     /// needs a router or even a network.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class MacLayerRetransmitTests
     {
         private LoopbackMacTransport _client;

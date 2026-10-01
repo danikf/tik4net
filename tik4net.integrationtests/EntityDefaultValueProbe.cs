@@ -1,4 +1,4 @@
-// EntityDefaultValueProbe.cs — probe: which fields carrying a DefaultValue does the router leave out of a row?
+﻿// EntityDefaultValueProbe.cs — probe: which fields carrying a DefaultValue does the router leave out of a row?
 // Audit for the 5.0 entity value model (TikValue<T>), before the mass conversion.
 //
 // WHY THIS EXISTS. In 4.x a field the router did not print read as the property's DefaultValue (or the type
@@ -42,7 +42,8 @@ namespace tik4net.integrationtests
 {
     [Ignore("DefaultValue audit — reads every entity menu of a live router over the API. Remove the attribute to run.")]
     [TestClass]
-    public class EntityDefaultValueProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class EntityDefaultValueProbe : LockedTestBase
     {
         private static readonly HashSet<string> VerbPaths = new HashSet<string>(StringComparer.Ordinal)
         {

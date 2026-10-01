@@ -26,7 +26,7 @@ namespace tik4net.integrationtests.Queue
     [TestClass]
     public class QueueRatePairTest : TestBase
     {
-        private const string QueueName = "tik4net-test-rate-pair";
+        private static readonly string QueueName = TestNames.Unique("tik4net-test-rate-pair");
 
         private static ITikConnection OpenSideApi()
             => LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api);

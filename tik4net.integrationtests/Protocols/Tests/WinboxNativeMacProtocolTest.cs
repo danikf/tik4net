@@ -1,4 +1,4 @@
-// WinboxNativeMacProtocolTest.cs — WinBox native-M2 CRUD over the MAC layer, via ITikConnection.
+﻿// WinboxNativeMacProtocolTest.cs — WinBox native-M2 CRUD over the MAC layer, via ITikConnection.
 // Drives the production WinboxNativeMacConnection (UDP 20561, client_type=0x0f90, structured M2 —
 // NOT a terminal) through the shared native-M2 engine (.jg resolver, encode/decode, Safe Mode).
 // Mirrors WinboxCliMacProtocolTest; sets RouterMac from App.config to bypass MNDP discovery.
@@ -13,7 +13,11 @@ using tik4net.WinboxNativeMac;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class WinboxNativeMacProtocolTest
+    // Writes the comment of the test interface, as InterfaceTest and TikCommandTest do in the transport legs.
+    [TestLock("testInterface-comment")]
+    [TestLock(TestLockAttribute.MacLayer)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxNativeMacProtocolTest : LockedTestBase
     {
         // Enable the MAC Winbox server on the router before tests run (separate from the mac-telnet server).
         [ClassInitialize]
@@ -104,6 +108,7 @@ namespace tik4net.integrationtests
 
         // ── 3. Safe Mode take/release over the MAC layer (handler [17]) ────────
         [TestMethod]
+        [TestLock(TestLockScope.Router)]
         public void WinboxNativeMac_SafeMode_TakeRelease_PersistsChange()
         {
             var (host, user, pass) = Cfg();

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -17,6 +17,7 @@ namespace tik4net.unittests.Cli
     /// transport that got slower.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class AsyncSignalTests
     {
         [TestMethod]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.CapsMan;
@@ -6,6 +6,7 @@ using tik4net.Objects.CapsMan;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class CapsManInterfaceTest : TestBase
     {
         // /caps-man/interface lists the managed CAP radio interfaces on the CAPsMAN controller.

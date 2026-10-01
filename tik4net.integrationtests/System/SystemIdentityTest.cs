@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.System;
@@ -28,6 +28,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        [TestLock(TestLockScope.Router)]
         public void SaveSystemIdentity_RoundTrip_WillWork()
         {
             EnsureCommandAvailable("/system/identity");

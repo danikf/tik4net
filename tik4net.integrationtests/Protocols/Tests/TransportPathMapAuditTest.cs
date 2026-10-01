@@ -1,4 +1,4 @@
-// TransportPathMapAuditTest.cs — diagnostic: does the transport under test reach everything the binary
+﻿// TransportPathMapAuditTest.cs — diagnostic: does the transport under test reach everything the binary
 // API reaches, and does it come back with the SAME table?
 //
 // Every transport promises the same contract over a different wire, and each has its own way of getting a
@@ -33,7 +33,10 @@ using tik4net.Objects;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class TransportPathMapAuditTest
+    // Builds fixtures on the second port and sweeps interface-list members it cannot tell from other tests'.
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class TransportPathMapAuditTest : LockedTestBase
     {
         // Paths whose `print` is not a plain table read, and would measure the harness rather than the map:
         // action/monitor windows that only produce rows inside a monitor cycle, and reads big enough to

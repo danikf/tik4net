@@ -8,20 +8,18 @@ using tik4net.Objects;   // Save/Delete O/R mapper extensions used by SaveTracke
 
 namespace tik4net.integrationtests
 {
-    public class TestBase
+    public class TestBase : LockedTestBase
     {
         private ITikConnection _connection;
         private Version _routerOsVersion;
 
         // Process-wide connection shared across all tests that opt into reuse (see ReuseConnectionAcrossTests).
-        // The suite runs single-threaded (no [Parallelize]), so one cached connection is safe. Disposed at
+        // A leg runs its tests one at a time (legs run in parallel as separate processes), so one cached
+        // connection per process is safe. Disposed at
         // assembly cleanup (TestAssemblyInit), or dropped/re-opened when a test fails or closes it.
         private static ITikConnection _sharedConnection;
         private static TikConnectionType _sharedConnectionType;
         private static readonly object _sharedConnectionLock = new object();
-
-        /// <summary>MSTest injects this for access to runsettings parameters.</summary>
-        public TestContext TestContext { get; set; }
 
         protected ITikConnection Connection
         {
@@ -555,8 +553,16 @@ namespace tik4net.integrationtests
         /// satisfies the condition still fails the test.
         /// </remarks>
         protected static bool WaitUntil(Func<bool> condition, int timeoutSeconds = 20, int pollMs = 250)
+            => WaitUntil(condition, TimeSpan.FromSeconds(timeoutSeconds), pollMs);
+
+        /// <summary>
+        /// <see cref="WaitUntil(Func{bool}, int, int)"/> with a finer budget: the drop-in for a fixed
+        /// <c>Thread.Sleep(n)</c> that waited for something to arrive. With the old sleep as the budget it is never
+        /// slower, and a test that reaches its assertion without the condition asserts exactly what it did before.
+        /// </summary>
+        protected static bool WaitUntil(Func<bool> condition, TimeSpan timeout, int pollMs = 100)
         {
-            DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+            DateTime deadline = DateTime.UtcNow + timeout;
             while (true)
             {
                 if (condition()) return true;

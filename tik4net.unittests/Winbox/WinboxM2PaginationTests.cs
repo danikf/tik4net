@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,6 +25,7 @@ namespace tik4net.unittests.Winbox
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class WinboxM2PaginationTests
     {
         private const string Host = "127.0.0.1";

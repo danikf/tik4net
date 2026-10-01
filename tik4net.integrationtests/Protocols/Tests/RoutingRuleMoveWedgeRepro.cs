@@ -1,4 +1,4 @@
-// RoutingRuleMoveWedgeRepro.cs — the minimal reproduction of an OPEN defect: a /routing/rule move,
+﻿// RoutingRuleMoveWedgeRepro.cs — the minimal reproduction of an OPEN defect: a /routing/rule move,
 // issued over a CLI transport immediately after both rows were added over a DIFFERENT connection,
 // stops RouterOS 7.24's routing process answering its management interface.
 //
@@ -22,7 +22,9 @@ using System.Linq;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class RoutingRuleMoveWedgeRepro
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class RoutingRuleMoveWedgeRepro : LockedTestBase
     {
         private const string Path = "/routing/rule";
 

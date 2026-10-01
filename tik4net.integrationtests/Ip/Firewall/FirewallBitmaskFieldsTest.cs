@@ -24,7 +24,7 @@ namespace tik4net.integrationtests.Ip.Firewall
     [TestClass]
     public class FirewallBitmaskFieldsTest : TestBase
     {
-        private const string RuleComment = "tik4net-test-bitmask-rule";
+        private static readonly string RuleComment = TestNames.Unique("tik4net-test-bitmask-rule");
 
         private static ITikConnection OpenSideApi()
             => LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api);

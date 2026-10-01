@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
@@ -20,6 +20,7 @@ namespace tik4net.integrationtests
         // default has to survive the round trip on either: an empty list would read back as the default whatever
         // name the router used, and prove nothing. 0.0.0.0/0 allows everyone, so ftp stays reachable meanwhile.
         [TestMethod]
+        [TestLock("/ip/service")]
         public void TheAccessListRoundTripsUnderTheRoutersOwnName()
         {
             EnsureCommandAvailable("/ip/service");

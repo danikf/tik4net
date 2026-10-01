@@ -1,4 +1,4 @@
-// MacOnlyAddressingTest.cs — can the MAC transports reach the router with no IP address at all?
+﻿// MacOnlyAddressingTest.cs — can the MAC transports reach the router with no IP address at all?
 //
 // That is what they exist for: a freshly reset device, or one whose addressing you are about to lock
 // yourself out of. Until this test the library could not do it — every MAC session sent its DATA and ACK
@@ -7,9 +7,9 @@
 // broadcast, then latch onto whatever address the router's first reply comes from, if any.
 //
 // Since TestBase.LabAddress addresses the MAC transports by MAC alone, a mac* run exercises this path
-// throughout. This class earns its place on the OTHER runsettings: under api/rest/telnet/... it is the
-// only thing that opens a MAC transport with no host, so the path stays covered by every run rather than
-// by the three that select a MAC transport.
+// throughout. This class opens the MAC transports itself, whatever the leg, so it runs once per run in the
+// independent leg: the path stays covered by every run rather than only by the three that select a MAC
+// transport.
 //
 // What this test can and cannot establish against the lab router, which HAS an IP:
 //
@@ -27,6 +27,8 @@ using tik4net;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [TestCategory(TestCategories.LegIndependent)]
+    [TestLock(TestLockAttribute.MacLayer)]
     public class MacOnlyAddressingTest : TestBase
     {
         /// <summary>

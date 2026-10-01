@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -19,6 +19,7 @@ namespace tik4net.integrationtests
     /// table holds ~1700 unrelated rules). Teardown sweeps by chain, because the writers create rules themselves.
     /// </remarks>
     [TestClass]
+    [SafeInParallelLegs]
     public class ListWriterOrderTest : TestBase
     {
         private string _chain;

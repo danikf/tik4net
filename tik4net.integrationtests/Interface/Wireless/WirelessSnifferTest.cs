@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface.Wireless;
@@ -17,6 +17,7 @@ namespace tik4net.integrationtests
     /// That is the failure the path-map audit exists to catch — a read that looks like an answer.
     /// </remarks>
     [TestClass]
+    [SafeInParallelLegs]
     public class WirelessSnifferTest : TestBase
     {
         [TestMethod]

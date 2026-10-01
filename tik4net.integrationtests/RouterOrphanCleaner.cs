@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -30,13 +30,6 @@ namespace tik4net.integrationtests
     /// </summary>
     internal static class RouterOrphanCleaner
     {
-        // Prefixes the suite stamps on every object it creates (on name or comment). On the dedicated test
-        // router nothing else carries these, so a prefix match is a safe "this is ours".
-        private static readonly string[] TestMarkers =
-        {
-            "t4n", "test-", "TEST", "tik4net-", "User for TEST",
-        };
-
         // Collision-prone menus, ordered so a referencing row is removed before the row it references
         // (ipsec identity/policy before peer/proposal; list members before the list; bridge vlans before the
         // bridge). A remove that still fails on a dependency is swallowed and simply retried-by-cascade when
@@ -71,11 +64,70 @@ namespace tik4net.integrationtests
         };
 
         /// <summary>
-        /// Opens an API connection and removes every test-marked row across <see cref="Paths"/>. Silent and
-        /// non-fatal: if the API cannot be reached, or a menu/row cannot be removed, it is skipped — the goal
-        /// is to clear conflicts, never to fail the run before it starts.
+        /// Takes this run's lease (<see cref="RunLease"/>) and removes the test-marked rows across <see cref="Paths"/>
+        /// that no running test can own. Silent and non-fatal: if the API cannot be reached, or a menu/row cannot be
+        /// removed, it is skipped — the goal is to clear conflicts, never to fail the run before it starts.
         /// </summary>
-        internal static void PurgeTestResidue()
+        /// <remarks>
+        /// A row carrying a run tag (<see cref="TestNames.Unique"/>) is removed when that run has ended. A row
+        /// without one cannot be attributed, so it is removed only when no other run against this router is alive —
+        /// with legs running in parallel, the other legs' fixed-name rows are live test state, and deleting them
+        /// mid-test is exactly the collision this sweep exists to prevent. The first leg to start sweeps them; the
+        /// sweep and the lease are taken under one lock, so two legs starting together cannot both think they are
+        /// alone.
+        /// </remarks>
+        internal static void PurgeTestResidue(string leg)
+        {
+            string host = LabConfig.Get("host");
+            using (FileLock.Acquire(LockSpec.Resource(host, "orphan-sweep"), "orphan sweep of " + leg))
+            {
+                RunLease.SweepDeadLeases();
+                bool alone = RunLease.OtherLiveRuns(host).Count == 0;
+                try
+                {
+                    int removed = Sweep(row => IsTestResidue(row) && OwnerHasEnded(row, alone), null);
+                    if (removed > 0)
+                        Console.WriteLine($"[RouterOrphanCleaner] swept {removed} orphaned test row(s) before the run"
+                                          + (alone ? "." : " (tagged rows of ended runs only: other runs are live)."));
+                }
+                finally
+                {
+                    RunLease.Take(leg, host);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes the rows this run created under its own tag and did not delete, and names each one: a row left
+        /// behind is a defect of the test that created it, which is where the fix belongs.
+        /// </summary>
+        internal static void PurgeOwnResidue()
+        {
+            var leftovers = new List<string>();
+            int removed = Sweep(row => RunTagOf(row) == RunLease.Tag, leftovers);
+            if (removed > 0)
+                Console.WriteLine($"[RouterOrphanCleaner] this run left {removed} row(s) behind — fix the test that "
+                                  + "created them: " + string.Join(", ", leftovers));
+        }
+
+        private static bool OwnerHasEnded(ITikReSentence row, bool alone)
+        {
+            string tag = RunTagOf(row);
+            return tag == null ? alone : !RunLease.IsAlive(tag);
+        }
+
+        private static string RunTagOf(ITikReSentence row)
+        {
+            foreach (string field in new[] { "name", "comment" })
+            {
+                var match = RunLease.TagPattern.Match(row.GetResponseFieldOrDefault(field, ""));
+                if (match.Success)
+                    return match.Groups[1].Value;
+            }
+            return null;
+        }
+
+        private static int Sweep(Func<ITikReSentence, bool> remove, List<string> removedNames)
         {
             string host = LabConfig.Get("host");
             string user = LabConfig.Get("user");
@@ -90,29 +142,27 @@ namespace tik4net.integrationtests
             catch
             {
                 // No API reachable — the transport under test will surface the real connection error itself.
-                return;
+                return 0;
             }
 
             int removed = 0;
             using (conn)
             {
                 foreach (string path in Paths)
-                    removed += PurgePath(conn, path);
+                    removed += PurgePath(conn, path, remove, removedNames);
             }
-
-            if (removed > 0)
-                Console.WriteLine($"[RouterOrphanCleaner] swept {removed} orphaned test row(s) before the run.");
+            return removed;
         }
 
-        private static int PurgePath(ITikConnection conn, string path)
+        private static int PurgePath(ITikConnection conn, string path, Func<ITikReSentence, bool> remove,
+                                     List<string> removedNames)
         {
-            List<string> ids;
+            List<ITikReSentence> rows;
             try
             {
-                ids = conn.CreateCommand(path + "/print").ExecuteList()
-                    .Where(IsTestResidue)
-                    .Select(s => s.GetResponseFieldOrDefault(".id", null))
-                    .Where(id => !string.IsNullOrEmpty(id))
+                rows = conn.CreateCommand(path + "/print").ExecuteList()
+                    .Where(remove)
+                    .Where(s => !string.IsNullOrEmpty(s.GetResponseFieldOrDefault(".id", null)))
                     .ToList();
             }
             catch
@@ -122,12 +172,14 @@ namespace tik4net.integrationtests
             }
 
             int removed = 0;
-            foreach (string id in ids)
+            foreach (var row in rows)
             {
                 try
                 {
-                    conn.CreateCommandAndParameters(path + "/remove", ".id", id).ExecuteNonQuery();
+                    conn.CreateCommandAndParameters(path + "/remove", ".id", row.GetResponseField(".id")).ExecuteNonQuery();
                     removed++;
+                    removedNames?.Add(path + " " + (row.GetResponseFieldOrDefault("name", null)
+                                                    ?? row.GetResponseFieldOrDefault("comment", "")));
                 }
                 catch
                 {
@@ -144,15 +196,7 @@ namespace tik4net.integrationtests
             return MatchesMarker(name) || MatchesMarker(comment) || IsGuid(comment);
         }
 
-        private static bool MatchesMarker(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return false;
-            foreach (string marker in TestMarkers)
-                if (value.StartsWith(marker, StringComparison.Ordinal))
-                    return true;
-            return false;
-        }
+        private static bool MatchesMarker(string value) => TestNames.IsTestRowName(value);
 
         // The O/R mapper tests stamp a bare GUID comment precisely so a leftover is attributable, which also
         // covers the name-less menus (interface-list member, bridge vlan, graphing) that have nothing else to

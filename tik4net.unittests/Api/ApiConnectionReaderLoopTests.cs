@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -23,6 +23,7 @@ namespace tik4net.unittests.Api
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class ApiConnectionReaderLoopTests
     {
         private const string TestUser = "admin";

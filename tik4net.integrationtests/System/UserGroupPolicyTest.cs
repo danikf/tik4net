@@ -24,7 +24,7 @@ namespace tik4net.integrationtests
     [TestClass]
     public class UserGroupPolicyTest : TestBase
     {
-        private const string GroupName = "tik4net-test-group";
+        private static readonly string GroupName = TestNames.Unique("tik4net-test-group");
 
         private static ITikConnection OpenSideApi()
             => LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api);

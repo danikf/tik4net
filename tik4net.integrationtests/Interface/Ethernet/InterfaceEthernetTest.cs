@@ -94,6 +94,7 @@ namespace tik4net.integrationtests
         /// back in a finally, over the API, so a failure here cannot leave the lab on the wrong setting.
         /// </remarks>
         [TestMethod]
+        [TestLock(TestLockScope.Router)]   // writes the one interface every leg talks over
         public void EthernetAutoNegotiationResolvesForAWrite()
         {
             var eth = Connection.LoadAll<InterfaceEthernet>().FirstOrDefault(e => e.Name == TestConstants.Interface);
@@ -143,6 +144,7 @@ namespace tik4net.integrationtests
         /// the name resolves — before the fix a native set threw WinboxFieldResolutionException.
         /// </remarks>
         [TestMethod]
+        [TestLock(TestLockScope.Router)]   // writes the one interface every leg talks over
         public void EthernetDisableRunningCheckReadsAndWritesLikeTheApi()
         {
             var viaTransport = Connection.LoadAll<InterfaceEthernet>().ToList();
@@ -183,6 +185,7 @@ namespace tik4net.integrationtests
         /// row already has, so the router is not changed.
         /// </remarks>
         [TestMethod]
+        [TestLock(TestLockScope.Router)]   // writes the one interface every leg talks over
         public void EthernetArpTimeoutReadsAndWritesLikeTheApi()
         {
             string host = LabConfig.Get("host");

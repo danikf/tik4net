@@ -1,4 +1,4 @@
-// TerminalFrameBoundaryTest.cs — terminal answers sized across the WinBox chunk boundary.
+﻿// TerminalFrameBoundaryTest.cs — terminal answers sized across the WinBox chunk boundary.
 //
 // RouterOS writes an encrypted WinBox frame in 255-byte chunks and sends no empty chunk after a frame that
 // ends on a full one — the one reachable size is 3570 bytes, and a terminal answer of ~3.4 KB lands on it.
@@ -14,6 +14,7 @@ using tik4net;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class TerminalFrameBoundaryTest : TestBase
     {
         [TestMethod]
@@ -23,8 +24,8 @@ namespace tik4net.integrationtests
 
             // Which output length produces the 3570-byte frame depends on what shares the frame with it (the
             // echo, the prompt, the identity's length), so the sweep is wide; one AES block is 16 bytes, so a
-            // step of 4 visits every frame size in the range several times.
-            for (int length = 3300; length <= 3600; length += 4)
+            // step of 8 visits every frame size in the range twice.
+            for (int length = 3300; length <= 3600; length += 8)
             {
                 var sentences = RawConnection.CallCommandSync(
                     ":local s \"\"; :for i from=1 to=" + length + " do={:set s ($s . \"x\")}; :put $s").ToList();

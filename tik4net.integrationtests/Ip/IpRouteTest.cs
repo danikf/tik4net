@@ -98,6 +98,7 @@ namespace tik4net.integrationtests
         /// <c>belongs-to</c>. See Docs/winbox-native-m2-protocol.md.</para>
         /// </remarks>
         [TestMethod]
+        [TestLock(TestLockScope.Router)]
         public void IpRoutesAgreeWithTheApi()
         {
             var viaTransport = Connection.LoadAll<IpRoute>().ToList();

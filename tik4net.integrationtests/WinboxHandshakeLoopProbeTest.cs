@@ -1,4 +1,4 @@
-// WinboxHandshakeLoopProbeTest.cs — what actually fails when the WinBox handshake fails? (P2.41)
+﻿// WinboxHandshakeLoopProbeTest.cs — what actually fails when the WinBox handshake fails? (P2.41)
 //
 // The WinBox EC-SRP5 handshake fails roughly once per few hundred opens, and until this probe every
 // layer above it reported the failure as "Cannot log in. Wrong username or password" — a diagnosis
@@ -46,7 +46,9 @@ namespace tik4net.integrationtests
     // MSTest skips [Ignore] even under --filter, so comment it out to run these.
     [Ignore("Ad-hoc handshake-reliability probe against a live router — comment out to run.")]
     [TestClass]
-    public class WinboxHandshakeLoopProbeTest
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxHandshakeLoopProbeTest : LockedTestBase
     {
         private const int DefaultCycles = 25;
 

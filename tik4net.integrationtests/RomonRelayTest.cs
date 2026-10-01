@@ -1,4 +1,4 @@
-// RomonRelayTest.cs — a router reached THROUGH another one over RoMON, written to and read back.
+﻿// RomonRelayTest.cs — a router reached THROUGH another one over RoMON, written to and read back.
 //
 // Two lab routers: the agent is the router the whole suite talks to (host/user/pass/routerMac in App.config),
 // the target is the second one (romonTarget* in App.config). Every test opens the target through the agent over
@@ -27,7 +27,11 @@ using tik4net.Objects.Tool.Romon;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class RomonRelayTest
+    [TestCategory(TestCategories.LegIndependent)]
+    // The relay writes to the RoMON target, takes Safe Mode there and counts the terminal sessions on it — a run
+    // against that router (-Router chr2) at the same time would move those counts and see these rows.
+    [TestLock(TestLockScope.Router, RouterHostKey = "romonTargetHost")]
+    public class RomonRelayTest : LockedTestBase
     {
         // Rows this class creates carry this list name, so a sweep can find what an interrupted run left.
         private const string TestList = "tik4net-romon";
@@ -56,9 +60,15 @@ namespace tik4net.integrationtests
                 Assert.Inconclusive("No romonTargetHost in App.config — nothing to check a relayed write against.");
         }
 
+        // Held from the first MAC-layer relay of a test to its end (LockedTestBase releases it): the agent is the
+        // suite's router, and a MAC leg must not talk to it on the MAC layer at the same time.
+        private IDisposable _macLayer;
+
         // The agent over the MAC layer is named by its MAC as well, so no MNDP lookup is needed.
-        private static TikConnectionSetup RelaySetup(TikConnectionType agentTransport)
+        private TikConnectionSetup RelaySetup(TikConnectionType agentTransport)
         {
+            if (agentTransport == TikConnectionType.MacTelnet && _macLayer == null)
+                _macLayer = LockResource(TestLockAttribute.MacLayer);
             var agentAddress = agentTransport == TikConnectionType.MacTelnet && !string.IsNullOrEmpty(AgentMac)
                 ? TikRouterAddress.FromHostAndMac(AgentHost, AgentMac)
                 : TikRouterAddress.FromHost(AgentHost);
@@ -68,7 +78,7 @@ namespace tik4net.integrationtests
             };
         }
 
-        private static ITikConnection OpenRelay(TikConnectionType agentTransport)
+        private ITikConnection OpenRelay(TikConnectionType agentTransport)
             => RelaySetup(agentTransport).Create(agentTransport);
 
         private static ITikConnection OpenTargetDirect()
@@ -270,6 +280,9 @@ namespace tik4net.integrationtests
         /// promptly; afterwards neither router keeps a session the attempts started, and a new open reaches the
         /// target.
         /// </summary>
+        /// <remarks>Counts the terminal sessions of the lab user on the agent, which every other leg on that router
+        /// opens and closes too — so the agent is locked as well as the target.</remarks>
+        [TestLock(TestLockScope.Router)]
         [DataTestMethod]
         [DataRow(TikConnectionType.Telnet)]
         [DataRow(TikConnectionType.Ssh)]

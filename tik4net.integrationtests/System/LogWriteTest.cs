@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -22,6 +22,7 @@ namespace tik4net.integrationtests
     /// </para>
     /// </remarks>
     [TestClass]
+    [SafeInParallelLegs]
     public class LogWriteTest : TestBase
     {
         [TestMethod]

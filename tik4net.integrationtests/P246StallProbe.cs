@@ -27,6 +27,7 @@ namespace tik4net.integrationtests
     /// of a diagnostic. Skipped unless <c>TIK_PROBE=1</c> so a normal suite run never pays for it.
     /// </remarks>
     [TestClass]
+    [TestLock(TestLockScope.Router)]
     public class P246StallProbe : TestBase
     {
         private const int Iterations = 40;

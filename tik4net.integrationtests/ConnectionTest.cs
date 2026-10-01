@@ -8,7 +8,9 @@ using System.Threading.Tasks;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class ConnectionTest
+    // Every connection here is opened with a transport the test names itself (Api by default), never the leg's.
+    [TestCategory(TestCategories.LegIndependent)]
+    public class ConnectionTest : LockedTestBase
     {
         private const TikConnectionType DEFAULT_CONNECTION_TYPE = TikConnectionType.Api;
 
@@ -53,6 +55,7 @@ namespace tik4net.integrationtests
         /// router's MAC alone, each opened with <c>Create()</c> and no transport argument.
         /// </summary>
         [TestMethod]
+        [TestLock(TestLockAttribute.MacLayer)]
         public void AConnectionStringOpensTheTransportItNames()
         {
             string credentials = "user=\"" + LabConfig.Get("user") + "\";password=\"" + (LabConfig.Get("pass") ?? "") + "\"";
@@ -87,6 +90,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        [TestLock(TestLockScope.Router)]
         public void ConnectionEncodingWorksCorrectly()
         {
             using (var connection = CreateOpenedConnection())
@@ -198,6 +202,7 @@ namespace tik4net.integrationtests
 
         [TestMethod]
         [ExpectedException(typeof(System.Net.Sockets.SocketException))]
+        [SafeInParallelLegs]
         public void OpenConnectionToUnaccessibleAddressThrowsExceptionAfterTimeout()
         {
             using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))

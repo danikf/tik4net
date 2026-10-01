@@ -1,4 +1,4 @@
-// SshAuthProbeTest.cs — what does RouterOS actually do with a WRONG SSH password?
+﻿// SshAuthProbeTest.cs — what does RouterOS actually do with a WRONG SSH password?
 //
 // P2.24 established that `admin` with an EMPTY password authenticates over SSH with method "none",
 // so a wrong password is accepted. That says nothing about an account that HAS a password, which is
@@ -20,7 +20,8 @@ namespace tik4net.integrationtests
     //   test/wrong (has a password) WRONG   → REFUSED, "Permission denied (password)"
     [Ignore("SSH auth probe — deliberate wrong-password logins against a live router. Remove the attribute to run.")]
     [TestClass]
-    public class SshAuthProbeTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class SshAuthProbeTest : LockedTestBase
     {
         private static string Host => LabConfig.Get("host");
 

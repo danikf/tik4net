@@ -18,7 +18,7 @@ namespace tik4net.integrationtests.Ip
     [TestClass]
     public class IpPoolRangesTest : TestBase
     {
-        private const string PoolName = "tik4net-test-pool";
+        private static readonly string PoolName = TestNames.Unique("tik4net-test-pool");
 
         // Subnets nothing in this lab routes through.
         private const string TestRanges = "192.168.251.10-192.168.251.20,192.168.252.5,192.168.253.0/24";

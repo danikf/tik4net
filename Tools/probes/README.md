@@ -1,4 +1,4 @@
-# Probe and harness scripts
+﻿# Probe and harness scripts
 
 Standalone diagnostic and test-harness scripts used while developing and debugging tik4net's
 transports. None is part of the shipped library; they live here so that the skills in
@@ -10,39 +10,46 @@ None of them takes router credentials as a baked-in value: coordinates come from
 
 | Script | Purpose |
 |---|---|
-| [`run-integration-tests.ps1`](#run-integration-testsps1) | Run the integration suite: one transport, a smoke subset, or the full matrix |
+| [`run-integration-tests.ps1`](#run-integration-testsps1) | Run the integration suite: every leg in parallel, one transport, a smoke subset, one router |
 | [`parse-trx.ps1`](#parse-trxps1) | Summarise TRX results — counts, failures, and the named skips |
 | [`telnet-cli-probe.ps1`](#telnet-cli-probeps1) | Raw RouterOS Telnet client, for CLI ground truth without the library |
 | [`jg_analyze.py`](#jg_analyzepy) | Parse and report on WinBox `.jg` catalogs |
 
 ## `run-integration-tests.ps1`
 
-Runs `tik4net.integrationtests` against a live router. It resolves the repository root from its own
+Runs `tik4net.integrationtests` against the lab routers. It resolves the repository root from its own
 location, so it works from any working directory, and it always writes TRX so that skips remain
 inspectable afterwards.
 
 ```powershell
-Tools/probes/run-integration-tests.ps1 -Transport api          # one transport, full suite
-Tools/probes/run-integration-tests.ps1 -Smoke                  # smoke subset, every transport
-Tools/probes/run-integration-tests.ps1                         # full matrix
-Tools/probes/run-integration-tests.ps1 -Transport telnet -WireTrace auto
-Tools/probes/run-integration-tests.ps1 -Router chr2 -Transport api   # the second lab router
+Tools/probes/run-integration-tests.ps1                                        # everything, all routers, in parallel
+Tools/probes/run-integration-tests.ps1 -Router default -Transport api -Sequential   # one leg, in this console
+Tools/probes/run-integration-tests.ps1 -Smoke -Router default                 # smoke subset, every transport
+Tools/probes/run-integration-tests.ps1 -Router default -Transport telnet -Sequential -WireTrace auto
+Tools/probes/run-integration-tests.ps1 -Router chr2                           # the AnyRouter tests on the second lab router
 ```
 
-`-Router <name>` selects a router profile in `tik4net.integrationtests/App.config` (the `<name>.<key>` entries,
-read through `LabConfig.cs`) by setting `TIK4NET_ROUTER` for the run, and writes the TRX to
-`TestResults/<name>`. A name the file does not define is refused before anything runs; without `-Router`, an
-inherited `TIK4NET_ROUTER` is cleared.
+A run is a set of **legs**: one `dotnet test` per router and transport, plus one `independent` leg per router for the
+classes that never read the leg's transport (category `LegIndependent`). Every leg is a separate process
+and four run at a time (`-MaxParallel`, 0 = all; 4 is where the lab CHR stops gaining — the `mikrotik-tests` skill has
+the measurement) — the script builds once and starts each with `--no-build`, writing its console output to a `.log`
+beside its TRX. The MAC-layer legs always share one lane, so two MAC sessions never run at once. `-Sequential` runs
+the legs one after another in the console; `-Pairs` runs just two lanes per router; `-LockAll` keeps the processes but
+serialises every test. What keeps parallel legs from colliding on the router
+is in the suite (test locks and run leases, described in the `mikrotik-tests` skill), not in this script.
 
-`-NoBuild` runs the already-built assembly. Use it when two runs go at once, one per router — build once, then
-start both with `-NoBuild`, or they race building the same output folder. Never run two at once against one
-router; the `mikrotik-tests` skill has the rules.
+`-Router` takes `default` and/or the router profiles in `tik4net.integrationtests/App.config` (the `<name>.<key>`
+entries, read through `LabConfig.cs`); omitted, it is every router the file defines. Each leg gets `TIK4NET_ROUTER`
+for its own process. A secondary router gets only the tests in category `AnyRouter` — it carries none of the default
+router's topology — and its TRX go to `<ResultsDirectory>/<name>`. A name the file does not define is refused before
+anything runs.
 
-The default transport order runs the API-based transports before the CLI ones, because CLI transports
-are the ones that leave orphans on the router and an orphan changes the error a later transport sees.
+The summary prints, per leg, the wall clock, the sum of the test durations and how much of it was waiting for test
+locks (each test writes `[lock-wait-ms] n` into its output), the exit code and the test counts from the TRX; the script
+exits non-zero when any leg failed.
 
 `-WireTrace` sets `TIK4NET_WIRETRACE` for the run; test boundaries are written into the trace, so a
-failure can be located without correlating timestamps.
+failure can be located without correlating timestamps. With more than one leg, pass `auto` so each leg gets a file.
 
 ## `parse-trx.ps1`
 

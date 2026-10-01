@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +35,7 @@ namespace tik4net.integrationtests
     /// not the multiplexer's: <c>Docs/findings-router-throughput-ceiling.md</c>.</para>
     /// </remarks>
     [TestClass]
+    [SafeInParallelLegs]
     public class ConcurrentCommandsTest : TestBase
     {
         private const int Workers = 6;

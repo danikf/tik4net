@@ -9,7 +9,8 @@ using tik4net.Mndp;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class MndpTests
+    [TestCategory(TestCategories.LegIndependent)]
+    public class MndpTests : LockedTestBase
     {
         [TestMethod]
         public void MNDP_WillWork()

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -21,6 +21,7 @@ namespace tik4net.unittests.Rest
     /// pipelines, so the same test there checks only that the concurrency cap does not deadlock.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class RestConcurrentRequestTests
     {
         private const int Commands = 12;

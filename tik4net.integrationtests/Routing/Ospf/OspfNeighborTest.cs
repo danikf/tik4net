@@ -1,10 +1,11 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Routing.Ospf;
 
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class OspfNeighborTest : TestBase
     {
         [TestMethod]

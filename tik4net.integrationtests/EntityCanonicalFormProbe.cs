@@ -1,4 +1,4 @@
-// EntityCanonicalFormProbe.cs — probe: does an entity loaded and saved unchanged send nothing, on every
+﻿// EntityCanonicalFormProbe.cs — probe: does an entity loaded and saved unchanged send nothing, on every
 // transport? Validation run V2 of the 5.0 entity value model (TikValue<T>).
 //
 // WHY THIS EXISTS. In the 5.0 model a property is "changed" when its canonical wire string —
@@ -48,7 +48,8 @@ namespace tik4net.integrationtests
 {
     [Ignore("V2 canonical-form sweep — loads every settable entity several times per transport against a live router. Remove the attribute to run.")]
     [TestClass]
-    public class EntityCanonicalFormProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class EntityCanonicalFormProbe : LockedTestBase
     {
         /// <summary>Verb entities: a load of these runs a command (or streams forever) rather than reading a menu.</summary>
         private static readonly HashSet<string> VerbPaths = new HashSet<string>(StringComparer.Ordinal)

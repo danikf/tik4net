@@ -1,4 +1,4 @@
-// UserActiveSessionProbeTest.cs — does closing a connection actually end the router-side session?
+﻿// UserActiveSessionProbeTest.cs — does closing a connection actually end the router-side session?
 //
 // P2.35 was filed on an observation, not a measurement: the lab router once held 164 entries in
 // /user/active (109 api, 55 rest-api) dating back to the previous day, from test processes long since
@@ -54,7 +54,9 @@ namespace tik4net.integrationtests
     // MSTest skips [Ignore] even under --filter, so comment it out to run these.
     [Ignore("Ad-hoc session-accounting probe against a live router — comment out to run.")]
     [TestClass]
-    public class UserActiveSessionProbeTest
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class UserActiveSessionProbeTest : LockedTestBase
     {
         private const int CyclesPerTransport = 6;
         private const int SettleSeconds = 15;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -209,6 +209,7 @@ namespace tik4net.integrationtests
         // ── The declarations, measured ────────────────────────────────────────────────────────────
 
         [TestMethod]
+        [SafeInParallelLegs]
         public void TabCompletionAgreesWithEveryNarrowedDeclaration()
         {
             // Every entity that claims to lack a verb, checked against the menu's own Tab listing. Only the

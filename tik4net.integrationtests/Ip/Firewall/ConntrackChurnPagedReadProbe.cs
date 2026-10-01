@@ -1,4 +1,4 @@
-// ConntrackChurnPagedReadProbe — does a paged CLI read of a table that changes under it fail?
+﻿// ConntrackChurnPagedReadProbe — does a paged CLI read of a table that changes under it fail?
 //
 // A window is ':local w [:pick [/path find] a b]; … print from=$w'. An id that vanishes between the find and
 // the print answers 'no such item' and aborts the line (measured, Docs/findings-cli.md §1), so a paged read of
@@ -28,7 +28,8 @@ namespace tik4net.integrationtests
     // Gated on TIK_PROBE=1 rather than [Ignore], so it can be run from the command line without editing the
     // file (MSTest skips [Ignore] even under --filter) and a normal suite run still never pays for it.
     [TestClass]
-    public class ConntrackChurnPagedReadProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class ConntrackChurnPagedReadProbe : LockedTestBase
     {
         private static int EnvInt(string name, int fallback)
             => int.TryParse(Environment.GetEnvironmentVariable(name), out int v) && v > 0 ? v : fallback;

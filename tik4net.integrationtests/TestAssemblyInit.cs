@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace tik4net.integrationtests
 {
@@ -23,7 +23,9 @@ namespace tik4net.integrationtests
 
             // Always over the API, once, before any test — clears conflicts left by a killed run or by a CLI
             // add that created a row without yielding its .id (which per-test teardown then cannot delete).
-            RouterOrphanCleaner.PurgeTestResidue();
+            // It also takes this run's lease, which is what keeps a parallel leg's sweep off this run's rows.
+            string leg = context?.Properties?["tik.connectionType"] as string;
+            RouterOrphanCleaner.PurgeTestResidue(string.IsNullOrEmpty(leg) ? LabConfig.Get("connectionType") ?? "Api" : leg);
         }
 
         [AssemblyCleanup]
@@ -31,6 +33,7 @@ namespace tik4net.integrationtests
         {
             // Tear down the connection shared across the TestBase suite (see TestBase.ReuseConnectionAcrossTests).
             TestBase.DisposeSharedConnection();
+            RouterOrphanCleaner.PurgeOwnResidue();
             WireTraceCapture.Stop();
         }
     }

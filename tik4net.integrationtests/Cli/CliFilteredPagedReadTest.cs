@@ -1,4 +1,4 @@
-// CliFilteredPagedReadTest — a filtered CLI read is windowed, and its windows cover matching rows only.
+﻿// CliFilteredPagedReadTest — a filtered CLI read is windowed, and its windows cover matching rows only.
 //
 // The filter goes into the window's own 'find' (CliCommandBuilder.BuildPagedWindow), which is a different
 // RouterOS parser from the 'where' it replaces: a bare clause is parsed as the verb's arguments, a
@@ -16,6 +16,7 @@ using tik4net.Objects.Ip.Firewall;
 namespace tik4net.integrationtests.Cli
 {
     [TestClass]
+    [TestLock(TestLockScope.Router)]
     public class CliFilteredPagedReadTest : TestBase
     {
         /// <summary>

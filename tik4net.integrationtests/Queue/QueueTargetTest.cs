@@ -21,7 +21,7 @@ namespace tik4net.integrationtests.Queue
     [TestClass]
     public class QueueTargetTest : TestBase
     {
-        private const string QueueName = "tik4net-test-target";
+        private static readonly string QueueName = TestNames.Unique("tik4net-test-target");
 
         // A subnet and an interface nothing in this lab routes through.
         private const string TestSubnet = "192.168.251.0/24";

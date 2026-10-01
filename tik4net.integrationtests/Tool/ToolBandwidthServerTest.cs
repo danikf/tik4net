@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Tool;
@@ -6,6 +6,7 @@ using tik4net.Objects.Tool;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class ToolBandwidthServerTest : TestBase
     {
         [TestMethod]

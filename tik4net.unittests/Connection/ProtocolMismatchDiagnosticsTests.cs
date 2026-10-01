@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -28,6 +28,7 @@ namespace tik4net.unittests.Connection
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class ProtocolMismatchDiagnosticsTests
     {
         private const int PeerBudgetMs = 4000;

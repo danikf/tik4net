@@ -1,4 +1,4 @@
-// QueueTreeU64WriteTest.cs — a plain 64-bit field must survive a write.
+﻿// QueueTreeU64WriteTest.cs — a plain 64-bit field must survive a write.
 //
 // /queue/tree max-limit is a single value, not a pair, and it is `u64` on the wire (.jg type bigunit).
 // Over WinBox native every u64 used to be encoded in the 32-bit form, which RouterOS accepts and ignores
@@ -18,9 +18,10 @@ using tik4net.Objects.Queue;
 namespace tik4net.integrationtests.Queue
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class QueueTreeU64WriteTest : TestBase
     {
-        private const string QueueName = "tik4net-test-u64-tree";
+        private static readonly string QueueName = TestNames.Unique("tik4net-test-u64-tree");
 
         private static ITikConnection OpenSideApi()
             => LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api);

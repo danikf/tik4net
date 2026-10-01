@@ -1,4 +1,4 @@
-// EnumVocabularySweepProbe.cs — probe: what values does the router accept for every enum-typed
+﻿// EnumVocabularySweepProbe.cs — probe: what values does the router accept for every enum-typed
 // [TikProperty] in the mapper, and which of them can the entity not read?
 //
 // WHY THIS EXISTS. One value the mapper does not know does not cost a property: TikEnumMetadata.Parse
@@ -41,7 +41,8 @@ namespace tik4net.integrationtests
 {
     [Ignore("Vocabulary sweep — one Tab completion per enum-typed property against a live router. Remove the attribute to run.")]
     [TestClass]
-    public class EnumVocabularySweepProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class EnumVocabularySweepProbe : LockedTestBase
     {
         /// <summary>Tokens the completer prints that are syntax rather than values.</summary>
         private static readonly HashSet<string> Artifacts = new HashSet<string> { "!", ":" };

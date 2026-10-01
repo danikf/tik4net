@@ -1,4 +1,4 @@
-// G2MaxObjsProbeTest.cs — probe: what does the router do with ufe0018 (maxObjs) on a getall?
+﻿// G2MaxObjsProbeTest.cs — probe: what does the router do with ufe0018 (maxObjs) on a getall?
 //
 // G2 was written as "paging (maxObjs with the cursor) is the real fix". The .jg says something else:
 // maxobjs is a CAP, declared on three windows only (routes, connections, proxy cache) and paired with a
@@ -23,7 +23,8 @@ namespace tik4net.integrationtests
 {
     [Ignore("G2 probe — hits a live router and reads the whole log. Remove the attribute to run.")]
     [TestClass]
-    public class G2MaxObjsProbeTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class G2MaxObjsProbeTest : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
         private static readonly int[] LOG = { 3, 4 };   // .jg: name:'Log Entry', path:[ 3,4 ]

@@ -1,4 +1,4 @@
-// WinboxMproxyBudgetProbeTest.cs — does mproxy really degrade under load, or were we reading the
+﻿// WinboxMproxyBudgetProbeTest.cs — does mproxy really degrade under load, or were we reading the
 // channel out of step? (P2.20, re-opened by P2.40)
 //
 // P2.20 is written as ROUTER-side behaviour: "mproxy degrades under back-to-back M2 sessions and stays
@@ -41,7 +41,9 @@ namespace tik4net.integrationtests
     // MSTest skips [Ignore] even under --filter, so comment it out to run these.
     [Ignore("Ad-hoc load probes against a live router (read-only, minutes long) — comment out to run.")]
     [TestClass]
-    public class WinboxMproxyBudgetProbeTest
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxMproxyBudgetProbeTest : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
 

@@ -20,7 +20,8 @@ namespace tik4net.integrationtests
     /// (<c>-Router chr2</c>, <c>-Router chr3</c>); the report goes to the catalog dump directory.
     /// </remarks>
     [TestClass]
-    public class MenuSchemaCompletenessAuditTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class MenuSchemaCompletenessAuditTest : LockedTestBase
     {
         // Menus whose print needs inputs, or runs an action, or is too large to be worth it.
         private static readonly HashSet<string> Skip = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

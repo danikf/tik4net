@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -21,6 +21,7 @@ namespace tik4net.unittests.Api
     /// time and in half a second.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class ApiCancelAndJoinBudgetTests
     {
         private const string TestUser = "admin";

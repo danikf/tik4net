@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -17,6 +17,7 @@ namespace tik4net.integrationtests
     /// transports rebuild every command as terminal text, and WinBox native as M2 messages.
     /// </remarks>
     [TestClass]
+    [TestLock("testAddress")]
     public class CrudAsyncTest : TestBase
     {
         private async Task CleanupByAddressAsync(string ip)

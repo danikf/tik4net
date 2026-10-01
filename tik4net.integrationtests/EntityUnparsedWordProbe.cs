@@ -1,4 +1,4 @@
-// EntityUnparsedWordProbe.cs — probe: when a value does not parse into the property's type, is the word each
+﻿// EntityUnparsedWordProbe.cs — probe: when a value does not parse into the property's type, is the word each
 // transport keeps the word the API prints? Validation run V3 of the 5.0 entity value model (TikValue<T>).
 //
 // WHY THIS EXISTS. The model reads such a value as Unparsed(raw) and writes the raw word back unchanged, so the
@@ -26,7 +26,8 @@ namespace tik4net.integrationtests
 {
     [Ignore("V3 unparsed-word sweep — reads a few menus through one-word enums on every transport. Remove the attribute to run.")]
     [TestClass]
-    public class EntityUnparsedWordProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class EntityUnparsedWordProbe : LockedTestBase
     {
         public enum OneType { [TikEnum("ether")] Ether, [TikEnumUnknown] Unknown = -1 }
         public enum OneKind { [TikEnum("pfifo")] Pfifo, [TikEnumUnknown] Unknown = -1 }

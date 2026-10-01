@@ -11,7 +11,10 @@ using System.Text;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class WinboxTcpProtocolTest
+    // Writes the comment of the test interface, as InterfaceTest and TikCommandTest do in the transport legs.
+    [TestLock("testInterface-comment")]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxTcpProtocolTest : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
 

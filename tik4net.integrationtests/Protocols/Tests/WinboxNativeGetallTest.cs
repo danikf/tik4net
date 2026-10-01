@@ -1,4 +1,4 @@
-// WinboxNativeGetallTest.cs — Phase 3 BREAKTHROUGH: native M2 CRUD via the
+﻿// WinboxNativeGetallTest.cs — Phase 3 BREAKTHROUGH: native M2 CRUD via the
 // webfig (/jsproxy) protocol, reverse-engineered from master-d53cd8ec58cb.js.
 //
 // Earlier RE failed for three reasons (all fixed here):
@@ -25,7 +25,8 @@ namespace tik4net.integrationtests
 {
     [Ignore("Native-M2 CRUD (webfig protocol) — manual only; hits a live router, comment test writes config. Run via --filter.")]
     [TestClass]
-    public class WinboxNativeGetallTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxNativeGetallTest : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
         private static readonly int[] IFACE   = { 20, 0 };   // /interface

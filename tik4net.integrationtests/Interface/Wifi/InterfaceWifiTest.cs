@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface.Wifi;
@@ -6,6 +6,7 @@ using tik4net.Objects.Interface.Wifi;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class InterfaceWifiTest : TestBase
     {
         // NOTE: Adding a /interface/wifi entry requires either a radio-mac (physical wifi radio)

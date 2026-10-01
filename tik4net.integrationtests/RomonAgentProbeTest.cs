@@ -1,4 +1,4 @@
-// RomonAgentProbeTest.cs — what does a RoMON agent answer on the M2 layer? (5.0 RoMON research)
+﻿// RomonAgentProbeTest.cs — what does a RoMON agent answer on the M2 layer? (5.0 RoMON research)
 //
 // WinBox reaches a RoMON node by asking a RoMON-enabled router, the agent, to relay for it. How the client
 // asks is not documented anywhere, and the .jg catalog names only the agent's RoMON *management* handlers:
@@ -24,7 +24,8 @@ using M2 = tik4net.Winbox.M2Message;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class RomonAgentProbeTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class RomonAgentProbeTest : LockedTestBase
     {
         private static void Log(string line)
         {

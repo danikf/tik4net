@@ -1,4 +1,4 @@
-// CommandRowFilterTest.cs — the two low-level filter forms that used to be dropped before they were sent.
+﻿// CommandRowFilterTest.cs — the two low-level filter forms that used to be dropped before they were sent.
 //
 // The rows go in as a multi-line CommandText — the whole sentence, one word per line — which is where a
 // caller hands these transports raw API rows and where they are parsed (TikCommandRow) into the query the
@@ -33,11 +33,19 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void ABareFilterAsksWhetherThePropertyIsSet()
         {
-            int all = CountOf("/interface/print");
+            // Another leg can add or remove an interface between the two reads, so the filtered count is taken
+            // between two unfiltered ones that agree.
+            int all = 0, named = 0;
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                all = CountOf("/interface/print");
+                named = CountOf("/interface/print", "?name");
+                if (CountOf("/interface/print") == all)
+                    break;
+            }
             Assert.IsTrue(all > 0, "the lab router must have interfaces for this to mean anything");
 
-            Assert.AreEqual(all, CountOf("/interface/print", "?name"),
-                "every interface has a name");
+            Assert.AreEqual(all, named, "every interface has a name");
         }
 
         /// <summary>

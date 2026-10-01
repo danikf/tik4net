@@ -1,4 +1,4 @@
-// RouterPrerequisiteTest.cs — verifies that the test router has all necessary services
+﻿// RouterPrerequisiteTest.cs — verifies that the test router has all necessary services
 // enabled before the rest of the test suite runs. Uses the API (port 8728) — always available.
 //
 // Run this first to understand why other tests might fail.
@@ -11,7 +11,8 @@ using System.Linq;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class RouterPrerequisiteTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class RouterPrerequisiteTest : LockedTestBase
     {
         private static string Host => LabConfig.Get("host");
         private static string User => LabConfig.Get("user");

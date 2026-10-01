@@ -20,7 +20,7 @@ namespace tik4net.integrationtests.Ip.Dns
     [TestClass]
     public class DnsForwarderListFieldsTest : TestBase
     {
-        private const string ForwarderName = "tik4net-test-forwarder";
+        private static readonly string ForwarderName = TestNames.Unique("tik4net-test-forwarder");
 
         private static ITikConnection OpenSideApi()
             => LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api);

@@ -1,4 +1,4 @@
-// WinboxCliLatencyProbeTest.cs — where does a WinboxCliMac round trip actually spend its time? (P2.43)
+﻿// WinboxCliLatencyProbeTest.cs — where does a WinboxCliMac round trip actually spend its time? (P2.43)
 //
 // A full winboxclimac run takes ~1 h 22 m and ends with a handful of failures; the same CLI engine over
 // TCP (winboxcli) is green in ~8 min. Two measurements from P2.50 narrowed the question and are what this
@@ -42,7 +42,9 @@ namespace tik4net.integrationtests
     // MSTest skips [Ignore] even under --filter, so comment it out to run these.
     [Ignore("Ad-hoc latency probe against a live router — comment out to run.")]
     [TestClass]
-    public class WinboxCliLatencyProbeTest
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxCliLatencyProbeTest : LockedTestBase
     {
         private const int DefaultCommands = 8;
 

@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
 
@@ -17,6 +17,7 @@ namespace tik4net.integrationtests
     /// the same <see cref="System.TimeSpan"/>, which is the whole point.
     /// </remarks>
     [TestClass]
+    [SafeInParallelLegs]
     public class ConnectionTrackingTest : TestBase
     {
         [TestMethod]

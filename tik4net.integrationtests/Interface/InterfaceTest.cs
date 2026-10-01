@@ -106,12 +106,13 @@ namespace tik4net.integrationtests
                             ?type=wlan
                             ?#|");
             var list = new List<Interface>();
-            cmd.LoadWithCallback<Interface>(i=>list.Add(i));
-            Thread.Sleep(1000);
+            cmd.LoadWithCallback<Interface>(i => { lock (list) list.Add(i); });
+            // Wait for the first row rather than a fixed second: a loaded router answers later than that.
+            WaitUntil(() => { lock (list) return list.Count > 0; });
             cmd.CancelAndJoin();
 
-            Assert.IsNotNull(list);
-            Assert.IsTrue(list.Count > 0);
+            lock (list)
+                Assert.IsTrue(list.Count > 0, "no interface row arrived within the wait");
         }
 
         [TestMethod]
@@ -136,6 +137,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        [TestLock("testInterface-comment")]
         public void UpdateCommentOnEth1_2_WillNotFail()
         {
             var originalComment = Connection.LoadByName<Interface>(TestConstants.Interface).Comment.Value ?? "";
@@ -163,7 +165,7 @@ namespace tik4net.integrationtests
             var cmd = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.Interface);
             List<ITikReSentence> responses = new List<ITikReSentence>();
             cmd.ExecuteWithCallback(re => { lock (responses) responses.Add(re); });
-            Thread.Sleep(2 * 1000);
+            WaitUntil(() => { lock (responses) return responses.Count > 0; }, TimeSpan.FromSeconds(2));
 
             ITikReSentence[] got;
             lock (responses) got = responses.ToArray();
@@ -191,6 +193,7 @@ namespace tik4net.integrationtests
         #region LoadListenAsync
 
         [TestMethod]
+        [TestLock("testInterface-comment")]
         public void LoadListenAsync_DetectsInterfaceChange()
         {
             EnsureCapability(TikConnectionCapability.Listen, "LoadListenAsync");

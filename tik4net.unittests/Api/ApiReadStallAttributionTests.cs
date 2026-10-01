@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -29,6 +29,7 @@ namespace tik4net.unittests.Api
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class ApiReadStallAttributionTests
     {
         private const string TestUser = "admin";

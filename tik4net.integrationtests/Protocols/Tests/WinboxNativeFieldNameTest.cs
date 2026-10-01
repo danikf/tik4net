@@ -70,6 +70,8 @@ namespace tik4net.integrationtests
         /// </summary>
         private void AssertAgreesWithApiWhileSet(string path, string field, string probeValue)
         {
+            // A singleton written and restored: another leg doing the same in between would restore the probe value.
+            using (LockResource(path))
             using (var api = OpenSideApi())
             {
                 string original = Single(api, path).GetResponseFieldOrDefault(field, "");
@@ -352,6 +354,8 @@ namespace tik4net.integrationtests
                 foreach (var e in expected)
                 {
                     if (!rows.TryGetValue(e.Key, out string actual)) continue;
+                    // Another leg's interface may be half created between the two reads (no MAC yet on one side).
+                    if (TestNames.IsTestRowName(e.Key)) continue;
                     Assert.AreEqual(e.Value, actual, $"{path} '{e.Key}' mac-address");
                     compared++;
                 }

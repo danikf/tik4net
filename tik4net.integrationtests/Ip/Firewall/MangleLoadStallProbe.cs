@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
@@ -32,6 +32,7 @@ namespace tik4net.integrationtests
     /// </para>
     /// </remarks>
     [TestClass]
+    [SafeInParallelLegs]
     public class MangleLoadStallProbe : TestBase
     {
         private const int Attempts = 8;

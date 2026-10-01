@@ -1,4 +1,4 @@
-// MangleNativeLegProbe.cs — step 1 of the WinBox M2 paging-stall trace plan: do BOTH native legs stall?
+﻿// MangleNativeLegProbe.cs — step 1 of the WinBox M2 paging-stall trace plan: do BOTH native legs stall?
 //
 // The stall under investigation: /ip/firewall/mangle with a few thousand rules over WinboxNative (TCP 8291)
 // delivers ~12 pages at ~120 ms/page and then gets nothing for ~28.5 s, and the read fails. The candidates
@@ -43,7 +43,8 @@ namespace tik4net.integrationtests
     // Gated on TIK_PROBE=1 rather than [Ignore], so it can be run from the command line without editing
     // the file (MSTest skips [Ignore] even under --filter) and a normal suite run still never pays for it.
     [TestClass]
-    public class MangleNativeLegProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class MangleNativeLegProbe : LockedTestBase
     {
         private const int DefaultAttempts = 3;
 

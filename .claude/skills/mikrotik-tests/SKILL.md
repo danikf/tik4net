@@ -79,41 +79,71 @@ and one output parser, so a CLI symptom almost always affects all five.
 ## Running
 
 Use the harness script rather than reconstructing `dotnet test` invocations. It resolves the repo root
-from its own location, always writes TRX, and takes no router coordinates:
+from its own location, always writes TRX, and takes no router coordinates. **With no arguments it runs
+everything**: every transport on the default router, the `AnyRouter` tests on every other router App.config
+defines, each leg its own `dotnet test` process, four legs at a time per the default `-MaxParallel 4`.
 
 ```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File Tools/probes/run-integration-tests.ps1 -Transport api
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/probes/run-integration-tests.ps1
 ```
 
 ```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File Tools/probes/run-integration-tests.ps1 -Smoke
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -Router default -Transport @('api') -Sequential"
 ```
 
-**Naming more than one transport needs `-Command`, not `-File`.** `-File` passes every argument as a
+**Naming more than one transport or router needs `-Command`, not `-File`.** `-File` passes every argument as a
 string, so `-Transport api,rest` arrives as one transport named `api,rest`. Pass an actual array:
 
 ```bash
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -Smoke -Transport @('rest','telnet','winboxnative')"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -Smoke -Router default -Transport @('rest','telnet','winboxnative')"
 ```
 
 | Intent | Invocation |
 |---|---|
-| One transport, full suite | `-Transport api` |
-| Smoke subset, all transports | `-Smoke` |
-| Smoke subset, some transports | `-Smoke -Transport @('rest','telnet','winboxnative')` (needs `-Command`) |
-| Full matrix | no arguments |
-| Hunting an intermittent failure | `-Transport telnet -WireTrace auto` |
+| Everything, all routers, four legs at a time | no arguments |
+| One transport, full suite, in this console | `-Router default -Transport api -Sequential` |
+| Smoke subset, all transports | `-Smoke -Router default` |
+| Smoke subset, some transports | `-Smoke -Router default -Transport @('rest','telnet','winboxnative')` (needs `-Command`) |
+| The older-RouterOS tests | `-Router chr2` (only category `AnyRouter` runs there) |
+| Hunting an intermittent failure | `-Router default -Transport telnet -Sequential -WireTrace auto` |
+| The lightest parallel load: two lanes per router | `-Pairs` |
+| Is a failure a collision between parallel tests? | the same selection with `-LockAll` |
 | Explicit selection | `-Filter "ClassName=tik4net.integrationtests.IpRouteTest"` |
+
+**The legs.** One leg per router and transport, plus one leg named `independent` per router: the classes in
+category `LegIndependent` never read `tik.connectionType` (RomonRelayTest, the protocol PoC tests,
+`RouterPrerequisiteTest`, …), so they measured the same thing in all eleven legs; they run once, over the
+binary API, and every transport leg excludes them. `-NoIndependentLeg` drops it.
+A secondary router (CHR2, CHR3) carries none of the default router's topology, so it gets only category
+`AnyRouter`; its results go to `<ResultsDirectory>/<router>`. In parallel mode each leg's console output is a
+`.log` beside its TRX, and the script builds once up front and starts every leg with `--no-build`.
+`-MaxParallel n` caps how many legs run at once (0 = all). `-Pairs` runs just two lanes per router.
+
+**How many legs at once** — measured on the lab CHR (2 vCPU), default router, 2026-09-30: 2 legs at once 53 min,
+**4 legs 34 min** (the tests themselves only ~12 % slower than alone; the rest of the cost is waiting for test locks),
+12 legs no faster than 4, with every leg slowed 4–10× and CLI reads cut short by the loaded router. Sequentially the
+same suite is about 68 min (124 min before the `independent` leg). Hence the default of 4.
+
+**The MAC-layer legs never overlap.** mactelnet, winboxclimac and winboxnativemac always share one lane: with two MAC
+sessions to one router, the router drops datagrams of its own output — MAC-Telnet refuses the answer with *"the router
+ran a backlog past this client"*, WinBox-MAC logins fail — which no sequential run since September has shown. The
+lane keeps the MAC legs apart; the `independent` leg's MAC tests are kept off them by a lock: every test of a MAC leg
+holds the `mac-layer` resource, and a test elsewhere that opens a MAC connection names it
+(`[TestLock(TestLockAttribute.MacLayer)]`).
+
+**The summary splits each leg's time**: wall clock, the sum of its test durations, how much of that was waiting for
+test locks, and the rest (running). A TRX duration includes TestInitialize, where the wait happens; every test writes
+its wait as `[lock-wait-ms] n` into its output, and the script adds them up.
 
 **Two things the script guarantees, and one it cannot.** It **exits non-zero when any leg failed**, naming
 them, so a matrix is safe to judge by its exit code and no wrapper will call it green. It **refuses an
-unrecognised transport name up front** rather than skipping past it, because a run that matched nothing
-otherwise looks exactly like a run that passed. What it cannot tell you is whether the tests that *ran*
+unrecognised transport or router name up front** rather than skipping past it, because a run that matched
+nothing otherwise looks exactly like a run that passed. What it cannot tell you is whether the tests that *ran*
 were the ones you meant — `--filter` matching nothing is still a green run of zero tests, so check the
-test count against what you expected.
+test count (the summary prints it per leg, from the TRX) against what you expected.
 
 **A re-run does not destroy the previous TRX.** Results keep the stable `results_<transport>.trx` name
-that `parse-trx.ps1` and this document use, and an existing one is moved aside as
+that `parse-trx.ps1` and this document use, and an existing one (and its `.log`) is moved aside as
 `results_<transport>_<timestamp>.trx` before the leg starts. This matters exactly when re-running one leg
 to see whether its failure reproduces: the file recording the failure is the evidence, and the re-run is
 what would otherwise overwrite it. `-ResultsDirectory` keeps a whole investigation separate.
@@ -123,39 +153,46 @@ transports is the right default for any non-trivial change. Reserve the full mat
 specific transport (`Crypto/`, `WinboxNative*/`, `MacTelnet/`, `ApiConnection` reader/tag multiplexing,
 the CLI parsers) or for release preparation.
 
-**Order matters in a matrix run.** The script's default order runs the API-based transports before the
-CLI ones, and `winboxcli` before `winboxclimac`, because CLI transports are the ones that leave orphans
-and an orphan changes the error a later transport sees.
+## Parallel legs: test locks and run leases
 
-**One router: one run at a time. Two routers: one run each, at the same time.** Two runs against the same
-router interfere: each one's orphan cleaner deletes the other's `t4n` rows mid-test, row counts move under a
-comparison, and more connections only reach the router's throughput ceiling sooner
-(`Docs/findings-router-throughput-ceiling.md`). Runs against *different* routers share nothing on the router side,
-so the default router and CHR2 can be tested in parallel — measured 2026-09-27: smoke over api/telnet/mactelnet on
-the default router beside `CliFlagFieldsTest` + `QueueTypeTest` on CHR2, both green, each leg as fast as alone.
-Three conditions:
+The legs run against one router at the same time. What keeps them apart is in the suite, not in the script:
 
-- **Build once, then start both with `-NoBuild`.** Otherwise both `dotnet test` calls build the same project into
-  the same output folder and race on its files (a failure that reports "build failed" with 0 errors).
-- **Keep `RomonRelayTest` out of the default-router run.** It writes `tik4net-romon-…` rows to CHR2 through the
-  relay, which the CHR2 run then sees in its tables and its orphan cleaner deletes:
-  `-Filter 'FullyQualifiedName!~RomonRelayTest'`. `-Smoke` is safe as it is (its classes never relay). The `chr2`
-  profile already switches the RoMON target off, so the CHR2 run never reaches back.
-- **Each run gets its own results folder** — `-Router` does that by itself; give the default run
-  `-ResultsDirectory` only if a second default-router run could overwrite it.
+- **Every test holds cross-process locks** from TestInitialize to TestCleanup (`LockedTestBase`, the base of
+  `TestBase` and of every other test class; `TestLocks.cs`). By default it holds the run, the router and its leg
+  **shared**, and its **own name exclusive** — the same test never runs in two legs at once, because it creates
+  the same fixed-name rows in both. That default makes the legs a pipeline: a leg starts a test only when the leg
+  ahead of it has finished it.
+- **`[TestLock(...)]`** on a class or method adds to that. Choose the least that is enough:
+  - `[TestLock("resource")]` — exclusive on a named router resource (`"testAddress"`, `"testInterface-comment"`,
+    `"/ip/settings"`); it excludes only tests naming the same resource. For a singleton written and restored, or a
+    lab resource several tests use.
+  - `[TestLock(TestLockScope.Router)]` — waits for every test on the router to finish and holds them all off. For
+    state the whole router shares (the identity — it is in every CLI prompt —, safe mode, services, reboot), for a
+    test comparing a whole table between two reads, and for timing probes. Expensive: every one drains the router.
+  - `RouterHostKey = "romonTargetHost"` locks another lab router as well (RomonRelayTest writes to CHR2).
+  - `TestLockScope.Global` — every run on the machine; `TestLockScope.Leg` — only this process's other tests.
+  - In a test body, `using (LockResource("x"))` / `LockRouter()` escalate for part of the test. The set is
+    released and taken again in order, so the escalation is not atomic.
+- **`[SafeInParallelLegs]`** drops the own-name lock for a test that creates nothing under a fixed name and changes
+  nothing another test reads (read-only tests, tests working in a private chain). Put it on slow tests that only
+  wait: under the own-name lock a 15 s timeout test costs eleven times 15 s.
+- **A name several tests of one class share** is made run-unique: `TestNames.Unique("tik4net-test-pool")` appends
+  the run tag (`…-u3k9xa`). A GUID-stamped name needs nothing.
+- **The orphan sweep knows whose rows it sees.** Each leg holds a lease (`RunLease.cs`) for as long as it lives. A
+  row carrying a run tag is removed only when its run has ended; an untagged test row only when no other run
+  against the router is alive (the first leg to start sweeps them). At the end each leg removes what it left under
+  its own tag and **names it** in the output — the fix belongs in that test.
+- Lock and lease files live in `%TEMP%\tik4net-testlocks`. The OS releases them when a process dies, so a killed
+  leg never wedges the others. A lock waited on for more than a second is logged in the test's output
+  (`[lock] waited …`), and a wait longer than `TIK4NET_LOCK_TIMEOUT_MINUTES` (default 20) fails naming the holder.
 
-Both CHRs are VMs on one host; two full matrices at once have not been measured, so compare durations with a
-sequential run before trusting a slow one.
+**A failure seen only in a parallel run** is a collision until shown otherwise: re-run the same selection with
+`-LockAll` (every test takes the global lock exclusive — the processes stay parallel, the tests do not). Green
+there means two tests share something neither of them locks: lock it, or make the name unique.
 
-```bash
-dotnet build tik4net.integrationtests/tik4net.integrationtests.csproj
-```
-```bash
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -NoBuild -Transport @('api') -Filter 'FullyQualifiedName!~RomonRelayTest'"
-```
-```bash
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -NoBuild -Router chr2 -Transport @('api') -Filter 'FullyQualifiedName~CliFlagFieldsTest'"
-```
+**Timing assertions stretch under load.** The router's throughput is shared by every connection
+(`Docs/findings-router-throughput-ceiling.md`), so a test that asserts how long something takes belongs under
+`TestLockScope.Router`, or waits with `WaitUntil` and a budget rather than a fixed sleep.
 
 **`--filter` cannot run an `[Ignore]`d test.** MSTest applies `[Ignore]` before the filter, so naming the
 test still reports it `Přeskočeno`/skipped and the run passes — a green result that measured nothing.
@@ -364,7 +401,7 @@ two, so a transport that runs neither (or both) means the two lists have drifted
 ## Other TestBase members
 
 ```csharp
-public TestContext TestContext { get; set; }   // injected by MSTest
+public TestContext TestContext { get; set; }   // injected by MSTest (declared on LockedTestBase)
 protected ITikConnection Connection { get; }   // created in [TestInitialize]
 
 protected TikConnectionType ResolveConnectionType()   // runsettings > App.config > Api
@@ -417,7 +454,11 @@ the entity itself; the harness is here.
 
 - Always `try/finally` cleanup — a failing test must still delete what it created.
 - Guards at the top of the test, not scattered through it.
-- Prefix created objects `t4n` + a GUID fragment so orphans are identifiable.
+- Prefix created objects `t4n` + a GUID fragment so orphans are identifiable. A fixed name that more than
+  one test of the class uses goes through `TestNames.Unique`, or the parallel legs collide on it.
+- Decide the test's lock (see *Parallel legs* above): nothing for a test on its own rows, a resource lock for a
+  shared singleton or lab resource, `TestLockScope.Router` for router-wide state or a whole-table comparison,
+  `[SafeInParallelLegs]` for a slow read-only test.
 - `Console.WriteLine` is captured by MSTest and is the cheapest debugging channel.
 - Test files mirror the entity's folder: `tik4net.objects/Ip/Firewall/` → `tik4net.integrationtests/Ip/Firewall/`.
   One test class per domain folder is fine. Core/infra tests stay at the project root.
@@ -428,14 +469,18 @@ evidence the fix works.
 
 ### Protocol PoC tests
 
-Tests under `Protocols/` manage their own connection and do **not** derive from `TestBase`, so they run
-regardless of which runsettings file is active. A protocol test failing during another transport's run
-is a resource or timing collision, not a transport bug.
+Tests under `Protocols/` manage their own connection and do **not** derive from `TestBase` (they derive from
+`LockedTestBase`, for the locks). They do not read the leg's transport, so they carry
+`[TestCategory(TestCategories.LegIndependent)]` and run once, in the `independent` leg. A new class that picks its
+transports itself belongs in that category too; one that reads `tik.connectionType` must not be in it.
 
 ## Layout
 
 ```
 tik4net.integrationtests/
+├── LockedTestBase.cs               — base of every test class: the per-test locks, test categories
+├── TestLocks.cs                    — cross-process reader/writer locks, [TestLock], [SafeInParallelLegs]
+├── RunLease.cs                     — run tag + lease, TestNames.Unique
 ├── TestBase.cs                     — base class, guards, connection reuse
 ├── App.config                      — router coordinates and topology (source of truth)
 ├── *.runsettings                   — one per transport, sets tik.connectionType

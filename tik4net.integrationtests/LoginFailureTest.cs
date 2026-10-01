@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Diagnostics;
 
@@ -22,6 +22,7 @@ namespace tik4net.integrationtests
     /// </para>
     /// </remarks>
     [TestClass]
+    [SafeInParallelLegs]
     public class LoginFailureTest : TestBase
     {
         /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
@@ -6,6 +6,7 @@ using tik4net.Objects.Interface;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class InterfaceLteTest : TestBase
     {
         // LTE interfaces are hardware-backed — created automatically when a modem is detected.

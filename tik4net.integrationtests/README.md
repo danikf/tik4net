@@ -12,6 +12,14 @@ Tests that require a **live MikroTik router**. There are no mocks here.
 The full operating guide — running, reading skips, orphan cleanup, writing new tests, current
 transport limitations — is the **`mikrotik-tests` skill**. This file covers only what the project is.
 
+## Parallel legs
+
+The suite runs once per transport (a leg), and `Tools/probes/run-integration-tests.ps1` runs the legs at the same
+time, each in its own process. Every test class derives from `LockedTestBase`, which holds cross-process locks for the
+duration of each test (`TestLocks.cs`); a test states what it shares with `[TestLock(...)]` or `[SafeInParallelLegs]`,
+and a name several tests use goes through `TestNames.Unique` (`RunLease.cs`). The rules for choosing a lock are in the
+`mikrotik-tests` skill.
+
 ## Router coordinates
 
 `App.config` is the single source of truth: `host`, `user`, `pass`, `routerMac`, plus the topology

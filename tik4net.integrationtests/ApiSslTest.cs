@@ -7,7 +7,8 @@ using tik4net.Objects;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class ApiSslTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class ApiSslTest : LockedTestBase
     {
         private ITikConnection _connection;
 

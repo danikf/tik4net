@@ -44,6 +44,16 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
   </ItemGroup>
 
+  <!--
+    The integration suite's test locks and run leases (IntegrationSuite\TestLockTests): they need no router, so
+    they are tested here, compiled in from the integration project rather than referencing it (net48, and it
+    would drag the whole suite in).
+  -->
+  <ItemGroup>
+    <Compile Include="..\tik4net.integrationtests\TestLocks.cs" Link="IntegrationSuite\Linked\TestLocks.cs" />
+    <Compile Include="..\tik4net.integrationtests\RunLease.cs" Link="IntegrationSuite\Linked\RunLease.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\tik4net\tik4net.csproj" />
     <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" />

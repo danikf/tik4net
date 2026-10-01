@@ -13,7 +13,8 @@ using System.Text;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class WinboxDumpCatalogTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxDumpCatalogTest : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
 

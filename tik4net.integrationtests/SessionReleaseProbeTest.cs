@@ -1,4 +1,4 @@
-// SessionReleaseProbeTest.cs — does every connection type end its router-side session when it is disposed?
+﻿// SessionReleaseProbeTest.cs — does every connection type end its router-side session when it is disposed?
 //
 // Filed 2026-09-30: during a full matrix, CHR2 (6.49.13, the RoMON target) stopped answering every login — API 0
 // bytes, Telnet an empty reply, MAC-Telnet no packets — while still answering ping; its native console took ~20 s
@@ -33,7 +33,9 @@ namespace tik4net.integrationtests
     // MSTest skips [Ignore] even under --filter, so comment it out to run these.
     [Ignore("Session-release probe against a live router — comment out to run.")]
     [TestClass]
-    public class SessionReleaseProbeTest
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class SessionReleaseProbeTest : LockedTestBase
     {
         private const int SettleSeconds = 15;
 

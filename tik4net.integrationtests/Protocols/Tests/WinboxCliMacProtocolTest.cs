@@ -1,4 +1,4 @@
-// WinboxCliMacProtocolTest.cs — WinBox CLI over MAC smoke tests via ITikConnection.
+﻿// WinboxCliMacProtocolTest.cs — WinBox CLI over MAC smoke tests via ITikConnection.
 // Drives the production WinboxCliMacConnection (UDP 20561, client_type=0x0f90, mepty terminal)
 // through the shared WinBox CLI engine + CLI Layer.
 // Full CRUD parity is verified by the TestBase-based suite via winboxclimac.runsettings.
@@ -13,7 +13,11 @@ using tik4net.WinboxCliMac;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class WinboxCliMacProtocolTest
+    // Writes the comment of the test interface, as InterfaceTest and TikCommandTest do in the transport legs.
+    [TestLock("testInterface-comment")]
+    [TestLock(TestLockAttribute.MacLayer)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxCliMacProtocolTest : LockedTestBase
     {
         // Enable the MAC Winbox server on the router before tests run (separate from the mac-telnet server).
         [ClassInitialize]

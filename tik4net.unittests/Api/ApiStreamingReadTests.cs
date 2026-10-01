@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -26,6 +26,7 @@ namespace tik4net.unittests.Api
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]
     public class ApiStreamingReadTests
     {
         private const string TestUser = "admin";

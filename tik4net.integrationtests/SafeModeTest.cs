@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -13,6 +13,7 @@ namespace tik4net.integrationtests
     /// <see cref="TikConnectionCapability.SafeMode"/> (binary API, a CLI terminal, or native WinBox).
     /// </summary>
     [TestClass]
+    [TestLock(TestLockScope.Router)]
     public class SafeModeTest : TestBase
     {
         private const string PATH = "/ppp/secret";

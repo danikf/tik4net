@@ -1,4 +1,4 @@
-// WinboxMproxyMemoryProbeTest.cs — does an mproxy file open cost the router memory it never gets back?
+﻿// WinboxMproxyMemoryProbeTest.cs — does an mproxy file open cost the router memory it never gets back?
 //
 // P2.20 established that mproxy file handles cannot be released: the handle id is a plain sequential
 // counter and there is no close/release verb (cmds 8–11 answer 0xFE0009 not-implemented). That was noted
@@ -36,7 +36,9 @@ namespace tik4net.integrationtests
     // MSTest skips [Ignore] even under --filter, so comment it out to run these.
     [Ignore("Ad-hoc memory probe against a live router — comment out to run.")]
     [TestClass]
-    public class WinboxMproxyMemoryProbeTest
+    [TestLock(TestLockScope.Router)]
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxMproxyMemoryProbeTest : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
 

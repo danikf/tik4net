@@ -1,4 +1,4 @@
-// WinboxJgFetchTest.cs — the WinBox .jg menu catalog: resolving it, fetching it over M2 (port 8291,
+﻿// WinboxJgFetchTest.cs — the WinBox .jg menu catalog: resolving it, fetching it over M2 (port 8291,
 // no HTTP), and caching it.
 //
 // The plugin filenames must be RESOLVED, never hardcoded. mproxy serves a "list" catalog whose entries
@@ -21,7 +21,8 @@ using System.Linq;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class WinboxJgFetchTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxJgFetchTest : LockedTestBase
     {
         private const int WINBOX_PORT = 8291;
 

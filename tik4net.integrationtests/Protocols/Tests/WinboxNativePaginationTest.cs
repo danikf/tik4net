@@ -1,4 +1,4 @@
-// WinboxNativePaginationTest.cs — P2.9: live proof that a MULTI-PAGE getall over WinBox native
+﻿// WinboxNativePaginationTest.cs — P2.9: live proof that a MULTI-PAGE getall over WinBox native
 // returns every page, and a report of which continuation key the router actually used.
 //
 // The deterministic side of P2.9 lives in tik4net.unittests (WinboxM2PaginationTests, scripted peer).
@@ -20,7 +20,8 @@ namespace tik4net.integrationtests
     // Measured 2026-08-13 on 7.23.2: api 1000 rows, winboxnative 1000 rows (5 pages via ufe0003).
     [Ignore("P2.9 pagination probe — hits a live router and reads the whole log. Remove the attribute to run.")]
     [TestClass]
-    public class WinboxNativePaginationTest
+    [TestCategory(TestCategories.LegIndependent)]
+    public class WinboxNativePaginationTest : LockedTestBase
     {
         private static (string host, string user, string pass) Cfg() => (
             LabConfig.Get("host"),

@@ -10,6 +10,7 @@ using tik4net.Objects.Interface;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class InterfaceMonitorTrafficTest : TestBase
     {
         /// <remarks>

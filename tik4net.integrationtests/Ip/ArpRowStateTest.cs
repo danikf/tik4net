@@ -1,4 +1,4 @@
-// ArpRowStateTest.cs — the row-state flags the router computes and the catalog never names.
+﻿// ArpRowStateTest.cs — the row-state flags the router computes and the catalog never names.
 //
 // `dynamic` is the field that says whether a row was learned by the router or configured by hand, and no
 // .jg window declares it on any handler — so over WinBox native it reached no caller at all, on every table
@@ -16,9 +16,11 @@ using tik4net;
 namespace tik4net.integrationtests.Ip
 {
     [TestClass]
+    // The probe entry has a fixed address and MAC on the test interface; RouterOS refuses a second one.
+    [TestLock("arp-probe")]
     public class ArpRowStateTest : TestBase
     {
-        private const string ProbeComment = "tik4net-test-arp-state";
+        private static readonly string ProbeComment = TestNames.Unique("tik4net-test-arp-state");
 
         // An address and MAC nothing in this lab answers for, so the entry stays exactly as configured.
         private const string ProbeAddress = "192.168.251.77";

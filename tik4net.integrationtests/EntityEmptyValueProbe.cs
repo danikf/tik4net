@@ -1,4 +1,4 @@
-// EntityEmptyValueProbe.cs — probe: what does each transport deliver for a field that is EMPTY? Validation run V4
+﻿// EntityEmptyValueProbe.cs — probe: what does each transport deliver for a field that is EMPTY? Validation run V4
 // of the 5.0 entity value model (TikValue<T>).
 //
 // WHY THIS EXISTS. The model reads a field the row lacks as Absent and a field printed empty as Present(""), and
@@ -34,7 +34,8 @@ namespace tik4net.integrationtests
 {
     [Ignore("V4 empty-value sweep — creates t4n-v4-* rows on a live router and reads them on every transport. Remove the attribute to run.")]
     [TestClass]
-    public class EntityEmptyValueProbe
+    [TestCategory(TestCategories.LegIndependent)]
+    public class EntityEmptyValueProbe : LockedTestBase
     {
         [TestMethod]
         public void SweepEmptyValuesOnEveryTransport()

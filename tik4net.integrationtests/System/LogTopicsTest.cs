@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -16,6 +16,7 @@ namespace tik4net.integrationtests
     /// wrong, which is why a field nothing asserted on could stay wrong indefinitely.
     /// </remarks>
     [TestClass]
+    [SafeInParallelLegs]
     public class LogTopicsTest : TestBase
     {
         // "[9,3]" / "[]" — an undecoded WinBox reference list rather than topic names.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Tool.MacServer;
@@ -6,6 +6,7 @@ using tik4net.Objects.Tool.MacServer;
 namespace tik4net.integrationtests
 {
     [TestClass]
+    [SafeInParallelLegs]
     public class ToolMacServerTest : TestBase
     {
         [TestMethod]
