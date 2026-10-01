@@ -573,7 +573,7 @@ namespace tik4net.Winbox
                 if (File.Exists(path) && string.Equals(File.ReadAllText(path, Encoding.UTF8), text, StringComparison.Ordinal))
                     return;
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!); // path is a file path from Path.Combine, always has a directory component
-                File.WriteAllText(path, text, new UTF8Encoding(false));
+                WriteAtomically(path, text);
             }
             catch { /* remembering is best-effort — never fail an open over it */ }
         }
@@ -690,8 +690,6 @@ namespace tik4net.Winbox
                 if (SharedCatalogs.TryGetValue(key, out var cached)) return cached;
             }
 
-            var catalog = new WinboxJgCatalog();
-            bool complete = true;
             // roteros.jg first: it is served by every router, holds the core windows (interface, ip,
             // routing, system) that the resolver actually needs, and is by far the largest — so it is the
             // one that must be fetched while the channel is freshest.
@@ -700,12 +698,52 @@ namespace tik4net.Winbox
             // / 6.8 MB with no trouble, and the failures that do occur land at no consistent offset (0 B,
             // 0.5 MB, 1.5 MB, 2.7 MB). What a failure does mean is that THIS channel is finished — it never
             // answers again, not even a 26-byte `list`, while a new connection to the same router works
-            // immediately. Hence the break below (P2.20).
-            foreach (var plugin in plugins.OrderByDescending(p =>
-                         string.Equals(p.Name, "roteros.jg", StringComparison.OrdinalIgnoreCase)).ToList())
+            // immediately. Hence the stop in Assemble (P2.20).
+            var catalog = Assemble(
+                plugins.OrderByDescending(p => string.Equals(p.Name, "roteros.jg", StringComparison.OrdinalIgnoreCase)),
+                plugin => ReadCached(plugin, cacheDir),
+                plugin => FetchJg(ops, plugin.Unique),
+                (plugin, text) => StoreCached(plugin, cacheDir, text),
+                plugin => EvictCached(plugin, cacheDir),
+                out bool complete);
+
+            // Only publish a complete catalog for reuse; a partial one must be retried next connection.
+            if (complete)
+                lock (SharedCatalogsLock) { SharedCatalogs[key] = catalog; }
+            return catalog;
+        }
+
+        /// <summary>
+        /// Builds a catalog from <paramref name="plugins"/> in order, each read from the cache or else fetched.
+        /// <paramref name="complete"/> is false when a plugin could not be had or did not parse — the catalog is then
+        /// usable for this connection but must not be shared or reused.
+        /// </summary>
+        /// <remarks>
+        /// A plugin is stored in the cache only after it parsed. The cache is content-addressed and never
+        /// invalidated, so a truncated download stored there — a read that ends early returns what it got — would
+        /// be served to every later connection, on every process sharing the directory, as that plugin. A cached
+        /// file that does not parse is evicted for the same reason, so the next connection fetches it again.
+        /// </remarks>
+        internal static WinboxJgCatalog Assemble(IEnumerable<PluginEntry> plugins,
+                                                 Func<PluginEntry, string?> readCached,
+                                                 Func<PluginEntry, string?> fetch,
+                                                 Action<PluginEntry, string> store,
+                                                 Action<PluginEntry> evict,
+                                                 out bool complete)
+        {
+            var catalog = new WinboxJgCatalog();
+            complete = true;
+            foreach (var plugin in plugins.ToList())
             {
                 string? text = null;
-                try { text = ReadCachedOrFetch(ops, plugin, cacheDir); }
+                bool fromCache = false;
+                try
+                {
+                    text = readCached(plugin);
+                    fromCache = !string.IsNullOrEmpty(text);
+                    if (!fromCache)
+                        text = fetch(plugin);
+                }
                 catch (Exception ex) { TraceNote(plugin.Name + " FAILED: " + ex.Message); text = null; }
 
                 if (string.IsNullOrEmpty(text))
@@ -718,13 +756,21 @@ namespace tik4net.Winbox
                     complete = false;
                     break;
                 }
-                catalog.TryParseInto(text!); // IsNullOrEmpty above already excluded null/empty
+
+                if (!catalog.TryParseInto(text!)) // IsNullOrEmpty above already excluded null/empty
+                {
+                    // The content arrived, so the channel is fine: go on with the rest, but this catalog is
+                    // missing a plugin and must not pass for the whole one.
+                    complete = false;
+                    if (fromCache)
+                        evict(plugin);
+                    TraceNote(plugin.Name + " did not parse (" + (fromCache ? "cached copy evicted" : "not cached") + ")");
+                    continue;
+                }
+                if (!fromCache)
+                    store(plugin, text!);
                 TraceNote(plugin.Name + ": " + text!.Length + " chars, handlers now " + catalog._byHandler.Count);
             }
-
-            // Only publish a complete catalog for reuse; a partial one must be retried next connection.
-            if (complete)
-                lock (SharedCatalogsLock) { SharedCatalogs[key] = catalog; }
             return catalog;
         }
 
@@ -732,33 +778,68 @@ namespace tik4net.Winbox
         // carries a version+content stamp, which makes the cache correct across routers by construction:
         // any router advertising that name wants that exact file, an upgrade resolves a new name (so there
         // is nothing to invalidate), and routers sharing a plugin share one copy.
-        private static string? ReadCachedOrFetch(WinboxNativeM2Operations ops, PluginEntry plugin,
-                                                string? cacheDir)
+        private static string? CachePathOf(PluginEntry plugin, string? cacheDir)
+            => string.IsNullOrEmpty(cacheDir) ? null : Path.Combine(Path.Combine(cacheDir, "plugins"), plugin.Unique);
+
+        private static string? ReadCached(PluginEntry plugin, string? cacheDir)
         {
-            string? path = null;
-            if (!string.IsNullOrEmpty(cacheDir))
+            try
             {
+                string? path = CachePathOf(plugin, cacheDir);
+                return path != null && File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : null;
+            }
+            catch { return null; /* cache read is best-effort */ }
+        }
+
+        private static void StoreCached(PluginEntry plugin, string? cacheDir, string text)
+        {
+            string? path = CachePathOf(plugin, cacheDir);
+            if (path == null) return;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!); // path is a file path from Path.Combine, always has a directory component
+                WriteAtomically(path, text);
+            }
+            catch { /* cache write is best-effort */ }
+        }
+
+        private static void EvictCached(PluginEntry plugin, string? cacheDir)
+        {
+            string? path = CachePathOf(plugin, cacheDir);
+            if (path == null) return;
+            try { File.Delete(path); }
+            catch { /* another process may hold it; the next connection tries again */ }
+        }
+
+        // The cache directory is shared by every process on the machine (the default is %TEMP%\tik4net), and
+        // File.WriteAllText truncates the file before it writes. A process opening it in between would read part of
+        // a plugin, and TryParseInto is tolerant by design, so a catalog missing half its windows would pass as
+        // complete. So the file is written under a name of its own and moved into place: a reader sees the old file
+        // or the new one, never half of one.
+        private static void WriteAtomically(string path, string text)
+        {
+            string temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                File.WriteAllText(temp, text, new UTF8Encoding(false));
                 try
                 {
-                    path = Path.Combine(Path.Combine(cacheDir, "plugins"), plugin.Unique);
-                    if (File.Exists(path)) return File.ReadAllText(path, Encoding.UTF8);
+                    if (File.Exists(path))
+                        File.Replace(temp, path, null);
+                    else
+                        File.Move(temp, path);
                 }
-                catch { path = null; /* cache read is best-effort */ }
-            }
-
-            string? text = FetchJg(ops, plugin.Unique);
-            if (string.IsNullOrEmpty(text)) return null;
-
-            if (path != null)
-            {
-                try
+                catch (IOException) when (File.Exists(path))
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(path)!); // path is a file path from Path.Combine, always has a directory component
-                    File.WriteAllText(path, text, new UTF8Encoding(false));
+                    // Another process moved its copy into place first. A plugin is content-addressed, so theirs is
+                    // this file; a plugin list that differs is rewritten by the next open that reads it.
                 }
-                catch { /* cache write is best-effort */ }
             }
-            return text;
+            finally
+            {
+                try { if (File.Exists(temp)) File.Delete(temp); }
+                catch { /* a leftover .tmp is harmless: nothing reads it */ }
+            }
         }
 
         // Tolerant by design — one plugin we cannot parse must not cost the whole catalog. But a silently
