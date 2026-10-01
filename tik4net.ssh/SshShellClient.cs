@@ -387,7 +387,15 @@ namespace tik4net.Ssh
 
                 if (echoSeen && RouterOsCliLogin.IsShellPrompt(stripped))
                 {
-                    if (settleUntil == null)
+                    var verdict = CliOutputHelper.JudgePrompt(stripped, sentCommand);
+                    if (verdict == CliOutputHelper.PromptVerdict.Complete)
+                    {
+                        TraceNote("the count line and the prompt → response complete");
+                        return stripped; // a counted read's own last line and the prompt → done, no settle
+                    }
+                    if (verdict == CliOutputHelper.PromptVerdict.NotYet)
+                        settleUntil = null; // a repaint before the answer, not its end
+                    else if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
                     else if (DateTime.UtcNow >= settleUntil.Value)
                     {

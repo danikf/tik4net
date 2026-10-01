@@ -918,6 +918,17 @@ write gets non-empty "output" that the positional error rule (§10) reads as a r
 can hand back an `.id` that was never created here, which only fails one call later, in the read-back,
 with `no such item`.
 
+**A counted read ends on its own last line, not on silence** (`CliOutputHelper.JudgePrompt`). Every counted read
+writes its count last (`#n=<len>/<kind>`, a window `#w=<len>`), so that line followed by the prompt is the end of
+the answer and the settle window is not waited out — it was 130 of the 221 ms an average command took (SSH wire trace,
+1874 commands of a full leg under four-leg load, 2026-10-01). With it, a full leg runs 18–28 % faster on Telnet, SSH,
+MAC-Telnet and WinBox CLI MAC, and 5 % on WinBox CLI, whose pull cadence dominates. A prompt also never ends a counted
+read before anything of its own has come: RouterOS repaints the prompt after every console log line it writes into the
+session (§11), and one landing between the echo and a slow answer is not the end. A refused counted read has its error
+text and settles as before; every other command settles as before. Console log lines after the count line are skipped,
+here and by `CleanOutput`'s trailing-prompt loop — left in, the prompts above such a line stayed after the count and
+the count read as missing.
+
 **The fix: the command's own echo is the anchor.** RouterOS echoes the command before it answers it, so
 the response carries its own identity.
 

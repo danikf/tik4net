@@ -161,6 +161,79 @@ namespace tik4net.Cli
             return sb.ToString();
         }
 
+        /// <summary>What a settled-looking prompt means for a read: see <see cref="JudgePrompt"/>.</summary>
+        internal enum PromptVerdict
+        {
+            /// <summary>Not a counted read: wait for the prompt to stay silent, as every read did before.</summary>
+            Settle,
+
+            /// <summary>A counted read whose own last line has arrived: the answer is complete now.</summary>
+            Complete,
+
+            /// <summary>
+            /// A counted read with nothing of its own after the echo yet: this prompt is a repaint (after a console
+            /// log line, say), not the end of the answer — keep reading.
+            /// </summary>
+            NotYet,
+        }
+
+        /// <summary>
+        /// Decides, for a read that has seen its echo and now ends at a prompt, whether the prompt ends the answer —
+        /// by the answer's expected last line rather than by silence.
+        /// </summary>
+        /// <remarks>
+        /// <para>A counted read (<see cref="CliCommandBuilder.CountMarker"/>, <see cref="CliCommandBuilder.WindowMarker"/>)
+        /// always writes its count last, so the count line followed by the prompt IS the end: no settle window to wait
+        /// out (120–150 ms, which was 59 % of an average CLI command — measured over SSH, 1874 commands of a full leg,
+        /// 2026-10-01). The marker on the command line itself is never taken for it: the echo carries
+        /// <c>("#n=" . …)</c>, never a line that is only the marker and a count.</para>
+        /// <para>Nor does a prompt end a counted read before anything of its own has come: RouterOS repaints the prompt
+        /// after every console log line it writes into the session, and one landing between the echo and a slow answer
+        /// ended such reads empty under load. A counted read that is refused has text of its own (the error), so it
+        /// still settles as before — only a prompt with nothing behind the echo is waited past, up to the deadline.</para>
+        /// </remarks>
+        internal static PromptVerdict JudgePrompt(string strippedSoFar, string? sentCommand)
+        {
+            if (!IsCountedCommand(sentCommand))
+                return PromptVerdict.Settle;
+            if (EndsWithCountLine(strippedSoFar))
+                return PromptVerdict.Complete;
+            return CleanOutput(strippedSoFar, sentCommand).Length == 0 ? PromptVerdict.NotYet : PromptVerdict.Settle;
+        }
+
+        // A command whose last statement writes the count line — the literal marker in quotes, as CliCommandBuilder
+        // writes it (":put (\"#n=\" . …)").
+        private static bool IsCountedCommand(string? sentCommand)
+            => sentCommand != null
+               && (sentCommand.IndexOf("\"" + CliCommandBuilder.CountMarker + "\"", StringComparison.Ordinal) >= 0
+                   || sentCommand.IndexOf("\"" + CliCommandBuilder.WindowMarker + "\"", StringComparison.Ordinal) >= 0);
+
+        // The last line that is not blank, a prompt or a console log line is the count line: "#n=<len>/<kind>" or "#w=<len>".
+        private static bool EndsWithCountLine(string stripped)
+        {
+            string[] lines = stripped.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            for (int i = lines.Length - 1; i >= 0; i--)
+            {
+                string line = lines[i].Trim();
+                if (line.Length == 0 || IsPromptLine(line) || IsRouterLogLine(line))
+                    continue;
+                if (line.StartsWith(CliCommandBuilder.CountMarker, StringComparison.Ordinal))
+                    return CliCommandBuilder.ExpectedRecordCount(line.Substring(CliCommandBuilder.CountMarker.Length)) >= 0;
+                if (line.StartsWith(CliCommandBuilder.WindowMarker, StringComparison.Ordinal))
+                    return IsDigits(line.Substring(CliCommandBuilder.WindowMarker.Length));
+                return false;
+            }
+            return false;
+        }
+
+        private static bool IsDigits(string s)
+        {
+            if (s.Length == 0) return false;
+            foreach (char c in s)
+                if (c < '0' || c > '9') return false;
+            return true;
+        }
+
         /// <summary>
         /// True when <paramref name="strippedSoFar"/> ends with the shell prompt that ends a command's response.
         /// </summary>
