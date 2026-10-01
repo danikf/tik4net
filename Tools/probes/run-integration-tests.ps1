@@ -72,6 +72,12 @@
     Run the already-built test assembly (dotnet test --no-build). A parallel run always builds once up
     front and starts every leg with --no-build; this skips that build too.
 
+.PARAMETER HangMinutes
+    How long a leg's `dotnet test` may stay alive after printing its run summary. A process that outlives it is
+    hung on the way out (seen 2026-10-01: three legs printed their summary, never wrote the TRX and never
+    exited, holding the whole run for an hour). It gets a dump (dotnet-dump collect, when the tool is
+    installed) beside its log, is killed, and its counts are taken from the log. Default 3; 0 = never.
+
 .PARAMETER WireTrace
     Enable byte-level wire tracing for the run by setting TIK4NET_WIRETRACE. Pass a file path, or
     'auto' to name the file after the leg and timestamp. Test boundaries are written into the trace, so a
@@ -107,6 +113,7 @@ param(
     [switch]   $NoIndependentLeg,
     [switch]   $NoBuild,
     [string]   $ResultsDirectory = 'TestResults',
+    [int]      $HangMinutes = 3,
     [string]   $WireTrace
 )
 
@@ -215,7 +222,13 @@ foreach ($r in $Router) {
 # (LockedTestBase) - so the sum of durations splits into waiting for locks and running.
 function Get-LegStats($leg) {
     $trx = Join-Path $leg.ResultsPath $leg.Trx
-    if (-not (Test-Path $trx)) { return [pscustomobject]@{ Counts = 'no TRX'; TestSec = 0; LockSec = 0 } }
+    if (-not (Test-Path $trx)) {
+        $fromLog = Get-LogSummary $leg
+        $counts = if ($fromLog) {
+            'total {0}, passed {1}, failed {2}, skipped {3} (from the log: no TRX)' -f $fromLog.Total, $fromLog.Passed, $fromLog.Failed, $fromLog.Skipped
+        } else { 'no TRX' }
+        return [pscustomobject]@{ Counts = $counts; TestSec = 0; LockSec = 0 }
+    }
     $run = ([xml](Get-Content $trx -Raw)).TestRun
     $c = $run.ResultSummary.Counters
     # Inconclusive and [Ignore]d tests are counted under different attributes by different MSTest versions;
@@ -234,6 +247,53 @@ function Get-LegStats($leg) {
     }
 }
 
+# The run summary the console logger prints at the end, read from a leg's log. The legs run with an English UI
+# (Set-LegEnvironment), so the words are fixed: "Total tests: 478", "Passed: 443", "Failed: 1", "Skipped: 35".
+# $null until the summary is there.
+function Get-LogSummary($leg) {
+    $log = Join-Path $leg.ResultsPath ([IO.Path]::ChangeExtension($leg.Trx, '.log'))
+    if (-not (Test-Path $log)) { return $null }
+    $text = Get-Content $log -Raw -ErrorAction SilentlyContinue
+    if (-not $text) { return $null }
+    $total = [regex]::Match($text, '(?m)^\s*Total tests:\s*(\d+)')
+    if (-not $total.Success) { return $null }
+    $count = {
+        param([string] $word)
+        $m = [regex]::Match($text, "(?m)^\s*${word}:\s*(\d+)")
+        if ($m.Success) { [int]$m.Groups[1].Value } else { 0 }
+    }
+    [pscustomobject]@{
+        Total = [int]$total.Groups[1].Value
+        Passed = (& $count 'Passed'); Failed = (& $count 'Failed'); Skipped = (& $count 'Skipped')
+    }
+}
+
+# A leg hung after its summary: a dump for the diagnosis (when dotnet-dump is installed), then its process tree is
+# killed. Bounded, so a dump that hangs itself cannot hold the run either.
+function Stop-HungLeg($job) {
+    $tool = Get-Command dotnet-dump -ErrorAction SilentlyContinue
+    if (-not $tool) {
+        $candidate = Join-Path $env:USERPROFILE '.dotnet\tools\dotnet-dump.exe'
+        if (Test-Path $candidate) { $tool = Get-Command $candidate }
+    }
+    if ($tool) {
+        $dump = Join-Path $job.Leg.ResultsPath ("hang_{0}_{1}.dmp" -f $job.Leg.Name, $job.Process.Id)
+        $d = Start-Process -FilePath $tool.Source -ArgumentList @('collect', '-p', $job.Process.Id, '--type', 'Heap', '-o', ('"' + $dump + '"')) `
+                           -NoNewWindow -PassThru -RedirectStandardOutput "$dump.log" -RedirectStandardError "$dump.err"
+        if (-not $d.WaitForExit(120000)) { try { $d.Kill() } catch { } }
+        if (Test-Path $dump) {
+            Write-Host ("  dump    {0}" -f $dump) -ForegroundColor DarkYellow
+            Remove-Item "$dump.log", "$dump.err" -ErrorAction SilentlyContinue
+        } else {
+            Write-Host ("  no dump - dotnet-dump failed, see {0}.log" -f $dump) -ForegroundColor DarkYellow
+        }
+    } else {
+        Write-Host '  (dotnet-dump is not installed - "dotnet tool install -g dotnet-dump" gives a dump next time)' -ForegroundColor DarkYellow
+    }
+    & taskkill /PID $job.Process.Id /T /F 2>&1 | Out-Null
+    try { $null = $job.Process.WaitForExit(30000) } catch { }
+}
+
 function New-SummaryRow($leg, [TimeSpan] $wall, [int] $exitCode) {
     $st = Get-LegStats $leg
     [pscustomobject]@{
@@ -241,7 +301,7 @@ function New-SummaryRow($leg, [TimeSpan] $wall, [int] $exitCode) {
         Tests = '{0:hh\:mm\:ss}' -f [TimeSpan]::FromSeconds($st.TestSec)
         LockWait = '{0:hh\:mm\:ss}' -f [TimeSpan]::FromSeconds($st.LockSec)
         Running = '{0:hh\:mm\:ss}' -f [TimeSpan]::FromSeconds([Math]::Max(0, $st.TestSec - $st.LockSec))
-        ExitCode = $exitCode; Counts = $st.Counts; Trx = Join-Path $leg.ResultsPath $leg.Trx
+        ExitCode = $exitCode; Counts = $st.Counts; Trx = Join-Path $leg.ResultsPath $leg.Trx; Hung = $false
         TestSec = $st.TestSec; LockSec = $st.LockSec
     }
 }
@@ -275,6 +335,9 @@ function Move-PreviousResult($leg) {
 # The environment a leg's process starts with. Set in this process just before the leg starts, and put back
 # afterwards: a child inherits the environment at the moment it is created.
 function Set-LegEnvironment($leg) {
+    # An English console: the hang guard reads the run summary from the log (Get-LogSummary).
+    $env:DOTNET_CLI_UI_LANGUAGE = 'en'
+    $env:VSLANG = '1033'
     if ($leg.Router -eq 'default') { Remove-Item Env:\TIK4NET_ROUTER -ErrorAction SilentlyContinue }
     else { $env:TIK4NET_ROUTER = $leg.Router }
     if ($LockAll) { $env:TIK4NET_LOCK_ALL = '1' }
@@ -285,7 +348,7 @@ function Set-LegEnvironment($leg) {
     }
 }
 $savedEnv = @{}
-foreach ($name in @('TIK4NET_ROUTER', 'TIK4NET_LOCK_ALL', 'TIK4NET_WIRETRACE')) {
+foreach ($name in @('TIK4NET_ROUTER', 'TIK4NET_LOCK_ALL', 'TIK4NET_WIRETRACE', 'DOTNET_CLI_UI_LANGUAGE', 'VSLANG')) {
     $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name)
 }
 function Restore-Environment {
@@ -341,23 +404,44 @@ try {
                                    -RedirectStandardOutput $log -RedirectStandardError "$log.err"
                 $null = $p.Handle   # without touching Handle, Windows PowerShell never learns the exit code
                 Restore-Environment
-                $running += [pscustomobject]@{ Leg = $leg; Process = $p; Started = Get-Date; Log = $log }
+                $running += [pscustomobject]@{ Leg = $leg; Process = $p; Started = Get-Date; Log = $log; SummarySeen = $null; Hung = $false }
                 Write-Host ("  started {0} / {1} (pid {2})" -f $leg.Router, $leg.Name, $p.Id) -ForegroundColor DarkGray
             }
 
             Start-Sleep -Milliseconds 500
             $still = @()
             foreach ($job in $running) {
-                if (-not $job.Process.HasExited) { $still += $job; continue }
-                $job.Process.WaitForExit()
+                if (-not $job.Process.HasExited) {
+                    # The hang guard: the summary is the last thing a leg prints before it writes the TRX and exits.
+                    if ($HangMinutes -gt 0) {
+                        if (-not $job.SummarySeen) {
+                            if (Get-LogSummary $job.Leg) { $job.SummarySeen = Get-Date }
+                        }
+                        elseif (((Get-Date) - $job.SummarySeen).TotalMinutes -ge $HangMinutes) {
+                            Write-Host ("  HUNG    {0} / {1}: still running {2} min after its summary - dumping and killing it" -f
+                                        $job.Leg.Router, $job.Leg.Name, $HangMinutes) -ForegroundColor Red
+                            Stop-HungLeg $job
+                            $job.Hung = $true
+                        }
+                    }
+                    if (-not $job.Hung) { $still += $job; continue }
+                }
+                if (-not $job.Hung) { $job.Process.WaitForExit() }
                 $err = "$($job.Log).err"
                 if ((Test-Path $err) -and (Get-Item $err).Length -gt 0) { Get-Content $err | Add-Content $job.Log }
                 Remove-Item $err -ErrorAction SilentlyContinue
-                $row = New-SummaryRow $job.Leg ((Get-Date) - $job.Started) $job.Process.ExitCode
+                # A hung leg was killed, so its exit code says nothing; the summary in its log says how the tests went.
+                $exitCode = if ($job.Hung) {
+                    $fromLog = Get-LogSummary $job.Leg
+                    if ($fromLog -and $fromLog.Failed -eq 0) { 0 } else { 1 }
+                } else { $job.Process.ExitCode }
+                $row = New-SummaryRow $job.Leg ((Get-Date) - $job.Started) $exitCode
+                $row.Hung = $job.Hung
                 $summary += $row
-                $color = if ($job.Process.ExitCode -eq 0) { 'Green' } else { 'Red' }
-                Write-Host ("  done    {0} / {1}: exit {2}, {3}; wall {4}, lock wait {5}" -f $job.Leg.Router, $job.Leg.Name,
-                            $job.Process.ExitCode, $row.Counts, $row.Wall, $row.LockWait) -ForegroundColor $color
+                $color = if ($exitCode -eq 0) { 'Green' } else { 'Red' }
+                Write-Host ("  done    {0} / {1}: exit {2}{3}, {4}; wall {5}, lock wait {6}" -f $job.Leg.Router, $job.Leg.Name,
+                            $exitCode, $(if ($job.Hung) { ' (hung after its summary, killed)' } else { '' }),
+                            $row.Counts, $row.Wall, $row.LockWait) -ForegroundColor $color
             }
             $running = $still
         }
@@ -379,6 +463,14 @@ Write-Host ("all legs: tests {0:hh\:mm\:ss}, of which waiting for locks {1:hh\:m
 
 Write-Host "Read the results (including named skips) with:" -ForegroundColor DarkGray
 Write-Host "  $PSScriptRoot\parse-trx.ps1 -ResultsDirectory $ResultsDirectory" -ForegroundColor DarkGray
+
+# A hang is reported even when its tests passed: the tests are fine, the tooling is not.
+$hungLegs = @($summary | Where-Object { $_.Hung })
+if ($hungLegs) {
+    Write-Host ''
+    Write-Host ("HUNG after the summary and killed: {0} - counts from the log, no TRX; the dump is hang_*.dmp beside it" -f
+                (($hungLegs | ForEach-Object { "$($_.Router)/$($_.Leg)" }) -join ', ')) -ForegroundColor DarkYellow
+}
 
 # A matrix in which three legs exited 1 must not exit 0: anything reading the exit code - a wrapper
 # script, a person - would be told the run passed.

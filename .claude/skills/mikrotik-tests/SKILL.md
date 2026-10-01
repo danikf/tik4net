@@ -142,6 +142,13 @@ nothing otherwise looks exactly like a run that passed. What it cannot tell you 
 were the ones you meant — `--filter` matching nothing is still a green run of zero tests, so check the
 test count (the summary prints it per leg, from the TRX) against what you expected.
 
+**A leg that hangs on its way out does not hold the run.** `dotnet test` has been seen to print its run summary and
+then never write the TRX nor exit (three legs at once, 2026-10-01, an hour lost). A leg still alive `-HangMinutes`
+(default 3) after its summary gets a dump `hang_<leg>_<pid>.dmp` beside its log (`dotnet-dump collect`, when
+`dotnet tool install -g dotnet-dump` has been run), is killed with its process tree, and is reported with the counts
+from its log — the legs run with an English console for that — and named under *HUNG* at the end. Its tests count as
+they ran; the hang itself is a tooling finding, so read the dump (`dotnet-dump analyze <dmp>` → `clrstack -all`).
+
 **A re-run does not destroy the previous TRX.** Results keep the stable `results_<transport>.trx` name
 that `parse-trx.ps1` and this document use, and an existing one (and its `.log`) is moved aside as
 `results_<transport>_<timestamp>.trx` before the leg starts. This matters exactly when re-running one leg

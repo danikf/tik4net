@@ -46,7 +46,8 @@ anything runs.
 
 The summary prints, per leg, the wall clock, the sum of the test durations and how much of it was waiting for test
 locks (each test writes `[lock-wait-ms] n` into its output), the exit code and the test counts from the TRX; the script
-exits non-zero when any leg failed.
+exits non-zero when any leg failed. A leg whose `dotnet test` is still alive `-HangMinutes` (default 3) after printing
+its summary is dumped (`dotnet-dump`, when installed), killed, and reported from its log.
 
 `-WireTrace` sets `TIK4NET_WIRETRACE` for the run; test boundaries are written into the trace, so a
 failure can be located without correlating timestamps. With more than one leg, pass `auto` so each leg gets a file.
