@@ -397,7 +397,12 @@ namespace tik4net.MacTelnet
 
                 if (echoSeen && CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand))
                 {
-                    if (settleUntil == null)
+                    var verdict = CliOutputHelper.JudgePrompt(stripped, sentCommand);
+                    if (verdict == CliOutputHelper.PromptVerdict.Complete)
+                        return stripped; // a counted read's own last line and the prompt → done, no settle
+                    if (verdict == CliOutputHelper.PromptVerdict.NotYet)
+                        settleUntil = null; // a repaint before the answer, not its end
+                    else if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
                     else if (DateTime.UtcNow >= settleUntil.Value)
                         return stripped;

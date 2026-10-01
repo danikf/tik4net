@@ -483,10 +483,23 @@ namespace tik4net.WinboxCli
 
                 if (!prompted && echoSeen && Cli.CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand))
                 {
-                    if (TikWireTrace.Enabled)
-                        TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
-                            "prompt seen @" + sw.ElapsedMilliseconds + "ms (bytes=" + sb.Length + ")");
-                    prompted = true;
+                    var verdict = Cli.CliOutputHelper.JudgePrompt(stripped, sentCommand);
+                    if (verdict == Cli.CliOutputHelper.PromptVerdict.Complete)
+                    {
+                        // A counted read's own last line and the prompt: done, no settle window to wait out.
+                        if (TikWireTrace.Enabled)
+                            TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
+                                "count line + prompt -> return @" + sw.ElapsedMilliseconds + "ms (bytes=" + sb.Length + ")");
+                        return stripped;
+                    }
+                    // NotYet: a repaint before the answer (after a console log line) is not its end.
+                    if (verdict == Cli.CliOutputHelper.PromptVerdict.Settle)
+                    {
+                        if (TikWireTrace.Enabled)
+                            TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
+                                "prompt seen @" + sw.ElapsedMilliseconds + "ms (bytes=" + sb.Length + ")");
+                        prompted = true;
+                    }
                 }
 
                 // Once the completion prompt has been seen, the command is done and we return as soon as the
