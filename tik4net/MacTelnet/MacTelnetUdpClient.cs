@@ -212,8 +212,9 @@ namespace tik4net.MacTelnet
         /// perfect — it ends at a real prompt and its byte counter is unbroken — so the packet loss is the
         /// only evidence there is that RouterOS may have dropped part of its own output while recovering.
         /// See <see cref="TikConnectionResponseIncompleteException"/> for the measurement behind that.
-        /// <para>Called by <see cref="MacTelnetConnection"/> for every command <b>except a print</b>. A print
-        /// carries the router's own count of its records and is checked against it exactly
+        /// <para>Called by <see cref="MacTelnetConnection"/> for every command <b>except a counted read</b> (a
+        /// print, or a <c>/console inspect</c>). Such a read carries the router's own count of its records and is
+        /// checked against it exactly
         /// (<see cref="CliConnectionBase"/>), and this heuristic condemns complete answers now and then —
         /// measured, a 10-row slice tripped it while the paged read it belonged to returned every row.</para>
         /// </summary>

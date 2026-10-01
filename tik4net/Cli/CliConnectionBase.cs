@@ -1834,8 +1834,9 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// True while the command on the wire is a print whose answer this class will count against the
-        /// router's own statement of its size — a window, or a whole-table read. The MAC-layer datagram-loss
+        /// True while the command on the wire is a read whose answer this class will count against the
+        /// router's own statement of its size — a window, a whole-table print, or a counted argument read
+        /// (<c>/console inspect</c>). The MAC-layer datagram-loss
         /// heuristic stands down for these: the count is exact and the heuristic is not, and it condemns
         /// complete answers now and then. It still covers every other command.
         /// </summary>
@@ -2435,8 +2436,17 @@ namespace tik4net.Cli
                 string snapshot = CliCommandBuilder.BuildMonitorSnapshot(descriptor.CommandText, descriptor.Parameters,
                     string.Empty, includeFilters: true);
                 string expression = snapshot.Substring(":put [".Length, snapshot.Length - ":put [".Length - 1);
-                string output = await ExecuteCliCommandAsync(
-                    CliCommandBuilder.BuildCountedDsvRead(expression, CliFieldSeparator), cancellationToken).ConfigureAwait(false);
+                string output;
+                _countedReadDepth++;   // counted below, exactly — the MAC-layer loss heuristic stands down
+                try
+                {
+                    output = await ExecuteCliCommandAsync(
+                        CliCommandBuilder.BuildCountedDsvRead(expression, CliFieldSeparator), cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    _countedReadDepth--;
+                }
                 CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
                 string body = SplitOffCountMarker(output, descriptor, out int expected);
                 return EnsureCounted(ParseDsvRecords(body, descriptor), expected, descriptor, body);
