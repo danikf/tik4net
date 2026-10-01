@@ -233,27 +233,148 @@ namespace tik4net.Cli
         TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
             => MenuSchemas.GetOrAdd(path, p =>
             {
-                if (_features.ConsoleInspect != false)
-                {
-                    try
-                    {
-                        var schema = ConsoleInspectSchemaReader.Read(this, p);
-                        _features.ConsoleInspect = true;
-                        return schema;
-                    }
-                    catch (TikNoSuchCommandException ex) when (_features.ConsoleInspect == null
-                        && ex.Message.IndexOf("bad command name inspect", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        _features.ConsoleInspect = false;
-                    }
-                }
-                // No inspect, and no Tab to ask with either: the router cannot be asked, which a caller treats as a
-                // refusal (the filter check then sends the read as before).
-                if (_sendRawSettle == null)
-                    throw new TikNoSuchCommandException(CreateDummyCommand(new TikCommandDescriptor(p, new List<ITikCommandParameter>())),
-                        new TikTrapSentenceResult("no /console/inspect and no Tab completion on this connection"));
-                return CliCompletionSchemaReader.Read(this, p);
+                var store = SchemaStore();
+                if (store == null)
+                    return DescribeMenuLive(p);
+                var source = store.SourceOf(p);
+                return source != null ? CachedSchema(store, p, source.Value) : Recording(store, p, DescribeMenuLive(p));
             });
+
+        /// <summary>
+        /// Directory of the on-disk catalogs: the WinBox <c>.jg</c> plugins and the CLI menu grammar
+        /// (<see cref="CliSchemaStore"/>). <c>null</c> or empty = no persistent cache, each open asks again.
+        /// </summary>
+        internal string? CatalogCachePath { get; set; } = DefaultCatalogCachePath;
+
+        /// <summary>
+        /// What a new CLI connection starts with in <see cref="CatalogCachePath"/>: <c>%TEMP%/tik4net</c>, the WinBox
+        /// <c>.jg</c> cache's directory. The router-free unit tests clear it once for the whole assembly, so their fake
+        /// routers neither answer the build question nor touch the machine's cache.
+        /// </summary>
+        internal static string? DefaultCatalogCachePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tik4net");
+
+        // The store for this router's build, found once per open: the build is asked the first time a menu is
+        // described (one command), not at open — a connection that never describes a menu pays nothing.
+        private CliSchemaStore? _schemaStore;
+        private bool _schemaStoreAsked;
+
+        private CliSchemaStore? SchemaStore()
+        {
+            if (_schemaStoreAsked)
+                return _schemaStore;
+            _schemaStoreAsked = true;
+            if (string.IsNullOrWhiteSpace(CatalogCachePath))
+                return null;
+            try
+            {
+                string dir = System.IO.Path.GetFullPath(Environment.ExpandEnvironmentVariables(CatalogCachePath!));
+                string? key = CliSchemaStore.KeyFromAnswer(ExecuteCliCommand(CliSchemaStore.KeyCommand));
+                if (key == null)
+                    TikWireTrace.Emit(CliSchemaStore.TraceChannel, TikWireDir.Note, "cache off for this connection: no build key in the answer");
+                _schemaStore = CliSchemaStore.For(dir, key);
+            }
+            catch (TikConnectionException)
+            {
+                throw;   // the connection itself failed: that is the caller's to see, not a cache problem
+            }
+            catch (Exception ex)
+            {
+                TikWireTrace.Emit(CliSchemaStore.TraceChannel, TikWireDir.Note, "cache off for this connection: " + ex.Message);
+                _schemaStore = null;
+            }
+            return _schemaStore;
+        }
+
+        // A live schema whose lists go into the store as they are asked. The value completions are router data and
+        // are never stored.
+        private static TikMenuSchema Recording(CliSchemaStore store, string path, TikMenuSchema live)
+        {
+            var source = live.Source;
+            return new TikMenuSchema(path, source,
+                () =>
+                {
+                    var commands = live.Commands;
+                    var submenus = live.Submenus;
+                    store.Put(path, source, SchemaListCommands, commands);
+                    store.Put(path, source, SchemaListSubmenus, submenus);
+                    return (commands, submenus);
+                },
+                verb => Record(store, path, source, SchemaListArgs + verb, live.Arguments(verb)),
+                () => Record(store, path, source, SchemaListReadable, live.ReadableFields),
+                () => Record(store, path, source, SchemaListUnset, live.UnsetFields),
+                (verb, argument) => live.ValuesOf(argument, verb));
+        }
+
+        private static IReadOnlyCollection<string>? Record(CliSchemaStore store, string path, TikMenuSchemaSource source,
+            string list, IReadOnlyCollection<string>? value)
+        {
+            store.Put(path, source, list, value);
+            return value;
+        }
+
+        // A schema answered from the store; a list the store lacks is asked live (and recorded). A cached "no" can be
+        // stale for this router (another board, a buggy older reader), so the checks that refuse on these lists
+        // re-ask live before they refuse (TikMenuSchema.Relearn).
+        private TikMenuSchema CachedSchema(CliSchemaStore store, string path, TikMenuSchemaSource source)
+        {
+            var live = new Lazy<TikMenuSchema>(() => Recording(store, path, DescribeMenuLive(path)));
+            IReadOnlyCollection<string>? List(string name, Func<TikMenuSchema, IReadOnlyCollection<string>?> ask)
+                => store.TryGet(path, name, out var cached) ? cached : ask(live.Value);
+
+            var schema = new TikMenuSchema(path, source,
+                () =>
+                {
+                    if (store.TryGet(path, SchemaListCommands, out var commands) && commands != null
+                        && store.TryGet(path, SchemaListSubmenus, out var submenus))
+                        return (commands, submenus);
+                    return (live.Value.Commands, live.Value.Submenus);
+                },
+                verb => List(SchemaListArgs + verb, s => s.Arguments(verb)),
+                () => List(SchemaListReadable, s => s.ReadableFields),
+                () => List(SchemaListUnset, s => s.UnsetFields),
+                (verb, argument) => live.Value.ValuesOf(argument, verb));
+            schema.Relearn = () =>
+            {
+                var fresh = Recording(store, path, DescribeMenuLive(path));
+                MenuSchemas.Replace(path, fresh);
+                return fresh;
+            };
+            return schema;
+        }
+
+        private const string SchemaListCommands = "commands";
+        private const string SchemaListSubmenus = "submenus";
+        private const string SchemaListReadable = "readable";
+        private const string SchemaListUnset = "unset";
+        private const string SchemaListArgs = "args:";
+
+        /// <summary>
+        /// <c>/console/inspect</c> where the router has it (RouterOS 7), Tab completion where it does not (RouterOS 6):
+        /// whether it does is asked by the first menu described and remembered for the open.
+        /// </summary>
+        private TikMenuSchema DescribeMenuLive(string p)
+        {
+            if (_features.ConsoleInspect != false)
+            {
+                try
+                {
+                    var schema = ConsoleInspectSchemaReader.Read(this, p);
+                    _features.ConsoleInspect = true;
+                    return schema;
+                }
+                catch (TikNoSuchCommandException ex) when (_features.ConsoleInspect == null
+                    && ex.Message.IndexOf("bad command name inspect", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    _features.ConsoleInspect = false;
+                }
+            }
+            // No inspect, and no Tab to ask with either: the router cannot be asked, which a caller treats as a
+            // refusal (the filter check then sends the read as before).
+            if (_sendRawSettle == null)
+                throw new TikNoSuchCommandException(CreateDummyCommand(new TikCommandDescriptor(p, new List<ITikCommandParameter>())),
+                    new TikTrapSentenceResult("no /console/inspect and no Tab completion on this connection"));
+            return CliCompletionSchemaReader.Read(this, p);
+        }
 
         /// <inheritdoc/>
         /// <remarks>
@@ -340,6 +461,8 @@ namespace tik4net.Cli
             RomonConnectionInfo = null;
             _features = new RouterFeatureSet();
             _menuFacts = new RouterMenuFacts();
+            _schemaStore = null;
+            _schemaStoreAsked = false;
             _completionResponseMs = 0;
             try
             {
@@ -388,6 +511,7 @@ namespace tik4net.Cli
             // closed this" from "the transport broke". Tearing down first left a window in which the failure
             // arrived while the connection still looked open, and it was reported as a transport error.
             SetClosed();
+            _schemaStore?.Flush();   // never throws, bounded by the store's lock timeout
             _close?.Invoke();   // reads SafeModeHeld: a session holding it answers the /quit question (see the clients)
             SafeModeHeld = false;
             _send = null;

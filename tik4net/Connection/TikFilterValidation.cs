@@ -45,14 +45,22 @@ namespace tik4net.Connection
             {
                 return;   // the router cannot describe it (or has no such menu, which the read itself will say)
             }
+            var unknown = Unknown(schema, names);
+            // A cached list can be stale for this router: only the router's own answer refuses.
+            if (unknown != null && unknown.Count > 0 && schema.Relearn != null)
+                unknown = Unknown(schema.Relearn(), names);
+            if (unknown != null && unknown.Count > 0)
+                throw new TikUnknownFieldException(command ?? connection.CreateCommand(commandText), unknown, TikUnknownFieldUse.Filter);
+        }
+
+        // The names the menu's readable fields do not hold; null when the router cannot say (no 'get').
+        private static List<string>? Unknown(TikMenuSchema schema, List<string> names)
+        {
             var readable = schema.ReadableFields;
             if (readable == null)
-                return;
-
+                return null;
             var set = new HashSet<string>(readable, StringComparer.Ordinal);
-            var unknown = names.Where(n => !set.Contains(n)).ToList();
-            if (unknown.Count > 0)
-                throw new TikUnknownFieldException(command ?? connection.CreateCommand(commandText), unknown, TikUnknownFieldUse.Filter);
+            return names.Where(n => !set.Contains(n)).ToList();
         }
 
         // The field a filter word names: '.id' and the '#|' stack operators are not fields; an operator prefix

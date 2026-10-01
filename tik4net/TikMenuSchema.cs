@@ -78,6 +78,13 @@ namespace tik4net
         /// <summary>The menu, as it was asked for (<c>/ip/route</c>).</summary>
         public string Path { get; }
 
+        /// <summary>
+        /// Set on a schema answered from the persistent cache: asks the router again and returns the live schema. A
+        /// check that would refuse on a cached list calls it first, so a stale cache can never refuse a request the
+        /// router takes. <c>null</c> on a schema the router answered.
+        /// </summary>
+        internal Func<TikMenuSchema>? Relearn { get; set; }
+
         /// <summary>Where this description came from.</summary>
         public TikMenuSchemaSource Source { get; }
 
@@ -259,6 +266,17 @@ namespace tik4net
             lock (_byPath)
                 _byPath[key] = described;
             return described;
+        }
+
+        /// <summary>Puts <paramref name="schema"/> in place of what this connection remembered for the path.</summary>
+        internal void Replace(string path, TikMenuSchema schema, string? variant = null)
+        {
+            string key = variant == null ? path : path + "|" + variant;
+            lock (_byPath)
+            {
+                _byPath[key] = schema;
+                _refused.Remove(key);
+            }
         }
     }
 

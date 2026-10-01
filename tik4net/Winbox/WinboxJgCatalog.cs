@@ -817,30 +817,7 @@ namespace tik4net.Winbox
         // complete. So the file is written under a name of its own and moved into place: a reader sees the old file
         // or the new one, never half of one.
         private static void WriteAtomically(string path, string text)
-        {
-            string temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
-                File.WriteAllText(temp, text, new UTF8Encoding(false));
-                try
-                {
-                    if (File.Exists(path))
-                        File.Replace(temp, path, null);
-                    else
-                        File.Move(temp, path);
-                }
-                catch (IOException) when (File.Exists(path))
-                {
-                    // Another process moved its copy into place first. A plugin is content-addressed, so theirs is
-                    // this file; a plugin list that differs is rewritten by the next open that reads it.
-                }
-            }
-            finally
-            {
-                try { if (File.Exists(temp)) File.Delete(temp); }
-                catch { /* a leftover .tmp is harmless: nothing reads it */ }
-            }
-        }
+            => tik4net.Connection.TikCacheFileSystem.WriteAtomicallyCore(path, text);
 
         // Tolerant by design — one plugin we cannot parse must not cost the whole catalog. But a silently
         // dropped plugin is a catalog that is quietly missing handlers, which surfaces later as wrong values

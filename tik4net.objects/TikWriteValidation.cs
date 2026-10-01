@@ -43,8 +43,20 @@ namespace tik4net.Objects
                 return;
 
             foreach (var command in commands)
-                if (command != null)
+            {
+                if (command == null)
+                    continue;
+                try
+                {
                     Check(command, metadata, schema);
+                }
+                catch (TikUnknownFieldException) when (schema.Relearn != null)
+                {
+                    // A cached list can be stale for this router: only the router's own answer refuses.
+                    schema = schema.Relearn();
+                    Check(command, metadata, schema);
+                }
+            }
         }
 
         /// <summary>The check itself, for one command against one schema (router-free, for the tests).</summary>
