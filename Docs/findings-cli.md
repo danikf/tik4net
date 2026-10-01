@@ -1316,6 +1316,29 @@ RouterOS 7 needs neither: `/console/inspect request=child` gives `node-type` `di
 Through a RoMON relay the Tab and the Ctrl-C reach the target's line editor; the relay stays up
 (`RomonRelayTest.Relay_TabCompletion_ListsTheTarget_AndKeepsTheRelay`).
 
+### F1 (and `?` on 6.x): the help listing, with descriptions and value grammar
+
+The line editor's help key answers at once with what Tab lists **plus a description per word**, in one round trip.
+The key is **F1** — `ESC O P`, or `ESC [11~`, both accepted — on 6.49.13 and 7.24.4. **`?`** does the same on 6.49.13
+only; on 7.24.4 it is an ordinary character. Like Tab, it is typed without Enter, nothing is executed, and Ctrl-C
+clears the line afterwards. Measured over raw Telnet (`+ct`, no colour), 2026-10-01:
+
+| Input, then F1 | Answer |
+|---|---|
+| empty line | every root command and menu, `name -- description` per line |
+| `/ip address ` | `.. -- go up to ip`, then the verbs (`add -- Create a new item`, …, including `get`, which the first Tab leaves out) |
+| `/ip address set ` | the arguments, including the positional ones: `<numbers> -- List of item numbers` (`get`: `<number>`, `<value-name>`) |
+| `/ip address print where ` | the `where` grammar (`!`, `(`, `$`, `[`, …), then every readable field — read-only ones too (`actual-interface`) |
+| `… address=` | the value grammar: `Address ::= Address[/Netmask]`, `Num ::= 0..32 (integer number)`; an enum as `Chain ::= input \| forward \| output` (6.49.13); live names as `Interface ::= ether1 \| ether2` |
+
+What differs by version: 6.49.13 opens a menu's and a command's listing with a one-line description (`Creates new
+item with specified property values.`); 7.24.4 does not, and ends every listing with `Press F1 for general console
+usage help`.
+
+What it does not give: a long enum is cut with `...` (`speed`, `action` — Tab still lists the rest); required
+arguments are not marked; F1 in the middle of a word (`/ip addr` F1) lists the parent menu, unfiltered; and
+`get` F1 names `<value-name>` without listing the names (Tab on `value-name=` does).
+
 ---
 
 ## Settled questions — do not re-investigate
