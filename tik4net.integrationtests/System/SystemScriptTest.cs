@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.System;
@@ -15,6 +16,36 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/system/script");
             var list = Connection.LoadAll<SystemScript>();
             Assert.IsNotNull(list);
+        }
+
+        /// <summary>
+        /// A whole-table read must survive a script whose source spans lines — the usual shape of a script. RouterOS
+        /// writes the line breaks raw into the CLI's per-row DSV, in the row's last field, and the parser took each
+        /// continuation line for the next row's field names: one script, two records, the read refused. A lab router
+        /// holds no scripts, so the suite saw it only when another leg's script was there at the same moment.
+        /// </summary>
+        [TestMethod]
+        public void AWholeTableReadSurvivesAMultiLineSource()
+        {
+            EnsureCommandAvailable("/system/script");
+            string name = TestNames.Unique("t4n-multiline");
+            var entity = new SystemScript
+            {
+                Name = name,
+                Source = ":local a 1\n:local b \"x=y\"\n:put $a\n",
+            };
+            SaveTracked(entity);
+            try
+            {
+                var rows = Connection.CreateCommand("/system/script/print").ExecuteList();
+                Assert.AreEqual(1, rows.Count(r => r.GetResponseField("name") == name),
+                    "the script was not read back as exactly one row");
+                Assert.AreEqual(1, Connection.LoadAll<SystemScript>().Count(s => s.Name.Value == name));
+            }
+            finally
+            {
+                Connection.Delete(entity);
+            }
         }
 
         /// <summary>
