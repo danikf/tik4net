@@ -160,6 +160,36 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public async Task Relay_ALogLineAndTheAgentsRepaintBeforeThePasswordPrompt_IsNotTheEnd()
+        {
+            // Under load (4 legs, 2026-10-02) another session's login failure is written into the agent's session
+            // between the echo and the target's password prompt, and RouterOS repaints the agent's prompt after it.
+            // Taken for the relay's answer, it read as "could not reach" — while the agent's discover listed the
+            // target at one hop.
+            var term = AgentTerminal()
+                .Emits(SshCommand + "\r\n\r23:30:37 echo: system,error,critical login failure for user admin from "
+                       + "192.0.2.31 via winbox\u001b[K\r\n\r\u001b[9999B[admin@Agent] > ")
+                .Emits("\r\u001b7\u001b8password: ")
+                .Emits(TargetBannerAndPrompt)
+                .Emits(IdAnswer(Target));
+
+            await term.RomonSshLoginAsync(Target);
+
+            CollectionAssert.Contains(Lines(term), "line:" + Password);
+            Assert.AreEqual(0, term.DeadlineHits);
+        }
+
+        [TestMethod]
+        public async Task Relay_AnUnreachableTarget_SaysWhatTheAgentPrinted()
+        {
+            var term = AgentTerminal().Emits(WelcomeBack);
+
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
+
+            StringAssert.Contains(ex.Message, "Welcome back!");
+        }
+
+        [TestMethod]
         public async Task Relay_TheAgentsPromptBeforePassword_ReportsTheTargetUnreachable()
         {
             var term = AgentTerminal().Emits(WelcomeBackToTheAgentsPrompt);

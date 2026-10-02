@@ -367,14 +367,21 @@ namespace tik4net.Cli
                 throw Relay(TikRomonRelayFailure.RomonNotEnabledOnAgent, id,
                     "RoMON is not enabled on the agent (/tool romon set enabled=yes)", null);
 
-            await sendLine("/tool romon ssh address=" + id + " user=" + CliCommandBuilder.QuoteIfNeeded(loginName)
-                           + "; /quit", ct).ConfigureAwait(false);
+            string relayCommand = "/tool romon ssh address=" + id + " user=" + CliCommandBuilder.QuoteIfNeeded(loginName)
+                                  + "; /quit";
+            await sendLine(relayCommand, ct).ConfigureAwait(false);
 
             // 1. The relay starts with the target's password prompt — or, for a target user with an empty password,
             //    with no prompt at all: the ssh client is logged straight in and the target's change-password nag
-            //    is the first thing on screen (7.24.4). Anything else first = it never started.
+            //    is the first thing on screen (7.24.4). Anything else first = it never started. An id the agent
+            //    cannot reach ends the relay after ~5 s ("Welcome back!", measured 7.24.4). The agent's own prompt
+            //    with nothing but console log lines before it is not an answer: RouterOS repaints its prompt after
+            //    every log line it writes into the session, and under load those come often (another session's
+            //    login failure) — taken for the end, it read as "could not reach" while the agent's discover listed
+            //    the target at one hop (2026-10-02).
             string opened = await readUntil(
-                    s => IsPasswordPrompt(s) || IsChangePasswordNag(s) || IsShellPrompt(s) || IsRomonRelayEnd(s), ct)
+                    s => IsPasswordPrompt(s) || IsChangePasswordNag(s) || IsRomonRelayEnd(s)
+                         || (IsShellPrompt(s) && CliOutputHelper.CleanOutput(s, relayCommand).Length > 0), ct)
                 .ConfigureAwait(false);
             bool loggedInWithoutPassword = !IsPasswordPrompt(opened) && IsChangePasswordNag(opened) && !IsRomonRelayEnd(opened);
             if (!IsPasswordPrompt(opened) && !loggedInWithoutPassword)
@@ -384,7 +391,7 @@ namespace tik4net.Cli
                         "the agent did not answer /tool romon ssh with a password prompt", opened);
                 throw Relay(TikRomonRelayFailure.TargetUnreachable, id,
                     "the agent could not reach RoMON id " + id + " (not in its RoMON overlay — see /tool romon discover on the agent)",
-                    null);
+                    opened);
             }
 
             // 3. The target's prompt — or the password prompt again, which is the refusal. Deliberately NOT
