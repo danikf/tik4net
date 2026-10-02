@@ -336,8 +336,14 @@ namespace tik4net.integrationtests
             cmd.AddParameter("destination", first);
             cmd.ExecuteNonQuery();
 
-            Assert.IsTrue(IndexOf(second) < IndexOf(first),
-                "move reported success but the rule order on the router is unchanged");
+            if (IndexOf(second) > IndexOf(first))
+            {
+                // Seen once (telnet, 2026-10-02) with the move answered cleanly: tell "wrong" from "late".
+                System.Threading.Thread.Sleep(1000);
+                bool movedLate = IndexOf(second) < IndexOf(first);
+                Assert.Fail("move reported success but the rule order on the router is unchanged"
+                    + (movedLate ? " — and changed a second later (the router applied it late)" : " — still a second later"));
+            }
         }
 
         // ── remove ────────────────────────────────────────────────────────────
