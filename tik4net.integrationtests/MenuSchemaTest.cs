@@ -28,7 +28,9 @@ namespace tik4net.integrationtests
         // What the router answers now, not the on-disk menu-grammar cache: on a terminal transport the menus are
         // described over a connection of the test's own with the cache off. (WinBox native's .jg cache holds the
         // router's own catalog files, keyed by their version-stamped names; it stays.)
-        private ITikConnection _describer;
+        // One for the class, not one per test: every login is one more chance for the rare refusals a loaded router
+        // gives (a WinBox CLI terminal that opens without a session id, 2026-10-02).
+        private static ITikConnection _describer;
 
         private ITikConnection Describer
         {
@@ -36,7 +38,7 @@ namespace tik4net.integrationtests
             {
                 if (!IsCli())
                     return Connection;
-                if (_describer == null)
+                if (_describer == null || !_describer.IsOpened)
                 {
                     var type = ResolveConnectionType();
                     var setup = LabSetup(type);
@@ -47,11 +49,11 @@ namespace tik4net.integrationtests
             }
         }
 
-        [TestCleanup]
-        public void CloseDescriber()
+        [ClassCleanup]
+        public static void CloseDescriber()
         {
             try { _describer?.Dispose(); }
-            catch { /* a failing cleanup here would skip the base class's, which releases the test locks */ }
+            catch { /* best effort: the process ends with the leg */ }
             _describer = null;
         }
 

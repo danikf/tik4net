@@ -19,6 +19,11 @@ namespace tik4net.integrationtests
         // assembly cleanup (TestAssemblyInit), or dropped/re-opened when a test fails or closes it.
         private static ITikConnection _sharedConnection;
         private static TikConnectionType _sharedConnectionType;
+        // When the shared connection was last used — the end of the previous test. RouterOS drops a MAC-layer session
+        // that has been idle for about 30 s without a word (findings-mactelnet), and a parallel leg can sit that long
+        // in TestInitialize waiting for a lock (47 s for mac-layer behind RomonRelayTest, 2026-10-02).
+        private static DateTime _sharedConnectionLastUsed = DateTime.MinValue;
+        private static readonly TimeSpan MacLayerIdleLimit = TimeSpan.FromSeconds(20);
         private static readonly object _sharedConnectionLock = new object();
 
         protected ITikConnection Connection
@@ -249,6 +254,7 @@ namespace tik4net.integrationtests
             }
             finally
             {
+                _sharedConnectionLastUsed = DateTime.UtcNow;
                 if (ReuseConnectionAcrossTests)
                 {
                     // A failed test may have left a live async/listen command (assert-before-CancelAndJoin)
@@ -280,7 +286,9 @@ namespace tik4net.integrationtests
             TikConnectionType connType = ResolveConnectionType();
             lock (_sharedConnectionLock)
             {
-                if (_sharedConnection == null || _sharedConnectionType != connType || !_sharedConnection.IsOpened)
+                bool idleTooLong = IsMacLayer(connType) && _sharedConnection != null
+                    && DateTime.UtcNow - _sharedConnectionLastUsed > MacLayerIdleLimit;
+                if (_sharedConnection == null || _sharedConnectionType != connType || !_sharedConnection.IsOpened || idleTooLong)
                 {
                     _sharedConnection?.Dispose();
                     _sharedConnection = OpenNewConnection();

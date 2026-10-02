@@ -43,8 +43,11 @@ namespace tik4net.integrationtests
             {
                 // Bridge setup is inside the try so the native safety net below also covers it: creating the
                 // throwaway bridge (interface add type=bridge) is itself unsupported over native WinBox M2.
+                // Borrow only a bridge of the lab's own: another leg's throwaway bridge (InterfaceBridgeTest's
+                // t4n-br-…) is deleted by its test while this one runs, and the vlan then reads its bridge as the
+                // bare id the router prints for a reference to a row that is gone (seen as *755, *BFE).
                 var bridges = Connection.LoadAll<InterfaceBridge>();
-                var existingBridge = bridges.FirstOrDefault();
+                var existingBridge = bridges.FirstOrDefault(b => !TestNames.IsTestRowName(b.Name.Value));
                 if (existingBridge != null)
                 {
                     bridgeName = existingBridge.Name.Value;
