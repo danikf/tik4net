@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text;
 
 namespace tik4net.Cli
@@ -194,11 +194,69 @@ namespace tik4net.Cli
         /// </remarks>
         internal static PromptVerdict JudgePrompt(string strippedSoFar, string? sentCommand)
         {
-            if (!IsCountedCommand(sentCommand))
+            string? endLine = EndMarkerLineOf(sentCommand);
+            if (endLine == null && !IsCountedCommand(sentCommand))
                 return PromptVerdict.Settle;
-            if (EndsWithCountLine(strippedSoFar))
+            if (endLine != null ? LastLineIs(strippedSoFar, endLine) : EndsWithCountLine(strippedSoFar))
                 return PromptVerdict.Complete;
             return CleanOutput(strippedSoFar, sentCommand).Length == 0 ? PromptVerdict.NotYet : PromptVerdict.Settle;
+        }
+
+        // ── The end marker of a write (WithEndMarker) ───────────────────────────
+
+        private const string EndMarkerHead = "#e";
+
+        /// <summary>
+        /// <paramref name="command"/> with a statement after it that prints <c>#e=&lt;nonce&gt;</c> — the line that says
+        /// the command is over, so its read need not wait for the prompt to stay silent. The marker is computed
+        /// (<c>("#e" . "=&lt;nonce&gt;")</c>), so the echoed command never contains the line it prints; the nonce ties
+        /// the line to this command. A command the router refuses stops the line before the marker, and its read
+        /// settles as before.
+        /// </summary>
+        internal static string WithEndMarker(string command, string nonce)
+            => command + "; :put (\"" + EndMarkerHead + "\" . \"=" + nonce + "\")";
+
+        /// <summary>The line <see cref="WithEndMarker"/> makes the router print, or <c>null</c> when the command has none.</summary>
+        internal static string? EndMarkerLineOf(string? sentCommand)
+        {
+            if (sentCommand == null)
+                return null;
+            const string tail = "; :put (\"" + EndMarkerHead + "\" . \"=";
+            int at = sentCommand.LastIndexOf(tail, StringComparison.Ordinal);
+            if (at < 0 || !sentCommand.EndsWith("\")", StringComparison.Ordinal))
+                return null;
+            string nonce = sentCommand.Substring(at + tail.Length, sentCommand.Length - at - tail.Length - 2);
+            return nonce.Length == 0 || nonce.IndexOf('"') >= 0 ? null : EndMarkerHead + "=" + nonce;
+        }
+
+        /// <summary>
+        /// The cleaned output of a command sent <see cref="WithEndMarker"/>, without its marker line — what the
+        /// command alone would have printed. Output without the marker (a refused command) is returned as it is.
+        /// </summary>
+        internal static string WithoutEndMarker(string output, string markerLine)
+        {
+            string text = output ?? string.Empty;
+            string trimmed = text.TrimEnd('\r', '\n', ' ');
+            if (!trimmed.EndsWith(markerLine, StringComparison.Ordinal))
+                return text;
+            string head = trimmed.Substring(0, trimmed.Length - markerLine.Length);
+            if (head.Length > 0 && head[head.Length - 1] != '\n')
+                return text;   // the marker text inside a longer line is not the marker line
+            return head.TrimEnd('\r', '\n');
+        }
+
+        // The last line that is not blank, a prompt or a console log line is exactly <line>.
+        private static bool LastLineIs(string stripped, string expected)
+        {
+            string[] lines = stripped.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            for (int i = lines.Length - 1; i >= 0; i--)
+            {
+                string line = lines[i].Trim();
+                if (line.Length == 0 || IsPromptLine(line) || IsRouterLogLine(line))
+                    continue;
+                return line == expected;
+            }
+            return false;
         }
 
         // A command whose last statement writes the count line — the literal marker in quotes, as CliCommandBuilder

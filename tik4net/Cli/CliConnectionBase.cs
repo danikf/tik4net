@@ -169,7 +169,8 @@ namespace tik4net.Cli
             if (cliText.Length == 0)
                 throw new ArgumentException("commandRows must contain a CLI command.", nameof(commandRows));
 
-            string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false)
+            // Raw means native syntax, sent as given: no end marker is appended to it.
+            string output = await ExecuteCliCommandCoreAsync(cliText, cancellationToken, mayMarkEnd: false).ConfigureAwait(false)
                             ?? string.Empty;
 
             // Raw mode is handed a finished line rather than building one, but the verb is IN that line —
@@ -533,9 +534,18 @@ namespace tik4net.Cli
         /// <see cref="TikCancellationMode"/>. Cancelling while queued for <c>_cmdLock</c> is free: the command
         /// has not been written, so nothing needs resynchronizing.
         /// </remarks>
-        protected async Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
+        protected Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
+            => ExecuteCliCommandCoreAsync(cliText, ct, mayMarkEnd: true);
+
+        private async Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct, bool mayMarkEnd)
         {
             var send = _send ?? throw NotOpen();
+            string? endLine = null;
+            if (mayMarkEnd && TakesEndMarker(cliText))
+            {
+                cliText = CliOutputHelper.WithEndMarker(cliText, NewEndNonce());
+                endLine = CliOutputHelper.EndMarkerLineOf(cliText);
+            }
             await _cmdLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -576,6 +586,8 @@ namespace tik4net.Cli
                     // transport that simply broke.
                     throw ClosedWhileRunning(ex);
                 }
+                if (endLine != null)
+                    result = CliOutputHelper.WithoutEndMarker(result, endLine);
                 FireReadRow(result);
                 // The safe point. The response has been drained, so the channel is consistent and the caller's
                 // cancel can finally be honoured without costing the next command its answer.
@@ -587,6 +599,29 @@ namespace tik4net.Cli
                 _cmdLock.Release();
             }
         }
+
+        /// <summary>
+        /// Whether a command the library built gets the end marker (<see cref="CliOutputHelper.WithEndMarker"/>): a
+        /// one-line write — <c>add</c>, <c>set</c>, <c>remove</c>, <c>enable</c>, <c>disable</c>, <c>move</c>,
+        /// <c>unset</c>, <c>comment</c>, bare or as <c>:put [… add …]</c> — on a router known to be RouterOS 7.
+        /// </summary>
+        /// <remarks>
+        /// Its read then ends on the marker line instead of on a prompt that stayed silent for the settle window, which
+        /// was about half of what such a command cost (SSH, 800 writes of a full suite leg, 2026-10-01). Not on
+        /// RouterOS 6, which repaints the whole line after every typed character: 30 characters more echo cost more
+        /// than the settle they save. Not on a command that may ask a question (<c>reboot</c>) — only the verbs
+        /// above — and not on a raw command, which is sent as written.
+        /// </remarks>
+        private bool TakesEndMarker(string cliText)
+            => _features.Dsv == true
+               && cliText.IndexOf('\n') < 0 && cliText.IndexOf('\r') < 0
+               && WriteVerbLine.IsMatch(cliText);
+
+        private static readonly System.Text.RegularExpressions.Regex WriteVerbLine = new System.Text.RegularExpressions.Regex(
+            @"^(:put \[)?/[^\[\];]*?\b(add|set|remove|enable|disable|move|unset|comment)\b",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        private static string NewEndNonce() => Guid.NewGuid().ToString("N").Substring(0, 12);
 
         /// <summary>
         /// The token the <b>transport read</b> is given, which is deliberately not always the caller's.

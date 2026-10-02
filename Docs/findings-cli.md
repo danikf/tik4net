@@ -925,7 +925,13 @@ the answer and the settle window is not waited out — it was 130 of the 221 ms 
 MAC-Telnet and WinBox CLI MAC, and 5 % on WinBox CLI, whose pull cadence dominates. A prompt also never ends a counted
 read before anything of its own has come: RouterOS repaints the prompt after every console log line it writes into the
 session (§11), and one landing between the echo and a slow answer is not the end. A refused counted read has its error
-text and settles as before; every other command settles as before. Console log lines after the count line are skipped,
+text and settles as before. **A write ends on a marker of its own** on RouterOS 7: a one-line `add`, `set`, `remove`,
+`enable`, `disable`, `move`, `unset` or `comment` the library built is sent as `<command>; :put ("#e" . "=<nonce>")`,
+and its read is over at the line `#e=<nonce>` — computed, so the echo never carries it; the nonce ties it to this
+command; it is taken off the output before anything reads it. A refused write stops the line before the marker and
+settles as before. Not on RouterOS 6, whose per-character repaint makes 30 more characters of echo cost more than the
+settle saves; not on a raw command; not on any other verb (one may ask a question, `reboot`). Every other command
+settles as before. Console log lines after the count line are skipped,
 here and by `CleanOutput`'s trailing-prompt loop — left in, the prompts above such a line stayed after the count and
 the count read as missing.
 
