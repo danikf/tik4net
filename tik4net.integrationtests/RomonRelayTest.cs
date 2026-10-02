@@ -79,7 +79,33 @@ namespace tik4net.integrationtests
         }
 
         private ITikConnection OpenRelay(TikConnectionType agentTransport)
-            => RelaySetup(agentTransport).Create(agentTransport);
+        {
+            try
+            {
+                return RelaySetup(agentTransport).Create(agentTransport);
+            }
+            catch (TikRomonRelayException ex) when (ex.Message.IndexOf("could not reach", StringComparison.Ordinal) >= 0)
+            {
+                // Intermittent, and not explained yet (5.0 todo): what the agent's overlay held at that moment is the
+                // evidence, so it goes into the test output before the failure is reported as it was.
+                Console.WriteLine("[romon] the agent's discover after 'could not reach': " + AgentDiscover());
+                throw;
+            }
+        }
+
+        private static string AgentDiscover()
+        {
+            try
+            {
+                using (var agent = OpenAgentDirect())
+                    return string.Join("; ", agent.RomonDiscover(TimeSpan.FromSeconds(3))
+                        .Select(n => n.Address.Value + " hops=" + n.Hops));
+            }
+            catch (Exception ex)
+            {
+                return "(could not ask: " + ex.Message + ")";
+            }
+        }
 
         private static ITikConnection OpenTargetDirect()
             => new TikConnectionSetup(TargetHost, TargetUser, TargetPass).Create(TikConnectionType.Api);
