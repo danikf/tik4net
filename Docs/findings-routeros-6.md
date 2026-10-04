@@ -261,17 +261,16 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      `/ip/dhcp-server/config` `accounting` and `interim-update` are keys the 6.x window does not declare but the
      router sends (7.x's `b3`/`u2`, confirmed by setting both and watching the keys move).
    - **1d. Values rendered the 7.x way.** Dates: the 6.x API prints `sep/21/2026`, native `2026-09-21`
-     (`/system/clock` `date`, `/system/scheduler` `start-date`). Timestamps left as epoch seconds:
-     `/certificate` `invalid-before`/`invalid-after`, `/tool/netwatch` `since`. `/system/package` `bundle`:
-     `routeros-x86` against `1` — the window's unnamed `u6` holds the parent package's record id, and native has
-     no way to resolve a reference to a row of the same table (no entity maps the field). The enum spellings
-     (`advertise`, `cipher`) and the queue limits' `0/0` now read as the API prints them.
+     (`/system/clock` `date`, `/system/scheduler` `start-date`). The 6.x catalog's `date` type is 7.x's `dateandtime`
+     — epoch seconds, read as a date (`/certificate` `invalid-before` 1789921669 = the API's `sep/20/2026 16:27:49`).
+     `/system/package` `bundle`: `routeros-x86` against `1` — the window's unnamed `u6` holds the parent package's
+     record id, and native has no way to resolve a reference to a row of the same table (no entity maps the field).
+     The enum spellings (`advertise`, `cipher`) and the queue limits' `0/0` read as the API prints them.
 
-     **Dates and timestamps are postponed to the typed values of 5.0, deliberately.** The difference is not
-     native's: the binary API itself prints a date `sep/21/2026` on 6.x and `2026-09-21` on 7.x, so "the API's
-     spelling" is a per-version target, and the library does not read the router's version. What is
-     version-neutral is a typed date property that reads either spelling — the value-type work of the 5.0
-     entity model. Until then a date or timestamp is a string, spelled as the transport delivered it.
+     The date spelling differs on the binary API itself, so "the API's spelling" is a per-version target, and the
+     library does not read the router's version. The entities' dates are `DateTime` properties, which read either
+     spelling, and a date is written `nov/21/2026`: 6.49.13 refuses `2026-11-21` (`invalid date`), 7.24.5 takes both.
+     A 6.x `/log` entry from today prints its time alone (`18:51:48`) and reads `Unparsed`.
    - **1e. Not a defect: enabling the audit's `/ip/dhcp-server` row** is refused over the API as well
      (`can not run on slave interface` — on CHR2 the fixture's interface is a bridge port).
 

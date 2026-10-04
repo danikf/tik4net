@@ -21,11 +21,12 @@ namespace tik4net.Objects.System
         public TikField<string?> Time { get; set; }
 
         /// <summary>
-        /// date — current system date in mmm/DD/YYYY format (e.g. jun/18/2026).
-        /// This field is settable via /system/clock set date=...
+        /// date — current system date (time of day zero), the router's local date. Read from either spelling
+        /// (7.x <c>2026-06-18</c>, 6.x <c>jun/18/2026</c>), written as <c>jun/18/2026</c>, which every version accepts
+        /// (see <see cref="TikDateTimeHelper"/>).
         /// </summary>
         [TikProperty("date", ChangesOnItsOwn = true, WinboxLabel = "Date")]
-        public TikField<string?> Date { get; set; }
+        public TikField<DateTime?> Date { get; set; }
 
         /// <summary>
         /// time-zone-name — timezone name (IANA identifier, e.g. "Europe/Prague") or "manual"

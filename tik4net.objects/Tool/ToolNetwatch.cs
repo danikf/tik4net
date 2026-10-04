@@ -218,9 +218,13 @@ namespace tik4net.Objects.Tool
         [TikProperty("status", IsReadOnly = true, WinboxLabel = "Status")]
         public TikField<string?> Status { get; private set; }
 
-        /// <summary>since — timestamp of the last state change. Read-only.</summary>
+        /// <summary>
+        /// since — timestamp of the last state change. Read-only.
+        /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+        /// (<see cref="DateTimeKind.Unspecified"/>).
+        /// </summary>
         [TikProperty("since", IsReadOnly = true, WinboxLabel = "Since")]
-        public TikField<string?> Since { get; private set; }
+        public TikField<DateTime?> Since { get; private set; }
 
         /// <summary>done-tests — total number of probe attempts completed. Read-only.</summary>
         [TikProperty("done-tests", IsReadOnly = true, WinboxLabel = "Done Tests")]

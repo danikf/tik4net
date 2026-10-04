@@ -24,10 +24,13 @@ namespace tik4net.Objects
         public TikField<string?> Message { get; private set; }
 
         /// <summary>
-        /// Row time property.
+        /// Row time property. RouterOS 7.x prints the full date and time. RouterOS 6.x prints only the time for
+        /// today's entries (<c>18:51:48</c>) and leaves out the year for older ones; a value without a date
+        /// reads <see cref="TikFieldState.Unparsed"/>, the router's text kept in <see cref="TikField{T}.RawValue"/>.
+        /// No time zone is applied (<see cref="DateTimeKind.Unspecified"/>).
         /// </summary>
         [TikProperty("time", IsReadOnly = true, WinboxLabel = "Time")]
-        public TikField<string?> Time { get; private set; }
+        public TikField<DateTime?> Time { get; private set; }
 
         /// <summary>
         /// Row topics property.

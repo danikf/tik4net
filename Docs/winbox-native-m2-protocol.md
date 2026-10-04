@@ -690,7 +690,10 @@ being exactly zero, so a real count is never rewritten.
 `dateandtime` and `clockdate` are Unix epoch seconds in **UTC**, not local time: webfig's `date2string` is
 `new Date(val*1000).toISOString().substring(0,10)`, and the live values agree with the API to the second
 (a certificate's `1784975092` **is** `2026-07-25 10:24:52`). `clockdate` is the same value printed as a
-date alone. `timezone` is a signed second offset rendered `±HH:MM` — the wire carries it unsigned, so a
+date alone. The 6.x catalog calls the same type `date` (6.49.13: a certificate's `1789921669` is the API's
+`sep/20/2026 16:27:49`). A write goes the other way: a `clockdate` is sent as the epoch seconds of the date's
+midnight — the text the API takes (`2026-11-21`, `nov/21/2026`) on a u32 key is answered OK and ignored
+(`/system/scheduler` `start-date`, 7.24.5 and 6.49.13). `timezone` is a signed second offset rendered `±HH:MM` — the wire carries it unsigned, so a
 negative offset arrives wrapped and must be unwrapped before the sign is taken.
 
 **A declaration carrying `relative:1` is a third time shape, and the wire type does not say so.** Such a

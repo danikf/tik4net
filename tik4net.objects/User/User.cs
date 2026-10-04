@@ -1,3 +1,4 @@
+using System;
 namespace tik4net.Objects.User
 {
 	/// <summary>
@@ -26,9 +27,11 @@ namespace tik4net.Objects.User
 
 		/// <summary>
 		/// Gets the time when the user has last logged in.
+		/// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+		/// (<see cref="DateTimeKind.Unspecified"/>).
 		/// </summary>
 		[TikProperty("last-logged-in", IsReadOnly = true, WinboxLabel = "Last Logged In")]
-		public TikField<string?> LastLoggedIn { get; private set; }
+		public TikField<DateTime?> LastLoggedIn { get; private set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether the user is disabled. 

@@ -31,10 +31,12 @@ namespace tik4net.Objects.System
         public TikField<TikDuration?> Interval { get; set; }
 
         /// <summary>
-        /// start-date — date when the script first executes.
+        /// start-date — date when the script first executes (time of day zero). Read from either spelling (7.x
+        /// <c>2026-11-21</c>, 6.x <c>nov/21/2026</c>), written as <c>nov/21/2026</c>, which every version accepts
+        /// (see <see cref="TikDateTimeHelper"/>); a time of day is dropped by the router.
         /// </summary>
         [TikProperty("start-date", WinboxLabel = "Start Date")]
-        public TikField<string?> StartDate { get; set; }
+        public TikField<DateTime?> StartDate { get; set; }
 
         /// <summary>
         /// start-time — time of initial script execution. The special value <c>startup</c>

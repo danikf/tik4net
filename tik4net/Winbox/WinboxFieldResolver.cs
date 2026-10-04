@@ -2512,6 +2512,24 @@ namespace tik4net.Winbox
                     result.Add(EncodeU32(key, unchecked((uint)(secondsOfDay % 86400))));
                     return result;
                 }
+                case "clockdate":
+                case "dateandtime":
+                case "date":
+                {
+                    // Unix epoch seconds, the inverse of WinboxRecordCodec's decode. The API spells the value
+                    // 2026-11-21 (7.x) or nov/21/2026 (6.x, and what the mapper writes); as text it reached the
+                    // generic u32 branch and went out as a string the router answers OK to and ignores
+                    // (/system/scheduler start-date, 7.24.5 and 6.49.13).
+                    if (value.Length == 0) return result;
+                    if (!TikDateTimeHelper.TryFromTikDateTime(value, out DateTime when))
+                        throw new WinboxFieldValueException(
+                            $"input does not match any value of {apiName} (expected a date, e.g. 2026-11-21 or nov/21/2026)");
+                    if (string.Equals(uiType, "clockdate", StringComparison.OrdinalIgnoreCase))
+                        when = when.Date;
+                    long seconds = (long)(DateTime.SpecifyKind(when, DateTimeKind.Utc) - EpochUtc).TotalSeconds;
+                    result.Add(EncodeU32(key, unchecked((uint)seconds)));
+                    return result;
+                }
                 case "interval":
                 {
                     // The inverse of WinboxRecordCodec's interval decode, and it has to exist for the same
@@ -3186,6 +3204,9 @@ namespace tik4net.Winbox
                 });
 
         /// <summary>UI type of <see cref="FirewallLimit"/>: one API field over the window's 'Limit' group.</summary>
+        // The origin a clockdate/dateandtime value counts from (see the encode in EncodeField).
+        private static readonly DateTime EpochUtc = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
         internal const string FirewallLimitUiType = "tik4net-fw-limit";
 
         /// <summary>UI type of <see cref="FirewallDstLimit"/>: one API field over the window's 'Dst. Limit' group.</summary>

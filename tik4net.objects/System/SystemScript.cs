@@ -80,9 +80,11 @@ namespace tik4net.Objects.System
         /// <summary>
         /// last-started — date and time of the most recent script invocation (read-only).
         /// Only present after the script has been run at least once.
+        /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+        /// (<see cref="DateTimeKind.Unspecified"/>).
         /// </summary>
         [TikProperty("last-started", IsReadOnly = true)]
-        public TikField<string?> LastStarted { get; private set; }
+        public TikField<DateTime?> LastStarted { get; private set; }
 
         /// <summary>
         /// invalid — whether the script is in an invalid state (read-only, undocumented).

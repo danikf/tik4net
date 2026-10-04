@@ -152,18 +152,22 @@ namespace tik4net.Objects.Certificate
         public TikField<string?> SerialNumber { get; private set; }
 
         /// <summary>
-        /// invalid-before — Date and time before which the certificate is not yet valid (read-only).
+        /// invalid-before — Date and time before which the certificate is not yet valid (read-only), in UTC.
+        /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+        /// (<see cref="DateTimeKind.Unspecified"/>).
         /// WinBox: "Invalid Before"
         /// </summary>
         [TikProperty("invalid-before", IsReadOnly = true, WinboxLabel = "Invalid Before")]
-        public TikField<string?> InvalidBefore { get; private set; }
+        public TikField<DateTime?> InvalidBefore { get; private set; }
 
         /// <summary>
-        /// invalid-after — Date and time after which the certificate has expired (read-only).
+        /// invalid-after — Date and time after which the certificate has expired (read-only), in UTC.
+        /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+        /// (<see cref="DateTimeKind.Unspecified"/>).
         /// WinBox: "Invalid After"
         /// </summary>
         [TikProperty("invalid-after", IsReadOnly = true, WinboxLabel = "Invalid After")]
-        public TikField<string?> InvalidAfter { get; private set; }
+        public TikField<DateTime?> InvalidAfter { get; private set; }
 
         /// <summary>
         /// expires-after — Human-readable time remaining before the certificate expires (read-only).

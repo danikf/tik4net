@@ -533,12 +533,14 @@ namespace tik4net.Winbox
                     }
                     case "dateandtime":
                     case "clockdate":
+                    case "date":
                     {
                         // Unix epoch seconds. webfig's date2string is
                         // `new Date(val*1000).toISOString().substring(0,10)` — UTC, no local shift — and the
                         // values confirm it exactly: a certificate's 1784975092 is the API's
                         // '2026-07-25 10:24:52' to the second. clockdate is the same value printed as a date
-                        // alone (/system/clock 'Date'). Both read as raw second counts before this.
+                        // alone (/system/clock 'Date'). 'date' is the 6.x catalog's name for dateandtime: on
+                        // 6.49.13 a certificate's 1789921669 is the API's 'sep/20/2026 16:27:49'.
                         if (!WinboxFieldResolver.TryToInt64(value, out long epoch))
                         {
                             TraceNonNumeric(jf.UiType, value);

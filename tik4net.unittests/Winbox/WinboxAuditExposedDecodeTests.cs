@@ -30,6 +30,8 @@ namespace tik4net.unittests.Winbox
             "{name:'Ping Timeout',type:'number',id:'uc',max:600,min:10,postfix:'s'}," +
             "{name:'Burst Time',type:'number',id:'u43',opt:1,postfix:'s'}," +
             "{name:'Time',type:'clocktime',id:'u1e'}," +
+            "{name:'Start Date',type:'clockdate',id:'u12f',todaydef:1,width:80}," +
+            "{name:'Invalid Before',type:'date',id:'u6',opt:1,ro:1}," +
             "{name:'Start Time',type:'enm',id:'u12e',values:{type:'static',map:{4294967295:'startup'}},c:[{type:'clocktime',nowdef:1}]}," +
             "{name:'Parent',type:'enm',id:'u1',values:{type:'pair',c:[{type:'pair',c:[{type:'static',map:{16777204:'global'}}," +
             "{type:'dynamic',path:[ 20,0 ]}]},{type:'dynamic',path:[ 20,12 ]}]}}" +
@@ -168,6 +170,27 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual("23:20:43", Decode(0x1E, "u32", 84043u));
             Assert.AreEqual("00:00:05", Decode(0x1E, "u32", 5u));
             Assert.AreEqual(84043L, EncodedU32("time", "23:20:43"));
+        }
+
+        [TestMethod]
+        public void AClockDateIsWrittenAsEpochSeconds()
+        {
+            // /system/scheduler start-date: the text went out as a string the router answered OK to and ignored
+            // (7.24.5 and 6.49.13). Both spellings the API prints write the same date.
+            long nov21 = (long)(new DateTime(2026, 11, 21, 0, 0, 0, DateTimeKind.Utc) - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+            Assert.AreEqual(nov21, EncodedU32("start-date", "2026-11-21"));
+            Assert.AreEqual(nov21, EncodedU32("start-date", "nov/21/2026"));
+            Assert.AreEqual(nov21, EncodedU32("start-date", "nov/21/2026 10:11:12"), "a date field drops the time");
+            Assert.AreEqual("2026-11-21", Decode(0x12F, "u32", (uint)nov21), "and it reads back");
+            Assert.ThrowsException<WinboxFieldValueException>(() => Resolver().EncodeField("start-date", "someday"));
+        }
+
+        [TestMethod]
+        public void A6xDateIsADateAndTime()
+        {
+            // The 6.x catalog's 'date' is 7.x's dateandtime: on 6.49.13 a certificate's 1789921669 is the API's
+            // sep/20/2026 16:27:49.
+            Assert.AreEqual("2026-09-20 16:27:49", Decode(0x6, "u32", 1789921669u));
         }
 
         [TestMethod]

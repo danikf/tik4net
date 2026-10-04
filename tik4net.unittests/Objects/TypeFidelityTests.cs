@@ -16,8 +16,8 @@ namespace tik4net.unittests.Objects
     /// Every method here fails against the old code with <see cref="NotImplementedException"/> — these are
     /// types the mapper had no branch for — so unlike the B1/B2 files this one is evidence rather than a pin.
     /// The RouterOS date formats are not invented: they were read off a live 7.23 router across
-    /// <c>/system/clock</c>, <c>/system/resource</c>, <c>/certificate</c> and <c>/log</c>, and the accepted
-    /// INPUT format was confirmed by filtering a query on a supplied date. See <see cref="TikDateTimeHelper"/>.
+    /// <c>/system/clock</c>, <c>/system/resource</c>, <c>/certificate</c> and <c>/log</c>, and the written form on
+    /// 6.49.13 and 7.24.5 <c>/system/scheduler</c>. See <see cref="TikDateTimeHelper"/>.
     /// </remarks>
     [TestClass]
     [DoNotParallelize]
@@ -91,13 +91,23 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void ADateTimeIsWrittenInTheFormatRouterOsAccepts()
+        public void ADateTimeIsWrittenInTheFormatEveryRouterOsAccepts()
         {
+            // Measured on /system/scheduler start-date: 6.49.13 refuses '2026-11-21' ("invalid date"), 7.24.5 stores
+            // 'nov/21/2026' as 2026-11-21, so the month form is the one argument spelling both versions take.
             var entity = new TypedEntity { When = new DateTime(2026, 7, 25, 10, 24, 52) };
+            Assert.AreEqual("jul/25/2026 10:24:52", Accessor("When").GetEntityValue(entity));
 
-            // Measured on 7.23: this shape filters correctly as an INPUT value, and 'jul/25/2026' does not —
-            // it comes back with the wrong rows rather than a trap, so writing the legacy shape fails silently.
-            Assert.AreEqual("2026-07-25 10:24:52", Accessor("When").GetEntityValue(entity));
+            entity.When = new DateTime(2026, 11, 21);
+            Assert.AreEqual("nov/21/2026", Accessor("When").GetEntityValue(entity), "midnight is a date alone");
+        }
+
+        [TestMethod]
+        public void TheFilterSpellingStaysTheOneRouterOs7Prints()
+        {
+            // A 7.x query filter compares the printed text, so the helper's ISO methods are not the write form.
+            Assert.AreEqual("2026-07-25 10:24:52", TikDateTimeHelper.ToTikDateTime(new DateTime(2026, 7, 25, 10, 24, 52)));
+            Assert.AreEqual("2026-07-25", TikDateTimeHelper.ToTikDate(new DateTime(2026, 7, 25, 10, 24, 52)));
         }
 
         [TestMethod]
@@ -270,7 +280,7 @@ namespace tik4net.unittests.Objects
                 var entity = new TypedEntity { Text = "ether1", When = new DateTime(2026, 7, 25, 10, 24, 52) };
 
                 Assert.AreEqual("ether1", Accessor("Text").GetEntityValue(entity));
-                Assert.AreEqual("2026-07-25 10:24:52", Accessor("When").GetEntityValue(entity));
+                Assert.AreEqual("jul/25/2026 10:24:52", Accessor("When").GetEntityValue(entity));
 
                 Accessor("Counter").SetEntityValue(entity, "42");
                 Assert.AreEqual(42u, entity.Counter);

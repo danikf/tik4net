@@ -25,9 +25,11 @@ namespace tik4net.Objects.System
 
         /// <summary>
         /// build-time: timestamp when the current RouterOS version was compiled.
+        /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+        /// (<see cref="DateTimeKind.Unspecified"/>).
         /// </summary>
         [TikProperty("build-time", IsReadOnly = true, WinboxLabel = "Build Time")]
-        public TikField<string?> BuildTime { get; private set; }
+        public TikField<DateTime?> BuildTime { get; private set; }
 
         /// <summary>
         /// free-memory: amount of unused RAM in bytes.

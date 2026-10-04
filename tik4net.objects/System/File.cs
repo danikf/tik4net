@@ -43,16 +43,20 @@ namespace tik4net.Objects.System
         /// <summary>
         /// creation-time — date and time the file was created. Read-only.
         /// Deprecated in RouterOS 7.16 in favour of <see cref="LastModified"/>.
+        /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+        /// (<see cref="DateTimeKind.Unspecified"/>).
         /// </summary>
         [TikProperty("creation-time", IsReadOnly = true)]
-        public TikField<string?> CreationTime { get; private set; }
+        public TikField<DateTime?> CreationTime { get; private set; }
 
         /// <summary>
         /// last-modified — date and time of file creation or most recent modification (RouterOS 7.16+).
         /// Read-only.
+        /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+        /// (<see cref="DateTimeKind.Unspecified"/>).
         /// </summary>
         [TikProperty("last-modified", IsReadOnly = true, WinboxLabel = "Last Modified")]
-        public TikField<string?> LastModified { get; private set; }
+        public TikField<DateTime?> LastModified { get; private set; }
 
         /// <summary>
         /// contents — the full text content of the file. Writable for text files up to 60 KB;

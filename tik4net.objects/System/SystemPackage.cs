@@ -29,9 +29,13 @@ namespace tik4net.Objects.System
         [TikProperty("version", IsReadOnly = true, WinboxLabel = "Version")]
         public TikField<string?> Version { get; private set; }
 
-        /// <summary>build-time — date and time when this package was built. Read-only.</summary>
+        /// <summary>
+        /// build-time — date and time when this package was built. Read-only.
+        /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
+        /// (<see cref="DateTimeKind.Unspecified"/>).
+        /// </summary>
         [TikProperty("build-time", IsReadOnly = true, WinboxLabel = "Build Time")]
-        public TikField<string?> BuildTime { get; private set; }
+        public TikField<DateTime?> BuildTime { get; private set; }
 
         /// <summary>scheduled — action scheduled for this package at next reboot (e.g. "scheduled for uninstall"). Empty when nothing is scheduled. Read-only.</summary>
         [TikProperty("scheduled", IsReadOnly = true, WinboxLabel = "Scheduled")]

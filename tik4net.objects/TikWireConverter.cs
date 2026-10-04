@@ -219,7 +219,7 @@ namespace tik4net.Objects
             else if (_type == typeof(ulong))
                 return ((ulong)propValue).ToString(CultureInfo.InvariantCulture);
             else if (_type == typeof(DateTime))
-                return TikDateTimeHelper.ToTikDateTime((DateTime)propValue);
+                return TikDateTimeHelper.ToTikValue((DateTime)propValue);
             else if (_type == typeof(MacAddress))
                 return ((MacAddress)propValue).Address;
             // yes/no is accepted for every boolean argument, including fields the router itself prints as
