@@ -187,5 +187,37 @@ namespace tik4net.unittests.Objects
             Assert.ThrowsException<ArgumentOutOfRangeException>(() => new TikPortRange(70000));
             Assert.ThrowsException<ArgumentOutOfRangeException>(() => new TikPortRange(10, 5));
         }
+
+        // ── TikNumberRange ───────────────────────────────────────────────────
+
+        [TestMethod]
+        [DataRow("10", 10L, 10L)]
+        [DataRow("300-399", 300L, 399L)]
+        [DataRow("4294967295", 4294967295L, 4294967295L)]
+        public void NumberRange_ParsesTheNumbersAndRanges(string text, long from, long to)
+        {
+            var range = TikNumberRange.Parse(text);
+            Assert.AreEqual(from, range.From);
+            Assert.AreEqual(to, range.To);
+            Assert.AreEqual(text, range.ToString());
+        }
+
+        [TestMethod]
+        [DataRow("")]
+        [DataRow("-1")]
+        [DataRow("30-20")]
+        [DataRow("1x")]
+        [DataRow("10-")]
+        public void NumberRange_RefusesWhatIsNotANumberOrRange(string text)
+            => Assert.IsFalse(TikNumberRange.TryParse(text, out _));
+
+        [TestMethod]
+        public void NumberRange_ConvertsFromAnInt_AndRefusesANegativeOne()
+        {
+            var codes = new TikValueList<TikNumberRange>(200, new TikNumberRange(300, 399));
+            Assert.AreEqual("200,300-399", codes.ToString());
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => new TikNumberRange(-1));
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => new TikNumberRange(30, 20));
+        }
     }
 }

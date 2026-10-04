@@ -33,7 +33,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// WinBox: "VLAN IDs"
         /// </summary>
         [TikProperty("vlan-ids", DefaultValue = "1", WinboxLabel = "VLAN IDs")]
-        public TikField<TikValueList<string>?> VlanIds { get; set; }
+        public TikField<TikValueList<TikNumberRange>?> VlanIds { get; set; }
 
         /// <summary>
         /// tagged: Interfaces (or interface lists) that will add a VLAN tag on egress for these VLAN IDs

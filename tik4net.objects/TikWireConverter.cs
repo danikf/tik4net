@@ -22,7 +22,7 @@ namespace tik4net.Objects
         private readonly string _fieldName;
         private ITikTypeConverter? _converter;
 
-        /// <param name="type">The value type (an enum, int, string, TikPortRange, …), not its nullable form.</param>
+        /// <param name="type">The value type (an enum, int, string, TikPortRange, TikNumberRange, …), not its nullable form.</param>
         /// <param name="nullable">Whether a <c>null</c> string reads as <c>null</c> rather than failing to parse.</param>
         /// <param name="propertyName">For error messages.</param>
         /// <param name="fieldName">For error messages.</param>
@@ -89,6 +89,8 @@ namespace tik4net.Objects
                     return value.Length == 0 ? (_nullable ? (object?)null : default(TikHexNumber)) : TikHexNumber.Parse(value);
                 else if (_type == typeof(TikPortRange))
                     return TikPortRange.Parse(value);
+                else if (_type == typeof(TikNumberRange))
+                    return TikNumberRange.Parse(value);
                 else if (_type == typeof(TikDuration))
                 {
                     // An empty value is the router saying the field carries nothing, which is not the same
@@ -193,6 +195,8 @@ namespace tik4net.Objects
                 return TikTimeHelper.ToTikTime((int)((TimeSpan)propValue).TotalSeconds);
             else if (_type == typeof(TikPortRange))
                 return ((TikPortRange)propValue).ToString();
+            else if (_type == typeof(TikNumberRange))
+                return ((TikNumberRange)propValue).ToString();
             else if (_type == typeof(TikDuration))
                 return ((TikDuration)propValue).ToString();
             else if (_type == typeof(TikDataRate))

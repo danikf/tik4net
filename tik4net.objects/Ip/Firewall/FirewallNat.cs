@@ -97,10 +97,10 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> Protocol { get; set; }
 
         /// <summary>
-        /// to-ports: replacement port or port range (0-65535) for modified packets.
+        /// to-ports: the replacement port, or port range (<c>8000-8010</c>), for modified packets: <c>rule.ToPorts = new TikPortRange(8000, 8010)</c>.
         /// </summary>
         [TikProperty("to-ports", WinboxLabel = "To Ports")]
-        public TikField<long?> ToPorts { get; set; }
+        public TikField<TikPortRange?> ToPorts { get; set; }
 
         /// <summary>
         /// dst-port (integer [ -integer]: 0..65535; Default: ) | List of destination port numbers or port number ranges

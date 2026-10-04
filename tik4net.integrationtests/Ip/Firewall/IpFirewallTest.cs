@@ -481,6 +481,53 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// NAT to-ports is one port or one range (<c>8000-8010</c>), and dst-port a port list: both round-trip on every
+        /// transport.
+        /// </summary>
+        [TestMethod]
+        public void FirewallNat_ToPortsRange_AndDstPortList_RoundTrip()
+        {
+            const string comment = "t4n-nat-to-ports";
+            RemoveNatByComment(comment);
+            var nat = new FirewallNat
+            {
+                Chain = "dstnat",
+                Action = "dst-nat",
+                Disabled = true,
+                Comment = comment,
+                Protocol = "tcp",
+                DstPort = new TikValueList<TikPortRange>(80, new TikPortRange(8080, 8090)),
+                ToAddresses = "192.0.2.1",
+                ToPorts = new TikPortRange(8000, 8010),
+            };
+            try
+            {
+                SaveTracked(nat);
+                var loaded = Connection.LoadById<FirewallNat>(nat.Id);
+
+                Assert.AreEqual(nat.ToPorts, loaded.ToPorts, $"to-ports on {ResolveConnectionType()}");
+                Assert.AreEqual(nat.DstPort, loaded.DstPort, $"dst-port on {ResolveConnectionType()}");
+
+                loaded.ToPorts = new TikPortRange(9000);
+                Connection.Save(loaded);
+                Assert.AreEqual("9000", Connection.LoadById<FirewallNat>(nat.Id).ToPorts.ToString(), $"single to-port on {ResolveConnectionType()}");
+            }
+            finally
+            {
+                RemoveNatByComment(comment);
+            }
+        }
+
+        private void RemoveNatByComment(string comment)
+        {
+            var rows = Connection.CreateCommandAndParameters("/ip/firewall/nat/print",
+                TikCommandParameterFormat.Filter, "comment", comment).ExecuteList();
+            foreach (var r in rows)
+                Connection.CreateCommandAndParameters("/ip/firewall/nat/remove",
+                    ".id", r.GetResponseField(".id")).ExecuteNonQuery();
+        }
+
         // Prints the raw row behind the counters, plus (on WinBox native) how many handlers the .jg catalog
         // supplied. A catalog that did not load leaves the connection on the seed table, where the getall
         // stats bit is never set and the counter fields simply do not arrive — indistinguishable from zeros

@@ -63,7 +63,7 @@ namespace tik4net.integrationtests
                 vlan = new BridgeVlan
                 {
                     Bridge = bridgeName,
-                    VlanIds = new TikValueList<string>("3999"),
+                    VlanIds = new TikValueList<TikNumberRange>(3999),
                     Tagged = new TikValueList<string>(TestConstants.Interface),
                     Comment = marker,
                 };

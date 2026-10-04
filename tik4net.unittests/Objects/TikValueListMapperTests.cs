@@ -356,5 +356,25 @@ namespace tik4net.unittests.Objects
             });
             StringAssert.Contains(thrown.Message, message);
         }
+
+        // ── Number ranges: bridge vlan-ids, netwatch http-codes ──────────────
+
+        [TestMethod]
+        public void ANumberList_ReadsItsNumbersAndRanges_AndWritesThemBack()
+        {
+            var row = new Dictionary<string, string> { [".id"] = "*1", ["bridge"] = "br", ["vlan-ids"] = "10,20-30" };
+            var connection = new TikFakeConnection()
+                .WithResponse(cmd => cmd.FirstOrDefault() == "/interface/bridge/vlan/print",
+                    _ => new ITikSentence[] { new TikFakeReSentence(row), new TikFakeDoneSentence() })
+                .WithNonQuery(cmd => cmd.First() == "/interface/bridge/vlan/set");
+            var vlan = connection.LoadAll<tik4net.Objects.Interface.Bridge.BridgeVlan>().Single();
+
+            Assert.AreEqual(new TikValueList<TikNumberRange>(10, new TikNumberRange(20, 30)), vlan.VlanIds.Value);
+
+            vlan.VlanIds = vlan.VlanIds.Value!.With(4094);
+            connection.Save(vlan);
+            CollectionAssert.Contains(connection.SentCommands.Single(c => c.First() == "/interface/bridge/vlan/set").ToArray(),
+                "=vlan-ids=10,20-30,4094");
+        }
     }
 }
