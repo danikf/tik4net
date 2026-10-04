@@ -125,6 +125,11 @@ namespace tik4net.Winbox
                     // half of every element of the ONE list the API prints.
                     if (f.MaskKey != 0 && IsMultiNetworkList(f.UiType))
                         consumedKeys.Add(f.MaskKey);
+                    // Nor are the other boxes of a firewall limit group, which the catalog files under fields named
+                    // after the boxes: a row native wrote carries the period u11, and the window's 'limit' tuple took
+                    // the name from it when the frame listed u11 first.
+                    foreach (int box in WinboxFieldResolver.FirewallLimitBoxKeys(f))
+                        consumedKeys.Add(box);
                     // An opt/not flag is consumed only when no OTHER field owns its key. Two windows share a
                     // handler, and a field of the one this path does not address can still sit in the map for
                     // its own key: /ip/upnp's interface list declares 'Forced External IP' {opt b3, ipaddr u4},
@@ -361,6 +366,16 @@ namespace tik4net.Winbox
                 if (TrySentinelWord(jf, value, out string? sentinelWord)) return sentinelWord!;
                 switch (jf.UiType)
                 {
+                    case WinboxFieldResolver.FirewallLimitUiType:
+                    case WinboxFieldResolver.FirewallDstLimitUiType:
+                        return FormatFirewallLimit(jf, value, rec);
+                    case WinboxFieldResolver.FirewallTosUiType:
+                    {
+                        WinboxFieldResolver.TryToInt64(value, out long tos);
+                        long mask = rec.TryGetValue(0x1CA, out var mt) && WinboxFieldResolver.TryToInt64(mt.Item2, out long m) ? m : 255;
+                        return "0x" + tos.ToString("X", CultureInfo.InvariantCulture)
+                             + (mask == 255 ? "" : "/0x" + mask.ToString("X", CultureInfo.InvariantCulture));
+                    }
                     case "ipaddr":
                         return WinboxFieldResolver.IpFromU32(value);
                     case "netmask":
@@ -1477,6 +1492,29 @@ namespace tik4net.Winbox
                         CultureInfo.InvariantCulture, out bytes[i]))
                     return null;
             return bytes;
+        }
+
+        /// <summary>
+        /// The firewall's limit (<c>rate[/period],burst:mode</c>) or dst-limit (<c>rate[/period],burst,limit-by/expire</c>)
+        /// from the boxes of its WinBox group, a box the record leaves out read as the window's default.
+        /// </summary>
+        private static string FormatFirewallLimit(WinboxJgField jf, object rate, Dictionary<int, Tuple<string, object>> rec)
+        {
+            long Box(int key, long def)
+                => rec.TryGetValue(key, out var t) && WinboxFieldResolver.TryToInt64(t.Item2, out long n) ? n : def;
+            bool dst = jf.UiType == WinboxFieldResolver.FirewallDstLimitUiType;
+            WinboxFieldResolver.TryToInt64(rate, out long r);
+            long period = Box(dst ? 0x39 : 0x11, 1);
+            string text = r.ToString(CultureInfo.InvariantCulture)
+                        + (period == 1 ? "" : "/" + FormatDuration(period, 1));
+            if (!dst)
+                return text + "," + Box(0x12, 5).ToString(CultureInfo.InvariantCulture)
+                            + ":" + (Box(0x86, 0) == 1 ? "bit" : "packet");
+            long by = Box(0x38, 1);
+            string byText = WinboxFieldResolver.FirewallDstLimitBy.TryGetValue(unchecked((int)by), out var word)
+                ? word : by.ToString(CultureInfo.InvariantCulture);
+            return text + "," + Box(0x37, 5).ToString(CultureInfo.InvariantCulture) + "," + byText
+                 + "/" + FormatDuration(Box(0x3B, 1000), 100);
         }
 
         /// <summary>

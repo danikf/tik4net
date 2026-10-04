@@ -240,6 +240,11 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
 - **A `pair` dropdown draws from several tables.** `enm.pair.toString` tries each source in order; queue-tree
   `parent` is an interface OR a queue. `WinboxJgField.RefHandlers` holds them all (`RefHandler` = the first) —
   resolve, prefetch and encode over the whole list, or a second-table id reads back as a raw `*10002C1`.
+- **A `group` of boxes can be ONE API field.** Firewall `limit` (`!10,5:packet`), `dst-limit`, `tos` (`0xBC/0xF0`)
+  read as `limit`+`burst`+`mode`, `tos`+`tos-mask`, … from the catalog. Ship a synthetic with its own codec and
+  consume the other boxes' keys, or the window field takes the name back whenever the frame lists one of its keys
+  first (a row native wrote carries keys an API write leaves out). A window can also lack a box the router takes:
+  raw stores bridge ports and packet-mark in the filter window's keys. Test with a row WRITTEN over native.
 - **One handler, several windows, each numbering its fields from 1.** `[28,0]` is the UPnP settings
   singleton (`b1` 'Enabled') AND the UPnP interface list (`u1` 'Interface'). Fields are filed per WINDOW as
   well as per handler, and the resolver reads action → window → handler; a key→name inversion of the

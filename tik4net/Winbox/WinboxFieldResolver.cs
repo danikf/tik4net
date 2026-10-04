@@ -1024,6 +1024,46 @@ namespace tik4net.Winbox
                                     enumMap: new Dictionary<int, string> { [0] = "set", [1] = "increment", [2] = "decrement" }),
                                 new WinboxJgElementPart(0x3EF, "number", 0),
                             }),
+                        ["ipsec-policy"] = FirewallIpsecPolicy(),
+                        ["limit"] = FirewallLimit(),
+                        ["dst-limit"] = FirewallDstLimit(),
+                        ["tos"] = FirewallTos(),
+                    }),
+
+                // /ip/firewall/filter: see FirewallIpsecPolicy and FirewallLimit; realm is mangle's (in no field of the
+                // Firewall Rule window either, the same three keys: realm=!7 is 0x7E=7, 0x1C2, 0xE0=True on 7.24.5).
+                ["/ip/firewall/filter"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["ipsec-policy"] = FirewallIpsecPolicy(),
+                        ["limit"] = FirewallLimit(),
+                        ["dst-limit"] = FirewallDstLimit(),
+                        ["tos"] = FirewallTos(),
+                        ["realm"] = new WinboxJgField("realm", 0x7E, "u32", false, uiType: "number", optKey: 0x1C2, notKey: 0xE0),
+                    }),
+
+                // /ip/firewall/raw: the Raw window draws no bridge-port or packet-mark boxes, yet a raw rule takes them
+                // and carries them in the filter window's keys (packet-mark=!x is {0x19A, 0x1D=True, 0x1E=x}) — in-bridge-port=!ether1 is {0x1B0, 0xD1=True, 0x54=2},
+                // in-bridge-port-list=!all {0xBB8, 0x7D0=True, 0x44C=0x2000000}, the out- pair one key further on
+                // (7.24.5, every value moved over the API and the raw record read back).
+                ["/ip/firewall/raw"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["ipsec-policy"] = FirewallIpsecPolicy(),
+                        ["limit"] = FirewallLimit(),
+                        ["dst-limit"] = FirewallDstLimit(),
+                        ["tos"] = FirewallTos(),
+                        ["packet-mark"] = new WinboxJgField("packet-mark", 0x1E, "string", false, optKey: 0x19A, notKey: 0x1D),
+                        ["in-bridge-port"] = FirewallBridgePort("in-bridge-port", 0x54, 0x1B0, 0xD1),
+                        ["out-bridge-port"] = FirewallBridgePort("out-bridge-port", 0x55, 0x1B1, 0xD2),
+                        ["in-bridge-port-list"] = new WinboxJgField("in-bridge-port-list", 0x44C, "u32", false,
+                            uiType: "enm", refHandler: new[] { 20, 90 }, optKey: 0xBB8, notKey: 0x7D0),
+                        ["out-bridge-port-list"] = new WinboxJgField("out-bridge-port-list", 0x44D, "u32", false,
+                            uiType: "enm", refHandler: new[] { 20, 90 }, optKey: 0xBB9, notKey: 0x7D1),
                     }),
 
                 // /ip/firewall/connection: 'helper used' is the API's uses-helper, and the GRE key is a key the
@@ -2405,6 +2445,13 @@ namespace tik4net.Winbox
                     result.Add(M2Message.BoolSys(jg.OptKey, true));
             }
 
+            if (jg != null && value.Length > 0
+                && (jg.UiType == FirewallLimitUiType || jg.UiType == FirewallDstLimitUiType || jg.UiType == FirewallTosUiType))
+            {
+                if (TryEncodeFirewallLimit(jg, value, result)) return result;
+                throw new WinboxFieldValueException($"input does not match any value of {apiName}");
+            }
+
             // A `number` whose postfix says s or ms is a DURATION, and the read side has spelled it as one
             // since the seeded audit found `mii-interval` reading 100 where the API says 100ms. The write
             // side has to take that spelling back or the field becomes readable and unwritable: RADIUS's
@@ -3123,6 +3170,162 @@ namespace tik4net.Winbox
             if (negative) scaled = -scaled;
             return true;
         }
+
+        /// <summary>
+        /// The firewall's ipsec-policy: the window's 'IPsec Policy' opt (0x1C5) over a tuple of two static enums,
+        /// direction u84 (in, out) and policy u85 (none, ipsec). The window joins them with ':' where the API prints
+        /// and takes <c>out,none</c>, so the catalog's own field reads <c>out:none</c> and cannot split a write.
+        /// </summary>
+        private static WinboxJgField FirewallIpsecPolicy()
+            => new WinboxJgField("ipsec-policy", 0x84, "u32", false, uiType: WinboxJgCatalog.TupleUiType,
+                optKey: 0x1C5, elementSeparator: ",",
+                elementParts: new[]
+                {
+                    new WinboxJgElementPart(0x84, "enm", 0, enumMap: new Dictionary<int, string> { [0] = "in", [1] = "out" }),
+                    new WinboxJgElementPart(0x85, "enm", 0, enumMap: new Dictionary<int, string> { [0] = "none", [1] = "ipsec" }),
+                });
+
+        /// <summary>UI type of <see cref="FirewallLimit"/>: one API field over the window's 'Limit' group.</summary>
+        internal const string FirewallLimitUiType = "tik4net-fw-limit";
+
+        /// <summary>UI type of <see cref="FirewallDstLimit"/>: one API field over the window's 'Dst. Limit' group.</summary>
+        internal const string FirewallDstLimitUiType = "tik4net-fw-dst-limit";
+
+        /// <summary>
+        /// The firewall's limit, <c>[!]rate[/period],burst:mode</c> (<c>!10,5:packet</c>, <c>7/1h,3:packet</c>): the
+        /// window's 'Limit' group (opt 0x1A0) of four boxes - rate q87 under the not 0xE4, period u11 in seconds (1 is
+        /// left out of the text), burst u12, mode u86 (0 packet, 1 bit). The catalog reads them as four fields named
+        /// after the boxes, and the API has one (7.24.5, filter, raw and mangle alike).
+        /// </summary>
+        private static WinboxJgField FirewallLimit()
+            => new WinboxJgField("limit", 0x87, "u64", false, uiType: FirewallLimitUiType, optKey: 0x1A0, notKey: 0xE4);
+
+        /// <summary>
+        /// The firewall's dst-limit, <c>rate[/period],burst,limit-by/expire</c> (<c>30,5,dst-address/1m</c>): the window's
+        /// 'Dst. Limit' group (opt 0x1A4) - rate u36, period u39 in seconds (1 left out), burst u37, limit-by u38 and
+        /// expire u3b in hundredths of a second, which the API always prints (7.24.5).
+        /// </summary>
+        private static WinboxJgField FirewallDstLimit()
+            => new WinboxJgField("dst-limit", 0x36, "u32", false, uiType: FirewallDstLimitUiType, optKey: 0x1A4);
+
+        /// <summary>UI type of <see cref="FirewallTos"/>: one API field over the window's 'TOS' group.</summary>
+        internal const string FirewallTosUiType = "tik4net-fw-tos";
+
+        /// <summary>
+        /// The firewall's tos, <c>[!]value[/mask]</c> in upper-case hex (<c>!0xBC/0xF0</c>, <c>0xA</c>): the window's 'TOS'
+        /// group (opt 0x1C7) — 'Tos Value' u1c9 under the not 0x1C8 and 'Tos Mask' u1ca, left out of the text at its
+        /// default 0xFF (7.24.5). The catalog reads tos and tos-mask, in lower case.
+        /// </summary>
+        private static WinboxJgField FirewallTos()
+            => new WinboxJgField("tos", 0x1C9, "u32", false, uiType: FirewallTosUiType, optKey: 0x1C7, notKey: 0x1C8);
+
+        /// <summary>
+        /// The keys of a firewall group field other than the field's own (and ipsec-policy's second part), or none for
+        /// any other field. The window's own fields for them would otherwise take the name whenever the frame lists
+        /// such a key first.
+        /// </summary>
+        internal static int[] FirewallLimitBoxKeys(WinboxJgField f)
+            => f.UiType == FirewallLimitUiType ? new[] { 0x11, 0x12, 0x86 }
+             : f.UiType == FirewallDstLimitUiType ? new[] { 0x39, 0x37, 0x38, 0x3B }
+             : f.UiType == FirewallTosUiType ? new[] { 0x1CA }
+             : f.Key == 0x84 && f.ElementSeparator == "," && string.Equals(f.ApiName, "ipsec-policy", StringComparison.OrdinalIgnoreCase)
+                ? new[] { 0x85 }
+             : Array.Empty<int>();
+
+        /// <summary>A byte in hex (<c>0xBC</c>) or decimal, as the tos field takes it.</summary>
+        private static bool TryParseTosByte(string text, out uint n)
+        {
+            n = 0;
+            bool hex = text.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
+            return (hex ? uint.TryParse(text.Substring(2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out n)
+                        : uint.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out n))
+                   && n <= 255;
+        }
+
+        /// <summary>limit-by of <see cref="FirewallDstLimit"/>, u38: the window's labels in the API's spelling.</summary>
+        internal static readonly IReadOnlyDictionary<int, string> FirewallDstLimitBy = new Dictionary<int, string>
+        {
+            [1] = "dst-address", [3] = "dst-address-and-port", [4] = "src-address", [5] = "src-and-dst-addresses",
+            [7] = "addresses-and-dst-port",
+        };
+
+        /// <summary>
+        /// Encodes <see cref="FirewallLimit"/> or <see cref="FirewallDstLimit"/> (the flags are already sent): the text
+        /// split on the API's separators, each box written. False, adding nothing, when the text does not have the shape.
+        /// </summary>
+        private static bool TryEncodeFirewallLimit(WinboxJgField jg, string value, List<byte[]> result)
+        {
+            if (jg.UiType == FirewallTosUiType)
+            {
+                int cut = value.IndexOf('/');
+                if (!TryParseTosByte(cut < 0 ? value : value.Substring(0, cut), out uint tos)) return false;
+                uint mask = 255;
+                if (cut >= 0 && !TryParseTosByte(value.Substring(cut + 1), out mask)) return false;
+                result.Add(EncodeU32(0x1C9, tos));
+                result.Add(EncodeU32(0x1CA, mask));
+                return true;
+            }
+            bool dst = jg.UiType == FirewallDstLimitUiType;
+            string[] parts = value.Split(',');
+            if (parts.Length != (dst ? 3 : 2)) return false;
+
+            string rateText = parts[0];
+            long period = 1;
+            int slash = rateText.IndexOf('/');
+            if (slash >= 0)
+            {
+                if (!TryParseDuration(rateText.Substring(slash + 1), 1, out period) || period < 1 || period > uint.MaxValue) return false;
+                rateText = rateText.Substring(0, slash);
+            }
+            if (!TikDataRate.TryParse(rateText, out TikDataRate rate) || !rate.Value.HasValue || rate.Value.Value < 0) return false;
+
+            var encoded = new List<byte[]>();
+            if (dst)
+            {
+                if (!uint.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out uint burst)) return false;
+                string by = parts[2], expire = "10s";
+                int at = by.IndexOf('/');
+                if (at >= 0) { expire = by.Substring(at + 1); by = by.Substring(0, at); }
+                var member = FirewallDstLimitBy.FirstOrDefault(kv => string.Equals(kv.Value, by, StringComparison.OrdinalIgnoreCase));
+                if (member.Value == null || !TryParseDuration(expire, 100, out long expireTicks)
+                    || expireTicks < 0 || expireTicks > uint.MaxValue || rate.Value.Value > uint.MaxValue)
+                    return false;
+                encoded.Add(EncodeU32(0x36, (uint)rate.Value.Value));
+                encoded.Add(EncodeU32(0x39, (uint)period));
+                encoded.Add(EncodeU32(0x37, burst));
+                encoded.Add(EncodeU32(0x38, (uint)member.Key));
+                encoded.Add(EncodeU32(0x3B, (uint)expireTicks));
+            }
+            else
+            {
+                int colon = parts[1].IndexOf(':');
+                if (colon < 0) return false;
+                string mode = parts[1].Substring(colon + 1);
+                int modeValue = string.Equals(mode, "packet", StringComparison.OrdinalIgnoreCase) ? 0
+                              : string.Equals(mode, "bit", StringComparison.OrdinalIgnoreCase) ? 1 : -1;
+                if (modeValue < 0
+                    || !uint.TryParse(parts[1].Substring(0, colon), NumberStyles.None, CultureInfo.InvariantCulture, out uint burst))
+                    return false;
+                encoded.Add(M2Message.U64Sys(0x87, unchecked((ulong)rate.Value.Value)));
+                encoded.Add(EncodeU32(0x11, (uint)period));
+                encoded.Add(EncodeU32(0x12, burst));
+                encoded.Add(EncodeU32(0x86, (uint)modeValue));
+            }
+            result.AddRange(encoded);
+            return true;
+        }
+
+        /// <summary>
+        /// A firewall bridge-port matcher as the filter window declares it: an interface, or one of the 'all …' groups,
+        /// under an opt and a not.
+        /// </summary>
+        private static WinboxJgField FirewallBridgePort(string apiName, int key, int optKey, int notKey)
+            => new WinboxJgField(apiName, key, "u32", false, uiType: "enm", refHandler: new[] { 20, 0 },
+                optKey: optKey, notKey: notKey,
+                enumMap: new Dictionary<int, string>
+                {
+                    [16777216] = "all ethernet", [16777217] = "all wireless", [16777218] = "all vlan", [16777219] = "all ppp",
+                });
 
         /// <summary>Wire units per second for such a field — a thousand more of them when it counts ms.</summary>
         private static int DurationTicksPerSecond(WinboxJgField jg)

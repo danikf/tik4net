@@ -174,6 +174,13 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> ConnectionMark { get; set; }
 
         /// <summary>
+        /// connection-nat-state: matches a connection by the NAT applied to it. The whole list takes a <c>!</c>
+        /// (<c>!srcnat,dstnat</c>); a member alone does not — the router refuses <c>srcnat,!dstnat</c>.
+        /// </summary>
+        [TikProperty("connection-nat-state", WinboxLabel = "Connection NAT State", Negatable = true)]
+        public TikField<TikValueList<FirewallConnectionNatState>?> ConnectionNatState { get; set; }
+
+        /// <summary>
         /// connection-rate: Connection Rate is a firewall matcher that allow to capture traffic based on present speed of the connection.  Read more &gt;&gt;
         /// </summary>
         /// <remarks>
@@ -275,10 +282,22 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> InBridgePort { get; set; }
 
         /// <summary>
+        /// in-bridge-port-list: Matches in-bridge-port against a user-defined interface list.
+        /// </summary>
+        [TikProperty("in-bridge-port-list", WinboxLabel = "In. Bridge Port List", Negatable = true)]
+        public TikField<string?> InBridgePortList { get; set; }
+
+        /// <summary>
         /// in-interface: Interface the packet has entered the router
         /// </summary>
         [TikProperty("in-interface", WinboxLabel = "In. Interface", Negatable = true)]
         public TikField<string?> InInterface { get; set; }
+
+        /// <summary>
+        /// in-interface-list: Matches in-interface against a user-defined interface list.
+        /// </summary>
+        [TikProperty("in-interface-list", WinboxLabel = "In. Interface List", Negatable = true)]
+        public TikField<string?> InInterfaceList { get; set; }
 
         /// <summary>
         /// ingress-priority: Matches ingress priority of the packet. Priority may be derived from VLAN, WMM or MPLS EXP bit.  Read more&gt;&gt;
@@ -286,16 +305,13 @@ namespace tik4net.Objects.Ip.Firewall
         [TikProperty("ingress-priority", WinboxLabel = "Ingress Priority", Negatable = true)]
         public TikField<int?> IngressPriority { get; set; }
 
-        ///// <summary>
-        ///// ipsec-policy: Matches the policy used by IpSec. Value is written in following format: direction, policy. Direction is Used to select whether to match the policy used for decapsulation or the policy that will be used for encapsulation.            
-        ///// in - valid in the PREROUTING, INPUT and FORWARD chains
-        ///// out - valid in the POSTROUTING, OUTPUT and FORWARD chains
-        ///// ipsec - matches if the packet is subject to IPsec processing;
-        ///// none - matches ipsec transport packet.
-        ///// For example, if router receives Ipsec encapsulated Gre packet, then rule ipsec-policy=in, ipsec will match Gre packet, but rule ipsec-policy=in, none will match ESP packet.
-        ///// </summary>
-        //[TikProperty("ipsec-policy")]
-        //public string IpsecPolicy { get; set; }
+        /// <summary>
+        /// ipsec-policy: matches the policy used by IPsec, written <c>direction,policy</c>: direction <c>in</c>
+        /// (prerouting, input, forward) or <c>out</c> (postrouting, output, forward), policy <c>ipsec</c> (the packet is subject
+        /// to IPsec processing) or <c>none</c> (it is not).
+        /// </summary>
+        [TikProperty("ipsec-policy", WinboxLabel = "IPsec Policy")]
+        public TikField<string?> IpsecPolicy { get; set; }
 
         /// <summary>
         /// ipv4-options: Matches IPv4 header options.
@@ -335,6 +351,12 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> Limit { get; set; }
 
         /// <summary>
+        /// log: Whether to log matched packets (shorthand flag; use action=log for full log action).
+        /// </summary>
+        [TikProperty("log", DefaultValue = "no", WinboxLabel = "Log")]
+        public TikField<bool?> Log { get; set; }
+
+        /// <summary>
         /// log-prefix: Adds specified text at the beginning of every log message. Applicable if action=log
         /// </summary>
         [TikProperty("log-prefix", WinboxLabel = "Log Prefix")]
@@ -353,10 +375,22 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> OutBridgePort { get; set; }
 
         /// <summary>
+        /// out-bridge-port-list: Matches out-bridge-port against a user-defined interface list.
+        /// </summary>
+        [TikProperty("out-bridge-port-list", WinboxLabel = "Out. Bridge Port List", Negatable = true)]
+        public TikField<string?> OutBridgePortList { get; set; }
+
+        /// <summary>
         /// out-interface: Interface the packet is leaving the router
         /// </summary>
         [TikProperty("out-interface", WinboxLabel = "Out. Interface", Negatable = true)]
         public TikField<string?> OutInterface { get; set; }
+
+        /// <summary>
+        /// out-interface-list: Matches out-interface against a user-defined interface list.
+        /// </summary>
+        [TikProperty("out-interface-list", WinboxLabel = "Out. Interface List", Negatable = true)]
+        public TikField<string?> OutInterfaceList { get; set; }
 
         /// <summary>
         /// p2p: Matches packets from various peer-to-peer (P2P) protocols. Does not work on encrypted p2p packets.
@@ -389,6 +423,12 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<TikValueList<TikPortRange>?> Port { get; set; }
 
         /// <summary>
+        /// priority: Matches packet priority (VLAN or WMM priority tag).
+        /// </summary>
+        [TikProperty("priority", WinboxLabel = "Priority", Negatable = true)]
+        public TikField<string?> Priority { get; set; }
+
+        /// <summary>
         /// protocol: Matches particular IP protocol specified by protocol name or number
         /// </summary>
         [TikProperty("protocol", WinboxLabel = "Protocol", Negatable = true)]
@@ -409,6 +449,12 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         [TikProperty("random", WinboxLabel = "Random")]
         public TikField<string?> Random { get; set; }
+
+        /// <summary>
+        /// realm: matches the packet's routing realm, a number (<c>!5</c> matches every other realm).
+        /// </summary>
+        [TikProperty("realm", Negatable = true)]
+        public TikField<string?> Realm { get; set; }
 
         /// <summary>
         /// reject-with: Specifies error to be sent back if packet is rejected. Applicable if action=reject
@@ -482,6 +528,18 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         [TikProperty("time", WinboxLabel = "Time")]
         public TikField<string?> Time { get; set; }
+
+        /// <summary>
+        /// tls-host: Matches TLS SNI hostname (RouterOS 7+).
+        /// </summary>
+        [TikProperty("tls-host", WinboxLabel = "TLS Host", Negatable = true)]
+        public TikField<string?> TlsHost { get; set; }
+
+        /// <summary>
+        /// tos: Matches the ToS (Type of Service) field of IP header.
+        /// </summary>
+        [TikProperty("tos", WinboxLabel = "TOS", Negatable = true)]
+        public TikField<string?> Tos { get; set; }
 
         /// <summary>
         /// ttl: Matches packets TTL value

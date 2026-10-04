@@ -1347,6 +1347,30 @@ the `.jg` says the two boxes are one field, so the pairing is shipped per path
 "my value needs a sibling" slot a `network`'s netmask uses — and is consumed, so it does not also surface as a
 field the API never reports.
 
+### A firewall group is one API field
+
+The filter, raw and mangle windows draw several matchers as a `group` of boxes the API prints as one value
+(7.24.5, every value moved over the API and the record read back):
+
+| API field | API spelling | keys |
+|---|---|---|
+| `limit` | `[!]rate[/period],burst:mode` — `!10,5:packet`, `7/1h,3:packet` | opt `b1a0`; rate `q87` under the not `be4`, period `u11` (seconds, `1` left out of the text), burst `u12`, mode `u86` (packet/bit = 0/1) |
+| `dst-limit` | `rate[/period],burst,limit-by/expire` — `30,5,dst-address/1m` | opt `b1a4`; rate `u36`, period `u39`, burst `u37`, limit-by `u38` (dst-address/dst-address-and-port/src-address/src-and-dst-addresses/addresses-and-dst-port = 1/3/4/5/7), expire `u3b` in hundredths, always printed |
+| `tos` | `[!]value[/mask]`, upper-case hex — `!0xBC/0xF0`, `0xA` | opt `b1c7`; value `u1c9` under the not `b1c8`, mask `u1ca`, left out at its default `0xFF` |
+| `ipsec-policy` | `direction,policy` — `in,ipsec` | opt `b1c5`; `u84` in/out = 0/1, `u85` none/ipsec = 0/1. The window's tuple joins them with `:` |
+
+The catalog reads each box as a field named after its label (`burst`, `mode`, `extra-burst`, `limit-by`, `expire`,
+`tos-mask`), so each of the four is a synthetic field shipped for the three paths
+(`WinboxFieldResolver.FirewallLimit`, …), and its other keys are consumed: a row native wrote carries the period
+`u11=1` that an API write leaves out, and the window's own `limit` tuple took the name whenever the frame listed that
+key first.
+
+Raw takes `!` on `in-bridge-port`, `out-bridge-port`, both bridge-port lists, `limit` and `packet-mark` like the
+filter, though the Raw window draws no box for the bridge ports or the packet mark at all. A raw rule carries them in
+the filter window's keys — `in-bridge-port=!ether1` is `{b1b0, bd1=true, u54=2}`, `in-bridge-port-list=!all`
+`{bbb8, b7d0=true, u44c}`, `packet-mark=!x` `{b19a, b1d=true, s1e}` — and the filter's `realm` is mangle's
+undeclared `u7e` with flags `b1c2`/`be0`.
+
 ### Keys and words no window gives
 
 Each pairing below was made by setting the value over the API and naming the one key that moved (7.24.2), read

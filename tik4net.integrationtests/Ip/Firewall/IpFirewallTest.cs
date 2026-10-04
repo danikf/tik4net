@@ -539,6 +539,8 @@ namespace tik4net.integrationtests
                     Realm = TikValue<string>.Not("5"),
                     DstPort = new TikValueList<TikPortRange>(443),
                     InInterfaceList = "all",
+                    Limit = "1000000,5:bit",
+                    IpsecPolicy = "in,none",
                 },
                 new FirewallMangle
                 {
@@ -581,6 +583,8 @@ namespace tik4net.integrationtests
                 Assert.AreEqual(rules[0].Realm, mark.Realm, "realm" + on);
                 Assert.AreEqual(rules[0].DstPort, mark.DstPort, "dst-port" + on);
                 Assert.AreEqual(rules[0].InInterfaceList, mark.InInterfaceList, "in-interface-list" + on);
+                Assert.AreEqual(rules[0].Limit, mark.Limit, "limit" + on);
+                Assert.AreEqual(rules[0].IpsecPolicy, mark.IpsecPolicy, "ipsec-policy" + on);
 
                 var mss = Connection.LoadById<FirewallMangle>(rules[1].Id);
                 Assert.AreEqual(rules[1].NewMss, mss.NewMss, "new-mss" + on);
@@ -598,6 +602,103 @@ namespace tik4net.integrationtests
             finally
             {
                 RemoveByComment("/ip/firewall/mangle", comment);
+            }
+        }
+
+        /// <summary>
+        /// The matchers the filter shares with mangle — interface and bridge-port lists, realm, connection-nat-state,
+        /// priority, tos, tls-host, ipsec-policy, limit, dst-limit and the log flag — round-trip on every transport, most
+        /// of them negated. WinBox native keeps limit and dst-limit in a group of boxes each, and ipsec-policy in two.
+        /// </summary>
+        [TestMethod]
+        public void FirewallFilter_SharedMatchers_RoundTrip()
+        {
+            const string comment = "t4n-filter-shared";
+            RemoveByComment("/ip/firewall/filter", comment);
+            var filter = new FirewallFilter
+            {
+                Chain = "forward", Action = FirewallFilter.ActionType.Accept, Disabled = true, Comment = comment,
+                Protocol = "tcp",
+                ConnectionNatState = TikValue<TikValueList<FirewallConnectionNatState>>.Not(
+                    new TikValueList<FirewallConnectionNatState>(FirewallConnectionNatState.Srcnat, FirewallConnectionNatState.Dstnat)),
+                Realm = TikValue<string>.Not("5"),
+                InInterfaceList = TikValue<string>.Not("all"),
+                OutInterfaceList = "all",
+                InBridgePortList = TikValue<string>.Not("all"),
+                OutBridgePortList = "all",
+                Priority = TikValue<string>.Not("3"),
+                Tos = "0xA",
+                TlsHost = TikValue<string>.Not("t4n.example"),
+                IpsecPolicy = "in,ipsec",
+                Log = true,
+                Limit = TikValue<string>.Not("7/1h,3:packet"),
+                DstLimit = "30/1m,5,addresses-and-dst-port/10s",
+            };
+            try
+            {
+                SaveTracked(filter);
+                var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
+                string on = " on " + ResolveConnectionType();
+                Assert.AreEqual(filter.ConnectionNatState, loaded.ConnectionNatState, "connection-nat-state" + on);
+                Assert.AreEqual(filter.Realm, loaded.Realm, "realm" + on);
+                Assert.AreEqual(filter.InInterfaceList, loaded.InInterfaceList, "in-interface-list" + on);
+                Assert.AreEqual(filter.OutInterfaceList, loaded.OutInterfaceList, "out-interface-list" + on);
+                Assert.AreEqual(filter.InBridgePortList, loaded.InBridgePortList, "in-bridge-port-list" + on);
+                Assert.AreEqual(filter.OutBridgePortList, loaded.OutBridgePortList, "out-bridge-port-list" + on);
+                Assert.AreEqual(filter.Priority, loaded.Priority, "priority" + on);
+                Assert.AreEqual(filter.Tos, loaded.Tos, "tos" + on);
+                Assert.AreEqual(filter.TlsHost, loaded.TlsHost, "tls-host" + on);
+                Assert.AreEqual(filter.IpsecPolicy, loaded.IpsecPolicy, "ipsec-policy" + on);
+                Assert.AreEqual(filter.Log, loaded.Log, "log" + on);
+                Assert.AreEqual(filter.Limit, loaded.Limit, "limit" + on);
+                Assert.AreEqual(filter.DstLimit, loaded.DstLimit, "dst-limit" + on);
+            }
+            finally
+            {
+                RemoveByComment("/ip/firewall/filter", comment);
+            }
+        }
+
+        /// <summary>
+        /// Raw takes a <c>!</c> on the bridge ports and their lists, limit and packet-mark like the filter does, although
+        /// its WinBox window draws no <c>not</c> box for them.
+        /// </summary>
+        [TestMethod]
+        public void FirewallRaw_NegatedMatchers_RoundTrip()
+        {
+            const string comment = "t4n-raw-negated";
+            RemoveByComment("/ip/firewall/raw", comment);
+            var raw = new FirewallRaw
+            {
+                Chain = "prerouting", Action = FirewallRaw.ActionType.Passthrough, Disabled = true, Comment = comment,
+                InBridgePort = TikValue<string>.Not("ether1"),
+                OutBridgePort = TikValue<string>.Not("ether1"),
+                InBridgePortList = TikValue<string>.Not("all"),
+                OutBridgePortList = TikValue<string>.Not("all"),
+                Limit = TikValue<string>.Not("10,5:packet"),
+                PacketMark = TikValue<string>.Not("t4n-pm"),
+                IpsecPolicy = "out,none",
+                DstLimit = "1000,8,src-address/1m",
+                Tos = TikValue<string>.Not("0xBC/0xF0"),
+            };
+            try
+            {
+                SaveTracked(raw);
+                var loaded = Connection.LoadById<FirewallRaw>(raw.Id);
+                string on = " on " + ResolveConnectionType();
+                Assert.AreEqual(raw.InBridgePort, loaded.InBridgePort, "in-bridge-port" + on);
+                Assert.AreEqual(raw.OutBridgePort, loaded.OutBridgePort, "out-bridge-port" + on);
+                Assert.AreEqual(raw.InBridgePortList, loaded.InBridgePortList, "in-bridge-port-list" + on);
+                Assert.AreEqual(raw.OutBridgePortList, loaded.OutBridgePortList, "out-bridge-port-list" + on);
+                Assert.AreEqual(raw.Limit, loaded.Limit, "limit" + on);
+                Assert.AreEqual(raw.PacketMark, loaded.PacketMark, "packet-mark" + on);
+                Assert.AreEqual(raw.IpsecPolicy, loaded.IpsecPolicy, "ipsec-policy" + on);
+                Assert.AreEqual(raw.DstLimit, loaded.DstLimit, "dst-limit" + on);
+                Assert.AreEqual(raw.Tos, loaded.Tos, "tos" + on);
+            }
+            finally
+            {
+                RemoveByComment("/ip/firewall/raw", comment);
             }
         }
 

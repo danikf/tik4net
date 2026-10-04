@@ -368,7 +368,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// in-bridge-port-list: Matches in-bridge-port against a user-defined interface list.
         /// </summary>
-        [TikProperty("in-bridge-port-list", Negatable = true)]
+        [TikProperty("in-bridge-port-list", WinboxLabel = "In. Bridge Port List", Negatable = true)]
         public TikField<string?> InBridgePortList { get; set; }
 
         /// <summary>
@@ -453,7 +453,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// out-bridge-port-list: Matches out-bridge-port against a user-defined interface list.
         /// </summary>
-        [TikProperty("out-bridge-port-list", Negatable = true)]
+        [TikProperty("out-bridge-port-list", WinboxLabel = "Out. Bridge Port List", Negatable = true)]
         public TikField<string?> OutBridgePortList { get; set; }
 
         /// <summary>

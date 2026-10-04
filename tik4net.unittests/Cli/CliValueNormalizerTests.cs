@@ -184,6 +184,21 @@ namespace tik4net.unittests.Cli
         }
 
         /// <summary>
+        /// The firewall's <c>limit</c> and <c>dst-limit</c> lead with a rate the terminal abbreviates the same way
+        /// (<c>1M,5:bit</c> where the API prints <c>1000000,5:bit</c>, 7.24.5); the period and the rest stay. A queue's
+        /// plain <c>limit</c> is not that shape.
+        /// </summary>
+        [TestMethod]
+        public void SpellsOutTheFirewallLimitRate()
+        {
+            Assert.AreEqual("1000000,5:bit", N("limit", "1M,5:bit"));
+            Assert.AreEqual("!2000/1m,5:packet", N("limit", "!2k/1m,5:packet"));
+            Assert.AreEqual("7/1h,3:packet", N("limit", "7/1h,3:packet"));
+            Assert.AreEqual("30000,5,dst-address/1m", N("dst-limit", "30k,5,dst-address/1m"));
+            Assert.AreEqual("50", N("limit", "50"));
+        }
+
+        /// <summary>
         /// Bridge and bridge-port <c>priority</c> are hex over the API on every version measured (6.49.13,
         /// 7.21.5, 7.24.4) and decimal from as-value before 7.24 — on those two menus only. VRRP's and a queue's
         /// <c>priority</c> are decimal over the API and must stay so.

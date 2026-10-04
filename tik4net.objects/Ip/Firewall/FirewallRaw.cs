@@ -192,13 +192,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// in-bridge-port: Actual interface the packet has entered the router when the incoming interface is a bridge.
         /// </summary>
-        [TikProperty("in-bridge-port")]
+        [TikProperty("in-bridge-port", Negatable = true)]
         public TikField<string?> InBridgePort { get; set; }
 
         /// <summary>
         /// in-bridge-port-list: Matches in-bridge-port against a user-defined interface list.
         /// </summary>
-        [TikProperty("in-bridge-port-list")]
+        [TikProperty("in-bridge-port-list", Negatable = true)]
         public TikField<string?> InBridgePortList { get; set; }
 
         /// <summary>
@@ -240,7 +240,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// limit: Matches packets at a limited rate. Parameters: count[/time],burst.
         /// </summary>
-        [TikProperty("limit", WinboxLabel = "Limit")]
+        [TikProperty("limit", WinboxLabel = "Limit", Negatable = true)]
         public TikField<string?> Limit { get; set; }
 
         /// <summary>
@@ -264,13 +264,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// out-bridge-port: Actual interface the packet is leaving through when it is a bridge.
         /// </summary>
-        [TikProperty("out-bridge-port")]
+        [TikProperty("out-bridge-port", Negatable = true)]
         public TikField<string?> OutBridgePort { get; set; }
 
         /// <summary>
         /// out-bridge-port-list: Matches out-bridge-port against a user-defined interface list.
         /// </summary>
-        [TikProperty("out-bridge-port-list")]
+        [TikProperty("out-bridge-port-list", Negatable = true)]
         public TikField<string?> OutBridgePortList { get; set; }
 
         /// <summary>
@@ -288,7 +288,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// packet-mark: Matches packets marked via mangle facility with a particular packet mark.
         /// </summary>
-        [TikProperty("packet-mark")]
+        [TikProperty("packet-mark", Negatable = true)]
         public TikField<string?> PacketMark { get; set; }
 
         /// <summary>

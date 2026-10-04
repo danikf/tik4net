@@ -213,6 +213,14 @@ namespace tik4net.Cli
                 && TryExpandUnitRange(value, out string? plainRange))
                 return plainRange!;
 
+            // The firewall's limit and dst-limit lead with a rate the terminal abbreviates the same way:
+            // limit=1M,5:bit over the CLI, 1000000,5:bit over the API (7.24.5). Only that shape — a queue's limit is
+            // a plain number.
+            if ((string.Equals(field, "limit", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(field, "dst-limit", StringComparison.OrdinalIgnoreCase))
+                && TryExpandLeadingRate(value, out string? plainLimit))
+                return plainLimit!;
+
             // Seconds east of UTC, which the API prints as a signed clock offset. Not shaped like anything
             // else here: "7200" is just a number until you know which field it came from.
             if (string.Equals(field, "gmt-offset", StringComparison.OrdinalIgnoreCase)
@@ -277,6 +285,21 @@ namespace tik4net.Cli
             }
             plain = sign + string.Join("-", ends);
             return changed;
+        }
+
+        // "!1M/1m,5:bit" -> "!1000000/1m,5:bit": the rate before the first ',' (and before its '/period'). False when
+        // the value has no ',' or the rate carried no suffix.
+        private static bool TryExpandLeadingRate(string value, out string? plain)
+        {
+            plain = null;
+            int comma = value.IndexOf(',');
+            if (comma < 0) return false;
+            string rate = value.Substring(0, comma);
+            int slash = rate.IndexOf('/');
+            string number = slash < 0 ? rate : rate.Substring(0, slash);
+            if (number.IndexOf('-') >= 0 || !TryExpandUnitRange(number, out string? expanded)) return false;
+            plain = expanded + (slash < 0 ? string.Empty : rate.Substring(slash)) + value.Substring(comma);
+            return true;
         }
 
         private static bool Contains(string[] names, string? field)

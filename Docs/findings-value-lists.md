@@ -32,6 +32,10 @@ UI type `multitristate` (or `multitristatearray`).
 | each member | `hotspot` and `tcp-flags` (filter, raw, mangle), logging `topics` — the same on 6.49.13 |
 | both | `tcp-flags` only |
 
+The catalog can miss a whole-value `!` the router takes: raw's `in-bridge-port`, `out-bridge-port`, the bridge-port
+lists, `limit` and `packet-mark` take `!` as the filter's do, though the Raw window has no `not` box for them
+(7.24.5).
+
 A member `!` elsewhere is refused: `connection-state=established,!related` → `invalid value for argument state`;
 mangle `connection-nat-state=srcnat,!dstnat` the same.
 
