@@ -136,8 +136,54 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual(2L, Num(encoded[0x56]));
             Assert.AreEqual(16L, Num(encoded[0x57]));
-            Assert.IsFalse(encoded.ContainsKey(0xD3), "the field-wide 'not' flag must stay untouched");
+            // The field-wide 'not' flag is stored on the row, and the router's text set rewrites it every time
+            // (measured 2026-10-04: !,syn,!ack + set rst → rst,!ack), so a write without the whole-list '!' clears it.
+            Assert.AreEqual(false, encoded[0xD3], "the field-wide 'not' flag is written, and false");
         }
+
+        // ── the whole-list '!' and a member in both halves (measured 2026-10-04, 7.24.5) ──
+
+        [TestMethod]
+        public void ATriStateWithItsNotFlag_ReadsTheBareLeadingBang()
+        {
+            // Maintainer's WinBox row: the API prints tcp-flags="!,ack,!syn" for 0xD3=true, ack plain, syn negated.
+            var fields = Decode(Parse(FilterWindow), new Dictionary<int, Tuple<string, object>>
+            {
+                [0xD3] = Tuple.Create("bool", (object)true),
+                [0x56] = Tuple.Create("u32", (object)16u),
+                [0x57] = Tuple.Create("u32", (object)2u),
+            });
+
+            Assert.AreEqual("!,ack,!syn", fields["tcp-flags"]);
+        }
+
+        [TestMethod]
+        public void AMemberInBothHalves_ReadsAsBoth_AsTheApiPrintsIt()
+        {
+            // syn,!ack + set !syn left u56=2 and u57=2; the API prints "syn,!syn". Native read "syn" and dropped one.
+            var fields = Decode(Parse(FilterWindow), new Dictionary<int, Tuple<string, object>>
+            {
+                [0x56] = Tuple.Create("u32", (object)2u),
+                [0x57] = Tuple.Create("u32", (object)2u),
+            });
+
+            Assert.AreEqual("syn,!syn", fields["tcp-flags"]);
+        }
+
+        [TestMethod]
+        public void ABareLeadingBang_SetsTheNotFlag_AndTheMembersTheirHalves()
+        {
+            var encoded = Decoded(Resolver(Parse(FilterWindow)).EncodeField("tcp-flags", "!,syn,!ack"));
+
+            Assert.AreEqual(true, encoded[0xD3], "the whole-list '!'");
+            Assert.AreEqual(2L, Num(encoded[0x56]));
+            Assert.AreEqual(16L, Num(encoded[0x57]));
+        }
+
+        [TestMethod]
+        public void ABareBangWithNoMembers_IsRefused()
+            => Assert.ThrowsException<WinboxFieldValueException>(
+                () => Resolver(Parse(FilterWindow)).EncodeField("tcp-flags", "!"));
 
         [TestMethod]
         public void AMultibitsIsEncodedAsTheOneU32ItIs()

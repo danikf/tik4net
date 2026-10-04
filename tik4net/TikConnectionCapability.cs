@@ -124,6 +124,14 @@ namespace tik4net
         /// on WinBox native. The router can still refuse: RouterOS 6 over the API has no way to answer.
         /// </summary>
         MenuSchema = 1024,
+        /// <summary>
+        /// The transport writes a field as structured data — every part of its value in one write — rather than as the
+        /// router's text <c>set</c>. It matters where a text <c>set</c> is not exact: RouterOS replaces <c>tcp-flags</c>'
+        /// plain members only when the text names one and its negated members only when it names one, so over a text
+        /// transport a change that leaves one half empty cannot be expressed and is refused before sending
+        /// (<c>TikPropertyAttribute.SetKeepsUnnamedHalf</c>).
+        /// </summary>
+        StructuredWrites = 2048,
     }
 
     /// <summary>

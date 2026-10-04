@@ -200,11 +200,44 @@ namespace tik4net.Objects
         /// marker a leading <c>!</c> is part of the value: a comment or a name may start with one.
         /// </para>
         /// <para>
-        /// The <c>!</c> negates the whole value, a list included (<c>dst-port=!22,8291</c>). A field whose members are
-        /// negated one by one (<c>tcp-flags=syn,!ack</c>) is not marked: its <c>!</c>s belong to the value.
+        /// The <c>!</c> negates the whole value, a list included (<c>dst-port=!22,8291</c>). A list whose members the
+        /// router negates one by one declares <see cref="NegatableMembers"/> as well or instead.
         /// </para>
         /// </summary>
         public bool Negatable { get; set; }
+
+        /// <summary>
+        /// Marks a <see cref="TikValueList{T}"/> field whose <b>members</b> RouterOS negates one by one —
+        /// <c>hotspot=!from-client,http</c>, logging <c>topics=info,!debug</c>, <c>tcp-flags=syn,!ack</c>.
+        /// <para>
+        /// A load reads each member's <c>!</c> as that item's <see cref="TikValue{T}.IsNegated"/>, and a save writes it.
+        /// Without the marker a negated item is refused before anything is sent — the router either refuses it
+        /// (<c>connection-state=established,!related</c>: <c>invalid value for argument state</c>) or reads the <c>!</c>
+        /// as part of a word.
+        /// </para>
+        /// <para>
+        /// A field that also takes a <c>!</c> on the whole list (<c>tcp-flags</c>) declares <see cref="Negatable"/> too;
+        /// the router spells that one as a bare leading element: <c>tcp-flags=!,syn,!ack</c>.
+        /// </para>
+        /// </summary>
+        public bool NegatableMembers { get; set; }
+
+        /// <summary>
+        /// Marks a <see cref="NegatableMembers"/> list on which RouterOS's text <c>set</c> replaces only the half it names:
+        /// the plain members when the value names a plain one, the negated members when it names a negated one
+        /// (<c>tcp-flags</c>, measured on 6.49.13 and 7.24.5 over the API, REST and the CLI:
+        /// <c>!,syn,!ack</c> + <c>set rst</c> → <c>rst,!ack</c>).
+        /// <para>
+        /// An update of a loaded row that would leave such a half on the router — the loaded value has members of a kind
+        /// the new one has none of — is refused before anything is sent, unless the transport writes structured data
+        /// (<see cref="TikConnectionCapability.StructuredWrites"/>). A value naming both kinds, and any add, is exact.
+        /// </para>
+        /// <para>
+        /// Not caught: <c>unset</c> hides the field but keeps both halves on the router, so after an unset the next
+        /// one-kind <c>set</c> brings the old half back, and the row loads as if the field had none.
+        /// </para>
+        /// </summary>
+        public bool SetKeepsUnnamedHalf { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.

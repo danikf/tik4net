@@ -726,6 +726,29 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// Refuses a text <c>set</c> of a <see cref="TikPropertyAttribute.SetKeepsUnnamedHalf"/> list that RouterOS would
+        /// merge: the loaded value has members of a kind (plain, negated) the new value has none of, and the router keeps
+        /// the half a text <c>set</c> does not name. Without a loaded value there is nothing to compare, and the set goes.
+        /// </summary>
+        private static void EnsureTheSetIsExact<TEntity>(ITikConnection connection, TEntity entity,
+            TikEntityPropertyAccessor property, string value)
+        {
+            var snapshot = TikChangeTracker.For(connection).GetSnapshot(entity!);
+            if (snapshot == null || !snapshot.TryGetValue(property.FieldName, out string? loaded) || loaded == null)
+                return;
+            var before = TikValueListWire.Halves(loaded);
+            var after = TikValueListWire.Halves(value);
+            string? kept = before.Plain && !after.Plain ? "plain" : before.Negated && !after.Negated ? "negated" : null;
+            if (kept == null)
+                return;
+            throw new InvalidOperationException(string.Format(
+                "Property '{0}({1})': RouterOS's text set replaces only the members it names, so setting '{2}' on a row holding "
+                + "'{3}' would keep its {4} members. Name at least one {4} member, or write it over a transport with structured "
+                + "writes (WinBox native).",
+                property.PropertyName, property.FieldName, value, loaded, kept));
+        }
+
+        /// <summary>
         /// Builds the update traffic: the <c>/unset</c> commands (which must run first) and the single
         /// <c>/set</c>, or <c>null</c> when the update turned out to carry no fields.
         /// </summary>
@@ -761,7 +784,11 @@ namespace tik4net.Objects
                     // nullable property can say that). Sending it would put the word on the wire with no
                     // value, and unsetting it would destroy what the router holds on the strength of silence.
                     if (value != null)
+                    {
+                        if (property.SetKeepsUnnamedHalf && !connection.Supports(TikConnectionCapability.StructuredWrites))
+                            EnsureTheSetIsExact(connection, entity, property, value);
                         setCmd.AddParameter(property.WriteName(entity!), value); //full update (all values)
+                    }
                 }
             }
 

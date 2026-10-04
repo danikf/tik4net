@@ -93,13 +93,13 @@ for what each capability means in practice, and for the per-transport detail beh
 
 | Transport | Port | What it is | Capabilities |
 |---|---|---|---|
-| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight`, `MenuSchema` |
+| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | every one but the two WinBox-native ones: `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight`, `MenuSchema` |
 | **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight`, `MenuSchema` — stateless HTTP, so no streaming and no Safe Mode |
 | **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`, `MenuSchema` |
 | **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`, `MenuSchema` |
 | **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`, `MenuSchema` |
 | **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`, `MenuSchema` |
-| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal — **experimental**: fields are addressed by number, and the API-name ↔ M2 mapping is reconstructed rather than published | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight`, `FieldLabels`, `MenuSchema` |
+| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal — **experimental**: fields are addressed by number, and the API-name ↔ M2 mapping is reconstructed rather than published | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight`, `FieldLabels`, `MenuSchema`, `StructuredWrites` |
 
 What the table does not say, in one line each — the
 [capabilities page](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) has the rest:
@@ -112,6 +112,10 @@ What the table does not say, in one line each — the
 * **`AsyncCommands`** is the `Task`-based surface with a `CancellationToken`; **`CancelInFlight`** adds
   that a cancel after dispatch really stops the wait and leaves the connection usable — on the CLI
   transports a cancel is correct but no faster than the command itself.
+* **`StructuredWrites`** means a field is written as structured data rather than as the router's text `set`. It
+  matters for one field so far: a text `set` of `tcp-flags` replaces only the half it names (plain or negated
+  members), so over the API, REST and the CLI a change that leaves one half empty is refused before sending, while
+  WinBox native writes it exactly.
 * **Connections are reusable on every transport.** Concurrent commands on one connection work on
   `Api`/`ApiSsl`, `Rest`/`RestSsl` and both WinBox-native transports; the CLI family drives a single
   terminal and serializes by design.

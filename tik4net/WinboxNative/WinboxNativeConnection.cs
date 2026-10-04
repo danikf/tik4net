@@ -1091,11 +1091,17 @@ namespace tik4net.WinboxNative
         /// registration while the router finishes the work — which is safe precisely because dispatch is by
         /// request id, so the late reply is identified and discarded rather than handed to the next command.
         /// That weaker half is the same shape REST declares the flag with.</para>
+        /// <para><see cref="TikConnectionCapability.StructuredWrites"/>: a write carries each part of a field as its own M2
+        /// key — <c>tcp-flags</c>' plain members, negated members and whole-list <c>not</c> flag in one message — so a
+        /// value naming only one kind of member leaves nothing of the other behind (verified on 7.24.5: <c>!,syn,!ack</c>
+        /// written <c>rst</c> reads back <c>rst</c>, and <c>!fin</c> back <c>!fin</c>; a text <c>set</c> keeps the half it
+        /// does not name).</para>
         /// </remarks>
         public override TikConnectionCapability Capabilities =>
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
-            | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema;
+            | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema
+            | TikConnectionCapability.StructuredWrites;
 
         bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
 

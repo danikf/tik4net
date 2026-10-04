@@ -157,22 +157,7 @@ namespace tik4net.Objects
         /// makes reaching it free.
         /// </summary>
         private readonly TikEnumMetadata? _enumMetadata;
-
-        private ITikTypeConverter? _converter;
-
-        /// <summary>
-        /// The <see cref="ITikTypeConverter"/> handling <see cref="ValueType"/>, or null when none does.
-        /// </summary>
-        /// <remarks>
-        /// Resolved on the first conversion rather than in the ctor, and only for a type no built-in
-        /// claimed — so a converter registered after the entity was first used still takes effect instead of
-        /// being silently ignored, and a built-in type never pays for the lookup. The assignment is
-        /// idempotent, so the missing lock costs at most a repeated scan.
-        /// </remarks>
-        private ITikTypeConverter? ResolveConverter()
-        {
-            return _converter ?? (_converter = TikTypeConverters.Resolve(ValueType));
-        }
+        private readonly TikWireConverter _wire;
 
         /// <summary>
         /// True when this accessor reads and writes the property through a compiled delegate rather than
@@ -230,6 +215,7 @@ namespace tik4net.Objects
                 ValueType = Nullable.GetUnderlyingType(PropertyType) ?? PropertyType;
                 IsNullable = ValueType != PropertyType;
             }
+            _wire = new TikWireConverter(ValueType, IsNullable, propertyInfo.Name, propertyInfo.GetCustomAttribute<TikPropertyAttribute>(true)?.FieldName ?? propertyInfo.Name);
             // Before DefaultValue below, which formats the CLR default through ConvertToString.
             if (ValueType.GetTypeInfo().IsEnum)
                 _enumMetadata = TikEnumMetadata.Get(ValueType);
@@ -274,6 +260,7 @@ namespace tik4net.Objects
             UnsetOnDefault = propertyAttribute.UnsetOnDefault;
             IsFreeText = propertyAttribute.IsFreeText;
             IsPresenceFlag = propertyAttribute.IsPresenceFlag;
+            _wire.IsPresenceFlag = IsPresenceFlag;
             WinboxLabel = string.IsNullOrWhiteSpace(propertyAttribute.WinboxLabel) ? null : propertyAttribute.WinboxLabel;
             ChangesOnItsOwn = propertyAttribute.ChangesOnItsOwn;
             IsSensitive = propertyAttribute.IsSensitive;
@@ -283,7 +270,59 @@ namespace tik4net.Objects
                     "{0}.{1}: Negatable needs a TikField<T> property, which carries the negation.",
                     propertyInfo.DeclaringType?.Name, propertyInfo.Name), nameof(propertyInfo));
             IsNegatable = propertyAttribute.Negatable;
+            IsNegatableMembers = propertyAttribute.NegatableMembers;
+            SetKeepsUnnamedHalf = propertyAttribute.SetKeepsUnnamedHalf;
+            if (SetKeepsUnnamedHalf && !IsNegatableMembers)
+                // The halves are the plain and the negated members; a field without the second has only one.
+                throw new ArgumentException(string.Format(
+                    "{0}.{1}: SetKeepsUnnamedHalf describes a list whose members are negated one by one; declare NegatableMembers.",
+                    propertyInfo.DeclaringType?.Name, propertyInfo.Name), nameof(propertyInfo));
+
+            if (IsWrapped && ValueType.GetTypeInfo().IsGenericType && ValueType.GetGenericTypeDefinition() == typeof(TikValueList<>))
+            {
+                // TikField<TikValueList<TItem>?>: the field holds several values, each read and written as a TItem would be.
+                ItemType = ValueType.GetTypeInfo().GenericTypeArguments[0];
+                if (Nullable.GetUnderlyingType(ItemType) != null)
+                    throw new ArgumentException(string.Format(
+                        "{0}.{1}: a list's items are never null; use TikValueList<{2}>, not TikValueList<{2}?>.",
+                        propertyInfo.DeclaringType?.Name, propertyInfo.Name, Nullable.GetUnderlyingType(ItemType)!.Name), nameof(propertyInfo));
+                var itemWire = new TikWireConverter(ItemType, false, PropertyName, FieldName);
+                var codec = ((Func<string, object>, Func<object, string>))typeof(TikEntityPropertyAccessor).GetTypeInfo()
+                    .GetDeclaredMethod(nameof(MakeListCodec))!.MakeGenericMethod(ItemType)
+                    .Invoke(null, new object[] { itemWire, IsNegatableMembers, PropertyName, FieldName })!;
+                _parseList = codec.Item1;
+                _formatList = codec.Item2;
+            }
+            else if (IsNegatableMembers)
+                // Only a list has members to negate; anywhere else the flag would be silently meaningless.
+                throw new ArgumentException(string.Format(
+                    "{0}.{1}: NegatableMembers needs a TikField<TikValueList<T>?> property, whose items carry their own '!'.",
+                    propertyInfo.DeclaringType?.Name, propertyInfo.Name), nameof(propertyInfo));
         }
+
+        /// <summary>
+        /// Whether the field is a list whose members RouterOS negates one by one
+        /// (<see cref="TikPropertyAttribute.NegatableMembers"/>): each item's <c>!</c> reads as its
+        /// <see cref="TikValue{T}.IsNegated"/>.
+        /// </summary>
+        public bool IsNegatableMembers { get; private set; }
+
+        /// <summary>
+        /// Whether RouterOS's text <c>set</c> replaces only the half of this list it names
+        /// (<see cref="TikPropertyAttribute.SetKeepsUnnamedHalf"/>).
+        /// </summary>
+        public bool SetKeepsUnnamedHalf { get; private set; }
+
+        /// <summary>The item type of a <see cref="TikValueList{T}"/> property, else <c>null</c>.</summary>
+        public Type? ItemType { get; private set; }
+
+        private readonly Func<string, object>? _parseList;
+        private readonly Func<object, string>? _formatList;
+
+        private static (Func<string, object>, Func<object, string>) MakeListCodec<TItem>(
+            TikWireConverter item, bool negatableMembers, string propertyName, string fieldName)
+            => (text => TikValueListWire.Parse<TItem>(text, negatableMembers, item),
+                list => TikValueListWire.Format((TikValueList<TItem>)list, negatableMembers, item, propertyName, fieldName));
 
         /// <summary>
         /// Whether the field is a matcher RouterOS negates with a leading <c>!</c> (<see cref="TikPropertyAttribute.Negatable"/>):
@@ -437,6 +476,19 @@ namespace tik4net.Objects
                 // the router on some transports and read as a literal '!' on others.
                 throw new InvalidOperationException(string.Format(
                     "Property '{0}({1})' holds a negated value, and the field is not marked Negatable.", PropertyName, FieldName));
+            if (_formatList != null)
+            {
+                string items = _formatList(wrapped.BoxedValue);
+                if (!wrapped.IsNegated)
+                    return items;
+                if (items.Length == 0)
+                    // RouterOS refuses a bare '!' (tcp-flags=! → "ambiguous value of flag"): there is nothing to negate.
+                    throw new InvalidOperationException(string.Format(
+                        "Property '{0}({1})' holds a negated empty list, which RouterOS cannot be sent.", PropertyName, FieldName));
+                // A list whose members carry their own '!' spells the whole-list one as a bare leading element (!,syn,!ack);
+                // any other list as a '!' in front of the first item (!22,8291).
+                return (IsNegatableMembers ? "!," : "!") + items;
+            }
             string? known = ConvertToString(wrapped.BoxedValue);
             // The router's words the enum does not know go back with the known ones, as it printed them.
             string? text = wrapped.UnknownFlagWords == null ? known
@@ -472,188 +524,9 @@ namespace tik4net.Objects
 
         // unknownWord: the router's word(s) an enum property read as its TikEnumUnknown member for, else null.
         private object? ConvertFromString(string? strValue, out string? unknownWord)
-        {
-            unknownWord = null;
-            try
-            {
-                // A nullable property is the only one that can carry "the router did not report this field"
-                // as itself. Everything else has to fall through and be parsed, including the empty string —
-                // a valueless presence flag reads back as false, and that is existing behaviour, not this.
-                if (IsNullable && strValue == null)
-                    return null;
+            => _wire.ConvertFromString(strValue, out unknownWord);
 
-                // Past this point strValue is null only for a non-nullable property, which is a caller
-                // error the parse calls below already turn into a FormatException via the catch - the `!`
-                // just types that pre-existing behaviour instead of changing it.
-                string value = strValue!;
-
-                //convert to property real type
-                if (ValueType == typeof(string))
-                    return value;
-                else if (ValueType == typeof(TimeSpan))
-                    return TikTimeHelper.FromTikTimeToTimeSpan(value);
-                // A duration the router may also answer with a word (none / disabled / auto). Both of the
-                // forms the router writes durations in parse to the same value here, which is the point:
-                // the API says "10s" and the CLI says "00:00:10" for the same field.
-                // Rates, like durations, arrive spelled differently per transport: 1000000 over the API,
-                // 1M over the CLI. Both parse to the same value here.
-                else if (ValueType == typeof(TikDataRate))
-                    return value.Length == 0 ? (IsNullable ? (object?)null : default(TikDataRate)) : TikDataRate.Parse(value);
-                else if (ValueType == typeof(TikRatePair))
-                    return value.Length == 0 ? (IsNullable ? (object?)null : default(TikRatePair)) : TikRatePair.Parse(value);
-                // Hex over the API, decimal over the CLI before 7.24 — both read to the same number.
-                else if (ValueType == typeof(TikHexNumber))
-                    return value.Length == 0 ? (IsNullable ? (object?)null : default(TikHexNumber)) : TikHexNumber.Parse(value);
-                else if (ValueType == typeof(TikDuration))
-                {
-                    // An empty value is the router saying the field carries nothing, which is not the same
-                    // as a zero-length duration. A nullable property can say that; a non-nullable one has
-                    // nowhere to put it and keeps the type's own default.
-                    if (value.Length == 0)
-                        return IsNullable ? (object?)null : default(TikDuration);
-                    return TikDuration.Parse(value);
-                }
-                // InvariantCulture on every numeric conversion, in both directions. The thread's culture
-                // has no business here: the router's wire form is invariant, and the digits being the same
-                // in every culture is not enough — a few (sv-SE, fi-FI) render minus as U+2212, which
-                // RouterOS will not parse, and which will not parse the router's own U+002D back.
-                else if (ValueType == typeof(int))
-                    return int.Parse(value, CultureInfo.InvariantCulture);
-                else if (ValueType == typeof(long))
-                    return long.Parse(value, CultureInfo.InvariantCulture);
-                else if (ValueType == typeof(byte))
-                    return byte.Parse(value, CultureInfo.InvariantCulture);
-                else if (ValueType == typeof(uint))
-                    return uint.Parse(value, CultureInfo.InvariantCulture);
-                else if (ValueType == typeof(ulong))
-                    return ulong.Parse(value, CultureInfo.InvariantCulture);
-                else if (ValueType == typeof(DateTime))
-                    return TikDateTimeHelper.FromTikDateTime(value);
-                else if (ValueType == typeof(MacAddress))
-                    return new MacAddress(value);
-                else if (ValueType == typeof(bool))
-                {
-                    // A presence flag is "set" by BEING THERE: the binary API and REST send `fib=` with an
-                    // empty value and omit the word when it is clear, so the empty string is the router
-                    // saying true. Absence is handled above (null for a nullable property) and is not
-                    // turned into false here — that is the router reporting nothing, not reporting false.
-                    if (IsPresenceFlag && value.Length == 0)
-                        return true;
-                    return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
-                }
-                else if (ValueType.GetTypeInfo().IsEnum)
-                {
-                    // _enumMetadata is set in the constructor exactly when ValueType is an enum (see there).
-                    if (_enumMetadata!.IsFlags && value.Contains(','))
-                    {
-                        long result = 0;
-                        var unknownParts = new List<string>();
-                        foreach (string raw in value.Split(','))
-                        {
-                            string part = raw.Trim();
-                            if (_enumMetadata.TryParseNumeric(part, out long numeric))
-                                result |= numeric;
-                            else if (_enumMetadata.UnknownMember != null)
-                                unknownParts.Add(part);   // kept, and the Unknown bit set below
-                            else
-                                result |= _enumMetadata.ParseNumeric(part);   // throws, naming the word
-                        }
-                        if (unknownParts.Count > 0)
-                        {
-                            result |= _enumMetadata.UnknownNumeric;
-                            unknownWord = string.Join(",", unknownParts);
-                        }
-                        return Enum.ToObject(ValueType, result);
-                    }
-                    else
-                    {
-                        // A word the enum does not know reads as its TikEnumUnknown member when it has one — the
-                        // word is kept (SetEntityValue) — instead of failing the read of the whole menu.
-                        return _enumMetadata.ParseTolerant(value, out unknownWord);
-                    }
-                }
-                else
-                {
-                    var converter = ResolveConverter();
-                    if (converter != null)
-                        return converter.ConvertFromString(value, ValueType);
-
-                    throw new NotImplementedException(string.Format("Property type {0} not supported. Register an ITikTypeConverter for it via TikTypeConverters.Register.", ValueType));
-                }
-            }
-            catch(NotImplementedException)
-            {
-                throw;
-            }
-            catch(Exception ex)
-            {
-                throw new FormatException(string.Format("Value '{0}' for property '{1}({2})' is not in expected format '{3}'.", strValue, PropertyName, FieldName, ValueType), ex);
-            }
-        }
-
-        private string? ConvertToString(object? propValue)
-        {
-            // Null reaches here only from a nullable property that was never assigned. It has no wire form —
-            // the point is that nothing is sent — so it stays null all the way out to the caller.
-            if (propValue == null)
-                return null;
-
-            if (propValue is string)
-                return (string)propValue;
-
-            //convert to string used in mikrotik
-            if (ValueType == typeof(string))
-                return propValue.ToString();
-            else if (ValueType == typeof(TimeSpan))
-                return TikTimeHelper.ToTikTime((int)((TimeSpan)propValue).TotalSeconds);
-            else if (ValueType == typeof(TikDuration))
-                return ((TikDuration)propValue).ToString();
-            else if (ValueType == typeof(TikDataRate))
-                return ((TikDataRate)propValue).ToString();
-            else if (ValueType == typeof(TikRatePair))
-                return ((TikRatePair)propValue).ToString();
-            else if (ValueType == typeof(TikHexNumber))
-                return ((TikHexNumber)propValue).ToString();
-            else if (ValueType == typeof(int))
-                return ((int)propValue).ToString(CultureInfo.InvariantCulture);
-            else if (ValueType == typeof(long))
-                return ((long)propValue).ToString(CultureInfo.InvariantCulture);
-            // byte parses on the way in (above) and had no branch here, so writing one fell through to the
-            // converter lookup and threw — and for a NON-nullable byte property it threw while the metadata
-            // was still being built, because DefaultValue is formatted through this method.
-            else if (ValueType == typeof(byte))
-                return ((byte)propValue).ToString(CultureInfo.InvariantCulture);
-            else if (ValueType == typeof(uint))
-                return ((uint)propValue).ToString(CultureInfo.InvariantCulture);
-            else if (ValueType == typeof(ulong))
-                return ((ulong)propValue).ToString(CultureInfo.InvariantCulture);
-            else if (ValueType == typeof(DateTime))
-                return TikDateTimeHelper.ToTikDateTime((DateTime)propValue);
-            else if (ValueType == typeof(MacAddress))
-                return ((MacAddress)propValue).Address;
-            // yes/no is accepted for every boolean argument, including fields the router itself prints as
-            // true/false (disable-running-check=no measured on Api, Rest, Telnet; disabled=no on WinboxNative), so a
-            // bool needs no per-property spelling. A field that must be READ as a word other than true/yes/false/no
-            // is modelled as an enum with [TikEnum] instead.
-            else if (ValueType == typeof(bool))
-                return ((bool)propValue) ? "yes" : "no";
-            else if (ValueType.GetTypeInfo().IsEnum)
-            {
-                // _enumMetadata is set in the constructor exactly when ValueType is an enum (see there).
-                if (_enumMetadata!.IsFlags)
-                    return _enumMetadata.FormatFlags(propValue);
-                else
-                    return _enumMetadata.Format(propValue);
-            }
-            else
-            {
-                var converter = ResolveConverter();
-                if (converter != null)
-                    return converter.ConvertToString(propValue, ValueType);
-
-                throw new NotImplementedException(string.Format("Property type {0} not supported. Register an ITikTypeConverter for it via TikTypeConverters.Register.", ValueType));
-            }
-        }
+        private string? ConvertToString(object? propValue) => _wire.ConvertToString(propValue);
 
         /// <summary>
         /// Returns if accessed property of given <paramref name="entity"/> contains null or <see cref="DefaultValue"/>.
@@ -742,6 +615,25 @@ namespace tik4net.Objects
         {
             if (propValue == null)
                 return _absent!;
+
+            if (_parseList != null)
+            {
+                // The whole-list '!': a bare leading element on a list whose members carry their own (!,syn,!ack), else a
+                // '!' in front of the first item (!22,8291). Never Unparsed: an item the type cannot hold stays a word.
+                bool wholeNegated = false;
+                string items = propValue;
+                if (IsNegatable && IsNegatableMembers && (items == "!" || items.StartsWith("!,", StringComparison.Ordinal)))
+                {
+                    wholeNegated = true;
+                    items = items.Length > 1 ? items.Substring(2) : "";
+                }
+                else if (IsNegatable && !IsNegatableMembers && items.Length > 1 && items[0] == '!')
+                {
+                    wholeNegated = true;
+                    items = items.Substring(1);
+                }
+                return _wrapPresent!(_parseList(items), wholeNegated);
+            }
 
             // A negatable matcher's leading '!' is the negation, not the value's first character; the rest parses as T. A
             // value that then does not parse stays Unparsed with the whole word, '!' included, so a save writes back

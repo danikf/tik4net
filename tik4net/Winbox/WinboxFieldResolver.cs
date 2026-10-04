@@ -2853,6 +2853,21 @@ namespace tik4net.Winbox
                     // member behind and report success.
                     if (jg!.MaskKey == 0) break;   // no second key: not the shape webfig describes — refuse below
                     if (value.Length == 0) return result;
+                    // The whole-list '!' is a bare leading element (tcp-flags="!,syn,!ack", as the API prints it) and
+                    // the field's own `not` flag, written both ways: the flag is stored on the row, and the router's
+                    // text set rewrites it every time (!,syn,!ack + set rst → rst,!ack, 7.24.5).
+                    bool wholeNegated = value == "!" || value.StartsWith("!,", StringComparison.Ordinal);
+                    if (wholeNegated)
+                    {
+                        value = value.Length > 1 ? value.Substring(2) : "";
+                        if (value.Length == 0)
+                            // RouterOS refuses a bare '!' too ("ambiguous value of flag"): there is nothing to negate.
+                            throw new WinboxFieldValueException($"input does not match any value of {apiName} (a '!' with no members)");
+                        if (jg.NotKey == 0)
+                            throw new WinboxFieldValueException($"input does not match any value of {apiName} (the field takes no '!' on the whole list)");
+                    }
+                    if (jg.NotKey != 0)
+                        result.Add(M2Message.BoolSys(jg.NotKey, wholeNegated));
                     long onBits = 0, offBits = 0;
                     foreach (var tok in value.Split(','))
                     {

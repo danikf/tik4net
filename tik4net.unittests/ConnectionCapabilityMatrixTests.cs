@@ -57,9 +57,10 @@ namespace tik4net.unittests
         private const TikConnectionCapability Native =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
-            | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema;
+            | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema
+            | TikConnectionCapability.StructuredWrites;
 
-        // The binary API declares everything, including CancelInFlight — the only transport where cancelling
+        // The binary API declares everything but the two WinBox-native flags, including CancelInFlight — the only transport where cancelling
         // is the protocol's own operation (`/cancel tag=N`) rather than an abandon we hope is safe: the router
         // answers the cancelled command with !trap interrupted + !done and the sentence stream stays framed
         // (P2.3 / job B). Tagging is what makes that addressable.

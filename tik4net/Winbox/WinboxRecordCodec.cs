@@ -656,12 +656,20 @@ namespace tik4net.Winbox
                         // Plain members first, then the negated ones, each in bit order — which is how the
                         // router itself prints a mixed list: tcp-flags="!fin,syn,!urg,ack" reads back
                         // "syn,ack,!fin,!urg" (verified on 7.24), not in the order it was written.
+                        //
+                        // A member in BOTH halves is printed twice, as the API prints it: a text set rewrites only
+                        // the half it names, so syn,!ack + set !syn leaves u56=2 and u57=2, which the API prints
+                        // "syn,!syn" (7.24.5). Webfig's own getter shows the bit once; that hid one of the two.
                         var plain = jf.EnumMap.Where(kv => (onBits & (1L << kv.Key)) != 0)
                                               .OrderBy(kv => kv.Key).Select(kv => kv.Value);
-                        var negated = jf.EnumMap.Where(kv => (onBits & (1L << kv.Key)) == 0
-                                                          && (offBits & (1L << kv.Key)) != 0)
+                        var negated = jf.EnumMap.Where(kv => (offBits & (1L << kv.Key)) != 0)
                                                 .OrderBy(kv => kv.Key).Select(kv => "!" + kv.Value);
-                        return string.Join(",", plain.Concat(negated));
+                        string members = string.Join(",", plain.Concat(negated));
+                        // The field-wide 'not' flag is the whole-list '!', which the API spells as a bare leading
+                        // element: tcp-flags="!,ack,!syn" for 0xD3=true (7.24.5). Negated() leaves per-member lists
+                        // alone, so it is rendered here or not at all.
+                        bool whole = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var notT) && notT?.Item2 is bool wn && wn;
+                        return whole && members.Length > 0 ? "!," + members : members;
                     }
                     // A `multibits` is a `set` under another name: types.multibits.get is
                     // `for(i=0..31) if(val&(1<<i)) push(i)` over the same bit-indexed map, and only its
