@@ -103,37 +103,15 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<long?> ToPorts { get; set; }
 
         /// <summary>
-        /// dst-port (integer [ -integer]: 0..65535; Default: )
-        /// </summary>
-        /// <seealso cref="DstPortStr"/>
-        public long DstPort
-        {
-            get { string? text = DstPortStr.ValueOrDefault(null); return string.IsNullOrWhiteSpace(text) ? 0 : long.Parse(text, CultureInfo.InvariantCulture); }
-            set { DstPortStr = value.ToString(CultureInfo.InvariantCulture); }
-        }
-
-        /// <summary>
         /// dst-port (integer [ -integer]: 0..65535; Default: ) | List of destination port numbers or port number ranges
         /// </summary>
-        /// <seealso cref="DstPort"/>
         [TikProperty("dst-port", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<string?> DstPortStr { get; set; }
-
-        /// <summary>
-        /// src-port (integer [ -integer]: 0..65535; Default: )
-        /// </summary>
-        /// <seealso cref="SrcPortStr"/>
-        public long SrcPort
-        {
-            get { string? text = SrcPortStr.ValueOrDefault(null); return string.IsNullOrWhiteSpace(text) ? 0 : long.Parse(text, CultureInfo.InvariantCulture); }
-            set { SrcPortStr = value.ToString(CultureInfo.InvariantCulture); }
-        }
+        public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
         /// <summary>
         /// src-port (integer [ -integer]: 0..65535; Default: ) | List of destination port numbers or port number ranges
         /// </summary>
-        /// <seealso cref="SrcPort"/>
         [TikProperty("src-port", WinboxLabel = "Src. Port", Negatable = true)]
-        public TikField<string?> SrcPortStr { get; set; }
+        public TikField<TikValueList<TikPortRange>?> SrcPort { get; set; }
     }
 }

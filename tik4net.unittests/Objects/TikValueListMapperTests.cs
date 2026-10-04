@@ -101,6 +101,16 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
+        public void AWholeListNegation_WithNegatedMembers_DisplaysAsTheRouterPrintsIt()
+        {
+            // "!syn,!ack" would read as two negated members: the whole-list '!' needs the bare leading element.
+            var rule = Load(("tcp-flags", "!,syn,!ack"), ("dst-port", "!22,8291"));
+
+            Assert.AreEqual("!,syn,!ack", rule.TcpFlags.ToString());
+            Assert.AreEqual("!22,8291", rule.DstPort.ToString(), "a list with no negated member keeps the plain '!'");
+        }
+
+        [TestMethod]
         public void AMemberTheEnumLacks_IsKeptAsAWord_WithItsBang_AndTheRestKeepsItsType()
         {
             var rule = Load(("hotspot", "http,!newer-kind"));

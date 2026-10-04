@@ -80,13 +80,11 @@ namespace tik4net.Objects
     {
         private readonly bool _printed;
         private readonly TikValue<T> _content;
-        private readonly string? _unknownFlagWords;
 
-        private TikField(TikValue<T> content, string? unknownFlagWords = null)
+        private TikField(TikValue<T> content)
         {
             _printed = true;
             _content = content;
-            _unknownFlagWords = unknownFlagWords;
         }
 
         /// <summary>Whether the field was printed, and whether its value could be read.</summary>
@@ -107,59 +105,25 @@ namespace tik4net.Objects
         public string? RawValue => _printed ? _content.RawValue : null;
 
         /// <summary>
-        /// On a present <c>[Flags]</c> value: the words the router printed that the enum has no member for (comma-separated),
-        /// else <c>null</c>. They are not part of <see cref="Value"/>, take no part in <c>==</c> against a value, and are
-        /// written back by a save. <see cref="With"/> and <see cref="Without"/> keep them; assigning a new value replaces the
-        /// whole set, them included.
-        /// </summary>
-        public string? UnknownFlagWords => State == TikFieldState.Present ? _unknownFlagWords : null;
-
-        /// <summary>
         /// True when the value is negated — the router's <c>!</c> in front of a matcher (<c>src-address=!10.0.0.0/8</c>,
         /// <c>connection-state=!established,related</c>), which matches everything the value does not. Only a present,
         /// non-null value can be negated, and only a property that declares <see cref="TikPropertyAttribute.Negatable"/>
         /// reads or writes one.
         /// </summary>
         /// <remarks>
-        /// The <c>!</c> negates the whole value, a list included. A field whose members are negated one by one
-        /// (<c>tcp-flags=syn,!ack</c>) keeps its <c>!</c>s in the value itself.
+        /// The <c>!</c> negates the whole value, a list included. On a list whose members the router negates one by
+        /// one (<c>tcp-flags=syn,!ack</c>) each member's <c>!</c> is that item's <see cref="TikValue{T}.IsNegated"/>.
         /// </remarks>
         public bool IsNegated => State == TikFieldState.Present && _content.IsNegated;
 
         /// <summary>This value with <see cref="IsNegated"/> cleared — the matcher it negates.</summary>
-        public TikField<T> WithoutNegation() => _printed ? new TikField<T>(_content.WithoutNegation(), _unknownFlagWords) : this;
+        public TikField<T> WithoutNegation() => _printed ? new TikField<T>(_content.WithoutNegation()) : this;
 
         internal TikField<T> AsNegated()
-            => State == TikFieldState.Present && _content.Value != null ? new TikField<T>(_content.AsNegated(), _unknownFlagWords) : this;
+            => State == TikFieldState.Present && _content.Value != null ? new TikField<T>(_content.AsNegated()) : this;
 
-        /// <summary>
-        /// This <c>[Flags]</c> value with <paramref name="flags"/> added, keeping the router's words the enum does not know
-        /// (<see cref="UnknownFlagWords"/>) and a negation (<see cref="IsNegated"/>). An absent or unparsed value becomes
-        /// <paramref name="flags"/>.
-        /// </summary>
-        public TikField<T> With(T flags) => Combine(flags, add: true);
-
-        /// <summary>
-        /// This <c>[Flags]</c> value with <paramref name="flags"/> removed, keeping the router's words the enum does not know.
-        /// </summary>
-        public TikField<T> Without(T flags) => Combine(flags, add: false);
-
-        private TikField<T> Combine(T flags, bool add)
-        {
-            Type enumType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
-            if (!enumType.IsEnum || flags == null)
-                throw new InvalidOperationException("With/Without apply to a [Flags] enum value and a non-null argument.");
-            bool present = State == TikFieldState.Present;
-            long current = present && _content.Value != null ? Convert.ToInt64(_content.Value, CultureInfo.InvariantCulture) : 0;
-            long change = Convert.ToInt64(flags, CultureInfo.InvariantCulture);
-            long result = add ? current | change : current & ~change;
-            TikValue<T> combined = (T)Enum.ToObject(enumType, result);
-            return new TikField<T>(combined.AsNegated(IsNegated), present ? _unknownFlagWords : null);
-        }
-
-        internal static TikField<T> FromPresentWithUnknownFlags(T value, string? unknownWords, bool negated = false)
-            => new TikField<T>(((TikValue<T>)value).AsNegated(negated && value != null),
-                string.IsNullOrEmpty(unknownWords) ? null : unknownWords);
+        internal static TikField<T> FromPresent(T value, bool negated = false)
+            => new TikField<T>(((TikValue<T>)value).AsNegated(negated && value != null));
 
         /// <summary>True when the router printed the field (or the caller assigned it) and the value was read.</summary>
         public bool IsPresent => State == TikFieldState.Present;
@@ -282,8 +246,7 @@ namespace tik4net.Objects
         /// <inheritdoc/>
         public bool Equals(TikField<T> other)
             => _printed == other._printed
-               && (!_printed || (_content.Equals(other._content)
-                                 && string.Equals(_unknownFlagWords, other._unknownFlagWords, StringComparison.Ordinal)));
+               && (!_printed || _content.Equals(other._content));
 
         /// <inheritdoc/>
         public override bool Equals(object? obj) => obj is TikField<T> other && Equals(other);
@@ -295,8 +258,7 @@ namespace tik4net.Objects
             {
                 if (!_printed)
                     return 0;
-                int hash = (int)State * 397 ^ _content.GetHashCode();
-                return hash * 397 ^ (_unknownFlagWords == null ? 0 : _unknownFlagWords.GetHashCode());
+                return (int)State * 397 ^ _content.GetHashCode();
             }
         }
 
@@ -308,22 +270,17 @@ namespace tik4net.Objects
         public override string ToString()
             => !_printed ? string.Empty
              : _content.IsWord ? _content.RawValue!
-             : (_content.IsNegated ? "!" : "") + JoinWords(TikWireText.Format(_content.Value), _unknownFlagWords);
-
-        private static string JoinWords(string known, string? unknown)
-            => string.IsNullOrEmpty(unknown) ? known : known.Length == 0 ? unknown! : known + "," + unknown;
+             : (_content.IsNegated ? TikWireText.Negation(_content.Value) : "") + TikWireText.Format(_content.Value);
 
         private string DebuggerText
             => !_printed ? "Absent"
              : _content.IsWord ? "Unparsed \"" + _content.RawValue + "\""
              : _content.Value == null ? "null"
-             : (_content.IsNegated ? "!" : "") + (_unknownFlagWords != null
-                 ? TikWireText.Format(_content.Value) + " +" + _unknownFlagWords : TikWireText.Format(_content.Value));
+             : (_content.IsNegated ? "!" : "") + TikWireText.Format(_content.Value);
 
         TikFieldState ITikField.State => State;
         object? ITikField.BoxedValue => State == TikFieldState.Present ? _content.Value : null;
         string? ITikField.RawValue => RawValue;
-        string? ITikField.UnknownFlagWords => UnknownFlagWords;
         bool ITikField.IsNegated => IsNegated;
     }
 
@@ -373,7 +330,6 @@ namespace tik4net.Objects
         TikFieldState State { get; }
         object? BoxedValue { get; }
         string? RawValue { get; }
-        string? UnknownFlagWords { get; }
         bool IsNegated { get; }
     }
 }

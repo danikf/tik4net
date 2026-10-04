@@ -224,10 +224,10 @@ namespace tik4net.integrationtests
                 Comment = "test-tcp",
                 Disabled = true,    // a traffic-path row: created disabled, the suite runs through this chain
                 DstAddress = "8.8.8.8",
-                DstPort = "53",
+                DstPort = new TikValueList<TikPortRange>(53),
                 Protocol = "tcp",
                 SrcAddress = "1.1.1.1",
-                SrcPort = "22",
+                SrcPort = new TikValueList<TikPortRange>(22),
             };
             SaveTracked(firewallItem);
 
@@ -244,10 +244,10 @@ namespace tik4net.integrationtests
                 Comment = "test-tcp",
                 Disabled = true,    // a traffic-path row: created disabled, the suite runs through this chain
                 DstAddress = "8.8.8.8",
-                DstPort = "53",
+                DstPort = new TikValueList<TikPortRange>(53),
                 Protocol = "tcp",
                 SrcAddress = "1.1.1.1",
-                SrcPort = "22",
+                SrcPort = new TikValueList<TikPortRange>(22),
             };
             SaveTracked(firewallItem);
 
@@ -328,15 +328,14 @@ namespace tik4net.integrationtests
                 Chain = "forward",
                 Comment = "test-flags-read",
                 Disabled = true,    // a traffic-path row: created disabled, the suite runs through this chain
-                ConnectionState = FirewallFilter.ConnectionStateType.Established | FirewallFilter.ConnectionStateType.Related,
+                ConnectionState = new TikValueList<FirewallConnectionState>(FirewallConnectionState.Established, FirewallConnectionState.Related),
             };
             SaveTracked(filter);
             try
             {
                 var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
-                Assert.IsTrue(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.Established));
-                Assert.IsTrue(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.Related));
-                Assert.IsFalse(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.Invalid));
+                Assert.AreEqual(filter.ConnectionState, loaded.ConnectionState, "the same states, in any order");
+                Assert.IsFalse(loaded.ConnectionState.Value.Contains(FirewallConnectionState.Invalid));
             }
             finally
             {
@@ -347,21 +346,21 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void FirewallFilter_ConnectionState_FlagsWrite_WillNotFail()
         {
-            // Verifies that a [Flags] enum value is serialized back to comma-separated string (issue #94 / #79).
+            // Verifies that a list of states is written as the router's comma-separated words (issue #94 / #79).
             var filter = new FirewallFilter()
             {
                 Action = FirewallFilter.ActionType.Drop,
                 Chain = "forward",
                 Comment = "test-flags-write",
                 Disabled = true,    // a traffic-path row: created disabled, the suite runs through this chain
-                ConnectionState = FirewallFilter.ConnectionStateType.New | FirewallFilter.ConnectionStateType.Invalid,
+                ConnectionState = new TikValueList<FirewallConnectionState>(FirewallConnectionState.New, FirewallConnectionState.Invalid),
             };
             SaveTracked(filter);
             try
             {
                 var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
-                Assert.IsTrue(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.New));
-                Assert.IsTrue(loaded.ConnectionState.GetValueOrDefault().HasFlag(FirewallFilter.ConnectionStateType.Invalid));
+                Assert.IsTrue(loaded.ConnectionState.Value.Contains(FirewallConnectionState.New));
+                Assert.IsTrue(loaded.ConnectionState.Value.Contains(FirewallConnectionState.Invalid));
             }
             finally
             {
@@ -420,9 +419,9 @@ namespace tik4net.integrationtests
                 Protocol = "tcp",
                 SrcAddress = TikValue<string>.Not("10.0.0.0/8"),
                 InInterface = TikValue<string>.Not("ether1"),
-                DstPort = TikValue<string>.Not("22,8291"),
-                ConnectionState = TikValue<FirewallFilter.ConnectionStateType?>.Not(
-                    FirewallFilter.ConnectionStateType.Established | FirewallFilter.ConnectionStateType.Related),
+                DstPort = TikValue<TikValueList<TikPortRange>>.Not(new TikValueList<TikPortRange>(22, 8291)),
+                ConnectionState = TikValue<TikValueList<FirewallConnectionState>>.Not(
+                    new TikValueList<FirewallConnectionState>(FirewallConnectionState.Established, FirewallConnectionState.Related)),
             };
             try
             {

@@ -30,7 +30,7 @@ namespace tik4net.unittests.Objects
 
             Assert.AreEqual(TikFieldState.Present, report.Single(r => r.FieldName == "name").State);
             Assert.AreEqual("false", report.Single(r => r.FieldName == "mode").RawValue);
-            Assert.AreEqual("untracked", report.Single(r => r.FieldName == "state").UnknownFlagWords);
+            Assert.AreEqual("untracked", report.Single(r => r.FieldName == "state").UnknownItems);
             Assert.AreEqual(TikFieldState.Absent, report.Single(r => r.FieldName == "port").State);
             Assert.IsFalse(report.Any(r => r.FieldName == ".id"), "a plain property has no state to report");
         }
@@ -61,12 +61,12 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void EnsureStrict_UnknownFlagWords_IsOptIn()
+        public void EnsureStrict_UnknownListItems_IsOptIn()
         {
             var box = Load(("state", "new,untracked"));
 
             box.EnsureStrict();
-            Assert.ThrowsException<TikStrictValueException>(() => box.EnsureStrict(TikStrictness.UnknownFlagWords));
+            Assert.ThrowsException<TikStrictValueException>(() => box.EnsureStrict(TikStrictness.UnknownListItems));
         }
 
         [TestMethod]

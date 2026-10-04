@@ -85,32 +85,6 @@ namespace tik4net.Objects.Ip.Firewall
         }
 
         /// <summary>
-        /// Firewall filter connection state - <see cref="FirewallFilter.ConnectionState"/>
-        /// </summary>
-        [Flags]
-        public enum ConnectionStateType
-        {
-            /// <summary>No connection state filter (default/unset).</summary>
-            [TikEnum("")]
-            Empty       = 0,
-            /// <summary>A packet which belongs to an existing connection.</summary>
-            [TikEnum("established")]
-            Established = 1,
-            /// <summary>A packet which could not be identified for some reason.</summary>
-            [TikEnum("invalid")]
-            Invalid     = 2,
-            /// <summary>The packet has started a new connection, or is associated with a connection that has not seen packets in both directions.</summary>
-            [TikEnum("new")]
-            New         = 4,
-            /// <summary>A packet which is related to, but not part of an existing connection (e.g. ICMP errors, FTP data connection).</summary>
-            [TikEnum("related")]
-            Related     = 8,
-            /// <summary>Untracked connection (RouterOS 7+, CT notrack rule).</summary>
-            [TikEnum("untracked")]
-            Untracked   = 16,
-        }
-
-        /// <summary>
         /// Firewall chain type - <see cref="FirewallFilter.Chain"/>
         /// </summary>
         public static class ChainType
@@ -217,7 +191,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// related - a packet which is related to, but not part of an existing connection, such as ICMP errors or a packet which begins FTP data connection
         /// </summary>
         [TikProperty("connection-state", WinboxLabel = "Connection State", Negatable = true)]
-        public TikField<ConnectionStateType?> ConnectionState { get; set; }
+        public TikField<TikValueList<FirewallConnectionState>?> ConnectionState { get; set; }
 
         /// <summary>
         /// connection-type: Matches packets from related connections based on information from their connection tracking helpers. A relevant connection helper must be enabled under  /ip firewall service-port
@@ -234,7 +208,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// dscp: Matches DSCP IP header field.
         /// </summary>
-        [TikProperty("dscp", WinboxLabel = "DSCP")]
+        [TikProperty("dscp", WinboxLabel = "DSCP", Negatable = true)]
         public TikField<int?> Dscp { get; set; }
 
         /// <summary>
@@ -256,8 +230,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// broadcast - packet is sent to all devices in subnet
         /// multicast - packet is forwarded to defined group of devices
         /// </summary>
-        [TikProperty("dst-address-type", WinboxLabel = "Dst. Address Type")]
-        public TikField<string?> DstAddressType { get; set; }
+        [TikProperty("dst-address-type", WinboxLabel = "Dst. Address Type", Negatable = true)]
+        public TikField<TikValueList<FirewallAddressType>?> DstAddressType { get; set; }
 
         /// <summary>
         /// dst-limit: Matches packets until a given rate is exceeded. Rate is defined as packets per time interval. As opposed to the limit matcher, every flow has it's own limit. Flow is defined by mode parameter. Parameters are written in following format: count[/time],burst,mode[/expire].
@@ -274,7 +248,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// dst-port: List of destination port numbers or port number ranges
         /// </summary>
         [TikProperty("dst-port", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<string?> DstPort { get; set; }
+        public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
         /// <summary>
         /// fragment: Matches fragmented packets. First (starting) fragment does not count. If connection tracking is enabled there will be no fragments as system automatically assembles every packet
@@ -285,8 +259,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// hotspot: 
         /// </summary>
-        [TikProperty("hotspot", WinboxLabel = "Hotspot")]
-        public TikField<string?> Hotspot { get; set; }
+        [TikProperty("hotspot", WinboxLabel = "Hotspot", NegatableMembers = true)]
+        public TikField<TikValueList<FirewallHotspotMatch>?> Hotspot { get; set; }
 
         /// <summary>
         /// icmp-options: Matches ICMP type:code fileds
@@ -411,8 +385,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// port: Matches if any (source or destination) port matches the specified list of ports or port ranges. Applicable only if protocol is TCP or UDP
         /// </summary>
-        [TikProperty("port")]
-        public TikField<string?> Port { get; set; }
+        [TikProperty("port", Negatable = true)]
+        public TikField<TikValueList<TikPortRange>?> Port { get; set; }
 
         /// <summary>
         /// protocol: Matches particular IP protocol specified by protocol name or number
@@ -468,14 +442,14 @@ namespace tik4net.Objects.Ip.Firewall
         /// broadcast - packet is sent to all devices in subnet
         /// multicast - packet is forwarded to defined group of devices
         /// </summary>
-        [TikProperty("src-address-type", WinboxLabel = "Src. Address Type")]
-        public TikField<string?> SrcAddressType { get; set; }
+        [TikProperty("src-address-type", WinboxLabel = "Src. Address Type", Negatable = true)]
+        public TikField<TikValueList<FirewallAddressType>?> SrcAddressType { get; set; }
 
         /// <summary>
         /// src-port: List of source ports and ranges of source ports. Applicable only if protocol is TCP or UDP.
         /// </summary>
         [TikProperty("src-port", WinboxLabel = "Src. Port", Negatable = true)]
-        public TikField<string?> SrcPort { get; set; }
+        public TikField<TikValueList<TikPortRange>?> SrcPort { get; set; }
 
         /// <summary>
         /// src-mac-address: Matches source MAC address of the packet
@@ -494,8 +468,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// syn - new connection
         /// urg - urgent data
         /// </summary>
-        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags")]
-        public TikField<string?> TcpFlags { get; set; }
+        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags", Negatable = true, NegatableMembers = true, SetKeepsUnnamedHalf = true)]
+        public TikField<TikValueList<FirewallTcpFlag>?> TcpFlags { get; set; }
 
         /// <summary>
         /// tcp-mss: Matches TCP MSS value of an IP packet

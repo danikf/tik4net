@@ -148,7 +148,7 @@ namespace tik4net.Objects
         /// The value spelled the way the router prints it — an enum as its word, a bool as <c>true</c>/<c>false</c>, a
         /// number invariantly, the router's word as it came, a negated value with its <c>!</c>.
         /// </summary>
-        public override string ToString() => (_negated ? "!" : "") + (_word ?? TikWireText.Format(_value));
+        public override string ToString() => (_negated ? TikWireText.Negation(_value) : "") + (_word ?? TikWireText.Format(_value));
 
         private string DebuggerText
             => (_negated ? "!" : "") + (_word != null ? "word \"" + _word + "\"" : _value == null ? "null" : TikWireText.Format(_value));
@@ -157,6 +157,13 @@ namespace tik4net.Objects
     /// <summary>How a value is spelled on the wire, for display — shared by <see cref="TikValue{T}"/> and <see cref="TikField{T}"/>.</summary>
     internal static class TikWireText
     {
+        /// <summary>
+        /// The whole-value <c>!</c> as the router spells it: on a list whose items carry their own <c>!</c>, a bare leading
+        /// element (<c>tcp-flags=!,syn,!ack</c>) — <c>!syn,!ack</c> would read as two negated members; else a <c>!</c> in
+        /// front of the value (<c>!10.0.0.0/8</c>, <c>dst-port=!22,8291</c>).
+        /// </summary>
+        internal static string Negation<T>(T value) => value is ITikValueList list && list.HasNegatedItems ? "!," : "!";
+
         [UnconditionalSuppressMessage("Trimming", "IL2026",
             Justification = "An enum TikValue<T> holds a value only through the O/R mapper, which carries the same warning.")]
         internal static string Format<T>(T value)

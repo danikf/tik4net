@@ -60,13 +60,13 @@ namespace tik4net.integrationtests
                 {
                     source.Save(new FirewallFilter
                     {
-                        Chain = chain, Action = FirewallFilter.ActionType.Accept, Protocol = "tcp", DstPort = "22,8291",
+                        Chain = chain, Action = FirewallFilter.ActionType.Accept, Protocol = "tcp", DstPort = new TikValueList<TikPortRange>(22, 8291),
                         SrcAddress = Addresses[1], Comment = chain + "-0", Disabled = true,
                     });
                     source.Save(new FirewallFilter
                     {
                         Chain = chain, Action = FirewallFilter.ActionType.Drop, DstAddress = Addresses[3],
-                        ConnectionState = FirewallFilter.ConnectionStateType.New | FirewallFilter.ConnectionStateType.Invalid,
+                        ConnectionState = new TikValueList<FirewallConnectionState>(FirewallConnectionState.New, FirewallConnectionState.Invalid),
                         Comment = chain + "-1", Disabled = true,
                     });
                     source.Save(new FirewallFilter

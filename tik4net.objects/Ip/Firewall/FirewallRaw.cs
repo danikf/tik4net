@@ -138,7 +138,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// dscp: Matches DSCP IP header field.
         /// </summary>
-        [TikProperty("dscp", WinboxLabel = "DSCP")]
+        [TikProperty("dscp", WinboxLabel = "DSCP", Negatable = true)]
         public TikField<int?> Dscp { get; set; }
 
         /// <summary>
@@ -156,8 +156,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// dst-address-type: Matches destination address type (unicast, local, broadcast, multicast).
         /// </summary>
-        [TikProperty("dst-address-type", WinboxLabel = "Dst. Address Type")]
-        public TikField<string?> DstAddressType { get; set; }
+        [TikProperty("dst-address-type", WinboxLabel = "Dst. Address Type", Negatable = true)]
+        public TikField<TikValueList<FirewallAddressType>?> DstAddressType { get; set; }
 
         /// <summary>
         /// dst-limit: Matches packets until a given rate (per-flow) is exceeded.
@@ -169,7 +169,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// dst-port: List of destination port numbers or port number ranges. Applicable only if protocol is TCP or UDP.
         /// </summary>
         [TikProperty("dst-port", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<string?> DstPort { get; set; }
+        public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
         /// <summary>
         /// fragment: Matches fragmented packets (not the first fragment).
@@ -180,8 +180,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// hotspot: Matches packets in a HotSpot scenario by the specified attribute.
         /// </summary>
-        [TikProperty("hotspot", WinboxLabel = "Hotspot")]
-        public TikField<string?> Hotspot { get; set; }
+        [TikProperty("hotspot", WinboxLabel = "Hotspot", NegatableMembers = true)]
+        public TikField<TikValueList<FirewallHotspotMatch>?> Hotspot { get; set; }
 
         /// <summary>
         /// icmp-options: Matches ICMP type:code fields.
@@ -306,8 +306,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// port: Matches if any (source or destination) port matches the specified list. Applicable only for TCP/UDP.
         /// </summary>
-        [TikProperty("port")]
-        public TikField<string?> Port { get; set; }
+        [TikProperty("port", Negatable = true)]
+        public TikField<TikValueList<TikPortRange>?> Port { get; set; }
 
         /// <summary>
         /// priority: Matches packet priority (VLAN or WMM priority tag).
@@ -349,8 +349,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// src-address-type: Matches source address type (unicast, local, broadcast, multicast).
         /// </summary>
-        [TikProperty("src-address-type", WinboxLabel = "Src. Address Type")]
-        public TikField<string?> SrcAddressType { get; set; }
+        [TikProperty("src-address-type", WinboxLabel = "Src. Address Type", Negatable = true)]
+        public TikField<TikValueList<FirewallAddressType>?> SrcAddressType { get; set; }
 
         /// <summary>
         /// src-mac-address: Matches source MAC address of the packet.
@@ -362,13 +362,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// src-port: List of source ports and ranges. Applicable only if protocol is TCP or UDP.
         /// </summary>
         [TikProperty("src-port", WinboxLabel = "Src. Port", Negatable = true)]
-        public TikField<string?> SrcPort { get; set; }
+        public TikField<TikValueList<TikPortRange>?> SrcPort { get; set; }
 
         /// <summary>
         /// tcp-flags: Matches specified TCP flags (ack, cwr, ece, fin, psh, rst, syn, urg).
         /// </summary>
-        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags")]
-        public TikField<string?> TcpFlags { get; set; }
+        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags", Negatable = true, NegatableMembers = true, SetKeepsUnnamedHalf = true)]
+        public TikField<TikValueList<FirewallTcpFlag>?> TcpFlags { get; set; }
 
         /// <summary>
         /// tcp-mss: Matches TCP MSS value of an IP packet.
@@ -391,7 +391,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// tos: Matches the ToS (Type of Service) field of IP header.
         /// </summary>
-        [TikProperty("tos", WinboxLabel = "TOS")]
+        [TikProperty("tos", WinboxLabel = "TOS", Negatable = true)]
         public TikField<string?> Tos { get; set; }
 
         /// <summary>

@@ -18,20 +18,23 @@ namespace tik4net.Objects
         /// </summary>
         Absent = 2,
 
-        /// <summary>A <c>[Flags]</c> value carrying words its enum has no member for (<see cref="TikField{T}.UnknownFlagWords"/>).</summary>
-        UnknownFlagWords = 4,
+        /// <summary>
+        /// A <see cref="TikValueList{T}"/> with an item the type cannot hold — a member a newer RouterOS added
+        /// (<see cref="TikValue{T}.IsWord"/>). The rest of the list is typed; this is for code that acts on every member.
+        /// </summary>
+        UnknownListItems = 4,
     }
 
     /// <summary>One <see cref="TikField{T}"/> property of an entity, as <see cref="TikFieldStrictnessExtensions.GetValueReport{TEntity}"/> sees it.</summary>
     public sealed class TikFieldReportItem
     {
-        internal TikFieldReportItem(string propertyName, string fieldName, TikFieldState state, string? rawValue, string? unknownFlagWords)
+        internal TikFieldReportItem(string propertyName, string fieldName, TikFieldState state, string? rawValue, string? unknownItems)
         {
             PropertyName = propertyName;
             FieldName = fieldName;
             State = state;
             RawValue = rawValue;
-            UnknownFlagWords = unknownFlagWords;
+            UnknownItems = unknownItems;
         }
 
         /// <summary>The C# property.</summary>
@@ -46,14 +49,14 @@ namespace tik4net.Objects
         /// <summary>The router's word when <see cref="State"/> is Unparsed.</summary>
         public string? RawValue { get; }
 
-        /// <summary>The words a <c>[Flags]</c> enum has no member for, when present.</summary>
-        public string? UnknownFlagWords { get; }
+        /// <summary>On a <see cref="TikValueList{T}"/>: the items the type cannot hold, comma-separated as the router printed them; else <c>null</c>.</summary>
+        public string? UnknownItems { get; }
 
         /// <inheritdoc/>
         public override string ToString()
             => FieldName + ": " + State
                + (RawValue != null ? " '" + RawValue + "'" : "")
-               + (UnknownFlagWords != null ? " +" + UnknownFlagWords : "");
+               + (UnknownItems != null ? " +" + UnknownItems : "");
     }
 
     /// <summary>
@@ -92,7 +95,8 @@ namespace tik4net.Objects
             foreach (var property in metadata.Properties.Where(p => p.IsWrapped))
             {
                 var value = (ITikField)property.GetWrapped(entity);
-                report.Add(new TikFieldReportItem(property.PropertyName, property.FieldName, value.State, value.RawValue, value.UnknownFlagWords));
+                report.Add(new TikFieldReportItem(property.PropertyName, property.FieldName, value.State, value.RawValue,
+                    (value.BoxedValue as ITikValueList)?.UnknownItems));
             }
             return report;
         }
@@ -133,7 +137,7 @@ namespace tik4net.Objects
                     (strictness.HasFlag(TikStrictness.Unparsed) && item.State == TikFieldState.Unparsed)
                     || (strictness.HasFlag(TikStrictness.Absent) && item.State == TikFieldState.Absent
                         && !allowAbsent.Contains(item.FieldName, StringComparer.OrdinalIgnoreCase))
-                    || (strictness.HasFlag(TikStrictness.UnknownFlagWords) && item.UnknownFlagWords != null))
+                    || (strictness.HasFlag(TikStrictness.UnknownListItems) && item.UnknownItems != null))
                 .ToList();
     }
 }

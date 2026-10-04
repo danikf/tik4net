@@ -40,7 +40,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>dst-port — destination port or port range to match (e.g. 80 or 80-90).</summary>
         [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<string?> DstPort { get; set; }
+        public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
         /// <summary>local-port — proxy listening port through which the request was received. 0 = not set.</summary>
         [TikProperty("local-port", DefaultValue = "0", WinboxLabel = "Local Port", Negatable = true)]

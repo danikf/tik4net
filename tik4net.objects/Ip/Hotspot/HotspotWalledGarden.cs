@@ -35,7 +35,7 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>dst-port — destination port or port range to match.</summary>
         [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<string?> DstPort { get; set; }
+        public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
         /// <summary>method — HTTP method to match (any/connect/delete/get/head/options/post/put/trace). Default: any.</summary>
         [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method", Negatable = true)]

@@ -31,7 +31,7 @@ namespace tik4net.unittests.Objects
             public TikField<int?> Port { get; set; }
 
             [TikProperty("state", Negatable = true)]
-            public TikField<TikFieldMapperTests.States?> State { get; set; }
+            public TikField<TikValueList<TikFieldMapperTests.Conn>?> State { get; set; }
 
             [TikProperty("comment")]
             public TikField<string?> Comment { get; set; }
@@ -78,13 +78,14 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void AWholeFlagsSet_IsNegatedAsOne()
+        public void AWholeList_IsNegatedAsOne()
         {
             var rule = Router(("state", "!new,established")).LoadAll<Rule>().Single();
 
             Assert.IsTrue(rule.State.IsNegated);
-            Assert.AreEqual(TikFieldMapperTests.States.New | TikFieldMapperTests.States.Established, rule.State.Value);
-            Assert.IsTrue(rule.State.With(TikFieldMapperTests.States.New).IsNegated, "With keeps the negation");
+            Assert.AreEqual(new TikValueList<TikFieldMapperTests.Conn>(TikFieldMapperTests.Conn.New, TikFieldMapperTests.Conn.Established),
+                rule.State.Value);
+            Assert.IsFalse(rule.State.Value!.HasNegatedItems, "the '!' is the list's, not the first member's");
         }
 
         [TestMethod]
@@ -140,7 +141,8 @@ namespace tik4net.unittests.Objects
             var rule = connection.LoadAll<Rule>().Single();
 
             rule.SrcAddress = TikValue<string?>.Not("10.0.0.0/8");
-            rule.State = TikValue<TikFieldMapperTests.States?>.Not(TikFieldMapperTests.States.New | TikFieldMapperTests.States.Established);
+            rule.State = TikValue<TikValueList<TikFieldMapperTests.Conn>?>.Not(
+                new TikValueList<TikFieldMapperTests.Conn>(TikFieldMapperTests.Conn.New, TikFieldMapperTests.Conn.Established));
             connection.Save(rule);
 
             CollectionAssert.AreEquivalent(new[] { "=src-address=!10.0.0.0/8", "=state=!new,established", "=.id=*1" },
@@ -208,7 +210,7 @@ namespace tik4net.unittests.Objects
         public class Dto
         {
             public TikField<string?> SrcAddress { get; set; }
-            public TikField<TikFieldMapperTests.States?> State { get; set; }
+            public TikField<TikValueList<TikFieldMapperTests.Conn>?> State { get; set; }
         }
 
         [TestMethod]
@@ -217,14 +219,14 @@ namespace tik4net.unittests.Objects
             var dto = new Dto
             {
                 SrcAddress = TikValue<string?>.Not("10.0.0.0/8"),
-                State = TikValue<TikFieldMapperTests.States?>.Not(TikFieldMapperTests.States.New),
+                State = TikValue<TikValueList<TikFieldMapperTests.Conn>?>.Not(new TikValueList<TikFieldMapperTests.Conn>(TikFieldMapperTests.Conn.New)),
             };
 
             string json = JsonSerializer.Serialize(dto);
             var back = JsonSerializer.Deserialize<Dto>(json)!;
 
             StringAssert.Contains(json, "\"SrcAddress\":{\"$not\":\"10.0.0.0/8\"}");
-            StringAssert.Contains(json, "\"State\":{\"$not\":\"new\"}");
+            StringAssert.Contains(json, "\"State\":{\"$not\":[\"new\"]}");
             Assert.AreEqual(dto.SrcAddress, back.SrcAddress);
             Assert.AreEqual(dto.State, back.State);
         }

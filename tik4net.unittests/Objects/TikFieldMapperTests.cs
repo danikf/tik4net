@@ -17,6 +17,10 @@ namespace tik4net.unittests.Objects
     {
         public enum Mode { [TikEnum("no")] No, [TikEnum("yes")] Yes, [TikEnum("auto")] Auto }
 
+        /// <summary>A plain enum: the members of a list property (see <see cref="Box.State"/>).</summary>
+        public enum Conn { [TikEnum("new")] New, [TikEnum("established")] Established }
+
+        /// <summary>A [Flags] enum, which only a plain (not TikField) property can still hold.</summary>
         [Flags]
         public enum States
         {
@@ -44,7 +48,7 @@ namespace tik4net.unittests.Objects
             public TikField<Mode?> Mode { get; set; }
 
             [TikProperty("state")]
-            public TikField<States?> State { get; set; }
+            public TikField<TikValueList<Conn>?> State { get; set; }
 
             [TikProperty("fib", IsPresenceFlag = true)]
             public TikField<bool?> Fib { get; set; }
@@ -121,44 +125,43 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void AFlagsValueWithAnUnknownWord_KeepsTheKnownParts_OutsideValue()
+        public void AListWithAWordTheEnumLacks_KeepsItAsAnItem_AndTheRestTyped()
         {
             var box = Router(Row(("state", "new,untracked"))).LoadAll<Box>().Single();
 
             Assert.AreEqual(TikFieldState.Present, box.State.State);
-            Assert.IsTrue(box.State == States.New, "the unknown word is not a bit inside Value, so the known set compares");
-            Assert.AreEqual("untracked", box.State.UnknownFlagWords);
+            Assert.AreEqual(Conn.New, box.State.Value![0].Value);
+            Assert.IsTrue(box.State.Value![1].IsWord);
+            Assert.AreEqual("untracked", box.State.Value![1].RawValue);
             Assert.AreEqual("new,untracked", box.State.ToString());
         }
 
         [TestMethod]
-        public void AFlagsValue_With_KeepsTheRouterWord_OnSave()
+        public void AList_With_KeepsTheRouterWord_OnSave()
         {
             var connection = Router(Row(("state", "new,untracked")));
             var box = connection.LoadAll<Box>().Single();
 
-            box.State = box.State.With(States.Established);
+            box.State = box.State.Value!.With(Conn.Established);
             connection.Save(box);
 
-            var state = Sent(connection, "set").Single(w => w.StartsWith("=state="));
-            StringAssert.Contains(state, "untracked", "With keeps the router's unknown word: " + state);
-            StringAssert.Contains(state, "established");
+            CollectionAssert.Contains(Sent(connection, "set"), "=state=new,untracked,established");
         }
 
         [TestMethod]
-        public void AFlagsValue_AssignedAfresh_IsExactlyThatSet()
+        public void AList_AssignedAfresh_IsExactlyThatList()
         {
             var connection = Router(Row(("state", "new,untracked")));
             var box = connection.LoadAll<Box>().Single();
 
-            box.State = States.Established;
+            box.State = new TikValueList<Conn>(Conn.Established);
             connection.Save(box);
 
             CollectionAssert.Contains(Sent(connection, "set"), "=state=established");
         }
 
         [TestMethod]
-        public void AFlagsValue_UnchangedWithAnUnknownWord_SendsNothing()
+        public void AList_UnchangedWithAWord_SendsNothing()
         {
             var connection = Router(Row(("state", "new,untracked")));
             connection.Save(connection.LoadAll<Box>().Single());
@@ -166,10 +169,32 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void AFlagsValue_SurvivesCloneEntity_WithItsUnknownWord()
+        public void AList_SurvivesCloneEntity_WithItsWord()
         {
             var box = Router(Row(("state", "new,untracked"))).LoadAll<Box>().Single();
-            Assert.AreEqual("untracked", box.CloneEntity().State.UnknownFlagWords);
+            Assert.AreEqual("untracked", box.CloneEntity().State.Value![1].RawValue);
+        }
+
+        [TikEntity("/box")]
+        public class FlagsInATikField
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string? Id { get; private set; }
+
+            [TikProperty("state")]
+            public TikField<States?> State { get; set; }
+        }
+
+        [TestMethod]
+        public void AFlagsEnumInATikField_IsRefused_PointingAtTikValueList()
+        {
+            var thrown = Assert.ThrowsException<ArgumentException>(() =>
+            {
+                try { TikEntityMetadataCache.GetMetadata<FlagsInATikField>(); }
+                catch (TypeInitializationException e) when (e.InnerException != null) { throw e.InnerException; }
+                catch (System.Reflection.TargetInvocationException e) when (e.InnerException != null) { throw e.InnerException; }
+            });
+            StringAssert.Contains(thrown.Message, "TikValueList");
         }
 
         // ── Write ────────────────────────────────────────────────────────────

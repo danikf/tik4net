@@ -34,7 +34,7 @@ namespace tik4net.Objects
 #if NET8_0_OR_GREATER
     [global::System.Text.Json.Serialization.JsonConverter(typeof(TikValueListJsonConverterFactory))]
 #endif
-    public sealed class TikValueList<T> : IReadOnlyList<TikValue<T>>, IEquatable<TikValueList<T>>
+    public sealed class TikValueList<T> : IReadOnlyList<TikValue<T>>, IEquatable<TikValueList<T>>, ITikValueList
     {
         private readonly TikValue<T>[] _items;
 
@@ -106,6 +106,17 @@ namespace tik4net.Objects
         public TikValueList<T> Without(params T[] items)
             => Without(Checked(items).Select(i => (TikValue<T>)i).ToArray());
 
+        bool ITikValueList.HasNegatedItems => HasNegatedItems;
+
+        string? ITikValueList.UnknownItems
+        {
+            get
+            {
+                var words = _items.Where(i => i.IsWord).Select(i => i.ToString()).ToList();
+                return words.Count == 0 ? null : string.Join(",", words);
+            }
+        }
+
         /// <inheritdoc/>
         public IEnumerator<TikValue<T>> GetEnumerator() => ((IEnumerable<TikValue<T>>)_items).GetEnumerator();
 
@@ -153,5 +164,15 @@ namespace tik4net.Objects
 
         /// <summary>The items in the router's spelling, comma-separated: <c>22,8291,1000-2000</c>, <c>!from-client,http</c>.</summary>
         public override string ToString() => string.Join(",", _items.Select(i => i.ToString()));
+    }
+
+    /// <summary>The mapper's non-generic view of a <see cref="TikValueList{T}"/>.</summary>
+    internal interface ITikValueList
+    {
+        /// <summary>The items the type cannot hold, comma-separated as the router printed them; else <c>null</c>.</summary>
+        string? UnknownItems { get; }
+
+        /// <summary>Whether some item carries its own <c>!</c>.</summary>
+        bool HasNegatedItems { get; }
     }
 }

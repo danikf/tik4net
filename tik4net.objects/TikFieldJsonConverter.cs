@@ -131,25 +131,9 @@ namespace tik4net.Objects
         private static TikField<T> ReadEnum(string word)
         {
             var metadata = TikEnumMetadata.Get(ValueType);
-            if (!metadata.IsFlags)
-                return metadata.TryParseNumeric(word, out long single)
-                    ? (T)Enum.ToObject(ValueType, single)
-                    : TikField<T>.FromUnparsed(word);
-
-            // As the mapper reads it: the known words OR together, the others are kept beside the value.
-            long known = 0;
-            var unknown = new List<string>();
-            foreach (string raw in word.Split(','))
-            {
-                string part = raw.Trim();
-                if (part.Length == 0)
-                    continue;
-                if (metadata.TryParseNumeric(part, out long numeric) && (metadata.UnknownMember == null || numeric != metadata.UnknownNumeric))
-                    known |= numeric;
-                else
-                    unknown.Add(part);
-            }
-            return TikField<T>.FromPresentWithUnknownFlags((T)Enum.ToObject(ValueType, known), string.Join(",", unknown));
+            return metadata.TryParseNumeric(word, out long single)
+                ? (T)Enum.ToObject(ValueType, single)
+                : TikField<T>.FromUnparsed(word);
         }
     }
 }

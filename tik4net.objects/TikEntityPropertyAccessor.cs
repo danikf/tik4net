@@ -204,10 +204,9 @@ namespace tik4net.Objects
                 IsNullable = true;
                 var factories = typeof(TikEntityPropertyAccessor).GetTypeInfo().GetDeclaredMethod(nameof(MakeWrappers))!
                     .MakeGenericMethod(inner);
-                var wrappers = ((Func<object?, bool, object>, Func<string, object>, Func<object, string, bool, object>))factories.Invoke(null, null)!;
+                var wrappers = ((Func<object?, bool, object>, Func<string, object>))factories.Invoke(null, null)!;
                 _wrapPresent = wrappers.Item1;
                 _wrapUnparsed = wrappers.Item2;
-                _wrapPresentWithUnknownFlags = wrappers.Item3;
                 _absent = Activator.CreateInstance(PropertyType)!;
             }
             else
@@ -219,6 +218,12 @@ namespace tik4net.Objects
             // Before DefaultValue below, which formats the CLR default through ConvertToString.
             if (ValueType.GetTypeInfo().IsEnum)
                 _enumMetadata = TikEnumMetadata.Get(ValueType);
+            if (IsWrapped && _enumMetadata != null && _enumMetadata.IsFlags)
+                // A set of words is a list: each member its own item, a word the enum lacks one item of its own, and on
+                // a field that takes it each member with its own '!'. A bitmask can hold none of the three.
+                throw new ArgumentException(string.Format(
+                    "{0}.{1}: a [Flags] enum cannot be a TikField<T>'s value; declare TikField<TikValueList<{2}>?> with a plain enum.",
+                    propertyInfo.DeclaringType?.Name, propertyInfo.Name, ValueType.Name), nameof(propertyInfo));
 
             //From TikPropertyAttribute attribute
             var propertyAttribute = propertyInfo.GetCustomAttribute<TikPropertyAttribute>(true);
@@ -439,11 +444,9 @@ namespace tik4net.Objects
         private readonly Func<string, object>? _wrapUnparsed;
         private readonly object? _absent;
 
-        private static (Func<object?, bool, object>, Func<string, object>, Func<object, string, bool, object>) MakeWrappers<T>()
-            => ((value, negated) => TikField<T>.FromPresentWithUnknownFlags((T)value!, null, negated), raw => TikField<T>.FromUnparsed(raw),
-                (value, unknown, negated) => TikField<T>.FromPresentWithUnknownFlags((T)value, unknown, negated));
+        private static (Func<object?, bool, object>, Func<string, object>) MakeWrappers<T>()
+            => ((value, negated) => TikField<T>.FromPresent((T)value!, negated), raw => TikField<T>.FromUnparsed(raw));
 
-        private readonly Func<object, string, bool, object>? _wrapPresentWithUnknownFlags;
 
         /// <summary>
         /// Copies this property from <paramref name="source"/> to <paramref name="target"/> as it is - for a
@@ -489,10 +492,7 @@ namespace tik4net.Objects
                 // any other list as a '!' in front of the first item (!22,8291).
                 return (IsNegatableMembers ? "!," : "!") + items;
             }
-            string? known = ConvertToString(wrapped.BoxedValue);
-            // The router's words the enum does not know go back with the known ones, as it printed them.
-            string? text = wrapped.UnknownFlagWords == null ? known
-                : string.IsNullOrEmpty(known) ? wrapped.UnknownFlagWords : known + "," + wrapped.UnknownFlagWords;
+            string? text = ConvertToString(wrapped.BoxedValue);
             return wrapped.IsNegated ? "!" + text : text;
         }
 
@@ -647,26 +647,6 @@ namespace tik4net.Objects
             // prints (and a presence flag's empty value), and anything else is a value it cannot hold.
             if (ValueType == typeof(bool) && !(IsPresenceFlag && propValue.Length == 0) && !IsBoolWord(propValue))
                 return _wrapUnparsed!(word);
-
-            // A [Flags] value: the known words OR together, the others are kept in the value itself — not as an Unknown bit
-            // inside Value, and not in a side store a copy of the entity would lose.
-            if (_enumMetadata != null && _enumMetadata.IsFlags)
-            {
-                long known = 0;
-                var unknownParts = new List<string>();
-                foreach (string raw in propValue.Split(','))
-                {
-                    string part = raw.Trim();
-                    if (part.Length == 0)
-                        continue;
-                    if (_enumMetadata.TryParseNumeric(part, out long numeric)
-                        && (_enumMetadata.UnknownMember == null || numeric != _enumMetadata.UnknownNumeric))
-                        known |= numeric;
-                    else
-                        unknownParts.Add(part);
-                }
-                return _wrapPresentWithUnknownFlags!(Enum.ToObject(ValueType, known), string.Join(",", unknownParts), negated);
-            }
 
             object? value;
             string? unknownWord;
