@@ -186,6 +186,7 @@ printed the field (`Absent`), what it printed (`Present`), or a word `T` cannot 
 | wiki type `integer`, or value parses as a whole number      | `TikField<int?>` / `TikField<long?>` |
 | a duration (`10s`, `00:00:10`, `none`)                      | `TikField<TikDuration?>` — see ARCHITECTURE.md *Adding an entity* rule 6 |
 | a paired rate (`1M/2M`)                                     | `TikField<TikRatePair?>`; one rate: `TikField<TikDataRate?>` |
+| a comma list (ports, servers, states, `vlan-ids`) — the `.jg` UI type is `multi*`, `set`, `numberrangelist`, `multitristate` | `TikField<TikValueList<T>?>` — `T` an enum, `string`, `TikPortRange` (ports) or `TikNumberRange`; never a comma-joined string or a `[Flags]` enum. Mark `Negatable` / `NegatableMembers` from the catalog's VALUES section (`EntityJgCatalogProbe`) — ARCHITECTURE.md *Adding an entity* rule 8 |
 | a documented enumerated set of values                       | `TikField<TheEnum?>` with a nested `enum` (see below) |
 | wiki type `string`, MAC/IP-ish values, anything else        | `TikField<string?>` — annotate intent inline: `TikField<string?> /*MAC*/ Foo` |
 

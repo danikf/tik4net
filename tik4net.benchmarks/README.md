@@ -30,7 +30,7 @@ string costs is paying for the accessor, and one costing hundreds of times more 
 ## Measured so far
 
 `FirewallFilter` is the subject because it is the shape the mapper is slowest on and the one a caller loads
-in bulk: ~50 mapped properties, a plain enum, a `[Flags]` enum, nullable bools, `long` counters, and an `.id`
+in bulk: ~50 mapped properties, a plain enum, value lists, nullable bools, `long` counters, and an `.id`
 with a private setter.
 
 **B1 (compiled accessors) + B2 (cached enum tables), 2026-08-16, net8.0, default job.** All three builds

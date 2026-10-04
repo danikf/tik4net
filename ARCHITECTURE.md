@@ -501,6 +501,14 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
    `/queue/tree max-limit` reads the same on both and stays a `long`. `TikDataRate` is the single-value
    form of it, for a field that is one rate rather than a pair. The suffixes are decimal — `500k` is
    500 000.
+8. **A field of several values is `TikField<TikValueList<T>?>`**, never a comma-joined string or a `[Flags]` enum
+   (a `[Flags]` enum inside a `TikField` is refused at metadata build). `T` is the item: an enum, `string`,
+   `TikPortRange` for ports, `TikNumberRange` for number ranges (`vlan-ids`). Each item is a `TikValue<T>` — a value
+   or the router's word, with its own `!`. Declare the `!`s the router takes: `Negatable` for the whole list,
+   `NegatableMembers` for each member (`hotspot`, `tcp-flags`, logging `topics`), and `SetKeepsUnnamedHalf` where a
+   text `set` replaces only the half it names (`tcp-flags`). The router's behaviour is in
+   [Docs/findings-value-lists.md](Docs/findings-value-lists.md); the catalog's VALUES section
+   (`EntityJgCatalogProbe`) lists every multi-value or negatable field with its UI type.
 
 Most of these conventions are **enforced in CI**, not just documented — they run over every `[TikEntity]` on
 every push, so a new entity that breaks one fails the build rather than the first person to load that menu:

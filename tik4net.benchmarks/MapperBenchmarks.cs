@@ -11,7 +11,7 @@ namespace tik4net.Benchmarks
     /// The O/R mapper's per-row cost, measured without a router.
     /// <para>
     /// The subject is <see cref="FirewallFilter"/> because it is the shape the mapper is slowest on and the
-    /// one a real caller loads in bulk: ~50 mapped properties, a plain enum, a <c>[Flags]</c> enum, nullable
+    /// one a real caller loads in bulk: ~50 mapped properties, a plain enum, value lists, nullable
     /// bools, <c>long</c> counters, and an <c>.id</c> with a <b>private setter</b> — which is the case a
     /// compiled accessor has to keep working, not just keep fast.
     /// </para>

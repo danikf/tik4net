@@ -226,7 +226,7 @@ namespace tik4net.Objects
         /// Marks a <see cref="NegatableMembers"/> list on which RouterOS's text <c>set</c> replaces only the half it names:
         /// the plain members when the value names a plain one, the negated members when it names a negated one
         /// (<c>tcp-flags</c>, measured on 6.49.13 and 7.24.5 over the API, REST and the CLI:
-        /// <c>!,syn,!ack</c> + <c>set rst</c> → <c>rst,!ack</c>).
+        /// <c>!,syn,!ack</c> + <c>set rst</c> → <c>rst,!ack</c>; <c>Docs/findings-value-lists.md</c> §4).
         /// <para>
         /// An update of a loaded row that would leave such a half on the router — the loaded value has members of a kind
         /// the new one has none of — is refused before anything is sent, unless the transport writes structured data
