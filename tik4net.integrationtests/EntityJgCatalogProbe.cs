@@ -15,6 +15,10 @@
 //   DEFAULT      — the catalog's def rendered as the API prints it, against the attribute's DefaultValue, both run
 //                  through the entity's own converter (so no/false spellings compare equal): MISMATCH, UNSET (the
 //                  catalog's def is the "not set" marker), or match (counted only).
+//   VALUES       — a field that holds several values or takes a '!': the catalog's UI type, a '!' for the whole
+//                  field (not:), a '!' per member (members: multitristate[array], or a list whose element is wrapped
+//                  in 'not'), the element type, against the property's type and Negatable flag. The inventory for
+//                  TikValueList (_notes/5.0/features/value-lists.md, step 1).
 //
 // It reads the catalog only — no rows. Resolution goes through the WinBox native transport's own resolver, so a
 // field the transport cannot map shows as MISSING too; the path-map audit covers that separately.
@@ -74,6 +78,8 @@ namespace tik4net.integrationtests
             var noHandler = new StringBuilder();
             var labels = new StringBuilder();
             var labelIssues = new StringBuilder();
+            var valueShapes = new StringBuilder();
+            int nValues = 0;
             int nLabelOk = 0, nLabelIssue = 0;
             int nFields = 0, nMissing = 0, nKind = 0, nMatch = 0, nMismatch = 0, nUnset = 0, nNoDef = 0, nNoAttr = 0;
             string version;
@@ -115,6 +121,14 @@ namespace tik4net.integrationtests
                             continue;
                         }
                         var (_, field, render) = byName[hit];
+
+                        string valueShape = ValueShape(field);
+                        if (valueShape != null)
+                        {
+                            nValues++;
+                            valueShapes.AppendLine($"{metadata.EntityPath}	{p.FieldName}{ro}	{valueShape}	"
+                                + $"{TypeName(p.ValueType)}{(p.IsNegatable ? " Negatable" : "")}	{entity.Type.Name}.{p.PropertyName}");
+                        }
 
                         string suggested = SuggestLabel(connection, field, byName);
                         if (suggested != null)
@@ -178,6 +192,7 @@ namespace tik4net.integrationtests
                 + $"MISMATCH {nMismatch}, catalog-unset {nUnset}, no catalog def {nNoDef}, no attribute {nNoAttr}");
             report.AppendLine();
             report.AppendLine($"# WinboxLabel attributes: match {nLabelOk}, issues {nLabelIssue}");
+            report.AppendLine($"# multi-value or negatable fields: {nValues}");
             report.AppendLine();
             report.AppendLine("## LABEL ISSUES — a declared WinboxLabel this catalog does not confirm");
             report.Append(labelIssues);
@@ -196,6 +211,9 @@ namespace tik4net.integrationtests
             report.AppendLine();
             report.AppendLine("## MISSING — no field of this name in this version's catalog (path field)");
             report.Append(missing);
+            report.AppendLine();
+            report.AppendLine("## VALUES — several values or a '!' (path, field, ui type + negation + element, property type, property)");
+            report.Append(valueShapes);
             report.AppendLine();
             report.AppendLine("## LABELS — suggested WinboxLabel per property (type|property|field|label), for the generator");
             report.Append(labels);
@@ -221,6 +239,27 @@ namespace tik4net.integrationtests
                 return apiName.Substring(0, apiName.Length - plain.Length - 1) + ": " + raw;
             return raw;
         }
+
+        // How a field holds its value, when it holds several or takes a '!': null for a plain scalar.
+        private static string ValueShape(WinboxJgField field)
+        {
+            string ui = field.UiType ?? field.WireType;
+            bool multi = ui.StartsWith("multi", StringComparison.Ordinal) || ui.EndsWith("list", StringComparison.Ordinal)
+                         || field.ElementUiType != null || field.ElementSeparator != null;
+            bool members = WinboxFieldResolver.IsPerMemberNegatedList(field.UiType) || field.ElementNotKey != 0;
+            if (!multi && !members && field.NotKey == 0)
+                return null;
+            var shape = new StringBuilder(ui);
+            if (field.NotKey != 0) shape.Append(" not:whole");
+            if (members) shape.Append(" not:members");
+            if (field.ElementUiType != null) shape.Append(" element:" + field.ElementUiType);
+            if (field.ElementSeparator != null) shape.Append(" sep:'" + field.ElementSeparator + "'");
+            if (field.ElementIsRange || field.IsRange) shape.Append(" range");
+            return shape.ToString();
+        }
+
+        private static string TypeName(Type type)
+            => type.IsEnum && type.GetCustomAttribute<FlagsAttribute>() != null ? type.Name + " [Flags]" : type.Name;
 
         // The form the entity writes a value in: through its own converter, so "no" and "false" agree.
         private static string Canonical(Type entityType, TikEntityPropertyAccessor p, string value)
