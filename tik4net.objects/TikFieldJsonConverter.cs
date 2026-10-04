@@ -72,7 +72,7 @@ namespace tik4net.Objects
                     return negated.Value;
                 if (raw == null)
                     throw new JsonException("A TikField object must carry \"" + RawProperty + "\" or \"" + NotProperty + "\".");
-                return TikField<T>.FromWire(raw);
+                return TikField<T>.FromUnparsed(raw);
             }
 
             if (ValueType.IsEnum && reader.TokenType == JsonTokenType.String)
@@ -134,7 +134,7 @@ namespace tik4net.Objects
             if (!metadata.IsFlags)
                 return metadata.TryParseNumeric(word, out long single)
                     ? (T)Enum.ToObject(ValueType, single)
-                    : TikField<T>.FromWire(word);
+                    : TikField<T>.FromUnparsed(word);
 
             // As the mapper reads it: the known words OR together, the others are kept beside the value.
             long known = 0;

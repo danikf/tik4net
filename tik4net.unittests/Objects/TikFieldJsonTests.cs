@@ -30,7 +30,7 @@ namespace tik4net.unittests.Objects
                 Name = "b",
                 Port = 8080,
                 Mode = TikFieldMapperTests.Mode.Auto,
-                Comment = TikField<string?>.FromWire("x;y"),
+                Comment = TikValue<string?>.FromWire("x;y"),
                 Interval = TikDuration.Parse("10s"),
                 // Flag left Absent
             };

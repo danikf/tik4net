@@ -195,7 +195,7 @@ namespace tik4net.Objects
         /// <para>
         /// On a <see cref="TikField{T}"/> property the <c>!</c> is then not part of the value: a load reads it as
         /// <see cref="TikField{T}.IsNegated"/> and parses the rest as <c>T</c>, and a negated value
-        /// (<see cref="TikField{T}.Not"/>) is written with it. Every transport spells it the same way — the API, REST
+        /// (<see cref="TikValue{T}.Not"/>) is written with it. Every transport spells it the same way — the API, REST
         /// and the CLI print the <c>!</c>, and WinBox native carries it as the field's <c>not</c> flag. Without the
         /// marker a leading <c>!</c> is part of the value: a comment or a name may start with one.
         /// </para>

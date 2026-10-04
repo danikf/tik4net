@@ -141,7 +141,7 @@ namespace tik4net.unittests.Objects
             var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
             var expected = new List<TikFieldMapperTests.Box>
             {
-                new TikFieldMapperTests.Box { Name = "x", Mode = TikField<TikFieldMapperTests.Mode?>.FromWire("false") },
+                new TikFieldMapperTests.Box { Name = "x", Mode = TikValue<TikFieldMapperTests.Mode?>.FromWire("false") },
             };
 
             connection.CreateMerge(expected, original)

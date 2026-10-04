@@ -18,7 +18,7 @@ namespace tik4net.unittests.Objects
 
         private static TikField<string?> Absent => default;
         private static TikField<string?> PresentNull => (string?)null;
-        private static TikField<string?> Unparsed => TikField<string?>.FromWire("word");
+        private static TikField<string?> Unparsed => TikValue<string?>.FromWire("word");
 
         // ── == null means "has no value" (C3) ────────────────────────────────
 
@@ -45,7 +45,7 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void Value_OnUnparsed_Throws_WithTheRouterWord()
         {
-            var ex = Assert.ThrowsException<TikUnparsedValueException>(() => TikField<Mode?>.FromWire("false").Value);
+            var ex = Assert.ThrowsException<TikUnparsedValueException>(() => TikValue<Mode?>.FromWire("false").Value);
             Assert.AreEqual("false", ex.RawValue);
             StringAssert.Contains(ex.Message, "Mode");
         }
@@ -58,7 +58,7 @@ namespace tik4net.unittests.Objects
             Assert.IsFalse(Unparsed.TryGetValue(out _));
             Assert.IsTrue(((TikField<int?>)7).TryGetValue(out int? seven));
             Assert.AreEqual(7, seven);
-            Assert.AreEqual(3, TikField<int?>.FromWire("x").ValueOrDefault(3));
+            Assert.AreEqual(3, ((TikField<int?>)TikValue<int?>.FromWire("x")).ValueOrDefault(3));
         }
 
         [TestMethod]
@@ -71,7 +71,7 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual("x", ((TikField<string?>)"x").GetValueOrDefault());
 
             bool absent = default(TikField<bool?>).GetValueOrDefault();
-            bool unparsed = TikField<bool?>.FromWire("maybe").GetValueOrDefault();
+            bool unparsed = ((TikField<bool?>)TikValue<bool?>.FromWire("maybe")).GetValueOrDefault();
             Assert.IsFalse(absent);
             Assert.IsFalse(unparsed);
             Assert.IsTrue(((TikField<bool?>)true).GetValueOrDefault());
@@ -87,7 +87,7 @@ namespace tik4net.unittests.Objects
             var connection = new TikFakeConnection()
                 .WithScalarResponse(cmd => cmd.First() == "/box/add", "*1");
 
-            connection.Save(new TikFieldMapperTests.Box { Name = "b", Mode = TikField<TikFieldMapperTests.Mode?>.FromWire("ec2n155") });
+            connection.Save(new TikFieldMapperTests.Box { Name = "b", Mode = TikValue<TikFieldMapperTests.Mode?>.FromWire("ec2n155") });
 
             CollectionAssert.Contains(connection.SentCommands.Single().ToArray(), "=mode=ec2n155");
         }
@@ -97,7 +97,7 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void OrderBy_Works_AbsentThenUnparsedThenPresent()
         {
-            var values = new List<TikField<int?>> { 30, TikField<int?>.FromWire("none"), default, 10, (int?)null };
+            var values = new List<TikField<int?>> { 30, TikValue<int?>.FromWire("none"), default, 10, (int?)null };
 
             var sorted = values.OrderBy(v => v).Select(v => v.ToString()).ToList();
 
@@ -112,7 +112,7 @@ namespace tik4net.unittests.Objects
             Assert.IsTrue(port > 1024);
             Assert.IsTrue(port <= 8080);
             Assert.IsFalse(default(TikField<int?>) < 5, "Absent has no value to compare");
-            Assert.IsFalse(TikField<int?>.FromWire("auto") > 0);
+            Assert.IsFalse((TikField<int?>)TikValue<int?>.FromWire("auto") > 0);
         }
 
         // ── Display in the router's spelling (M-d) ───────────────────────────
@@ -122,7 +122,7 @@ namespace tik4net.unittests.Objects
         {
             Assert.AreEqual("auto", ((TikField<Mode?>)Mode.Auto).ToString(), "the enum's word, not its member name");
             Assert.AreEqual("true", ((TikField<bool?>)true).ToString());
-            Assert.AreEqual("false", TikField<Mode?>.FromWire("false").ToString());
+            Assert.AreEqual("false", TikValue<Mode?>.FromWire("false").ToString());
             Assert.AreEqual("", Absent.ToString());
             Assert.AreEqual("1.5", ((TikField<double?>)1.5).ToString(), "invariant, whatever the thread's culture");
         }

@@ -37,6 +37,15 @@ namespace tik4net.Objects
         public override bool Equals(object obj) => obj is TikField<T>;
         public override int GetHashCode() => 0;
     }
+    public readonly struct TikValue<T>
+    {
+        public T Value => default(T);
+        public static implicit operator TikValue<T>(T value) => default(TikValue<T>);
+        public static bool operator ==(TikValue<T> a, T b) => true;
+        public static bool operator !=(TikValue<T> a, T b) => false;
+        public override bool Equals(object obj) => obj is TikValue<T>;
+        public override int GetHashCode() => 0;
+    }
 }
 static class Assert
 {
@@ -44,7 +53,8 @@ static class Assert
     public static void AreEqual<T>(T expected, T actual) { }
     public static void AreNotEqual(object notExpected, object actual) { }
 }
-class Row { public tik4net.Objects.TikField<string> Name; public tik4net.Objects.TikField<int?> Mtu; public object Any; }
+class Row { public tik4net.Objects.TikField<string> Name; public tik4net.Objects.TikField<int?> Mtu; public object Any;
+            public tik4net.Objects.TikValue<string> Item; }
 ";
 
         private static string Body(string statements) => Stubs + @"
@@ -63,6 +73,8 @@ class Subject
         [DataRow("Assert.AreEqual(1500L, row.Mtu);", "row.Mtu", DisplayName = "types generic inference cannot unify")]
         [DataRow("Assert.AreNotEqual(\"x\", row.Name);", "row.Name", DisplayName = "AreNotEqual(object, object)")]
         [DataRow("Assert.AreEqual<object>(\"x\", row.Name);", "row.Name", DisplayName = "generic with T = object")]
+        [DataRow("object.Equals(\"x\", row.Item);", "row.Item", DisplayName = "a TikValue<T> the same way")]
+        [DataRow("Assert.AreNotEqual(\"x\", row.Item);", "row.Item", DisplayName = "a TikValue<T> in AreNotEqual(object, object)")]
         public void AnObjectTypedComparisonOfAWrapperAndAValueIsReported(string statement, string wrapped)
         {
             var diagnostics = Analyze(Body(statement));
@@ -101,6 +113,7 @@ class Subject
         [DataRow("Assert.AreEqual(1500L, row.Mtu);", "Assert.AreEqual(1500L, row.Mtu.Value);")]
         [DataRow("object.Equals(\"x\", flag ? row.Name : other.Name);", "object.Equals(\"x\", (flag ? row.Name : other.Name).Value);")]
         [DataRow("object.Equals(\"x\", /* kept */ row.Name);", "object.Equals(\"x\", /* kept */ row.Name.Value);")]
+        [DataRow("object.Equals(\"x\", row.Item);", "object.Equals(\"x\", row.Item.Value);")]
         public void TheFixComparesTheValue(string statement, string expected)
         {
             string source = Body(statement);

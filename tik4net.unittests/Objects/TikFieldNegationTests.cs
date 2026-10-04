@@ -72,7 +72,7 @@ namespace tik4net.unittests.Objects
 
             Assert.IsFalse(rule.SrcAddress == "10.0.0.0/8", "!10.0.0.0/8 matches everything but 10.0.0.0/8");
             Assert.IsTrue(rule.SrcAddress != "10.0.0.0/8");
-            Assert.IsTrue(rule.SrcAddress == TikField<string?>.Not("10.0.0.0/8"));
+            Assert.IsTrue(rule.SrcAddress == TikValue<string?>.Not("10.0.0.0/8"));
             Assert.IsFalse(rule.Port > 10, "a negated number is not ordered");
             Assert.IsFalse(rule.SrcAddress == null, "a negated value has a value");
         }
@@ -139,8 +139,8 @@ namespace tik4net.unittests.Objects
             var connection = Router(("src-address", "10.0.0.0/8"), ("state", "new"));
             var rule = connection.LoadAll<Rule>().Single();
 
-            rule.SrcAddress = TikField<string?>.Not("10.0.0.0/8");
-            rule.State = TikField<TikFieldMapperTests.States?>.Not(TikFieldMapperTests.States.New | TikFieldMapperTests.States.Established);
+            rule.SrcAddress = TikValue<string?>.Not("10.0.0.0/8");
+            rule.State = TikValue<TikFieldMapperTests.States?>.Not(TikFieldMapperTests.States.New | TikFieldMapperTests.States.Established);
             connection.Save(rule);
 
             CollectionAssert.AreEquivalent(new[] { "=src-address=!10.0.0.0/8", "=state=!new,established", "=.id=*1" },
@@ -151,7 +151,7 @@ namespace tik4net.unittests.Objects
         public void Add_SendsANegatedValueWithItsBang()
         {
             var connection = Router();
-            connection.Save(new Rule { Port = TikField<int?>.Not(22) });
+            connection.Save(new Rule { Port = TikValue<int?>.Not(22) });
 
             CollectionAssert.AreEquivalent(new[] { "=port=!22" }, Sent(connection, "add"));
         }
@@ -162,7 +162,7 @@ namespace tik4net.unittests.Objects
             var connection = Router(("comment", "a"));
             var rule = connection.LoadAll<Rule>().Single();
 
-            rule.Comment = TikField<string?>.Not("a");
+            rule.Comment = TikValue<string?>.Not("a");
 
             var ex = Assert.ThrowsException<InvalidOperationException>(() => connection.Save(rule));
             StringAssert.Contains(ex.Message, "Negatable");
@@ -174,15 +174,15 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void OnlyAValueCanBeNegated()
         {
-            Assert.ThrowsException<ArgumentNullException>(() => TikField<string?>.Not(null));
+            Assert.ThrowsException<ArgumentNullException>(() => TikValue<string?>.Not(null));
             Assert.IsFalse(TikField<string?>.Absent.IsNegated);
-            Assert.IsFalse(TikField<string?>.FromWire("!x").IsNegated, "an unparsed word keeps its '!' as it was printed");
+            Assert.IsFalse(TikValue<string?>.FromWire("!x").IsNegated, "an unparsed word keeps its '!' as it was printed");
         }
 
         [TestMethod]
         public void ANegatedValueSortsAfterThePlainOne_AndHashesApart()
         {
-            TikField<int?> plain = 80, negated = TikField<int?>.Not(80);
+            TikField<int?> plain = 80, negated = TikValue<int?>.Not(80);
 
             Assert.IsTrue(plain.CompareTo(negated) < 0);
             Assert.AreNotEqual(plain, negated);
@@ -216,8 +216,8 @@ namespace tik4net.unittests.Objects
         {
             var dto = new Dto
             {
-                SrcAddress = TikField<string?>.Not("10.0.0.0/8"),
-                State = TikField<TikFieldMapperTests.States?>.Not(TikFieldMapperTests.States.New),
+                SrcAddress = TikValue<string?>.Not("10.0.0.0/8"),
+                State = TikValue<TikFieldMapperTests.States?>.Not(TikFieldMapperTests.States.New),
             };
 
             string json = JsonSerializer.Serialize(dto);

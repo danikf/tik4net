@@ -75,8 +75,8 @@ namespace tik4net.unittests.Objects
 
         private static IEnumerable<MethodInfo> PublicMethods()
             => Objects.GetExportedTypes()
-                // TikField<T>'s T is a property's value (int?, an enum), never an entity; its members and extensions construct nothing.
-                .Where(t => t != typeof(TikField<>) && t != typeof(TikFieldExtensions))
+                // TikField<T>'s and TikValue<T>'s T is a property's value (int?, an enum), never an entity; their members and extensions construct nothing.
+                .Where(t => t != typeof(TikField<>) && t != typeof(TikValue<>) && t != typeof(TikFieldExtensions))
                 .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly))
                 .Where(m => !m.IsSpecialName)                  // property accessors: an entity's own getters
                 .Where(m => m.DeclaringType != typeof(object))

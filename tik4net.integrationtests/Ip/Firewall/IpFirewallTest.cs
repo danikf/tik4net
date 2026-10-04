@@ -418,10 +418,10 @@ namespace tik4net.integrationtests
                 Disabled = true,
                 Comment = comment,
                 Protocol = "tcp",
-                SrcAddress = TikField<string>.Not("10.0.0.0/8"),
-                InInterface = TikField<string>.Not("ether1"),
-                DstPort = TikField<string>.Not("22,8291"),
-                ConnectionState = TikField<FirewallFilter.ConnectionStateType?>.Not(
+                SrcAddress = TikValue<string>.Not("10.0.0.0/8"),
+                InInterface = TikValue<string>.Not("ether1"),
+                DstPort = TikValue<string>.Not("22,8291"),
+                ConnectionState = TikValue<FirewallFilter.ConnectionStateType?>.Not(
                     FirewallFilter.ConnectionStateType.Established | FirewallFilter.ConnectionStateType.Related),
             };
             try
@@ -463,9 +463,9 @@ namespace tik4net.integrationtests
                 Disabled = true,
                 Comment = comment,
                 Protocol = "tcp",
-                ConnectionRate = TikField<string>.Not("1500-2000000"),
+                ConnectionRate = TikValue<string>.Not("1500-2000000"),
                 ConnectionBytes = "2000000-0",
-                ConnectionLimit = TikField<string>.Not("10,24"),
+                ConnectionLimit = TikValue<string>.Not("10,24"),
             };
             try
             {
