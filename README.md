@@ -13,7 +13,7 @@ both API login handshakes and correlating replies to their caller are handled fo
 genuinely cannot do, it tells you through its capabilities instead of quietly doing the wrong thing. The
 surface is large, and the first working program is five lines.
 
-Tested and debugged against **RouterOS 7.24.4** — every transport verified against a live router — and also tested
+Tested and debugged against **RouterOS 7.24.5** — every transport verified against a live router — and also tested
 on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions)).
 
 ## What's new
@@ -22,7 +22,7 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 * **[RoMON](https://github.com/danikf/tik4net/wiki/RoMON-connection)** — reach a router you have no IP route to, through a neighbouring router, over Telnet,
   SSH or MAC-Telnet; RoMON discover and ping included
 * **One codebase from RouterOS 6.49 to 7.24** — the same entities read and write correctly on each version, tested on
-  7.24.4, 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions))
+  7.24.5, 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions))
 * **[TikValue](https://github.com/danikf/tik4net/wiki/TikValue)** — a property knows whether the router printed the field; it never invents a default, and
   a value from a newer RouterOS does not break the read
 * **[Ask the router what a menu takes](https://github.com/danikf/tik4net/wiki/RouterOS-versions#asking-the-router-what-a-menu-takes)** — `DescribeMenu` lists a
