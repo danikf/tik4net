@@ -215,9 +215,15 @@ namespace tik4net.Winbox
                 // Serialize writes only. A frame is a sequence of chunks and two interleaved sends would
                 // produce an unparseable stream. The send stays synchronous: a request is a handful of bytes
                 // into the socket buffer, and neither channel offers an async send to await instead.
+                //
+                // The byte baseline is taken BEFORE the write, for the same reason the registration is: the
+                // reader loop counts on its own thread, and a reply that starts arriving while Send returns
+                // would otherwise sit in the baseline and read as a router that answered nothing.
+                long bytesAtSend;
                 lock (_writeLock)
                 {
                     ThrowIfFaulted();
+                    bytesAtSend = _channel.BytesReceived;
                     _channel.Send(request);
                 }
 
@@ -241,7 +247,6 @@ namespace tik4net.Winbox
                         // a half-delivered frame looks identical to one waiting on a silent router (V-7).
                         // Resolution is one poll slice, which is the right granularity for a message about a
                         // wait measured in seconds.
-                        long bytesAtSend = _channel.BytesReceived;
                         long bytesSeen = bytesAtSend;
                         long lastByteMs = -1;
 
