@@ -1000,10 +1000,30 @@ namespace tik4net.Winbox
                 // 'Dst. Address' on 6.49.13 — the rule matcher's own label, so there it loses the name to
                 // dst-address and the value (on the wire, 10.99.3.1 at 0x3F4) was reported under no name and
                 // could not be written. Same key and type on both versions.
-                ["/ip/firewall/mangle"] = new FieldAliasSet(Ci(), Ci(),
+                // The rest measured on 7.24.5 by moving each value over the API and reading the raw record:
+                //  - 'New DSCP (TOS)' u3f3 and 'New TCP MSS' u3eb are new-dscp and new-mss.
+                //  - realm is in no field of the Mangle window, yet rides every rule that sets it: the number at
+                //    0x7E, its present flag at 0x1C2 and its '!' at 0xE0 (realm=!7 → 0x7E=7, 0x1C2, 0xE0=True;
+                //    realm=9 → 0xE0=False).
+                //  - new-ttl is one API field over two boxes: 'TTL Action' u3ee (0 = set, 1 = increment,
+                //    2 = decrement; the window calls the first 'change') and 'New TTL' u3ef — increment:3 is
+                //    {0x3EE=1, 0x3EF=3}. Alone, 'New TTL' read as new-ttl=3.
+                ["/ip/firewall/mangle"] = new FieldAliasSet(
+                    apiToJg: Ci(("new-dscp", "new-dscp-(tos)"), ("new-mss", "new-tcp-mss")),
+                    jgToApi: Ci(("new-dscp-(tos)", "new-dscp"), ("new-tcp-mss", "new-mss")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["route-dst"] = new WinboxJgField("route-dst", 0x3F4, "u32", false, uiType: "ipaddr"),
+                        ["realm"] = new WinboxJgField("realm", 0x7E, "u32", false, uiType: "number",
+                            optKey: 0x1C2, notKey: 0xE0),
+                        ["new-ttl"] = new WinboxJgField("new-ttl", 0x3EE, "u32", false, uiType: WinboxJgCatalog.TupleUiType,
+                            elementSeparator: ":",
+                            elementParts: new[]
+                            {
+                                new WinboxJgElementPart(0x3EE, "enm", 0,
+                                    enumMap: new Dictionary<int, string> { [0] = "set", [1] = "increment", [2] = "decrement" }),
+                                new WinboxJgElementPart(0x3EF, "number", 0),
+                            }),
                     }),
 
                 // /ip/firewall/connection: 'helper used' is the API's uses-helper, and the GRE key is a key the
@@ -1607,6 +1627,11 @@ namespace tik4net.Winbox
                 ["protocol"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["ip-encap"] = "ipencap",
+                },
+                // /ip/firewall/mangle: the window captions the action 'change DSCP (TOS)'; RouterOS writes change-dscp.
+                ["action"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["change-dscp-(tos)"] = "change-dscp",
                 },
                 ["dynamic-lease-identifiers"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -3107,7 +3132,7 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
-        /// Encodes a scalar tuple whose every part is a <c>number</c> or an <c>interval</c> — one u32 per part,
+        /// Encodes a scalar tuple whose every part is a <c>number</c>, an <c>interval</c> or a static enum — one u32 per part,
         /// the value split on the tuple's separator. Returns <c>false</c>, adding nothing, for any other part
         /// type or when the value does not have one token per part.
         /// </summary>
@@ -3127,6 +3152,14 @@ namespace tik4net.Winbox
                 if (string.Equals(part.UiType, "interval", StringComparison.OrdinalIgnoreCase))
                 {
                     if (!TryParseDuration(tokens[i], 1, out n)) return false;
+                }
+                else if (part.EnumMap != null)
+                {
+                    // A word of the part's own static map (mangle new-ttl=increment:3, 'TTL Action' 1).
+                    string word = tokens[i].Trim();
+                    var member = part.EnumMap.FirstOrDefault(kv => string.Equals(kv.Value, word, StringComparison.OrdinalIgnoreCase));
+                    if (member.Value == null) return false;
+                    n = member.Key;
                 }
                 else if (string.Equals(part.UiType, "number", StringComparison.OrdinalIgnoreCase))
                 {

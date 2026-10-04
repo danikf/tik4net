@@ -103,6 +103,7 @@ namespace tik4net.unittests.Objects
                 // limit,netmask ('10,32') — neither an upload/download pair.
                 ["FirewallFilter"] = new[] { "limit", "dst-limit", "connection-rate", "connection-limit" },
                 ["FirewallRaw"] = new[] { "limit", "dst-limit" },
+                ["FirewallMangle"] = new[] { "limit", "dst-limit", "connection-rate", "connection-limit" },
 
                 // ── A duration, caught here only because its name contains 'limit' ─────────────────
                 // trial-uptime-limit and HotspotUser.limit-uptime used to sit here too; both are now

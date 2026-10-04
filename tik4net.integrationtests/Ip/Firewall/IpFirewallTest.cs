@@ -519,6 +519,97 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// Mangle's own fields — what an action writes, and the matchers the filter does not have — round-trip on every
+        /// transport, next to the matchers it shares with the filter.
+        /// </summary>
+        [TestMethod]
+        public void FirewallMangle_ActionAndMatcherFields_RoundTrip()
+        {
+            const string comment = "t4n-mangle-fields";
+            RemoveByComment("/ip/firewall/mangle", comment);
+            var rules = new[]
+            {
+                new FirewallMangle
+                {
+                    Chain = "prerouting", Action = FirewallMangle.ActionType.MarkConnection, Disabled = true, Comment = comment,
+                    NewConnectionMark = "t4n-cm", Passthrough = true, Protocol = "tcp",
+                    ConnectionNatState = TikValue<TikValueList<FirewallConnectionNatState>>.Not(
+                        new TikValueList<FirewallConnectionNatState>(FirewallConnectionNatState.Srcnat)),
+                    Realm = TikValue<string>.Not("5"),
+                    DstPort = new TikValueList<TikPortRange>(443),
+                    InInterfaceList = "all",
+                },
+                new FirewallMangle
+                {
+                    Chain = "forward", Action = FirewallMangle.ActionType.ChangeMms, Disabled = true, Comment = comment,
+                    Protocol = "tcp", NewMss = "clamp-to-pmtu",
+                    TcpFlags = new TikValueList<FirewallTcpFlag>(FirewallTcpFlag.Syn),
+                },
+                new FirewallMangle
+                {
+                    Chain = "prerouting", Action = FirewallMangle.ActionType.ChangeDscp, Disabled = true, Comment = comment,
+                    NewDscp = 46,
+                },
+                new FirewallMangle
+                {
+                    Chain = "prerouting", Action = FirewallMangle.ActionType.SniffTzsp, Disabled = true, Comment = comment,
+                    SniffTarget = "192.0.2.9", SniffTargetPort = 4000,
+                },
+                new FirewallMangle
+                {
+                    Chain = "prerouting", Action = FirewallMangle.ActionType.Route, Disabled = true, Comment = comment,
+                    RouteDst = "192.0.2.1",
+                },
+                new FirewallMangle
+                {
+                    Chain = "prerouting", Action = FirewallMangle.ActionType.ChangeTtl, Disabled = true, Comment = comment,
+                    NewTtl = "increment:1",
+                },
+            };
+            try
+            {
+                foreach (var rule in rules)
+                    SaveTracked(rule);
+                string on = " on " + ResolveConnectionType();
+                foreach (var rule in rules)
+                    Assert.AreEqual(rule.Action, Connection.LoadById<FirewallMangle>(rule.Id).Action, "action" + on);
+
+                var mark = Connection.LoadById<FirewallMangle>(rules[0].Id);
+                Assert.AreEqual(rules[0].NewConnectionMark, mark.NewConnectionMark, "new-connection-mark" + on);
+                Assert.AreEqual(rules[0].ConnectionNatState, mark.ConnectionNatState, "connection-nat-state" + on);
+                Assert.AreEqual(rules[0].Realm, mark.Realm, "realm" + on);
+                Assert.AreEqual(rules[0].DstPort, mark.DstPort, "dst-port" + on);
+                Assert.AreEqual(rules[0].InInterfaceList, mark.InInterfaceList, "in-interface-list" + on);
+
+                var mss = Connection.LoadById<FirewallMangle>(rules[1].Id);
+                Assert.AreEqual(rules[1].NewMss, mss.NewMss, "new-mss" + on);
+                Assert.AreEqual(rules[1].TcpFlags, mss.TcpFlags, "tcp-flags" + on);
+
+                Assert.AreEqual(rules[2].NewDscp, Connection.LoadById<FirewallMangle>(rules[2].Id).NewDscp, "new-dscp" + on);
+
+                var sniff = Connection.LoadById<FirewallMangle>(rules[3].Id);
+                Assert.AreEqual(rules[3].SniffTarget, sniff.SniffTarget, "sniff-target" + on);
+                Assert.AreEqual(rules[3].SniffTargetPort, sniff.SniffTargetPort, "sniff-target-port" + on);
+
+                Assert.AreEqual(rules[4].RouteDst, Connection.LoadById<FirewallMangle>(rules[4].Id).RouteDst, "route-dst" + on);
+                Assert.AreEqual(rules[5].NewTtl, Connection.LoadById<FirewallMangle>(rules[5].Id).NewTtl, "new-ttl" + on);
+            }
+            finally
+            {
+                RemoveByComment("/ip/firewall/mangle", comment);
+            }
+        }
+
+        private void RemoveByComment(string menu, string comment)
+        {
+            var rows = Connection.CreateCommandAndParameters(menu + "/print",
+                TikCommandParameterFormat.Filter, "comment", comment).ExecuteList();
+            foreach (var r in rows)
+                Connection.CreateCommandAndParameters(menu + "/remove",
+                    ".id", r.GetResponseField(".id")).ExecuteNonQuery();
+        }
+
         private void RemoveNatByComment(string comment)
         {
             var rows = Connection.CreateCommandAndParameters("/ip/firewall/nat/print",

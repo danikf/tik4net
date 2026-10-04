@@ -1,6 +1,6 @@
 namespace tik4net.Objects.Ip.Firewall
 {
-    // The members of the firewall's multi-value matchers, shared by the filter and raw rules. The words are the router's
+    // The members of the firewall's multi-value matchers, shared by the filter, raw and mangle rules. The words are the router's
     // own (roteros.jg, 7.24.5); a word a later RouterOS adds reads as a word item of the list, not as a failure.
 
     /// <summary>A member of <c>connection-state</c> — the connection tracking state a packet is in.</summary>
@@ -16,6 +16,15 @@ namespace tik4net.Objects.Ip.Firewall
         [TikEnum("new")] New,
         /// <summary>A packet the raw table marked <c>notrack</c>.</summary>
         [TikEnum("untracked")] Untracked,
+    }
+
+    /// <summary>A member of mangle's <c>connection-nat-state</c> — the NAT applied to a packet's connection.</summary>
+    public enum FirewallConnectionNatState
+    {
+        /// <summary>The connection is source-NATed.</summary>
+        [TikEnum("srcnat")] Srcnat,
+        /// <summary>The connection is destination-NATed.</summary>
+        [TikEnum("dstnat")] Dstnat,
     }
 
     /// <summary>A member of <c>src-address-type</c> / <c>dst-address-type</c>.</summary>
