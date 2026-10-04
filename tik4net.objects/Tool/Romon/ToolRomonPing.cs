@@ -20,47 +20,47 @@ namespace tik4net.Objects.Tool.Romon
     {
         /// <summary>seq — sequence number of the echo. WinBox: "Seq #".</summary>
         [TikProperty("seq", IsReadOnly = true)]
-        public TikValue<long?> SequenceNo { get; private set; }
+        public TikField<long?> SequenceNo { get; private set; }
 
         /// <summary>host — the RoMON id that answered (or was asked, on a timeout).</summary>
         [TikProperty("host", IsReadOnly = true)]
-        public TikValue<string?> Host { get; private set; }
+        public TikField<string?> Host { get; private set; }
 
         /// <summary>time — the round-trip time; <c>null</c> when the echo timed out.</summary>
         [TikProperty("time", IsReadOnly = true)]
-        public TikValue<TikDuration?> Time { get; private set; }
+        public TikField<TikDuration?> Time { get; private set; }
 
         /// <summary>size — packet size in bytes. WinBox: "Reply Size".</summary>
         [TikProperty("size", IsReadOnly = true)]
-        public TikValue<long?> Size { get; private set; }
+        public TikField<long?> Size { get; private set; }
 
         /// <summary>status — empty on a reply, <c>timeout</c> when none came back.</summary>
         [TikProperty("status", IsReadOnly = true)]
-        public TikValue<string?> Status { get; private set; }
+        public TikField<string?> Status { get; private set; }
 
         /// <summary>sent — echoes sent so far.</summary>
         [TikProperty("sent", IsReadOnly = true)]
-        public TikValue<string?> Sent { get; private set; }
+        public TikField<string?> Sent { get; private set; }
 
         /// <summary>received — replies received so far.</summary>
         [TikProperty("received", IsReadOnly = true)]
-        public TikValue<string?> Received { get; private set; }
+        public TikField<string?> Received { get; private set; }
 
         /// <summary>packet-loss — loss so far, in percent.</summary>
         [TikProperty("packet-loss", IsReadOnly = true)]
-        public TikValue<string?> PacketLoss { get; private set; }
+        public TikField<string?> PacketLoss { get; private set; }
 
         /// <summary>min-rtt — shortest round trip so far. WinBox: "Min".</summary>
         [TikProperty("min-rtt", IsReadOnly = true)]
-        public TikValue<TikDuration?> MinRtt { get; private set; }
+        public TikField<TikDuration?> MinRtt { get; private set; }
 
         /// <summary>avg-rtt — average round trip so far. WinBox: "Avg".</summary>
         [TikProperty("avg-rtt", IsReadOnly = true)]
-        public TikValue<TikDuration?> AvgRtt { get; private set; }
+        public TikField<TikDuration?> AvgRtt { get; private set; }
 
         /// <summary>max-rtt — longest round trip so far. WinBox: "Max".</summary>
         [TikProperty("max-rtt", IsReadOnly = true)]
-        public TikValue<TikDuration?> MaxRtt { get; private set; }
+        public TikField<TikDuration?> MaxRtt { get; private set; }
 
         /// <summary>Human-readable identity: host and round trip, or the status when there was no reply.</summary>
         public override string ToString()

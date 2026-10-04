@@ -31,6 +31,6 @@ namespace tik4net.Objects.Ip
         /// </summary>
         /// <seealso cref="StoreLeasesDiskType"/>
         [TikProperty("store-leases-disk", WinboxLabel = "Store Leases On Disk")]
-        public TikValue<string?> StoreLeasesDisk { get; set; }
+        public TikField<string?> StoreLeasesDisk { get; set; }
     }
 }

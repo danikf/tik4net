@@ -42,7 +42,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         // ── Radio band and frequency ──────────────────────────────────────────
 
@@ -53,7 +53,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Band"
         /// </summary>
         [TikProperty("band", DefaultValue = "", WinboxLabel = "Band")]
-        public TikValue<string?> Band { get; set; }
+        public TikField<string?> Band { get; set; }
 
         /// <summary>
         /// frequency — comma-separated list of channel centre frequencies in MHz to be considered
@@ -63,7 +63,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Frequency"
         /// </summary>
         [TikProperty("frequency", DefaultValue = "", WinboxLabel = "Frequency")]
-        public TikValue<string?> Frequency { get; set; }
+        public TikField<string?> Frequency { get; set; }
 
         /// <summary>
         /// secondary-frequency — for split-channel (80+80 MHz or 320 MHz) configurations,
@@ -72,7 +72,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Secondary Frequency"
         /// </summary>
         [TikProperty("secondary-frequency", DefaultValue = "", WinboxLabel = "Secondary Frequency")]
-        public TikValue<string?> SecondaryFrequency { get; set; }
+        public TikField<string?> SecondaryFrequency { get; set; }
 
         /// <summary>
         /// width — channel width.
@@ -82,7 +82,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Width"
         /// </summary>
         [TikProperty("width", DefaultValue = "")]
-        public TikValue<string?> Width { get; set; }
+        public TikField<string?> Width { get; set; }
 
         // ── DFS / channel selection ───────────────────────────────────────────
 
@@ -94,7 +94,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Skip DFS Channels"
         /// </summary>
         [TikProperty("skip-dfs-channels", DefaultValue = "disabled", WinboxLabel = "Skip DFS Channels")]
-        public TikValue<SkipDfsChannelsMode?> SkipDfsChannels { get; set; }
+        public TikField<SkipDfsChannelsMode?> SkipDfsChannels { get; set; }
 
         /// <summary>
         /// deprioritize-unii-3-4 — when true, channels with control frequencies of 5720 or
@@ -105,7 +105,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Deprioritize UNII 3/4"
         /// </summary>
         [TikProperty("deprioritize-unii-3-4", DefaultValue = "no", WinboxLabel = "Deprioritize UNII-3-4")]
-        public TikValue<bool?> DeprioritizeUnii34 { get; set; }
+        public TikField<bool?> DeprioritizeUnii34 { get; set; }
 
         /// <summary>
         /// preamble-puncturing — enables 802.11be preamble puncturing, which allows the AP to
@@ -114,7 +114,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Preamble Puncturing"
         /// </summary>
         [TikProperty("preamble-puncturing", DefaultValue = "no", WinboxLabel = "Preamble Puncturing")]
-        public TikValue<bool?> PreamblePuncturing { get; set; }
+        public TikField<bool?> PreamblePuncturing { get; set; }
 
         // ── Periodic channel rescanning ───────────────────────────────────────
 
@@ -125,7 +125,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Reselect Interval"
         /// </summary>
         [TikProperty("reselect-interval", DefaultValue = "disabled", WinboxLabel = "Reselect Interval")]
-        public TikValue<TikDuration?> ReselectInterval { get; set; }
+        public TikField<TikDuration?> ReselectInterval { get; set; }
 
         /// <summary>
         /// reselect-time — wall-clock time at which a periodic channel rescan is triggered.
@@ -134,7 +134,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Reselect Time"
         /// </summary>
         [TikProperty("reselect-time", DefaultValue = "disabled", WinboxLabel = "Reselect Time")]
-        public TikValue<string?> ReselectTime { get; set; }
+        public TikField<string?> ReselectTime { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -144,14 +144,14 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

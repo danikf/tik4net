@@ -1,9 +1,9 @@
-// TolerantEnumReadTests.cs — on a plain (non-TikValue) enum property, a word the enum does not know reads as its
+// TolerantEnumReadTests.cs — on a plain (non-TikField) enum property, a word the enum does not know reads as its
 // [TikEnumUnknown] member, and the word is kept; writing stays strict.
 //
 // It used to fail the read of the WHOLE menu (TikEnumMetadata.Parse → FormatException): one firewall rule with
 // an action a newer RouterOS added, and LoadAll<FirewallFilter> read nothing at all. The built-in entities are
-// TikValue<T?> since 5.0 — an unknown word reads Unparsed there (TikValueSurfaceTests) — so these tests keep the
+// TikField<T?> since 5.0 — an unknown word reads Unparsed there (TikFieldSurfaceTests) — so these tests keep the
 // mechanism covered for a caller's own entity with plain properties.
 
 #nullable enable
@@ -165,13 +165,13 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void NoEnumABuiltInEntityMaps_HasAnUnknownMember()
         {
-            // A TikValue<T?> property reads an unknown word as Unparsed and never produces the member; one left in an
+            // A TikField<T?> property reads an unknown word as Unparsed and never produces the member; one left in an
             // enum would be a value a caller can assign and the save refuses.
             var enums = typeof(TikEntityAttribute).Assembly.GetTypes()
                 .Where(t => t.GetCustomAttribute<TikEntityAttribute>() != null)
                 .SelectMany(t => t.GetProperties())
                 .Where(p => p.GetCustomAttribute<TikPropertyAttribute>() != null)
-                .Select(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(TikValue<>)
+                .Select(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(TikField<>)
                     ? p.PropertyType.GetGenericArguments()[0] : p.PropertyType)
                 .Select(t => Nullable.GetUnderlyingType(t) ?? t)
                 .Where(t => t.IsEnum).Distinct().ToList();

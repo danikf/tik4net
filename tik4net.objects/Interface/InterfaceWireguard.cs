@@ -21,19 +21,19 @@ namespace tik4net.Objects.Interface
         /// Name of the wireguard interface
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// comment: Short description of the Peer.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// disabled: Whether peer will be used.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// mtu: Layer3 Maximum transmission unit
@@ -41,18 +41,18 @@ namespace tik4net.Objects.Interface
         /// integer [0..65536]
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1420", WinboxLabel = "MTU")]
-        public TikValue<int?> /*integer [0..65536]*/ Mtu { get; set; }
+        public TikField<int?> /*integer [0..65536]*/ Mtu { get; set; }
 
         /// <summary>
         /// The private key associated with the local device
         /// </summary>
         [TikProperty("private-key", IsSensitive = true, WinboxLabel = "Private Key")]
-        public TikValue<string?> PrivateKey { get; set; }
+        public TikField<string?> PrivateKey { get; set; }
 
         /// <summary>
         /// Interface listen port
         /// </summary>
         [TikProperty("listen-port", DefaultValue = "13231", WinboxLabel = "Listen Port")]
-        public TikValue<int?> ListenPort { get; set; }
+        public TikField<int?> ListenPort { get; set; }
     }
 }

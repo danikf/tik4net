@@ -26,61 +26,61 @@ namespace tik4net.Objects.Tool
         /// Sequence number
         /// </summary>
         [TikProperty("seq", IsReadOnly = true)]
-        public TikValue<long?> SequenceNo { get; private set; }
+        public TikField<long?> SequenceNo { get; private set; }
 
         /// <summary>
         /// Pinged host.
         /// </summary>
         [TikProperty("host", IsReadOnly = true)]
-        public TikValue<string?> Host { get; private set; }
+        public TikField<string?> Host { get; private set; }
 
         /// <summary>
         /// Time to live parameter adjustment
         /// </summary>
         [TikProperty("ttl", IsReadOnly = true)]
-        public TikValue<string?> TimeToLife { get; private set; }
+        public TikField<string?> TimeToLife { get; private set; }
 
         /// <summary>
         /// The ping time.
         /// </summary>
         [TikProperty("time", IsReadOnly = true)]
-        public TikValue<TikDuration?> Time { get; private set; }
+        public TikField<TikDuration?> Time { get; private set; }
 
         /// <summary>
         /// sent
         /// </summary>
         [TikProperty("sent", IsReadOnly = true)]
-        public TikValue<string?> Sent { get; private set; }
+        public TikField<string?> Sent { get; private set; }
 
         /// <summary>
         /// received
         /// </summary>
         [TikProperty("received", IsReadOnly = true)]
-        public TikValue<string?> Received { get; private set; }
+        public TikField<string?> Received { get; private set; }
 
         /// <summary>
         /// packet-loss
         /// </summary>
         [TikProperty("packet-loss", IsReadOnly = true)]
-        public TikValue<string?> PacketLoss { get; private set; }
+        public TikField<string?> PacketLoss { get; private set; }
 
         /// <summary>
         /// min-rtt
         /// </summary>
         [TikProperty("min-rtt", IsReadOnly = true)]
-        public TikValue<string?> MinRtt { get; private set; }
+        public TikField<string?> MinRtt { get; private set; }
 
         /// <summary>
         /// avg-rtt
         /// </summary>
         [TikProperty("avg-rtt", IsReadOnly = true)]
-        public TikValue<string?> AvgRtt { get; private set; }
+        public TikField<string?> AvgRtt { get; private set; }
 
         /// <summary>
         /// max-rtt
         /// </summary>
         [TikProperty("max-rtt", IsReadOnly = true)]
-        public TikValue<string?> MaxRtt { get; private set; }
+        public TikField<string?> MaxRtt { get; private set; }
         //        <=seq=0
         //<=host=172.16.100.1
         //<=size=56

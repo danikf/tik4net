@@ -138,8 +138,8 @@ namespace tik4net.unittests.Cli
         private sealed class Box
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string? Id { get; private set; }
-            [TikProperty("comment")] public TikValue<string?> Comment { get; set; }
-            [TikProperty("name")] public TikValue<string?> Name { get; set; }
+            [TikProperty("comment")] public TikField<string?> Comment { get; set; }
+            [TikProperty("name")] public TikField<string?> Name { get; set; }
         }
 
         [TestMethod]
@@ -152,7 +152,7 @@ namespace tik4net.unittests.Cli
                 var rows = conn.LoadAll<Box>().ToList();
 
                 Assert.AreEqual("a; b", rows[0].Comment.Value);
-                Assert.AreEqual(TikValueState.Absent, rows[1].Comment.State);
+                Assert.AreEqual(TikFieldState.Absent, rows[1].Comment.State);
                 Assert.AreEqual(2, conn.Sent.Count, "the probe, then the read: " + string.Join(" | ", conn.Sent));
                 Assert.AreEqual(CliCommandBuilder.BuildDsvProbe(Sep), conn.Sent[0]);
                 StringAssert.Contains(conn.Sent[1], ":serialize to=dsv delimiter=\"~^~\" options=dsv.remap ({$r})");

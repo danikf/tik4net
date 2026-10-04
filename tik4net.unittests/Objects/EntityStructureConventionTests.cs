@@ -308,7 +308,7 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void EveryMappedPropertyExceptTheIdIsATikValue()
+        public void EveryMappedPropertyExceptTheIdIsATikField()
         {
             // 5.0 entity value model: a field says whether the router printed it (Absent / Present / Unparsed). A
             // plain property cannot — a missing field reads as its default, an unknown word needs a fake enum member
@@ -318,11 +318,11 @@ namespace tik4net.unittests.Objects
             foreach (var x in Properties().Where(x => x.Attribute.FieldName != TikSpecialProperties.Id))
             {
                 var type = x.Property.PropertyType;
-                if (!type.IsGenericType || type.GetGenericTypeDefinition() != typeof(TikValue<>))
+                if (!type.IsGenericType || type.GetGenericTypeDefinition() != typeof(TikField<>))
                     offenders.Add($"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') is {type.Name}");
             }
 
-            AssertNoOffenders(offenders, "mapped properties that are not TikValue<T?>");
+            AssertNoOffenders(offenders, "mapped properties that are not TikField<T?>");
         }
 
         [TestMethod]
@@ -342,11 +342,11 @@ namespace tik4net.unittests.Objects
 
                 foreach (var x in Properties().Where(x => x.Entity == entity && x.Attribute.FieldName != TikSpecialProperties.Id))
                 {
-                    var stateProperty = x.Property.PropertyType.GetProperty(nameof(TikValue<int?>.State));
+                    var stateProperty = x.Property.PropertyType.GetProperty(nameof(TikField<int?>.State));
                     if (stateProperty == null)
-                        continue;   // not a TikValue - EveryMappedPropertyExceptTheIdIsATikValue reports it
-                    var state = (TikValueState)stateProperty.GetValue(x.Property.GetValue(fresh))!;
-                    if (state != TikValueState.Absent)
+                        continue;   // not a TikField - EveryMappedPropertyExceptTheIdIsATikField reports it
+                    var state = (TikFieldState)stateProperty.GetValue(x.Property.GetValue(fresh))!;
+                    if (state != TikFieldState.Absent)
                         offenders.Add($"{entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') starts {state}");
                 }
             }

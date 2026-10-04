@@ -5,4 +5,4 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
-TIK001 | Usage | Warning | TikValueObjectEqualityAnalyzer
+TIK001 | Usage | Warning | TikFieldObjectEqualityAnalyzer

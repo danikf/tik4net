@@ -21,60 +21,60 @@ namespace tik4net.Objects.Ip
         /// Row actual-interface property.
         /// </summary>
         [TikProperty("actual-interface", IsReadOnly = true)]
-        public TikValue<string?> ActualInterface { get; private set; }
+        public TikField<string?> ActualInterface { get; private set; }
 
         /// <summary>
         /// address: IP address
         /// </summary>
         [TikProperty("address", WinboxLabel = "Address")]
-        public TikValue<string?> Address { get; set; }
+        public TikField<string?> Address { get; set; }
 
         /// <summary>
         /// interface: Interface name the IP address is assigned to
         /// </summary>
         [TikProperty("interface", WinboxLabel = "Interface")]
-        public TikValue<string?> Interface { get; set; }
+        public TikField<string?> Interface { get; set; }
 
         /// <summary>
         /// broadcast: Broadcasting IP address, calculated by default from an IP address and a network mask. Starting from v5RC6 this parameter is removed
         /// </summary>
         [TikProperty("broadcast", DefaultValue = "255.255.255.255")]
-        public TikValue<string?> Broadcast { get; set; }
+        public TikField<string?> Broadcast { get; set; }
 
         /// <summary>
         /// network: IP address for the network. For point-to-point links it should be the address of the remote end. Starting from v5RC6 this parameter is configurable only for addresses with /32 netmask (point to point links)
         /// </summary>
         [TikProperty("network" , WinboxLabel = "Network")]
-        public TikValue<string?> Network { get; set; }
+        public TikField<string?> Network { get; set; }
 
         /// <summary>
         /// netmask: Delimits network address part of the IP address from the host part
         /// </summary>
         [TikProperty("netmask")]
-        public TikValue<string?> Netmask { get; set; }
+        public TikField<string?> Netmask { get; set; }
 
         /// <summary>
         /// Row comment property.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// Row disabled property.
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// Row dynamic property.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; set; }
+        public TikField<bool?> Dynamic { get; set; }
 
         /// <summary>
         /// Row invalid property.
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public TikValue<bool?> Invalid { get; set; }
+        public TikField<bool?> Invalid { get; set; }
     }
 }

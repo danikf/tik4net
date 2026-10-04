@@ -1,5 +1,5 @@
 #nullable enable
-// TikValueMergeTests.cs — CreateMerge / SaveListDifferences over TikValue<T> fields (design review H3). The merge
+// TikFieldMergeTests.cs — CreateMerge / SaveListDifferences over TikField<T> fields (design review H3). The merge
 // compared fields through Convert.ToString, which renders Absent, Present("") and Present(null) alike.
 
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ using tik4net.Testing;
 namespace tik4net.unittests.Objects
 {
     [TestClass]
-    public class TikValueMergeTests
+    public class TikFieldMergeTests
     {
         private static TikFakeConnection Router(params Dictionary<string, string>[] rows)
             => new TikFakeConnection()
@@ -24,8 +24,8 @@ namespace tik4net.unittests.Objects
         {
             // The router holds name=x with comment="" (an empty list-like field); the expected row has no comment at all.
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["comment"] = "" });
-            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
-            var expected = new List<TikValueMapperTests.Box> { new TikValueMapperTests.Box { Name = "x" } };
+            var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
+            var expected = new List<TikFieldMapperTests.Box> { new TikFieldMapperTests.Box { Name = "x" } };
 
             connection.CreateMerge(expected, original)
                 .WithKey(b => b.Name.ToString())
@@ -40,9 +40,9 @@ namespace tik4net.unittests.Objects
         public void AnAbsentExpectedValue_UnsetsTheField_ByDefault()
         {
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["comment"] = "keep" });
-            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+            var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
 
-            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x" } }, original)
+            connection.CreateMerge(new[] { new TikFieldMapperTests.Box { Name = "x" } }, original)
                 .WithKey(b => b.Name.ToString())
                 .Field(b => b.Comment)
                 .Save();
@@ -55,10 +55,10 @@ namespace tik4net.unittests.Objects
         public void AFieldMerge_IfAbsent_KeepsTheCurrentValue_AndTheRowIsUnchanged()
         {
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["comment"] = "keep" });
-            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
-            var logged = new List<TikListMerge<TikValueMapperTests.Box>.MergeOperation>();
+            var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
+            var logged = new List<TikListMerge<TikFieldMapperTests.Box>.MergeOperation>();
 
-            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x" } }, original)
+            connection.CreateMerge(new[] { new TikFieldMapperTests.Box { Name = "x" } }, original)
                 .WithKey(b => b.Name.ToString())
                 .Field(b => b.Comment, (expected, current) => expected.IfAbsent(current))
                 .WithDmlLogCallback((op, oldE, newE) => logged.Add(op))
@@ -72,9 +72,9 @@ namespace tik4net.unittests.Objects
         public void AFieldMerge_StillTakesAPresentExpectedValue()
         {
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["comment"] = "old" });
-            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+            var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
 
-            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x", Comment = "new" } }, original)
+            connection.CreateMerge(new[] { new TikFieldMapperTests.Box { Name = "x", Comment = "new" } }, original)
                 .WithKey(b => b.Name.ToString())
                 .Field(b => b.Comment, (expected, current) => expected.IfAbsent(current))
                 .Save();
@@ -88,9 +88,9 @@ namespace tik4net.unittests.Objects
             // An expected row built in code (SrcAddress = upload ? ip : null) against a router row without the field:
             // both have no value, as for == null. Found by the shaper scenario, where every row read as changed.
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x" });
-            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+            var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
 
-            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x", Comment = null } }, original)
+            connection.CreateMerge(new[] { new TikFieldMapperTests.Box { Name = "x", Comment = null } }, original)
                 .WithKey(b => b.Name.ToString())
                 .Field(b => b.Comment)
                 .Simulate(out _, out int updates, out _, out _);
@@ -104,8 +104,8 @@ namespace tik4net.unittests.Objects
             // Mangle passthrough on a jump rule: the row was added with the field, the router does not print it there,
             // and writing it again changes nothing - so a plain Field would update the row on every run.
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x" });
-            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
-            var expected = new[] { new TikValueMapperTests.Box { Name = "x", Port = 80 } };
+            var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
+            var expected = new[] { new TikFieldMapperTests.Box { Name = "x", Port = 80 } };
 
             connection.CreateMerge(expected, original)
                 .WithKey(b => b.Name.ToString())
@@ -124,9 +124,9 @@ namespace tik4net.unittests.Objects
         public void IfPrintedIn_StillUpdatesAFieldTheRouterPrints()
         {
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["port"] = "8080" });
-            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+            var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
 
-            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x", Port = 80 } }, original)
+            connection.CreateMerge(new[] { new TikFieldMapperTests.Box { Name = "x", Port = 80 } }, original)
                 .WithKey(b => b.Name.ToString())
                 .Field(b => b.Port, (wanted, current) => wanted.IfPrintedIn(current))
                 .Save();
@@ -138,10 +138,10 @@ namespace tik4net.unittests.Objects
         public void EqualValues_SendNothing()
         {
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["mode"] = "false" });
-            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
-            var expected = new List<TikValueMapperTests.Box>
+            var original = connection.LoadAll<TikFieldMapperTests.Box>().ToList();
+            var expected = new List<TikFieldMapperTests.Box>
             {
-                new TikValueMapperTests.Box { Name = "x", Mode = TikValue<TikValueMapperTests.Mode?>.FromWire("false") },
+                new TikFieldMapperTests.Box { Name = "x", Mode = TikField<TikFieldMapperTests.Mode?>.FromWire("false") },
             };
 
             connection.CreateMerge(expected, original)

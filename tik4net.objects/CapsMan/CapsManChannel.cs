@@ -73,7 +73,7 @@ namespace tik4net.Objects.CapsMan
         /// name — unique name for this channel profile; referenced from /caps-man/configuration.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         // ── Frequency band ────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ namespace tik4net.Objects.CapsMan
         /// fixed router default (blank = hardware capability).
         /// </summary>
         [TikProperty("band", DefaultValue = "", WinboxLabel = "Band")]
-        public TikValue<string?> Band { get; set; }
+        public TikField<string?> Band { get; set; }
 
         // ── Frequency ─────────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ namespace tik4net.Objects.CapsMan
         /// Valid range: 0–4294967295 per field; left as string because comma-separated lists are valid.
         /// </summary>
         [TikProperty("frequency", DefaultValue = "", WinboxLabel = "Frequency")]
-        public TikValue<string?> Frequency { get; set; }
+        public TikField<string?> Frequency { get; set; }
 
         // ── Channel width ─────────────────────────────────────────────────────
 
@@ -106,7 +106,7 @@ namespace tik4net.Objects.CapsMan
         /// Left as string because there is no fixed router default (blank = hardware decides).
         /// </summary>
         [TikProperty("control-channel-width", DefaultValue = "", WinboxLabel = "Control Channel Width")]
-        public TikValue<string?> ControlChannelWidth { get; set; }
+        public TikField<string?> ControlChannelWidth { get; set; }
 
         // ── Extension channel ─────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="ExtensionChannelType"/>
         /// </summary>
         [TikProperty("extension-channel", DefaultValue = "disabled", WinboxLabel = "Extension Channel")]
-        public TikValue<ExtensionChannelType?> ExtensionChannel { get; set; }
+        public TikField<ExtensionChannelType?> ExtensionChannel { get; set; }
 
         // ── Transmit power ────────────────────────────────────────────────────
 
@@ -127,7 +127,7 @@ namespace tik4net.Objects.CapsMan
         /// DefaultValue="0" prevents sending 0 on add (0 is the CLR sentinel, not a valid override).
         /// </summary>
         [TikProperty("tx-power", DefaultValue = "0", WinboxLabel = "Tx Power")]
-        public TikValue<int?> TxPower { get; set; }
+        public TikField<int?> TxPower { get; set; }
 
         // ── Secondary frequency ───────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: disabled.
         /// </summary>
         [TikProperty("secondary-frequency", DefaultValue = "disabled", WinboxLabel = "Secondary Frequency")]
-        public TikValue<string?> SecondaryFrequency { get; set; }
+        public TikField<string?> SecondaryFrequency { get; set; }
 
         // ── Automatic channel re-selection ────────────────────────────────────
 
@@ -146,7 +146,7 @@ namespace tik4net.Objects.CapsMan
         /// (time value, e.g. "1h", "30m").  Empty = no automatic re-selection.
         /// </summary>
         [TikProperty("reselect-interval", DefaultValue = "", WinboxLabel = "Reselect Interval")]
-        public TikValue<TikDuration?> ReselectInterval { get; set; }
+        public TikField<TikDuration?> ReselectInterval { get; set; }
 
         /// <summary>
         /// save-selected — when true, persists the automatically-selected frequency across
@@ -155,7 +155,7 @@ namespace tik4net.Objects.CapsMan
         /// unnecessarily — the router applies its own default of yes.
         /// </summary>
         [TikProperty("save-selected", DefaultValue = "no", WinboxLabel = "Save Selected")]
-        public TikValue<bool?> SaveSelected { get; set; }
+        public TikField<bool?> SaveSelected { get; set; }
 
         // ── DFS ───────────────────────────────────────────────────────────────
 
@@ -165,7 +165,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (include DFS channels).
         /// </summary>
         [TikProperty("skip-dfs-channels", DefaultValue = "no", WinboxLabel = "Skip DFS Channels")]
-        public TikValue<bool?> SkipDfsChannels { get; set; }
+        public TikField<bool?> SkipDfsChannels { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -173,7 +173,7 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this channel profile.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

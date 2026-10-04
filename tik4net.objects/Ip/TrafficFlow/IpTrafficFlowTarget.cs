@@ -37,28 +37,28 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// from the router.
         /// </summary>
         [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
-        public TikValue<string?> DstAddress { get; set; }
+        public TikField<string?> DstAddress { get; set; }
 
         /// <summary>
         /// src-address — IP address used as the source when sending Traffic-Flow statistics.
         /// Default: 0.0.0.0 (router picks the outgoing interface address automatically).
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0", WinboxLabel = "Src. Address")]
-        public TikValue<string?> SrcAddress { get; set; }
+        public TikField<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// port — UDP port of the receiving host.
         /// Default: 2055
         /// </summary>
         [TikProperty("port", WinboxLabel = "Port")] // router default 2055; omitted on add when left 0
-        public TikValue<int?> Port { get; set; }
+        public TikField<int?> Port { get; set; }
 
         /// <summary>
         /// version — NetFlow/IPFIX format version to use when exporting records.
         /// <seealso cref="NetFlowVersion"/>
         /// </summary>
         [TikProperty("version", WinboxLabel = "Version")]
-        public TikValue<NetFlowVersion?> Version { get; set; }
+        public TikField<NetFlowVersion?> Version { get; set; }
 
         /// <summary>
         /// v9-template-refresh — number of packets after which the template record is
@@ -66,7 +66,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 20
         /// </summary>
         [TikProperty("v9-template-refresh", WinboxLabel = "v9/IPFIX Template Refresh")] // router default 20; omitted on add when left 0
-        public TikValue<int?> V9TemplateRefresh { get; set; }
+        public TikField<int?> V9TemplateRefresh { get; set; }
 
         /// <summary>
         /// v9-template-timeout — maximum time interval after which the template is sent even
@@ -74,14 +74,14 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 30m
         /// </summary>
         [TikProperty("v9-template-timeout", DefaultValue = "30m")]
-        public TikValue<TikDuration?> V9TemplateTimeout { get; set; }
+        public TikField<TikDuration?> V9TemplateTimeout { get; set; }
 
         /// <summary>
         /// disabled — whether this export target is administratively disabled.
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>Returns a human-readable description of this export target.</summary>
         public override string ToString() => string.Format("{0}:{1} (v{2})", DstAddress, Port, Version);

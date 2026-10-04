@@ -86,7 +86,7 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="CapsManAccessListAction"/>
         /// </summary>
         [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
-        public TikValue<CapsManAccessListAction?> Action { get; set; }
+        public TikField<CapsManAccessListAction?> Action { get; set; }
 
         // ── MAC matchers ──────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "MAC Address"
         /// </summary>
         [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; set; }
+        public TikField<string?> MacAddress { get; set; }
 
         /// <summary>
         /// mac-address-mask — bitmask applied to the client MAC before comparison
@@ -106,7 +106,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "MAC Address Mask"
         /// </summary>
         [TikProperty("mac-address-mask", DefaultValue = "FF:FF:FF:FF:FF:FF")]
-        public TikValue<string?> MacAddressMask { get; set; }
+        public TikField<string?> MacAddressMask { get; set; }
 
         // ── Interface / SSID matchers ─────────────────────────────────────────
 
@@ -116,7 +116,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Interface"
         /// </summary>
         [TikProperty("interface", DefaultValue = "", WinboxLabel = "Interface")]
-        public TikValue<string?> Interface { get; set; }
+        public TikField<string?> Interface { get; set; }
 
         /// <summary>
         /// ssid-regexp — regular expression matched against the SSID of the wireless
@@ -124,7 +124,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "SSID Regexp"
         /// </summary>
         [TikProperty("ssid-regexp", DefaultValue = "", WinboxLabel = "SSID Regexp")]
-        public TikValue<string?> SsidRegexp { get; set; }
+        public TikField<string?> SsidRegexp { get; set; }
 
         // ── Signal / time matchers ────────────────────────────────────────────
 
@@ -136,7 +136,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Signal Range"
         /// </summary>
         [TikProperty("signal-range", DefaultValue = "-120..120", WinboxLabel = "Signal Range")]
-        public TikValue<string?> SignalRange { get; set; }
+        public TikField<string?> SignalRange { get; set; }
 
         /// <summary>
         /// allow-signal-out-of-range — how long a connected client is tolerated when
@@ -146,7 +146,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Allow Signal Out Of Range"
         /// </summary>
         [TikProperty("allow-signal-out-of-range", DefaultValue = "always", WinboxLabel = "Allow Signal Out Of Range")]
-        public TikValue<TikDuration?> AllowSignalOutOfRange { get; set; }
+        public TikField<TikDuration?> AllowSignalOutOfRange { get; set; }
 
         /// <summary>
         /// time — time-of-day and days-of-week range during which the rule is active,
@@ -155,7 +155,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Time"
         /// </summary>
         [TikProperty("time", DefaultValue = "")]
-        public TikValue<string?> Time { get; set; }
+        public TikField<string?> Time { get; set; }
 
         // ── Per-client overrides ──────────────────────────────────────────────
 
@@ -168,7 +168,7 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="CapsManAccessListVlanMode"/>
         /// </summary>
         [TikProperty("vlan-mode", DefaultValue = "no-tag", WinboxLabel = "VLAN Mode")]
-        public TikValue<CapsManAccessListVlanMode?> VlanMode { get; set; }
+        public TikField<CapsManAccessListVlanMode?> VlanMode { get; set; }
 
         /// <summary>
         /// vlan-id — 802.1Q or 802.1ad VLAN ID (1–4095) assigned to matched clients.
@@ -179,7 +179,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "VLAN ID"
         /// </summary>
         [TikProperty("vlan-id", DefaultValue = "0", WinboxLabel = "VLAN ID")]
-        public TikValue<int?> VlanId { get; set; }
+        public TikField<int?> VlanId { get; set; }
 
         /// <summary>
         /// private-passphrase — per-client WPA PSK passphrase override.  When non-empty
@@ -188,7 +188,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Private Passphrase"
         /// </summary>
         [TikProperty("private-passphrase", DefaultValue = "", IsSensitive = true, WinboxLabel = "Private Passphrase")]
-        public TikValue<string?> PrivatePassphrase { get; set; }
+        public TikField<string?> PrivatePassphrase { get; set; }
 
         /// <summary>
         /// radius-accounting — whether to send RADIUS accounting messages for matched
@@ -197,7 +197,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "RADIUS Accounting"
         /// </summary>
         [TikProperty("radius-accounting", DefaultValue = "no", WinboxLabel = "RADIUS Accounting")]
-        public TikValue<bool?> RadiusAccounting { get; set; }
+        public TikField<bool?> RadiusAccounting { get; set; }
 
         /// <summary>
         /// client-to-client-forwarding — allow matched wireless clients to communicate
@@ -206,7 +206,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Client To Client Forwarding"
         /// </summary>
         [TikProperty("client-to-client-forwarding", DefaultValue = "no", WinboxLabel = "Client To Client Forwarding")]
-        public TikValue<bool?> ClientToClientForwarding { get; set; }
+        public TikField<bool?> ClientToClientForwarding { get; set; }
 
         /// <summary>
         /// ap-tx-limit — maximum TX data rate (bytes/s) from the AP toward matched clients.
@@ -215,7 +215,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "AP TX Limit"
         /// </summary>
         [TikProperty("ap-tx-limit", DefaultValue = "0", WinboxLabel = "AP Tx Limit")]
-        public TikValue<int?> ApTxLimit { get; set; }
+        public TikField<int?> ApTxLimit { get; set; }
 
         /// <summary>
         /// client-tx-limit — maximum TX data rate (bytes/s) from matched clients toward the AP.
@@ -225,7 +225,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Client TX Limit"
         /// </summary>
         [TikProperty("client-tx-limit", DefaultValue = "0", WinboxLabel = "Client Tx Limit")]
-        public TikValue<int?> ClientTxLimit { get; set; }
+        public TikField<int?> ClientTxLimit { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -235,14 +235,14 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description of this access-list rule.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity — action and comment.</summary>
         public override string ToString() =>

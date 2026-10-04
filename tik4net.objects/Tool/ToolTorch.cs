@@ -15,62 +15,62 @@ namespace tik4net.Objects.Tool
         /// src-address
         /// </summary>
         [TikProperty("src-address", IsReadOnly = true)]
-        public TikValue<string?> SrcAddress { get; private set; }
+        public TikField<string?> SrcAddress { get; private set; }
 
         /// <summary>
         /// dst-address
         /// </summary>
         [TikProperty("dst-address", IsReadOnly = true)]
-        public TikValue<string?> DstAddress { get; private set; }
+        public TikField<string?> DstAddress { get; private set; }
 
         /// <summary>
         /// ip-protocol
         /// </summary>
         [TikProperty("ip-protocol", IsReadOnly = true)]
-        public TikValue<string?> IpProtocol { get; private set; }
+        public TikField<string?> IpProtocol { get; private set; }
 
         /// <summary>
         /// src-port
         /// </summary>
         [TikProperty("src-port", IsReadOnly = true)]
-        public TikValue<string?> SrcPort { get; private set; }
+        public TikField<string?> SrcPort { get; private set; }
 
         /// <summary>
         /// dst-port
         /// </summary>
         [TikProperty("dst-port", IsReadOnly = true)]
-        public TikValue<string?> DstPort { get; private set; }
+        public TikField<string?> DstPort { get; private set; }
 
         /// <summary>
         /// tx: Transmit rate of this flow in the row's <see cref="SectionNr"/>, in bits per second.
         /// </summary>
         [TikProperty("tx", IsReadOnly = true)]
-        public TikValue<long?> Tx { get; private set; }
+        public TikField<long?> Tx { get; private set; }
 
         /// <summary>
         /// rx: Receive rate of this flow in the row's <see cref="SectionNr"/>, in bits per second.
         /// </summary>
         [TikProperty("rx", IsReadOnly = true)]
-        public TikValue<long?> Rx { get; private set; }
+        public TikField<long?> Rx { get; private set; }
 
         /// <summary>
         /// tx-packets: Transmit rate of this flow in the row's <see cref="SectionNr"/>, in packets per second.
         /// </summary>
         [TikProperty("tx-packets", IsReadOnly = true)]
-        public TikValue<long?> TxPackets { get; private set; }
+        public TikField<long?> TxPackets { get; private set; }
 
         /// <summary>
         /// rx-packets: Receive rate of this flow in the row's <see cref="SectionNr"/>, in packets per second.
         /// </summary>
         [TikProperty("rx-packets", IsReadOnly = true)]
-        public TikValue<long?> RxPackets { get; private set; }
+        public TikField<long?> RxPackets { get; private set; }
 
         /// <summary>
         /// .section – time-slice index assigned by RouterOS torch (one section ≈ one second).
         /// Present in every row including the aggregate total row (the one without src-address).
         /// </summary>
         [TikProperty(".section", IsReadOnly = true)]
-        public TikValue<long?> SectionNr { get; private set; }
+        public TikField<long?> SectionNr { get; private set; }
 
         private static string FormatAddress(string? ip, string? port)
         {

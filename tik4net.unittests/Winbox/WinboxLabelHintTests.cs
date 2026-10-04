@@ -66,10 +66,10 @@ namespace tik4net.unittests.Winbox
             public string? Id { get; private set; }
 
             [TikProperty("relay", WinboxLabel = "Upstream Sync")]
-            public TikValue<bool?> Relay { get; set; }
+            public TikField<bool?> Relay { get; set; }
 
             [TikProperty("name")]
-            public TikValue<string?> Name { get; set; }
+            public TikField<string?> Name { get; set; }
         }
 
         private static TikFakeConnection LoadAndAdd(TikConnectionCapability capabilities)

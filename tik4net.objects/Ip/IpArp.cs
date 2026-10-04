@@ -21,37 +21,37 @@ namespace tik4net.Objects.Ip
 		/// address: IP address to be mapped
 		/// </summary>
 		[TikProperty("address", WinboxLabel = "IP Address")]
-        public TikValue<string?> Address { get; set; }
+        public TikField<string?> Address { get; set; }
 
 		/// <summary>
 		/// interface: Interface name the IP address is assigned to
 		/// </summary>
         [TikProperty("interface", WinboxLabel = "Interface")]
-        public TikValue<string?> Interface { get; set; }
+        public TikField<string?> Interface { get; set; }
 
 		/// <summary>
 		/// mac-address: MAC address to be mapped to
 		/// </summary>
 		[TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; set; }
+        public TikField<string?> MacAddress { get; set; }
 
 		/// <summary>
 		/// dhcp: Whether ARP entry is added by DHCP server
 		/// </summary>
 		[TikProperty("dhcp", IsReadOnly = true, WinboxLabel = "DHCP")]
-        public TikValue<bool?> Dhcp { get; private set; }
+        public TikField<bool?> Dhcp { get; private set; }
 
 		/// <summary>
 		/// dynamic: Whether entry is dynamically created
 		/// </summary>
 		[TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
 		/// <summary>
 		/// invalid: Whether entry is not valid
 		/// </summary>
 		[TikProperty("invalid", IsReadOnly = true)]
-        public TikValue<bool?> Invalid { get; private set; }
+        public TikField<bool?> Invalid { get; private set; }
     }
 
 }

@@ -2,7 +2,7 @@
 //
 // A fence under a list item is indented, and one inside a blockquote starts with "> ". The finder matched column 0
 // only, so it skipped both kinds silently: ten blocks on the WinBox native page were never compiled, and one of them
-// used a TikValue<bool?> as a bool.
+// used a TikField<bool?> as a bool.
 
 using System;
 using System.IO;

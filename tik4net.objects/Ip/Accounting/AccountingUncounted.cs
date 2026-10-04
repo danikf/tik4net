@@ -21,12 +21,12 @@ namespace tik4net.Objects.Ip
         /// bytes: byte count
         /// </summary>
         [TikProperty("bytes", IsReadOnly = true)]
-        public TikValue<int?> Bytes { get; private set; }
+        public TikField<int?> Bytes { get; private set; }
 
         /// <summary>
         /// packets: packet count
         /// </summary>
         [TikProperty("packets", IsReadOnly = true)]
-        public TikValue<int?> Packets { get; private set; }
+        public TikField<int?> Packets { get; private set; }
     }
 }

@@ -20,23 +20,23 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>name — Tunnel interface name.</summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>mtu — Layer3 MTU. Can be "auto" or a specific integer. Default: auto.</summary>
         [TikProperty("mtu", DefaultValue = "auto", WinboxLabel = "MTU")]
-        public TikValue<string?> Mtu { get; set; }
+        public TikField<string?> Mtu { get; set; }
 
         /// <summary>actual-mtu — Effective MTU after overhead (read-only).</summary>
         [TikProperty("actual-mtu", IsReadOnly = true, WinboxLabel = "Actual MTU")]
-        public TikValue<string?> ActualMtu { get; private set; }
+        public TikField<string?> ActualMtu { get; private set; }
 
         /// <summary>l2mtu — Layer2 MTU (read-only, not configurable on EoIP).</summary>
         [TikProperty("l2mtu", IsReadOnly = true, WinboxLabel = "L2 MTU")]
-        public TikValue<string?> L2Mtu { get; private set; }
+        public TikField<string?> L2Mtu { get; private set; }
 
         /// <summary>mac-address — Virtual MAC address for the EoIP interface. Use range 00:00:5E:80:00:00–00:00:5E:FF:FF:FF.</summary>
         [TikProperty("mac-address", DefaultValue = "", WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; set; }
+        public TikField<string?> MacAddress { get; set; }
 
         /// <summary>arp — the Address Resolution Protocol setting for the EoIP interface.</summary>
         public enum ArpMode
@@ -57,11 +57,11 @@ namespace tik4net.Objects.Interface.Tunnel
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>
         /// <seealso cref="ArpMode"/>
         [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
-        public TikValue<ArpMode?> Arp { get; set; }
+        public TikField<ArpMode?> Arp { get; set; }
 
         /// <summary>arp-timeout — How long ARP entries are kept. Default: auto.</summary>
         [TikProperty("arp-timeout", DefaultValue = "auto", WinboxLabel = "ARP Timeout")]
-        public TikValue<TikDuration?> ArpTimeout { get; set; }
+        public TikField<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>loop-protect — the loop protection mode for the EoIP interface.</summary>
         public enum LoopProtectMode
@@ -77,67 +77,67 @@ namespace tik4net.Objects.Interface.Tunnel
         /// <summary>loop-protect — Loop protection mode. Default: default.</summary>
         /// <seealso cref="LoopProtectMode"/>
         [TikProperty("loop-protect", DefaultValue = "default", WinboxLabel = "Loop Protect")]
-        public TikValue<LoopProtectMode?> LoopProtect { get; set; }
+        public TikField<LoopProtectMode?> LoopProtect { get; set; }
 
         /// <summary>loop-protect-status — Current loop protection status (read-only).</summary>
         [TikProperty("loop-protect-status", IsReadOnly = true, WinboxLabel = "loop-protect: Status")]
-        public TikValue<string?> LoopProtectStatus { get; private set; }
+        public TikField<string?> LoopProtectStatus { get; private set; }
 
         /// <summary>loop-protect-send-interval — How often loop protection packets are sent. Default: 5s.</summary>
         [TikProperty("loop-protect-send-interval", DefaultValue = "5s", WinboxLabel = "loop-protect: Send Interval")]
-        public TikValue<TikDuration?> LoopProtectSendInterval { get; set; }
+        public TikField<TikDuration?> LoopProtectSendInterval { get; set; }
 
         /// <summary>loop-protect-disable-time — How long to disable interface when loop is detected. Default: 5m.</summary>
         [TikProperty("loop-protect-disable-time", DefaultValue = "5m", WinboxLabel = "loop-protect: Disable Time")]
-        public TikValue<TikDuration?> LoopProtectDisableTime { get; set; }
+        public TikField<TikDuration?> LoopProtectDisableTime { get; set; }
 
         /// <summary>local-address — Local tunnel endpoint IP address. 0.0.0.0 means use the outgoing interface address.</summary>
         [TikProperty("local-address", DefaultValue = "0.0.0.0", WinboxLabel = "Local Address")]
-        public TikValue<string?> LocalAddress { get; set; }
+        public TikField<string?> LocalAddress { get; set; }
 
         /// <summary>remote-address — Remote tunnel endpoint IP address. Required.</summary>
         [TikProperty("remote-address", WinboxLabel = "Remote Address")]
-        public TikValue<string?> RemoteAddress { get; set; }
+        public TikField<string?> RemoteAddress { get; set; }
 
         /// <summary>tunnel-id — Unique EoIP tunnel identifier (0–65535). Must match on both endpoints. Required.</summary>
         [TikProperty("tunnel-id", WinboxLabel = "Tunnel ID")]
-        public TikValue<int?> TunnelId { get; set; }
+        public TikField<int?> TunnelId { get; set; }
 
         /// <summary>keepalive — Tunnel keepalive interval and retry count (e.g. "10s,10"). Default: 10s,10.</summary>
         [TikProperty("keepalive", DefaultValue = "10s,10", WinboxLabel = "Keepalive")]
-        public TikValue<string?> Keepalive { get; set; }
+        public TikField<string?> Keepalive { get; set; }
 
         /// <summary>dscp — DSCP value for tunnel packets. "inherit" copies from encapsulated traffic, or 0–63.</summary>
         [TikProperty("dscp", DefaultValue = "inherit", WinboxLabel = "DSCP")]
-        public TikValue<string?> Dscp { get; set; }
+        public TikField<string?> Dscp { get; set; }
 
         /// <summary>dont-fragment — DF bit handling: "no" to fragment if needed; "inherit" copies from original packet.</summary>
         [TikProperty("dont-fragment", DefaultValue = "no", WinboxLabel = "Dont Fragment")]
-        public TikValue<string?> DontFragment { get; set; }
+        public TikField<string?> DontFragment { get; set; }
 
         /// <summary>clamp-tcp-mss — Adjust MSS for TCP SYN packets when they would exceed tunnel MTU. Default: yes.</summary>
         [TikProperty("clamp-tcp-mss", DefaultValue = "yes", WinboxLabel = "Clamp TCP MSS")]
-        public TikValue<bool?> ClampTcpMss { get; set; }
+        public TikField<bool?> ClampTcpMss { get; set; }
 
         /// <summary>allow-fast-path — Allow FastPath processing. Must be disabled when using IPsec. Default: yes.</summary>
         [TikProperty("allow-fast-path", DefaultValue = "yes", WinboxLabel = "Allow Fast Path")]
-        public TikValue<bool?> AllowFastPath { get; set; }
+        public TikField<bool?> AllowFastPath { get; set; }
 
         /// <summary>ipsec-secret — Pre-shared key for dynamic IPsec peer at the remote address.</summary>
         [TikProperty("ipsec-secret", DefaultValue = "", IsSensitive = true, WinboxLabel = "IPsec Secret")]
-        public TikValue<string?> IpsecSecret { get; set; }
+        public TikField<string?> IpsecSecret { get; set; }
 
         /// <summary>running — Whether the tunnel is running (read-only).</summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>disabled — Whether the interface is disabled.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — Short description of the tunnel.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

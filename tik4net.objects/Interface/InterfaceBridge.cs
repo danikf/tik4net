@@ -31,31 +31,31 @@ namespace tik4net.Objects.Interface
         /// name: Name of the bridge interface
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// comment: Short description of the bridge.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// disabled: Whether the bridge is disabled.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// admin-mac: Static MAC address of the bridge (takes effect if auto-mac=no)
         /// </summary>
         [TikProperty("admin-mac")]
-        public TikValue<string?> AdminMac { get; set; }
+        public TikField<string?> AdminMac { get; set; }
 
         /// <summary>
         /// ageing-time: How long a host's information will be kept in the bridge database. Router default: 5m.
         /// </summary>
         [TikProperty("ageing-time", DefaultValue = "5m", WinboxLabel = "Ageing Time")]
-        public TikValue<TikDuration?> AgeingTime { get; set; }
+        public TikField<TikDuration?> AgeingTime { get; set; }
 
         /// <summary>
         /// Address Resolution Protocol setting
@@ -103,58 +103,58 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="ArpMode"/>
         [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
-        public TikValue<ArpMode?> Arp { get; set; }
+        public TikField<ArpMode?> Arp { get; set; }
 
         /// <summary>
         /// arp-timeout: How long an ARP entry learned on the bridge is kept. Router default: <c>auto</c>, which
         /// reads back as <see cref="TikDuration.Token"/>.
         /// </summary>
         [TikProperty("arp-timeout", DefaultValue = "auto", WinboxLabel = "ARP Timeout")]
-        public TikValue<TikDuration?> ArpTimeout { get; set; }
+        public TikField<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>
         /// auto-mac: Automatically select the smallest MAC address of bridge ports as a bridge MAC address
         /// </summary>
         [TikProperty("auto-mac", DefaultValue = "yes")]
-        public TikValue<bool?> AutoMac { get; set; }
+        public TikField<bool?> AutoMac { get; set; }
 
         /// <summary>
         /// fast-forward: Speeds up forwarding between exactly two ports of the bridge by skipping bridge
         /// processing where no bridge feature needs it. Router default: yes.
         /// </summary>
         [TikProperty("fast-forward", DefaultValue = "yes", WinboxLabel = "Fast Forward")]
-        public TikValue<bool?> FastForward { get; set; }
+        public TikField<bool?> FastForward { get; set; }
 
         /// <summary>
         /// forward-delay: Time which is spent during the initialization phase of the bridge interface (i.e., after router startup or enabling the interface) in listening/learning state before the bridge will start functioning normally. Router default: 15s.
         /// </summary>
         [TikProperty("forward-delay", DefaultValue = "15s", WinboxLabel = "Forward Delay")]
-        public TikValue<TikDuration?> ForwardDelay { get; set; }
+        public TikField<TikDuration?> ForwardDelay { get; set; }
 
         /// <summary>
         /// forward-reserved-addresses: Reserved multicast destination MAC addresses (01:80:C2:00:00:0x) the bridge
         /// forwards instead of consuming.
         /// </summary>
         [TikProperty("forward-reserved-addresses")]
-        public TikValue<string?> ForwardReservedAddresses { get; set; }
+        public TikField<string?> ForwardReservedAddresses { get; set; }
 
         /// <summary>
         /// max-learned-entries: Maximum number of host entries the bridge learns. Router default: <c>auto</c>.
         /// </summary>
         [TikProperty("max-learned-entries", DefaultValue = "auto", WinboxLabel = "Max Learned Entries")]
-        public TikValue<string?> MaxLearnedEntries { get; set; }
+        public TikField<string?> MaxLearnedEntries { get; set; }
 
         /// <summary>
         /// max-message-age: How long to remember Hello messages received from other bridges. Router default: 20s.
         /// </summary>
         [TikProperty("max-message-age", DefaultValue = "20s", WinboxLabel = "Max Message Age")]
-        public TikValue<TikDuration?> MaxMessageAge { get; set; }
+        public TikField<TikDuration?> MaxMessageAge { get; set; }
 
         /// <summary>
         /// mtu: Maximum Transmission Unit. Router default: <c>auto</c> (see <see cref="ActualMtu"/>).
         /// </summary>
         [TikProperty("mtu", DefaultValue = "auto", WinboxLabel = "MTU")]
-        public TikValue<string?> Mtu { get; set; }
+        public TikField<string?> Mtu { get; set; }
 
         /// <summary>
         /// priority
@@ -163,7 +163,7 @@ namespace tik4net.Objects.Interface
         /// <see cref="TikHexNumber"/>, which is written back in hex. Router default: <c>0x8000</c>.
         /// </summary>
         [TikProperty("priority", DefaultValue = "0x8000", WinboxLabel = "Priority")]
-        public TikValue<TikHexNumber?> Priority { get; set; }
+        public TikField<TikHexNumber?> Priority { get; set; }
 
         /// <summary>
         /// protocol-mode: Select Spanning tree protocol (STP), Rapid spanning tree protocol (RSTP) or Multiple spanning tree protocol (MSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change; MSTP runs one tree per group of VLANs.
@@ -199,7 +199,7 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="ProtocolModeModes"/>
         [TikProperty("protocol-mode", DefaultValue = "rstp", WinboxLabel = "Protocol Mode")]
-        public TikValue<ProtocolModeModes?> ProtocolMode { get; set; }
+        public TikField<ProtocolModeModes?> ProtocolMode { get; set; }
 
         /// <summary>
         /// Path cost calculation for the bridge ports.
@@ -221,32 +221,32 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="PortCostModeType"/>
         [TikProperty("port-cost-mode", DefaultValue = "long", WinboxLabel = "Port Cost Mode")]
-        public TikValue<PortCostModeType?> PortCostMode { get; set; }
+        public TikField<PortCostModeType?> PortCostMode { get; set; }
 
         /// <summary>
         /// transmit-hold-count: The Transmit Hold Count used by the Port Transmit state machine to limit transmission rate. Router default: 6.
         /// </summary>
         [TikProperty("transmit-hold-count", DefaultValue = "6", WinboxLabel = "Transmit Hold Count")]
-        public TikValue<int?> TransmitHoldCount { get; set; }
+        public TikField<int?> TransmitHoldCount { get; set; }
 
         /// <summary>
         /// max-hops: MSTP — how many bridges a BPDU travels within a region before it is discarded. Router default: 20.
         /// </summary>
         [TikProperty("max-hops", DefaultValue = "20", WinboxLabel = "Max Hops")]
-        public TikValue<int?> MaxHops { get; set; }
+        public TikField<int?> MaxHops { get; set; }
 
         /// <summary>
         /// region-name: MSTP region name; bridges in one region must agree on it, on
         /// <see cref="RegionRevision"/> and on the VLAN-to-instance mapping.
         /// </summary>
         [TikProperty("region-name", WinboxLabel = "Region Name")]
-        public TikValue<string?> RegionName { get; set; }
+        public TikField<string?> RegionName { get; set; }
 
         /// <summary>
         /// region-revision: MSTP region revision. Router default: 0.
         /// </summary>
         [TikProperty("region-revision", DefaultValue = "0")]
-        public TikValue<int?> RegionRevision { get; set; }
+        public TikField<int?> RegionRevision { get; set; }
 
         /// <summary>
         /// vlan-filtering: Whether the bridge filters traffic by VLAN (the <c>/interface/bridge/vlan</c> table and
@@ -255,7 +255,7 @@ namespace tik4net.Objects.Interface
         /// default (<c>no</c>).
         /// </summary>
         [TikProperty("vlan-filtering", DefaultValue = "no", WinboxLabel = "VLAN Filtering")]
-        public TikValue<bool?> VlanFiltering { get; set; }
+        public TikField<bool?> VlanFiltering { get; set; }
 
         /// <summary>
         /// The EtherType a VLAN-filtering bridge treats as the VLAN tag. The words are RouterOS's own and fixed: the
@@ -282,7 +282,7 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="EtherTypeMode"/>
         [TikProperty("ether-type", DefaultValue = "0x8100", WinboxLabel = "EtherType")]
-        public TikValue<EtherTypeMode?> EtherType { get; set; }
+        public TikField<EtherTypeMode?> EtherType { get; set; }
 
         /// <summary>
         /// Which frames the bridge interface itself admits when <see cref="VlanFiltering"/> is on.
@@ -307,52 +307,52 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="FrameTypesMode"/>
         [TikProperty("frame-types", DefaultValue = "admit-all", WinboxLabel = "Frame Types")]
-        public TikValue<FrameTypesMode?> FrameTypes { get; set; }
+        public TikField<FrameTypesMode?> FrameTypes { get; set; }
 
         /// <summary>
         /// ingress-filtering: Whether frames arriving at the bridge interface are dropped when their VLAN is not
         /// a member of it. Router default: yes.
         /// </summary>
         [TikProperty("ingress-filtering", DefaultValue = "yes", WinboxLabel = "Ingress Filtering")]
-        public TikValue<bool?> IngressFiltering { get; set; }
+        public TikField<bool?> IngressFiltering { get; set; }
 
         /// <summary>
         /// pvid: Port VLAN ID of the bridge interface itself, used for untagged traffic when
         /// <see cref="VlanFiltering"/> is on. Router default: 1.
         /// </summary>
         [TikProperty("pvid", DefaultValue = "1", WinboxLabel = "PVID")]
-        public TikValue<int?> Pvid { get; set; }
+        public TikField<int?> Pvid { get; set; }
 
         /// <summary>
         /// mvrp: Whether the Multiple VLAN Registration Protocol runs on the bridge. Router default: no.
         /// </summary>
         [TikProperty("mvrp", DefaultValue = "no", WinboxLabel = "MVRP")]
-        public TikValue<bool?> Mvrp { get; set; }
+        public TikField<bool?> Mvrp { get; set; }
 
         /// <summary>
         /// igmp-snooping: Whether the bridge snoops IGMP/MLD and forwards multicast only to ports that asked for it.
         /// Router default: no.
         /// </summary>
         [TikProperty("igmp-snooping", DefaultValue = "no", WinboxLabel = "IGMP Snooping")]
-        public TikValue<bool?> IgmpSnooping { get; set; }
+        public TikField<bool?> IgmpSnooping { get; set; }
 
         /// <summary>
         /// igmp-version: IGMP version used by the snooping querier (2 or 3). Router default: 2.
         /// </summary>
         [TikProperty("igmp-version", DefaultValue = "2", WinboxLabel = "IGMP Version")]
-        public TikValue<int?> IgmpVersion { get; set; }
+        public TikField<int?> IgmpVersion { get; set; }
 
         /// <summary>
         /// mld-version: MLD version used by the snooping querier (1 or 2). Router default: 1.
         /// </summary>
         [TikProperty("mld-version", DefaultValue = "1", WinboxLabel = "MLD Version")]
-        public TikValue<int?> MldVersion { get; set; }
+        public TikField<int?> MldVersion { get; set; }
 
         /// <summary>
         /// multicast-querier: Whether the bridge sends IGMP/MLD general queries itself. Router default: no.
         /// </summary>
         [TikProperty("multicast-querier", DefaultValue = "no", WinboxLabel = "Multicast Querier")]
-        public TikValue<bool?> MulticastQuerier { get; set; }
+        public TikField<bool?> MulticastQuerier { get; set; }
 
         /// <summary>
         /// Whether the bridge interface is treated as a multicast router port.
@@ -376,160 +376,160 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="MulticastRouterMode"/>
         [TikProperty("multicast-router", DefaultValue = "temporary-query", WinboxLabel = "Multicast Router")]
-        public TikValue<MulticastRouterMode?> MulticastRouter { get; set; }
+        public TikField<MulticastRouterMode?> MulticastRouter { get; set; }
 
         /// <summary>
         /// querier-uses-bridge-address: Whether the querier sends with the bridge's own IP address rather than
         /// 0.0.0.0. Router default: yes.
         /// </summary>
         [TikProperty("querier-uses-bridge-address", DefaultValue = "yes", WinboxLabel = "Querier Uses Bridge Address")]
-        public TikValue<bool?> QuerierUsesBridgeAddress { get; set; }
+        public TikField<bool?> QuerierUsesBridgeAddress { get; set; }
 
         /// <summary>
         /// last-member-interval: Interval between group-specific queries after a leave. Router default: 1s.
         /// </summary>
         [TikProperty("last-member-interval", DefaultValue = "1s", WinboxLabel = "Last Member Interval")]
-        public TikValue<TikDuration?> LastMemberInterval { get; set; }
+        public TikField<TikDuration?> LastMemberInterval { get; set; }
 
         /// <summary>
         /// last-member-query-count: How many group-specific queries are sent after a leave. Router default: 2.
         /// </summary>
         [TikProperty("last-member-query-count", DefaultValue = "2", WinboxLabel = "Last Member Query Count")]
-        public TikValue<int?> LastMemberQueryCount { get; set; }
+        public TikField<int?> LastMemberQueryCount { get; set; }
 
         /// <summary>
         /// membership-interval: How long a group membership is kept without a report. Router default: 4m20s.
         /// </summary>
         [TikProperty("membership-interval", DefaultValue = "4m20s", WinboxLabel = "Membership Interval")]
-        public TikValue<TikDuration?> MembershipInterval { get; set; }
+        public TikField<TikDuration?> MembershipInterval { get; set; }
 
         /// <summary>
         /// querier-interval: How long another querier is considered present after its last query. Router default: 4m15s.
         /// </summary>
         [TikProperty("querier-interval", DefaultValue = "4m15s", WinboxLabel = "Querier Interval")]
-        public TikValue<TikDuration?> QuerierInterval { get; set; }
+        public TikField<TikDuration?> QuerierInterval { get; set; }
 
         /// <summary>
         /// query-interval: Interval between general queries. Router default: 2m5s.
         /// </summary>
         [TikProperty("query-interval", DefaultValue = "2m5s", WinboxLabel = "Query Interval")]
-        public TikValue<TikDuration?> QueryInterval { get; set; }
+        public TikField<TikDuration?> QueryInterval { get; set; }
 
         /// <summary>
         /// query-response-interval: Maximum response time advertised in general queries. Router default: 10s.
         /// </summary>
         [TikProperty("query-response-interval", DefaultValue = "10s", WinboxLabel = "Query Response Interval")]
-        public TikValue<TikDuration?> QueryResponseInterval { get; set; }
+        public TikField<TikDuration?> QueryResponseInterval { get; set; }
 
         /// <summary>
         /// startup-query-count: How many general queries are sent at startup. Router default: 2.
         /// </summary>
         [TikProperty("startup-query-count", DefaultValue = "2", WinboxLabel = "Startup Query Count")]
-        public TikValue<int?> StartupQueryCount { get; set; }
+        public TikField<int?> StartupQueryCount { get; set; }
 
         /// <summary>
         /// startup-query-interval: Interval between general queries at startup. Router default: 31s250ms.
         /// </summary>
         [TikProperty("startup-query-interval", DefaultValue = "31s250ms", WinboxLabel = "Startup Query Interval")]
-        public TikValue<TikDuration?> StartupQueryInterval { get; set; }
+        public TikField<TikDuration?> StartupQueryInterval { get; set; }
 
         /// <summary>
         /// dhcp-snooping: Whether the bridge snoops DHCP and drops server messages arriving on untrusted ports.
         /// Router default: no.
         /// </summary>
         [TikProperty("dhcp-snooping", DefaultValue = "no", WinboxLabel = "DHCP Snooping")]
-        public TikValue<bool?> DhcpSnooping { get; set; }
+        public TikField<bool?> DhcpSnooping { get; set; }
 
         /// <summary>
         /// dhcp-agent-circuit-id: The DHCP Option 82 circuit ID the bridge inserts while <see cref="DhcpSnooping"/> is on.
         /// </summary>
         [TikProperty("dhcp-agent-circuit-id", WinboxLabel = "DHCP Agent Circuit ID")]
-        public TikValue<string?> DhcpAgentCircuitId { get; set; }
+        public TikField<string?> DhcpAgentCircuitId { get; set; }
 
         /// <summary>
         /// dhcp-agent-remote-id: The DHCP Option 82 remote ID the bridge inserts while <see cref="DhcpSnooping"/> is on.
         /// </summary>
         [TikProperty("dhcp-agent-remote-id", WinboxLabel = "DHCP Agent Remote ID")]
-        public TikValue<string?> DhcpAgentRemoteId { get; set; }
+        public TikField<string?> DhcpAgentRemoteId { get; set; }
 
         /// <summary>
         /// dhcpv6-snooping: Whether the bridge snoops DHCPv6 and drops server messages arriving on untrusted ports.
         /// Router default: no.
         /// </summary>
         [TikProperty("dhcpv6-snooping", DefaultValue = "no", WinboxLabel = "DHCPv6 Snooping")]
-        public TikValue<bool?> Dhcpv6Snooping { get; set; }
+        public TikField<bool?> Dhcpv6Snooping { get; set; }
 
         /// <summary>
         /// dhcpv6-agent-circuit-id: The DHCPv6 interface ID the bridge inserts while <see cref="Dhcpv6Snooping"/> is on.
         /// </summary>
         [TikProperty("dhcpv6-agent-circuit-id", WinboxLabel = "DHCPv6 Agent Circuit ID")]
-        public TikValue<string?> Dhcpv6AgentCircuitId { get; set; }
+        public TikField<string?> Dhcpv6AgentCircuitId { get; set; }
 
         /// <summary>
         /// dhcpv6-agent-remote-id: The DHCPv6 remote ID the bridge inserts while <see cref="Dhcpv6Snooping"/> is on.
         /// </summary>
         [TikProperty("dhcpv6-agent-remote-id", WinboxLabel = "DHCPv6 Agent Remote ID")]
-        public TikValue<string?> Dhcpv6AgentRemoteId { get; set; }
+        public TikField<string?> Dhcpv6AgentRemoteId { get; set; }
 
         /// <summary>
         /// ra-guard: Whether the bridge drops IPv6 router advertisements arriving on untrusted ports. Router default: no.
         /// </summary>
         [TikProperty("ra-guard", DefaultValue = "no", WinboxLabel = "RA Guard")]
-        public TikValue<bool?> RaGuard { get; set; }
+        public TikField<bool?> RaGuard { get; set; }
 
         /// <summary>
         /// mlag-peer-port: The interface that links this bridge to its MLAG peer, or <c>none</c>. Router default: none.
         /// </summary>
         [TikProperty("mlag-peer-port", DefaultValue = "none", WinboxLabel = "mlag: Peer Port")]
-        public TikValue<string?> MlagPeerPort { get; set; }
+        public TikField<string?> MlagPeerPort { get; set; }
 
         /// <summary>
         /// mlag-priority: MLAG priority; the lower value becomes the primary peer. Router default: 128.
         /// </summary>
         [TikProperty("mlag-priority", DefaultValue = "128", WinboxLabel = "mlag: Priority")]
-        public TikValue<int?> MlagPriority { get; set; }
+        public TikField<int?> MlagPriority { get; set; }
 
         /// <summary>
         /// mlag-heartbeat: Interval between MLAG heartbeat messages. Router default: 5s.
         /// </summary>
         [TikProperty("mlag-heartbeat", DefaultValue = "5s", WinboxLabel = "mlag: Heartbeat")]
-        public TikValue<TikDuration?> MlagHeartbeat { get; set; }
+        public TikField<TikDuration?> MlagHeartbeat { get; set; }
 
         /// <summary>
         /// l2mtu: Layer2 Maximum transmission unit.  read more&#187;
         /// </summary>
         [TikProperty("l2mtu", IsReadOnly = true, WinboxLabel = "L2 MTU")]
-        public TikValue<string?> L2mtu { get; private set; }
+        public TikField<string?> L2mtu { get; private set; }
 
         /// <summary>
         /// actual-mtu: The MTU in effect, which is what <see cref="Mtu"/> = <c>auto</c> resolved to.
         /// </summary>
         [TikProperty("actual-mtu", IsReadOnly = true, WinboxLabel = "Actual MTU")]
-        public TikValue<string?> ActualMtu { get; private set; }
+        public TikField<string?> ActualMtu { get; private set; }
 
         /// <summary>
         /// mac-address: The MAC address the bridge currently uses.
         /// </summary>
         [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; private set; }
+        public TikField<string?> MacAddress { get; private set; }
 
         /// <summary>
         /// running: Whether the bridge is up.
         /// </summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>
         /// dynamic: Whether the bridge was created by another feature rather than configured.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// managed: Whether the bridge is managed by another feature (e.g. CAPsMAN or quickset), which owns its configuration.
         /// </summary>
         [TikProperty("managed", IsReadOnly = true)]
-        public TikValue<bool?> Managed { get; private set; }
+        public TikField<bool?> Managed { get; private set; }
 
         /// <inheritdoc/>
         public override string ToString() => Name.GetValueOrDefault() ?? string.Empty;

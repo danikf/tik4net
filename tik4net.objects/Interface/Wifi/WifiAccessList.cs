@@ -57,7 +57,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// <seealso cref="WifiAccessListAction"/>
         /// </summary>
         [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
-        public TikValue<WifiAccessListAction?> Action { get; set; }
+        public TikField<WifiAccessListAction?> Action { get; set; }
 
         // ── MAC matchers ──────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "MAC Address"
         /// </summary>
         [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00", WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; set; }
+        public TikField<string?> MacAddress { get; set; }
 
         /// <summary>
         /// mac-address-mask — bitmask applied to the client MAC before comparison
@@ -77,7 +77,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "MAC Address Mask"
         /// </summary>
         [TikProperty("mac-address-mask", DefaultValue = "FF:FF:FF:FF:FF:FF", WinboxLabel = "MAC Address Mask")]
-        public TikValue<string?> MacAddressMask { get; set; }
+        public TikField<string?> MacAddressMask { get; set; }
 
         // ── Interface / SSID matchers ─────────────────────────────────────────
 
@@ -87,7 +87,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Interface"
         /// </summary>
         [TikProperty("interface", DefaultValue = "", WinboxLabel = "Interface")]
-        public TikValue<string?> Interface { get; set; }
+        public TikField<string?> Interface { get; set; }
 
         /// <summary>
         /// ssid-regexp — regular expression matched against the SSID of the WiFi
@@ -95,7 +95,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "SSID Regexp"
         /// </summary>
         [TikProperty("ssid-regexp", DefaultValue = "", WinboxLabel = "SSID Regexp")]
-        public TikValue<string?> SsidRegexp { get; set; }
+        public TikField<string?> SsidRegexp { get; set; }
 
         // ── Signal / time matchers ────────────────────────────────────────────
 
@@ -108,7 +108,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Signal Range"
         /// </summary>
         [TikProperty("signal-range", DefaultValue = "-120..120", WinboxLabel = "Signal Range")]
-        public TikValue<string?> SignalRange { get; set; }
+        public TikField<string?> SignalRange { get; set; }
 
         /// <summary>
         /// allow-signal-out-of-range — how long a connected client is tolerated
@@ -119,7 +119,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Allow Signal Out Of Range"
         /// </summary>
         [TikProperty("allow-signal-out-of-range", DefaultValue = "always", WinboxLabel = "Allow Signal Out Of Range")]
-        public TikValue<TikDuration?> AllowSignalOutOfRange { get; set; }
+        public TikField<TikDuration?> AllowSignalOutOfRange { get; set; }
 
         /// <summary>
         /// time — time-of-day range during which the rule is active, in the form
@@ -129,7 +129,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Time"
         /// </summary>
         [TikProperty("time", DefaultValue = "", WinboxLabel = "Time")]
-        public TikValue<string?> Time { get; set; }
+        public TikField<string?> Time { get; set; }
 
         /// <summary>
         /// days — comma-separated list of day abbreviations on which the rule is
@@ -138,7 +138,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Days"
         /// </summary>
         [TikProperty("days", DefaultValue = "")]
-        public TikValue<string?> Days { get; set; }
+        public TikField<string?> Days { get; set; }
 
         // ── Per-client overrides ──────────────────────────────────────────────
 
@@ -151,7 +151,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "VLAN ID"
         /// </summary>
         [TikProperty("vlan-id", DefaultValue = "0", WinboxLabel = "VLAN ID")]
-        public TikValue<int?> VlanId { get; set; }
+        public TikField<int?> VlanId { get; set; }
 
         /// <summary>
         /// passphrase — per-client WPA passphrase override.  When non-empty the
@@ -160,7 +160,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Passphrase"
         /// </summary>
         [TikProperty("passphrase", DefaultValue = "", IsSensitive = true, WinboxLabel = "Passphrase")]
-        public TikValue<string?> Passphrase { get; set; }
+        public TikField<string?> Passphrase { get; set; }
 
         /// <summary>
         /// multi-passphrase-group — name of the multi-passphrase group to use for
@@ -168,7 +168,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Multi Passphrase Group"
         /// </summary>
         [TikProperty("multi-passphrase-group", DefaultValue = "", WinboxLabel = "Multi Passphrase Group")]
-        public TikValue<string?> MultiPassphraseGroup { get; set; }
+        public TikField<string?> MultiPassphraseGroup { get; set; }
 
         /// <summary>
         /// radius-accounting — whether to send RADIUS accounting messages for matched
@@ -177,7 +177,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "RADIUS Accounting"
         /// </summary>
         [TikProperty("radius-accounting", DefaultValue = "no", WinboxLabel = "Radius Accounting")]
-        public TikValue<bool?> RadiusAccounting { get; set; }
+        public TikField<bool?> RadiusAccounting { get; set; }
 
         /// <summary>
         /// client-isolation — prevent matched clients from communicating with each
@@ -186,7 +186,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Client Isolation"
         /// </summary>
         [TikProperty("client-isolation", DefaultValue = "no", WinboxLabel = "Client Isolation")]
-        public TikValue<bool?> ClientIsolation { get; set; }
+        public TikField<bool?> ClientIsolation { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -196,14 +196,14 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description of this access-list rule.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity — action and comment.</summary>
         public override string ToString() =>

@@ -27,7 +27,7 @@ namespace tik4net.Objects.System
         /// can vary by RouterOS version.
         /// </summary>
         [TikProperty("topics", WinboxLabel = "Topics")]
-        public TikValue<string?> Topics { get; set; }
+        public TikField<string?> Topics { get; set; }
 
         /// <summary>
         /// action — name of the logging action (from /system/logging/action) that receives
@@ -35,41 +35,41 @@ namespace tik4net.Objects.System
         /// <c>disk</c>, <c>echo</c>, <c>remote</c>.
         /// </summary>
         [TikProperty("action", WinboxLabel = "Action")]
-        public TikValue<string?> Action { get; set; }
+        public TikField<string?> Action { get; set; }
 
         /// <summary>
         /// prefix — text prepended to every log message that matches this rule.
         /// Empty string means no prefix.
         /// </summary>
         [TikProperty("prefix", DefaultValue = "", WinboxLabel = "Prefix")]
-        public TikValue<string?> Prefix { get; set; }
+        public TikField<string?> Prefix { get; set; }
 
         /// <summary>
         /// regex — optional POSIX regular expression; only messages whose text matches
         /// this pattern are forwarded. Empty string disables filtering by regex.
         /// </summary>
         [TikProperty("regex", DefaultValue = "", WinboxLabel = "Regex")]
-        public TikValue<string?> Regex { get; set; }
+        public TikField<string?> Regex { get; set; }
 
         /// <summary>
         /// disabled — when true the rule is inactive and no messages are forwarded.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// invalid — read-only flag set by RouterOS when the rule references a non-existent
         /// action or is otherwise misconfigured.
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public TikValue<bool?> Invalid { get; private set; }
+        public TikField<bool?> Invalid { get; private set; }
 
         /// <summary>
         /// default — read-only flag that marks rules shipped with RouterOS as factory defaults.
         /// Default rules cannot be removed permanently; they are restored on reset.
         /// </summary>
         [TikProperty("default", IsReadOnly = true)]
-        public TikValue<bool?> Default { get; private set; }
+        public TikField<bool?> Default { get; private set; }
 
         /// <inheritdoc/>
         public override string ToString()

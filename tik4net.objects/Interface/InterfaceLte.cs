@@ -21,31 +21,31 @@ namespace tik4net.Objects.Interface
 
         /// <summary>name — Interface name.</summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>mtu — Maximum Transmit Unit in bytes. Default: 1500. DefaultValue="0" prevents sending 0 on set.</summary>
         [TikProperty("mtu", DefaultValue = "1500", WinboxLabel = "MTU")]
-        public TikValue<int?> Mtu { get; set; }
+        public TikField<int?> Mtu { get; set; }
 
         /// <summary>mac-address — MAC address of the LTE interface (read-only, assigned by modem).</summary>
         [TikProperty("mac-address", IsReadOnly = true)]
-        public TikValue<string?> MacAddress { get; private set; }
+        public TikField<string?> MacAddress { get; private set; }
 
         /// <summary>apn-profiles — APN profile(s) to use for data connection.</summary>
         [TikProperty("apn-profiles", DefaultValue = "")]
-        public TikValue<string?> ApnProfiles { get; set; }
+        public TikField<string?> ApnProfiles { get; set; }
 
         /// <summary>allow-roaming — Allow the modem to use a roaming data connection. Default: no.</summary>
         [TikProperty("allow-roaming", DefaultValue = "no", WinboxLabel = "Allow Roaming")]
-        public TikValue<bool?> AllowRoaming { get; set; }
+        public TikField<bool?> AllowRoaming { get; set; }
 
         /// <summary>band — LTE frequency bands to use (comma-separated band numbers, e.g. "3,7,20"). Empty means all bands.</summary>
         [TikProperty("band", DefaultValue = "", WinboxLabel = "band")]
-        public TikValue<string?> Band { get; set; }
+        public TikField<string?> Band { get; set; }
 
         /// <summary>nr-band — 5G NR frequency bands to use (comma-separated). Empty means all bands.</summary>
         [TikProperty("nr-band", DefaultValue = "", WinboxLabel = "nr_band")]
-        public TikValue<string?> NrBand { get; set; }
+        public TikField<string?> NrBand { get; set; }
 
         /// <summary>network-mode — the cellular network technology the modem is restricted to.</summary>
         public enum NetworkModeType
@@ -65,19 +65,19 @@ namespace tik4net.Objects.Interface
         /// <summary>network-mode — Preferred cellular network technology. Default: auto.</summary>
         /// <seealso cref="NetworkModeType"/>
         [TikProperty("network-mode", DefaultValue = "auto", WinboxLabel = "Network Mode")]
-        public TikValue<NetworkModeType?> NetworkMode { get; set; }
+        public TikField<NetworkModeType?> NetworkMode { get; set; }
 
         /// <summary>operator — Operator PLMN code for manual operator selection. Empty for automatic.</summary>
         [TikProperty("operator", DefaultValue = "", WinboxLabel = "Operator")]
-        public TikValue<string?> Operator { get; set; }
+        public TikField<string?> Operator { get; set; }
 
         /// <summary>pin — SIM card PIN code. Leave empty if no PIN is required.</summary>
         [TikProperty("pin", DefaultValue = "", WinboxLabel = "PIN")]
-        public TikValue<string?> Pin { get; set; }
+        public TikField<string?> Pin { get; set; }
 
         /// <summary>modem-init — AT command string sent to the modem at initialization.</summary>
         [TikProperty("modem-init", DefaultValue = "", WinboxLabel = "Modem Init")]
-        public TikValue<string?> ModemInit { get; set; }
+        public TikField<string?> ModemInit { get; set; }
 
         /// <summary>sms-protocol — the SMS signaling protocol used by the modem.</summary>
         public enum SmsProtocolType
@@ -97,23 +97,23 @@ namespace tik4net.Objects.Interface
         /// <summary>sms-protocol — SMS signaling protocol. Default: auto.</summary>
         /// <seealso cref="SmsProtocolType"/>
         [TikProperty("sms-protocol", DefaultValue = "auto")]
-        public TikValue<SmsProtocolType?> SmsProtocol { get; set; }
+        public TikField<SmsProtocolType?> SmsProtocol { get; set; }
 
         /// <summary>sms-read — Whether to read incoming SMS messages. Default: no.</summary>
         [TikProperty("sms-read", DefaultValue = "no")]
-        public TikValue<bool?> SmsRead { get; set; }
+        public TikField<bool?> SmsRead { get; set; }
 
         /// <summary>running — Whether the LTE interface is connected and running (read-only).</summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>disabled — Whether the interface is disabled.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

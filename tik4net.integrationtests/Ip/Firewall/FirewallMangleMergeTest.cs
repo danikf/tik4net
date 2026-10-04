@@ -156,7 +156,7 @@ namespace tik4net.integrationtests
         /// exactly the failure being looked for.
         /// </para>
         /// </summary>
-        private static string Address(TikValue<string> address)
+        private static string Address(TikField<string> address)
         {
             string value = address.Value;
             if (string.IsNullOrEmpty(value)) return "";

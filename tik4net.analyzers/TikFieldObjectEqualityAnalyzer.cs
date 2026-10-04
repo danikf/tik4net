@@ -7,40 +7,40 @@ using Microsoft.CodeAnalysis.Operations;
 namespace tik4net.Analyzers
 {
     /// <summary>
-    /// TIK001: a <c>TikValue&lt;T&gt;</c> compared with a plain value through <c>object</c>.
+    /// TIK001: a <c>TikField&lt;T&gt;</c> compared with a plain value through <c>object</c>.
     /// </summary>
     /// <remarks>
     /// The wrapper equals a plain <c>T</c> through its <c>==</c> operators, which the compiler picks when it sees both
-    /// types. Through <c>object</c> it cannot: <c>TikValue&lt;T&gt;.Equals(object)</c> is true only for another
-    /// <c>TikValue&lt;T&gt;</c>, and the plain value's own <c>Equals</c> knows nothing of the wrapper, so the comparison
+    /// types. Through <c>object</c> it cannot: <c>TikField&lt;T&gt;.Equals(object)</c> is true only for another
+    /// <c>TikField&lt;T&gt;</c>, and the plain value's own <c>Equals</c> knows nothing of the wrapper, so the comparison
     /// is false for every value — and an assertion built on it fails, or passes, whatever the router returned.
     /// <para>
     /// Reported where an equality method (<c>Equals</c>, <c>AreEqual</c>, <c>AreNotEqual</c>, <c>Equal</c>,
-    /// <c>NotEqual</c>, … — any name containing "Equal") receives a <c>TikValue&lt;T&gt;</c> and a value of another,
+    /// <c>NotEqual</c>, … — any name containing "Equal") receives a <c>TikField&lt;T&gt;</c> and a value of another,
     /// known type, both as <c>object</c>. A side typed <c>object</c>, a type parameter or a <c>null</c> literal says
     /// nothing about the value it holds, and is not reported. The generic <c>Assert.AreEqual&lt;T&gt;(expected,
     /// entity.X)</c> infers <c>T</c> as the wrapper and compares correctly, so it is not reported either.
     /// </para>
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class TikValueObjectEqualityAnalyzer : DiagnosticAnalyzer
+    public sealed class TikFieldObjectEqualityAnalyzer : DiagnosticAnalyzer
     {
         /// <summary>The diagnostic id.</summary>
         public const string DiagnosticId = "TIK001";
 
-        internal const string TikValueMetadataName = "tik4net.Objects.TikValue`1";
+        internal const string TikFieldMetadataName = "tik4net.Objects.TikField`1";
 
         private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
             DiagnosticId,
-            title: "A TikValue<T> compared with a plain value through object is never equal",
+            title: "A TikField<T> compared with a plain value through object is never equal",
             messageFormat: "'{0}' is a {1} compared with a {2} through object, which is never equal; compare '{0}.Value'",
             category: "Usage",
             defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true,
-            description: "TikValue<T> equals a plain T through its == operators. Through object — object.Equals, "
+            description: "TikField<T> equals a plain T through its == operators. Through object — object.Equals, "
                 + "Assert.AreEqual(object, object), a plain value's Equals(object) — the wrapper and the value are two "
                 + "different types and never equal. Compare the wrapper's .Value.",
-            helpLinkUri: "https://github.com/danikf/tik4net/wiki/TikValue#pitfalls");
+            helpLinkUri: "https://github.com/danikf/tik4net/wiki/TikField#pitfalls");
 
         /// <inheritdoc/>
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Rule);
@@ -52,14 +52,14 @@ namespace tik4net.Analyzers
             context.EnableConcurrentExecution();
             context.RegisterCompilationStartAction(start =>
             {
-                var tikValue = start.Compilation.GetTypeByMetadataName(TikValueMetadataName);
-                if (tikValue == null)
-                    return; // tik4net.objects is not referenced: nothing here can hold a TikValue.
-                start.RegisterOperationAction(ctx => AnalyzeInvocation(ctx, tikValue), OperationKind.Invocation);
+                var tikField = start.Compilation.GetTypeByMetadataName(TikFieldMetadataName);
+                if (tikField == null)
+                    return; // tik4net.objects is not referenced: nothing here can hold a TikField.
+                start.RegisterOperationAction(ctx => AnalyzeInvocation(ctx, tikField), OperationKind.Invocation);
             });
         }
 
-        private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol tikValue)
+        private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol tikField)
         {
             var invocation = (IInvocationOperation)context.Operation;
             var method = invocation.TargetMethod;
@@ -87,7 +87,7 @@ namespace tik4net.Analyzers
                 if (type == null || type.SpecialType == SpecialType.System_Object || type.TypeKind == TypeKind.TypeParameter
                     || type.TypeKind == TypeKind.Error)
                     continue;
-                if (IsTikValue(type, tikValue))
+                if (IsTikField(type, tikField))
                     wrapped ??= operand;
                 else
                     plain ??= type;
@@ -109,7 +109,7 @@ namespace tik4net.Analyzers
             return value;
         }
 
-        internal static bool IsTikValue(ITypeSymbol type, INamedTypeSymbol tikValue)
-            => type is INamedTypeSymbol named && SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, tikValue);
+        internal static bool IsTikField(ITypeSymbol type, INamedTypeSymbol tikField)
+            => type is INamedTypeSymbol named && SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, tikField);
     }
 }

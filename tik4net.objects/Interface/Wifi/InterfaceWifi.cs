@@ -47,7 +47,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         // ── Hardware binding ──────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Radio MAC"
         /// </summary>
         [TikProperty("radio-mac")]
-        public TikValue<string?> RadioMac { get; set; }
+        public TikField<string?> RadioMac { get; set; }
 
         /// <summary>
         /// master-interface — name of the master (physical) wifi interface.  Set when creating
@@ -66,7 +66,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Master Interface"
         /// </summary>
         [TikProperty("master-interface")]
-        public TikValue<string?> MasterInterface { get; set; }
+        public TikField<string?> MasterInterface { get; set; }
 
         // ── Profile references ────────────────────────────────────────────────
         // These fields can hold either the name of a shared profile object or "none"/"default".
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Configuration"
         /// </summary>
         [TikProperty("configuration", WinboxLabel = "Configuration")]
-        public TikValue<string?> Configuration { get; set; }
+        public TikField<string?> Configuration { get; set; }
 
         /// <summary>
         /// security — name of the /interface/wifi/security profile to apply.
@@ -87,7 +87,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Security"
         /// </summary>
         [TikProperty("security", WinboxLabel = "Security")]
-        public TikValue<string?> Security { get; set; }
+        public TikField<string?> Security { get; set; }
 
         /// <summary>
         /// datapath — name of the /interface/wifi/datapath profile to apply.
@@ -95,7 +95,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Datapath"
         /// </summary>
         [TikProperty("datapath", WinboxLabel = "Datapath")]
-        public TikValue<string?> Datapath { get; set; }
+        public TikField<string?> Datapath { get; set; }
 
         /// <summary>
         /// channel — name of the /interface/wifi/channel profile to apply.
@@ -103,21 +103,21 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Channel"
         /// </summary>
         [TikProperty("channel", WinboxLabel = "Channel")]
-        public TikValue<string?> Channel { get; set; }
+        public TikField<string?> Channel { get; set; }
 
         /// <summary>
         /// interworking — name of the /interface/wifi/interworking (Hotspot 2.0) profile.
         /// WinBox: "Interworking"
         /// </summary>
         [TikProperty("interworking", WinboxLabel = "Interworking")]
-        public TikValue<string?> Interworking { get; set; }
+        public TikField<string?> Interworking { get; set; }
 
         /// <summary>
         /// steering — name of the /interface/wifi/steering profile for 802.11k/v roaming hints.
         /// WinBox: "Steering"
         /// </summary>
         [TikProperty("steering", WinboxLabel = "Steering")]
-        public TikValue<string?> Steering { get; set; }
+        public TikField<string?> Steering { get; set; }
 
         // ── Inline AAA overrides ──────────────────────────────────────────────
         // aaa.* are per-interface RADIUS/accounting overrides.  The whole group can also
@@ -128,7 +128,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// /interface/wifi aaa field which selects a named RADIUS profile.
         /// </summary>
         [TikProperty("aaa", WinboxLabel = "AAA")]
-        public TikValue<string?> Aaa { get; set; }
+        public TikField<string?> Aaa { get; set; }
 
         /// <summary>
         /// aaa.called-format — format string for RADIUS Called-Station-Id attribute.
@@ -136,49 +136,49 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Called Format"
         /// </summary>
         [TikProperty("aaa.called-format")]
-        public TikValue<string?> AaaCalledFormat { get; set; }
+        public TikField<string?> AaaCalledFormat { get; set; }
 
         /// <summary>
         /// aaa.calling-format — format string for RADIUS Calling-Station-Id attribute.
         /// WinBox: "Calling Format"
         /// </summary>
         [TikProperty("aaa.calling-format")]
-        public TikValue<string?> AaaCallingFormat { get; set; }
+        public TikField<string?> AaaCallingFormat { get; set; }
 
         /// <summary>
         /// aaa.interim-update — interval for RADIUS interim accounting updates; "disabled" to turn off.
         /// WinBox: "Interim Update"
         /// </summary>
         [TikProperty("aaa.interim-update")]
-        public TikValue<string?> AaaInterimUpdate { get; set; }
+        public TikField<string?> AaaInterimUpdate { get; set; }
 
         /// <summary>
         /// aaa.mac-caching — time to cache RADIUS MAC-auth results; "disabled" to skip caching.
         /// WinBox: "MAC Caching"
         /// </summary>
         [TikProperty("aaa.mac-caching")]
-        public TikValue<string?> AaaMacCaching { get; set; }
+        public TikField<string?> AaaMacCaching { get; set; }
 
         /// <summary>
         /// aaa.nas-identifier — value sent in RADIUS NAS-Identifier attribute.
         /// WinBox: "NAS Identifier"
         /// </summary>
         [TikProperty("aaa.nas-identifier")]
-        public TikValue<string?> AaaNasIdentifier { get; set; }
+        public TikField<string?> AaaNasIdentifier { get; set; }
 
         /// <summary>
         /// aaa.password-format — format of the RADIUS password field used during MAC authentication.
         /// WinBox: "Password Format"
         /// </summary>
         [TikProperty("aaa.password-format")]
-        public TikValue<string?> AaaPasswordFormat { get; set; }
+        public TikField<string?> AaaPasswordFormat { get; set; }
 
         /// <summary>
         /// aaa.username-format — format of the RADIUS User-Name attribute during MAC authentication.
         /// WinBox: "Username Format"
         /// </summary>
         [TikProperty("aaa.username-format")]
-        public TikValue<string?> AaaUsernameFormat { get; set; }
+        public TikField<string?> AaaUsernameFormat { get; set; }
 
         // ── Interface / network settings ──────────────────────────────────────
 
@@ -188,7 +188,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// <seealso cref="ArpMode"/>
         /// </summary>
         [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
-        public TikValue<ArpMode?> Arp { get; set; }
+        public TikField<ArpMode?> Arp { get; set; }
 
         /// <summary>
         /// arp-timeout — time an ARP entry is kept in the table; "auto" to use the system default.
@@ -196,7 +196,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "ARP Timeout"
         /// </summary>
         [TikProperty("arp-timeout", DefaultValue = "auto", WinboxLabel = "Arp Timeout")]
-        public TikValue<string?> ArpTimeout { get; set; }
+        public TikField<string?> ArpTimeout { get; set; }
 
         /// <summary>
         /// mac-address — override the interface MAC address (BSSID).
@@ -204,7 +204,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "MAC Address"
         /// </summary>
         [TikProperty("mac-address", WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; set; }
+        public TikField<string?> MacAddress { get; set; }
 
         /// <summary>
         /// mtu — Layer-3 maximum transmission unit in bytes. Range: 32..2290.
@@ -212,7 +212,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "MTU"
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1500", WinboxLabel = "MTU")]
-        public TikValue<int?> Mtu { get; set; }
+        public TikField<int?> Mtu { get; set; }
 
         /// <summary>
         /// l2mtu — Layer-2 maximum transmission unit in bytes. Range: 32..2290.
@@ -220,7 +220,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "L2 MTU"
         /// </summary>
         [TikProperty("l2mtu", DefaultValue = "2290", WinboxLabel = "L2MTU")]
-        public TikValue<int?> L2Mtu { get; set; }
+        public TikField<int?> L2Mtu { get; set; }
 
         /// <summary>
         /// disable-running-check — when true, the interface is always reported as running
@@ -229,7 +229,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disable Running Check"
         /// </summary>
         [TikProperty("disable-running-check", DefaultValue = "no")]
-        public TikValue<bool?> DisableRunningCheck { get; set; }
+        public TikField<bool?> DisableRunningCheck { get; set; }
 
         /// <summary>
         /// disabled — when true the interface is administratively disabled.
@@ -237,14 +237,14 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // ── Read-only properties ──────────────────────────────────────────────
 
@@ -252,37 +252,37 @@ namespace tik4net.Objects.Interface.Wifi
         /// default-name — factory/default name of the interface (e.g. "wifi1").
         /// </summary>
         [TikProperty("default-name", IsReadOnly = true)]
-        public TikValue<string?> DefaultName { get; private set; }
+        public TikField<string?> DefaultName { get; private set; }
 
         /// <summary>
         /// running — true when the interface has an active link (unless disable-running-check is set).
         /// </summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>
         /// bound — true when the interface is operational (bound to its radio and active).
         /// </summary>
         [TikProperty("bound", IsReadOnly = true, WinboxLabel = "bound")]
-        public TikValue<bool?> Bound { get; private set; }
+        public TikField<bool?> Bound { get; private set; }
 
         /// <summary>
         /// inactive — false when the interface is fully configured and operational.
         /// </summary>
         [TikProperty("inactive", IsReadOnly = true, WinboxLabel = "inactive")]
-        public TikValue<bool?> Inactive { get; private set; }
+        public TikField<bool?> Inactive { get; private set; }
 
         /// <summary>
         /// master — true for physical (radio-backed) interfaces; false for virtual BSSIDs.
         /// </summary>
         [TikProperty("master", IsReadOnly = true, WinboxLabel = "Master")]
-        public TikValue<bool?> Master { get; private set; }
+        public TikField<bool?> Master { get; private set; }
 
         /// <summary>
         /// cap — CAPsMAN controller info if this interface is controlled by a CAPsMAN manager.
         /// </summary>
         [TikProperty("cap", IsReadOnly = true, WinboxLabel = "CAP")]
-        public TikValue<string?> Cap { get; private set; }
+        public TikField<string?> Cap { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

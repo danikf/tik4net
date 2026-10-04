@@ -13,7 +13,7 @@ namespace tik4net.Objects
     /// </summary>
     /// <remarks>
     /// A load never fails on a value from another RouterOS version; this is how drift shows up without every caller
-    /// checking every entity (<see cref="TikValueStrictnessExtensions.EnsureStrict{TEntity}(TEntity, TikStrictness, string[])"/>
+    /// checking every entity (<see cref="TikFieldStrictnessExtensions.EnsureStrict{TEntity}(TEntity, TikStrictness, string[])"/>
     /// is the per-entity check). It is called on the thread that ran the load, after the rows are built and before the
     /// load returns them. An exception it throws is swallowed: a diagnostics sink never changes what a load returns.
     /// </remarks>
@@ -23,7 +23,7 @@ namespace tik4net.Objects
         void OnEntityRead(TikEntityReadReport report);
     }
 
-    /// <summary>A field whose value the property's type could not hold (<see cref="TikValueState.Unparsed"/>).</summary>
+    /// <summary>A field whose value the property's type could not hold (<see cref="TikFieldState.Unparsed"/>).</summary>
     public sealed class TikUnparsedField
     {
         internal TikUnparsedField(string fieldName, string propertyName, string? rawValue, int rows)
@@ -213,8 +213,8 @@ namespace tik4net.Objects
                 string? first = null;
                 foreach (var entity in entities)
                 {
-                    var value = (ITikValue)property.GetWrapped(entity!);
-                    if (value.State != TikValueState.Unparsed)
+                    var value = (ITikField)property.GetWrapped(entity!);
+                    if (value.State != TikFieldState.Unparsed)
                         continue;
                     if (rows == 0)
                         first = value.RawValue;

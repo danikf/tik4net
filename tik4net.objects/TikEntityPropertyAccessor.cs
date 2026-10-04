@@ -205,14 +205,14 @@ namespace tik4net.Objects
             //From property code
             PropertyName = propertyInfo.Name;
             PropertyType = propertyInfo.PropertyType;
-            if (PropertyType.GetTypeInfo().IsGenericType && PropertyType.GetGenericTypeDefinition() == typeof(TikValue<>))
+            if (PropertyType.GetTypeInfo().IsGenericType && PropertyType.GetGenericTypeDefinition() == typeof(TikField<>))
             {
-                // TikValue<T>: the value type is T's, and the property is nullable by construction - a field the row
+                // TikField<T>: the value type is T's, and the property is nullable by construction - a field the row
                 // lacks is Absent, and "unset" is an assigned null.
                 Type inner = PropertyType.GetTypeInfo().GenericTypeArguments[0];
                 if (inner.GetTypeInfo().IsValueType && Nullable.GetUnderlyingType(inner) == null)
                     throw new ArgumentException(string.Format(
-                        "{0}.{1}: TikValue<{2}> must use the nullable form TikValue<{2}?>, so that assigning null compiles.",
+                        "{0}.{1}: TikField<{2}> must use the nullable form TikField<{2}?>, so that assigning null compiles.",
                         propertyInfo.DeclaringType?.Name, propertyInfo.Name, inner.Name), nameof(propertyInfo));
                 IsWrapped = true;
                 ValueType = Nullable.GetUnderlyingType(inner) ?? inner;
@@ -249,12 +249,12 @@ namespace tik4net.Objects
                 // version), UnsetOnDefault unsets it (Absent "equals the default"). Refused rather than ignored, so an
                 // entity converted from a plain property cannot carry either over silently.
                 throw new ArgumentException(string.Format(
-                    "{0}.{1}: a TikValue<T> property cannot declare {2}. A field the row lacks reads Absent, and an unset is an assigned null.",
+                    "{0}.{1}: a TikField<T> property cannot declare {2}. A field the row lacks reads Absent, and an unset is an assigned null.",
                     propertyInfo.DeclaringType?.Name, propertyInfo.Name,
                     propertyAttribute.IsMandatory ? "IsMandatory" : "UnsetOnDefault"), nameof(propertyInfo));
             IsMandatory = propertyAttribute.IsMandatory;
             if (IsWrapped)
-                // A TikValue<T> property has no runtime default: a field the row lacks is Absent, and what an add
+                // A TikField<T> property has no runtime default: a field the row lacks is Absent, and what an add
                 // sends is what the caller assigned. A declared DefaultValue documents the router's default only.
                 DefaultValue = null;
             else if (propertyAttribute.DefaultValue != null)
@@ -278,16 +278,16 @@ namespace tik4net.Objects
             ChangesOnItsOwn = propertyAttribute.ChangesOnItsOwn;
             IsSensitive = propertyAttribute.IsSensitive;
             if (propertyAttribute.Negatable && !IsWrapped)
-                // The flag lives on TikValue<T>; a plain property has nowhere to keep it and would drop the '!' on a save.
+                // The flag lives on TikField<T>; a plain property has nowhere to keep it and would drop the '!' on a save.
                 throw new ArgumentException(string.Format(
-                    "{0}.{1}: Negatable needs a TikValue<T> property, which carries the negation.",
+                    "{0}.{1}: Negatable needs a TikField<T> property, which carries the negation.",
                     propertyInfo.DeclaringType?.Name, propertyInfo.Name), nameof(propertyInfo));
             IsNegatable = propertyAttribute.Negatable;
         }
 
         /// <summary>
         /// Whether the field is a matcher RouterOS negates with a leading <c>!</c> (<see cref="TikPropertyAttribute.Negatable"/>):
-        /// the <c>!</c> reads as <see cref="TikValue{T}.IsNegated"/> rather than as part of the value.
+        /// the <c>!</c> reads as <see cref="TikField{T}.IsNegated"/> rather than as part of the value.
         /// </summary>
         public bool IsNegatable { get; private set; }
 
@@ -391,7 +391,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// True when the property is a <see cref="TikValue{T}"/>: it carries whether the field was printed and whether
+        /// True when the property is a <see cref="TikField{T}"/>: it carries whether the field was printed and whether
         /// it could be read, and <see cref="ValueType"/> is its <c>T</c>'s.
         /// </summary>
         public bool IsWrapped { get; private set; }
@@ -401,14 +401,14 @@ namespace tik4net.Objects
         private readonly object? _absent;
 
         private static (Func<object?, bool, object>, Func<string, object>, Func<object, string, bool, object>) MakeWrappers<T>()
-            => ((value, negated) => TikValue<T>.FromPresentWithUnknownFlags((T)value!, null, negated), raw => TikValue<T>.FromUnparsed(raw),
-                (value, unknown, negated) => TikValue<T>.FromPresentWithUnknownFlags((T)value, unknown, negated));
+            => ((value, negated) => TikField<T>.FromPresentWithUnknownFlags((T)value!, null, negated), raw => TikField<T>.FromUnparsed(raw),
+                (value, unknown, negated) => TikField<T>.FromPresentWithUnknownFlags((T)value, unknown, negated));
 
         private readonly Func<object, string, bool, object>? _wrapPresentWithUnknownFlags;
 
         /// <summary>
         /// Copies this property from <paramref name="source"/> to <paramref name="target"/> as it is - for a
-        /// <see cref="TikValue{T}"/> its state too, so an assigned <c>null</c> stays an intent to unset rather than
+        /// <see cref="TikField{T}"/> its state too, so an assigned <c>null</c> stays an intent to unset rather than
         /// becoming Absent on the way through its string form.
         /// </summary>
         internal void CopyEntityValue(object source, object target)
@@ -420,15 +420,15 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// The wire form of a boxed <see cref="TikValue{T}"/> of this property: <c>null</c> for Absent (it has none), the
+        /// The wire form of a boxed <see cref="TikField{T}"/> of this property: <c>null</c> for Absent (it has none), the
         /// router's own word for Unparsed, the formatted value — with a <c>[Flags]</c> value's unknown words — for Present.
         /// </summary>
-        internal string? FormatWrapped(object boxedTikValue)
+        internal string? FormatWrapped(object boxedTikField)
         {
-            var wrapped = (ITikValue)boxedTikValue;
-            if (wrapped.State == TikValueState.Absent)
+            var wrapped = (ITikField)boxedTikField;
+            if (wrapped.State == TikFieldState.Absent)
                 return null;
-            if (wrapped.State == TikValueState.Unparsed)
+            if (wrapped.State == TikFieldState.Unparsed)
                 return wrapped.RawValue;
             if (wrapped.BoxedValue == null)
                 return null;
@@ -444,7 +444,7 @@ namespace tik4net.Objects
             return wrapped.IsNegated ? "!" + text : text;
         }
 
-        /// <summary>The <see cref="TikValue{T}"/> itself, boxed — only for a wrapped property.</summary>
+        /// <summary>The <see cref="TikField{T}"/> itself, boxed — only for a wrapped property.</summary>
         internal object GetWrapped(object entity)
             => (_getter != null ? _getter(entity) : PropertyInfo.GetValue(entity))!;
 
@@ -734,7 +734,7 @@ namespace tik4net.Objects
             => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "no", StringComparison.OrdinalIgnoreCase);
 
-        // The TikValue<T> read: null is Absent; a value the type cannot hold - a format error, or a word a plain enum
+        // The TikField<T> read: null is Absent; a value the type cannot hold - a format error, or a word a plain enum
         // does not know - is Unparsed with the router's word; everything else is Present. A [Flags] enum with an
         // Unknown member keeps its known parts and remembers the unknown words, as a plain property does, so a
         // save appends them.
@@ -751,7 +751,7 @@ namespace tik4net.Objects
             if (negated)
                 propValue = propValue.Substring(1);
 
-            // A plain bool reads every word but true/yes as false; a TikValue<bool?> knows the four the router
+            // A plain bool reads every word but true/yes as false; a TikField<bool?> knows the four the router
             // prints (and a presence flag's empty value), and anything else is a value it cannot hold.
             if (ValueType == typeof(bool) && !(IsPresenceFlag && propValue.Length == 0) && !IsBoolWord(propValue))
                 return _wrapUnparsed!(word);

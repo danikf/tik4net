@@ -15,31 +15,31 @@ namespace tik4net.Objects.Ip
     {
         /// <summary>enabled — enables or disables the SOCKS proxy server.</summary>
         [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
-        public TikValue<bool?> Enabled { get; set; }
+        public TikField<bool?> Enabled { get; set; }
 
         /// <summary>port — TCP port on which the SOCKS server listens. Default: 1080.</summary>
         [TikProperty("port", DefaultValue = "1080", WinboxLabel = "Port")]
-        public TikValue<int?> Port { get; set; }
+        public TikField<int?> Port { get; set; }
 
         /// <summary>connection-idle-timeout — time after which idle connections are terminated. Default: 2m.</summary>
         [TikProperty("connection-idle-timeout", DefaultValue = "2m", WinboxLabel = "Connection Idle Timeout")]
-        public TikValue<TikDuration?> ConnectionIdleTimeout { get; set; }
+        public TikField<TikDuration?> ConnectionIdleTimeout { get; set; }
 
         /// <summary>max-connections — maximum number of simultaneous connections. Range: 1..500. Default: 200.</summary>
         [TikProperty("max-connections", DefaultValue = "200", WinboxLabel = "Max Connections")]
-        public TikValue<int?> MaxConnections { get; set; }
+        public TikField<int?> MaxConnections { get; set; }
 
         /// <summary>version — SOCKS protocol version to use (4 or 5). Default: 4.</summary>
         [TikProperty("version", DefaultValue = "4", WinboxLabel = "Version")]
-        public TikValue<string?> Version { get; set; }
+        public TikField<string?> Version { get; set; }
 
         /// <summary>auth-method — authentication method (none or username_password). Default: none.</summary>
         [TikProperty("auth-method", DefaultValue = "none", WinboxLabel = "Authentication method")]
-        public TikValue<string?> AuthMethod { get; set; }
+        public TikField<string?> AuthMethod { get; set; }
 
         /// <summary>vrf — VRF instance the server listens on. Default: main.</summary>
         [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
-        public TikValue<string?> Vrf { get; set; }
+        public TikField<string?> Vrf { get; set; }
 
         /// <summary>Human-readable summary of SOCKS settings.</summary>
         public override string ToString() => string.Format("enabled={0} port={1} version={2}", Enabled, Port, Version);

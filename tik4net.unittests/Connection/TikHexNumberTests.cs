@@ -64,7 +64,7 @@ namespace tik4net.unittests.Connection
                 .WithNonQuery(cmd => cmd.First() == "/interface/bridge/port/set");
 
             var ports = connection.LoadAll<BridgePort>().ToList();
-            Assert.AreEqual(TikValueState.Present, ports[0].Priority.State, "0x80 over the API used to read Unparsed");
+            Assert.AreEqual(TikFieldState.Present, ports[0].Priority.State, "0x80 over the API used to read Unparsed");
             Assert.AreEqual(128L, ports[0].Priority.Value!.Value.Value);
             Assert.AreEqual(112L, ports[1].Priority.Value!.Value.Value);
 

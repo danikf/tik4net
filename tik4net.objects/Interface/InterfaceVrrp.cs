@@ -21,35 +21,35 @@ namespace tik4net.Objects.Interface
 
         /// <summary>name — Name of the VRRP interface.</summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>mtu — Layer3 MTU size (read-only, derived from parent interface).</summary>
         [TikProperty("mtu", IsReadOnly = true, WinboxLabel = "MTU")]
-        public TikValue<string?> Mtu { get; private set; }
+        public TikField<string?> Mtu { get; private set; }
 
         /// <summary>mac-address — Virtual MAC address auto-generated from vrid (read-only).</summary>
         [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; private set; }
+        public TikField<string?> MacAddress { get; private set; }
 
         /// <summary>interface — Physical interface on which VRRP runs. Required.</summary>
         [TikProperty("interface", WinboxLabel = "Interface")]
-        public TikValue<string?> Interface { get; set; }
+        public TikField<string?> Interface { get; set; }
 
         /// <summary>vrid — Virtual Router Identifier (1–255). Default: 1. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("vrid", DefaultValue = "1", WinboxLabel = "VRID")]
-        public TikValue<int?> Vrid { get; set; }
+        public TikField<int?> Vrid { get; set; }
 
         /// <summary>priority — Election priority (1–254). 255 is reserved for the IP owner. Default: 100. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("priority", DefaultValue = "100", WinboxLabel = "Priority")]
-        public TikValue<int?> Priority { get; set; }
+        public TikField<int?> Priority { get; set; }
 
         /// <summary>interval — How often the VRRP master sends advertisement packets. Default: 1s.</summary>
         [TikProperty("interval", DefaultValue = "1s", WinboxLabel = "Interval")]
-        public TikValue<TikDuration?> Interval { get; set; }
+        public TikField<TikDuration?> Interval { get; set; }
 
         /// <summary>preemption-mode — Whether a higher-priority backup immediately takes over master role.</summary>
         [TikProperty("preemption-mode", DefaultValue = "yes", WinboxLabel = "Preemption Mode")]
-        public TikValue<bool?> PreemptionMode { get; set; }
+        public TikField<bool?> PreemptionMode { get; set; }
 
         /// <summary>authentication — the method used to authenticate VRRP packets.</summary>
         public enum AuthenticationMode
@@ -65,11 +65,11 @@ namespace tik4net.Objects.Interface
         /// <summary>authentication — Method used to authenticate VRRP packets. Default: none.</summary>
         /// <seealso cref="AuthenticationMode"/>
         [TikProperty("authentication", DefaultValue = "none", WinboxLabel = "Authentication")]
-        public TikValue<AuthenticationMode?> Authentication { get; set; }
+        public TikField<AuthenticationMode?> Authentication { get; set; }
 
         /// <summary>password — Password used for VRRP packet authentication.</summary>
         [TikProperty("password", DefaultValue = "", IsSensitive = true, WinboxLabel = "Password")]
-        public TikValue<string?> Password { get; set; }
+        public TikField<string?> Password { get; set; }
 
         /// <summary>arp — the Address Resolution Protocol setting for the VRRP interface.</summary>
         public enum ArpMode
@@ -90,15 +90,15 @@ namespace tik4net.Objects.Interface
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>
         /// <seealso cref="ArpMode"/>
         [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
-        public TikValue<ArpMode?> Arp { get; set; }
+        public TikField<ArpMode?> Arp { get; set; }
 
         /// <summary>arp-timeout — How long ARP entries are kept. Default: auto.</summary>
         [TikProperty("arp-timeout", DefaultValue = "auto", WinboxLabel = "ARP Timeout")]
-        public TikValue<TikDuration?> ArpTimeout { get; set; }
+        public TikField<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>version — VRRP protocol version (2 or 3). Default: 3. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("version", DefaultValue = "3", WinboxLabel = "Version")]
-        public TikValue<int?> Version { get; set; }
+        public TikField<int?> Version { get; set; }
 
         /// <summary>v3-protocol — the IP protocol used when version=3.</summary>
         public enum V3ProtocolType
@@ -112,27 +112,27 @@ namespace tik4net.Objects.Interface
         /// <summary>v3-protocol — IP protocol used when version=3. Default: ipv4.</summary>
         /// <seealso cref="V3ProtocolType"/>
         [TikProperty("v3-protocol", DefaultValue = "ipv4", WinboxLabel = "V3 Protocol")]
-        public TikValue<V3ProtocolType?> V3Protocol { get; set; }
+        public TikField<V3ProtocolType?> V3Protocol { get; set; }
 
         /// <summary>on-backup — Script executed when transitioning to backup state.</summary>
         [TikProperty("on-backup", DefaultValue = "", WinboxLabel = "On Backup")]
-        public TikValue<string?> OnBackup { get; set; }
+        public TikField<string?> OnBackup { get; set; }
 
         /// <summary>on-master — Script executed when becoming master.</summary>
         [TikProperty("on-master", DefaultValue = "", WinboxLabel = "On Master")]
-        public TikValue<string?> OnMaster { get; set; }
+        public TikField<string?> OnMaster { get; set; }
 
         /// <summary>on-fail — Script executed during failure.</summary>
         [TikProperty("on-fail", DefaultValue = "")]
-        public TikValue<string?> OnFail { get; set; }
+        public TikField<string?> OnFail { get; set; }
 
         /// <summary>group-authority — VRRP interface that acts as group authority, controlling this instance's state.</summary>
         [TikProperty("group-authority", DefaultValue = "", WinboxLabel = "Group Authority")]
-        public TikValue<string?> GroupAuthority { get; set; }
+        public TikField<string?> GroupAuthority { get; set; }
 
         /// <summary>sync-connection-tracking — Synchronizes connection tracking entries from master to backup.</summary>
         [TikProperty("sync-connection-tracking", DefaultValue = "no", WinboxLabel = "Sync. Connection Tracking")]
-        public TikValue<bool?> SyncConnectionTracking { get; set; }
+        public TikField<bool?> SyncConnectionTracking { get; set; }
 
         /// <summary>connection-tracking-mode — how connection tracking entries synchronize across VRRP nodes.</summary>
         public enum ConnectionTrackingModeType
@@ -146,31 +146,31 @@ namespace tik4net.Objects.Interface
         /// <summary>connection-tracking-mode — How connection tracking synchronizes across VRRP nodes. Default: passive-active.</summary>
         /// <seealso cref="ConnectionTrackingModeType"/>
         [TikProperty("connection-tracking-mode", DefaultValue = "passive-active")]
-        public TikValue<ConnectionTrackingModeType?> ConnectionTrackingMode { get; set; }
+        public TikField<ConnectionTrackingModeType?> ConnectionTrackingMode { get; set; }
 
         /// <summary>connection-tracking-port — UDP port used for connection tracking synchronization. Default: 8275. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("connection-tracking-port", DefaultValue = "8275", WinboxLabel = "Conn. Tracking Port")]
-        public TikValue<int?> ConnectionTrackingPort { get; set; }
+        public TikField<int?> ConnectionTrackingPort { get; set; }
 
         /// <summary>remote-address — Peer router IP address for connection tracking synchronization.</summary>
         [TikProperty("remote-address", DefaultValue = "", WinboxLabel = "Remote Address")]
-        public TikValue<string?> RemoteAddress { get; set; }
+        public TikField<string?> RemoteAddress { get; set; }
 
         /// <summary>invalid — Whether the VRRP configuration is invalid (read-only).</summary>
         [TikProperty("invalid", IsReadOnly = true, WinboxLabel = "inactive")]
-        public TikValue<bool?> Invalid { get; private set; }
+        public TikField<bool?> Invalid { get; private set; }
 
         /// <summary>running — Whether the VRRP interface is running (read-only).</summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>disabled — Whether the interface is disabled.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

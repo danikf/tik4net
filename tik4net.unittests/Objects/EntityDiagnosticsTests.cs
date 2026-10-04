@@ -18,16 +18,16 @@ namespace tik4net.unittests.Objects
         public string? Id { get; private set; }
 
         [TikProperty("name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         [TikProperty("mtu")]
-        public TikValue<int?> Mtu { get; set; }
+        public TikField<int?> Mtu { get; set; }
 
         [TikProperty("routing-table", AlternateNames = new[] { "routing-mark" })]
-        public TikValue<string?> Table { get; set; }
+        public TikField<string?> Table { get; set; }
 
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
     }
 
     [TestClass]

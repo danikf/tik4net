@@ -27,7 +27,7 @@ namespace tik4net.Objects.Interface
         ///  reply-only - the interface will only reply to requests originated from matching IP address/MAC address combinations which are entered as static entries in the  ARP table. No dynamic entries will be automatically stored in the ARP table. Therefore for communications to be successful, a valid static entry must already exist.
         /// </summary>
         [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
-        public TikValue<string?> Arp { get; set; }
+        public TikField<string?> Arp { get; set; }
 
         /// <summary>
         /// auto-negotiation
@@ -44,7 +44,7 @@ namespace tik4net.Objects.Interface
         /// </para>
         /// </summary>
         [TikProperty("auto-negotiation", DefaultValue = "yes", WinboxLabel = "autoneg")]
-        public TikValue<bool?> AutoNegotiation { get; set; }
+        public TikField<bool?> AutoNegotiation { get; set; }
 
         /// <summary>
         /// bandwidth: Sets max rx/tx bandwidth in kbps that will be handled by an interface. TX limit is supported on all Atheros  switch-chip ports. RX limit is supported only on AR8327 switch-chip ports.
@@ -56,25 +56,25 @@ namespace tik4net.Objects.Interface
         /// on every board: a CHR's virtual interfaces do not carry the field at all.
         /// </remarks>
         [TikProperty("bandwidth", DefaultValue = "unlimited/unlimited")]
-        public TikValue<TikRatePair?> Bandwidth { get; set; }
+        public TikField<TikRatePair?> Bandwidth { get; set; }
 
         /// <summary>
         /// cable-setting: Changes the cable length setting (only applicable to NS DP83815/6 cards)
         /// </summary>
         [TikProperty("cable-setting", DefaultValue = "default")]
-        public TikValue<string?> CableSetting { get; set; }
+        public TikField<string?> CableSetting { get; set; }
 
         /// <summary>
         /// comment: Descriptive name of an item
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// disable-running-check: Disable running check. If this value is set to 'no', the router automatically detects whether the NIC is connected with a device in the network or not. Default value is 'yes' because older NICs do not support it. (only applicable to x86)
         /// </summary>
         [TikProperty("disable-running-check", DefaultValue = "yes")]
-        public TikValue<bool?> DisableRunningCheck { get; set; }
+        public TikField<bool?> DisableRunningCheck { get; set; }
 
         /// <summary>
         /// Options for Yes-No properties.
@@ -98,13 +98,13 @@ namespace tik4net.Objects.Interface
         /// flow-control-tx: When set to on, port will send pause frames when specific buffer usage thresholds is met. auto is the same as on except when auto-negotiation=yes flow control status is resolved by taking into account what other end advertises. Feature is supported on AR724x, AR9xxx, QCA9xxx CPU ports, all CCR ports and all Atheros switch chip ports.
         /// </summary>
         [TikProperty("flow-control-tx")]
-        public TikValue<YesNoOptions?> FlowControlTx { get; set; }
+        public TikField<YesNoOptions?> FlowControlTx { get; set; }
 
         /// <summary>
         /// flow-control-rx: When set to on, port will process received pause frames and suspend transmission if required. auto is the same as on except when auto-negotiation=yes flow control status is resolved by taking into account what other end advertises. Feature is supported on AR724x, AR9xxx, QCA9xxx CPU ports, all CCR ports and all Atheros switch chip ports.
         /// </summary>
         [TikProperty("flow-control-rx")]
-        public TikValue<YesNoOptions?> FlowControlRx { get; set; }
+        public TikField<YesNoOptions?> FlowControlRx { get; set; }
 
         ///// <summary>
         ///// flow-control-auto
@@ -120,7 +120,7 @@ namespace tik4net.Objects.Interface
         /// full-duplex: Defines whether the transmission of data appears in two directions simultaneously
         /// </summary>
         [TikProperty("full-duplex", DefaultValue = "yes", WinboxLabel = "Full Duplex")]
-        public TikValue<bool?> FullDuplex { get; set; }
+        public TikField<bool?> FullDuplex { get; set; }
 
         /// <summary>
         /// l2mtu: Layer2 Maximum transmission unit.  Read more&gt;&gt; 
@@ -128,25 +128,25 @@ namespace tik4net.Objects.Interface
         /// integer [0..65536]
         /// </summary>
         [TikProperty("l2mtu", WinboxLabel = "L2 MTU")]
-        public TikValue<int?> L2mtu { get; set; }
+        public TikField<int?> L2mtu { get; set; }
 
         /// <summary>
         /// mac-address: Media Access Control number of an interface.
         /// </summary>
         [TikProperty("mac-address", WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; set; }
+        public TikField<string?> MacAddress { get; set; }
 
         /// <summary>
         /// master-port: Sets interface to be a slave of this named switch group master interface
         /// </summary>
         [TikProperty("master-port", DefaultValue = "none")]
-        public TikValue<string?> MasterPort { get; set; }
+        public TikField<string?> MasterPort { get; set; }
 
         /// <summary>
         /// mdix-enable: Whether the MDI/X auto cross over cable correction feature is enabled for the port (Hardware specific, e.g. ether1 on RB500 can be set to yes/no. Fixed to 'yes' on other hardware.)
         /// </summary>
         [TikProperty("mdix-enable", DefaultValue = "yes")]
-        public TikValue<bool?> MdixEnable { get; set; }
+        public TikField<bool?> MdixEnable { get; set; }
 
         /// <summary>
         /// mtu: Layer3 Maximum transmission unit
@@ -154,19 +154,19 @@ namespace tik4net.Objects.Interface
         /// integer [0..65536]
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1500", WinboxLabel = "MTU")]
-        public TikValue<int?> Mtu { get; set; }
+        public TikField<int?> Mtu { get; set; }
 
         /// <summary>
         /// name: Name of an interface
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// orig-mac-address: 
         /// </summary>
         [TikProperty("orig-mac-address")]
-        public TikValue<string?> OrigMacAddress { get; set; }
+        public TikField<string?> OrigMacAddress { get; set; }
 
         /// <summary>
         /// poe-out: Poe Out settings.  Read more &gt;&gt;
@@ -174,19 +174,19 @@ namespace tik4net.Objects.Interface
         /// auto-on | forced-on | off
         /// </summary>
         [TikProperty("poe-out", DefaultValue = "off", WinboxLabel = "PoE Out")]
-        public TikValue<string?> PoeOut { get; set; }
+        public TikField<string?> PoeOut { get; set; }
 
         /// <summary>
         /// poe-priority: Poe Out settings.  Read more &gt;&gt;
         /// </summary>
         [TikProperty("poe-priority", WinboxLabel = "PoE Priority")]
-        public TikValue<string?> PoePriority { get; set; }
+        public TikField<string?> PoePriority { get; set; }
 
         /// <summary>
         /// sfp-rate-select: high | low
         /// </summary>
         [TikProperty("sfp-rate-select", DefaultValue = "high")]
-        public TikValue<string?> SfpRateSelect { get; set; }
+        public TikField<string?> SfpRateSelect { get; set; }
 
         /// <summary>
         /// speed: Sets the data transmission speed of an interface. By default, this value is the maximal data rate supported by the interface
@@ -194,103 +194,103 @@ namespace tik4net.Objects.Interface
         /// 10Mbps | 10Gbps | 100Mbps | 1Gbps
         /// </summary>
         [TikProperty("speed", WinboxLabel = "Speed")]
-        public TikValue<string?> Speed { get; set; }
+        public TikField<string?> Speed { get; set; }
 
         /// <summary>
         /// running: Whether interface is running. Note that some interface does not have running check and they are always reported as "running"
         /// </summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>
         /// rx-1024-1518: Total count of received 1024 to 1518 byte packets
         /// </summary>
         [TikProperty("rx-1024-1518", IsReadOnly = true, WinboxLabel = "Rx 1024-1518")]
-        public TikValue<int?> Rx10241518 { get; private set; }
+        public TikField<int?> Rx10241518 { get; private set; }
 
         /// <summary>
         /// rx-128-255: Total count of received 128 to 255 byte packets
         /// </summary>
         [TikProperty("rx-128-255", IsReadOnly = true, WinboxLabel = "Rx 128-255")]
-        public TikValue<int?> Rx128255 { get; private set; }
+        public TikField<int?> Rx128255 { get; private set; }
 
         /// <summary>
         /// rx-1519-max: Total count of received packets larger than 1519 bytes
         /// </summary>
         [TikProperty("rx-1519-max", IsReadOnly = true, WinboxLabel = "Rx 1519-max")]
-        public TikValue<int?> Rx1519Max { get; private set; }
+        public TikField<int?> Rx1519Max { get; private set; }
 
         /// <summary>
         /// rx-256-511: Total count of received 256 to 511 byte packets
         /// </summary>
         [TikProperty("rx-256-511", IsReadOnly = true, WinboxLabel = "Rx 256-511")]
-        public TikValue<int?> Rx256511 { get; private set; }
+        public TikField<int?> Rx256511 { get; private set; }
 
         /// <summary>
         /// rx-512-1023: Total count of received 512 to 1023 byte packets
         /// </summary>
         [TikProperty("rx-512-1023", IsReadOnly = true, WinboxLabel = "Rx 512-1023")]
-        public TikValue<int?> Rx5121023 { get; private set; }
+        public TikField<int?> Rx5121023 { get; private set; }
 
         /// <summary>
         /// rx-64: Total count of received 64 byte packets
         /// </summary>
         [TikProperty("rx-64", IsReadOnly = true, WinboxLabel = "Rx 64")]
-        public TikValue<int?> Rx64 { get; private set; }
+        public TikField<int?> Rx64 { get; private set; }
 
         /// <summary>
         /// rx-65-127: Total count of received 65 to 127 byte packets
         /// </summary>
         [TikProperty("rx-65-127", IsReadOnly = true, WinboxLabel = "Rx 65-127")]
-        public TikValue<int?> Rx65127 { get; private set; }
+        public TikField<int?> Rx65127 { get; private set; }
 
         /// <summary>
         /// rx-align-error: Total count of received align error messages
         /// </summary>
         [TikProperty("rx-align-error", IsReadOnly = true, WinboxLabel = "Rx Align Error")]
-        public TikValue<int?> RxAlignError { get; private set; }
+        public TikField<int?> RxAlignError { get; private set; }
 
         /// <summary>
         /// rx-broadcast: Total count of received broadcast packets
         /// </summary>
         [TikProperty("rx-broadcast", IsReadOnly = true, WinboxLabel = "Rx Broadcast")]
-        public TikValue<int?> RxBroadcast { get; private set; }
+        public TikField<int?> RxBroadcast { get; private set; }
 
         /// <summary>
         /// rx-bytes: Total count of received bytes
         /// </summary>
         [TikProperty("rx-bytes", IsReadOnly = true, WinboxLabel = "Rx Bytes")]
-        public TikValue<long?> RxBytes { get; private set; }
+        public TikField<long?> RxBytes { get; private set; }
 
         /// <summary>
         /// rx-fcs-error: Total count of received frames with incorrect checksum
         /// </summary>
         [TikProperty("rx-fcs-error", IsReadOnly = true, WinboxLabel = "Rx FCS Error")]
-        public TikValue<int?> RxFcsError { get; private set; }
+        public TikField<int?> RxFcsError { get; private set; }
 
         /// <summary>
         /// rx-fragment: Total count of received fragmented frames
         /// </summary>
         [TikProperty("rx-fragment", IsReadOnly = true, WinboxLabel = "Rx Fragment")]
-        public TikValue<int?> RxFragment { get; private set; }
+        public TikField<int?> RxFragment { get; private set; }
 
         /// <summary>
         /// rx-multicast: Total count of received multicast packets
         /// </summary>
         [TikProperty("rx-multicast", IsReadOnly = true, WinboxLabel = "Rx Multicast")]
-        public TikValue<int?> RxMulticast { get; private set; }
+        public TikField<int?> RxMulticast { get; private set; }
 
         /// <summary>
         /// rx-overflow: Total count of received overflowed packets
         /// </summary>
         [TikProperty("rx-overflow", IsReadOnly = true, WinboxLabel = "Rx Overflow")]
-        public TikValue<int?> RxOverflow { get; private set; }
+        public TikField<int?> RxOverflow { get; private set; }
 
         /// <summary>
         /// rx-pause: Total count of received pause frames
         /// </summary>
         [TikProperty("rx-pause", IsReadOnly = true, WinboxLabel = "Rx Pause")]
-        public TikValue<int?> RxPause { get; private set; }
+        public TikField<int?> RxPause { get; private set; }
 
         /// <summary>
         /// rx-runt
@@ -298,115 +298,115 @@ namespace tik4net.Objects.Interface
         /// but with a valid CRC
         /// </summary>
         [TikProperty("rx-runt", IsReadOnly = true)]
-        public TikValue<int?> RxRunt { get; private set; }
+        public TikField<int?> RxRunt { get; private set; }
 
         /// <summary>
         /// rx-too-long: Total count of received packets that were larger than the maximum packet size
         /// </summary>
         [TikProperty("rx-too-long", IsReadOnly = true, WinboxLabel = "Rx Too Long")]
-        public TikValue<int?> RxTooLong { get; private set; }
+        public TikField<int?> RxTooLong { get; private set; }
 
         /// <summary>
         /// slave: Whether interface is configured as a slave of another interface (for example Bonding)
         /// </summary>
         [TikProperty("slave", IsReadOnly = true, WinboxLabel = "slave")]
-        public TikValue<bool?> Slave { get; private set; }
+        public TikField<bool?> Slave { get; private set; }
 
         /// <summary>
         /// switch: ID to which switch chip interface belongs to.
         /// </summary>
         [TikProperty("switch", IsReadOnly = true)]
-        public TikValue<string?> Switch { get; private set; }
+        public TikField<string?> Switch { get; private set; }
 
         /// <summary>
         /// tx-1024-1518: Total count of transmitted 1024 to 1518 byte packets
         /// </summary>
         [TikProperty("tx-1024-1518", IsReadOnly = true, WinboxLabel = "Tx 1024-1518")]
-        public TikValue<int?> Tx10241518 { get; private set; }
+        public TikField<int?> Tx10241518 { get; private set; }
 
         /// <summary>
         /// tx-128-255: Total count of transmitted 128 to 255 byte packets
         /// </summary>
         [TikProperty("tx-128-255", IsReadOnly = true, WinboxLabel = "Tx 128-255")]
-        public TikValue<int?> Tx128255 { get; private set; }
+        public TikField<int?> Tx128255 { get; private set; }
 
         /// <summary>
         /// tx-1519-max: Total count of transmitted packets larger than 1519 bytes
         /// </summary>
         [TikProperty("tx-1519-max", IsReadOnly = true, WinboxLabel = "Tx 1519-max")]
-        public TikValue<int?> Tx1519Max { get; private set; }
+        public TikField<int?> Tx1519Max { get; private set; }
 
         /// <summary>
         /// tx-256-511: Total count of transmitted 256 to 511 byte packets
         /// </summary>
         [TikProperty("tx-256-511", IsReadOnly = true, WinboxLabel = "Tx 256-511")]
-        public TikValue<int?> Tx256511 { get; private set; }
+        public TikField<int?> Tx256511 { get; private set; }
 
         /// <summary>
         /// tx-512-1023: Total count of transmitted 512 to 1023 byte packets
         /// </summary>
         [TikProperty("tx-512-1023", IsReadOnly = true, WinboxLabel = "Tx 512-1023")]
-        public TikValue<int?> Tx5121023 { get; private set; }
+        public TikField<int?> Tx5121023 { get; private set; }
 
         /// <summary>
         /// tx-64: Total count of transmitted 64 byte packets
         /// </summary>
         [TikProperty("tx-64", IsReadOnly = true, WinboxLabel = "Tx 64")]
-        public TikValue<int?> Tx64 { get; private set; }
+        public TikField<int?> Tx64 { get; private set; }
 
         /// <summary>
         /// tx-65-127: Total count of transmitted 65 to 127 byte packets
         /// </summary>
         [TikProperty("tx-65-127", IsReadOnly = true, WinboxLabel = "Tx 65-127")]
-        public TikValue<int?> Tx65127 { get; private set; }
+        public TikField<int?> Tx65127 { get; private set; }
 
         /// <summary>
         /// tx-align-error: Total count of transmitted align error messages
         /// </summary>
         [TikProperty("tx-align-error", IsReadOnly = true)]
-        public TikValue<int?> TxAlignError { get; private set; }
+        public TikField<int?> TxAlignError { get; private set; }
 
         /// <summary>
         /// tx-broadcast: Total count of transmitted broadcast packets
         /// </summary>
         [TikProperty("tx-broadcast", IsReadOnly = true, WinboxLabel = "Tx Broadcast")]
-        public TikValue<int?> TxBroadcast { get; private set; }
+        public TikField<int?> TxBroadcast { get; private set; }
 
         /// <summary>
         /// tx-bytes: Total count of transmitted bytes
         /// </summary>
         [TikProperty("tx-bytes", IsReadOnly = true, WinboxLabel = "Tx Bytes")]
-        public TikValue<long?> TxBytes { get; private set; }
+        public TikField<long?> TxBytes { get; private set; }
 
         /// <summary>
         /// tx-fcs-error: Total count of transmitted frames with incorrect checksum
         /// </summary>
         [TikProperty("tx-fcs-error", IsReadOnly = true, WinboxLabel = "Tx FCS Error")]
-        public TikValue<int?> TxFcsError { get; private set; }
+        public TikField<int?> TxFcsError { get; private set; }
 
         /// <summary>
         /// tx-fragment: Total count of transmitted fragmented frames
         /// </summary>
         [TikProperty("tx-fragment", IsReadOnly = true, WinboxLabel = "Tx Fragment")]
-        public TikValue<int?> TxFragment { get; private set; }
+        public TikField<int?> TxFragment { get; private set; }
 
         /// <summary>
         /// tx-multicast: Total count of transmitted multicast packets
         /// </summary>
         [TikProperty("tx-multicast", IsReadOnly = true, WinboxLabel = "Tx Multicast")]
-        public TikValue<int?> TxMulticast { get; private set; }
+        public TikField<int?> TxMulticast { get; private set; }
 
         /// <summary>
         /// tx-overflow: Total count of transmitted overflowed packets
         /// </summary>
         [TikProperty("tx-overflow", IsReadOnly = true)]
-        public TikValue<int?> TxOverflow { get; private set; }
+        public TikField<int?> TxOverflow { get; private set; }
 
         /// <summary>
         /// tx-pause: Total count of transmitted pause frames
         /// </summary>
         [TikProperty("tx-pause", IsReadOnly = true, WinboxLabel = "Tx Pause")]
-        public TikValue<int?> TxPause { get; private set; }
+        public TikField<int?> TxPause { get; private set; }
 
         /// <summary>
         /// tx-runt
@@ -414,18 +414,18 @@ namespace tik4net.Objects.Interface
         /// but with a valid CRC
         /// </summary>
         [TikProperty("tx-runt", IsReadOnly = true)]
-        public TikValue<int?> TxRunt { get; private set; }
+        public TikField<int?> TxRunt { get; private set; }
 
         /// <summary>
         /// tx-too-long: Total count of transmitted packets that were larger than the maximum packet size
         /// </summary>
         [TikProperty("tx-too-long", IsReadOnly = true)]
-        public TikValue<int?> TxTooLong { get; private set; }
+        public TikField<int?> TxTooLong { get; private set; }
 
         /// <summary>
         /// disabled: Whether interface is disabled
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
     }
 }

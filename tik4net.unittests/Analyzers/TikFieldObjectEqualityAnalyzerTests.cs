@@ -14,27 +14,27 @@ using tik4net.Analyzers;
 namespace tik4net.unittests.Analyzers
 {
     /// <summary>
-    /// TIK001, the analyzer the tik4net package ships: a <c>TikValue&lt;T&gt;</c> compared with a plain value through
+    /// TIK001, the analyzer the tik4net package ships: a <c>TikField&lt;T&gt;</c> compared with a plain value through
     /// <c>object</c> is never equal.
     /// </summary>
     /// <remarks>
-    /// The snippets declare a stand-in <c>tik4net.Objects.TikValue&lt;T&gt;</c> with the real one's conversions, and an
+    /// The snippets declare a stand-in <c>tik4net.Objects.TikField&lt;T&gt;</c> with the real one's conversions, and an
     /// <c>Assert</c> with MSTest's two <c>AreEqual</c> shapes: the analyzer recognises the type by its metadata name, and
     /// corlib is then the only reference, so the tests run the same on net8.0 and net48.
     /// </remarks>
     [TestClass]
-    public class TikValueObjectEqualityAnalyzerTests
+    public class TikFieldObjectEqualityAnalyzerTests
     {
         private const string Stubs = @"
 namespace tik4net.Objects
 {
-    public readonly struct TikValue<T>
+    public readonly struct TikField<T>
     {
         public T Value => default(T);
-        public static implicit operator TikValue<T>(T value) => default(TikValue<T>);
-        public static bool operator ==(TikValue<T> a, T b) => true;
-        public static bool operator !=(TikValue<T> a, T b) => false;
-        public override bool Equals(object obj) => obj is TikValue<T>;
+        public static implicit operator TikField<T>(T value) => default(TikField<T>);
+        public static bool operator ==(TikField<T> a, T b) => true;
+        public static bool operator !=(TikField<T> a, T b) => false;
+        public override bool Equals(object obj) => obj is TikField<T>;
         public override int GetHashCode() => 0;
     }
 }
@@ -44,7 +44,7 @@ static class Assert
     public static void AreEqual<T>(T expected, T actual) { }
     public static void AreNotEqual(object notExpected, object actual) { }
 }
-class Row { public tik4net.Objects.TikValue<string> Name; public tik4net.Objects.TikValue<int?> Mtu; public object Any; }
+class Row { public tik4net.Objects.TikField<string> Name; public tik4net.Objects.TikField<int?> Mtu; public object Any; }
 ";
 
         private static string Body(string statements) => Stubs + @"
@@ -89,7 +89,7 @@ class Subject
         }
 
         [TestMethod]
-        public void NothingIsReportedWithoutTikValueInTheCompilation()
+        public void NothingIsReportedWithoutTikFieldInTheCompilation()
         {
             var diagnostics = Analyze("class C { bool M(object a) => object.Equals(\"x\", a) || object.Equals(\"x\", 5); }");
 
@@ -113,7 +113,7 @@ class Subject
             var compilation = Compile(source);
             var errors = compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
             Assert.AreEqual(0, errors.Count, "the snippet itself does not compile:\n" + string.Join("\n", errors));
-            return compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new TikValueObjectEqualityAnalyzer()))
+            return compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new TikFieldObjectEqualityAnalyzer()))
                 .GetAnalyzerDiagnosticsAsync().GetAwaiter().GetResult();
         }
 
@@ -136,7 +136,7 @@ class Subject
             var diagnostic = Analyze(source).Single();
             var actions = new List<CodeAction>();
             var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), CancellationToken.None);
-            new TikValueObjectEqualityCodeFix().RegisterCodeFixesAsync(context).GetAwaiter().GetResult();
+            new TikFieldObjectEqualityCodeFix().RegisterCodeFixesAsync(context).GetAwaiter().GetResult();
 
             var operation = actions.Single().GetOperationsAsync(CancellationToken.None).GetAwaiter().GetResult()
                 .OfType<ApplyChangesOperation>().Single();

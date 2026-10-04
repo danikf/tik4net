@@ -18,27 +18,27 @@ namespace tik4net.Objects.System
         /// enabled — enable or disable NTP client time synchronization.
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
-        public TikValue<bool?> Enabled { get; set; }
+        public TikField<bool?> Enabled { get; set; }
 
         /// <summary>
         /// mode — operational mode for the NTP client.
         /// </summary>
         /// <seealso cref="NtpClientMode"/>
         [TikProperty("mode", DefaultValue = "unicast", WinboxLabel = "Mode")]
-        public TikValue<NtpClientMode?> Mode { get; set; }
+        public TikField<NtpClientMode?> Mode { get; set; }
 
         /// <summary>
         /// servers — comma-separated list of NTP server addresses (FQDN, IPv4, IPv6, or IPv6 link-local).
         /// ROS 7 unified field (replaces ROS 6 primary-ntp / secondary-ntp).
         /// </summary>
         [TikProperty("servers", WinboxLabel = "NTP Servers")]
-        public TikValue<string?> Servers { get; set; }
+        public TikField<string?> Servers { get; set; }
 
         /// <summary>
         /// vrf — Virtual Routing and Forwarding instance used for NTP traffic. Default: main.
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
-        public TikValue<string?> Vrf { get; set; }
+        public TikField<string?> Vrf { get; set; }
 
         // --- Read-only status fields ---
 
@@ -46,31 +46,31 @@ namespace tik4net.Objects.System
         /// freq-drift — fractional frequency drift per unit time (ppm), read-only.
         /// </summary>
         [TikProperty("freq-drift", IsReadOnly = true, WinboxLabel = "Freq. Drift")]
-        public TikValue<string?> FreqDrift { get; private set; }
+        public TikField<string?> FreqDrift { get; private set; }
 
         /// <summary>
         /// status — current NTP client synchronization state, read-only.
         /// </summary>
         [TikProperty("status", IsReadOnly = true, WinboxLabel = "Status")]
-        public TikValue<string?> Status { get; private set; }
+        public TikField<string?> Status { get; private set; }
 
         /// <summary>
         /// synced-server — IP address of the NTP server the client is currently synchronized to, read-only.
         /// </summary>
         [TikProperty("synced-server", IsReadOnly = true, WinboxLabel = "Synced Server")]
-        public TikValue<string?> SyncedServer { get; private set; }
+        public TikField<string?> SyncedServer { get; private set; }
 
         /// <summary>
         /// synced-stratum — stratum level of the currently synced NTP server (1 = primary reference), read-only.
         /// </summary>
         [TikProperty("synced-stratum", IsReadOnly = true, WinboxLabel = "Synced Stratum")]
-        public TikValue<string?> SyncedStratum { get; private set; }
+        public TikField<string?> SyncedStratum { get; private set; }
 
         /// <summary>
         /// system-offset — offset of the NTP server clock relative to the local clock (milliseconds), read-only.
         /// </summary>
         [TikProperty("system-offset", IsReadOnly = true, WinboxLabel = "System Offset")]
-        public TikValue<string?> SystemOffset { get; private set; }
+        public TikField<string?> SystemOffset { get; private set; }
 
         /// <summary>
         /// Human-readable summary of the NTP client state.

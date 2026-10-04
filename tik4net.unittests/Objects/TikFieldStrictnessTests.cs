@@ -1,5 +1,5 @@
 #nullable enable
-// TikValueStrictnessTests.cs — GetValueReport and EnsureStrict: how a caller finds out that a load met a value from
+// TikFieldStrictnessTests.cs — GetValueReport and EnsureStrict: how a caller finds out that a load met a value from
 // another RouterOS version (design "Strictness and merge"; review U5).
 
 using System.Collections.Generic;
@@ -11,16 +11,16 @@ using tik4net.Testing;
 namespace tik4net.unittests.Objects
 {
     [TestClass]
-    public class TikValueStrictnessTests
+    public class TikFieldStrictnessTests
     {
-        private static TikValueMapperTests.Box Load(params (string, string)[] fields)
+        private static TikFieldMapperTests.Box Load(params (string, string)[] fields)
         {
             var row = new Dictionary<string, string> { [".id"] = "*1" };
             foreach (var (k, v) in fields) row[k] = v;
             return new TikFakeConnection()
                 .WithResponse(cmd => cmd.FirstOrDefault() == "/box/print",
                     _ => new ITikSentence[] { new TikFakeReSentence(row), new TikFakeDoneSentence() })
-                .LoadAll<TikValueMapperTests.Box>().Single();
+                .LoadAll<TikFieldMapperTests.Box>().Single();
         }
 
         [TestMethod]
@@ -28,10 +28,10 @@ namespace tik4net.unittests.Objects
         {
             var report = Load(("name", "a"), ("mode", "false"), ("state", "new,untracked")).GetValueReport();
 
-            Assert.AreEqual(TikValueState.Present, report.Single(r => r.FieldName == "name").State);
+            Assert.AreEqual(TikFieldState.Present, report.Single(r => r.FieldName == "name").State);
             Assert.AreEqual("false", report.Single(r => r.FieldName == "mode").RawValue);
             Assert.AreEqual("untracked", report.Single(r => r.FieldName == "state").UnknownFlagWords);
-            Assert.AreEqual(TikValueState.Absent, report.Single(r => r.FieldName == "port").State);
+            Assert.AreEqual(TikFieldState.Absent, report.Single(r => r.FieldName == "port").State);
             Assert.IsFalse(report.Any(r => r.FieldName == ".id"), "a plain property has no state to report");
         }
 

@@ -26,85 +26,85 @@ namespace tik4net.Objects.Ip.Firewall
         /// assured: "assured" flag indicates that this connection is assured and that it will not be erased if maximum possible tracked connection count is reached.
         /// </summary>
         [TikProperty("assured", IsReadOnly = true, WinboxLabel = "assured")]
-        public TikValue<bool?> Assured { get; private set; }
+        public TikField<bool?> Assured { get; private set; }
 
         /// <summary>
         /// connection-mark: connection mark set by  mangle rule.
         /// </summary>
         [TikProperty("connection-mark", IsReadOnly = true, WinboxLabel = "Connection Mark")]
-        public TikValue<string?> ConnectionMark { get; private set; }
+        public TikField<string?> ConnectionMark { get; private set; }
 
         /// <summary>
         /// connection-type: Type of connection, property is empty if connection tracking is unable to determine predefined connection type.
         /// </summary>
         [TikProperty("connection-type", IsReadOnly = true, WinboxLabel = "Connection Type")]
-        public TikValue<string?> ConnectionType { get; private set; }
+        public TikField<string?> ConnectionType { get; private set; }
 
         /// <summary>
         /// dst-address: Destination address and port (if protocol is port based).
         /// </summary>
         [TikProperty("dst-address", IsReadOnly = true, WinboxLabel = "Dst. Address")]
-        public TikValue<string?> DstAddress { get; private set; }
+        public TikField<string?> DstAddress { get; private set; }
 
         /// <summary>
         /// gre-key: 
         /// </summary>
         [TikProperty("gre-key", IsReadOnly = true)]
-        public TikValue<int?> GreKey { get; private set; }
+        public TikField<int?> GreKey { get; private set; }
 
         /// <summary>
         /// gre-version: 
         /// </summary>
         [TikProperty("gre-version", IsReadOnly = true)]
-        public TikValue<string?> GreVersion { get; private set; }
+        public TikField<string?> GreVersion { get; private set; }
 
         /// <summary>
         /// icmp-code: 
         /// </summary>
         [TikProperty("icmp-code", IsReadOnly = true, WinboxLabel = "ICMP Code")]
-        public TikValue<string?> IcmpCode { get; private set; }
+        public TikField<string?> IcmpCode { get; private set; }
 
         /// <summary>
         /// icmp-id: 
         /// </summary>
         [TikProperty("icmp-id", IsReadOnly = true, WinboxLabel = "ICMP Id")]
-        public TikValue<string?> IcmpId { get; private set; }
+        public TikField<string?> IcmpId { get; private set; }
 
         /// <summary>
         /// icmp-type: 
         /// </summary>
         [TikProperty("icmp-type", IsReadOnly = true, WinboxLabel = "ICMP Type")]
-        public TikValue<string?> IcmpType { get; private set; }
+        public TikField<string?> IcmpType { get; private set; }
 
         /// <summary>
         /// p2p: Shows if connection is identified as p2p by firewall p2p matcher.
         /// </summary>
         [TikProperty("p2p", IsReadOnly = true)]
-        public TikValue<bool?> P2p { get; private set; }
+        public TikField<bool?> P2p { get; private set; }
 
         /// <summary>
         /// protocol: IP protocol type
         /// </summary>
         [TikProperty("protocol", IsReadOnly = true, WinboxLabel = "Protocol")]
-        public TikValue<string?> Protocol { get; private set; }
+        public TikField<string?> Protocol { get; private set; }
 
         /// <summary>
         /// reply-dst-address: Destination address (and port) expected of return packets. Usually the same as "src-address:port"
         /// </summary>
         [TikProperty("reply-dst-address", IsReadOnly = true, WinboxLabel = "Reply Dst. Address")]
-        public TikValue<string?> ReplyDstAddress { get; private set; }
+        public TikField<string?> ReplyDstAddress { get; private set; }
 
         /// <summary>
         /// reply-src-address: Source address (and port) expected of return packets. Usually the same as "dst-address:port"
         /// </summary>
         [TikProperty("reply-src-address", IsReadOnly = true, WinboxLabel = "Reply Src. Address")]
-        public TikValue<string?> ReplySrcAddress { get; private set; }
+        public TikField<string?> ReplySrcAddress { get; private set; }
 
         /// <summary>
         /// src-address: Source address and port (if protocol is port based).
         /// </summary>
         [TikProperty("src-address", IsReadOnly = true, WinboxLabel = "Src. Address")]
-        public TikValue<string?> SrcAddress { get; private set; }
+        public TikField<string?> SrcAddress { get; private set; }
 
         /// <summary>
         /// tcp-state
@@ -116,12 +116,12 @@ namespace tik4net.Objects.Ip.Firewall
         ///  "syn-received"
         /// </summary>
         [TikProperty("tcp-state", IsReadOnly = true, WinboxLabel = "TCP State")]
-        public TikValue<string?> TcpState { get; private set; }
+        public TikField<string?> TcpState { get; private set; }
 
         /// <summary>
         /// timeout: Time after connection will be removed from connection list.
         /// </summary>
         [TikProperty("timeout", IsReadOnly = true, WinboxLabel = "Timeout")]
-        public TikValue<TikDuration?> Timeout { get; private set; }
+        public TikField<TikDuration?> Timeout { get; private set; }
     }
 }

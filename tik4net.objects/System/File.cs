@@ -25,34 +25,34 @@ namespace tik4net.Objects.System
         /// is done by setting a new name value.
         /// </summary>
         [TikProperty("name", WinboxLabel = "File Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// type — file type as reported by RouterOS (e.g. "directory", "package", ".txt file",
         /// "config file"). Read-only.
         /// </summary>
         [TikProperty("type", IsReadOnly = true, WinboxLabel = "Type")]
-        public TikValue<string?> Type { get; private set; }
+        public TikField<string?> Type { get; private set; }
 
         /// <summary>
         /// size — file size in bytes. Read-only.
         /// </summary>
         [TikProperty("size", IsReadOnly = true, WinboxLabel = "Size")]
-        public TikValue<long?> Size { get; private set; }
+        public TikField<long?> Size { get; private set; }
 
         /// <summary>
         /// creation-time — date and time the file was created. Read-only.
         /// Deprecated in RouterOS 7.16 in favour of <see cref="LastModified"/>.
         /// </summary>
         [TikProperty("creation-time", IsReadOnly = true)]
-        public TikValue<string?> CreationTime { get; private set; }
+        public TikField<string?> CreationTime { get; private set; }
 
         /// <summary>
         /// last-modified — date and time of file creation or most recent modification (RouterOS 7.16+).
         /// Read-only.
         /// </summary>
         [TikProperty("last-modified", IsReadOnly = true, WinboxLabel = "Last Modified")]
-        public TikValue<string?> LastModified { get; private set; }
+        public TikField<string?> LastModified { get; private set; }
 
         /// <summary>
         /// contents — the full text content of the file. Writable for text files up to 60 KB;
@@ -66,35 +66,35 @@ namespace tik4net.Objects.System
         /// </para>
         /// </summary>
         [TikProperty("contents", IsFreeText = true, WinboxLabel = "Contents")]
-        public TikValue<string?> Contents { get; set; }
+        public TikField<string?> Contents { get; set; }
 
         /// <summary>
         /// package-architecture — target CPU architecture of an .npk package file (e.g. "arm", "mipsbe").
         /// Only present for package files. Read-only.
         /// </summary>
         [TikProperty("package-architecture", IsReadOnly = true)]
-        public TikValue<string?> PackageArchitecture { get; private set; }
+        public TikField<string?> PackageArchitecture { get; private set; }
 
         /// <summary>
         /// package-built-time — build timestamp of an .npk package file. Only present for package files.
         /// Read-only.
         /// </summary>
         [TikProperty("package-built-time", IsReadOnly = true)]
-        public TikValue<string?> PackageBuiltTime { get; private set; }
+        public TikField<string?> PackageBuiltTime { get; private set; }
 
         /// <summary>
         /// package-name — installable package name from an .npk file (e.g. "wireless", "security").
         /// Only present for package files. Read-only.
         /// </summary>
         [TikProperty("package-name", IsReadOnly = true)]
-        public TikValue<string?> PackageName { get; private set; }
+        public TikField<string?> PackageName { get; private set; }
 
         /// <summary>
         /// package-version — version string of an .npk package file (e.g. "7.14.3").
         /// Only present for package files. Read-only.
         /// </summary>
         [TikProperty("package-version", IsReadOnly = true)]
-        public TikValue<string?> PackageVersion { get; private set; }
+        public TikField<string?> PackageVersion { get; private set; }
 
         /// <inheritdoc/>
         public override string ToString()

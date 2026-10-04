@@ -71,7 +71,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// <seealso cref="WifiProvisioningAction"/>
         /// </summary>
         [TikProperty("action", DefaultValue = "none", WinboxLabel = "Action")]
-        public TikValue<WifiProvisioningAction?> Action { get; set; }
+        public TikField<WifiProvisioningAction?> Action { get; set; }
 
         // ── Radio matchers ────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Radio MAC"
         /// </summary>
         [TikProperty("radio-mac", DefaultValue = "", WinboxLabel = "Radio MAC")]
-        public TikValue<string?> RadioMac { get; set; }
+        public TikField<string?> RadioMac { get; set; }
 
         /// <summary>
         /// identity-regexp — regular expression matched against the CAP router's system
@@ -89,7 +89,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Identity Regexp"
         /// </summary>
         [TikProperty("identity-regexp", DefaultValue = "", WinboxLabel = "Identity Regexp")]
-        public TikValue<string?> IdentityRegexp { get; set; }
+        public TikField<string?> IdentityRegexp { get; set; }
 
         /// <summary>
         /// common-name-regexp — regular expression matched against the CAP certificate
@@ -97,7 +97,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Common Name Regexp"
         /// </summary>
         [TikProperty("common-name-regexp", DefaultValue = "", WinboxLabel = "Common Name Regexp")]
-        public TikValue<string?> CommonNameRegexp { get; set; }
+        public TikField<string?> CommonNameRegexp { get; set; }
 
         /// <summary>
         /// supported-bands — one or more comma-separated frequency bands the radio must
@@ -108,7 +108,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Supported Bands"
         /// </summary>
         [TikProperty("supported-bands", DefaultValue = "", WinboxLabel = "Supported Bands")]
-        public TikValue<string?> SupportedBands { get; set; }
+        public TikField<string?> SupportedBands { get; set; }
 
         /// <summary>
         /// address-ranges — comma-separated list of IP address ranges (in
@@ -119,7 +119,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Address Ranges"
         /// </summary>
         [TikProperty("address-ranges", DefaultValue = "", WinboxLabel = "Address Ranges")]
-        public TikValue<string?> AddressRanges { get; set; }
+        public TikField<string?> AddressRanges { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
 
@@ -131,7 +131,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Master Configuration"
         /// </summary>
         [TikProperty("master-configuration", DefaultValue = "", WinboxLabel = "Master Configuration")]
-        public TikValue<string?> MasterConfiguration { get; set; }
+        public TikField<string?> MasterConfiguration { get; set; }
 
         /// <summary>
         /// slave-configurations — comma-separated list of /interface/wifi/configuration
@@ -140,7 +140,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Slave Configurations"
         /// </summary>
         [TikProperty("slave-configurations", DefaultValue = "", WinboxLabel = "Slave Configurations")]
-        public TikValue<string?> SlaveConfigurations { get; set; }
+        public TikField<string?> SlaveConfigurations { get; set; }
 
         // ── Naming ────────────────────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Name Format"
         /// </summary>
         [TikProperty("name-format", DefaultValue = "", WinboxLabel = "Name Format")]
-        public TikValue<string?> NameFormat { get; set; }
+        public TikField<string?> NameFormat { get; set; }
 
         /// <summary>
         /// slave-name-format — base string used to build slave interface names.
@@ -163,7 +163,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Slave Name Format"
         /// </summary>
         [TikProperty("slave-name-format", DefaultValue = "", WinboxLabel = "Slave Name Format")]
-        public TikValue<string?> SlaveNameFormat { get; set; }
+        public TikField<string?> SlaveNameFormat { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -173,14 +173,14 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description of this provisioning rule.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity — action and comment.</summary>
         public override string ToString() =>

@@ -20,23 +20,23 @@ namespace tik4net.Objects.Tool.Graphing
 
         /// <summary>interface — name of the interface to graph. Use "all" to graph every interface.</summary>
         [TikProperty("interface", DefaultValue = "all", WinboxLabel = "Interface")]
-        public TikValue<string?> Interface { get; set; }
+        public TikField<string?> Interface { get; set; }
 
         /// <summary>allow-address — IP address or prefix allowed to retrieve the graph (e.g. "0.0.0.0/0"). Empty means unrestricted.</summary>
         [TikProperty("allow-address", WinboxLabel = "Allow Address")]
-        public TikValue<string?> AllowAddress { get; set; }
+        public TikField<string?> AllowAddress { get; set; }
 
         /// <summary>store-on-disk — when yes, collected traffic data is saved to the router's disk. Default: yes.</summary>
         [TikProperty("store-on-disk", DefaultValue = "yes", WinboxLabel = "Store on Disk")]
-        public TikValue<bool?> StoreOnDisk { get; set; }
+        public TikField<bool?> StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Returns a human-readable summary of this graphing entry.</summary>
         public override string ToString() => string.Format("graphing/interface: {0} (allow: {1})", Interface, AllowAddress);

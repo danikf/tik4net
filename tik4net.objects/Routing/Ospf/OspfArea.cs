@@ -41,7 +41,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// name — unique name for this OSPF area entry.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// instance — name of the OSPF instance this area belongs to.
@@ -49,7 +49,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// This field is mandatory — the router rejects add without it.
         /// </summary>
         [TikProperty("instance", WinboxLabel = "Instance")]
-        public TikValue<string?> Instance { get; set; }
+        public TikField<string?> Instance { get; set; }
 
         /// <summary>
         /// area-id — OSPF area identifier in dotted-decimal notation (e.g. "0.0.0.0" for the backbone).
@@ -57,7 +57,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: 0.0.0.0
         /// </summary>
         [TikProperty("area-id", DefaultValue = "0.0.0.0", WinboxLabel = "Area ID")]
-        public TikValue<string?> AreaId { get; set; }
+        public TikField<string?> AreaId { get; set; }
 
         /// <summary>
         /// type — OSPF area type controlling which LSA types are permitted.
@@ -65,7 +65,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// </summary>
         /// <seealso cref="OspfAreaType"/>
         [TikProperty("type", DefaultValue = "default", WinboxLabel = "Type")]
-        public TikValue<OspfAreaType?> Type { get; set; }
+        public TikField<OspfAreaType?> Type { get; set; }
 
         /// <summary>
         /// no-summaries — when true, the ABR does not send summary LSAs (Type-3/4) into this stub/NSSA area,
@@ -73,7 +73,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: false
         /// </summary>
         [TikProperty("no-summaries", DefaultValue = "no", WinboxLabel = "No Summaries")]
-        public TikValue<bool?> NoSummaries { get; set; }
+        public TikField<bool?> NoSummaries { get; set; }
 
         /// <summary>
         /// default-cost — cost of the default route injected by the ABR into a stub or NSSA area.
@@ -81,7 +81,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// when left unset; set to a real value to override the router's built-in default.
         /// </summary>
         [TikProperty("default-cost", DefaultValue = "0", WinboxLabel = "Default Cost")]
-        public TikValue<int?> DefaultCost { get; set; }
+        public TikField<int?> DefaultCost { get; set; }
 
         /// <summary>
         /// nssa-translator — controls NSSA Type-7 to Type-5 LSA translation role of this ABR.
@@ -90,18 +90,18 @@ namespace tik4net.Objects.Routing.Ospf
         /// </summary>
         /// <seealso cref="NssaTranslatorMode"/>
         [TikProperty("nssa-translator", DefaultValue = "candidate", WinboxLabel = "NSSA Translator")]
-        public TikValue<NssaTranslatorMode?> NssaTranslator { get; set; }
+        public TikField<NssaTranslatorMode?> NssaTranslator { get; set; }
 
         /// <summary>
         /// disabled — when true this area entry is administratively disabled.
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -110,7 +110,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// or the routing package is not running).
         /// </summary>
         [TikProperty("inactive", IsReadOnly = true)]
-        public TikValue<bool?> Inactive { get; private set; }
+        public TikField<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

@@ -21,48 +21,48 @@ namespace tik4net.Objects.Wireguard
         /// IP addresses or subnets that are allowed to communicate with that peer
         /// </summary>
         [TikProperty("allowed-address", WinboxLabel = "Allowed Address")]
-        public TikValue<string?> AllowedAddress { get; set; }
+        public TikField<string?> AllowedAddress { get; set; }
 
         /// <summary>
         /// comment: Short description of the Peer.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// disabled: Whether peer will be used.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// Specifies the local network interface that the peer is associated with
         /// </summary>
         [TikProperty("interface", DefaultValue = "", WinboxLabel = "Interface")]
-        public TikValue<string?> Interface { get; set; }
+        public TikField<string?> Interface { get; set; }
 
         /// <summary>
         /// shared secret cryptographic key that is preconfigured between two peers
         /// </summary>
         [TikProperty("preshared-key", DefaultValue = "", IsSensitive = true, WinboxLabel = "Preshared Key")]
-        public TikValue<string?> PresharedKey { get; set; }
+        public TikField<string?> PresharedKey { get; set; }
 
         /// <summary>
         /// The IP address and port number of the remote endpoint or server that the peer will connect to.
         /// </summary>
         [TikProperty("endpoint-address", WinboxLabel = "Endpoint")]
-        public TikValue<string?> EndpointAddress { get; set; }
+        public TikField<string?> EndpointAddress { get; set; }
 
         /// <summary>
         /// Specifies the specific port number on the remote endpoint or server that the peer will connect to.
         /// </summary>
         [TikProperty("endpoint-port", WinboxLabel = "Endpoint Port")]
-        public TikValue<int?> EndpointPort { get; set; }
+        public TikField<int?> EndpointPort { get; set; }
 
         /// <summary>
         /// The public key associated with the remote peer
         /// </summary>
         [TikProperty("public-key" , WinboxLabel = "Public Key")]
-        public TikValue<string?> PublicKey { get; set; }
+        public TikField<string?> PublicKey { get; set; }
     }
 }

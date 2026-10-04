@@ -11,47 +11,47 @@ namespace tik4net.Objects.Interface
     {
         /// <summary>status — Current connection status of the PPPoE client (read-only).</summary>
         [TikProperty("status", IsReadOnly = true)]
-        public TikValue<string?> Status { get; private set; }
+        public TikField<string?> Status { get; private set; }
 
         /// <summary>uptime — How long the current connection has been up (read-only).</summary>
         [TikProperty("uptime", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<TikDuration?> Uptime { get; private set; }
+        public TikField<TikDuration?> Uptime { get; private set; }
 
         /// <summary>active-links — Number of active PPPoE links (read-only).</summary>
         [TikProperty("active-links", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> ActiveLinks { get; private set; }
+        public TikField<string?> ActiveLinks { get; private set; }
 
         /// <summary>encoding — Encoding negotiated with the access concentrator (read-only).</summary>
         [TikProperty("encoding", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> Encoding { get; private set; }
+        public TikField<string?> Encoding { get; private set; }
 
         /// <summary>service-name — Service name of the connected access concentrator (read-only).</summary>
         [TikProperty("service-name", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> ServiceName { get; private set; }
+        public TikField<string?> ServiceName { get; private set; }
 
         /// <summary>ac-name — Name of the connected access concentrator (read-only).</summary>
         [TikProperty("ac-name", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> AcName { get; private set; }
+        public TikField<string?> AcName { get; private set; }
 
         /// <summary>ac-mac — MAC address of the connected access concentrator (read-only).</summary>
         [TikProperty("ac-mac", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> AcMac { get; private set; }
+        public TikField<string?> AcMac { get; private set; }
 
         /// <summary>mtu — Maximum Transmit Unit negotiated for the current connection (read-only).</summary>
         [TikProperty("mtu", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> Mtu { get; private set; }
+        public TikField<string?> Mtu { get; private set; }
 
         /// <summary>mru — Maximum Receive Unit negotiated for the current connection (read-only).</summary>
         [TikProperty("mru", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> Mru { get; private set; }
+        public TikField<string?> Mru { get; private set; }
 
         /// <summary>local-address — Local IP address assigned for the current connection (read-only).</summary>
         [TikProperty("local-address", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> LocalAddress { get; private set; }
+        public TikField<string?> LocalAddress { get; private set; }
 
         /// <summary>remote-address — Remote (server) IP address for the current connection (read-only).</summary>
         [TikProperty("remote-address", IsMandatory = false, IsReadOnly = true)]
-        public TikValue<string?> RemoteAddress { get; private set; }
+        public TikField<string?> RemoteAddress { get; private set; }
     }
 
     /// <summary>

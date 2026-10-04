@@ -155,103 +155,103 @@ namespace tik4net.Objects.Ip.Firewall
         /// chain: firewall chain this rule applies to (prerouting, input, output, forward, postrouting).
         /// </summary>
         [TikProperty("chain", WinboxLabel = "Chain")]
-        public TikValue<string?> Chain { get; set; }
+        public TikField<string?> Chain { get; set; }
 
         /// <summary>
         /// action: determines packet processing behavior for matched rules.
         /// </summary>
         [TikProperty("action", WinboxLabel = "Action")]
-        public TikValue<ActionType?> Action { get; set; }
+        public TikField<ActionType?> Action { get; set; }
 
         /// <summary>
         /// new-priority: sets priority for packets (VLAN, WMM, DSCP, or MPLS EXP priority).
         /// </summary>
         [TikProperty("new-priority", DefaultValue = "0", WinboxLabel = "New Priority")]
-        public TikValue<string?> NewPriority { get; set; }
+        public TikField<string?> NewPriority { get; set; }
 
         /// <summary>
         /// passthrough: when enabled, matched packets proceed to subsequent rules rather than stopping.
         /// </summary>
         [TikProperty("passthrough", DefaultValue = "yes", WinboxLabel = "Passthrough")]
-        public TikValue<bool?> Passthrough { get; set; }
+        public TikField<bool?> Passthrough { get; set; }
 
         /// <summary>
         /// src-address-list: references predefined address list for source IP filtering.
         /// </summary>
         [TikProperty("src-address-list", WinboxLabel = "Src. Address List", Negatable = true)]
-        public TikValue<string?> SrcAddressList { get; set; }
+        public TikField<string?> SrcAddressList { get; set; }
 
         /// <summary>
         /// invalid
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public TikValue<bool?> Invalid { get; private set; }
+        public TikField<bool?> Invalid { get; private set; }
 
         /// <summary>
         /// dynamic
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// disabled: toggles rule activation without deletion.
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// new-packet-mark: sets a new packet-mark value for matching packets.
         /// </summary>
         [TikProperty("new-packet-mark", WinboxLabel = "New Packet Mark")]
-        public TikValue<string?> NewPacketMark { get; set; }
+        public TikField<string?> NewPacketMark { get; set; }
 
         /// <summary>
         /// comment: rule documentation and identification text.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// dst-address-list: references predefined address list for destination IP filtering.
         /// </summary>
         [TikProperty("dst-address-list", WinboxLabel = "Dst. Address List", Negatable = true)]
-        public TikValue<string?> DstAddressList { get; set; }
+        public TikField<string?> DstAddressList { get; set; }
 
         /// <summary>
         /// protocol: filters packets by protocol type (TCP, UDP, ICMP, etc.).
         /// </summary>
         [TikProperty("protocol", WinboxLabel = "Protocol", Negatable = true)]
-        public TikValue<string?> Protocol { get; set; }
+        public TikField<string?> Protocol { get; set; }
 
         /// <summary>
         /// src-address: matches packets based on source IP address or prefix.
         /// </summary>
         [TikProperty("src-address", WinboxLabel = "Src. Address", Negatable = true)]
-        public TikValue<string?> SrcAddress { get; set; }
+        public TikField<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// dst-address: matches packets based on destination IP address or prefix.
         /// </summary>
         [TikProperty("dst-address", WinboxLabel = "Dst. Address", Negatable = true)]
-        public TikValue<string?> DstAddress { get; set; }
+        public TikField<string?> DstAddress { get; set; }
 
         /// <summary>
         /// jump-target: redirects rule processing to custom chains for advanced logic.
         /// </summary>
         [TikProperty("jump-target", WinboxLabel = "Jump Target")]
-        public TikValue<string?> JumpTarget { get; set; }
+        public TikField<string?> JumpTarget { get; set; }
         
         /// <summary>
         /// address-list: specifies address list name for address-based matching.
         /// </summary>
         [TikProperty("address-list", WinboxLabel = "Address List")]
-        public TikValue<string?> AddressList { get; set; }
+        public TikField<string?> AddressList { get; set; }
 
         /// <summary>
         /// address-list-timeout: timeout duration for addresses added to address lists.
         /// </summary>
         [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
-        public TikValue<TikDuration?> AddressListTimeout { get; set; }
+        public TikField<TikDuration?> AddressListTimeout { get; set; }
 
         /// <summary>
         /// ToString override.

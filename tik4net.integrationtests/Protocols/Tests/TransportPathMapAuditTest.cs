@@ -529,7 +529,7 @@ namespace tik4net.integrationtests
                     if (IsNotARouterField(f.Key) || IsVolatile(path, f.Key)) continue;
                     if (!probeRow.TryGetValue(f.Key, out string probeValue)) continue;
                     // Case-sensitive: a transport that spells a value in another case is not reading what the
-                    // router printed, and on a TikValue property the word is written back as read. Native read
+                    // router printed, and on a TikField property the word is written back as read. Native read
                     // subject-alt-name 'ip:' where the API says 'IP:' and traffic-flow cache-entries '1m' for
                     // '1M' under a green audit that compared ignoring case.
                     bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.Ordinal)

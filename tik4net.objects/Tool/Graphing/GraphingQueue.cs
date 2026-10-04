@@ -19,27 +19,27 @@ namespace tik4net.Objects.Tool.Graphing
 
         /// <summary>simple-queue — name of the simple queue to graph. Use "all" to graph every queue.</summary>
         [TikProperty("simple-queue", DefaultValue = "all", WinboxLabel = "Simple Queue")]
-        public TikValue<string?> SimpleQueue { get; set; }
+        public TikField<string?> SimpleQueue { get; set; }
 
         /// <summary>allow-address — IP address or prefix allowed to retrieve the graph (e.g. "0.0.0.0/0"). Empty means unrestricted.</summary>
         [TikProperty("allow-address", WinboxLabel = "Allow Address")]
-        public TikValue<string?> AllowAddress { get; set; }
+        public TikField<string?> AllowAddress { get; set; }
 
         /// <summary>allow-target — when yes, the queue target address range may also view the graph in addition to the allow-address. Default: yes.</summary>
         [TikProperty("allow-target", DefaultValue = "yes", WinboxLabel = "Allow Target")]
-        public TikValue<bool?> AllowTarget { get; set; }
+        public TikField<bool?> AllowTarget { get; set; }
 
         /// <summary>store-on-disk — when yes, collected queue data is saved to the router's disk. Default: yes.</summary>
         [TikProperty("store-on-disk", DefaultValue = "yes", WinboxLabel = "Store on Disk")]
-        public TikValue<bool?> StoreOnDisk { get; set; }
+        public TikField<bool?> StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Returns a human-readable summary of this queue graphing entry.</summary>
         public override string ToString() => string.Format("graphing/queue: {0} (allow: {1})", SimpleQueue, AllowAddress);

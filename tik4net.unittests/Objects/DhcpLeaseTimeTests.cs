@@ -19,7 +19,7 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void ALeaseTimeIsATikDuration_AsOnTheServer()
         {
-            Assert.AreEqual(typeof(TikValue<TikDuration?>), typeof(DhcpServerLease).GetProperty("LeaseTime")!.PropertyType);
+            Assert.AreEqual(typeof(TikField<TikDuration?>), typeof(DhcpServerLease).GetProperty("LeaseTime")!.PropertyType);
             Assert.AreEqual(typeof(IpDhcpServer).GetProperty("LeaseTime")!.PropertyType,
                 typeof(DhcpServerLease).GetProperty("LeaseTime")!.PropertyType);
         }

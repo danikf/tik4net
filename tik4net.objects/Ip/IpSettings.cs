@@ -17,53 +17,53 @@ namespace tik4net.Objects.Ip
 
         /// <summary>ip-forward — enables packet forwarding between interfaces. Default: yes.</summary>
         [TikProperty("ip-forward", DefaultValue = "yes", WinboxLabel = "IP Forward")]
-        public TikValue<bool?> IpForward { get; set; }
+        public TikField<bool?> IpForward { get; set; }
 
         /// <summary>send-redirects — whether to send ICMP redirect messages. Default: yes.</summary>
         [TikProperty("send-redirects", DefaultValue = "yes", WinboxLabel = "Send Redirects")]
-        public TikValue<bool?> SendRedirects { get; set; }
+        public TikField<bool?> SendRedirects { get; set; }
 
         /// <summary>accept-redirects — whether to accept ICMP redirect messages. Default: no.</summary>
         [TikProperty("accept-redirects", DefaultValue = "no", WinboxLabel = "Accept Redirects")]
-        public TikValue<bool?> AcceptRedirects { get; set; }
+        public TikField<bool?> AcceptRedirects { get; set; }
 
         /// <summary>accept-source-route — whether to accept packets with the SRR option. Default: no.</summary>
         [TikProperty("accept-source-route", DefaultValue = "no", WinboxLabel = "Accept Source Route")]
-        public TikValue<bool?> AcceptSourceRoute { get; set; }
+        public TikField<bool?> AcceptSourceRoute { get; set; }
 
         /// <summary>secure-redirects — restrict ICMP redirects to recognised gateways only. Default: yes.</summary>
         [TikProperty("secure-redirects", DefaultValue = "yes", WinboxLabel = "Secure Redirects")]
-        public TikValue<bool?> SecureRedirects { get; set; }
+        public TikField<bool?> SecureRedirects { get; set; }
 
         /// <summary>rp-filter — reverse-path filter mode for source address validation.
         /// <seealso cref="RpFilterMode"/></summary>
         [TikProperty("rp-filter", DefaultValue = "no", WinboxLabel = "RP Filter")]
-        public TikValue<RpFilterMode?> RpFilter { get; set; }
+        public TikField<RpFilterMode?> RpFilter { get; set; }
 
         /// <summary>allow-fast-path — enables Fast Path processing (automatically disabled when route-cache is off). Default: yes.</summary>
         [TikProperty("allow-fast-path", DefaultValue = "yes", WinboxLabel = "Allow Fast Path")]
-        public TikValue<bool?> AllowFastPath { get; set; }
+        public TikField<bool?> AllowFastPath { get; set; }
 
         /// <summary>tcp-syncookies — enables SYN-cookie protection against SYN-flood attacks. Default: no.</summary>
         [TikProperty("tcp-syncookies", DefaultValue = "no", WinboxLabel = "TCP SynCookies")]
-        public TikValue<bool?> TcpSyncookies { get; set; }
+        public TikField<bool?> TcpSyncookies { get; set; }
 
         /// <summary>tcp-timestamps — TCP timestamp behaviour.
         /// <seealso cref="TcpTimestampsMode"/></summary>
         [TikProperty("tcp-timestamps", DefaultValue = "random-offset", WinboxLabel = "TCP Timestamps")]
-        public TikValue<TcpTimestampsMode?> TcpTimestamps { get; set; }
+        public TikField<TcpTimestampsMode?> TcpTimestamps { get; set; }
 
         /// <summary>arp-timeout — base reachable time for ARP cache entries across interfaces. Default: 30s.</summary>
         [TikProperty("arp-timeout", DefaultValue = "30s", WinboxLabel = "ARP Timeout")]
-        public TikValue<TikDuration?> ArpTimeout { get; set; }
+        public TikField<TikDuration?> ArpTimeout { get; set; }
 
         /// <summary>max-neighbor-entries — maximum ARP/NDP neighbour table size. Defaults are RAM-dependent; 0 = not set (use router default).</summary>
         [TikProperty("max-neighbor-entries", DefaultValue = "0", WinboxLabel = "Max Neighbor Entries")]
-        public TikValue<int?> MaxNeighborEntries { get; set; }
+        public TikField<int?> MaxNeighborEntries { get; set; }
 
         /// <summary>icmp-rate-limit — minimum millisecond spacing between ICMP responses matching the rate mask. Default: 10.</summary>
         [TikProperty("icmp-rate-limit", DefaultValue = "10", WinboxLabel = "ICMP Rate Limit")]
-        public TikValue<int?> IcmpRateLimit { get; set; }
+        public TikField<int?> IcmpRateLimit { get; set; }
 
         /// <summary>
         /// icmp-rate-mask — bitmask of the ICMP types subject to rate limiting (bit N = ICMP type N). Default: 0x1818.
@@ -71,42 +71,42 @@ namespace tik4net.Objects.Ip
         /// the digits, or decimal, and refuses an upper-case <c>0X</c> — <see cref="TikHexNumber"/> writes <c>0x</c>.
         /// </summary>
         [TikProperty("icmp-rate-mask", DefaultValue = "0x1818")]
-        public TikValue<TikHexNumber?> IcmpRateMask { get; set; }
+        public TikField<TikHexNumber?> IcmpRateMask { get; set; }
 
         /// <summary>icmp-errors-use-inbound-interface-address — when yes, ICMP error replies use the primary address of the receiving interface as source. Default: no.</summary>
         [TikProperty("icmp-errors-use-inbound-interface-address", DefaultValue = "no", WinboxLabel = "ICMP Errors Use Inbound Interface Address")]
-        public TikValue<bool?> IcmpErrorsUseInboundInterfaceAddress { get; set; }
+        public TikField<bool?> IcmpErrorsUseInboundInterfaceAddress { get; set; }
 
         /// <summary>ipv4-multipath-hash-policy — hash algorithm used for ECMP route selection.
         /// <seealso cref="MultipathHashPolicy"/></summary>
         [TikProperty("ipv4-multipath-hash-policy", DefaultValue = "l3", WinboxLabel = "IPv4 Multipath Hash Policy")]
-        public TikValue<MultipathHashPolicy?> Ipv4MultipathHashPolicy { get; set; }
+        public TikField<MultipathHashPolicy?> Ipv4MultipathHashPolicy { get; set; }
 
         // --- Read-only properties ---
 
         /// <summary>ipv4-fast-path-active — whether Fast Path is currently active.</summary>
         [TikProperty("ipv4-fast-path-active", IsReadOnly = true, WinboxLabel = "IPv4 Fast Path Active")]
-        public TikValue<bool?> Ipv4FastPathActive { get; private set; }
+        public TikField<bool?> Ipv4FastPathActive { get; private set; }
 
         /// <summary>ipv4-fast-path-packets — cumulative packets processed via Fast Path.</summary>
         [TikProperty("ipv4-fast-path-packets", IsReadOnly = true, WinboxLabel = "IPv4 Fast Path Packets")]
-        public TikValue<long?> Ipv4FastPathPackets { get; private set; }
+        public TikField<long?> Ipv4FastPathPackets { get; private set; }
 
         /// <summary>ipv4-fast-path-bytes — cumulative bytes processed via Fast Path.</summary>
         [TikProperty("ipv4-fast-path-bytes", IsReadOnly = true, WinboxLabel = "IPv4 Fast Path Bytes")]
-        public TikValue<long?> Ipv4FastPathBytes { get; private set; }
+        public TikField<long?> Ipv4FastPathBytes { get; private set; }
 
         /// <summary>ipv4-fasttrack-active — whether Fasttrack is currently active.</summary>
         [TikProperty("ipv4-fasttrack-active", IsReadOnly = true, WinboxLabel = "IPv4 Fasttrack Active")]
-        public TikValue<bool?> Ipv4FasttrackActive { get; private set; }
+        public TikField<bool?> Ipv4FasttrackActive { get; private set; }
 
         /// <summary>ipv4-fasttrack-packets — cumulative packets processed via Fasttrack.</summary>
         [TikProperty("ipv4-fasttrack-packets", IsReadOnly = true, WinboxLabel = "IPv4 Fasttrack Packets")]
-        public TikValue<long?> Ipv4FasttrackPackets { get; private set; }
+        public TikField<long?> Ipv4FasttrackPackets { get; private set; }
 
         /// <summary>ipv4-fasttrack-bytes — cumulative bytes processed via Fasttrack.</summary>
         [TikProperty("ipv4-fasttrack-bytes", IsReadOnly = true, WinboxLabel = "IPv4 Fasttrack Bytes")]
-        public TikValue<long?> Ipv4FasttrackBytes { get; private set; }
+        public TikField<long?> Ipv4FasttrackBytes { get; private set; }
 
         /// <summary>Human-readable settings summary.</summary>
         public override string ToString() => string.Format("ip-forward={0} fast-path={1} fasttrack={2}", IpForward, Ipv4FastPathActive, Ipv4FasttrackActive);

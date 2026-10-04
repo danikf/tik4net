@@ -40,7 +40,7 @@
       reader's editor. Test-only - nothing shipping references it.
     -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
-    <!-- Workspaces, for the TIK001 code-fix tests (TikValueObjectEqualityAnalyzerTests): a fix edits a document. -->
+    <!-- Workspaces, for the TIK001 code-fix tests (TikFieldObjectEqualityAnalyzerTests): a fix edits a document. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
   </ItemGroup>
 

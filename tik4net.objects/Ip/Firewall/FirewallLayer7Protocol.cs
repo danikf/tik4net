@@ -23,7 +23,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// regexp — POSIX extended regular expression matched against the first 10 packets
@@ -31,13 +31,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// WinBox: "Regexp"
         /// </summary>
         [TikProperty("regexp", IsFreeText = true, WinboxLabel = "Regexp")]
-        public TikValue<string?> Regexp { get; set; }
+        public TikField<string?> Regexp { get; set; }
 
         /// <summary>
         /// comment — free-form descriptive text for this entry.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

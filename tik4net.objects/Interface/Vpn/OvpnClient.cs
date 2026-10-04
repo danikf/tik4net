@@ -57,27 +57,27 @@ namespace tik4net.Objects.Interface.Vpn
         /// name — unique interface name identifier (mandatory).
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// connect-to — remote IP or IPv6 address of the OpenVPN server to connect to.
         /// </summary>
         [TikProperty("connect-to", WinboxLabel = "Connect To")]
-        public TikValue<string?> ConnectTo { get; set; }
+        public TikField<string?> ConnectTo { get; set; }
 
         /// <summary>
         /// disabled — when <c>true</c> the interface will not initiate connections.
         /// Default: yes (disabled on creation).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the OVPN remote address as a default route.
         /// Default: no
         /// </summary>
         [TikProperty("add-default-route", DefaultValue = "no", WinboxLabel = "Add Default Route")]
-        public TikValue<bool?> AddDefaultRoute { get; set; }
+        public TikField<bool?> AddDefaultRoute { get; set; }
 
         /// <summary>
         /// auth — permitted HMAC authentication algorithm(s).
@@ -85,14 +85,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: sha1
         /// </summary>
         [TikProperty("auth", DefaultValue = "sha1", WinboxLabel = "Auth.")]
-        public TikValue<string?> Auth { get; set; }
+        public TikField<string?> Auth { get; set; }
 
         /// <summary>
         /// certificate — name of the client TLS certificate; <c>none</c> disables certificate-based auth.
         /// Default: none
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none", WinboxLabel = "Certificate")]
-        public TikValue<string?> Certificate { get; set; }
+        public TikField<string?> Certificate { get; set; }
 
         /// <summary>
         /// cipher — data-channel encryption algorithm.
@@ -100,20 +100,20 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: blowfish128
         /// </summary>
         [TikProperty("cipher", DefaultValue = "blowfish128", WinboxLabel = "Cipher")]
-        public TikValue<string?> Cipher { get; set; }
+        public TikField<string?> Cipher { get; set; }
 
         /// <summary>
         /// disconnect-notify — send an explicit disconnect notification to the server on tunnel teardown.
         /// Default: no (undocumented; present in RouterOS tab-completion).
         /// </summary>
         [TikProperty("disconnect-notify", DefaultValue = "no", WinboxLabel = "Disconnect Notify")]
-        public TikValue<bool?> DisconnectNotify { get; set; }
+        public TikField<bool?> DisconnectNotify { get; set; }
 
         /// <summary>
         /// mac-address — MAC address assigned to the virtual interface; auto-generated if not specified.
         /// </summary>
         [TikProperty("mac-address", WinboxLabel = "MAC Address")]
-        public TikValue<string?> MacAddress { get; set; }
+        public TikField<string?> MacAddress { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmission unit for the tunnel interface, in bytes.
@@ -121,7 +121,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1500; omitted on add when left 0
         [TikProperty("max-mtu", WinboxLabel = "Max MTU")]
-        public TikValue<int?> MaxMtu { get; set; }
+        public TikField<int?> MaxMtu { get; set; }
 
         /// <summary>
         /// mode — tunneling layer: <c>ip</c> for Layer 3 (tun), <c>ethernet</c> for Layer 2 (tap).
@@ -129,13 +129,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         /// <seealso cref="TunnelMode"/>
         [TikProperty("mode", DefaultValue = "ip", WinboxLabel = "Mode")]
-        public TikValue<TunnelMode?> Mode { get; set; }
+        public TikField<TunnelMode?> Mode { get; set; }
 
         /// <summary>
         /// password — password used for user authentication. Maximum 1000 characters.
         /// </summary>
         [TikProperty("password", IsSensitive = true, WinboxLabel = "Password")]
-        public TikValue<string?> Password { get; set; }
+        public TikField<string?> Password { get; set; }
 
         /// <summary>
         /// port — TCP/UDP port of the remote OpenVPN server.
@@ -143,14 +143,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1194; omitted on add when left 0
         [TikProperty("port", WinboxLabel = "Port")]
-        public TikValue<int?> Port { get; set; }
+        public TikField<int?> Port { get; set; }
 
         /// <summary>
         /// profile — PPP profile applied when the tunnel is established.
         /// Default: default
         /// </summary>
         [TikProperty("profile", DefaultValue = "default", WinboxLabel = "Profile")]
-        public TikValue<string?> Profile { get; set; }
+        public TikField<string?> Profile { get; set; }
 
         /// <summary>
         /// protocol — transport protocol to use when connecting.
@@ -158,14 +158,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         /// <seealso cref="ProtocolType"/>
         [TikProperty("protocol", DefaultValue = "tcp", WinboxLabel = "Protocol")]
-        public TikValue<ProtocolType?> Protocol { get; set; }
+        public TikField<ProtocolType?> Protocol { get; set; }
 
         /// <summary>
         /// route-nopull — when <c>true</c> the client ignores routes pushed by the server.
         /// Default: no
         /// </summary>
         [TikProperty("route-nopull", DefaultValue = "no")]
-        public TikValue<bool?> RouteNopull { get; set; }
+        public TikField<bool?> RouteNopull { get; set; }
 
         /// <summary>
         /// tls-version — permitted TLS protocol version(s).
@@ -173,20 +173,20 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         /// <seealso cref="TlsVersionType"/>
         [TikProperty("tls-version", DefaultValue = "any", WinboxLabel = "TLS Version")]
-        public TikValue<TlsVersionType?> TlsVersion { get; set; }
+        public TikField<TlsVersionType?> TlsVersion { get; set; }
 
         /// <summary>
         /// use-peer-dns — whether to add DNS servers advertised by the OVPN server.
         /// Default: yes
         /// </summary>
         [TikProperty("use-peer-dns", DefaultValue = "yes", WinboxLabel = "Use Peer DNS")]
-        public TikValue<bool?> UsePeerDns { get; set; }
+        public TikField<bool?> UsePeerDns { get; set; }
 
         /// <summary>
         /// user — username used for authentication.
         /// </summary>
         [TikProperty("user", WinboxLabel = "User")]
-        public TikValue<string?> User { get; set; }
+        public TikField<string?> User { get; set; }
 
         /// <summary>
         /// verify-server-certificate — when <c>true</c> the client validates the server certificate
@@ -194,11 +194,11 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("verify-server-certificate", DefaultValue = "no", WinboxLabel = "Verify Server Certificate")]
-        public TikValue<bool?> VerifyServerCertificate { get; set; }
+        public TikField<bool?> VerifyServerCertificate { get; set; }
 
         /// <summary>comment — optional description of the client interface entry.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // ---- Read-only properties ----
 
@@ -206,7 +206,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// running — <c>true</c> when the tunnel is currently established and passing traffic.
         /// </summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>Human-readable identity of the OpenVPN client interface.</summary>
         public override string ToString() => string.Format("{0} -> {1} (port={2} protocol={3} disabled={4})", Name, ConnectTo, Port, Protocol, Disabled);

@@ -24,14 +24,14 @@ namespace tik4net.Objects.Tool
         /// <c>server</c>.
         /// </remarks>
         [TikProperty("server", AlternateNames = new[] { "address" }, DefaultValue = "0.0.0.0")]
-        public TikValue<string?> Server { get; set; }
+        public TikField<string?> Server { get; set; }
 
         /// <summary>
         /// port — SMTP server's TCP port number [0..65535].
         /// WinBox: "Port"
         /// </summary>
         [TikProperty("port", DefaultValue = "25", WinboxLabel = "Port")]
-        public TikValue<int?> Port { get; set; }
+        public TikField<int?> Port { get; set; }
 
         /// <summary>
         /// tls — TLS encryption mode for the SMTP connection.
@@ -40,7 +40,7 @@ namespace tik4net.Objects.Tool
         /// </summary>
         /// <seealso cref="EmailTls"/>
         [TikProperty("tls", DefaultValue = "no", WinboxLabel = "TLS")]
-        public TikValue<EmailTls?> Tls { get; set; }
+        public TikField<EmailTls?> Tls { get; set; }
 
         /// <summary>
         /// certificate-verification — TLS certificate trust chain validation mode.
@@ -49,35 +49,35 @@ namespace tik4net.Objects.Tool
         /// </summary>
         /// <seealso cref="EmailCertificateVerification"/>
         [TikProperty("certificate-verification", DefaultValue = "no", WinboxLabel = "Certificate Verification")]
-        public TikValue<EmailCertificateVerification?> CertificateVerification { get; set; }
+        public TikField<EmailCertificateVerification?> CertificateVerification { get; set; }
 
         /// <summary>
         /// from — Name or e-mail address shown as the sender in outgoing messages.
         /// WinBox: "From"
         /// </summary>
         [TikProperty("from", DefaultValue = "<>", WinboxLabel = "From")]
-        public TikValue<string?> From { get; set; }
+        public TikField<string?> From { get; set; }
 
         /// <summary>
         /// user — Username for SMTP server authentication.
         /// WinBox: "User"
         /// </summary>
         [TikProperty("user", DefaultValue = "", WinboxLabel = "User")]
-        public TikValue<string?> User { get; set; }
+        public TikField<string?> User { get; set; }
 
         /// <summary>
         /// password — Password for SMTP server authentication (sensitive).
         /// WinBox: "Password"
         /// </summary>
         [TikProperty("password", DefaultValue = "", IsSensitive = true, WinboxLabel = "Password")]
-        public TikValue<string?> Password { get; set; }
+        public TikField<string?> Password { get; set; }
 
         /// <summary>
         /// vrf — VRF instance on which outgoing SMTP connections are created.
         /// WinBox: "VRF"
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
-        public TikValue<string?> Vrf { get; set; }
+        public TikField<string?> Vrf { get; set; }
 
         /// <summary>TLS encryption mode for <see cref="ToolEmail"/>.</summary>
         public enum EmailTls

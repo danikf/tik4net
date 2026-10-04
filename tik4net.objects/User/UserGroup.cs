@@ -16,24 +16,24 @@ namespace tik4net.Objects.User
 		/// Gets or sets the group name.
 		/// </summary>
 		[TikProperty("name", WinboxLabel = "Name")]
-		public TikValue<string?> Name { get; set; }
+		public TikField<string?> Name { get; set; }
 
 		/// <summary>
 		/// Gets or sets the group's policies as comma-separated list. 
 		/// </summary>
 		[TikProperty("policy", WinboxLabel = "Policies")]
-		public TikValue<string?> Policy { get; set; }
+		public TikField<string?> Policy { get; set; }
 
 		/// <summary>
 		/// Gets or sets the the group's skin.
 		/// </summary>
 		[TikProperty("skin", WinboxLabel = "Skin")]
-		public TikValue<string?> Skin { get; set; }
+		public TikField<string?> Skin { get; set; }
 
 		/// <summary>
 		/// Gets or sets the comment associated with the group.
 		/// </summary>
 		[TikProperty("comment")]
-		public TikValue<string?> Comment { get; set; }
+		public TikField<string?> Comment { get; set; }
 	}
 }

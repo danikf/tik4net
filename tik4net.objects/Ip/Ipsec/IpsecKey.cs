@@ -24,7 +24,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// using RSA-based authentication methods.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         // --- Read-only status properties ---
 
@@ -33,7 +33,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Set at generation time via <c>generate-key</c> and cannot be changed afterwards.
         /// </summary>
         [TikProperty("key-size", IsReadOnly = true, WinboxLabel = "Key Size")]
-        public TikValue<string?> KeySize { get; private set; }
+        public TikField<string?> KeySize { get; private set; }
 
         /// <summary>
         /// private-key — true when this entry holds the private key material (i.e. it was
@@ -41,13 +41,13 @@ namespace tik4net.Objects.Ip.Ipsec
         /// key is available (e.g. a peer's imported public key).
         /// </summary>
         [TikProperty("private-key", IsReadOnly = true, WinboxLabel = "private key")]
-        public TikValue<bool?> PrivateKey { get; private set; }
+        public TikField<bool?> PrivateKey { get; private set; }
 
         /// <summary>
         /// rsa — true when the key is in RSA format (always true for entries in this table).
         /// </summary>
         [TikProperty("rsa", IsReadOnly = true, WinboxLabel = "rsa")]
-        public TikValue<bool?> Rsa { get; private set; }
+        public TikField<bool?> Rsa { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

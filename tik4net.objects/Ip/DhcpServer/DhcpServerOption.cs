@@ -22,13 +22,13 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// code: dhcp option code. All codes are available at http://www.iana.org/assignments/bootp-dhcp-parameters
         /// </summary>
         [TikProperty("code", WinboxLabel = "Code")]
-        public TikValue<string?> Code { get; set; }
+        public TikField<string?> Code { get; set; }
 
         /// <summary>
         /// name: Descriptive name of the option
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// value
@@ -46,12 +46,12 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// For example if HOSTNAME is 'kvm', then raw value will be 0x0176617264736b766d
         /// </summary>
         [TikProperty("value", WinboxLabel = "Value")]
-        public TikValue<string?> Value { get; set; }
+        public TikField<string?> Value { get; set; }
 
         /// <summary>
         /// raw-value: Read only field which shows raw dhcp option value (the format actually sent out)
         /// </summary>
         [TikProperty("raw-value", WinboxLabel = "Raw Value")]
-        public TikValue<string?> RawValue { get; set; }
+        public TikField<string?> RawValue { get; set; }
     }
 }

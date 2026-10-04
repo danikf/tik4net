@@ -25,13 +25,13 @@
         /// Gets or sets the destination address of the route.
         /// </summary>
         [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
-        public TikValue<string?> DstAddress { get; set; }
+        public TikField<string?> DstAddress { get; set; }
 
         /// <summary>
         /// Gets or sets the gateway IP address of the route.
         /// </summary>
         [TikProperty("gateway", WinboxLabel = "Gateway")]
-        public TikValue<string?> Gateway { get; set; }
+        public TikField<string?> Gateway { get; set; }
 
         /// <summary>
         /// Gets or sets the routing table this route belongs to (<c>main</c> unless set).
@@ -45,79 +45,79 @@
         /// transport; RouterOS 6 over the API cannot say).
         /// </remarks>
         [TikProperty("routing-table", AlternateNames = new[] { "routing-mark" })]
-        public TikValue<string?> RoutingTable { get; set; }
+        public TikField<string?> RoutingTable { get; set; }
 
         /// <summary>
         /// Gets the gateway status of this route.
         /// </summary>
         [TikProperty("gateway-status", IsReadOnly = true)]
-        public TikValue<string?> GatewayStatus { get; private set; }
+        public TikField<string?> GatewayStatus { get; private set; }
 
         /// <summary>
         /// Gets or sets the distance of this route in hops. 
         /// </summary>
         [TikProperty("distance", WinboxLabel = "Distance")]
-        public TikValue<long?> Distance { get; set; }
+        public TikField<long?> Distance { get; set; }
 
         /// <summary>
         /// Gets or sets the scope of this route.
         /// </summary>
         [TikProperty("scope", WinboxLabel = "Scope")]
-        public TikValue<long?> Scope { get; set; }
+        public TikField<long?> Scope { get; set; }
 
         /// <summary>
         /// Gets or sets the target scope of this route.
         /// </summary>
         [TikProperty("target-scope", WinboxLabel = "Target Scope")]
-        public TikValue<long?> TargetScope { get; set; }
+        public TikField<long?> TargetScope { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether this route is currently active.
         /// </summary>
         [TikProperty("active", IsReadOnly = true)]
-        public TikValue<bool?> Active { get; private set; }
+        public TikField<bool?> Active { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this is a static route.
         /// </summary>
         [TikProperty("static", IsReadOnly = true)]
-        public TikValue<bool?> Static { get; private set; }
+        public TikField<bool?> Static { get; private set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this route is currently disabled.
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// Gets or sets the route's comment.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// Gets the BGP autonomuous system path as comma-separated list.
         /// </summary>
         [TikProperty("bgp-as-path", IsReadOnly = true)]
-        public TikValue<string?> BgpAsPath { get; private set; }
+        public TikField<string?> BgpAsPath { get; private set; }
 
         /// <summary>
         /// Gets the BGP origin that provided this route.
         /// </summary>
         [TikProperty("bgp-origin", IsReadOnly = true)]
-        public TikValue<string?> BgpOrigin { get; private set; }
+        public TikField<string?> BgpOrigin { get; private set; }
 
         /// <summary>
         /// Gets the BGP communities of this route.
         /// </summary>
         [TikProperty("bgp-communities", IsReadOnly = true)]
-        public TikValue<string?> BgpCommunities { get; private set; }
+        public TikField<string?> BgpCommunities { get; private set; }
 
         /// <summary>
         /// Gets the info from which peer (peer name as defined for the routing protocol) this route has been received.
         /// </summary>
         [TikProperty("received-from", IsReadOnly = true)]
-        public TikValue<string?> ReceivedFrom { get; private set; }
+        public TikField<string?> ReceivedFrom { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this route is a dynamic route.
@@ -127,24 +127,24 @@
         /// This is, however, currently not reflected by the C# properties.
         /// </remarks>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this route is a BGP route.
         /// </summary>
         [TikProperty("bgp", IsReadOnly = true)]
-        public TikValue<bool?> Bgp { get; private set; }
+        public TikField<bool?> Bgp { get; private set; }
 
         /// <summary>
         /// Gets the preferred source address of this route.
         /// </summary>
         [TikProperty("pref-src", IsReadOnly = true, WinboxLabel = "Pref. Source")]
-        public TikValue<string?> PrefSrc { get; private set; }
+        public TikField<string?> PrefSrc { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this route is currently connected.
         /// </summary>
         [TikProperty("connect", IsReadOnly = true)]
-        public TikValue<bool?> Connect { get; private set; }
+        public TikField<bool?> Connect { get; private set; }
     }
 }

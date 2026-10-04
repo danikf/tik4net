@@ -134,11 +134,11 @@ namespace tik4net.integrationtests
             SaveTracked(port);
 
             var loadedBridge = Connection.LoadById<InterfaceBridge>(bridge.Id);
-            Assert.AreEqual(TikValueState.Present, loadedBridge.Priority.State, loadedBridge.Priority.RawValue);
+            Assert.AreEqual(TikFieldState.Present, loadedBridge.Priority.State, loadedBridge.Priority.RawValue);
             Assert.AreEqual(0x7000L, loadedBridge.Priority.Value?.Value);
 
             var loadedPort = Connection.LoadAll<BridgePort>().Single(p => p.Interface == vlan.Name);
-            Assert.AreEqual(TikValueState.Present, loadedPort.Priority.State, loadedPort.Priority.RawValue);
+            Assert.AreEqual(TikFieldState.Present, loadedPort.Priority.State, loadedPort.Priority.RawValue);
             Assert.AreEqual(0x70L, loadedPort.Priority.Value?.Value);
 
             loadedPort.Priority = new TikHexNumber(0x60);

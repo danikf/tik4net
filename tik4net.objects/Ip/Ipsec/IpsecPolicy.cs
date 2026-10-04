@@ -61,7 +61,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: 0.0.0.0/32
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0/32", WinboxLabel = "Src. Address")]
-        public TikValue<string?> SrcAddress { get; set; }
+        public TikField<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// src-port — source port (0–65535) or "any" to match all ports.
@@ -69,7 +69,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: any
         /// </summary>
         [TikProperty("src-port", DefaultValue = "any", WinboxLabel = "Src. Port")]
-        public TikValue<string?> SrcPort { get; set; }
+        public TikField<string?> SrcPort { get; set; }
 
         /// <summary>
         /// dst-address — destination IP/IPv6 prefix matched against the packet destination address.
@@ -77,7 +77,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: 0.0.0.0/32
         /// </summary>
         [TikProperty("dst-address", DefaultValue = "0.0.0.0/32", WinboxLabel = "Dst. Address")]
-        public TikValue<string?> DstAddress { get; set; }
+        public TikField<string?> DstAddress { get; set; }
 
         /// <summary>
         /// dst-port — destination port (0–65535) or "any" to match all ports.
@@ -85,7 +85,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: any
         /// </summary>
         [TikProperty("dst-port", DefaultValue = "any", WinboxLabel = "Dst. Port")]
-        public TikValue<string?> DstPort { get; set; }
+        public TikField<string?> DstPort { get; set; }
 
         /// <summary>
         /// protocol — IP protocol number or well-known name to match.
@@ -93,7 +93,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: all
         /// </summary>
         [TikProperty("protocol", DefaultValue = "all", WinboxLabel = "Protocol")]
-        public TikValue<string?> Protocol { get; set; }
+        public TikField<string?> Protocol { get; set; }
 
         /// <summary>
         /// action — what to do with the packet matched by this policy.
@@ -101,7 +101,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="ActionType"/>
         /// </summary>
         [TikProperty("action", DefaultValue = "encrypt", WinboxLabel = "Action")]
-        public TikValue<ActionType?> Action { get; set; }
+        public TikField<ActionType?> Action { get; set; }
 
         /// <summary>
         /// level — what to do when the required SA(s) cannot be found or established.
@@ -109,7 +109,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="LevelType"/>
         /// </summary>
         [TikProperty("level", DefaultValue = "require", WinboxLabel = "Level")]
-        public TikValue<LevelType?> Level { get; set; }
+        public TikField<LevelType?> Level { get; set; }
 
         /// <summary>
         /// ipsec-protocols — IPsec protocol(s) to apply to matched traffic.
@@ -117,7 +117,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="IpsecProtocolsType"/>
         /// </summary>
         [TikProperty("ipsec-protocols", DefaultValue = "esp", WinboxLabel = "IPsec Protocols")]
-        public TikValue<IpsecProtocolsType?> IpsecProtocols { get; set; }
+        public TikField<IpsecProtocolsType?> IpsecProtocols { get; set; }
 
         /// <summary>
         /// tunnel — when true, use tunnel mode (encapsulate the whole IP packet);
@@ -125,21 +125,21 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("tunnel", DefaultValue = "no", WinboxLabel = "Tunnel")]
-        public TikValue<bool?> Tunnel { get; set; }
+        public TikField<bool?> Tunnel { get; set; }
 
         /// <summary>
         /// peer — name of the /ip/ipsec/peer entry this policy applies to.
         /// Leave empty for template policies matched by group.
         /// </summary>
         [TikProperty("peer", WinboxLabel = "Peer")]
-        public TikValue<string?> Peer { get; set; }
+        public TikField<string?> Peer { get; set; }
 
         /// <summary>
         /// proposal — name of the /ip/ipsec/proposal template used when negotiating SAs.
         /// Default: default
         /// </summary>
         [TikProperty("proposal", DefaultValue = "default", WinboxLabel = "Proposal")]
-        public TikValue<string?> Proposal { get; set; }
+        public TikField<string?> Proposal { get; set; }
 
         /// <summary>
         /// template — when true, this entry is a template policy assigned to a policy group;
@@ -147,7 +147,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("template", DefaultValue = "no", WinboxLabel = "Template")]
-        public TikValue<bool?> Template { get; set; }
+        public TikField<bool?> Template { get; set; }
 
         /// <summary>
         /// group — name of the policy group this template belongs to.
@@ -155,34 +155,34 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: default
         /// </summary>
         [TikProperty("group", DefaultValue = "default", WinboxLabel = "Group")]
-        public TikValue<string?> Group { get; set; }
+        public TikField<string?> Group { get; set; }
 
         /// <summary>
         /// sa-src-address — local IP address used as the IPsec SA source (tunnel local endpoint).
         /// Leave empty to use the address selected by routing. Writable at add/set time.
         /// </summary>
         [TikProperty("sa-src-address", WinboxLabel = "SA Src. Address")]
-        public TikValue<string?> SaSrcAddress { get; set; }
+        public TikField<string?> SaSrcAddress { get; set; }
 
         /// <summary>
         /// sa-dst-address — remote IP address used as the IPsec SA destination (tunnel remote endpoint).
         /// Writable at add/set time; specifies the peer tunnel address for manual SAs.
         /// </summary>
         [TikProperty("sa-dst-address", WinboxLabel = "SA Dst. Address")]
-        public TikValue<string?> SaDstAddress { get; set; }
+        public TikField<string?> SaDstAddress { get; set; }
 
         /// <summary>
         /// disabled — when true, this policy entry is ignored during packet matching.
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short description of the policy entry.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // ── Read-only properties ─────────────────────────────────────────────────
 
@@ -190,38 +190,38 @@ namespace tik4net.Objects.Ip.Ipsec
         /// active — true when this policy is currently in use (has at least one active SA).
         /// </summary>
         [TikProperty("active", IsReadOnly = true, WinboxLabel = "Active")]
-        public TikValue<bool?> Active { get; private set; }
+        public TikField<bool?> Active { get; private set; }
 
         /// <summary>
         /// dynamic — true when this policy entry was created dynamically by IKE
         /// (from a template); false for manually configured entries.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// invalid — true when the policy is invalid (e.g. overlaps with another policy).
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public TikValue<bool?> Invalid { get; private set; }
+        public TikField<bool?> Invalid { get; private set; }
 
         /// <summary>
         /// default — true when this is a built-in system default policy entry.
         /// </summary>
         [TikProperty("default", IsReadOnly = true)]
-        public TikValue<bool?> Default { get; private set; }
+        public TikField<bool?> Default { get; private set; }
 
         /// <summary>
         /// ph2-state — indicates progress of Phase 2 (IPsec SA) key establishment for this policy.
         /// </summary>
         [TikProperty("ph2-state", IsReadOnly = true, WinboxLabel = "PH2 State")]
-        public TikValue<string?> Ph2State { get; private set; }
+        public TikField<string?> Ph2State { get; private set; }
 
         /// <summary>
         /// ph2-count — number of active Phase 2 SA sessions associated with this policy.
         /// </summary>
         [TikProperty("ph2-count", IsReadOnly = true, WinboxLabel = "PH2 Count")]
-        public TikValue<string?> Ph2Count { get; private set; }
+        public TikField<string?> Ph2Count { get; private set; }
 
         // ── Human-readable identity ──────────────────────────────────────────────
 

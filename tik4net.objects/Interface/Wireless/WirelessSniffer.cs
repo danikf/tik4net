@@ -21,24 +21,24 @@ namespace tik4net.Objects.Interface.Wireless
         /// streaming-enabled: Whether to stream captured data to specified streaming server
         /// </summary>
         [TikProperty("streaming-enabled", DefaultValue = "yes", WinboxLabel = "Streaming Enabled")]
-        public TikValue<bool?> StreamingEnabled { get; set; }
+        public TikField<bool?> StreamingEnabled { get; set; }
 
         /// <summary>
         /// streaming-server: IP address of the streaming server.
         /// </summary>
         [TikProperty("streaming-server", WinboxLabel = "Streaming Server")]
-        public TikValue<string?> StreamingServer { get; set; }
+        public TikField<string?> StreamingServer { get; set; }
 
         /// <summary>
         /// multiple-channels
         /// </summary>
         [TikProperty("multiple-channels", DefaultValue = "yes", WinboxLabel = "Multiple Channels")]
-        public TikValue<bool?> MultipleChannels { get; set; }
+        public TikField<bool?> MultipleChannels { get; set; }
 
         /// <summary>
         /// channel-time: Default: 200ms
         /// </summary>
         [TikProperty("channel-time", DefaultValue = "200", WinboxLabel = "Channel Time")]
-        public TikValue<TikDuration?> ChannelTime { get; set; }
+        public TikField<TikDuration?> ChannelTime { get; set; }
     }
 }

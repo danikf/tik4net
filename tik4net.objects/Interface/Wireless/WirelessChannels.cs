@@ -24,36 +24,36 @@ namespace tik4net.Objects.Interface.Wireless
         /// list: name of list this channel is part of. Lists can be used to group channels;
         /// </summary>
         [TikProperty("list", WinboxLabel = "List")]
-        public TikValue<String?> List { get; set; }
+        public TikField<String?> List { get; set; }
 
         /// <summary>
         /// name: name by which this channel can be referred to. If name is not specified when adding channel, it will be automatically generated from channel frequency and width;
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<String?> Name { get; set; }
+        public TikField<String?> Name { get; set; }
 
         /// <summary>
         /// frequency: channel center frequency in MHz, allowing to specify fractional MHz part, e.g. 5181.5;
         /// </summary>
         [TikProperty("frequency", WinboxLabel = "Frequency")]
-        public TikValue<String?> Frequency { get; set; }
+        public TikField<String?> Frequency { get; set; }
 
         /// <summary>
         /// width: channel width in MHz, allowing to specify fractional MHz part, e.g. 14.5;
         /// </summary>
         [TikProperty("width", WinboxLabel = "Width")]
-        public TikValue<String?> Width { get; set; }
+        public TikField<String?> Width { get; set; }
 
         /// <summary>
         /// band: defines default set of data rates when using this channel;
         /// </summary>
         [TikProperty("band", WinboxLabel = "Band")]
-        public TikValue<String?> Band { get; set; }
+        public TikField<String?> Band { get; set; }
 
         /// <summary>
         /// extension-channel: specifies placement of 11n extension channel.
         /// </summary>
         [TikProperty("extension-channel", DefaultValue = "disabled", WinboxLabel = "Extension Channel")]
-        public TikValue<String?> ExtensionChannel { get; set; }
+        public TikField<String?> ExtensionChannel { get; set; }
     }
 }

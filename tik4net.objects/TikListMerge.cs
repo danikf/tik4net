@@ -128,7 +128,7 @@ namespace tik4net.Objects
         /// </summary>
         /// <remarks>
         /// By default a field takes the expected value, so an expected row that does not carry a field
-        /// (<see cref="TikValueState.Absent"/>) unsets it on the router. When the expected rows come from another RouterOS
+        /// (<see cref="TikFieldState.Absent"/>) unsets it on the router. When the expected rows come from another RouterOS
         /// version, which may simply lack the field, keep the current value instead:
         /// <code>.Field(e =&gt; e.Comment, (expected, current) =&gt; expected.IfAbsent(current))</code>
         /// When the router does not print a field on some rows because it does not apply to them (mangle
@@ -203,14 +203,14 @@ namespace tik4net.Objects
                 object? val1 = propInfo.GetValue(entity1);
                 object? val2 = MergedValue(propInfo, entity1, entity2);
 
-                // A TikValue<T> compares by the form the router is sent, not by ToString, which renders Present("") like
+                // A TikField<T> compares by the form the router is sent, not by ToString, which renders Present("") like
                 // "no value". "No value" — Absent, or an assigned null — is one state here, as it is for == null: an expected
                 // row built in code with Foo = null and a router row without the field agree.
-                if (val1 is ITikValue wrapped1 && val2 is ITikValue wrapped2)
+                if (val1 is ITikField wrapped1 && val2 is ITikField wrapped2)
                 {
                     var accessor = WrappedAccessor(propInfo);
                     string? wire1 = accessor.FormatWrapped(val1), wire2 = accessor.FormatWrapped(val2);
-                    bool unparsed1 = wrapped1.State == TikValueState.Unparsed, unparsed2 = wrapped2.State == TikValueState.Unparsed;
+                    bool unparsed1 = wrapped1.State == TikFieldState.Unparsed, unparsed2 = wrapped2.State == TikFieldState.Unparsed;
                     if (wire1 != wire2 || (unparsed1 != unparsed2 && wire1 != null))
                         return false;
                     continue;

@@ -19,49 +19,49 @@ namespace tik4net.Objects.Tool
         /// address
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public TikValue<string?> Address { get; private set; }
+        public TikField<string?> Address { get; private set; }
 
         /// <summary>
         /// loss
         /// </summary>
         [TikProperty("loss", IsReadOnly = true)]
-        public TikValue<int?> Loss { get; private set; }
+        public TikField<int?> Loss { get; private set; }
 
         /// <summary>
         /// sent
         /// </summary>
         [TikProperty("sent", IsReadOnly = true)]
-        public TikValue<int?> Sent { get; private set; }
+        public TikField<int?> Sent { get; private set; }
 
         /// <summary>
         /// last
         /// </summary>
         [TikProperty("last", IsReadOnly = true)]
-        public TikValue<string?> Last { get; private set; }
+        public TikField<string?> Last { get; private set; }
 
         /// <summary>
         /// status
         /// </summary>
         [TikProperty("status", IsReadOnly = true)]
-        public TikValue<string?> Status { get; private set; }
+        public TikField<string?> Status { get; private set; }
 
         /// <summary>
         /// avg
         /// </summary>
         [TikProperty("avg", IsReadOnly = true, IsMandatory = false)]
-        public TikValue<string?> Avg { get; private set; }
+        public TikField<string?> Avg { get; private set; }
 
         /// <summary>
         /// best
         /// </summary>
         [TikProperty("best", IsReadOnly = true, IsMandatory = false)]
-        public TikValue<string?> Best { get; private set; }
+        public TikField<string?> Best { get; private set; }
 
         /// <summary>
         /// worst
         /// </summary>
         [TikProperty("worst", IsReadOnly = true, IsMandatory = false)]
-        public TikValue<string?> Worst { get; private set; }
+        public TikField<string?> Worst { get; private set; }
 
         /// <summary>
         /// Traceroutes given <see paramref="address"/>.

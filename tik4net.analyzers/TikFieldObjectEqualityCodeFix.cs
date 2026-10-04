@@ -12,14 +12,14 @@ namespace tik4net.Analyzers
     /// <summary>
     /// The fix for TIK001: compare the wrapper's <c>.Value</c>, so both sides are the plain type.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(TikValueObjectEqualityCodeFix)), Shared]
-    public sealed class TikValueObjectEqualityCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(TikFieldObjectEqualityCodeFix)), Shared]
+    public sealed class TikFieldObjectEqualityCodeFix : CodeFixProvider
     {
         private const string Title = "Compare '.Value'";
 
         /// <inheritdoc/>
         public override ImmutableArray<string> FixableDiagnosticIds
-            => ImmutableArray.Create(TikValueObjectEqualityAnalyzer.DiagnosticId);
+            => ImmutableArray.Create(TikFieldObjectEqualityAnalyzer.DiagnosticId);
 
         /// <inheritdoc/>
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;

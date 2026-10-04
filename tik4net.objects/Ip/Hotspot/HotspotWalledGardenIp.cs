@@ -19,47 +19,47 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>action — what to do when the rule matches (firewall-style: accept/drop). Default: accept.</summary>
         [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
-        public TikValue<WalledGardenIpAction?> Action { get; set; }
+        public TikField<WalledGardenIpAction?> Action { get; set; }
 
         /// <summary>server — HotSpot server name this rule applies to; empty means all servers.</summary>
         [TikProperty("server", DefaultValue = "", WinboxLabel = "Server", Negatable = true)]
-        public TikValue<string?> Server { get; set; }
+        public TikField<string?> Server { get; set; }
 
         /// <summary>protocol — IP protocol to match (e.g. tcp, udp, icmp). Empty = any.</summary>
         [TikProperty("protocol", DefaultValue = "", WinboxLabel = "Protocol", Negatable = true)]
-        public TikValue<string?> Protocol { get; set; }
+        public TikField<string?> Protocol { get; set; }
 
         /// <summary>src-address — source IP address or range of the unauthenticated client.</summary>
         [TikProperty("src-address", DefaultValue = "", WinboxLabel = "Src. Address", Negatable = true)]
-        public TikValue<string?> SrcAddress { get; set; }
+        public TikField<string?> SrcAddress { get; set; }
 
         /// <summary>src-address-list — source address list name to match.</summary>
         [TikProperty("src-address-list", DefaultValue = "", WinboxLabel = "Src. Address List", Negatable = true)]
-        public TikValue<string?> SrcAddressList { get; set; }
+        public TikField<string?> SrcAddressList { get; set; }
 
         /// <summary>dst-address — destination IP address or range.</summary>
         [TikProperty("dst-address", DefaultValue = "", WinboxLabel = "Dst. Address", Negatable = true)]
-        public TikValue<string?> DstAddress { get; set; }
+        public TikField<string?> DstAddress { get; set; }
 
         /// <summary>dst-address-list — destination address list name to match.</summary>
         [TikProperty("dst-address-list", DefaultValue = "", WinboxLabel = "Dst. Address List", Negatable = true)]
-        public TikValue<string?> DstAddressList { get; set; }
+        public TikField<string?> DstAddressList { get; set; }
 
         /// <summary>dst-host — destination hostname to resolve and match (useful for dynamic IPs).</summary>
         [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host")]
-        public TikValue<string?> DstHost { get; set; }
+        public TikField<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match (e.g. 80 or 80-90).</summary>
         [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikValue<string?> DstPort { get; set; }
+        public TikField<string?> DstPort { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — free-form annotation.</summary>
         [TikProperty("comment", DefaultValue = "")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable rule summary.</summary>
         public override string ToString() => string.Format("{0} proto={1} src={2} dst={3}:{4}", Action, Protocol, SrcAddress, DstAddress, DstPort);

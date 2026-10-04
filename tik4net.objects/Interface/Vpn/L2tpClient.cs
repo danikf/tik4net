@@ -76,39 +76,39 @@ namespace tik4net.Objects.Interface.Vpn
         /// name — unique interface name (mandatory).
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// connect-to — IP or IPv6 address of the remote L2TP server to connect to.
         /// </summary>
         [TikProperty("connect-to", WinboxLabel = "Connect To")]
-        public TikValue<string?> ConnectTo { get; set; }
+        public TikField<string?> ConnectTo { get; set; }
 
         /// <summary>
         /// disabled — when <c>true</c> the interface will not initiate connections.
         /// Default: yes (disabled on creation).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// user — username sent during authentication.
         /// </summary>
         [TikProperty("user", WinboxLabel = "User")]
-        public TikValue<string?> User { get; set; }
+        public TikField<string?> User { get; set; }
 
         /// <summary>
         /// password — password sent during authentication.
         /// </summary>
         [TikProperty("password", IsSensitive = true, WinboxLabel = "Password")]
-        public TikValue<string?> Password { get; set; }
+        public TikField<string?> Password { get; set; }
 
         /// <summary>
         /// profile — PPP profile applied when the tunnel is established.
         /// Default: default-encryption
         /// </summary>
         [TikProperty("profile", DefaultValue = "default-encryption", WinboxLabel = "Profile")]
-        public TikValue<string?> Profile { get; set; }
+        public TikField<string?> Profile { get; set; }
 
         /// <summary>
         /// allow — comma-separated list of permitted authentication methods.
@@ -116,14 +116,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Note: the router stores and returns this as a comma-joined string; map as string.
         /// </summary>
         [TikProperty("allow", DefaultValue = "mschap2,mschap1,chap,pap", WinboxLabel = "Allow")]
-        public TikValue<string?> Allow { get; set; }
+        public TikField<string?> Allow { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the L2TP remote address as a default route.
         /// Default: no
         /// </summary>
         [TikProperty("add-default-route", DefaultValue = "no", WinboxLabel = "Add Default Route")]
-        public TikValue<bool?> AddDefaultRoute { get; set; }
+        public TikField<bool?> AddDefaultRoute { get; set; }
 
         /// <summary>
         /// default-route-distance — distance (administrative distance) applied to the auto-created
@@ -131,14 +131,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1; omitted on add when left 0
         [TikProperty("default-route-distance", WinboxLabel = "Default Route Distance")]
-        public TikValue<int?> DefaultRouteDistance { get; set; }
+        public TikField<int?> DefaultRouteDistance { get; set; }
 
         /// <summary>
         /// dial-on-demand — when <c>true</c> the tunnel connects only when outbound traffic is generated.
         /// Default: no
         /// </summary>
         [TikProperty("dial-on-demand", DefaultValue = "no", WinboxLabel = "Dial On Demand")]
-        public TikValue<bool?> DialOnDemand { get; set; }
+        public TikField<bool?> DialOnDemand { get; set; }
 
         /// <summary>
         /// keepalive-timeout — tunnel keepalive timeout in seconds; if the remote end does not respond
@@ -147,7 +147,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 60; omitted on add when left 0
         [TikProperty("keepalive-timeout", WinboxLabel = "Keepalive Timeout")]
-        public TikValue<int?> KeepaliveTimeout { get; set; }
+        public TikField<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// max-mru — maximum receive unit (bytes) advertised to the peer; packets larger than this
@@ -155,14 +155,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mru", WinboxLabel = "Max MRU")]
-        public TikValue<int?> MaxMru { get; set; }
+        public TikField<int?> MaxMru { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmit unit (bytes) for the tunnel interface. Default: 1450.
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mtu", WinboxLabel = "Max MTU")]
-        public TikValue<int?> MaxMtu { get; set; }
+        public TikField<int?> MaxMtu { get; set; }
 
         /// <summary>
         /// mrru — maximum received reconstructed unit (bytes); enables multilink PPP when set to a
@@ -170,20 +170,20 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled", WinboxLabel = "MRRU")]
-        public TikValue<string?> Mrru { get; set; }
+        public TikField<string?> Mrru { get; set; }
 
         /// <summary>
         /// use-ipsec — enable dynamic IPsec peer configuration for the L2TP tunnel.
         /// Default: no
         /// </summary>
         [TikProperty("use-ipsec", DefaultValue = "no", WinboxLabel = "Use IPsec")]
-        public TikValue<bool?> UseIpsec { get; set; }
+        public TikField<bool?> UseIpsec { get; set; }
 
         /// <summary>
         /// ipsec-secret — pre-shared key used when <see cref="UseIpsec"/> is enabled.
         /// </summary>
         [TikProperty("ipsec-secret", IsSensitive = true, WinboxLabel = "IPsec Secret")]
-        public TikValue<string?> IpsecSecret { get; set; }
+        public TikField<string?> IpsecSecret { get; set; }
 
         /// <summary>
         /// allow-fast-path — when <c>true</c> packets are forwarded by the fast-path engine without
@@ -191,7 +191,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("allow-fast-path", DefaultValue = "no", WinboxLabel = "Allow Fast Path")]
-        public TikValue<bool?> AllowFastPath { get; set; }
+        public TikField<bool?> AllowFastPath { get; set; }
 
         /// <summary>
         /// use-peer-dns — whether to use DNS servers advertised by the remote peer.
@@ -199,7 +199,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("use-peer-dns", DefaultValue = "no", WinboxLabel = "Use Peer DNS")]
-        public TikValue<string?> UsePeerDns { get; set; }
+        public TikField<string?> UsePeerDns { get; set; }
 
         /// <summary>
         /// random-source-port — when <c>true</c> a random UDP source port is used for outbound L2TP
@@ -207,14 +207,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("random-source-port", DefaultValue = "no", WinboxLabel = "Random Source Port")]
-        public TikValue<bool?> RandomSourcePort { get; set; }
+        public TikField<bool?> RandomSourcePort { get; set; }
 
         /// <summary>
         /// src-address — source IP address bound for outgoing L2TP packets; leave empty to use the
         /// routing-table-selected address.
         /// </summary>
         [TikProperty("src-address", WinboxLabel = "Src. Address")]
-        public TikValue<string?> SrcAddress { get; set; }
+        public TikField<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// l2tp-proto-version — L2TP protocol version and encapsulation to use.
@@ -222,14 +222,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         /// <seealso cref="L2tpProtoVersionType"/>
         [TikProperty("l2tp-proto-version", DefaultValue = "l2tpv2")]
-        public TikValue<L2tpProtoVersionType?> L2tpProtoVersion { get; set; }
+        public TikField<L2tpProtoVersionType?> L2tpProtoVersion { get; set; }
 
         /// <summary>
         /// l2tpv3-circuit-id — virtual circuit identifier string sent in L2TPv3 AVPs.
         /// Only relevant when <see cref="L2tpProtoVersion"/> is <c>l2tpv3-ip</c> or <c>l2tpv3-udp</c>.
         /// </summary>
         [TikProperty("l2tpv3-circuit-id", WinboxLabel = "L2TPv3 Circuit ID")]
-        public TikValue<string?> L2tpv3CircuitId { get; set; }
+        public TikField<string?> L2tpv3CircuitId { get; set; }
 
         /// <summary>
         /// l2tpv3-cookie-length — L2TPv3 pseudowire session cookie length.
@@ -237,7 +237,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         /// <seealso cref="L2tpv3CookieLengthType"/>
         [TikProperty("l2tpv3-cookie-length", DefaultValue = "0", WinboxLabel = "L2TPv3 Cookie Length")]
-        public TikValue<L2tpv3CookieLengthType?> L2tpv3CookieLength { get; set; }
+        public TikField<L2tpv3CookieLengthType?> L2tpv3CookieLength { get; set; }
 
         /// <summary>
         /// l2tpv3-digest-hash — hash algorithm used for L2TPv3 message digest.
@@ -245,11 +245,11 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         /// <seealso cref="L2tpv3DigestHashType"/>
         [TikProperty("l2tpv3-digest-hash", DefaultValue = "md5", WinboxLabel = "L2TPv3 Digest Hash")]
-        public TikValue<L2tpv3DigestHashType?> L2tpv3DigestHash { get; set; }
+        public TikField<L2tpv3DigestHashType?> L2tpv3DigestHash { get; set; }
 
         /// <summary>comment — optional free-text description of this L2TP client interface.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // ---- Read-only properties ----
 
@@ -257,7 +257,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// running — <c>true</c> when the tunnel is currently established and passing traffic.
         /// </summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>Human-readable identity of the L2TP client interface.</summary>
         public override string ToString() => string.Format("{0} -> {1} (proto={2} disabled={3})", Name, ConnectTo, L2tpProtoVersion, Disabled);

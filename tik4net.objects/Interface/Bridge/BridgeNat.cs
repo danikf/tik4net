@@ -122,24 +122,24 @@ namespace tik4net.Objects.Interface.Bridge
         /// src-nat - change source MAC address of a packet(only valid in srcnat chain)            
         /// </summary>
         [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
-        public TikValue<ActionType?> Action { get; set; }
+        public TikField<ActionType?> Action { get; set; }
 
         /// <summary>
         /// to-arp-reply-mac-address: Source MAC address to put in Ethernet frame and ARP payload, when action=arp-reply is selected
         /// </summary>
         [TikProperty("to-arp-reply-mac-address")]
-        public TikValue<string?> ToArpReplyMacAddress { get; set; }
+        public TikField<string?> ToArpReplyMacAddress { get; set; }
 
         /// <summary>
         /// to-dst-mac-address: Destination MAC address to put in Ethernet frames, when action=dst-nat is selected
         /// </summary>
         [TikProperty("to-dst-mac-address")]
-        public TikValue<string?> ToDstMacAddress { get; set; }
+        public TikField<string?> ToDstMacAddress { get; set; }
 
         /// <summary>
         /// to-src-mac-address: Source MAC address to put in Ethernet frames, when action=src-nat is selected
         /// </summary>
         [TikProperty("to-src-mac-address")]
-        public TikValue<string?> ToSrcMacAddress { get; set; }
+        public TikField<string?> ToSrcMacAddress { get; set; }
     }
 }

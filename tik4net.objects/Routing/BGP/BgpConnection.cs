@@ -13,26 +13,26 @@ namespace tik4net.Objects.Routing.Bgp
 
         /// <summary>name — Name of the BGP connection.</summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>remote.address — Address (or address list) of the remote BGP peer.</summary>
         [TikProperty("remote.address", WinboxLabel = "Remote Address")]
-        public TikValue<string?> RemoteAddress { get; set; }
+        public TikField<string?> RemoteAddress { get; set; }
 
         /// <summary>remote.as — Autonomous System number of the remote BGP peer.</summary>
         [TikProperty("remote.as")]
-        public TikValue<string?> RemoteAs { get; set; }
+        public TikField<string?> RemoteAs { get; set; }
 
         /// <summary>local.role — Local BGP role used to negotiate the session (e.g. ibgp, ebgp).</summary>
         [TikProperty("local.role", WinboxLabel = "Local Role")]
-        public TikValue<string?> LocalRole { get; set; }
+        public TikField<string?> LocalRole { get; set; }
 
         /// <summary>templates — Names of BGP templates applied to this connection (comma-separated).</summary>
         [TikProperty("templates")]
-        public TikValue<string?> Templates { get; set; }
+        public TikField<string?> Templates { get; set; }
 
         /// <summary>disabled — Whether the connection is disabled.</summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
     }
 }

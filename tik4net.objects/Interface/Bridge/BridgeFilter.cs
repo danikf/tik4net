@@ -91,36 +91,36 @@ namespace tik4net.Objects.Interface.Bridge
         /// return  - passes control back to the chain from where the jump took place
         /// </summary>
         [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
-        public TikValue<ActionType?> Action { get; set; }
+        public TikField<ActionType?> Action { get; set; }
 
         /// <summary>
         /// jump-target: If action=jump specified, then specifies the user-defined firewall chain to process the packet
         /// </summary>
         [TikProperty("jump-target", WinboxLabel = "Jump Target")]
-        public TikValue<string?> JumpTarget { get; set; }
+        public TikField<string?> JumpTarget { get; set; }
 
         /// <summary>
         /// log-prefix: Defines the prefix to be printed before the logging information
         /// </summary>
         [TikProperty("log-prefix", WinboxLabel = "Log Prefix")]
-        public TikValue<string?> LogPrefix { get; set; }
+        public TikField<string?> LogPrefix { get; set; }
 
         /// <summary>
         /// new-packet-mark
         /// </summary>
         [TikProperty("new-packet-mark")]
-        public TikValue<string?> NewPacketMark { get; set; }
+        public TikField<string?> NewPacketMark { get; set; }
 
         /// <summary>
         /// new-priorityne
         /// </summary>
         [TikProperty("new-priority", DefaultValue = "0", WinboxLabel = "New Priority")]
-        public TikValue<string?> NewPriority { get; set; }
+        public TikField<string?> NewPriority { get; set; }
 
         /// <summary>
         /// passthrough
         /// </summary>
         [TikProperty("passthrough", DefaultValue = "yes", WinboxLabel = "Passthrough")]
-        public TikValue<bool?> Passthrough { get; set; }
+        public TikField<bool?> Passthrough { get; set; }
     }
 }

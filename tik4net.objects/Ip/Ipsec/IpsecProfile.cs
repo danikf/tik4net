@@ -61,7 +61,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// name — profile identifier; referenced by /ip/ipsec/peer entries.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// hash-algorithm — hashing algorithm used for IKE Phase 1 authentication.
@@ -69,7 +69,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="HashAlgorithmType"/>
         /// </summary>
         [TikProperty("hash-algorithm", DefaultValue = "sha1", WinboxLabel = "Hash Algorithms")]
-        public TikValue<HashAlgorithmType?> HashAlgorithm { get; set; }
+        public TikField<HashAlgorithmType?> HashAlgorithm { get; set; }
 
         /// <summary>
         /// enc-algorithm — comma-separated list of encryption algorithms offered during
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: "aes-128,3des"
         /// </summary>
         [TikProperty("enc-algorithm", DefaultValue = "aes-128,3des", WinboxLabel = "Encryption Algorithm")]
-        public TikValue<string?> EncAlgorithm { get; set; }
+        public TikField<string?> EncAlgorithm { get; set; }
 
         /// <summary>
         /// dh-group — comma-separated list of Diffie-Hellman groups offered during Phase 1
@@ -89,14 +89,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: "modp2048,modp1024"
         /// </summary>
         [TikProperty("dh-group", DefaultValue = "modp2048,modp1024", WinboxLabel = "DH Group")]
-        public TikValue<string?> DhGroup { get; set; }
+        public TikField<string?> DhGroup { get; set; }
 
         /// <summary>
         /// lifetime — how long the Phase 1 SA is considered valid before re-keying.
         /// Accepts RouterOS time format (e.g. "1d", "8h", "30m"). Default: "1d"
         /// </summary>
         [TikProperty("lifetime", DefaultValue = "1d", WinboxLabel = "Lifetime")]
-        public TikValue<TikDuration?> Lifetime { get; set; }
+        public TikField<TikDuration?> Lifetime { get; set; }
 
         /// <summary>
         /// lifebytes — maximum number of bytes transferred before the Phase 1 SA is re-keyed.
@@ -104,14 +104,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// When 0 the mapper omits the field on add and the router uses its own default.
         /// </summary>
         [TikProperty("lifebytes", WinboxLabel = "Lifebytes")]
-        public TikValue<long?> Lifebytes { get; set; }
+        public TikField<long?> Lifebytes { get; set; }
 
         /// <summary>
         /// nat-traversal — enable Linux NAT-T (RFC 3947) to allow IPsec through NAT devices.
         /// Default: yes
         /// </summary>
         [TikProperty("nat-traversal", DefaultValue = "yes", WinboxLabel = "NAT Traversal")]
-        public TikValue<bool?> NatTraversal { get; set; }
+        public TikField<bool?> NatTraversal { get; set; }
 
         /// <summary>
         /// dpd-interval — Dead Peer Detection (DPD) probe interval.
@@ -122,7 +122,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// </summary>
         [TikProperty("dpd-interval", WinboxLabel = "DPD Interval")]
         // 'disable-dpd' is one of the words TikDuration keeps as a Token rather than flattening to zero.
-        public TikValue<TikDuration?> DpdInterval { get; set; }
+        public TikField<TikDuration?> DpdInterval { get; set; }
 
         /// <summary>
         /// dpd-maximum-failures — number of consecutive DPD probe failures before the peer
@@ -130,7 +130,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// When 0 the mapper omits the field on add and the router uses its own default (4).
         /// </summary>
         [TikProperty("dpd-maximum-failures", WinboxLabel = "DPD Maximum Failures")]
-        public TikValue<int?> DpdMaximumFailures { get; set; }
+        public TikField<int?> DpdMaximumFailures { get; set; }
 
         /// <summary>
         /// proposal-check — how the router validates the Phase 2 lifetime proposed by the
@@ -138,7 +138,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="ProposalCheckType"/>
         /// </summary>
         [TikProperty("proposal-check", DefaultValue = "obey", WinboxLabel = "Proposal Check")]
-        public TikValue<ProposalCheckType?> ProposalCheck { get; set; }
+        public TikField<ProposalCheckType?> ProposalCheck { get; set; }
 
         /// <summary>
         /// prf-algorithm — Pseudo-Random Function algorithm for IKEv2 key derivation.
@@ -147,14 +147,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="PrfAlgorithmType"/>
         /// </summary>
         [TikProperty("prf-algorithm", DefaultValue = "auto")]
-        public TikValue<PrfAlgorithmType?> PrfAlgorithm { get; set; }
+        public TikField<PrfAlgorithmType?> PrfAlgorithm { get; set; }
 
         /// <summary>
         /// ppk — enable Post-quantum Preshared Key (PPK) support (IKEv2, RFC 8784).
         /// Default: no
         /// </summary>
         [TikProperty("ppk", DefaultValue = "no", WinboxLabel = "PPK")]
-        public TikValue<bool?> Ppk { get; set; }
+        public TikField<bool?> Ppk { get; set; }
 
         // NOTE: /ip/ipsec/profile has no "comment" field on RouterOS (confirmed via
         // add-completion), so no Comment property is exposed here.
@@ -165,7 +165,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// default — true when this is a built-in (system) profile that cannot be deleted.
         /// </summary>
         [TikProperty("default", IsReadOnly = true)]
-        public TikValue<bool?> Default { get; private set; }
+        public TikField<bool?> Default { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

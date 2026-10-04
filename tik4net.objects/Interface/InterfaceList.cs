@@ -23,37 +23,37 @@ namespace tik4net.Objects.Interface
         /// name — name of the interface list.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// include — comma-separated list of other interface lists whose members are included in this list.
         /// </summary>
         [TikProperty("include", WinboxLabel = "Include")]
-        public TikValue<string?> Include { get; set; }
+        public TikField<string?> Include { get; set; }
 
         /// <summary>
         /// exclude — comma-separated list of other interface lists whose members are excluded from this list.
         /// </summary>
         [TikProperty("exclude", WinboxLabel = "Exclude")]
-        public TikValue<string?> Exclude { get; set; }
+        public TikField<string?> Exclude { get; set; }
 
         /// <summary>
         /// builtin — whether this is a built-in list (all/none/dynamic/static) that cannot be removed (read-only).
         /// </summary>
         [TikProperty("builtin", IsReadOnly = true)]
-        public TikValue<bool?> Builtin { get; private set; }
+        public TikField<bool?> Builtin { get; private set; }
 
         /// <summary>
         /// dynamic — whether the list was added dynamically and cannot be edited/removed (read-only).
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// comment.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <inheritdoc/>
         public override string? ToString()

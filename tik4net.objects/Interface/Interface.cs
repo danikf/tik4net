@@ -21,13 +21,13 @@ namespace tik4net.Objects.Interface
         /// name: interface identifier used in commands and configuration.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// default-name
         /// </summary>
         [TikProperty("default-name", IsReadOnly = true)]
-        public TikValue<string?> DefaultName { get; private set; }
+        public TikField<string?> DefaultName { get; private set; }
 
         /// <summary>
         /// type — what kind of interface this is (<c>ether</c>, <c>bridge</c>, <c>vlan</c>, …). Read-only:
@@ -35,13 +35,13 @@ namespace tik4net.Objects.Interface
         /// (verified by tab completion on RouterOS 7.23: <c>comment disabled l2mtu mtu name numbers</c>).
         /// </summary>
         [TikProperty("type", IsReadOnly = true)]
-        public TikValue<string?> Type { get; private set; }
+        public TikField<string?> Type { get; private set; }
 
         /// <summary>
         /// mtu
         /// </summary>
         [TikProperty("mtu", WinboxLabel = "MTU")]
-        public TikValue<string?> Mtu { get; set; }
+        public TikField<string?> Mtu { get; set; }
 
         /// <summary>
         /// l2mtu — the layer-2 MTU. One of the five arguments <c>/interface set</c> actually accepts
@@ -49,7 +49,7 @@ namespace tik4net.Objects.Interface
         /// read-only and refuse a change, which the router answers with a trap rather than silence.
         /// </summary>
         [TikProperty("l2mtu", WinboxLabel = "L2 MTU")]
-        public TikValue<string?> L2Mtu { get; set; }
+        public TikField<string?> L2Mtu { get; set; }
 
         /// <summary>
         /// mac-address. Read-only <b>here</b>: <c>/interface set</c> does not accept it. It is settable on
@@ -57,7 +57,7 @@ namespace tik4net.Objects.Interface
         /// <c>mac-address</c>, and that is the entity to use for changing one.
         /// </summary>
         [TikProperty("mac-address", IsReadOnly = true)]
-        public TikValue<string?> MacAddress { get; private set; }
+        public TikField<string?> MacAddress { get; private set; }
 
         /// <summary>
         /// fast-path. Read-only <b>here</b>, for the same reason as <see cref="MacAddress"/>: the toggle
@@ -65,87 +65,87 @@ namespace tik4net.Objects.Interface
         /// <c>/interface</c>, which reports the resulting state.
         /// </summary>
         [TikProperty("fast-path", IsReadOnly = true)]
-        public TikValue<bool?> FastPath { get; private set; }
+        public TikField<bool?> FastPath { get; private set; }
 
         /// <summary>
         /// rx-byte: total bytes received on the interface.
         /// </summary>
         [TikProperty("rx-byte", IsReadOnly = true, WinboxLabel = "Rx Bytes")]
-        public TikValue<long?> RxByte { get; private set; }
+        public TikField<long?> RxByte { get; private set; }
 
         /// <summary>
         /// tx-byte: total bytes transmitted on the interface.
         /// </summary>
         [TikProperty("tx-byte", IsReadOnly = true, WinboxLabel = "Tx Bytes")]
-        public TikValue<long?> TxByte { get; private set; }
+        public TikField<long?> TxByte { get; private set; }
 
         /// <summary>
         /// rx-packet: number of packets received on the interface.
         /// </summary>
         [TikProperty("rx-packet", IsReadOnly = true, WinboxLabel = "Rx Packets")]
-        public TikValue<long?> RxPacket { get; private set; }
+        public TikField<long?> RxPacket { get; private set; }
 
         /// <summary>
         /// tx-packet: total packets transmitted through the interface.
         /// </summary>
         [TikProperty("tx-packet", IsReadOnly = true, WinboxLabel = "Tx Packets")]
-        public TikValue<long?> TxPacket { get; private set; }
+        public TikField<long?> TxPacket { get; private set; }
 
         /// <summary>
         /// rx-drop
         /// </summary>
         [TikProperty("rx-drop", IsReadOnly = true, WinboxLabel = "Rx Drops")]
-        public TikValue<long?> RxDrop { get; private set; }
+        public TikField<long?> RxDrop { get; private set; }
 
         /// <summary>
         /// tx-drop: number of packets dropped by the interface transmit queue.
         /// </summary>
         [TikProperty("tx-drop", IsReadOnly = true, WinboxLabel = "Tx Drops")]
-        public TikValue<long?> TxDrop { get; private set; }
+        public TikField<long?> TxDrop { get; private set; }
 
         /// <summary>
         /// rx-error
         /// </summary>
         [TikProperty("rx-error", IsReadOnly = true, WinboxLabel = "Rx Errors")]
-        public TikValue<long?> RxError { get; private set; }
+        public TikField<long?> RxError { get; private set; }
 
         /// <summary>
         /// tx-error
         /// </summary>
         [TikProperty("tx-error", IsReadOnly = true, WinboxLabel = "Tx Errors")]
-        public TikValue<long?> TxError { get; private set; }
+        public TikField<long?> TxError { get; private set; }
 
         /// <summary>
         /// running: indicates whether the interface is currently active.
         /// </summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>
         /// disabled: administratively shut down the interface.
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// Link last down time. (since 6.43 version) Read-only: it is a measurement, and
         /// <c>/interface set</c> does not accept it (verified by tab completion on RouterOS 7.23).
         /// </summary>
         [TikProperty("last-link-down-time", IsReadOnly = true, WinboxLabel = "Last Link Down Time")]
-        public TikValue<string?> LastLinkDownTime { get; private set; }
+        public TikField<string?> LastLinkDownTime { get; private set; }
 
         /// <summary>
         /// Link last up time (since 6.43 version) Read-only: it is a measurement, and
         /// <c>/interface set</c> does not accept it (verified by tab completion on RouterOS 7.23).
         /// </summary>
         [TikProperty("last-link-up-time", IsReadOnly = true, WinboxLabel = "Last Link Up Time")]
-        public TikValue<string?> LastLinkUpTime { get; private set; }
+        public TikField<string?> LastLinkUpTime { get; private set; }
     }
 
 }

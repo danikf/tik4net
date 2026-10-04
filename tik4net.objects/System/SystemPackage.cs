@@ -23,31 +23,31 @@ namespace tik4net.Objects.System
 
         /// <summary>name — package name (e.g. "routeros", "wireless", "user-manager").</summary>
         [TikProperty("name", IsReadOnly = true, WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; private set; }
+        public TikField<string?> Name { get; private set; }
 
         /// <summary>version — installed package version string (e.g. "7.21.4").</summary>
         [TikProperty("version", IsReadOnly = true, WinboxLabel = "Version")]
-        public TikValue<string?> Version { get; private set; }
+        public TikField<string?> Version { get; private set; }
 
         /// <summary>build-time — date and time when this package was built. Read-only.</summary>
         [TikProperty("build-time", IsReadOnly = true, WinboxLabel = "Build Time")]
-        public TikValue<string?> BuildTime { get; private set; }
+        public TikField<string?> BuildTime { get; private set; }
 
         /// <summary>scheduled — action scheduled for this package at next reboot (e.g. "scheduled for uninstall"). Empty when nothing is scheduled. Read-only.</summary>
         [TikProperty("scheduled", IsReadOnly = true, WinboxLabel = "Scheduled")]
-        public TikValue<string?> Scheduled { get; private set; }
+        public TikField<string?> Scheduled { get; private set; }
 
         /// <summary>size — installed package size in bytes. Read-only.</summary>
         [TikProperty("size", IsReadOnly = true, WinboxLabel = "Size")]
-        public TikValue<string?> Size { get; private set; }
+        public TikField<string?> Size { get; private set; }
 
         /// <summary>available — when true a newer version is available for download. Read-only.</summary>
         [TikProperty("available", IsReadOnly = true)]
-        public TikValue<bool?> Available { get; private set; }
+        public TikField<bool?> Available { get; private set; }
 
         /// <summary>disabled — when true the package is scheduled to be disabled at next reboot. Changed via Enable/Disable commands, not via set. Read-only.</summary>
         [TikProperty("disabled", IsReadOnly = true)]
-        public TikValue<bool?> Disabled { get; private set; }
+        public TikField<bool?> Disabled { get; private set; }
 
         /// <summary>Returns a human-readable summary of the package.</summary>
         public override string ToString() => string.Format("{0} {1}{2}", Name, Version, Disabled == true ? " [disabled]" : string.Empty);

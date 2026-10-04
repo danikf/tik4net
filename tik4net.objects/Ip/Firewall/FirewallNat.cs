@@ -22,85 +22,85 @@ namespace tik4net.Objects.Ip.Firewall
         /// chain: firewall chain where the NAT rule applies (srcnat, dstnat, input, output, custom).
         /// </summary>
         [TikProperty("chain", WinboxLabel = "Chain")]
-        public TikValue<string?> Chain { get; set; }
+        public TikField<string?> Chain { get; set; }
 
         /// <summary>
         /// action: determines how packets are processed (src-nat, dst-nat, masquerade, redirect, etc.).
         /// </summary>
         [TikProperty("action", WinboxLabel = "Action")]
-        public TikValue<string?> Action { get; set; }
+        public TikField<string?> Action { get; set; }
 
         /// <summary>
         /// to-addresses: replacement IP address or address range for source/destination NAT operations.
         /// </summary>
         [TikProperty("to-addresses", WinboxLabel = "To Addresses")]
-        public TikValue<string?> ToAddresses { get; set; }
+        public TikField<string?> ToAddresses { get; set; }
 
         /// <summary>
         /// src-address: identifies packets originating from specific internal IP addresses.
         /// </summary>
         [TikProperty("src-address", WinboxLabel = "Src. Address", Negatable = true)]
-        public TikValue<string?> SrcAddress { get; set; }
+        public TikField<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// out-interface: outgoing network interface for packet transmission.
         /// </summary>
         [TikProperty("out-interface", WinboxLabel = "Out. Interface", Negatable = true)]
-        public TikValue<string?> OutInterface { get; set; }
+        public TikField<string?> OutInterface { get; set; }
 
         /// <summary>
         /// invalid
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public TikValue<bool?> Invalid { get; private set; }
+        public TikField<bool?> Invalid { get; private set; }
 
         /// <summary>
         /// dynamic
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// disabled: temporarily deactivate the rule without deletion.
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment: documentation field for rule descriptions and organization.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// src-address-list: identifies packets from predefined address lists.
         /// </summary>
         [TikProperty("src-address-list", WinboxLabel = "Src. Address List", Negatable = true)]
-        public TikValue<string?> SrcAddressList { get; set; }
+        public TikField<string?> SrcAddressList { get; set; }
 
         /// <summary>
         /// dst-address: targets packets destined for particular IP addresses.
         /// </summary>
         [TikProperty("dst-address", WinboxLabel = "Dst. Address", Negatable = true)]
-        public TikValue<string?> DstAddress { get; set; }
+        public TikField<string?> DstAddress { get; set; }
 
         /// <summary>
         /// in-interface: incoming network interface packets traverse.
         /// </summary>
         [TikProperty("in-interface", WinboxLabel = "In. Interface", Negatable = true)]
-        public TikValue<string?> InInterface { get; set; }
+        public TikField<string?> InInterface { get; set; }
 
         /// <summary>
         /// protocol: specifies the protocol (TCP, UDP, etc.) the rule applies to.
         /// </summary>
         [TikProperty("protocol", WinboxLabel = "Protocol", Negatable = true)]
-        public TikValue<string?> Protocol { get; set; }
+        public TikField<string?> Protocol { get; set; }
 
         /// <summary>
         /// to-ports: replacement port or port range (0-65535) for modified packets.
         /// </summary>
         [TikProperty("to-ports", WinboxLabel = "To Ports")]
-        public TikValue<long?> ToPorts { get; set; }
+        public TikField<long?> ToPorts { get; set; }
 
         /// <summary>
         /// dst-port (integer [ -integer]: 0..65535; Default: )
@@ -117,7 +117,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         /// <seealso cref="DstPort"/>
         [TikProperty("dst-port", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikValue<string?> DstPortStr { get; set; }
+        public TikField<string?> DstPortStr { get; set; }
 
         /// <summary>
         /// src-port (integer [ -integer]: 0..65535; Default: )
@@ -134,6 +134,6 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         /// <seealso cref="SrcPort"/>
         [TikProperty("src-port", WinboxLabel = "Src. Port", Negatable = true)]
-        public TikValue<string?> SrcPortStr { get; set; }
+        public TikField<string?> SrcPortStr { get; set; }
     }
 }

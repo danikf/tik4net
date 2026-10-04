@@ -21,18 +21,18 @@ namespace tik4net.Objects.Ip.Firewall
         /// name
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; private set; }
+        public TikField<string?> Name { get; private set; }
 
         /// <summary>
         /// name
         /// </summary>
         [TikProperty("ports", WinboxLabel = "Ports")]
-        public TikValue<string?> Ports { get; set; }
+        public TikField<string?> Ports { get; set; }
 
         /// <summary>
         /// disabled
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
     }
 }

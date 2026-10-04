@@ -19,19 +19,19 @@ namespace tik4net.Objects.Ip
         /// account-local-traffic: whether to account the traffic to/from the router itself
         /// </summary>
         [TikProperty("account-local-traffic", DefaultValue = "no")]
-        public TikValue<string?> AccountLocalTraffic { get; set; }
+        public TikField<string?> AccountLocalTraffic { get; set; }
 
         /// <summary>
         /// enabled: whether local IP traffic accounting is enabled
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public TikValue<string?> Enabled { get; set; }
+        public TikField<string?> Enabled { get; set; }
 
         /// <summary>
         /// threshold: maximum number of IP pairs in the accounting table (maximal value is 8192)
         /// </summary>
         [TikProperty("threshold", DefaultValue = DEFAULT_TRESHOLD)]
-        public TikValue<int?> Threshold { get; set; }
+        public TikField<int?> Threshold { get; set; }
 
     }
 }

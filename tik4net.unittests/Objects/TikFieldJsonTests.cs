@@ -1,6 +1,6 @@
 #nullable enable
 #if NET8_0_OR_GREATER
-// TikValueJsonTests.cs — System.Text.Json round trip of TikValue<T> (design review C4: without a converter the
+// TikFieldJsonTests.cs — System.Text.Json round trip of TikField<T> (design review C4: without a converter the
 // struct serialized its properties and deserialized as Absent, silently).
 
 using System.Text.Json;
@@ -10,16 +10,16 @@ using tik4net.Objects;
 namespace tik4net.unittests.Objects
 {
     [TestClass]
-    public class TikValueJsonTests
+    public class TikFieldJsonTests
     {
         public class Dto
         {
-            public TikValue<string?> Name { get; set; }
-            public TikValue<int?> Port { get; set; }
-            public TikValue<TikValueMapperTests.Mode?> Mode { get; set; }
-            public TikValue<string?> Comment { get; set; }
-            public TikValue<TikDuration?> Interval { get; set; }
-            public TikValue<bool?> Flag { get; set; }
+            public TikField<string?> Name { get; set; }
+            public TikField<int?> Port { get; set; }
+            public TikField<TikFieldMapperTests.Mode?> Mode { get; set; }
+            public TikField<string?> Comment { get; set; }
+            public TikField<TikDuration?> Interval { get; set; }
+            public TikField<bool?> Flag { get; set; }
         }
 
         [TestMethod]
@@ -29,8 +29,8 @@ namespace tik4net.unittests.Objects
             {
                 Name = "b",
                 Port = 8080,
-                Mode = TikValueMapperTests.Mode.Auto,
-                Comment = TikValue<string?>.FromWire("x;y"),
+                Mode = TikFieldMapperTests.Mode.Auto,
+                Comment = TikField<string?>.FromWire("x;y"),
                 Interval = TikDuration.Parse("10s"),
                 // Flag left Absent
             };
@@ -44,11 +44,11 @@ namespace tik4net.unittests.Objects
             StringAssert.Contains(json, "\"Flag\":null");
             Assert.IsTrue(back.Name == "b");
             Assert.IsTrue(back.Port == 8080);
-            Assert.IsTrue(back.Mode == TikValueMapperTests.Mode.Auto);
-            Assert.AreEqual(TikValueState.Unparsed, back.Comment.State);
+            Assert.IsTrue(back.Mode == TikFieldMapperTests.Mode.Auto);
+            Assert.AreEqual(TikFieldState.Unparsed, back.Comment.State);
             Assert.AreEqual("x;y", back.Comment.RawValue);
             Assert.AreEqual("10s", back.Interval.ToString());
-            Assert.AreEqual(TikValueState.Absent, back.Flag.State);
+            Assert.AreEqual(TikFieldState.Absent, back.Flag.State);
         }
 
         [TestMethod]
@@ -56,7 +56,7 @@ namespace tik4net.unittests.Objects
         {
             var back = JsonSerializer.Deserialize<Dto>("{\"Comment\":null}")!;
 
-            Assert.AreEqual(TikValueState.Absent, back.Comment.State,
+            Assert.AreEqual(TikFieldState.Absent, back.Comment.State,
                 "a deserialized entity must not unset a field on the strength of JSON");
         }
 
@@ -65,7 +65,7 @@ namespace tik4net.unittests.Objects
         {
             var back = JsonSerializer.Deserialize<Dto>("{\"Mode\":\"ec2n155\"}")!;
 
-            Assert.AreEqual(TikValueState.Unparsed, back.Mode.State);
+            Assert.AreEqual(TikFieldState.Unparsed, back.Mode.State);
             Assert.AreEqual("ec2n155", back.Mode.RawValue);
         }
     }

@@ -16,12 +16,12 @@ namespace tik4net.Objects.Ip
         /// accessible-via-web: whether the snapshot is available via web
         /// </summary>
         [TikProperty("accessible-via-web", DefaultValue = "no")]
-        public TikValue<string?> AccessibleViaWeb { get; set; }
+        public TikField<string?> AccessibleViaWeb { get; set; }
 
         /// <summary>
         /// address: IP address range that is allowed to access the snapshot
         /// </summary>
         [TikProperty("address", DefaultValue = "0.0.0.0/0")]
-        public TikValue<string?> Address { get; set; }
+        public TikField<string?> Address { get; set; }
     }
 }

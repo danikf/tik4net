@@ -23,16 +23,16 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
   SSH or MAC-Telnet; RoMON discover and ping included
 * **One codebase from RouterOS 6.49 to 7.24** — the same entities read and write correctly on each version, tested on
   7.24.5, 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions))
-* **[TikValue](https://github.com/danikf/tik4net/wiki/TikValue)** — a property knows whether the router printed the field; it never invents a default, and
+* **[TikField](https://github.com/danikf/tik4net/wiki/TikField)** — a property knows whether the router printed the field; it never invents a default, and
   a value from a newer RouterOS does not break the read
 * **[Ask the router what a menu takes](https://github.com/danikf/tik4net/wiki/RouterOS-versions#asking-the-router-what-a-menu-takes)** — `DescribeMenu` lists a
   menu's sub-menus and commands, the arguments each command takes, the fields it reads and can clear, and the words an
   argument accepts, from the router's own grammar
 * **[Connection string](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities#from-a-connection-string)** — `TikConnectionSetup.FromConnectionString`: the router, the
   credentials and the transport come from config, not code
-* **[Negated matchers](https://github.com/danikf/tik4net/wiki/TikValue#negated-matchers)** — `src-address=!10.0.0.0/8`
+* **[Negated matchers](https://github.com/danikf/tik4net/wiki/TikField#negated-matchers)** — `src-address=!10.0.0.0/8`
   reads as a negated `10.0.0.0/8`, not as a string starting with `!`
-* **[A compile-time check for `TikValue` comparisons](https://github.com/danikf/tik4net/wiki/TikValue#pitfalls)** — warning
+* **[A compile-time check for `TikField` comparisons](https://github.com/danikf/tik4net/wiki/TikField#pitfalls)** — warning
   TIK001 flags `object.Equals("x", rule.Comment)` and its kin, which are never equal, with a fix to `.Value`
 * **[List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge)** — merge and `SaveListDifferences` reorder firewall rules
   with minimal moves, sync and async

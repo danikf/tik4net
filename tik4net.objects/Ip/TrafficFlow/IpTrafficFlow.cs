@@ -19,7 +19,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: no
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no", WinboxLabel = "Enabled")]
-        public TikValue<bool?> Enabled { get; set; }
+        public TikField<bool?> Enabled { get; set; }
 
         /// <summary>
         /// interfaces — names of interfaces used to gather traffic-flow statistics.
@@ -27,7 +27,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: all
         /// </summary>
         [TikProperty("interfaces", DefaultValue = "all", WinboxLabel = "Interfaces")]
-        public TikValue<string?> Interfaces { get; set; }
+        public TikField<string?> Interfaces { get; set; }
 
         /// <summary>
         /// cache-entries — number of flows that can simultaneously exist in router memory.
@@ -36,7 +36,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 4k
         /// </summary>
         [TikProperty("cache-entries", DefaultValue = "4k", WinboxLabel = "Cache Entries")]
-        public TikValue<string?> CacheEntries { get; set; }
+        public TikField<string?> CacheEntries { get; set; }
 
         /// <summary>
         /// active-flow-timeout — maximum lifespan duration for a flow (time value, e.g. "30m").
@@ -44,14 +44,14 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 30m
         /// </summary>
         [TikProperty("active-flow-timeout", DefaultValue = "30m", WinboxLabel = "Active Flow Timeout")]
-        public TikValue<TikDuration?> ActiveFlowTimeout { get; set; }
+        public TikField<TikDuration?> ActiveFlowTimeout { get; set; }
 
         /// <summary>
         /// inactive-flow-timeout — duration to maintain an idle flow before treating it as a new
         /// flow (time value, e.g. "15s"). Default: 15s
         /// </summary>
         [TikProperty("inactive-flow-timeout", DefaultValue = "15s", WinboxLabel = "Inactive Flow Timeout")]
-        public TikValue<TikDuration?> InactiveFlowTimeout { get; set; }
+        public TikField<TikDuration?> InactiveFlowTimeout { get; set; }
 
         /// <summary>
         /// packet-sampling — enable or disable packet sampling functionality (RouterOS v7+).
@@ -59,7 +59,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: no
         /// </summary>
         [TikProperty("packet-sampling", DefaultValue = "no", WinboxLabel = "Packet Sampling")]
-        public TikValue<bool?> PacketSampling { get; set; }
+        public TikField<bool?> PacketSampling { get; set; }
 
         /// <summary>
         /// sampling-interval — count of consecutive packets included (sampled) per sampling cycle.
@@ -67,7 +67,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 0
         /// </summary>
         [TikProperty("sampling-interval", DefaultValue = "0", WinboxLabel = "Packet Sampling Interval")]
-        public TikValue<int?> SamplingInterval { get; set; }
+        public TikField<int?> SamplingInterval { get; set; }
 
         /// <summary>
         /// sampling-space — count of consecutive packets omitted (skipped) per sampling cycle.
@@ -75,6 +75,6 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 0
         /// </summary>
         [TikProperty("sampling-space", DefaultValue = "0", WinboxLabel = "Packet Sampling Space")]
-        public TikValue<int?> SamplingSpace { get; set; }
+        public TikField<int?> SamplingSpace { get; set; }
     }
 }

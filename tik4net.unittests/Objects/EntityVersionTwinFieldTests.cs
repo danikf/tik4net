@@ -76,7 +76,7 @@ namespace tik4net.unittests.Objects
 
             var ftp = Router("/ip/service/print", row).LoadAll<IpService>().Single();
 
-            Assert.AreEqual(TikValueState.Absent, ftp.Address.State);
+            Assert.AreEqual(TikFieldState.Absent, ftp.Address.State);
         }
 
         [TestMethod]

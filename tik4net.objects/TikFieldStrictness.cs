@@ -5,27 +5,27 @@ using System.Linq;
 
 namespace tik4net.Objects
 {
-    /// <summary>What <see cref="TikValueStrictnessExtensions.EnsureStrict{TEntity}(TEntity, TikStrictness, string[])"/> refuses.</summary>
+    /// <summary>What <see cref="TikFieldStrictnessExtensions.EnsureStrict{TEntity}(TEntity, TikStrictness, string[])"/> refuses.</summary>
     [Flags]
     public enum TikStrictness
     {
-        /// <summary>A value the property's type cannot hold (<see cref="TikValueState.Unparsed"/>) — the default.</summary>
+        /// <summary>A value the property's type cannot hold (<see cref="TikFieldState.Unparsed"/>) — the default.</summary>
         Unparsed = 1,
 
         /// <summary>
-        /// A field the row did not carry (<see cref="TikValueState.Absent"/>). Many fields are absent by design — per row
+        /// A field the row did not carry (<see cref="TikFieldState.Absent"/>). Many fields are absent by design — per row
         /// type, per state — so this is for the fields a caller relies on; name the others in <c>allowAbsent</c>.
         /// </summary>
         Absent = 2,
 
-        /// <summary>A <c>[Flags]</c> value carrying words its enum has no member for (<see cref="TikValue{T}.UnknownFlagWords"/>).</summary>
+        /// <summary>A <c>[Flags]</c> value carrying words its enum has no member for (<see cref="TikField{T}.UnknownFlagWords"/>).</summary>
         UnknownFlagWords = 4,
     }
 
-    /// <summary>One <see cref="TikValue{T}"/> property of an entity, as <see cref="TikValueStrictnessExtensions.GetValueReport{TEntity}"/> sees it.</summary>
-    public sealed class TikValueReportItem
+    /// <summary>One <see cref="TikField{T}"/> property of an entity, as <see cref="TikFieldStrictnessExtensions.GetValueReport{TEntity}"/> sees it.</summary>
+    public sealed class TikFieldReportItem
     {
-        internal TikValueReportItem(string propertyName, string fieldName, TikValueState state, string? rawValue, string? unknownFlagWords)
+        internal TikFieldReportItem(string propertyName, string fieldName, TikFieldState state, string? rawValue, string? unknownFlagWords)
         {
             PropertyName = propertyName;
             FieldName = fieldName;
@@ -41,7 +41,7 @@ namespace tik4net.Objects
         public string FieldName { get; }
 
         /// <summary>Whether the router printed the field, and whether it could be read.</summary>
-        public TikValueState State { get; }
+        public TikFieldState State { get; }
 
         /// <summary>The router's word when <see cref="State"/> is Unparsed.</summary>
         public string? RawValue { get; }
@@ -57,16 +57,16 @@ namespace tik4net.Objects
     }
 
     /// <summary>
-    /// Thrown by <see cref="TikValueStrictnessExtensions.EnsureStrict{TEntity}(TEntity, TikStrictness, string[])"/>; lists every
+    /// Thrown by <see cref="TikFieldStrictnessExtensions.EnsureStrict{TEntity}(TEntity, TikStrictness, string[])"/>; lists every
     /// offending field.
     /// </summary>
     public class TikStrictValueException : InvalidOperationException
     {
         /// <summary>The fields that failed the check.</summary>
-        public IReadOnlyList<TikValueReportItem> Offenders { get; }
+        public IReadOnlyList<TikFieldReportItem> Offenders { get; }
 
         /// <summary>.ctor</summary>
-        public TikStrictValueException(string entityName, IReadOnlyList<TikValueReportItem> offenders)
+        public TikStrictValueException(string entityName, IReadOnlyList<TikFieldReportItem> offenders)
             : base(entityName + ": " + string.Join("; ", offenders.Select(o => o.ToString())))
         {
             Offenders = offenders;
@@ -74,31 +74,31 @@ namespace tik4net.Objects
     }
 
     /// <summary>
-    /// Makes the value states of an entity visible: a report of every <see cref="TikValue{T}"/> property, and a check that
+    /// Makes the value states of an entity visible: a report of every <see cref="TikField{T}"/> property, and a check that
     /// throws when a value the caller relies on was not read. A load never fails on a value from another RouterOS version;
     /// these are how a caller finds out that it happened.
     /// </summary>
     [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
     [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
-    public static class TikValueStrictnessExtensions
+    public static class TikFieldStrictnessExtensions
     {
-        /// <summary>The state of every <see cref="TikValue{T}"/> property of <paramref name="entity"/>, in declaration order.</summary>
-        public static IReadOnlyList<TikValueReportItem> GetValueReport<TEntity>(this TEntity entity)
+        /// <summary>The state of every <see cref="TikField{T}"/> property of <paramref name="entity"/>, in declaration order.</summary>
+        public static IReadOnlyList<TikFieldReportItem> GetValueReport<TEntity>(this TEntity entity)
         {
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            var report = new List<TikValueReportItem>();
+            var report = new List<TikFieldReportItem>();
             foreach (var property in metadata.Properties.Where(p => p.IsWrapped))
             {
-                var value = (ITikValue)property.GetWrapped(entity);
-                report.Add(new TikValueReportItem(property.PropertyName, property.FieldName, value.State, value.RawValue, value.UnknownFlagWords));
+                var value = (ITikField)property.GetWrapped(entity);
+                report.Add(new TikFieldReportItem(property.PropertyName, property.FieldName, value.State, value.RawValue, value.UnknownFlagWords));
             }
             return report;
         }
 
         /// <summary>
-        /// Throws <see cref="TikStrictValueException"/>, naming every offending field, when a <see cref="TikValue{T}"/>
+        /// Throws <see cref="TikStrictValueException"/>, naming every offending field, when a <see cref="TikField{T}"/>
         /// property of <paramref name="entity"/> is in a state <paramref name="strictness"/> refuses; returns the entity
         /// otherwise. Use it after a load whose values you act on.
         /// </summary>
@@ -127,11 +127,11 @@ namespace tik4net.Objects
             return list;
         }
 
-        private static List<TikValueReportItem> Offenders<TEntity>(TEntity entity, TikStrictness strictness, string[] allowAbsent)
+        private static List<TikFieldReportItem> Offenders<TEntity>(TEntity entity, TikStrictness strictness, string[] allowAbsent)
             => entity.GetValueReport()
                 .Where(item =>
-                    (strictness.HasFlag(TikStrictness.Unparsed) && item.State == TikValueState.Unparsed)
-                    || (strictness.HasFlag(TikStrictness.Absent) && item.State == TikValueState.Absent
+                    (strictness.HasFlag(TikStrictness.Unparsed) && item.State == TikFieldState.Unparsed)
+                    || (strictness.HasFlag(TikStrictness.Absent) && item.State == TikFieldState.Absent
                         && !allowAbsent.Contains(item.FieldName, StringComparer.OrdinalIgnoreCase))
                     || (strictness.HasFlag(TikStrictness.UnknownFlagWords) && item.UnknownFlagWords != null))
                 .ToList();

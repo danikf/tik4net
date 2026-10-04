@@ -1,5 +1,5 @@
 #nullable enable
-// TikValueMapperTests.cs — the 5.0 entity value model (TikValue<T>) against the mapper: what a load reads, what a
+// TikFieldMapperTests.cs — the 5.0 entity value model (TikField<T>) against the mapper: what a load reads, what a
 // save sends. The tables are the ones in the design (_notes/5.0/features/entity-value-model.md, "Read" and "Write"),
 // and the wire shapes are the ones measured in its validation runs V1–V5.
 
@@ -13,7 +13,7 @@ using tik4net.Testing;
 namespace tik4net.unittests.Objects
 {
     [TestClass]
-    public class TikValueMapperTests
+    public class TikFieldMapperTests
     {
         public enum Mode { [TikEnum("no")] No, [TikEnum("yes")] Yes, [TikEnum("auto")] Auto }
 
@@ -32,25 +32,25 @@ namespace tik4net.unittests.Objects
             public string? Id { get; private set; }
 
             [TikProperty("name")]
-            public TikValue<string?> Name { get; set; }
+            public TikField<string?> Name { get; set; }
 
             [TikProperty("comment")]
-            public TikValue<string?> Comment { get; set; }
+            public TikField<string?> Comment { get; set; }
 
             [TikProperty("port", DefaultValue = "80")]
-            public TikValue<int?> Port { get; set; }
+            public TikField<int?> Port { get; set; }
 
             [TikProperty("mode")]
-            public TikValue<Mode?> Mode { get; set; }
+            public TikField<Mode?> Mode { get; set; }
 
             [TikProperty("state")]
-            public TikValue<States?> State { get; set; }
+            public TikField<States?> State { get; set; }
 
             [TikProperty("fib", IsPresenceFlag = true)]
-            public TikValue<bool?> Fib { get; set; }
+            public TikField<bool?> Fib { get; set; }
 
             [TikProperty("running", IsReadOnly = true)]
-            public TikValue<bool?> Running { get; private set; }
+            public TikField<bool?> Running { get; private set; }
         }
 
         private static TikFakeConnection Router(params Dictionary<string, string>[] rows)
@@ -77,9 +77,9 @@ namespace tik4net.unittests.Objects
         {
             var box = Router(Row(("name", "a"))).LoadAll<Box>().Single();
 
-            Assert.AreEqual(TikValueState.Absent, box.Port.State, "DefaultValue = \"80\" documents the router; it is not read");
-            Assert.AreEqual(TikValueState.Absent, box.Comment.State);
-            Assert.AreEqual(TikValueState.Absent, box.Running.State);
+            Assert.AreEqual(TikFieldState.Absent, box.Port.State, "DefaultValue = \"80\" documents the router; it is not read");
+            Assert.AreEqual(TikFieldState.Absent, box.Comment.State);
+            Assert.AreEqual(TikFieldState.Absent, box.Running.State);
         }
 
         [TestMethod]
@@ -111,11 +111,11 @@ namespace tik4net.unittests.Objects
             // 6.49.13 prints ddns-enabled=false where 7.x has yes|no|auto (V5): a type change, not a new word.
             var box = Router(Row(("port", "none"), ("mode", "false"), ("running", ""))).LoadAll<Box>().Single();
 
-            Assert.AreEqual(TikValueState.Unparsed, box.Port.State);
+            Assert.AreEqual(TikFieldState.Unparsed, box.Port.State);
             Assert.AreEqual("none", box.Port.RawValue);
-            Assert.AreEqual(TikValueState.Unparsed, box.Mode.State);
+            Assert.AreEqual(TikFieldState.Unparsed, box.Mode.State);
             Assert.AreEqual("false", box.Mode.RawValue);
-            Assert.AreEqual(TikValueState.Unparsed, box.Running.State, "an empty value on a non-presence bool");
+            Assert.AreEqual(TikFieldState.Unparsed, box.Running.State, "an empty value on a non-presence bool");
             Assert.AreEqual("", box.Running.RawValue);
             Assert.IsFalse(box.Mode == Mode.No, "an unparsed value equals no typed value");
         }
@@ -125,7 +125,7 @@ namespace tik4net.unittests.Objects
         {
             var box = Router(Row(("state", "new,untracked"))).LoadAll<Box>().Single();
 
-            Assert.AreEqual(TikValueState.Present, box.State.State);
+            Assert.AreEqual(TikFieldState.Present, box.State.State);
             Assert.IsTrue(box.State == States.New, "the unknown word is not a bit inside Value, so the known set compares");
             Assert.AreEqual("untracked", box.State.UnknownFlagWords);
             Assert.AreEqual("new,untracked", box.State.ToString());
@@ -256,7 +256,7 @@ namespace tik4net.unittests.Objects
 
             var clone = box.CloneEntity();
 
-            Assert.AreEqual(TikValueState.Present, clone.Comment.State, "an assigned null is an intent to unset, not Absent");
+            Assert.AreEqual(TikFieldState.Present, clone.Comment.State, "an assigned null is an intent to unset, not Absent");
             Assert.IsTrue(clone.Name == "n");
         }
 
@@ -285,28 +285,28 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void TikValueOfANonNullableValueType_IsRefused_WithTheFix()
+        public void TikFieldOfANonNullableValueType_IsRefused_WithTheFix()
         {
             var ex = Assert.ThrowsException<ArgumentException>(() => TikEntityMetadataCache.GetMetadata<Bad>());
-            StringAssert.Contains(ex.Message, "TikValue<Int32?>");
+            StringAssert.Contains(ex.Message, "TikField<Int32?>");
         }
 
         [TikEntity("/bad")]
         public class Bad
         {
             [TikProperty("port")]
-            public TikValue<int> Port { get; set; }
+            public TikField<int> Port { get; set; }
         }
 
         [TestMethod]
-        public void IsMandatoryOnATikValue_IsRefused()
+        public void IsMandatoryOnATikField_IsRefused()
         {
             var ex = Assert.ThrowsException<ArgumentException>(() => TikEntityMetadataCache.GetMetadata<MandatoryBox>());
             StringAssert.Contains(ex.Message, "IsMandatory");
         }
 
         [TestMethod]
-        public void UnsetOnDefaultOnATikValue_IsRefused()
+        public void UnsetOnDefaultOnATikField_IsRefused()
         {
             var ex = Assert.ThrowsException<ArgumentException>(() => TikEntityMetadataCache.GetMetadata<UnsetBox>());
             StringAssert.Contains(ex.Message, "UnsetOnDefault");
@@ -317,21 +317,21 @@ namespace tik4net.unittests.Objects
         {
             // The C1 case: a field that was IsMandatory on the plain property. Absent, and the load succeeds.
             var box = Router(new Dictionary<string, string> { [".id"] = "*1" }).LoadAll<Box>().Single();
-            Assert.AreEqual(TikValueState.Absent, box.Name.State);
+            Assert.AreEqual(TikFieldState.Absent, box.Name.State);
         }
 
         [TikEntity("/bad")]
         public class MandatoryBox
         {
             [TikProperty("name", IsMandatory = true)]
-            public TikValue<string?> Name { get; set; }
+            public TikField<string?> Name { get; set; }
         }
 
         [TikEntity("/bad")]
         public class UnsetBox
         {
             [TikProperty("comment", UnsetOnDefault = true)]
-            public TikValue<string?> Comment { get; set; }
+            public TikField<string?> Comment { get; set; }
         }
     }
 }

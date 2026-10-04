@@ -30,7 +30,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// name — identifier for this mode-config entry; referenced from /ip/ipsec/peer.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// responder — when true this entry acts as a responder (server) and assigns addresses/DNS
@@ -39,7 +39,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("responder", DefaultValue = "no", WinboxLabel = "Responder")]
-        public TikValue<bool?> Responder { get; set; }
+        public TikField<bool?> Responder { get; set; }
 
         // --- Responder-side (server) fields ---
 
@@ -48,7 +48,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// initiators. Applicable when responder=yes.
         /// </summary>
         [TikProperty("address-pool", WinboxLabel = "Address Pool")]
-        public TikValue<string?> AddressPool { get; set; }
+        public TikField<string?> AddressPool { get; set; }
 
         /// <summary>
         /// address-prefix-length — prefix length (subnet mask) of the address assigned from the
@@ -57,7 +57,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("address-prefix-length", WinboxLabel = "Address Prefix Length")]
-        public TikValue<int?> AddressPrefixLength { get; set; }
+        public TikField<int?> AddressPrefixLength { get; set; }
 
         /// <summary>
         /// split-include — comma-separated list of subnets in CIDR notation to tunnel to the
@@ -65,14 +65,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("split-include", WinboxLabel = "Split Include")]
-        public TikValue<string?> SplitInclude { get; set; }
+        public TikField<string?> SplitInclude { get; set; }
 
         /// <summary>
         /// split-dns — list of DNS domain suffixes that the initiator should resolve using the
         /// VPN-assigned DNS servers rather than its local resolver. Applicable when responder=yes.
         /// </summary>
         [TikProperty("split-dns", WinboxLabel = "Split DNS")]
-        public TikValue<string?> SplitDns { get; set; }
+        public TikField<string?> SplitDns { get; set; }
 
         /// <summary>
         /// system-dns — when true, the router sends its own /ip/dns server addresses to the
@@ -80,7 +80,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("system-dns", WinboxLabel = "System DNS")]
-        public TikValue<bool?> SystemDns { get; set; }
+        public TikField<bool?> SystemDns { get; set; }
 
         /// <summary>
         /// static-dns — manually specified DNS server IP address(es) (comma-separated) sent to the
@@ -88,7 +88,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("static-dns", WinboxLabel = "Static DNS")]
-        public TikValue<string?> StaticDns { get; set; }
+        public TikField<string?> StaticDns { get; set; }
 
         // --- Initiator-side (client) fields ---
 
@@ -98,7 +98,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// exchange. Applicable when responder=no.
         /// </summary>
         [TikProperty("address", WinboxLabel = "Address")]
-        public TikValue<string?> Address { get; set; }
+        public TikField<string?> Address { get; set; }
 
         /// <summary>
         /// src-address-list — name of an address list (/ip/firewall/address-list) for which
@@ -106,7 +106,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// routed over the VPN tunnel. Applicable when responder=no.
         /// </summary>
         [TikProperty("src-address-list", WinboxLabel = "Src. Address List")]
-        public TikValue<string?> SrcAddressList { get; set; }
+        public TikField<string?> SrcAddressList { get; set; }
 
         /// <summary>
         /// use-responder-dns — controls whether DNS servers received from the responder during
@@ -119,7 +119,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Applicable when responder=no.
         /// </summary>
         [TikProperty("use-responder-dns", DefaultValue = "exclusively", WinboxLabel = "Use Responder DNS")]
-        public TikValue<UseResponderDnsType?> UseResponderDns { get; set; }
+        public TikField<UseResponderDnsType?> UseResponderDns { get; set; }
 
         // --- Shared fields ---
 
@@ -128,7 +128,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// the specified mark are processed by this mode-config entry.
         /// </summary>
         [TikProperty("connection-mark", WinboxLabel = "Connection Mark")]
-        public TikValue<string?> ConnectionMark { get; set; }
+        public TikField<string?> ConnectionMark { get; set; }
 
         // NOTE: /ip/ipsec/mode-config has no "comment" field on RouterOS (confirmed via
         // add-completion and print), so no Comment property is exposed here.
@@ -139,7 +139,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// default — true when this entry is a system-generated default that cannot be deleted.
         /// </summary>
         [TikProperty("default", IsReadOnly = true)]
-        public TikValue<bool?> Default { get; private set; }
+        public TikField<bool?> Default { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

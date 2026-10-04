@@ -8,7 +8,7 @@ using System.Text.Json.Serialization;
 namespace tik4net.Objects
 {
     /// <summary>
-    /// System.Text.Json support for <see cref="TikValue{T}"/>, applied to the type itself — no registration needed.
+    /// System.Text.Json support for <see cref="TikField{T}"/>, applied to the type itself — no registration needed.
     /// </summary>
     /// <remarks>
     /// <list type="table">
@@ -16,31 +16,31 @@ namespace tik4net.Objects
     /// the mapper's value types (TikDuration, TikDataRate, TikRatePair, TikHexNumber, MacAddress) as the router spells them, anything else as <see cref="JsonSerializer"/> writes it with the caller's options.</description></item>
     /// <item><term>Absent</term><description><c>null</c>.</description></item>
     /// <item><term>Unparsed</term><description><c>{"$raw":"word"}</c>, read back as the same Unparsed value.</description></item>
-    /// <item><term>Negated</term><description><c>{"$not":value}</c>, the value as above (<see cref="TikValue{T}.IsNegated"/>).</description></item>
+    /// <item><term>Negated</term><description><c>{"$not":value}</c>, the value as above (<see cref="TikField{T}.IsNegated"/>).</description></item>
     /// </list>
     /// <c>null</c> reads back Absent. A <c>null</c> assigned as an intent to unset therefore does not survive the round
     /// trip — deliberately the safe direction: a deserialized entity never unsets a field on the strength of JSON.
-    /// Without this converter a <see cref="TikValue{T}"/> serialized its properties and deserialized as Absent, silently.
+    /// Without this converter a <see cref="TikField{T}"/> serialized its properties and deserialized as Absent, silently.
     /// </remarks>
-    public sealed class TikValueJsonConverterFactory : JsonConverterFactory
+    public sealed class TikFieldJsonConverterFactory : JsonConverterFactory
     {
         /// <inheritdoc/>
         public override bool CanConvert(Type typeToConvert)
-            => typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(TikValue<>);
+            => typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(TikField<>);
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "TikValue<T> is populated by the O/R mapper, which carries the same warning.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2055", Justification = "TikValue<T> is populated by the O/R mapper, which carries the same warning.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "TikValue<T> is populated by the O/R mapper, which carries the same warning.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "TikField<T> is populated by the O/R mapper, which carries the same warning.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2055", Justification = "TikField<T> is populated by the O/R mapper, which carries the same warning.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "TikField<T> is populated by the O/R mapper, which carries the same warning.")]
         [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "tik4net.objects is not AOT-compatible; see its project file.")]
         public override JsonConverter? CreateConverter(Type typeToConvert, JsonSerializerOptions options)
             => (JsonConverter?)Activator.CreateInstance(
-                typeof(TikValueJsonConverter<>).MakeGenericType(typeToConvert.GetGenericArguments()[0]));
+                typeof(TikFieldJsonConverter<>).MakeGenericType(typeToConvert.GetGenericArguments()[0]));
     }
 
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "TikValue<T> is populated by the O/R mapper, which carries the same warning.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "TikField<T> is populated by the O/R mapper, which carries the same warning.")]
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "tik4net.objects is not AOT-compatible; see its project file.")]
-    internal sealed class TikValueJsonConverter<T> : JsonConverter<TikValue<T>>
+    internal sealed class TikFieldJsonConverter<T> : JsonConverter<TikField<T>>
     {
         private const string RawProperty = "$raw";
         private const string NotProperty = "$not";
@@ -48,7 +48,7 @@ namespace tik4net.Objects
 
         public override bool HandleNull => true;
 
-        public override TikValue<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override TikField<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             if (reader.TokenType == JsonTokenType.Null)
                 return default;
@@ -56,7 +56,7 @@ namespace tik4net.Objects
             if (reader.TokenType == JsonTokenType.StartObject)
             {
                 string? raw = null;
-                TikValue<T>? negated = null;
+                TikField<T>? negated = null;
                 while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                 {
                     string? name = reader.GetString();
@@ -71,8 +71,8 @@ namespace tik4net.Objects
                 if (negated != null)
                     return negated.Value;
                 if (raw == null)
-                    throw new JsonException("A TikValue object must carry \"" + RawProperty + "\" or \"" + NotProperty + "\".");
-                return TikValue<T>.FromWire(raw);
+                    throw new JsonException("A TikField object must carry \"" + RawProperty + "\" or \"" + NotProperty + "\".");
+                return TikField<T>.FromWire(raw);
             }
 
             if (ValueType.IsEnum && reader.TokenType == JsonTokenType.String)
@@ -83,14 +83,14 @@ namespace tik4net.Objects
             return JsonSerializer.Deserialize<T>(ref reader, options)!;
         }
 
-        public override void Write(Utf8JsonWriter writer, TikValue<T> value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, TikField<T> value, JsonSerializerOptions options)
         {
             switch (value.State)
             {
-                case TikValueState.Absent:
+                case TikFieldState.Absent:
                     writer.WriteNullValue();
                     return;
-                case TikValueState.Unparsed:
+                case TikFieldState.Unparsed:
                     writer.WriteStartObject();
                     writer.WriteString(RawProperty, value.RawValue);
                     writer.WriteEndObject();
@@ -128,13 +128,13 @@ namespace tik4net.Objects
              : ValueType == typeof(TikHexNumber) ? TikHexNumber.Parse(text)
              : (object)new MacAddress(text);
 
-        private static TikValue<T> ReadEnum(string word)
+        private static TikField<T> ReadEnum(string word)
         {
             var metadata = TikEnumMetadata.Get(ValueType);
             if (!metadata.IsFlags)
                 return metadata.TryParseNumeric(word, out long single)
                     ? (T)Enum.ToObject(ValueType, single)
-                    : TikValue<T>.FromWire(word);
+                    : TikField<T>.FromWire(word);
 
             // As the mapper reads it: the known words OR together, the others are kept beside the value.
             long known = 0;
@@ -149,7 +149,7 @@ namespace tik4net.Objects
                 else
                     unknown.Add(part);
             }
-            return TikValue<T>.FromPresentWithUnknownFlags((T)Enum.ToObject(ValueType, known), string.Join(",", unknown));
+            return TikField<T>.FromPresentWithUnknownFlags((T)Enum.ToObject(ValueType, known), string.Join(",", unknown));
         }
     }
 }

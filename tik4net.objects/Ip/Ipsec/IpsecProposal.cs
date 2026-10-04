@@ -52,7 +52,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// name — proposal identifier; used to reference this entry from policies.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// auth-algorithms — comma-separated list of allowed authentication (integrity) algorithms
@@ -61,7 +61,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: sha1
         /// </summary>
         [TikProperty("auth-algorithms", DefaultValue = "sha1", WinboxLabel = "Auth. Algorithms")]
-        public TikValue<string?> AuthAlgorithms { get; set; }
+        public TikField<string?> AuthAlgorithms { get; set; }
 
         /// <summary>
         /// enc-algorithms — comma-separated list of allowed encryption algorithms and key lengths
@@ -72,7 +72,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: aes-256-cbc,aes-192-cbc,aes-128-cbc
         /// </summary>
         [TikProperty("enc-algorithms", DefaultValue = "aes-256-cbc,aes-192-cbc,aes-128-cbc", WinboxLabel = "Encr. Algorithms")]
-        public TikValue<string?> EncAlgorithms { get; set; }
+        public TikField<string?> EncAlgorithms { get; set; }
 
         /// <summary>
         /// lifetime — how long (time string, e.g. "30m") to use the SA before it must be
@@ -80,7 +80,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: 30m
         /// </summary>
         [TikProperty("lifetime", DefaultValue = "30m", WinboxLabel = "Lifetime")]
-        public TikValue<TikDuration?> Lifetime { get; set; }
+        public TikField<TikDuration?> Lifetime { get; set; }
 
         /// <summary>
         /// pfs-group — Diffie-Hellman group used for Perfect Forward Secrecy in Phase 2.
@@ -89,20 +89,20 @@ namespace tik4net.Objects.Ip.Ipsec
         /// <seealso cref="PfsGroupType"/>
         /// </summary>
         [TikProperty("pfs-group", DefaultValue = "modp1024", WinboxLabel = "PFS Group")]
-        public TikValue<PfsGroupType?> PfsGroup { get; set; }
+        public TikField<PfsGroupType?> PfsGroup { get; set; }
 
         /// <summary>
         /// disabled — when true this proposal entry is not offered during IKE negotiation.
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short description of the proposal entry.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -111,7 +111,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default entries cannot be deleted.
         /// </summary>
         [TikProperty("default", IsReadOnly = true)]
-        public TikValue<bool?> Default { get; private set; }
+        public TikField<bool?> Default { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

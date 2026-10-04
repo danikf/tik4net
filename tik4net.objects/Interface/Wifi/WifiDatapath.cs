@@ -40,7 +40,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         // ── Bridge settings ───────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Bridge"
         /// </summary>
         [TikProperty("bridge", WinboxLabel = "Bridge")]
-        public TikValue<string?> Bridge { get; set; }
+        public TikField<string?> Bridge { get; set; }
 
         /// <summary>
         /// bridge-cost — STP path cost assigned when adding the interface as a bridge port (1..65535).
@@ -60,7 +60,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Bridge Cost"
         /// </summary>
         [TikProperty("bridge-cost", DefaultValue = "0", WinboxLabel = "Bridge Cost")]
-        public TikValue<int?> BridgeCost { get; set; }
+        public TikField<int?> BridgeCost { get; set; }
 
         /// <summary>
         /// bridge-horizon — bridge horizon for split-horizon bridging; "none" disables it.
@@ -69,7 +69,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Bridge Horizon"
         /// </summary>
         [TikProperty("bridge-horizon", DefaultValue = "none", WinboxLabel = "Bridge Horizon")]
-        public TikValue<string?> BridgeHorizon { get; set; }
+        public TikField<string?> BridgeHorizon { get; set; }
 
         // ── Client settings ───────────────────────────────────────────────────
 
@@ -80,7 +80,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Client Isolation"
         /// </summary>
         [TikProperty("client-isolation", DefaultValue = "no", WinboxLabel = "Client Isolation")]
-        public TikValue<bool?> ClientIsolation { get; set; }
+        public TikField<bool?> ClientIsolation { get; set; }
 
         // ── Interface / VLAN ──────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Interface List"
         /// </summary>
         [TikProperty("interface-list", WinboxLabel = "Interface List")]
-        public TikValue<string?> InterfaceList { get; set; }
+        public TikField<string?> InterfaceList { get; set; }
 
         /// <summary>
         /// vlan-id — default VLAN ID (1..4095) to assign to clients connecting to this AP,
@@ -98,7 +98,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "VLAN ID"
         /// </summary>
         [TikProperty("vlan-id", DefaultValue = "none", WinboxLabel = "VLAN ID")]
-        public TikValue<string?> VlanId { get; set; }
+        public TikField<string?> VlanId { get; set; }
 
         // ── OpenFlow ──────────────────────────────────────────────────────────
 
@@ -108,7 +108,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "OpenFlow Switch"
         /// </summary>
         [TikProperty("openflow-switch", WinboxLabel = "OpenFlow Switch")]
-        public TikValue<string?> OpenflowSwitch { get; set; }
+        public TikField<string?> OpenflowSwitch { get; set; }
 
         // ── CAPsMAN ───────────────────────────────────────────────────────────
 
@@ -120,7 +120,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Traffic Processing"
         /// </summary>
         [TikProperty("traffic-processing", DefaultValue = "on-cap", WinboxLabel = "Traffic Processing")]
-        public TikValue<TrafficProcessingMode?> TrafficProcessing { get; set; }
+        public TikField<TrafficProcessingMode?> TrafficProcessing { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -130,14 +130,14 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

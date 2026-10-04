@@ -73,16 +73,16 @@ namespace tik4net.unittests.Cli
             public string? Id { get; set; }
 
             [TikProperty("dst-address")]
-            public TikValue<string?> DstAddress { get; set; }
+            public TikField<string?> DstAddress { get; set; }
 
             [TikProperty("active", IsReadOnly = true)]
-            public TikValue<bool?> Active { get; set; }
+            public TikField<bool?> Active { get; set; }
 
             [TikProperty("connect", IsReadOnly = true)]
-            public TikValue<bool?> Connect { get; set; }
+            public TikField<bool?> Connect { get; set; }
 
             [TikProperty("static", IsReadOnly = true)]
-            public TikValue<bool?> Static { get; set; }
+            public TikField<bool?> Static { get; set; }
         }
 
         [TikEntity("/iface")]

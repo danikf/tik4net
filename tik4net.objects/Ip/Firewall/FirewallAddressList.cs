@@ -21,36 +21,36 @@ namespace tik4net.Objects.Ip.Firewall
         /// address
         /// </summary>
         [TikProperty("address", WinboxLabel = "Address")]
-        public TikValue<string?> Address { get; set; }
+        public TikField<string?> Address { get; set; }
 
         /// <summary>
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>
         /// disabled
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// dynamic
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// timeout  (00:00:00)
         /// </summary>
         [TikProperty("timeout", DefaultValue = "00:00:00", WinboxLabel = "Timeout")]
-        public TikValue<TikDuration?> Timeout { get; set; }
+        public TikField<TikDuration?> Timeout { get; set; }
 
         /// <summary>
         /// list
         /// </summary>
         [TikProperty("list", WinboxLabel = "List")]
-        public TikValue<string?> List { get; set; }
+        public TikField<string?> List { get; set; }
     }
 }

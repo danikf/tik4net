@@ -61,7 +61,7 @@ namespace tik4net.Objects.Snmp
         /// This is the "username" equivalent for SNMPv1/v2c.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// addresses — IP/IPv6 address prefix(es) that are permitted to query
@@ -69,7 +69,7 @@ namespace tik4net.Objects.Snmp
         /// WinBox: "Addresses"
         /// </summary>
         [TikProperty("addresses", DefaultValue = "::/0", WinboxLabel = "Addresses")]
-        public TikValue<string?> Addresses { get; set; }
+        public TikField<string?> Addresses { get; set; }
 
         /// <summary>
         /// security — SNMPv3 security level (noAuthNoPriv / authNoPriv / authPriv).
@@ -77,7 +77,7 @@ namespace tik4net.Objects.Snmp
         /// </summary>
         /// <seealso cref="SecurityLevel"/>
         [TikProperty("security", DefaultValue = "none", WinboxLabel = "Security")]
-        public TikValue<SecurityLevel?> Security { get; set; }
+        public TikField<SecurityLevel?> Security { get; set; }
 
         /// <summary>
         /// read-access — allow SNMP GET / WALK queries from this community.
@@ -85,7 +85,7 @@ namespace tik4net.Objects.Snmp
         /// WinBox: "Read Access"
         /// </summary>
         [TikProperty("read-access", DefaultValue = "yes", WinboxLabel = "Read Access")]
-        public TikValue<bool?> ReadAccess { get; set; }
+        public TikField<bool?> ReadAccess { get; set; }
 
         /// <summary>
         /// write-access — allow SNMP SET (configuration write) from this community.
@@ -93,7 +93,7 @@ namespace tik4net.Objects.Snmp
         /// WinBox: "Write Access"
         /// </summary>
         [TikProperty("write-access", DefaultValue = "no", WinboxLabel = "Write Access")]
-        public TikValue<bool?> WriteAccess { get; set; }
+        public TikField<bool?> WriteAccess { get; set; }
 
         /// <summary>
         /// authentication-protocol — hash algorithm used for SNMPv3 authentication.
@@ -102,7 +102,7 @@ namespace tik4net.Objects.Snmp
         /// </summary>
         /// <seealso cref="AuthProtocol"/>
         [TikProperty("authentication-protocol", DefaultValue = "MD5", WinboxLabel = "Authentication Protocol")]
-        public TikValue<AuthProtocol?> AuthenticationProtocol { get; set; }
+        public TikField<AuthProtocol?> AuthenticationProtocol { get; set; }
 
         /// <summary>
         /// authentication-password — passphrase for SNMPv3 authentication (min. 8 chars).
@@ -110,7 +110,7 @@ namespace tik4net.Objects.Snmp
         /// or <see cref="SecurityLevel.Private"/>.
         /// </summary>
         [TikProperty("authentication-password", DefaultValue = "", IsSensitive = true, WinboxLabel = "Authentication Password")]
-        public TikValue<string?> AuthenticationPassword { get; set; }
+        public TikField<string?> AuthenticationPassword { get; set; }
 
         /// <summary>
         /// encryption-protocol — cipher used for SNMPv3 privacy/encryption.
@@ -119,32 +119,32 @@ namespace tik4net.Objects.Snmp
         /// </summary>
         /// <seealso cref="EncryptProtocol"/>
         [TikProperty("encryption-protocol", DefaultValue = "DES", WinboxLabel = "Encryption Protocol")]
-        public TikValue<EncryptProtocol?> EncryptionProtocol { get; set; }
+        public TikField<EncryptProtocol?> EncryptionProtocol { get; set; }
 
         /// <summary>
         /// encryption-password — passphrase for SNMPv3 encryption (min. 8 chars).
         /// Only used when <see cref="Security"/> == <see cref="SecurityLevel.Private"/>.
         /// </summary>
         [TikProperty("encryption-password", DefaultValue = "", IsSensitive = true, WinboxLabel = "Encryption Password")]
-        public TikValue<string?> EncryptionPassword { get; set; }
+        public TikField<string?> EncryptionPassword { get; set; }
 
         /// <summary>
         /// default — marks this community as the factory default ("public") entry.
         /// Read-only; set by RouterOS itself.
         /// </summary>
         [TikProperty("default", IsReadOnly = true)]
-        public TikValue<bool?> Default { get; private set; }
+        public TikField<bool?> Default { get; private set; }
 
         /// <summary>
         /// disabled — when true the community is inactive and will not be matched
         /// against incoming SNMP requests.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — free-text annotation</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

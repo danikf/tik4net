@@ -25,7 +25,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// WinBox: "Bridge"
         /// </summary>
         [TikProperty("bridge", WinboxLabel = "Bridge")]
-        public TikValue<string?> Bridge { get; set; }
+        public TikField<string?> Bridge { get; set; }
 
         /// <summary>
         /// vlan-ids: VLAN IDs covered by this entry. Accepts a single ID, a comma-separated list,
@@ -33,7 +33,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// WinBox: "VLAN IDs"
         /// </summary>
         [TikProperty("vlan-ids", DefaultValue = "1", WinboxLabel = "VLAN IDs")]
-        public TikValue<string?> VlanIds { get; set; }
+        public TikField<string?> VlanIds { get; set; }
 
         /// <summary>
         /// tagged: Interfaces (or interface lists) that will add a VLAN tag on egress for these VLAN IDs
@@ -41,7 +41,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// WinBox: "Tagged"
         /// </summary>
         [TikProperty("tagged", WinboxLabel = "Tagged")]
-        public TikValue<string?> Tagged { get; set; }
+        public TikField<string?> Tagged { get; set; }
 
         /// <summary>
         /// untagged: Interfaces (or interface lists) that will strip the VLAN tag on egress for these
@@ -49,7 +49,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// WinBox: "Untagged"
         /// </summary>
         [TikProperty("untagged", WinboxLabel = "Untagged")]
-        public TikValue<string?> Untagged { get; set; }
+        public TikField<string?> Untagged { get; set; }
 
         /// <summary>
         /// mvrp-forbidden: Interfaces on which MVRP registration for these VLAN IDs is forbidden.
@@ -57,20 +57,20 @@ namespace tik4net.Objects.Interface.Bridge
         /// WinBox: "MVRP Forbidden"
         /// </summary>
         [TikProperty("mvrp-forbidden", WinboxLabel = "MVRP Forbidden")]
-        public TikValue<string?> MvrpForbidden { get; set; }
+        public TikField<string?> MvrpForbidden { get; set; }
 
         /// <summary>
         /// disabled: Whether this VLAN entry is disabled.
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// comment: Short description of the entry.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // ---- Read-only / dynamic fields ----
 
@@ -80,7 +80,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// WinBox: "Current Tagged"
         /// </summary>
         [TikProperty("current-tagged", IsReadOnly = true, WinboxLabel = "Current Tagged")]
-        public TikValue<string?> CurrentTagged { get; private set; }
+        public TikField<string?> CurrentTagged { get; private set; }
 
         /// <summary>
         /// current-untagged: Interfaces currently acting as untagged ports for these VLAN IDs,
@@ -88,14 +88,14 @@ namespace tik4net.Objects.Interface.Bridge
         /// WinBox: "Current Untagged"
         /// </summary>
         [TikProperty("current-untagged", IsReadOnly = true, WinboxLabel = "Current Untagged")]
-        public TikValue<string?> CurrentUntagged { get; private set; }
+        public TikField<string?> CurrentUntagged { get; private set; }
 
         /// <summary>
         /// dynamic: Whether this entry was created dynamically (e.g. by PVID auto-provisioning).
         /// Read-only.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikValue<bool?> Dynamic { get; private set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>Human-readable identity: bridge + VLAN IDs.</summary>
         public override string ToString()

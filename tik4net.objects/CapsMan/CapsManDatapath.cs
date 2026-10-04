@@ -64,7 +64,7 @@ namespace tik4net.Objects.CapsMan
         /// name — unique name for this datapath profile.
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         // ── Forwarding mode ───────────────────────────────────────────────────
 
@@ -75,7 +75,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("local-forwarding", DefaultValue = "no", WinboxLabel = "Local Forwarding")]
-        public TikValue<bool?> LocalForwarding { get; set; }
+        public TikField<bool?> LocalForwarding { get; set; }
 
         /// <summary>
         /// client-to-client-forwarding — when true, wireless clients connected to the same
@@ -83,7 +83,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("client-to-client-forwarding", DefaultValue = "no", WinboxLabel = "Client To Client Forwarding")]
-        public TikValue<bool?> ClientToClientForwarding { get; set; }
+        public TikField<bool?> ClientToClientForwarding { get; set; }
 
         // ── Bridge membership ─────────────────────────────────────────────────
 
@@ -92,21 +92,21 @@ namespace tik4net.Objects.CapsMan
         /// added as a bridge port.  Leave empty to skip automatic bridge-port assignment.
         /// </summary>
         [TikProperty("bridge", WinboxLabel = "Bridge")]
-        public TikValue<string?> Bridge { get; set; }
+        public TikField<string?> Bridge { get; set; }
 
         /// <summary>
         /// bridge-cost — spanning-tree port cost assigned to the bridge port.
         /// Valid range 1..200000000; DefaultValue="0" prevents sending 0 on add (0 is out of range).
         /// </summary>
         [TikProperty("bridge-cost", DefaultValue = "0", WinboxLabel = "Bridge Cost")]
-        public TikValue<int?> BridgeCost { get; set; }
+        public TikField<int?> BridgeCost { get; set; }
 
         /// <summary>
         /// bridge-horizon — bridge horizon value assigned to the port.
         /// Valid range 0..4294967295; DefaultValue="0" makes the mapper skip an unset field on add.
         /// </summary>
         [TikProperty("bridge-horizon", DefaultValue = "0", WinboxLabel = "Bridge Horizon")]
-        public TikValue<int?> BridgeHorizon { get; set; }
+        public TikField<int?> BridgeHorizon { get; set; }
 
         // ── VLAN ──────────────────────────────────────────────────────────────
 
@@ -117,14 +117,14 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="VlanModeType"/>
         /// </summary>
         [TikProperty("vlan-mode", DefaultValue = "no-tag", WinboxLabel = "VLAN Mode")]
-        public TikValue<VlanModeType?> VlanMode { get; set; }
+        public TikField<VlanModeType?> VlanMode { get; set; }
 
         /// <summary>
         /// vlan-id — VLAN identifier applied when vlan-mode is use-tag or use-service-tag.
         /// Valid range 1..4095; DefaultValue="0" prevents sending 0 on add (0 is out of range).
         /// </summary>
         [TikProperty("vlan-id", DefaultValue = "0", WinboxLabel = "VLAN ID")]
-        public TikValue<int?> VlanId { get; set; }
+        public TikField<int?> VlanId { get; set; }
 
         // ── Network layer ─────────────────────────────────────────────────────
 
@@ -134,21 +134,21 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="ArpMode"/>
         /// </summary>
         [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
-        public TikValue<ArpMode?> Arp { get; set; }
+        public TikField<ArpMode?> Arp { get; set; }
 
         /// <summary>
         /// mtu — IP-layer maximum transmission unit for the virtual wireless interface (bytes).
         /// DefaultValue="0" prevents sending 0 on add when the field is not explicitly set.
         /// </summary>
         [TikProperty("mtu", DefaultValue = "0", WinboxLabel = "MTU")]
-        public TikValue<int?> Mtu { get; set; }
+        public TikField<int?> Mtu { get; set; }
 
         /// <summary>
         /// l2mtu — link-layer maximum transmission unit (bytes).
         /// DefaultValue="0" prevents sending 0 on add when the field is not explicitly set.
         /// </summary>
         [TikProperty("l2mtu", DefaultValue = "0", WinboxLabel = "L2 MTU")]
-        public TikValue<int?> L2Mtu { get; set; }
+        public TikField<int?> L2Mtu { get; set; }
 
         // ── Interface list / OpenFlow ─────────────────────────────────────────
 
@@ -156,13 +156,13 @@ namespace tik4net.Objects.CapsMan
         /// interface-list — assigns the virtual wireless interface to the named interface list.
         /// </summary>
         [TikProperty("interface-list", WinboxLabel = "Interface List")]
-        public TikValue<string?> InterfaceList { get; set; }
+        public TikField<string?> InterfaceList { get; set; }
 
         /// <summary>
         /// openflow-switch — name of the OpenFlow switch to which the virtual interface is assigned.
         /// </summary>
         [TikProperty("openflow-switch", WinboxLabel = "OpenFlow Switch")]
-        public TikValue<string?> OpenflowSwitch { get; set; }
+        public TikField<string?> OpenflowSwitch { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -170,7 +170,7 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this datapath profile.
         /// </summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;

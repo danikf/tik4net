@@ -38,8 +38,8 @@ namespace tik4net.Objects
         /// </summary>
         /// <value><c>true</c> if mandatory; otherwise, <c>false</c>.</value>
         /// <remarks>
-        /// Not allowed on a <see cref="TikValue{T}"/> property: a load must not fail because a row lacks a field (another
-        /// RouterOS version, another row type) — the field reads <see cref="TikValueState.Absent"/> instead — and what an
+        /// Not allowed on a <see cref="TikField{T}"/> property: a load must not fail because a row lacks a field (another
+        /// RouterOS version, another row type) — the field reads <see cref="TikFieldState.Absent"/> instead — and what an
         /// add sends is what the caller assigned. The router refuses an add that lacks a field it requires.
         /// </remarks>
         public bool IsMandatory { get; set; }
@@ -80,9 +80,9 @@ namespace tik4net.Objects
         /// annotations reads <c>""</c>.)
         /// </para>
         /// <para>
-        /// <b>On a <see cref="TikValue{T}"/> property it is documentation only</b> — the router's default, for the
+        /// <b>On a <see cref="TikField{T}"/> property it is documentation only</b> — the router's default, for the
         /// reader and the entity catalog. It is never read into the property (a field the row lacks is
-        /// <see cref="TikValueState.Absent"/>) and never compared on a save (an add sends what was assigned).
+        /// <see cref="TikFieldState.Absent"/>) and never compared on a save (an add sends what was assigned).
         /// </para>
         /// </remarks>
         public string? DefaultValue { get; set; }
@@ -91,7 +91,7 @@ namespace tik4net.Objects
         /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).
         /// </summary>
         /// <remarks>
-        /// Not allowed on a <see cref="TikValue{T}"/> property: assigning <c>null</c> to a loaded value unsets it, and an
+        /// Not allowed on a <see cref="TikField{T}"/> property: assigning <c>null</c> to a loaded value unsets it, and an
         /// Absent value — which "equals the default" to this rule — must never be unset on the strength of silence.
         /// </remarks>
         public bool UnsetOnDefault { get; set; }
@@ -193,9 +193,9 @@ namespace tik4net.Objects
         /// Marks a matcher RouterOS can <b>negate</b> with a leading <c>!</c> — <c>src-address=!10.0.0.0/8</c>,
         /// <c>in-interface=!ether1</c>, <c>connection-state=!established,related</c>.
         /// <para>
-        /// On a <see cref="TikValue{T}"/> property the <c>!</c> is then not part of the value: a load reads it as
-        /// <see cref="TikValue{T}.IsNegated"/> and parses the rest as <c>T</c>, and a negated value
-        /// (<see cref="TikValue{T}.Not"/>) is written with it. Every transport spells it the same way — the API, REST
+        /// On a <see cref="TikField{T}"/> property the <c>!</c> is then not part of the value: a load reads it as
+        /// <see cref="TikField{T}.IsNegated"/> and parses the rest as <c>T</c>, and a negated value
+        /// (<see cref="TikField{T}.Not"/>) is written with it. Every transport spells it the same way — the API, REST
         /// and the CLI print the <c>!</c>, and WinBox native carries it as the field's <c>not</c> flag. Without the
         /// marker a leading <c>!</c> is part of the value: a comment or a name may start with one.
         /// </para>

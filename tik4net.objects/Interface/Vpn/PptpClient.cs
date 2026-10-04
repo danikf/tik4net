@@ -28,39 +28,39 @@ namespace tik4net.Objects.Interface.Vpn
         /// name — unique interface name (mandatory).
         /// </summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// connect-to — IP address of the remote PPTP server to connect to.
         /// </summary>
         [TikProperty("connect-to", WinboxLabel = "Connect To")]
-        public TikValue<string?> ConnectTo { get; set; }
+        public TikField<string?> ConnectTo { get; set; }
 
         /// <summary>
         /// disabled — when <c>true</c> the interface will not initiate connections.
         /// Default: yes (disabled on creation).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// user — username sent during authentication.
         /// </summary>
         [TikProperty("user", WinboxLabel = "User")]
-        public TikValue<string?> User { get; set; }
+        public TikField<string?> User { get; set; }
 
         /// <summary>
         /// password — password sent during authentication.
         /// </summary>
         [TikProperty("password", IsSensitive = true, WinboxLabel = "Password")]
-        public TikValue<string?> Password { get; set; }
+        public TikField<string?> Password { get; set; }
 
         /// <summary>
         /// profile — PPP profile applied when the tunnel is established.
         /// Default: default-encryption
         /// </summary>
         [TikProperty("profile", DefaultValue = "default-encryption", WinboxLabel = "Profile")]
-        public TikValue<string?> Profile { get; set; }
+        public TikField<string?> Profile { get; set; }
 
         /// <summary>
         /// allow — comma-separated list of permitted authentication methods (pap, chap, mschap1, mschap2).
@@ -68,14 +68,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Note: the router stores and returns this as a comma-joined string.
         /// </summary>
         [TikProperty("allow", DefaultValue = "pap,chap,mschap1,mschap2", WinboxLabel = "Allow")]
-        public TikValue<string?> Allow { get; set; }
+        public TikField<string?> Allow { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the PPTP remote address as a default route.
         /// Default: no
         /// </summary>
         [TikProperty("add-default-route", DefaultValue = "no", WinboxLabel = "Add Default Route")]
-        public TikValue<bool?> AddDefaultRoute { get; set; }
+        public TikField<bool?> AddDefaultRoute { get; set; }
 
         /// <summary>
         /// default-route-distance — administrative distance applied to the auto-created default route
@@ -83,14 +83,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1; omitted on add when left 0
         [TikProperty("default-route-distance", WinboxLabel = "Default Route Distance")]
-        public TikValue<int?> DefaultRouteDistance { get; set; }
+        public TikField<int?> DefaultRouteDistance { get; set; }
 
         /// <summary>
         /// dial-on-demand — when <c>true</c> the tunnel connects only when outbound traffic is generated.
         /// Default: no
         /// </summary>
         [TikProperty("dial-on-demand", DefaultValue = "no", WinboxLabel = "Dial On Demand")]
-        public TikValue<bool?> DialOnDemand { get; set; }
+        public TikField<bool?> DialOnDemand { get; set; }
 
         /// <summary>
         /// keepalive-timeout — tunnel keepalive timeout in seconds; if the remote end does not respond
@@ -99,7 +99,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 60; omitted on add when left 0
         [TikProperty("keepalive-timeout", WinboxLabel = "Keepalive Timeout")]
-        public TikValue<int?> KeepaliveTimeout { get; set; }
+        public TikField<int?> KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// max-mru — maximum receive unit (bytes) advertised to the peer.
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mru", WinboxLabel = "Max MRU")]
-        public TikValue<int?> MaxMru { get; set; }
+        public TikField<int?> MaxMru { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmit unit (bytes) for the tunnel interface.
@@ -115,7 +115,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// </summary>
         // router default 1450; omitted on add when left 0
         [TikProperty("max-mtu", WinboxLabel = "Max MTU")]
-        public TikValue<int?> MaxMtu { get; set; }
+        public TikField<int?> MaxMtu { get; set; }
 
         /// <summary>
         /// mrru — maximum received reconstructed unit (bytes); enables multilink PPP when set to a
@@ -123,18 +123,18 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled", WinboxLabel = "MRRU")]
-        public TikValue<string?> Mrru { get; set; }
+        public TikField<string?> Mrru { get; set; }
 
         /// <summary>
         /// use-peer-dns — whether to use DNS servers advertised by the remote peer.
         /// Default: no
         /// </summary>
         [TikProperty("use-peer-dns", DefaultValue = "no", WinboxLabel = "Use Peer DNS")]
-        public TikValue<bool?> UsePeerDns { get; set; }
+        public TikField<bool?> UsePeerDns { get; set; }
 
         /// <summary>comment — optional free-text description of this PPTP client interface.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // ---- Read-only properties ----
 
@@ -142,7 +142,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// running — <c>true</c> when the tunnel is currently established and passing traffic.
         /// </summary>
         [TikProperty("running", IsReadOnly = true, WinboxLabel = "running")]
-        public TikValue<bool?> Running { get; private set; }
+        public TikField<bool?> Running { get; private set; }
 
         /// <summary>Human-readable identity of the PPTP client interface.</summary>
         public override string ToString() => string.Format("{0} -> {1} (disabled={2})", Name, ConnectTo, Disabled);

@@ -26,7 +26,7 @@ namespace tik4net.Objects.Routing.Filter
         /// Chain names are arbitrary strings referenced by protocol instance filter settings.
         /// </summary>
         [TikProperty("chain", WinboxLabel = "Chain")]
-        public TikValue<string?> Chain { get; set; }
+        public TikField<string?> Chain { get; set; }
 
         /// <summary>
         /// rule — the filter rule expression in RouterOS routing filter scripting language.
@@ -36,18 +36,18 @@ namespace tik4net.Objects.Routing.Filter
         /// Example: "if (dst == 192.168.0.0/16) { set bgp-local-pref 200; accept }"
         /// </summary>
         [TikProperty("rule", WinboxLabel = "Rule")]
-        public TikValue<string?> Rule { get; set; }
+        public TikField<string?> Rule { get; set; }
 
         /// <summary>
         /// disabled — when true this rule is administratively disabled and skipped during evaluation.
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -56,7 +56,7 @@ namespace tik4net.Objects.Routing.Filter
         /// the routing package is not running).
         /// </summary>
         [TikProperty("inactive", IsReadOnly = true)]
-        public TikValue<bool?> Inactive { get; private set; }
+        public TikField<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string ToString() => string.Format("[{0}] {1}", Chain, Rule);

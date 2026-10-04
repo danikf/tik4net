@@ -32,7 +32,7 @@ public static class CrudSample
         var existing = (await connection.LoadAllAsync<IpAddress>()).ToList();
         foreach (var address in existing)
         {
-            // Disabled is a TikValue<bool?>: switch on its Value, which is null when the router did not print the field.
+            // Disabled is a TikField<bool?>: switch on its Value, which is null when the router did not print the field.
             string disabled = address.Disabled.Value switch { true => "yes", false => "no", null => "(unset)" };
             Console.WriteLine($"   {address.Address,-20} {address.Interface,-12} disabled={disabled}");
         }

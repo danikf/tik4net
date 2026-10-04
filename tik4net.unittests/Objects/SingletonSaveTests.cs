@@ -74,7 +74,7 @@ namespace tik4net.unittests.Objects
         public void ASingletonNeverLoaded_SendsWhatTheCallerAssigned()
         {
             // Nothing is known about the router's state, so everything the caller's object holds is sent - and a
-            // TikValue property the caller did not assign holds nothing (Absent), so it is not sent at all.
+            // TikField property the caller did not assign holds nothing (Absent), so it is not sent at all.
             var connection = RouterOs6Email();
 
             connection.Save(new ToolEmail { Server = "192.0.2.25", Port = 587 });

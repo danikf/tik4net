@@ -30,7 +30,7 @@ namespace tik4net.Objects.Ip.Dns
         /// IP address to resolve domain name with
         /// </summary>
         [TikProperty("address", WinboxLabel = "Address")]
-        public TikValue<string?> Address { get; set; }
+        public TikField<string?> Address { get; set; }
 
         /// <summary>
         /// name
@@ -38,7 +38,7 @@ namespace tik4net.Objects.Ip.Dns
         /// REMARKS: either <see cref="Name"/> of <see cref="Regexp"/> must be filled.
         /// </summary>
         [TikProperty("name", IsMandatory = false, WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
         /// <summary>
         /// name
@@ -47,19 +47,19 @@ namespace tik4net.Objects.Ip.Dns
         /// REMARKS: supported by 6.38 and higher. In Lower version true/false is used as value to determine <see cref="Name"/> format.
         /// </summary>
         [TikProperty("regexp", IsMandatory = false, IsFreeText = true, WinboxLabel = "Regexp")]
-        public TikValue<string?> Regexp { get; set; }
+        public TikField<string?> Regexp { get; set; }
 
         /// <summary>
         /// ttl
         /// time-to-live of the DNS record
         /// </summary>
         [TikProperty("ttl", WinboxLabel = "TTL")]
-        public TikValue<TikDuration?> Ttl { get; set; }
+        public TikField<TikDuration?> Ttl { get; set; }
 
         /// <summary>
         /// disabled: 
         /// </summary>
         [TikProperty("disabled")]
-        public TikValue<bool?> Disabled { get; set; }
+        public TikField<bool?> Disabled { get; set; }
     }
 }

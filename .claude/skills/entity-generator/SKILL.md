@@ -171,8 +171,8 @@ for real names/values/types → wiki (2b) for types, defaults, R/O split and doc
 
 ## Step 3 — Field types
 
-**Every mapped property except `.id` is a `TikValue<T?>`** (the 5.0 entity value model, enforced in CI by
-`EntityStructureConventionTests.EveryMappedPropertyExceptTheIdIsATikValue`). The value records whether the router
+**Every mapped property except `.id` is a `TikField<T?>`** (the 5.0 entity value model, enforced in CI by
+`EntityStructureConventionTests.EveryMappedPropertyExceptTheIdIsATikField`). The value records whether the router
 printed the field (`Absent`), what it printed (`Present`), or a word `T` cannot hold (`Unparsed`, kept in
 `RawValue` and written back). Choose `T` with the precedence the legacy tools use
 (`GeneratorHelper.DetermineFieldType` / `DetermineFieldTypeFromDocumentation`):
@@ -180,19 +180,19 @@ printed the field (`Absent`), what it printed (`Present`), or a word `T` cannot 
 | Field / signal                                              | C# type |
 |-------------------------------------------------------------|---------|
 | `.id`                                                       | `string?` (always `[TikProperty(".id", IsReadOnly = true, IsMandatory = true)]`, `{ get; private set; }`) |
-| `comment`                                                   | `TikValue<string?>` |
-| `disabled`, `invalid`, `active`, `dynamic`, `running`       | `TikValue<bool?>` |
-| value is `true/false/yes/no`, or wiki type `yes \| no`      | `TikValue<bool?>` |
-| wiki type `integer`, or value parses as a whole number      | `TikValue<int?>` / `TikValue<long?>` |
-| a duration (`10s`, `00:00:10`, `none`)                      | `TikValue<TikDuration?>` — see ARCHITECTURE.md *Adding an entity* rule 6 |
-| a paired rate (`1M/2M`)                                     | `TikValue<TikRatePair?>`; one rate: `TikValue<TikDataRate?>` |
-| a documented enumerated set of values                       | `TikValue<TheEnum?>` with a nested `enum` (see below) |
-| wiki type `string`, MAC/IP-ish values, anything else        | `TikValue<string?>` — annotate intent inline: `TikValue<string?> /*MAC*/ Foo` |
+| `comment`                                                   | `TikField<string?>` |
+| `disabled`, `invalid`, `active`, `dynamic`, `running`       | `TikField<bool?>` |
+| value is `true/false/yes/no`, or wiki type `yes \| no`      | `TikField<bool?>` |
+| wiki type `integer`, or value parses as a whole number      | `TikField<int?>` / `TikField<long?>` |
+| a duration (`10s`, `00:00:10`, `none`)                      | `TikField<TikDuration?>` — see ARCHITECTURE.md *Adding an entity* rule 6 |
+| a paired rate (`1M/2M`)                                     | `TikField<TikRatePair?>`; one rate: `TikField<TikDataRate?>` |
+| a documented enumerated set of values                       | `TikField<TheEnum?>` with a nested `enum` (see below) |
+| wiki type `string`, MAC/IP-ish values, anything else        | `TikField<string?>` — annotate intent inline: `TikField<string?> /*MAC*/ Foo` |
 
 Important conventions:
-- **The value type is always nullable** (`TikValue<int?>`, never `TikValue<int>` — the mapper refuses it), and
+- **The value type is always nullable** (`TikField<int?>`, never `TikField<int>` — the mapper refuses it), and
   that is the whole add-path story: **an add sends exactly what the caller assigned.** No `IsMandatory`, no
-  `UnsetOnDefault` on a `TikValue` property (both refused at metadata build); assigning `null` unsets a field on
+  `UnsetOnDefault` on a `TikField` property (both refused at metadata build); assigning `null` unsets a field on
   update. There is no longer a "fresh entity sends its CLR default" trap to design around.
 - **`DefaultValue` is documentation of the ROUTER's default**, in its wire spelling — `"no"`/`"yes"` for a bool,
   never `"false"`/`"true"` (`EntityDefaultValueConventionTests` checks the spelling). It does not act at run time.
@@ -208,13 +208,13 @@ Important conventions:
 - **Valueless presence-flags** (e.g. `/routing/table fib`): the "on" state reads back as `field=` (empty). Mark
   the property `IsPresenceFlag = true`; it then reads `true` when printed and `Absent` when not (the router omits
   an off flag) — test it with `== true`.
-- **R/O properties use a private setter**: `public TikValue<string?> Foo { get; private set; }`. Read-only
-  status fields may stay `TikValue<string?>` even when the doc names a richer type.
+- **R/O properties use a private setter**: `public TikField<string?> Foo { get; private set; }`. Read-only
+  status fields may stay `TikField<string?>` even when the doc names a richer type.
 
 ### Enums
 
 When a field has a fixed value set, declare a nested enum decorated with `[TikEnum("wire-value")]` and a
-`TikValue<TheEnum?>` property; `<seealso cref="...">` the enum from the property. **No `[TikEnumUnknown]` member**
+`TikField<TheEnum?>` property; `<seealso cref="...">` the enum from the property. **No `[TikEnumUnknown]` member**
 — a word the enum does not know reads `Unparsed`, the rest of the row and menu still read, and
 `TolerantEnumReadTests` fails when a built-in enum carries one. Pattern (copy from `InterfaceVlan.Arp` or
 `FirewallFilter.ActionType`):
@@ -230,7 +230,7 @@ public enum ArpMode
 /// <summary>arp - Address Resolution Protocol setting</summary>
 /// <seealso cref="ArpMode"/>
 [TikProperty("arp", DefaultValue = "enabled", WinboxLabel = "ARP")]
-public TikValue<ArpMode?> Arp { get; set; }
+public TikField<ArpMode?> Arp { get; set; }
 ```
 
 **Take the member list from the router, not from the wiki, and add it to the vocabulary table.** An unknown word
@@ -251,7 +251,7 @@ re-ask with that prefix, and never prepend it to the values the listing then giv
 - Always R/O: `invalid`, `dynamic` (and read-only status fields like `running`, `*-status`, counters
   `rx-byte`/`tx-byte`/`bytes`/`packets`, `last-seen`, `uptime`, `mac-address` when reported, etc.).
 - Everything in the wiki **"Read-only properties"** table → `IsReadOnly = true`.
-- R/O properties use a **private setter**: `public TikValue<string?> Foo { get; private set; }`.
+- R/O properties use a **private setter**: `public TikField<string?> Foo { get; private set; }`.
 - `DefaultValue` as in Step 3 — the router's default, verified, in wire spelling.
 
 ## Step 5 — `[TikEntity(...)]` attribute parameters
@@ -380,14 +380,14 @@ namespace tik4net.Objects.<Domain>
 
         /// <summary>name</summary>
         [TikProperty("name", WinboxLabel = "Name")]
-        public TikValue<string?> Name { get; set; }
+        public TikField<string?> Name { get; set; }
 
-        // … writable properties (TikValue<T?>, public get/set), enums where applicable …
-        // … read-only properties (TikValue<T?>, public get; private set;) …
+        // … writable properties (TikField<T?>, public get/set), enums where applicable …
+        // … read-only properties (TikField<T?>, public get; private set;) …
 
         /// <summary>comment</summary>
         [TikProperty("comment")]
-        public TikValue<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string? ToString() => Name.Value;
