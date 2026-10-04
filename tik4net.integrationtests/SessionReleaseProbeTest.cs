@@ -35,6 +35,7 @@ namespace tik4net.integrationtests
     [TestClass]
     [TestLock(TestLockScope.Router)]
     [TestCategory(TestCategories.LegIndependent)]
+    [TestCategory(TestCategories.AnyRouter)]
     public class SessionReleaseProbeTest : LockedTestBase
     {
         private const int SettleSeconds = 15;
@@ -49,8 +50,9 @@ namespace tik4net.integrationtests
         private static readonly TikConnectionType[] RelayAgentTransports =
             { TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.MacTelnet };
 
+        // A relayed login reads "user admin logged in from <agent mac> by romon <agent mac> via ssh".
         private static readonly Regex LoginLine =
-            new Regex(@"^user (?<user>\S+) logged (?<dir>in|out)(?: from (?<from>\S+))? via (?<via>\S+)", RegexOptions.Compiled);
+            new Regex(@"^user (?<user>\S+) logged (?<dir>in|out)(?: from (?<from>\S+))?(?: by romon (?<romon>\S+))? via (?<via>\S+)", RegexOptions.Compiled);
 
         private static int Cycles => int.TryParse(Environment.GetEnvironmentVariable("TIK4NET_PROBE_CYCLES"), out int n) ? n : 5;
 
