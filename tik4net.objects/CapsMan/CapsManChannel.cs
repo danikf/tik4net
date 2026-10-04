@@ -96,7 +96,7 @@ namespace tik4net.Objects.CapsMan
         /// Valid range: 0–4294967295 per field; left as string because comma-separated lists are valid.
         /// </summary>
         [TikProperty("frequency", DefaultValue = "", WinboxLabel = "Frequency")]
-        public TikField<string?> Frequency { get; set; }
+        public TikField<TikValueList<string>?> Frequency { get; set; }
 
         // ── Channel width ─────────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: disabled.
         /// </summary>
         [TikProperty("secondary-frequency", DefaultValue = "disabled", WinboxLabel = "Secondary Frequency")]
-        public TikField<string?> SecondaryFrequency { get; set; }
+        public TikField<TikValueList<string>?> SecondaryFrequency { get; set; }
 
         // ── Automatic channel re-selection ────────────────────────────────────
 

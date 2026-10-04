@@ -82,7 +82,7 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/tool/graphing/queue");
             EnsureCommandAvailable("/queue/simple");
             // Router validates simple-queue existence → create a throwaway queue first.
-            var sq = new QueueSimple { Name = "tik4net-gq-test", Target = "192.0.2.1/32" };
+            var sq = new QueueSimple { Name = "tik4net-gq-test", Target = new TikValueList<string>("192.0.2.1/32") };
             // A list/array field (target) is not yet encodable over native WinBox M2 writes; the resolver
             // says so explicitly. Reading the same table works — skip only the write, only where refused.
             SkipIfWinboxNativeCannot("/queue/simple add", () => SaveTracked(sq));

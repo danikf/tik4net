@@ -73,11 +73,11 @@ namespace tik4net.Objects.System
 
         /// <summary>leds — hardware LED identifier(s) controlled by this entry (hardware-specific names, e.g. "user-led").</summary>
         [TikProperty("leds", WinboxLabel = "LEDs")]
-        public TikField<string?> Leds { get; set; }
+        public TikField<TikValueList<string>?> Leds { get; set; }
 
         /// <summary>interface — name of the interface whose state/traffic drives the LED (used with interface-* and wireless-* types).</summary>
         [TikProperty("interface", WinboxLabel = "Interface")]
-        public TikField<string?> Interface { get; set; }
+        public TikField<TikValueList<string>?> Interface { get; set; }
 
         /// <summary>modem-signal-threshold — RSSI threshold (dBm) for the modem-signal LED type; LED is on when signal is above this value. Real default: -70; 0 is the CLR sentinel (omitted on add).</summary>
         // Range e.g. -120..0; DefaultValue="0" so CLR default 0 is omitted on add.

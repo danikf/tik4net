@@ -63,7 +63,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Frequency"
         /// </summary>
         [TikProperty("frequency", DefaultValue = "", WinboxLabel = "Frequency")]
-        public TikField<string?> Frequency { get; set; }
+        public TikField<TikValueList<string>?> Frequency { get; set; }
 
         /// <summary>
         /// secondary-frequency — for split-channel (80+80 MHz or 320 MHz) configurations,
@@ -72,7 +72,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Secondary Frequency"
         /// </summary>
         [TikProperty("secondary-frequency", DefaultValue = "", WinboxLabel = "Secondary Frequency")]
-        public TikField<string?> SecondaryFrequency { get; set; }
+        public TikField<TikValueList<string>?> SecondaryFrequency { get; set; }
 
         /// <summary>
         /// width — channel width.

@@ -65,14 +65,14 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("split-include", WinboxLabel = "Split Include")]
-        public TikField<string?> SplitInclude { get; set; }
+        public TikField<TikValueList<string>?> SplitInclude { get; set; }
 
         /// <summary>
         /// split-dns — list of DNS domain suffixes that the initiator should resolve using the
         /// VPN-assigned DNS servers rather than its local resolver. Applicable when responder=yes.
         /// </summary>
         [TikProperty("split-dns", WinboxLabel = "Split DNS")]
-        public TikField<string?> SplitDns { get; set; }
+        public TikField<TikValueList<string>?> SplitDns { get; set; }
 
         /// <summary>
         /// system-dns — when true, the router sends its own /ip/dns server addresses to the
@@ -88,7 +88,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("static-dns", WinboxLabel = "Static DNS")]
-        public TikField<string?> StaticDns { get; set; }
+        public TikField<TikValueList<string>?> StaticDns { get; set; }
 
         // --- Initiator-side (client) fields ---
 

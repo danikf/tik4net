@@ -44,7 +44,7 @@ namespace tik4net.Objects.Ip
         /// comma separated list of DNS server IP addresses
         /// </summary>
         [TikProperty("servers", DefaultValue = "0.0.0.0", WinboxLabel = "Servers")]
-        public TikField<string?> Servers { get; set; }
+        public TikField<TikValueList<string>?> Servers { get; set; }
     }
 
 }

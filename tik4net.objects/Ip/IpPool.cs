@@ -28,7 +28,7 @@ namespace tik4net.Objects.Ip
         /// comma separated list of DNS server IP addresses
         /// </summary>
         [TikProperty("ranges", WinboxLabel = "Addresses")]
-        public TikField<string?> Ranges { get; set; }
+        public TikField<TikValueList<string>?> Ranges { get; set; }
 
         /// <summary>
         /// Row name property.

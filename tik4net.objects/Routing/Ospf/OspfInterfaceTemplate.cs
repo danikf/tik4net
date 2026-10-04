@@ -64,14 +64,14 @@ namespace tik4net.Objects.Routing.Ospf
         /// Mutually exclusive with networks. Leave empty to match all interfaces in the area.
         /// </summary>
         [TikProperty("interfaces", WinboxLabel = "Interfaces")]
-        public TikField<string?> Interfaces { get; set; }
+        public TikField<TikValueList<string>?> Interfaces { get; set; }
 
         /// <summary>
         /// networks — IP network (prefix) this template applies to.
         /// Mutually exclusive with interfaces.
         /// </summary>
         [TikProperty("networks", WinboxLabel = "Networks")]
-        public TikField<string?> Networks { get; set; }
+        public TikField<TikValueList<string>?> Networks { get; set; }
 
         /// <summary>
         /// type — OSPF network type for matched interfaces. Controls DR/BDR election and neighbour discovery.

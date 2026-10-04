@@ -40,7 +40,7 @@ namespace tik4net.integrationtests.Queue
                 api.Save(new QueueSimple
                 {
                     Name = QueueName,
-                    Target = "192.168.253.0/24",   // a subnet nothing in this lab uses
+                    Target = new TikValueList<string>("192.168.253.0/24"),   // a subnet nothing in this lab uses
                     MaxLimit = (TikRatePair)"1M/2M",
                     LimitAt = (TikRatePair)"500k/1M",
                 });

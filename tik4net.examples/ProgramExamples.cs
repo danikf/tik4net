@@ -267,9 +267,9 @@ namespace tik4net.examples
             string unique = Guid.NewGuid().ToString();
             List<QueueTree> expected = new List<QueueTree>()
             {
-                new QueueTree() { Name = "Q1", Parent = "global", PacketMark = "PM1" },
-                new QueueTree() { Name = "Q2", Parent = "global", PacketMark = "PM2", Comment = unique }, //always update
-                new QueueTree() { Name = "Q3 " + unique, Parent = "global", PacketMark = "PM3" }, // always insert + delete from previous run
+                new QueueTree() { Name = "Q1", Parent = "global", PacketMark = new TikValueList<string>("PM1") },
+                new QueueTree() { Name = "Q2", Parent = "global", PacketMark = new TikValueList<string>("PM2"), Comment = unique }, //always update
+                new QueueTree() { Name = "Q3 " + unique, Parent = "global", PacketMark = new TikValueList<string>("PM3") }, // always insert + delete from previous run
             };
 
             //Merge with Name as key - can not save via SaveListDifferences because all items in 'expected' are new (.id=null) => insert will be done, not CUD

@@ -33,7 +33,7 @@ namespace tik4net.Objects.Queue
         /// packet-mark: references packet marks from /ip/firewall/mangle; matching traffic is subject to this queue.
         /// </summary>
         [TikProperty("packet-mark", WinboxLabel = "Packet Marks")]
-        public TikField<string?> PacketMark { get; set; }
+        public TikField<TikValueList<string>?> PacketMark { get; set; }
 
         /// <summary>
         /// limit-at: guaranteed minimum bandwidth (committed information rate) for the queue.

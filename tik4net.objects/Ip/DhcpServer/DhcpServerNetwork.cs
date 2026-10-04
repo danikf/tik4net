@@ -33,19 +33,19 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// caps-manager: Comma-separated list of IP addresses for one or more CAPsMan system managers.
         /// </summary>
         [TikProperty("caps-manager", WinboxLabel = "CAPS Managers")]
-        public TikField<string?> CapsManager { get; set; }
+        public TikField<TikValueList<string>?> CapsManager { get; set; }
 
         /// <summary>
         /// dhcp-option: Add additional DHCP options from  option list.
         /// </summary>
         [TikProperty("dhcp-option", WinboxLabel = "DHCP Options")]
-        public TikField<string?> DhcpOption { get; set; }
+        public TikField<TikValueList<string>?> DhcpOption { get; set; }
 
         /// <summary>
         /// dns-server: the DHCP client will use these as the default DNS servers. Two comma-separated DNS servers can be specified to be used by the DHCP client as primary and secondary DNS servers
         /// </summary>
         [TikProperty("dns-server", WinboxLabel = "DNS Servers")]
-        public TikField<string?> DnsServer { get; set; }
+        public TikField<TikValueList<string>?> DnsServer { get; set; }
 
         /// <summary>
         /// domain: The DHCP client will use this as the 'DNS domain' setting for the network adapter.
@@ -57,7 +57,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// gateway: The default gateway to be used by DHCP Client.
         /// </summary>
         [TikProperty("gateway", DefaultValue = "0.0.0.0", WinboxLabel = "Gateway")]
-        public TikField<string?> Gateway { get; set; }
+        public TikField<TikValueList<string>?> Gateway { get; set; }
 
         /// <summary>
         /// netmask: The actual network mask to be used by DHCP client. If set to '0' - netmask from network address will be used.
@@ -75,13 +75,13 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// ntp-server: the DHCP client will use these as the default NTP servers. Two comma-separated NTP servers can be specified to be used by the DHCP client as primary and secondary NTP servers
         /// </summary>
         [TikProperty("ntp-server", WinboxLabel = "NTP Servers")]
-        public TikField<string?> NtpServer { get; set; }
+        public TikField<TikValueList<string>?> NtpServer { get; set; }
 
         /// <summary>
         /// wins-server: The Windows DHCP client will use these as the default WINS servers. Two comma-separated WINS servers can be specified to be used by the DHCP client as primary and secondary WINS servers
         /// </summary>
         [TikProperty("wins-server", WinboxLabel = "WINS Servers")]
-        public TikField<string?> WinsServer { get; set; }
+        public TikField<TikValueList<string>?> WinsServer { get; set; }
 
         /// <summary>
         /// comment: Short description of the client

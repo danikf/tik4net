@@ -32,7 +32,7 @@ namespace tik4net.Objects.System
         /// ROS 7 unified field (replaces ROS 6 primary-ntp / secondary-ntp).
         /// </summary>
         [TikProperty("servers", WinboxLabel = "NTP Servers")]
-        public TikField<string?> Servers { get; set; }
+        public TikField<TikValueList<string>?> Servers { get; set; }
 
         /// <summary>
         /// vrf — Virtual Routing and Forwarding instance used for NTP traffic. Default: main.

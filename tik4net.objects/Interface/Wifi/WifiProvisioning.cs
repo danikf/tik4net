@@ -108,7 +108,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Supported Bands"
         /// </summary>
         [TikProperty("supported-bands", DefaultValue = "", WinboxLabel = "Supported Bands")]
-        public TikField<string?> SupportedBands { get; set; }
+        public TikField<TikValueList<string>?> SupportedBands { get; set; }
 
         /// <summary>
         /// address-ranges — comma-separated list of IP address ranges (in
@@ -119,7 +119,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Address Ranges"
         /// </summary>
         [TikProperty("address-ranges", DefaultValue = "", WinboxLabel = "Address Ranges")]
-        public TikField<string?> AddressRanges { get; set; }
+        public TikField<TikValueList<string>?> AddressRanges { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
 
@@ -140,7 +140,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Slave Configurations"
         /// </summary>
         [TikProperty("slave-configurations", DefaultValue = "", WinboxLabel = "Slave Configurations")]
-        public TikField<string?> SlaveConfigurations { get; set; }
+        public TikField<TikValueList<string>?> SlaveConfigurations { get; set; }
 
         // ── Naming ────────────────────────────────────────────────────────────
 

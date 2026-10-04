@@ -119,7 +119,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Hw. Supported Modes"
         /// </summary>
         [TikProperty("hw-supported-modes", DefaultValue = "", WinboxLabel = "Hw. Supported Modes")]
-        public TikField<string?> HwSupportedModes { get; set; }
+        public TikField<TikValueList<string>?> HwSupportedModes { get; set; }
 
         /// <summary>
         /// identity-regexp — regular expression matched against the CAP router's system
@@ -145,7 +145,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "IP Address Ranges"
         /// </summary>
         [TikProperty("ip-address-ranges", DefaultValue = "", WinboxLabel = "IP Address Ranges")]
-        public TikField<string?> IpAddressRanges { get; set; }
+        public TikField<TikValueList<string>?> IpAddressRanges { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
 
@@ -165,7 +165,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Slave Configurations"
         /// </summary>
         [TikProperty("slave-configurations", DefaultValue = "", WinboxLabel = "Slave Configuration")]
-        public TikField<string?> SlaveConfigurations { get; set; }
+        public TikField<TikValueList<string>?> SlaveConfigurations { get; set; }
 
         // ── Naming ────────────────────────────────────────────────────────────
 

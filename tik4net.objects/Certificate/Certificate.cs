@@ -109,7 +109,7 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Subject Alt. Name"
         /// </summary>
         [TikProperty("subject-alt-name", WinboxLabel = "Subject Alt. Name")]
-        public TikField<string?> SubjectAltName { get; set; }
+        public TikField<TikValueList<string>?> SubjectAltName { get; set; }
 
         /// <summary>
         /// trusted — Whether this certificate is trusted for host certificate verification.

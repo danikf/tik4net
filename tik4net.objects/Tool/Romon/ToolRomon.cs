@@ -26,7 +26,7 @@ namespace tik4net.Objects.Tool.Romon
 
         /// <summary>secrets — comma-separated list of shared secrets used to authenticate RoMON peers. Empty string disables authentication.</summary>
         [TikProperty("secrets", DefaultValue = "", IsSensitive = true, WinboxLabel = "Secrets")]
-        public TikField<string?> Secrets { get; set; }
+        public TikField<TikValueList<string>?> Secrets { get; set; }
 
         /// <summary>current-id — the RoMON id in effect: <see cref="Id"/> when set, otherwise the MAC the router
         /// picked. This is what a RoMON neighbour's discover reports as its address. WinBox: "Current ID".</summary>

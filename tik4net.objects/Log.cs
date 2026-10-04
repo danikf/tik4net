@@ -33,7 +33,7 @@ namespace tik4net.Objects
         /// Row topics property.
         /// </summary>
         [TikProperty("topics", IsReadOnly = true, WinboxLabel = "Topics")]
-        public TikField<string?> Topics { get; private set; }
+        public TikField<TikValueList<string>?> Topics { get; private set; }
 
         #region -- static methods --
 

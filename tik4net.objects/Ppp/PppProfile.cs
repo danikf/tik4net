@@ -22,7 +22,7 @@ namespace tik4net.Objects.Ppp
         /// address-list:  Address list name to which ppp assigned address will be added.
         /// </summary>
         [TikProperty("address-list", WinboxLabel = "Address List")]
-        public TikField<string?> AddressList { get; set; }
+        public TikField<TikValueList<string>?> AddressList { get; set; }
 
         /// <summary>
         /// bridge: Name of the  bridge interface to which ppp interface will be added as slave port. Both tunnel end point (server and client) must be in bridge in order to make this work.
@@ -56,7 +56,7 @@ namespace tik4net.Objects.Ppp
         /// dns-server: IP address of the DNS server that is supplied to ppp clients
         /// </summary>
         [TikProperty("dns-server", WinboxLabel = "DNS Server")]
-        public TikField<string?> DnsServer { get; set; }
+        public TikField<TikValueList<string>?> DnsServer { get; set; }
 
         /// <summary>
         /// idle-timeout: Specifies the amount of time after which the link will be terminated if there are no activity present. Timeout is not set by default
@@ -200,7 +200,7 @@ namespace tik4net.Objects.Ppp
         /// wins-server: IP address of the WINS server to supply to Windows clients
         /// </summary>
         [TikProperty("wins-server", WinboxLabel = "WINS Server")]
-        public TikField<string?> WinsServer { get; set; }
+        public TikField<TikValueList<string>?> WinsServer { get; set; }
     }
 
 }

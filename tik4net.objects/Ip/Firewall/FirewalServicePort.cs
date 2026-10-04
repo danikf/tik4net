@@ -27,7 +27,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// name
         /// </summary>
         [TikProperty("ports", WinboxLabel = "Ports")]
-        public TikField<string?> Ports { get; set; }
+        public TikField<TikValueList<TikPortRange>?> Ports { get; set; }
 
         /// <summary>
         /// disabled

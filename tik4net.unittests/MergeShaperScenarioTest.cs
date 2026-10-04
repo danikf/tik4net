@@ -69,7 +69,7 @@ namespace tik4net.unittests
         private static QueueTree Queue(string name, string packetMark, long maxLimit, string comment = null) => new QueueTree
         {
             Name = name,
-            PacketMark = packetMark,
+            PacketMark = new TikValueList<string>(packetMark),
             Parent = QueueParent,
             LimitAt = 50 * 1000,
             MaxLimit = maxLimit,

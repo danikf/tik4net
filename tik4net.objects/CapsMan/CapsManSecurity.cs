@@ -117,7 +117,7 @@ namespace tik4net.Objects.CapsMan
         /// Empty means no EAP (PSK only).
         /// </summary>
         [TikProperty("eap-methods", WinboxLabel = "EAP Methods")]
-        public TikField<string?> EapMethods { get; set; }
+        public TikField<TikValueList<string>?> EapMethods { get; set; }
 
         /// <summary>
         /// eap-radius-accounting — when true, RADIUS accounting messages are sent for EAP-authenticated clients.

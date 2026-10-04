@@ -174,7 +174,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>http-codes — comma-separated list of HTTP status codes considered a successful response (e.g. "200,301"). Default: empty (200–299 range applies).</summary>
         [TikProperty("http-codes", WinboxLabel = "HTTP Codes")]
-        public TikField<string?> HttpCodes { get; set; }
+        public TikField<TikValueList<string>?> HttpCodes { get; set; }
 
         /// <summary>thr-http-time — HTTP response time threshold; probe fails when response time exceeds this (type=http-get/https-get). Default: 10s.</summary>
         [TikProperty("thr-http-time", DefaultValue = "10s", WinboxLabel = "Thr. HTTP Time")]

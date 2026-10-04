@@ -32,7 +32,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>slaves — Ethernet-like interfaces to include in the bond (comma-separated). At least one required.</summary>
         [TikProperty("slaves", WinboxLabel = "Slaves")]
-        public TikField<string?> Slaves { get; set; }
+        public TikField<TikValueList<string>?> Slaves { get; set; }
 
         /// <summary>mode — the bonding policy that selects how slave interfaces are used together.</summary>
         public enum BondingMode
@@ -88,7 +88,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>arp-ip-targets — IP addresses monitored when link-monitoring=arp (comma-separated).</summary>
         [TikProperty("arp-ip-targets", DefaultValue = "")]
-        public TikField<string?> ArpIpTargets { get; set; }
+        public TikField<TikValueList<string>?> ArpIpTargets { get; set; }
 
         /// <summary>arp — the Address Resolution Protocol setting for the bonding interface.</summary>
         public enum ArpMode

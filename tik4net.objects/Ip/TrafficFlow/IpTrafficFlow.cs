@@ -27,7 +27,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: all
         /// </summary>
         [TikProperty("interfaces", DefaultValue = "all", WinboxLabel = "Interfaces")]
-        public TikField<string?> Interfaces { get; set; }
+        public TikField<TikValueList<string>?> Interfaces { get; set; }
 
         /// <summary>
         /// cache-entries — number of flows that can simultaneously exist in router memory.

@@ -35,7 +35,7 @@ namespace tik4net.Objects.Tool.Romon
 
         /// <summary>secrets — per-interface shared secrets (overrides global RoMON secrets when set).</summary>
         [TikProperty("secrets", DefaultValue = "", IsSensitive = true, WinboxLabel = "Secrets")]
-        public TikField<string?> Secrets { get; set; }
+        public TikField<TikValueList<string>?> Secrets { get; set; }
 
         /// <summary>disabled — when true this port entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]

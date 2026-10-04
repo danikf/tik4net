@@ -29,13 +29,13 @@ namespace tik4net.Objects.Interface
         /// include — comma-separated list of other interface lists whose members are included in this list.
         /// </summary>
         [TikProperty("include", WinboxLabel = "Include")]
-        public TikField<string?> Include { get; set; }
+        public TikField<TikValueList<string>?> Include { get; set; }
 
         /// <summary>
         /// exclude — comma-separated list of other interface lists whose members are excluded from this list.
         /// </summary>
         [TikProperty("exclude", WinboxLabel = "Exclude")]
-        public TikField<string?> Exclude { get; set; }
+        public TikField<TikValueList<string>?> Exclude { get; set; }
 
         /// <summary>
         /// builtin — whether this is a built-in list (all/none/dynamic/static) that cannot be removed (read-only).

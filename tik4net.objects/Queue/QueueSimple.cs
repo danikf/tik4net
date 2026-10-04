@@ -27,7 +27,7 @@ namespace tik4net.Objects.Queue
         /// target: IP address/netmask or interface used to identify traffic direction. Upload when source matches, download when destination matches.
         /// </summary>
         [TikProperty("target", WinboxLabel = "Target")]
-        public TikField<string?> Target { get; set; }
+        public TikField<TikValueList<string>?> Target { get; set; }
 
         /// <summary>
         /// parent: designates this queue as subordinate to another queue, enabling hierarchical structures.

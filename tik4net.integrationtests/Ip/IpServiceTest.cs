@@ -25,13 +25,13 @@ namespace tik4net.integrationtests
         {
             EnsureCommandAvailable("/ip/service");
             var ftp = Connection.LoadAll<IpService>().Single(s => s.Name == "ftp");
-            string original = ftp.Address.Value;
+            TikValueList<string> original = ftp.Address.Value;
             try
             {
-                ftp.Address = "0.0.0.0/0";
+                ftp.Address = new TikValueList<string>("0.0.0.0/0");
                 Connection.Save(ftp);
 
-                Assert.AreEqual("0.0.0.0/0", Connection.LoadAll<IpService>().Single(s => s.Name == "ftp").Address);
+                Assert.AreEqual("0.0.0.0/0", Connection.LoadAll<IpService>().Single(s => s.Name == "ftp").Address.ToString());
             }
             finally
             {

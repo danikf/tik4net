@@ -45,7 +45,7 @@ namespace tik4net.unittests.Objects
         {
             var ftp = Router("/ip/service/print", Service("address", "10.0.0.0/8")).LoadAll<IpService>().Single();
 
-            Assert.AreEqual("10.0.0.0/8", ftp.Address);
+            Assert.AreEqual("10.0.0.0/8", ftp.Address.ToString());
         }
 
         [TestMethod]
@@ -53,7 +53,7 @@ namespace tik4net.unittests.Objects
         {
             var ftp = Router("/ip/service/print", Service("available-from", "10.0.0.0/8")).LoadAll<IpService>().Single();
 
-            Assert.AreEqual("10.0.0.0/8", ftp.Address);
+            Assert.AreEqual("10.0.0.0/8", ftp.Address.ToString());
         }
 
         [TestMethod]
@@ -65,7 +65,7 @@ namespace tik4net.unittests.Objects
 
             var ftp = Router("/ip/service/print", row).LoadAll<IpService>().Single();
 
-            Assert.AreEqual("10.0.0.0/8", ftp.Address);
+            Assert.AreEqual("10.0.0.0/8", ftp.Address.ToString());
         }
 
         [TestMethod]

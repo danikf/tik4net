@@ -21,7 +21,7 @@ namespace tik4net.Objects.Wireguard
         /// IP addresses or subnets that are allowed to communicate with that peer
         /// </summary>
         [TikProperty("allowed-address", WinboxLabel = "Allowed Address")]
-        public TikField<string?> AllowedAddress { get; set; }
+        public TikField<TikValueList<string>?> AllowedAddress { get; set; }
 
         /// <summary>
         /// comment: Short description of the Peer.

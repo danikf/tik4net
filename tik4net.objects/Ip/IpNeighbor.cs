@@ -25,7 +25,7 @@ namespace tik4net.Objects.Ip
         /// interface: Name of the local interface through which the neighbor was discovered.
         /// </summary>
         [TikProperty("interface", IsReadOnly = true, WinboxLabel = "Interface")]
-        public TikField<string?> Interface { get; private set; }
+        public TikField<TikValueList<string>?> Interface { get; private set; }
 
         /// <summary>
         /// address: The highest IP address configured on the discovered device.
@@ -115,13 +115,13 @@ namespace tik4net.Objects.Ip
         /// system-caps: LLDP system capabilities advertised by the discovered device.
         /// </summary>
         [TikProperty("system-caps", IsReadOnly = true, WinboxLabel = "System Caps")]
-        public TikField<string?> SystemCaps { get; private set; }
+        public TikField<TikValueList<string>?> SystemCaps { get; private set; }
 
         /// <summary>
         /// system-caps-enabled: Subset of LLDP system capabilities that are currently enabled.
         /// </summary>
         [TikProperty("system-caps-enabled", IsReadOnly = true, WinboxLabel = "System Caps Enabled")]
-        public TikField<string?> SystemCapsEnabled { get; private set; }
+        public TikField<TikValueList<string>?> SystemCapsEnabled { get; private set; }
 
         /// <summary>
         /// discovered-by: Comma-separated list of discovery protocols (cdp, lldp, mndp) that reported this neighbor.

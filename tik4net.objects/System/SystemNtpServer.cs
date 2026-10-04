@@ -34,7 +34,7 @@ namespace tik4net.Objects.System
 
         /// <summary>broadcast-addresses — comma-separated list of broadcast addresses used when broadcast=yes. Empty uses the interface broadcast address.</summary>
         [TikProperty("broadcast-addresses", DefaultValue = "", WinboxLabel = "Broadcast Addresses")]
-        public TikField<string?> BroadcastAddresses { get; set; }
+        public TikField<TikValueList<string>?> BroadcastAddresses { get; set; }
 
         /// <summary>vrf — Virtual Routing and Forwarding instance for NTP server traffic. Default: main.</summary>
         [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]

@@ -35,7 +35,7 @@ namespace tik4net.Objects.Ip
         /// dhcp-server: List of DHCP servers' IP addresses which should the DHCP requests be forwarded to
         /// </summary>
         [TikProperty("dhcp-server", WinboxLabel = "DHCP Server")]
-        public TikField<string?> DhcpServer { get; set; }
+        public TikField<TikValueList<string>?> DhcpServer { get; set; }
 
         /// <summary>
         /// interface: Interface name the DHCP relay will be working on.

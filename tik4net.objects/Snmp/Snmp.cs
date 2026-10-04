@@ -44,7 +44,7 @@ namespace tik4net.Objects.Snmp
 
         /// <summary>trap-target — comma-separated list of collector IP addresses that will receive SNMP traps.</summary>
         [TikProperty("trap-target", DefaultValue = "", WinboxLabel = "Trap Target")]
-        public TikField<string?> TrapTarget { get; set; }
+        public TikField<TikValueList<string>?> TrapTarget { get; set; }
 
         /// <summary>trap-community — SNMP community string used in outbound trap messages.</summary>
         [TikProperty("trap-community", DefaultValue = "public", WinboxLabel = "Trap Community")]
@@ -64,14 +64,14 @@ namespace tik4net.Objects.Snmp
         /// Possible tokens: <c>interfaces</c>, <c>start-trap</c>, <c>temp-exception</c>.
         /// </summary>
         [TikProperty("trap-generators", DefaultValue = "", WinboxLabel = "Trap Generators")]
-        public TikField<string?> TrapGenerators { get; set; }
+        public TikField<TikValueList<string>?> TrapGenerators { get; set; }
 
         /// <summary>
         /// trap-interfaces — comma-separated list of interface names (or <c>all</c>) whose
         /// link-state changes generate traps. Requires <c>interfaces</c> in <see cref="TrapGenerators"/>.
         /// </summary>
         [TikProperty("trap-interfaces", DefaultValue = "", WinboxLabel = "Trap Interfaces")]
-        public TikField<string?> TrapInterfaces { get; set; }
+        public TikField<TikValueList<string>?> TrapInterfaces { get; set; }
 
         /// <summary>
         /// vrf — Virtual Routing and Forwarding instance used by the SNMP service.

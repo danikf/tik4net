@@ -24,7 +24,7 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/system/logging");
             var entity = new SystemLogging
             {
-                Topics = "info",
+                Topics = new TikValueList<string>("info"),
                 Action = "memory",
                 Prefix = "t4n-test",
             };
@@ -36,7 +36,7 @@ namespace tik4net.integrationtests
 
             var loaded = Connection.LoadById<SystemLogging>(entity.Id);
             Assert.IsNotNull(loaded);
-            Assert.AreEqual("info", loaded.Topics);
+            Assert.AreEqual("info", loaded.Topics.ToString());
             Assert.AreEqual("memory", loaded.Action);
             Assert.AreEqual("t4n-test", loaded.Prefix);
 

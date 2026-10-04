@@ -37,7 +37,7 @@ namespace tik4net.integrationtests
                 var bonding = new InterfaceBonding
                 {
                     Name = "test-bond",
-                    Slaves = slave,
+                    Slaves = new TikValueList<string>(slave),
                     Comment = marker,
                 };
                 // A list/array field (slaves) is not yet encodable over native WinBox M2 writes; the resolver

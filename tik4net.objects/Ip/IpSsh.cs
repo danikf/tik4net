@@ -20,7 +20,7 @@ namespace tik4net.Objects.Ip
         /// <summary>ciphers — SSH cipher suite selection. Default: auto (lets RouterOS pick the best available).
         /// <seealso cref="SshCiphers"/></summary>
         [TikProperty("ciphers", DefaultValue = "auto", WinboxLabel = "Ciphers")]
-        public TikField<SshCiphers?> Ciphers { get; set; }
+        public TikField<TikValueList<SshCiphers>?> Ciphers { get; set; }
 
         /// <summary>forwarding-enabled — controls which SSH port-forwarding modes are permitted.
         /// <seealso cref="SshForwardingMode"/></summary>

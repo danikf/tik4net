@@ -22,11 +22,11 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>port — TCP port the proxy listens on. Default: 8080.</summary>
         [TikProperty("port", DefaultValue = "8080", WinboxLabel = "Port")]
-        public TikField<int?> Port { get; set; }
+        public TikField<TikValueList<TikPortRange>?> Port { get; set; }
 
         /// <summary>src-address — source address used for outbound proxy connections. Default: 0.0.0.0 (any).</summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0", WinboxLabel = "Src. Address")]
-        public TikField<string?> SrcAddress { get; set; }
+        public TikField<TikValueList<string>?> SrcAddress { get; set; }
 
         /// <summary>anonymous — when yes, does not pass client IP via X-Forwarded-For header.</summary>
         [TikProperty("anonymous", DefaultValue = "no", WinboxLabel = "Anonymous")]

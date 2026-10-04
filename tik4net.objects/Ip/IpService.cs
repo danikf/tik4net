@@ -42,7 +42,7 @@ namespace tik4net.Objects.Ip
         /// (6.49.13 refuses <c>available-from</c>).
         /// </remarks>
         [TikProperty("address", AlternateNames = new[] { "available-from" }, DefaultValue = "")]
-        public TikField<string?> Address { get; set; }
+        public TikField<TikValueList<string>?> Address { get; set; }
 
         /// <summary>
         /// certificate — name of the certificate used by this service (relevant for www-ssl and api-ssl).

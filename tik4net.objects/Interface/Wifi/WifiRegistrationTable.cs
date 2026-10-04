@@ -52,7 +52,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Band"
         /// </summary>
         [TikProperty("band", IsReadOnly = true, WinboxLabel = "Band")]
-        public TikField<string?> Band { get; private set; }
+        public TikField<TikValueList<string>?> Band { get; private set; }
 
         // ── Authentication ────────────────────────────────────────────────────
 

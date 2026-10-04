@@ -69,7 +69,7 @@ namespace tik4net.Objects.Snmp
         /// WinBox: "Addresses"
         /// </summary>
         [TikProperty("addresses", DefaultValue = "::/0", WinboxLabel = "Addresses")]
-        public TikField<string?> Addresses { get; set; }
+        public TikField<TikValueList<string>?> Addresses { get; set; }
 
         /// <summary>
         /// security — SNMPv3 security level (noAuthNoPriv / authNoPriv / authPriv).

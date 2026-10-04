@@ -63,8 +63,8 @@ namespace tik4net.integrationtests
                 vlan = new BridgeVlan
                 {
                     Bridge = bridgeName,
-                    VlanIds = "3999",
-                    Tagged = TestConstants.Interface,
+                    VlanIds = new TikValueList<string>("3999"),
+                    Tagged = new TikValueList<string>(TestConstants.Interface),
                     Comment = marker,
                 };
                 SaveTracked(vlan);
@@ -80,8 +80,8 @@ namespace tik4net.integrationtests
                 // vlan-ids is a multinumberrange: [lo,hi,…], so "3999" rides as [3999,3999].
                 // tagged is a multinumber of interface REFERENCES: one element per interface, each the
                 // referenced record's numeric id, decoded back to its name.
-                Assert.AreEqual("3999", loaded.VlanIds);
-                Assert.AreEqual(TestConstants.Interface, loaded.Tagged);
+                Assert.AreEqual("3999", loaded.VlanIds.ToString());
+                Assert.AreEqual(TestConstants.Interface, loaded.Tagged.ToString());
             }
             catch (Exception ex) when (IsWinboxNativeUnsupported(ex))
             {

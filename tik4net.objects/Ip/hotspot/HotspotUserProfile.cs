@@ -22,7 +22,7 @@ namespace tik4net.Objects.Ip.Hotspot
         /// address-list: Name of the address list in which users IP address will be added. Useful to mark traffic per user groups for queue tree configurations.
         /// </summary>
         [TikProperty("address-list", WinboxLabel = "Address List")]
-        public TikField<string?> AddressList { get; set; }
+        public TikField<TikValueList<string>?> AddressList { get; set; }
 
         /// <summary>
         /// address-pool: IP pool name from which the user will get IP. When user has improper network settings configuration on the computer, HotSpot server makes translation and assigns correct IP address from the pool instead of incorrect one
@@ -40,7 +40,7 @@ namespace tik4net.Objects.Ip.Hotspot
         /// advertise-interval: Set of intervals between advertisement popups. After the list is done, the last value is used for all further advertisements, 10 minutes
         /// </summary>
         [TikProperty("advertise-interval", DefaultValue = "30m,10m", WinboxLabel = "Advertise Interval")]
-        public TikField<string?> AdvertiseInterval { get; set; }
+        public TikField<TikValueList<TikDuration>?> AdvertiseInterval { get; set; }
 
         /// <summary>
         /// advertise-timeout: How long advertisement is shown, before blocking network access for HotSpot client. Connection to Internet is not allowed, when advertisement is not shown.
@@ -52,7 +52,7 @@ namespace tik4net.Objects.Ip.Hotspot
         /// advertise-url: List of URLs that is show for advertisement popups. After the last URL is used, list starts from the begining.
         /// </summary>
         [TikProperty("advertise-url", WinboxLabel = "Advertise URL")]
-        public TikField<string?> AdvertiseUrl { get; set; }
+        public TikField<TikValueList<string>?> AdvertiseUrl { get; set; }
 
         /// <summary>
         /// idle-timeout: Maximal period of inactivity for authorized HotSpot clients. Timer is counting, when there is no traffic coming from that client and going through the router, for example computer is switched off. User is logged out, dropped of the host list, the address used by the user is freed, when timeout is reached.

@@ -47,12 +47,12 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/snmp/community");
             string marker = Guid.NewGuid().ToString();
 
-            var community = new SnmpCommunity { Name = marker, Addresses = "2001:db8:3::7/128" };
+            var community = new SnmpCommunity { Name = marker, Addresses = new TikValueList<string>("2001:db8:3::7/128") };
             SaveTracked(community);
 
             var loaded = Connection.LoadById<SnmpCommunity>(community.Id);
             Assert.IsNotNull(loaded);
-            Assert.AreEqual("2001:db8:3::7/128", loaded.Addresses,
+            Assert.AreEqual("2001:db8:3::7/128", loaded.Addresses.ToString(),
                 "the API spells out /128; only the GUI hides it");
 
             Connection.Delete(loaded);

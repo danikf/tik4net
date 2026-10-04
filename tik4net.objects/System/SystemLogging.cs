@@ -26,8 +26,8 @@ namespace tik4net.Objects.System
         /// Kept as a plain string because MikroTik accepts composite values and topic names
         /// can vary by RouterOS version.
         /// </summary>
-        [TikProperty("topics", WinboxLabel = "Topics")]
-        public TikField<string?> Topics { get; set; }
+        [TikProperty("topics", WinboxLabel = "Topics", NegatableMembers = true)]
+        public TikField<TikValueList<string>?> Topics { get; set; }
 
         /// <summary>
         /// action — name of the logging action (from /system/logging/action) that receives

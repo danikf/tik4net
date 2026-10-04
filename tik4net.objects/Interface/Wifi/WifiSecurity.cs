@@ -279,7 +279,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "EAP Methods"
         /// </summary>
         [TikProperty("eap-methods", WinboxLabel = "EAP Methods")]
-        public TikField<string?> EapMethods { get; set; }
+        public TikField<TikValueList<string>?> EapMethods { get; set; }
 
         /// <summary>
         /// eap-certificate-mode — how the TLS certificate is handled during EAP authentication.
