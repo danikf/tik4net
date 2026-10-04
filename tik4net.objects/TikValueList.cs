@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace tik4net.Objects
@@ -74,6 +75,63 @@ namespace tik4net.Objects
 
         /// <summary>The empty list.</summary>
         public static TikValueList<T> Empty { get; } = new TikValueList<T>(Enumerable.Empty<TikValue<T>>());
+
+        /// <summary>
+        /// The list a text spells, the way the router writes it: <c>TikValueList&lt;FirewallTcpFlag&gt;.Parse("syn,!ack")</c>,
+        /// <c>TikValueList&lt;TikPortRange&gt;.Parse("22,8291,1000-2000")</c>. Items are separated by <c>,</c> (spaces around
+        /// an item are ignored), and a <c>!</c> in front of an item negates that item; the empty text is the empty list.
+        /// </summary>
+        /// <remarks>
+        /// A string does not convert to a list implicitly — C# applies one user-defined conversion per assignment, and the
+        /// property's own conversion is the one from <see cref="TikValueList{T}"/>. A <c>!</c> on the whole list is not
+        /// part of the list: write it as <c>TikValue&lt;TikValueList&lt;T&gt;?&gt;.Not(TikValueList&lt;T&gt;.Parse("22,8291"))</c>.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="text"/> is <c>null</c>.</exception>
+        /// <exception cref="FormatException">
+        /// An item is empty, is a bare <c>!</c> (the router's whole-list <c>!</c>), or is not a value of
+        /// <typeparamref name="T"/> — a word an enum has no member for goes in as <see cref="TikValue{T}.FromWire"/>.
+        /// </exception>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
+        public static TikValueList<T> Parse(string text)
+        {
+            if (text == null)
+                throw new ArgumentNullException(nameof(text));
+            if (text.Trim().Length == 0)
+                return Empty;
+            var converter = new TikWireConverter(typeof(T), false, "TikValueList<" + typeof(T).Name + ">", "Parse");
+            var items = new List<TikValue<T>>();
+            foreach (string element in text.Split(','))
+            {
+                string word = element.Trim();
+                bool negated = word.StartsWith("!", StringComparison.Ordinal);
+                if (negated)
+                    word = word.Substring(1).TrimStart();
+                if (word.Length == 0)
+                    throw new FormatException(negated
+                        ? "\"" + text + "\" has a bare '!': a '!' on the whole list is written TikValue<TikValueList<T>?>.Not(list)."
+                        : "\"" + text + "\" has an empty item.");
+                object? value;
+                string? unknownWord;
+                try
+                {
+                    value = converter.ConvertFromString(word, out unknownWord);
+                }
+                catch (FormatException e)
+                {
+                    throw NotAnItem(word, e);
+                }
+                if (unknownWord != null || value == null)
+                    throw NotAnItem(word, null);
+                items.Add(((TikValue<T>)(T)value).AsNegated(negated));
+            }
+            return new TikValueList<T>(items);
+        }
+
+        private static FormatException NotAnItem(string word, Exception? inner)
+            => new FormatException("\"" + word + "\" is not a " + typeof(T).Name
+                + (typeof(T).IsEnum ? "; a word from another RouterOS version goes in as TikValue<" + typeof(T).Name + ">.FromWire(\"" + word + "\")." : "."),
+                inner);
 
         /// <inheritdoc/>
         public int Count => _items.Length;

@@ -7,6 +7,7 @@ using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
+using tik4net.Objects.Ip.Firewall;
 
 namespace tik4net.unittests.Objects
 {
@@ -52,6 +53,37 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual(0, TikValueList<TikPortRange>.Empty.Count);
             Assert.AreEqual("", TikValueList<TikPortRange>.Empty.ToString());
         }
+
+        // ── Parse ────────────────────────────────────────────────────────────
+
+        [TestMethod]
+        public void Parse_ReadsTheRoutersSpelling_WithEachItemsOwnNegation()
+        {
+            var flags = TikValueList<FirewallTcpFlag>.Parse("syn, !ack");
+            Assert.AreEqual(new TikValueList<FirewallTcpFlag>(FirewallTcpFlag.Syn, TikValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Ack)), flags);
+            Assert.AreEqual("syn,!ack", flags.ToString());
+
+            var ports = TikValueList<TikPortRange>.Parse("22,8291,1000-2000");
+            Assert.AreEqual(new TikPortRange(1000, 2000), ports[2].Value);
+            Assert.AreSame(TikValueList<TikPortRange>.Empty, TikValueList<TikPortRange>.Parse(""));
+        }
+
+        [TestMethod]
+        [DataRow("syn,,ack")]
+        [DataRow("!,syn")]
+        [DataRow("syn,typo")]
+        public void Parse_RefusesWhatIsNotAnItem(string text)
+        {
+            var thrown = Assert.ThrowsException<FormatException>(() => TikValueList<FirewallTcpFlag>.Parse(text));
+            if (text.StartsWith("!,"))
+                StringAssert.Contains(thrown.Message, ".Not(");
+            if (text.EndsWith("typo"))
+                StringAssert.Contains(thrown.Message, "FromWire");
+        }
+
+        [TestMethod]
+        public void Parse_RefusesAPortItIsNot()
+            => Assert.ThrowsException<FormatException>(() => TikValueList<TikPortRange>.Parse("22,http"));
 
         // ── Immutability ─────────────────────────────────────────────────────
 
