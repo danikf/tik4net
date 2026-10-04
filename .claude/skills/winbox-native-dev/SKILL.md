@@ -264,6 +264,14 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   cmd=3 (/var/pckg, denied on CHR). Also available over plain HTTP `GET /webfig/<name>.jg` with
   `Accept-Encoding: gzip` (else HTTP 406).
 
+- **A `getall` row can be a sketch of the list columns.** 6.x routes send scope/target-scope/routing-mark only on
+  `get-one` (`Docs/winbox-native-m2-protocol.md` §35.1). Before calling a declared field "not sent", `get-one` the row.
+- **A list element's unnamed `{tuple,ro:1}` half is the API's `<field>-status`** (6.x route `gateway-status`, §35.2) —
+  kept in `ElementStatusParts`, never in `ElementParts`.
+- **One path, one entry in a shipped table.** The alias tables are indexer initializers: a second `["/path"] =` silently
+  replaces the first (`/routing/ospf/instance` lost `inactive` that way). `WinboxShippedTableDuplicateKeyTests` fails on it
+  — extend the existing entry instead.
+
 ## Verify like the rest of the suite
 Run the native tests (`tik4net.integrationtests/`, transport via `winboxnative.runsettings`) and the `mikrotik-tests`
 skill. A full WinboxNative pass is the regression net for any shared encode/decode change (the throw-loud

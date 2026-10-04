@@ -1305,7 +1305,8 @@ namespace tik4net.Winbox
                             nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0,
                             min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0,
                             radix: RadixOf(dict), elementScale: ElementScaleOf(dict),
-                            relative: RelativeOf(dict), refHandlers: ExtractRefHandlers(dict));
+                            relative: RelativeOf(dict), refHandlers: ExtractRefHandlers(dict),
+                            elementStatusParts: ElementStatusPartsOf(dict));
                     }
                 }
 
@@ -1520,7 +1521,8 @@ namespace tik4net.Winbox
             string? tab = null, string? title = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
             long min = 0, int radix = 0, string? prefix = null, int elementScale = 1,
-            bool relative = false, IReadOnlyList<int[]>? refHandlers = null)
+            bool relative = false, IReadOnlyList<int[]>? refHandlers = null,
+            IReadOnlyList<WinboxJgElementPart>? elementStatusParts = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -1548,7 +1550,8 @@ namespace tik4net.Winbox
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
                 elementIsRange: elementIsRange, titleApiName: titleName,
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
-                prefix: prefix, elementScale: elementScale, relative: relative, refHandlers: refHandlers);
+                prefix: prefix, elementScale: elementScale, relative: relative, refHandlers: refHandlers)
+                { ElementStatusParts = elementStatusParts };
             _labels[field] = label;
             if (!_fieldsByLabel.TryGetValue(handlerKey, out var ownLabels))
                 _fieldsByLabel[handlerKey] = ownLabels = new Dictionary<string, WinboxJgField>(StringComparer.Ordinal);
@@ -1717,6 +1720,48 @@ namespace tik4net.Winbox
                 return leaf != null ? new List<WinboxJgElementPart> { leaf } : null;
             }
             return null;
+        }
+
+        // The read-only status half of a list element (see WinboxJgField.ElementStatusParts): the unnamed
+        // {type:'tuple',ro:1} member of the element tuple, flattened to its leaves in order, a 'prefix' wrapper's
+        // text carried on the leaf it wraps. A list leaf whose dropdown sits on its element ({multinumber,
+        // c:[{enm,values:{dynamic [20,0]}}]}) takes the element's reference table.
+        private static IReadOnlyList<WinboxJgElementPart>? ElementStatusPartsOf(Dictionary<string, object> dict)
+        {
+            var child = ElementChild(dict, out _);
+            if (child == null || !(child.TryGetValue("type", out var tv) && tv as string == "tuple")) return null;
+            if (!(child.TryGetValue("c", out var cv) && cv is List<object> members)) return null;
+            var result = new List<WinboxJgElementPart>();
+            foreach (var m in members)
+                if (m is Dictionary<string, object> md && md.TryGetValue("type", out var mt) && mt as string == "tuple"
+                    && md.TryGetValue("ro", out var rov) && rov is int ri && ri != 0
+                    && md.TryGetValue("c", out var lc) && lc is List<object> leaves)
+                    foreach (var l in leaves)
+                        if (l is Dictionary<string, object> ld) AddStatusLeaf(ld, null, result);
+            return result.Count > 0 ? result : null;
+        }
+
+        private static void AddStatusLeaf(Dictionary<string, object> node, string? prefix, List<WinboxJgElementPart> into)
+        {
+            if (node.TryGetValue("type", out var tv) && tv as string == "prefix")
+            {
+                string? text = node.TryGetValue("name", out var nv) ? nv as string : null;
+                if (node.TryGetValue("c", out var pc) && pc is List<object> wrapped)
+                    foreach (var w in wrapped)
+                        if (w is Dictionary<string, object> wd) AddStatusLeaf(wd, text, into);
+                return;
+            }
+            if (!(node.TryGetValue("id", out var idv) && idv is string ids)) return;
+            var dec = DecodeId(ids);
+            if (dec == null) return;
+            int[]? refHandler = ExtractRefHandler(node);
+            if (refHandler == null && node.TryGetValue("c", out var ec) && ec is List<object> el
+                && el.Count > 0 && el[0] is Dictionary<string, object> e0)
+                refHandler = ExtractRefHandler(e0);
+            string ty = node.TryGetValue("type", out var t2) && t2 is string s2 ? s2 : "";
+            bool continues = prefix == null && node.TryGetValue("name", out var nm) && nm is string ns && ns.Length == 0;
+            into.Add(new WinboxJgElementPart(dec.Value.key, ty, 0, enumMap: ExtractEnumMap(node),
+                refHandler: refHandler, prefix: prefix, continues: continues));
         }
 
         // The element types that ARE one value at one key, so a list of them is described by a single part.

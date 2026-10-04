@@ -70,6 +70,39 @@ namespace tik4net.unittests.Winbox
             return new WinboxRecordCodec(null, catalog).DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
+        // The 6.49.13 route window's Gateway, as the catalog declares it: a union for the gateway, then an unnamed
+        // read-only tuple for its status.
+        private const string Route6Window =
+            "[{name:'X',c:[{title:'X',type:'map',path:[ 90,6 ],c:[" +
+            "{name:'Gateway',type:'multi',id:'M2e',max:100,width:300,c:[{type:'tuple',compact:1,sep:' ',separate:1,c:[" +
+            "{type:'union',def:2,single:1,c:[{type:'tuple',sep:'%',c:[{type:'ipaddr',id:'u1',zeroinvalid:1}," +
+            "{type:'enm',id:'u3',values:{type:'dynamic',path:[ 20,0 ]}}]},{type:'ipaddr',id:'u1',zeroinvalid:1}," +
+            "{type:'enm',id:'u3',values:{type:'dynamic',path:[ 20,0 ]}}]}," +
+            "{type:'tuple',ro:1,sep:' ',c:[{name:'on ',type:'prefix',c:[{type:'string',id:'s4',opt:1,ro:1}]}," +
+            "{type:'enm',id:'u5',def:3,ro:1,values:{type:'static',map:[ 'unreachable','reachable','recursive',' ' ]}}," +
+            "{name:'via ',type:'prefix',c:[{name:'',type:'multiipaddr',id:'U6',max:100,opt:1,ro:1,c:[{type:'ipaddr'}]}]}," +
+            "{name:'',type:'multinumber',id:'U8',max:100,ro:1,c:[{type:'enm',values:{type:'dynamic',path:[ 20,0 ]}}]}]}]}]}" +
+            "]}]}]";
+
+        private static Dictionary<int, Tuple<string, object>> Elem(params (int key, string wire, object value)[] f)
+            => f.ToDictionary(x => x.key, x => Tuple.Create(x.wire, x.value));
+
+        [TestMethod]
+        public void A6xGatewayStatusIsComposedFromTheElementsReadOnlyHalf()
+        {
+            // 6.49.13 API: gateway-status=192.168.4.1 reachable via  ether1 for {u1, u5=1, U8=[1]}, and
+            // "192.168.4.1 unreachable" with nothing to go via. Without a session the interface stays its id.
+            var gw = new List<Dictionary<int, Tuple<string, object>>>
+            {
+                Elem((0x1, "u32", (object)17082560u), (0x5, "u8", (object)(byte)1), (0x8, "u32[]", (object)"[1]")),
+                Elem((0x1, "u32", (object)17082560u), (0x5, "u8", (object)(byte)0)),
+            };
+            var decoded = DecodeWith(Route6Window, new[] { 90, 6 }, "/ip/route", (0x2E, "msg[]", (object)gw));
+
+            Assert.AreEqual("192.168.4.1,192.168.4.1", decoded["gateway"], "the gateway itself is unchanged");
+            Assert.AreEqual("192.168.4.1 reachable via  1,192.168.4.1 unreachable", decoded["gateway-status"]);
+        }
+
         [TestMethod]
         public void AReferencedTableWithoutANameBoxIsNamedByItsNameval()
         {

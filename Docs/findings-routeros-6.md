@@ -221,11 +221,9 @@ table is read by which header a value overlaps rather than by the column spans `
 Each is a statement of what is measured and what is not, to be settled one at a time.
 
 1. **WinBox native against the API on 6.x.** Measured with the path-map audit (`TransportPathMapAuditTest`,
-   WinboxNative, against CHR2, 2026-09-27): OK 137, unmapped 0, value differences 5, field-name mismatches 0,
-   not on this RouterOS 20, no WinBox window 2; writes OK 184 with no value differing, refused 0, not probeable
-   54 (the router refused the row on both transports). 26 of 1175 API field names are never reported over
-   native (2 %). The same audit against 7.24.4 is unchanged by the 6.x fixes (OK 154, nothing differing). Each
-   part below is separate work:
+   WinboxNative, against CHR2, 2026-10-04): OK 143, known gaps 2, unmapped 0, value differences 0, field-name
+   mismatches 0, not on this RouterOS 20. The audit compares a date by its value, not its spelling (§1d). The same
+   audit against 7.24.5 is unchanged by the 6.x fixes (OK 155, nothing differing). Each part below is separate work:
 
    - **1a. Mapping is complete; two lists are unproven beyond it.** Every path the audit covers now reaches
      its window. CHR2 has no wireless and no CAP interface, so for `/interface/wireless` and
@@ -240,12 +238,25 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      lost the name; shipped as a synthetic field on `u3f4`, read and written), `default-name` and conntrack `total-entries`, keys the 6.x windows do not declare but
      the router sends, the route's `connect` and `static` (its origin `numflag`), and the fields the API
      itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail` `address`, the OSPF area's `invalid` —
-     and the remote action's `syslog-severity=auto` (§4). Still missing, each for a reason of its own:
-     - `/ip/route` `scope`, `target-scope`, `routing-mark`: the router does not send them (§4). The 6.x window
-       declares them as `uf`, `u10` and `s13`; a row with a mark set carries no `0x13` in the `getall` reply.
-     - `/ip/route` `gateway-status`: the API's `<gateway> reachable via  ether1` is composed from the
-       gateway tuple's read-only parts (status enum, `via` interface), which the decode drops.
-     - `/ip/route` `vrf-interface`: no key in the record identified.
+     and the remote action's `syslog-severity=auto` (§4).
+     The route's `gateway-status` is the gateway element's unnamed read-only half
+     (`{tuple,ro:1}`: `on` `s4`, status `u5` over `unreachable/reachable/recursive`, `via` `U6`, interfaces
+     `U8`), which `getall` does carry. Native composes it as the API prints it — `192.168.4.1 reachable via  ether1`
+     (two spaces: the `via` addresses are empty), `ether1 reachable` on a connected route. 7.x has no
+     such field (it prints `immediate-gw`), and its window no such half. `/ipv6/route` declares the same half;
+     CHR2 has no IPv6 route, so that one is unmeasured.
+     A neighbour heard only over IPv6 has no IPv4 key, and the API prints its IPv6 address as `address`; so does
+     native (`address6` reported under both names).
+     Still missing, each for a reason of its own:
+     - `/ip/route` `scope`, `target-scope`, `routing-mark`, `vrf-interface`: **left absent, by decision**
+       (maintainer, 2026-10-04). The 6.x `getall` of the route window `[44,1]` is a sketch of the list columns:
+       no getall flag tried (`0x10000005` … `0x100000FF`) adds them. A `get-one` (`0xFE0002`) of the row carries
+       them all — `0xF` scope (`u8`, 20 on a row set to 20), `0x10` target-scope, `0x13` routing-mark (string,
+       with its opt flag `0x3FB`) and `0x3C` vrf-interface (an interface id, on the default route only, where the
+       API prints `vrf-interface=ether1`). Reading them would cost one extra request per row (the window allows
+       10000 rows; the lab router answers ~25–36 requests a second), so they are not read. The library has the
+       `get-one` op (`WinboxNativeM2Operations.GetOne`); a later change would re-read the rows that lack a
+       requested field.
      - `/system/logging/action` `syslog-time-format`: left unmapped on purpose (see the resolver's
        `/system/logging/action` entry).
      - `/ip/neighbor` `system-caps`, `system-caps-enabled`: 6.x sends `0x11`/`0x12`, the 7.x keys, but only
@@ -256,16 +267,16 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    - **1c. Field names that differ.** `/routing/ospf/instance` reads under the API's names (the 6.x window
      spells them *Redistribute Connected Routes*, *Static Routes Metric*, …) and its `distribute-default`
      members without the window's parentheses. `metric-bgp` and `metric-other-ospf` arrive as 4294967295 at
-     their default and read `auto`, as the API prints them. Still missing there: `state` (the API's `down`
-     against the window's *Running* bool `u65`=0; only `down` has been seen, so no mapping is shipped).
+     their default and read `auto`, as the API prints them. `state` is the window's *Running* `u65`: `0` = `down`,
+     `1` = `running` (an OSPF network over an addressed interface moved both together). 7.24.5's instance window
+     declares no `0x65` and sends none.
      `/ip/dhcp-server/config` `accounting` and `interim-update` are keys the 6.x window does not declare but the
      router sends (7.x's `b3`/`u2`, confirmed by setting both and watching the keys move).
    - **1d. Values rendered the 7.x way.** Dates: the 6.x API prints `sep/21/2026`, native `2026-09-21`
      (`/system/clock` `date`, `/system/scheduler` `start-date`). The 6.x catalog's `date` type is 7.x's `dateandtime`
      — epoch seconds, read as a date (`/certificate` `invalid-before` 1789921669 = the API's `sep/20/2026 16:27:49`).
-     `/system/package` `bundle`: `routeros-x86` against `1` — the window's unnamed `u6` holds the parent package's
-     record id, and native has no way to resolve a reference to a row of the same table (no entity maps the field).
-     The enum spellings (`advertise`, `cipher`) and the queue limits' `0/0` read as the API prints them.
+     `/system/package` `bundle` is the window's nonpublic `u6`, the record id of the package this one ships in,
+     read as a reference into the package table itself (`routeros-x86`). The enum spellings (`advertise`, `cipher`) and the queue limits' `0/0` read as the API prints them.
 
      The date spelling differs on the binary API itself, so "the API's spelling" is a per-version target, and the
      library does not read the router's version. The entities' dates are `DateTime` properties, which read either
@@ -274,9 +285,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    - **1e. Not a defect: enabling the audit's `/ip/dhcp-server` row** is refused over the API as well
      (`can not run on slave interface` — on CHR2 the fixture's interface is a bridge port).
 
-   Unknown for 1b's route fields: whether any request makes 6.49.13 send Scope, Target Scope and Routing Mark — another
-   getall flag, a `get` of the single row — since WinBox 6 itself shows a Scope for these routes; a capture of
-   it reading them is the ground truth. The audit report is written per transport, not per router, so a run
+   The audit report is written per transport, not per router, so a run
    against CHR2 replaces the 7.x report of the same transport.
 
 2. **Settled: REST on 6.x is Inconclusive, not red.** MikroTik moves everyone to RouterOS 7, so a REST refusal on a

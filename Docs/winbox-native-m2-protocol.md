@@ -2442,6 +2442,29 @@ field absent from a version's catalog — while other versions' catalogs have it
 
 ---
 
+## 35. A `getall` row can be a sketch, and a list element can carry a status of its own
+
+### 35.1 `getall` sends the list columns; `get-one` sends the record
+
+On RouterOS 6.49.13 the route window `[44,1]` answers `getall` with what its LIST shows: `scope` (`uf`),
+`target-scope` (`u10`) and `routing-mark` (`s13`) are declared and never sent, whatever getall flags are set
+(`0x10000005` through `0x100000FF` measured; `0x7FFFFFFF` returns no rows). A `get-one` (`0xFE0002` with the row's
+`0xFE0001`) returns the whole record: `0xF`=20 on a route set to `scope=20`, `0x10`=10, `0x13`="t4n-probe-mark" with
+its opt flag `0x3FB`=True, and the undeclared `0x3C` (the vrf-interface's id on the default route). The window
+carries `refetchonchange:1` and allows 10000 rows. The native transport reads with `getall` only, so these fields
+are absent on 6.x — a decision, because a complete read costs one request per row (`Docs/findings-routeros-6.md`
+§1b). 7.24.5's IPv4 route window sends them in `getall`.
+
+### 35.2 A list element's unnamed read-only half is the API's `<field>-status`
+
+The 6.x Gateway is `{multi M2e, c:[{tuple,separate:1,c:[{union …gateway…}, {tuple,ro:1,c:[{prefix 'on ',
+s4}, {enm u5 ['unreachable','reachable','recursive',' ']}, {prefix 'via ', U6 multiipaddr}, {name:'', U8
+multinumber of interface ids}]}]}]}`. The editable union is the `gateway` the API prints; the read-only tuple has
+no name and is the API's `gateway-status`, joined by spaces in declaration order. A prefix is printed when its own
+leaf or a `name:''` leaf after it is present: `{u1, u5=1, U8=[1]}` is `192.168.4.1 reachable via  ether1` (U6 is
+absent, so `via ` stands before an empty list), `{u3, u5=1}` is `ether1 reachable`. Kept apart from the element's
+editable parts (`WinboxJgField.ElementStatusParts`), because the write side counts those. 7.x declares no such half.
+
 ## Settled questions — do not re-investigate
 
 - **Black-box M2 probing without the webfig source is not the way to recover the CRUD command

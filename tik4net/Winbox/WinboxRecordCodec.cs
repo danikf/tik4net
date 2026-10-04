@@ -219,6 +219,22 @@ namespace tik4net.Winbox
                     if (!fields.ContainsKey(flagName)) fields[flagName] = "true";
                 }
 
+            // The read-only status half of a list element, which the 6.x API prints as a field of its own
+            // (see WinboxJgField.ElementStatusParts): gateway-status=192.168.4.1 reachable via  ether1.
+            if (keyToField != null)
+                foreach (var kf in keyToField)
+                {
+                    if (kf.Value.ElementStatusParts == null || kf.Value.ElementParts == null) continue;
+                    if (!keyToName.TryGetValue(kf.Key, out string? listName)) continue;
+                    string statusName = listName + "-status";
+                    if (fields.ContainsKey(statusName)) continue;
+                    if (!rec.TryGetValue(kf.Key, out var listVal)
+                        || !(listVal.Item2 is List<Dictionary<int, Tuple<string, object>>> elements)) continue;
+                    fields[statusName] = string.Join(",", elements.Select(m =>
+                        FormatCompoundElement(kf.Value, m, collectRefTables)
+                        + FormatElementStatus(kf.Value.ElementStatusParts, m, collectRefTables)));
+                }
+
             if (derivedBools != null)
                 foreach (var d in derivedBools)
                 {
@@ -1359,6 +1375,51 @@ namespace tik4net.Winbox
                             && nf?.Item2 is bool nb && nb ? "!" : "";
             // …and a compound's own `prefix` goes in front of the whole joined value (the STP ids' '0x').
             return prefix + (jf.Prefix ?? "") + string.Join(jf.ElementSeparator ?? "", rendered);
+        }
+
+        // One element's status, in declaration order, joined by spaces. A prefix stands when its own leaf, or a
+        // name:'' leaf continuing it, is present — 6.49.13 prints "192.168.4.1 reachable via  ether1"
+        // for {u1, u5=1, U8=[1]} (no U6: the via-addresses are empty, the interfaces are not) and
+        // "ether1 reachable" for a connected route's {u3, u5=1}, which has neither.
+        private string FormatElementStatus(IReadOnlyList<WinboxJgElementPart> parts,
+            Dictionary<int, Tuple<string, object>> element, Dictionary<string, int[]>? collectRefTables)
+        {
+            var tokens = new List<string>();
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var part = parts[i];
+                bool present = element.TryGetValue(part.Key, out var v) && v?.Item2 != null;
+                string text = "";
+                if (present)
+                {
+                    // A list leaf arrives as "[a,b]" — "[]" when empty, which is no word at all.
+                    var items = SplitListElements(v!.Item2);
+                    bool isList = v.Item1.EndsWith("[]", StringComparison.Ordinal)
+                        || (v.Item2 is string sv && sv.StartsWith("[", StringComparison.Ordinal));
+                    IEnumerable<string> words = items.Count > 0 || isList ? items : new List<string> { v.Item2.ToString()! };
+                    text = string.Join(",", words.Select(w => FormatStatusWord(part, w, collectRefTables)));
+                }
+                if (part.Prefix != null)
+                {
+                    if (present || parts.Skip(i + 1).TakeWhile(p => p.Continues).Any(p => element.ContainsKey(p.Key)))
+                        tokens.Add(part.Prefix + text);
+                }
+                else if (present) tokens.Add(text);
+            }
+            return tokens.Count == 0 ? "" : " " + string.Join(" ", tokens);
+        }
+
+        private string FormatStatusWord(WinboxJgElementPart part, string word, Dictionary<string, int[]>? collectRefTables)
+        {
+            if (part.EnumMap != null && WinboxFieldResolver.TryToInt64(word, out long ev)
+                && part.EnumMap.TryGetValue(unchecked((int)ev), out var label))
+                return label;
+            if (part.RefHandler != null)
+                return ResolveRefName(part.RefHandler, word, collectRefTables) ?? word;
+            if (string.Equals(part.UiType, "multiipaddr", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(part.UiType, "ipaddr", StringComparison.OrdinalIgnoreCase))
+                return WinboxFieldResolver.IpFromU32(word);
+            return word;
         }
 
         private string FormatElementPart(WinboxJgElementPart part, Dictionary<int, Tuple<string, object>> element,

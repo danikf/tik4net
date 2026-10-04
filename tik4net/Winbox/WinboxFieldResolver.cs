@@ -688,6 +688,13 @@ namespace tik4net.Winbox
                     {
                         ["interface"] = new WinboxJgField("interface", 0x13, "u32[]", true,
                                                           uiType: "multinumber", refHandler: new[] { 20, 0 }),
+                    },
+                    // A neighbour heard only over IPv6 has no IPv4 key, and the API's `address` is then its IPv6
+                    // address: 6.49.13 prints address=address6=fe80::… for CHR3 on ether2. Reported under both names
+                    // only where `address` is absent, so a row with an IPv4 address keeps it.
+                    alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["address6"] = new[] { "address" },
                     }),
 
                 // /ip/dhcp-client: three, all moving a distinctive value in one read — the lease address
@@ -914,7 +921,7 @@ namespace tik4net.Winbox
                     {
                         ["inactive"] = new[] { "invalid" },
                     }),
-                ["/routing/ospf/instance"] = RoutingInactive(),
+                // /routing/ospf/instance's state flag is with its RouterOS 6 labels, further down: one entry per path.
                 ["/routing/rule"] = RoutingInactive(),
 
                 // /ip/ipsec/peer: the PPK secret is a key no Peers window declares — moved to 0x36.
@@ -994,6 +1001,13 @@ namespace tik4net.Winbox
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["available"] = Tuple.Create("installed", "false"),
+                    },
+                    // `bundle` is the window's nonpublic {number, u6}: the record id of the package this one ships
+                    // in, which the API prints by NAME — routeros-x86 where u6=1 (6.49.13; the 7.x windows declare
+                    // the same u6). A reference into this very table.
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["bundle"] = new WinboxJgField("bundle", 0x6, "u32", true, uiType: "enm", refHandler: new[] { 24, 23 }),
                     }),
 
                 // /ip/firewall/mangle: action=route's destination is u3f4, labelled 'Route Dst.' on 7.x but
@@ -1293,7 +1307,9 @@ namespace tik4net.Winbox
 
                 // /routing/ospf/instance on RouterOS 6: the 6.49.13 window (and its OSPFv3 twin) spells each field
                 // out — 'Redistribute Static Routes', 'Static Routes Metric' — where the API says
-                // redistribute-static and metric-static. 7.x's window has none of these labels.
+                // redistribute-static and metric-static. 7.x's window has none of these labels. The state flag
+                // 0xFE0008 is the API's `inactive`, as on the other routing tables (7.24.5: a disabled instance).
+                // ONE entry: a second one for this path in this initializer silently replaced the first.
                 ["/routing/ospf/instance"] = new FieldAliasSet(
                     apiToJg: Ci(("distribute-default", "redistribute-default-route"),
                                 ("redistribute-connected", "redistribute-connected-routes"),
@@ -1318,7 +1334,15 @@ namespace tik4net.Winbox
                                 ("static-routes-metric", "metric-static"),
                                 ("rip-routes-metric", "metric-rip"),
                                 ("bgp-routes-metric", "metric-bgp"),
-                                ("other-ospf-routes-metric", "metric-other-ospf"))),
+                                ("other-ospf-routes-metric", "metric-other-ospf")),
+                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" },
+                    // state is the 6.x window's 'Running' {bool, u65, ro}: the API's down at 0 and running at 1
+                    // (6.49.13: an OSPF network on an addressed interface moved it 0 -> 1, state down -> running).
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["state"] = new WinboxJgField("state", 0x65, "u32", true,
+                            enumMap: new Dictionary<int, string> { [0] = "down", [1] = "running" }),
+                    }),
 
                 // /system/health: the router sends both of the API's fields and the catalog names neither.
                 //

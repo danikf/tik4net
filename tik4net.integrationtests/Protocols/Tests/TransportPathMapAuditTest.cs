@@ -533,7 +533,8 @@ namespace tik4net.integrationtests
                     // subject-alt-name 'ip:' where the API says 'IP:' and traffic-flow cache-entries '1m' for
                     // '1M' under a green audit that compared ignoring case.
                     bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.Ordinal)
-                               || AreTheSameTickingClock(f.Value, probeValue);
+                               || AreTheSameTickingClock(f.Value, probeValue)
+                               || AreTheSameDate(f.Value, probeValue);
                     if (excused != null && excused.ContainsKey(f.Key))
                     {
                         (agrees ? agreeing : disagreeing).Add(f.Key);
@@ -551,6 +552,16 @@ namespace tik4net.integrationtests
             excusedButAgreeing = agreeing.Where(f => !disagreeing.Contains(f)).OrderBy(f => f).ToList();
             return diffs;
         }
+
+        /// <summary>
+        /// One date in the two spellings RouterOS uses — 6.x's API prints <c>oct/04/2026</c>, WinBox native renders the
+        /// wire's epoch seconds as <c>2026-10-04</c>. The entities read both into the same <see cref="DateTime"/>
+        /// (<see cref="TikDateTimeHelper"/>), so the spelling is not a disagreement; a different date still is.
+        /// </summary>
+        private static bool AreTheSameDate(string a, string b)
+            => a != null && b != null && (a.Contains("/") != b.Contains("/"))
+               && TikDateTimeHelper.TryFromTikDateTime(a, out DateTime da)
+               && TikDateTimeHelper.TryFromTikDateTime(b, out DateTime db) && da == db;
 
         /// <summary>
         /// Words that are not the router's fields: the row key, the API sentence's own tag, and the API's cursor

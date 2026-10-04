@@ -37,13 +37,21 @@ namespace tik4net.Winbox
         /// </summary>
         internal int[]? RefHandler { get; }
 
+        /// <summary>The text of a <c>type:'prefix'</c> wrapper around the part (<c>'via '</c>), printed in front of it
+        /// when the element carries it. Set only on <see cref="WinboxJgField.ElementStatusParts"/>.</summary>
+        internal string? Prefix { get; }
+
+        /// <summary>The leaf is declared <c>name:''</c>: it continues the labelled group before it (the 6.x route
+        /// gateway's interfaces <c>U8</c> continue its <c>'via '</c>). Set only on status parts.</summary>
+        internal bool Continues { get; }
+
         internal WinboxJgElementPart(int key, string uiType, int maskKey,
             IReadOnlyList<WinboxJgElementPart>? alternatives = null,
             IReadOnlyDictionary<int, string>? enumMap = null,
-            int[]? refHandler = null, int radix = 0)
+            int[]? refHandler = null, int radix = 0, string? prefix = null, bool continues = false)
         {
             Key = key; UiType = uiType; MaskKey = maskKey; Alternatives = alternatives; EnumMap = enumMap;
-            RefHandler = refHandler; Radix = radix;
+            RefHandler = refHandler; Radix = radix; Prefix = prefix; Continues = continues;
         }
     }
 
@@ -550,6 +558,15 @@ namespace tik4net.Winbox
         internal int KindIdKey { get; set; }
 
         /// <summary>
+        /// The read-only STATUS half of a list element: a <c>multi</c>'s element tuple whose second member is an
+        /// unnamed <c>ro:1</c> tuple. The 6.x route window's Gateway is <c>{tuple,separate:1,c:[{union …},
+        /// {tuple,ro:1,c:[on s4, enm u5 (unreachable/reachable/recursive), via U6, U8 interfaces]}]}</c>, and the
+        /// 6.x API prints it as a field of its own, <c>gateway-status=192.168.4.1 reachable via  ether1</c>. The
+        /// parts are kept apart from <see cref="ElementParts"/>, which describes what a WRITE sends.
+        /// </summary>
+        internal IReadOnlyList<WinboxJgElementPart>? ElementStatusParts { get; set; }
+
+        /// <summary>
         /// The <c>on:</c> condition that decides whether RouterOS reports this field on a given row, or
         /// <c>null</c> for a field that is always reported. See <see cref="WinboxJgCondition"/>.
         /// </summary>
@@ -570,13 +587,13 @@ namespace tik4net.Winbox
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, 0, null, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey };
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts };
 
         internal WinboxJgField WithApiName(string apiName)
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey };
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts };
     }
 }
