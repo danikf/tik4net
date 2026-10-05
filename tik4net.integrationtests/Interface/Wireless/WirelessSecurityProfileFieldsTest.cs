@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -77,6 +77,8 @@ namespace tik4net.integrationtests
         {
             EnsureCommandAvailable(ProfilePath);
             string marker = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 10);
+            // RouterOS 6 offers only the uppercase formats; the lowercase twins arrived with 7.
+            string macFormat = GetMikrotikVersion().Major >= 7 ? "xx:xx:xx:xx:xx:xx" : "XX:XX:XX:XX:XX:XX";
 
             var profile = new WirelessSecurityProfile
             {
@@ -86,7 +88,7 @@ namespace tik4net.integrationtests
                 RadiusMacAccounting = true,
                 RadiusCalledFormat = WirelessSecurityProfile.CalledFormatType.Ssid,
                 RadiusMacMode = WirelessSecurityProfile.MacModeType.AsUsernameAndPassword,
-                RadiusMacFormat = "xx:xx:xx:xx:xx:xx",
+                RadiusMacFormat = macFormat,
                 StaticAlgo0 = WirelessSecurityProfile.StaticAlgoType.Wep40Bit,
                 StaticKey0 = "1234567890",
                 StaticTransmitKey = WirelessSecurityProfile.TransmitKeyType.Key0,
@@ -102,7 +104,7 @@ namespace tik4net.integrationtests
                 Assert.AreEqual(true, loaded.RadiusMacAccounting);
                 Assert.AreEqual(WirelessSecurityProfile.CalledFormatType.Ssid, loaded.RadiusCalledFormat);
                 Assert.AreEqual(WirelessSecurityProfile.MacModeType.AsUsernameAndPassword, loaded.RadiusMacMode);
-                Assert.AreEqual("xx:xx:xx:xx:xx:xx", loaded.RadiusMacFormat,
+                Assert.AreEqual(macFormat, loaded.RadiusMacFormat,
                     "the case is part of the value on this field");
                 Assert.AreEqual(WirelessSecurityProfile.StaticAlgoType.Wep40Bit, loaded.StaticAlgo0);
                 Assert.AreEqual(WirelessSecurityProfile.TransmitKeyType.Key0, loaded.StaticTransmitKey);
@@ -156,6 +158,7 @@ namespace tik4net.integrationtests
         public void ALowercaseMacFormatIsNotWrittenAsItsUppercaseTwin()
         {
             EnsureCommandAvailable(ProfilePath);
+            EnsureMinRouterOsVersion(7, "the lowercase radius-mac-format values");
             using (var api = OpenApi())
             {
                 string id = CreateProfile(api);

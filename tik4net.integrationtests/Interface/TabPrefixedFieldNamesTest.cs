@@ -69,6 +69,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void MlagFieldsCarryTheTabPrefix()
         {
+            EnsureMinRouterOsVersion(7, "the bridge's MLAG fields");
             AssertNamesAgree("/interface/bridge", "name", BridgeName,
                 "mlag-heartbeat", "mlag-peer-port", "mlag-priority");
         }
@@ -87,6 +88,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void StpAndMlagPriorityAreDifferentFields()
         {
+            EnsureMinRouterOsVersion(7, "the bridge's MLAG fields");
             AssertNamesAgree("/interface/bridge", "name", BridgeName, "priority", "mlag-priority");
         }
 

@@ -247,6 +247,11 @@ namespace tik4net.integrationtests
                         skipped.Add($"{entity.Path}/{verb} (listed by the router, measured non-functional)");
                         continue;
                     }
+                    if (IsAddedInRouterOs7(entity.Path, verb))
+                    {
+                        skipped.Add($"{entity.Path}/{verb} (RouterOS 7's verb; the declaration describes 7)");
+                        continue;
+                    }
 
                     bool onRouter = tokens.Contains(verb, StringComparer.Ordinal);
                     bool declared = entity.Operations.HasFlag(operation);
@@ -293,6 +298,11 @@ namespace tik4net.integrationtests
                     if (IsListedButBroken(entity.Path, verb))
                     {
                         skipped.Add($"{entity.Path}/{verb} (listed by the router, measured non-functional)");
+                        continue;
+                    }
+                    if (IsAddedInRouterOs7(entity.Path, verb))
+                    {
+                        skipped.Add($"{entity.Path}/{verb} (RouterOS 7's verb; the declaration describes 7)");
                         continue;
                     }
                     if (!ProbeCanAnswer(verb))
@@ -410,6 +420,14 @@ namespace tik4net.integrationtests
         private static bool IsListedButBroken(string path, string verb)
             => (path == "/ip/ipsec/active-peers" || path == "/ip/hotspot/active")
                && (verb == "add" || verb == "set");
+
+        /// <summary>
+        /// A verb a declaration names that RouterOS 6 does not have. One entity declares one verb set, and it
+        /// describes RouterOS 7: 6.49.13 has no <c>set</c> on <c>/routing/ospf/neighbor</c> (completion lists
+        /// <c>find</c>, <c>get</c> and <c>print</c>, the API answers <i>no such command</i>).
+        /// </summary>
+        private bool IsAddedInRouterOs7(string path, string verb)
+            => GetMikrotikVersion().Major < 7 && path == "/routing/ospf/neighbor" && verb == "set";
 
         /// <summary>The tracked connection to <paramref name="address"/>, or null. Addressed by destination, not by .id — see the test.</summary>
         private FirewallConnection TrackedConnectionTo(string address)

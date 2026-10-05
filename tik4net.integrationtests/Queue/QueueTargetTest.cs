@@ -1,4 +1,4 @@
-// QueueTargetTest.cs — the list field whose element is a union of families.
+﻿// QueueTargetTest.cs — the list field whose element is a union of families.
 //
 // /queue/simple `target` is a list, and one element may be an IPv4 network, an IPv6 network or an
 // interface — webfig declares it as `union single:1` over {network, network6, enm→interface table}. It is
@@ -72,7 +72,9 @@ namespace tik4net.integrationtests.Queue
         public void AnInterfaceIsAValidTargetToo()
         {
             // The union's third family: an element that names a record in the interface table rather than
-            // an address. 'lo' exists on every RouterOS device.
+            // an address. 'lo' exists on every RouterOS 7 device; RouterOS 6 has no loopback interface.
+            if (!Connection.CreateCommandAndParameters("/interface/print", "name", "lo").ExecuteList().Any())
+                Assert.Inconclusive("this router has no 'lo' interface (RouterOS 6)");
             Connection.Save(new QueueSimple { Name = QueueName, Target = new TikValueList<string>("lo"), MaxLimit = (TikRatePair)"1M/2M" });
 
             using (var api = OpenSideApi())

@@ -9,7 +9,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net;
@@ -158,8 +157,9 @@ namespace tik4net.integrationtests
                             .GetResponseFieldOrDefault("last-link-up-time", null);
             Assert.IsNotNull(actual, "/interface must report 'last-link-up-time'");
 
-            var apiTime = DateTime.ParseExact(expected, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-            var ours = DateTime.ParseExact(actual, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            // Either spelling: 7.x prints yyyy-MM-dd, 6.x mmm/dd/yyyy.
+            var apiTime = TikDateTimeHelper.FromTikDateTime(expected);
+            var ours = TikDateTimeHelper.FromTikDateTime(actual);
             double off = Math.Abs((ours - apiTime).TotalSeconds);
             Console.WriteLine($"last-link-up-time api='{expected}' transport='{actual}' ({off} s apart)");
             Assert.IsTrue(off <= 1, $"last-link-up-time api='{expected}' {Connection.GetType().Name}="
@@ -193,6 +193,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void TheMdnsRepeaterInterfaceListIsReportedUnderTheApiName()
         {
+            EnsureMinRouterOsVersion(7, "the mDNS repeater (/ip/dns mdns-repeat-ifaces)");
             using (var api = OpenSideApi())
                 EnsureInterfaceExists(api, TestConstants.SecondInterface);
             AssertAgreesWithApiWhileSet("/ip/dns", "mdns-repeat-ifaces", TestConstants.SecondInterface);

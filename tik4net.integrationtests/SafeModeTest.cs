@@ -53,6 +53,20 @@ namespace tik4net.integrationtests
             => conn.CreateCommand($"{PATH}/print").ExecuteList()
                    .Count(s => s.GetResponseFieldOrDefault("name", null) == name);
 
+        /// <summary>
+        /// Takes Safe Mode, or makes the test Inconclusive on the router's refusal: RouterOS 6 has no
+        /// <c>/safe-mode</c> menu, so its binary API cannot take Safe Mode at all (the terminal's Ctrl-X is the
+        /// only way there), and answers <i>no such command</i>.
+        /// </summary>
+        private void TakeSafeModeOrSkip()
+        {
+            try { SafeModeConnection.SafeModeTake(); }
+            catch (TikNoSuchCommandException ex)
+            {
+                Assert.Inconclusive("this router has no Safe Mode over " + ResolveConnectionType() + ": " + ex.Message);
+            }
+        }
+
         [TestMethod]
         public void SafeMode_Take_Release_PersistsChange()
         {
@@ -62,7 +76,7 @@ namespace tik4net.integrationtests
             try
             {
                 Assert.IsFalse(SafeModeConnection.SafeModeGet(), "Should not be in safe mode initially.");
-                SafeModeConnection.SafeModeTake();
+                TakeSafeModeOrSkip();
                 Assert.IsTrue(SafeModeConnection.SafeModeGet(), "SafeModeGet should report held after take.");
                 Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
                 Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
@@ -96,7 +110,7 @@ namespace tik4net.integrationtests
             string name = "safemode-unroll-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             try
             {
-                SafeModeConnection.SafeModeTake();
+                TakeSafeModeOrSkip();
                 Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
                 Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
 
@@ -144,7 +158,7 @@ namespace tik4net.integrationtests
             bool committed = false;
             try
             {
-                SafeModeConnection.SafeModeTake();
+                TakeSafeModeOrSkip();
                 Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
                 Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
 

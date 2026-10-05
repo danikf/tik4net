@@ -526,6 +526,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void FirewallMangle_ActionAndMatcherFields_RoundTrip()
         {
+            EnsureMinRouterOsVersion(7, "the realm matcher"); // RouterOS 6 refuses them as "unknown parameter"
             const string comment = "t4n-mangle-fields";
             RemoveByComment("/ip/firewall/mangle", comment);
             var rules = new[]
@@ -613,6 +614,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void FirewallFilter_SharedMatchers_RoundTrip()
         {
+            EnsureMinRouterOsVersion(7, "the tos and realm matchers"); // RouterOS 6 refuses them as "unknown parameter"
             const string comment = "t4n-filter-shared";
             RemoveByComment("/ip/firewall/filter", comment);
             var filter = new FirewallFilter
@@ -666,6 +668,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void FirewallRaw_NegatedMatchers_RoundTrip()
         {
+            EnsureMinRouterOsVersion(7, "the tos matcher"); // RouterOS 6 refuses them as "unknown parameter"
             const string comment = "t4n-raw-negated";
             RemoveByComment("/ip/firewall/raw", comment);
             var raw = new FirewallRaw

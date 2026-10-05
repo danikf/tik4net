@@ -1,4 +1,4 @@
-// DnsForwarderListFieldsTest.cs — a list-valued field must be writable, not only readable.
+﻿// DnsForwarderListFieldsTest.cs — a list-valued field must be writable, not only readable.
 //
 // /ip/dns/forwarders carries two of the list shapes on one row:
 //   dns-servers  a list of ADDRESSES — on the wire a message array whose elements are `addr` compounds.
@@ -28,6 +28,7 @@ namespace tik4net.integrationtests.Ip.Dns
         [TestInitialize]
         public void CreateTestForwarder()
         {
+            EnsureCommandAvailable("/ip/dns/forwarders"); // RouterOS 7 only
             using (var api = OpenSideApi())
             {
                 RemoveTestForwarder(api);
@@ -42,7 +43,10 @@ namespace tik4net.integrationtests.Ip.Dns
         public void DeleteTestForwarder()
         {
             using (var api = OpenSideApi())
-                RemoveTestForwarder(api);
+            {
+                try { RemoveTestForwarder(api); }
+                catch (TikNoSuchCommandException) { /* no such menu on this router: nothing was created */ }
+            }
         }
 
         private static void RemoveTestForwarder(ITikConnection conn)
