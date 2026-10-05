@@ -70,6 +70,12 @@ Builtin commands `0xFE0000–0xFE0016` are **system-level** (`0xFE0001`=cmdGetPo
 §10 establishes from the webfig source — a large subset of them double as the generic CRUD verbs
 (getall, get-one, set, add, remove, …), not a separate "system-only" range.
 
+`0xFE0003` is a second "not implemented" (webfig `getErrorDescription`). On `add`, `remove` or `move` either code
+means the menu has no such verb — RouterOS 6's single-item `/interface/ovpn-server/server` answers `add` with
+`0xFE0003` — and the connection raises `TikNoSuchCommandException`, as the binary API's *no such command* does. On
+a read it is not translated: there it means the client sent the wrong command for the window kind
+(`WinboxNativeConnection.TranslateM2Error`).
+
 ---
 
 ## 10. Native CRUD command catalog (from webfig `master.js`)

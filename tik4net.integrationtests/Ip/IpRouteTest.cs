@@ -74,6 +74,9 @@ namespace tik4net.integrationtests
                 Connection.CreateCommandAndParameters("/ip/route/set", ".id", route.Id, "routing-mark", first).ExecuteNonQuery();
 
             var read = Connection.LoadById<IpRoute>(route.Id);
+            if (v6 && NativeListOmitsRouteDetail())
+                Assert.Inconclusive("WinBox native reads RouterOS 6 routes from the list, which sends no routing-mark "
+                                    + "(Docs/findings-routeros-6.md, problem 1b)");
             Assert.AreEqual(first, read.RoutingTable.Value, "read");
 
             read.RoutingTable = second;
@@ -118,17 +121,33 @@ namespace tik4net.integrationtests
                     "the transport under test listed different /ip/route destinations than the binary API — "
                     + "an IPv6 destination here means the read is not filtered to the IPv4 family");
 
+                // RouterOS 6's native route list sends no scope or target-scope (findings-routeros-6.md, problem 1b).
+                bool scopesAbsent = GetMikrotikVersion().Major < 7 && NativeListOmitsRouteDetail();
                 foreach (var api in viaApi)
                 {
                     var mine = viaTransport.FirstOrDefault(r => r.Id == api.Id);
                     if (mine == null) continue;
                     Assert.AreEqual(api.Distance, mine.Distance, "distance on " + api.DstAddress);
-                    Assert.AreEqual(api.Scope, mine.Scope, "scope on " + api.DstAddress);
-                    Assert.AreEqual(api.TargetScope, mine.TargetScope, "target-scope on " + api.DstAddress);
+                    if (!scopesAbsent)
+                    {
+                        Assert.AreEqual(api.Scope, mine.Scope, "scope on " + api.DstAddress);
+                        Assert.AreEqual(api.TargetScope, mine.TargetScope, "target-scope on " + api.DstAddress);
+                    }
                     Assert.AreEqual(api.Gateway, mine.Gateway, "gateway on " + api.DstAddress);
                     Assert.AreEqual(api.Active, mine.Active, "active on " + api.DstAddress);
                 }
             }
+        }
+
+        /// <summary>
+        /// WinBox native reads a route from the list (<c>getall</c>), and on RouterOS 6 that list leaves out
+        /// <c>scope</c>, <c>target-scope</c>, <c>routing-mark</c> and <c>vrf-interface</c>; they are left absent by
+        /// decision rather than fetched row by row.
+        /// </summary>
+        private bool NativeListOmitsRouteDetail()
+        {
+            var t = ResolveConnectionType();
+            return t == TikConnectionType.WinboxNative || t == TikConnectionType.WinboxNativeMac;
         }
     }
 }

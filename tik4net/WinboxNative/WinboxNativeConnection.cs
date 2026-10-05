@@ -1583,11 +1583,20 @@ namespace tik4net.WinboxNative
                 || t.Contains("does not exist") || t.Contains("doesn't exist"))
                 return new TikNoSuchItemException(cmd, trap);
 
+            // 'Not implemented' on a verb that creates, removes or reorders rows is the menu lacking that verb — a
+            // single-item menu answering 'add' (RouterOS 6's /interface/ovpn-server/server) — which the API reports as
+            // "no such command". Never on a read: there it means we sent the wrong command for the window kind.
+            if ((ex.Code == WinboxM2Protocol.Error.NotImplemented || ex.Code == WinboxM2Protocol.Error.NotImplemented2)
+                && IsRowSetVerb(TikPath.Verb(commandText)))
+                return new TikNoSuchCommandException(cmd, trap);
+
             // A non-zero M2 status with code + error text is a genuine router-reported error (a trap),
             // not a protocol-shape violation. Surface it as TikCommandTrapException to match the
             // generic-error fallback of the API/CLI/REST transports.
             return new TikCommandTrapException(cmd, trap);
         }
+
+        private static bool IsRowSetVerb(string verb) => verb == "add" || verb == "remove" || verb == "move";
 
         /// <summary>
         /// Awaited form of <see cref="EncodeNameValueFields"/>: the same encoding, with the name→id lookups a

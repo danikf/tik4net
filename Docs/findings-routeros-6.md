@@ -256,7 +256,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
        API prints `vrf-interface=ether1`). Reading them would cost one extra request per row (the window allows
        10000 rows; the lab router answers ~25–36 requests a second), so they are not read. The library has the
        `get-one` op (`WinboxNativeM2Operations.GetOne`); a later change would re-read the rows that lack a
-       requested field.
+       requested field. What it costs a caller: `IpRoute.RoutingTable` reads absent over native on 6.x, so a route's
+       routing mark cannot be read there (`IpRouteTest` is Inconclusive on it).
      - `/system/logging/action` `syslog-time-format`: left unmapped on purpose (see the resolver's
        `/system/logging/action` entry).
      - `/ip/neighbor` `system-caps`, `system-caps-enabled`: 6.x sends `0x11`/`0x12`, the 7.x keys, but only
@@ -336,8 +337,13 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      windowed print that names no row (problem 8, settled), and MacTelnet a run of 30 s timeouts (problem 7,
      settled).
    - Not a finding: the audit's "refusing to CLEAR the field" lines appear against 7.24.4 too.
-   - Still not run: the full suite — CHR2's missing topology will fail tests for reasons that are not defects, so
-     its failures need sorting before any counts as a 6.x gap.
+   - **The full suite, 2026-10-05**, with CHR2 given CHR's topology (the `chr-test-router-init` skill, *CHR2
+     topology*): 488 tests a leg, every transport but REST. No failure is a library defect on 6.x and none is
+     topology. What failed was RouterOS 7 assumed by the test — Safe Mode over the API, `/ip/dns/forwarders`, the
+     firewall `tos`/`realm` matchers, bridge MLAG, the mDNS repeater, `lo`, the lowercase `radius-mac-format`s, the
+     package name, the 6.x date spelling, OSPF neighbour `set` — and now skips or reads either version. Over WinBox
+     native, the route fields of problem 1b; and a single-item menu's `add` refusal, which native now reports as
+     *no such command* like the API (`winbox-native-m2-protocol.md` §6).
 
    **`RomonRelayTest` with the 6.49.13 target: 28 of 37 pass (2026-09-25).** The relay itself works over all three agent
    transports. The rest:

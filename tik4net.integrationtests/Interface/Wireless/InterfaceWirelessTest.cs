@@ -33,7 +33,8 @@ namespace tik4net.integrationtests
                     (item) => { lock (result) result.Add(item); },
                     (ex) => { failed = true; }
                 );
-                WaitUntil(() => { lock (result) { if (result.Count > 0) return true; } return failed; }, TimeSpan.FromSeconds(1));
+                // Returns as soon as a row arrives; RouterOS 6 over a WinBox terminal takes longer than a second.
+                WaitUntil(() => { lock (result) { if (result.Count > 0) return true; } return failed; }, TimeSpan.FromSeconds(10));
                 cmd.CancelAndJoin();
 
                 Assert.IsFalse(failed);
