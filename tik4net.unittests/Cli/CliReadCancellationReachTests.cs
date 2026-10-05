@@ -30,6 +30,7 @@ namespace tik4net.unittests.Cli
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class CliReadCancellationReachTests
     {
         /// <summary>

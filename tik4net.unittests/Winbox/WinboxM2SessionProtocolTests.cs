@@ -17,6 +17,7 @@ namespace tik4net.unittests.Winbox
     /// </para>
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class WinboxM2SessionProtocolTests
     {
         private const string Host = "127.0.0.1";

@@ -20,6 +20,7 @@ namespace tik4net.unittests.Api
     /// still work afterwards".
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class ApiAsyncCommandTests
     {
         private const string TestUser = "admin";

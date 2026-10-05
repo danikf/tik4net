@@ -23,6 +23,7 @@ using tik4net.unittests.Api;
 namespace tik4net.unittests
 {
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class EmptyResponseScalarTests
     {
         private const string TestUser = "admin";

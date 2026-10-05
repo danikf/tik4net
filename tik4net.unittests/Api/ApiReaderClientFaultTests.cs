@@ -19,6 +19,7 @@ namespace tik4net.unittests.Api
     /// an <c>OnReadRow</c> handler, which runs exactly where the failed assembly load did.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class ApiReaderClientFaultTests
     {
         private static Task AnswerLogin(FakeRouterServer server) => Task.Run(() =>

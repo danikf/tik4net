@@ -19,6 +19,7 @@ namespace tik4net.unittests.Api
     /// a caller passing it as a command parameter produces <c>=.tag=N</c>.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class ApiCallerSuppliedTagTests
     {
         private const string TestUser = "admin";

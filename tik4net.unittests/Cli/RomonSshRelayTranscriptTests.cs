@@ -19,6 +19,7 @@ namespace tik4net.unittests.Cli
     /// means what, and what the client must never send.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class RomonSshRelayTranscriptTests
     {
         private const string Target = "AA:BB:CC:DD:EE:FF";

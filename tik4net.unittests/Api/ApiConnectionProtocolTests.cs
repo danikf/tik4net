@@ -12,6 +12,7 @@ namespace tik4net.unittests.Api
     // so these run deterministically, router-free, in CI — unlike tik4net.integrationtests, which
     // needs a live device.
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class ApiConnectionProtocolTests
     {
         private const string TestUser = "admin";

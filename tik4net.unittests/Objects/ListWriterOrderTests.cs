@@ -21,6 +21,7 @@ namespace tik4net.unittests.Objects
     /// ("cannot move/remove/change builtin"), measured on 7.24.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class ListWriterOrderTests
     {
         private static FirewallMangle Rule(string comment, string chain = "prerouting") => new FirewallMangle

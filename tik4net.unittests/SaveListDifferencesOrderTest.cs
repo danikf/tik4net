@@ -27,6 +27,7 @@ namespace tik4net.unittests
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class SaveListDifferencesOrderTest
     {
         private static FirewallMangle Rule(string comment) => new FirewallMangle

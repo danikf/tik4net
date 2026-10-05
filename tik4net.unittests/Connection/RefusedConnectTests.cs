@@ -18,6 +18,7 @@ namespace tik4net.unittests.Connection
     /// is sent the wrong way.
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class RefusedConnectTests
     {
         private const string TargetId = "AA:BB:CC:DD:EE:FF";

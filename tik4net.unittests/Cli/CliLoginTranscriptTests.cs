@@ -17,6 +17,7 @@ namespace tik4net.unittests.Cli
     /// green" was never evidence that any of them matched.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class CliLoginTranscriptTests
     {
         private const byte CtrlC = 0x03;

@@ -20,6 +20,7 @@ namespace tik4net.unittests
     /// </para>
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class MergeShaperScenarioTest
     {
         private const string ChainUp = "prerouting";

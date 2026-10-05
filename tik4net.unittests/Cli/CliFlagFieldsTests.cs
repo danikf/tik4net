@@ -23,6 +23,7 @@ namespace tik4net.unittests.Cli
     /// to: see <see cref="TikSpecialProperties.CliFlags"/> and Docs/findings-cli.md.
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class CliFlagFieldsTests
     {
         // The measured refusal of a proplist naming a field the menu does not have (7.17, 7.19.6, 7.24.4).

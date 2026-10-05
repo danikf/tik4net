@@ -28,6 +28,7 @@ namespace tik4net.unittests.Api
     /// </para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class ApiOpenPathTests
     {
         private const string TestUser = "admin";
