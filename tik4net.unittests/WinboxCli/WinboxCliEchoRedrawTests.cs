@@ -15,6 +15,7 @@ namespace tik4net.unittests.WinboxCli
     /// line by the rest of the typed text, while the prompt that ends a command starts a line of its own.
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // the client reads a fake channel under a receive timeout
     public class WinboxCliEchoRedrawTests
     {
         private const string Esc = "\u001b";

@@ -20,6 +20,7 @@ using tik4net.Winbox;
 namespace tik4net.unittests.Winbox
 {
     [TestClass]
+    [DoNotParallelize]   // the client reads a fake channel under a receive timeout
     public class WinboxAuditExposedDecodeTests
     {
         private static readonly int[] Handler = { 90, 1 };

@@ -12,6 +12,7 @@ namespace tik4net.unittests.Winbox
     /// (RouterOS 6.49.13 <c>master-min.js</c>); the default command on such a window is refused with 0xFE0003.
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // the client reads a fake channel under a receive timeout
     public class WinboxSingletonCommandTests
     {
         // RouterOS 6.49.13's IP Accounting menu, trimmed: one handler, [46], hosting the settings singleton with

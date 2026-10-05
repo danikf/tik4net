@@ -15,6 +15,7 @@ namespace tik4net.unittests.Winbox
     /// makes the ordering deterministic by counting the reply's bytes inside <c>Send</c> itself.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // the client reads a fake channel under a receive timeout
     public class WinboxM2MultiplexerByteCountTests
     {
         [TestMethod]

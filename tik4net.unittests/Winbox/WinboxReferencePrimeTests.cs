@@ -23,6 +23,7 @@ namespace tik4net.unittests.Winbox
     /// spoke at all.</para>
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // the client reads a fake channel under a receive timeout
     public class WinboxReferencePrimeTests
     {
         private const int RefKey = 0x10005;
