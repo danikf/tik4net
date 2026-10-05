@@ -401,6 +401,14 @@ the first router 2026-10-05), so a full-suite run on CHR2 fails only on RouterOS
 | Mangle filler, 1676 rules | 49 `prerouting`, 47 `postrouting`, 1580 in an unused chain `lab-fill`; each `action=passthrough src-address=203.0.113.<n>`, `comment=lab-fill <n>` | the windowed-read tests need a table spanning many windows (`CliFilteredPagedReadTest` wants over 100 rows outside `prerouting`), and the MAC large-read cases its size |
 | Queue-tree filler, 681 rows | `lab-fill-root` under `global`, 680 children `lab-fill-NNN` under it, no limits | the large-table reads, at the first router's size |
 
+Both fillers go in with one `mikrotik_call` over `Api` (`/execute` runs it on the router in under a minute; then
+check `count-only` reads 1676 and 681):
+
+```
+command: /execute
+parameters: ["=script=:for i from=1 to=1676 do={:local c \"lab-fill\"; :if ($i<=49) do={:set c \"prerouting\"} else={:if ($i<=96) do={:set c \"postrouting\"}}; /ip firewall mangle add chain=$c action=passthrough src-address=(\"203.0.113.\" . ($i % 256)) comment=(\"lab-fill \" . $i)}; /queue tree add name=lab-fill-root parent=global; :for i from=1 to=680 do={:local n (\"00\" . $i); /queue tree add name=(\"lab-fill-\" . [:pick $n ([:len $n]-3) [:len $n]]) parent=lab-fill-root}"]
+```
+
 The first router's mangle and queue-tree tables are real customer data — never copy them; the filler only
 matches their size and chain split. The `lab-fill` names keep the orphan sweep (`RunLease`'s prefixes) away from
 them. Do not mirror netwatch, nor a disabled filter rule commented `tst`: both are test residue on the first
