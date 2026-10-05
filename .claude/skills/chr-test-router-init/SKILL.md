@@ -386,6 +386,26 @@ Provision it with steps 0–6 like the first, with these differences:
   with `CliFlagFieldsTest` (flags over every transport against the binary API). A re-provisioned CHR2 with a new
   address or MAC needs only its `chr2.*` entries updated.
 
+### CHR2 topology — what the suite reads from the first router
+
+Steps 0–6 give CHR2 the first router's packages and services, not the state the suite's tests find there. That
+state was never provisioned on the first router either; it accumulated. Mirror it like this (measured against
+the first router 2026-10-05), so a full-suite run on CHR2 fails only on RouterOS 6 gaps:
+
+| What | On CHR2 | Why the suite needs it |
+|---|---|---|
+| A static address on `ether2` | the first router's `ether2` subnet, its own host number (ping it from the first router first: nothing may answer) | tests on `testSecondInterface` |
+| A second DHCP client | `interface=ether2 add-default-route=yes default-route-distance=2` | the DHCP-client reads see two rows |
+| One filter and one NAT rule | `chain=forward action=accept`, `chain=srcnat action=accept` | connection tracking `enabled=auto` stays off on 6.x until a rule exists — `FirewallConnectionIcmpTypeTest` then sees no connection |
+| A text file with `;` and `=` | `/execute script="/file print file=lab-fill"`, then `/file set lab-fill.txt contents="key=value;other=1"` | `FileTest`; the first router's are the user-manager files, which 6.x has no package for |
+| Mangle filler, 1676 rules | 49 `prerouting`, 47 `postrouting`, 1580 in an unused chain `lab-fill`; each `action=passthrough src-address=203.0.113.<n>`, `comment=lab-fill <n>` | the windowed-read tests need a table spanning many windows (`CliFilteredPagedReadTest` wants over 100 rows outside `prerouting`), and the MAC large-read cases its size |
+| Queue-tree filler, 681 rows | `lab-fill-root` under `global`, 680 children `lab-fill-NNN` under it, no limits | the large-table reads, at the first router's size |
+
+The first router's mangle and queue-tree tables are real customer data — never copy them; the filler only
+matches their size and chain split. The `lab-fill` names keep the orphan sweep (`RunLease`'s prefixes) away from
+them. Do not mirror netwatch, nor a disabled filter rule commented `tst`: both are test residue on the first
+router, not topology.
+
 ---
 
 ## Final checklist

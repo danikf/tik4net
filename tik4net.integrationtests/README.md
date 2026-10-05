@@ -56,8 +56,9 @@ image: a CHR refuses any package older than its `factory-software` version (a 7.
 version is 7.1` and boots the old version again). A test that should also hold on the older version is run against it
 with its router profile — `run-integration-tests.ps1 -Router chr2`, which selects the `chr2.*` entries of
 `App.config` (`LabConfig.cs`) without editing the file — and `CliFlagFieldsTest` (flags over every transport
-against the binary API) is the one that matters. The full suite is not run there: CHR2 has CHR's two ports but none of
-its provisioned topology, so topology tests fail for reasons that are not defects. A REST leg against it runs, and
+against the binary API) is the one that matters. CHR2 mirrors the state the suite reads from CHR — an `ether2` address, a
+second DHCP client, firewall rules, a text file and filler tables of CHR's size — as listed in the `chr-test-router-init`
+skill, *CHR2 topology*; without it, tests fail there for reasons that are not defects. A REST leg against it runs, and
 every test in it is Inconclusive: `TestBase` reads the router's "no REST API" refusal once and skips on it.
 
 **CHR3, a second RouterOS 7.** 7.21.5 is the oldest 7.x the download page offers, so it sits after 7.20, where the CLI
