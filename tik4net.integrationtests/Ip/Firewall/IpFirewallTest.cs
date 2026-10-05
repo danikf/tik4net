@@ -329,9 +329,9 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// connection-rate and connection-bytes are low-high ranges and connection-limit is limit,netmask, spelled out
-        /// as the API prints them: the CLI abbreviates the rate (<c>0-100k</c>) and WinBox native keeps the two ends
-        /// on two keys. Any rule carrying one of them failed a FirewallFilter load while the properties were numbers.
+        /// connection-rate and connection-bytes are low-high ranges, spelled out as the API prints them: the CLI
+        /// abbreviates the rate (<c>0-100k</c>) and WinBox native keeps the two ends on two keys. A rule carrying one
+        /// of them failed every FirewallFilter load while the properties were numbers.
         /// </summary>
         [TestMethod]
         public void FirewallFilter_ConnectionRanges_RoundTrip()
@@ -345,8 +345,7 @@ namespace tik4net.integrationtests
                 Disabled = true,
                 Comment = comment,
                 Protocol = "tcp",
-                ConnectionRate = "!1500-2000000",
-                ConnectionLimit = "!10,24",
+                ConnectionRate = "1500-2000000",
                 ConnectionBytes = "2000000-0",
             };
             try
@@ -356,6 +355,37 @@ namespace tik4net.integrationtests
 
                 Assert.AreEqual(filter.ConnectionRate, loaded.ConnectionRate, $"connection-rate on {ResolveConnectionType()}");
                 Assert.AreEqual(filter.ConnectionBytes, loaded.ConnectionBytes, $"connection-bytes on {ResolveConnectionType()}");
+            }
+            finally
+            {
+                RemoveFirewallFilterByComment(comment);
+            }
+        }
+
+        /// <summary>
+        /// connection-limit is limit,netmask (<c>!10,24</c>), as the API prints it; it failed every FirewallFilter
+        /// load while the property was a number. WinBox native on 4.0 has no M2 key for it (its window splits the
+        /// value into a number and a netmask; resolved on 5.0) and is Inconclusive on that refusal.
+        /// </summary>
+        [TestMethod]
+        public void FirewallFilter_ConnectionLimit_RoundTrip()
+        {
+            const string comment = "t4n-connection-limit";
+            RemoveFirewallFilterByComment(comment);
+            var filter = new FirewallFilter
+            {
+                Chain = "forward",
+                Action = FirewallFilter.ActionType.Accept,
+                Disabled = true,
+                Comment = comment,
+                Protocol = "tcp",
+                ConnectionLimit = "!10,24",
+            };
+            try
+            {
+                SkipIfWinboxNativeCannot("connection-limit", () => SaveTracked(filter));
+                var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
+
                 Assert.AreEqual(filter.ConnectionLimit, loaded.ConnectionLimit, $"connection-limit on {ResolveConnectionType()}");
             }
             finally
