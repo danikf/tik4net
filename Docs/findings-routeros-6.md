@@ -302,7 +302,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    version picker offers — so it adds a second 7.x version but sits after 7.20: `CliFlagFieldsTest` is 7/7 there over
    every transport, REST included, through the same path as on CHR.
 
-4. **Coverage beyond the smoke subset.** Measured 2026-09-23/24 against 6.49.13 (the same audit against
+4. **Settled: coverage beyond the smoke subset.** Measured 2026-09-23/24 against 6.49.13 (the same audit against
    7.24.4 is clean on all ten transports):
 
    | Audit transport | OK | MISMATCH | VALUE-DIFF |
@@ -345,13 +345,15 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      native, the route fields of problem 1b; and a single-item menu's `add` refusal, which native now reports as
      *no such command* like the API (`winbox-native-m2-protocol.md` §6).
 
-   **`RomonRelayTest` with the 6.49.13 target: 28 of 37 pass (2026-09-25).** The relay itself works over all three agent
-   transports. The rest:
-   - 9 Safe Mode tests: they check the target's state over its own API with `/safe-mode`, which is `no such
-     command` on 6.x. Unknown: whether Safe Mode through the relay works there and only the check does not.
-   - 1 large read over MAC-Telnet: the id-list flag query on the 450-row table,
-     `:put [/ip firewall address-list find (dynamic=yes)]`, was refused as incomplete after four MAC backlogs
-     on 2026-09-24 and passed on 2026-09-25; the same read passes over Telnet and SSH.
+   **`RomonRelayTest` with the 6.49.13 target: 37 of 37 pass (2026-10-06)**, over all three agent transports.
+   - **Safe Mode through the relay works on 6.x.** The target has no `/safe-mode` menu, so where the hold sits is
+     read only on the agent (7.x: not held there); on the target it is shown by the effect — the change survives
+     a release, and an unroll or a close discards it. With no `/safe-mode/unroll` on the target the unroll ends the
+     relayed session (`CliConnectionBase.SafeModeUnroll`), and the target's rollback can land after the next
+     read.
+   - The large read over MAC-Telnet, the id-list flag query on the 450-row table
+     (`:put [/ip firewall address-list find (dynamic=yes)]`), passes; it was refused once as incomplete after four
+     MAC backlogs (2026-09-24), the same symptom as problem 7.
    - Not a gap of the target's CLI: the relay's `waiting for head` status line, spliced into about one large read in
      fifteen, is removed by the relaying transports ([findings-romon.md](findings-romon.md) §4).
 

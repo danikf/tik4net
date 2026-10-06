@@ -740,28 +740,37 @@ namespace tik4net.integrationtests
         // /tool romon ssh. Whether the key reaches the target or is taken by the agent's own console is exactly
         // what cannot be seen from the relay, so each test reads /safe-mode on both routers over their own API.
 
-        // The /safe-mode menu is RouterOS 7.18+; CHR2 runs RouterOS 6 on purpose. Its refusal of the menu means the
-        // one thing these tests measure — which router holds the hold — has no reader on that target, so the test
-        // is Inconclusive on the router's own "no such command", not on a version number.
-        private static bool SafeModeHeldOn(ITikConnection direct)
+        // The /safe-mode menu is RouterOS 7.18+; CHR2 runs RouterOS 6 on purpose. On a router without it the hold has
+        // no reader (null), so the tests assert where it is held only where it can be read, and the effect on the
+        // target always: an unroll or a close that discards the change on the target is the hold on the target.
+        private static bool? SafeModeHeldOn(ITikConnection direct)
         {
             try
             {
                 return direct.CreateCommand("/safe-mode/print").ExecuteList().Single()
                     .GetResponseField("enabled") == "true";
             }
-            catch (TikNoSuchCommandException ex)
+            catch (TikNoSuchCommandException)
             {
-                Assert.Inconclusive("This router has no /safe-mode menu to read the hold from (RouterOS 7.18+): "
-                                    + ex.Message);
-                throw; // unreachable: Inconclusive throws
+                return null;
             }
+        }
+
+        // The rollback of a closed session lands on the target some time after the close: the rows still there
+        // after up to 30 s.
+        private static int RowsAfterRollback(ITikConnection direct, string comment)
+        {
+            int remaining;
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while ((remaining = OurRows(direct, comment).Length) > 0 && DateTime.UtcNow < deadline)
+                System.Threading.Thread.Sleep(1000);
+            return remaining;
         }
 
         // A hold left by an interrupted run blocks the next take; a release from any session clears it.
         private static void ReleaseStaleSafeMode(ITikConnection direct)
         {
-            if (SafeModeHeldOn(direct))
+            if (SafeModeHeldOn(direct) == true)
                 direct.CreateCommand("/safe-mode/release").ExecuteNonQuery();
         }
 
@@ -791,12 +800,12 @@ namespace tik4net.integrationtests
                         var safeMode = (ITikSafeModeConnection)relay;
                         safeMode.SafeModeTake();
                         Assert.IsTrue(safeMode.SafeModeGet());
-                        Assert.IsTrue(SafeModeHeldOn(direct), "Safe Mode taken through the relay is not held on the target");
-                        Assert.IsFalse(SafeModeHeldOn(agent), "Safe Mode taken through the relay is held on the AGENT");
+                        Assert.AreNotEqual(false, SafeModeHeldOn(direct), "Safe Mode taken through the relay is not held on the target");
+                        Assert.AreNotEqual(true, SafeModeHeldOn(agent), "Safe Mode taken through the relay is held on the AGENT");
 
                         relay.Save(new FirewallAddressList { List = TestList, Address = address, Comment = comment });
                         safeMode.SafeModeRelease();
-                        Assert.IsFalse(SafeModeHeldOn(direct), "the release through the relay did not reach the target");
+                        Assert.AreNotEqual(true, SafeModeHeldOn(direct), "the release through the relay did not reach the target");
                         Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                             "after the release the relay answered from the agent");
                     }
@@ -818,6 +827,7 @@ namespace tik4net.integrationtests
         [DataRow(TikConnectionType.Telnet, "192.0.2.67")]
         [DataRow(TikConnectionType.Ssh, "192.0.2.68")]
         [DataRow(TikConnectionType.MacTelnet, "192.0.2.69")]
+        [Timeout(120000)]
         public void Relay_SafeMode_UnrollDiscardsOnTheTarget(TikConnectionType agentTransport, string address)
         {
             RequireTargetHost();
@@ -840,10 +850,20 @@ namespace tik4net.integrationtests
 
                         safeMode.SafeModeUnroll();
                         Assert.IsFalse(safeMode.SafeModeGet());
-                        Assert.AreEqual(0, OurRows(direct, comment).Length, "the unroll did not discard the change on the target");
-                        Assert.IsFalse(SafeModeHeldOn(direct), "Safe Mode is still held on the target after the unroll");
-                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
-                            "after the unroll the relay answered from the agent");
+                        if (relay.IsOpened)
+                        {
+                            Assert.AreEqual(0, OurRows(direct, comment).Length, "the unroll did not discard the change on the target");
+                            Assert.AreNotEqual(true, SafeModeHeldOn(direct), "Safe Mode is still held on the target after the unroll");
+                            Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
+                                "after the unroll the relay answered from the agent");
+                        }
+                        else
+                        {
+                            // A target before 7.18 has no /safe-mode/unroll: the unroll ends the session, and the
+                            // target rolls back as on any close — not always before the next read.
+                            Assert.AreEqual(null, SafeModeHeldOn(direct), "the relay closed on a target that has /safe-mode/unroll");
+                            Assert.AreEqual(0, RowsAfterRollback(direct, comment), "the unroll did not discard the change on the target");
+                        }
                     }
                 }
                 finally
@@ -884,11 +904,7 @@ namespace tik4net.integrationtests
                         Assert.AreEqual(1, OurRows(direct, comment).Length, "the change must be on the target before the close");
                     }
 
-                    int remaining = 1;
-                    var deadline = DateTime.UtcNow.AddSeconds(30);
-                    while ((remaining = OurRows(direct, comment).Length) > 0 && DateTime.UtcNow < deadline)
-                        System.Threading.Thread.Sleep(1000);
-                    Assert.AreEqual(0, remaining, "closing the relay with Safe Mode held did not roll back the change on the target");
+                    Assert.AreEqual(0, RowsAfterRollback(direct, comment), "closing the relay with Safe Mode held did not roll back the change on the target");
                 }
                 finally
                 {
