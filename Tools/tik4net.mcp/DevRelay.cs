@@ -41,13 +41,20 @@ internal static class DevRelay
     private static string? _initializeLine;
     private static string? _initializedLine;
     private static int _replays;
-    private static int _stagings;   // one directory per child: a copy must never land on a running child's files
+    private static int _stagings;   // the fallback's directory per child: a copy must never land on a running child's files
+
+    // Children run from a few fixed slot directories, not a new path per build: Windows Firewall keys its rules on
+    // the program's path, so every new path is a new prompt, and a dismissed prompt is a Block rule — which drops
+    // MNDP's inbound broadcast without a word (mikrotik_discover finds nothing, MacTelnet by IP "cannot determine
+    // MAC"). A slot is taken by holding its lock file open for the child's lifetime; the OS lets go if the relay dies.
+    private const int SlotCount = 8;
     private static readonly HashSet<string> Pending = new HashSet<string>(StringComparer.Ordinal);
 
     private sealed class Child
     {
         public Process Process = null!;
         public string StageDir = "";
+        public FileStream? SlotLock;
         public DateTime BuiltAt;
         public TaskCompletionSource<bool>? ReplayAnswered;
         public string? ReplayId;
@@ -145,8 +152,13 @@ internal static class DevRelay
 
     private static Child Start(DateTime built)
     {
-        string stage = Path.Combine(_stageRoot,
-            $"{DateTime.Now:yyyyMMdd-HHmmss}-{Environment.ProcessId}-child{Interlocked.Increment(ref _stagings)}");
+        string? stage = TakeSlot(out FileStream? slotLock);
+        if (stage == null)
+        {
+            stage = Path.Combine(_stageRoot,
+                $"{DateTime.Now:yyyyMMdd-HHmmss}-{Environment.ProcessId}-child{Interlocked.Increment(ref _stagings)}");
+            Note($"every slot is in use; staging to {stage}, a path the firewall has not seen");
+        }
         CopyDirectory(_sourceDir, stage);
 
         string exe = Path.Combine(stage, "tik4net.mcp.exe");
@@ -159,7 +171,7 @@ internal static class DevRelay
         psi.StandardOutputEncoding = new UTF8Encoding(false);
         psi.StandardInputEncoding = new UTF8Encoding(false);
 
-        var child = new Child { StageDir = stage, BuiltAt = built };
+        var child = new Child { StageDir = stage, SlotLock = slotLock, BuiltAt = built };
         child.Process = Process.Start(psi) ?? throw new InvalidOperationException("the server process did not start");
         _ = Task.Run(() => PumpAsync(child));
         return child;
@@ -189,7 +201,44 @@ internal static class DevRelay
         child.Retired = true;
         try { child.Process.StandardInput.Close(); } catch { }
         try { if (!child.Process.WaitForExit(2000)) child.Process.Kill(entireProcessTree: true); } catch { }
-        try { Directory.Delete(child.StageDir, recursive: true); } catch { }   // best effort; pruned later anyway
+        if (child.SlotLock != null)
+            child.SlotLock.Dispose();   // the slot's directory stays: its path is what the firewall rule names
+        else
+            try { Directory.Delete(child.StageDir, recursive: true); } catch { }   // best effort; pruned later anyway
+    }
+
+    // The first free slot, emptied for the copy, with its lock held; null when all are taken. A slot whose files
+    // cannot be deleted still has a process running from it (a child outliving a relay that died) and is skipped.
+    private static string? TakeSlot(out FileStream? slotLock)
+    {
+        Directory.CreateDirectory(_stageRoot);
+        for (int i = 0; i < SlotCount; i++)
+        {
+            FileStream lockFile;
+            try
+            {
+                lockFile = new FileStream(Path.Combine(_stageRoot, $"slot-{i}.lock"), FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException) { continue; }
+
+            string dir = Path.Combine(_stageRoot, $"slot-{i}");
+            try
+            {
+                if (Directory.Exists(dir))
+                    Directory.Delete(dir, recursive: true);
+                Directory.CreateDirectory(dir);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                lockFile.Dispose();
+                continue;
+            }
+            slotLock = lockFile;
+            return dir;
+        }
+        slotLock = null;
+        return null;
     }
 
     // ── plumbing ─────────────────────────────────────────────────────────────

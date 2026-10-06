@@ -62,10 +62,11 @@ New-Item -ItemType Directory -Force -Path $stageRoot | Out-Null
 
 # ── Prune old stagings ─────────────────────────────────────────────────────────
 # A directory whose tik4net.mcp.dll cannot be opened exclusively still has a server running out of
-# it; deleting it piecemeal would leave that server without the assemblies it has not loaded yet.
+# it; deleting it piecemeal would leave that server without the assemblies it has not loaded yet. The relay's
+# slot-N directories are kept: their paths are what the firewall rules name (DevRelay.cs).
 $cutoff = (Get-Date).AddDays(-$KeepDays)
 foreach ($old in @(Get-ChildItem -Path $stageRoot -Directory -ErrorAction SilentlyContinue |
-                   Where-Object { $_.LastWriteTime -lt $cutoff })) {
+                   Where-Object { $_.LastWriteTime -lt $cutoff -and $_.Name -notlike 'slot-*' })) {
     $probe = Join-Path $old.FullName 'tik4net.mcp.dll'
     if (Test-Path $probe) {
         try {

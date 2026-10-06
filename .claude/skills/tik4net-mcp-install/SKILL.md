@@ -35,6 +35,10 @@ stages the new build and swaps it in on the next call, after replaying the clien
 to reconnect, uninstall or purge, and no need to stop the servers other sessions are using. Only a change to
 `DevRelay.cs` itself needs a reconnect — the relay runs from the copy staged when the client connected.
 
+**`mikrotik_discover` empty, or MacTelnet by IP "cannot determine MAC"?** The server runs from
+`%TEMP%\tik4net.mcp-dev\slot-N`, and a dismissed Windows Firewall prompt for that path is a Block rule on the
+inbound MNDP broadcast. The README's *dev launcher* section has the one-time allow rule for the eight slots.
+
 The launcher **does not build** (a client cannot report a build failure — it would just get a server
 that never starts), so it runs whatever the last build produced. It logs the staged build's
 timestamp and path to stderr — but stderr goes to the client's log, so the answer itself is the better

@@ -357,11 +357,11 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    - Not a gap of the target's CLI: the relay's `waiting for head` status line, spliced into about one large read in
      fifteen, is removed by the relaying transports ([findings-romon.md](findings-romon.md) §4).
 
-5. **Two MCP-side gaps seen while measuring.** `mikrotik_call` over `MacTelnet` failed against both routers,
-   6.x and 7.x alike, while the suite's own MAC-Telnet legs passed — so the server, not the router; it was a
-   staged copy older than the library, so re-check after a reconnect first. And `mikrotik_call` over `ApiSsl`
-   rejects the lab's self-signed certificate on both routers, with no option to accept it the way the suite's
-   `restAllowInvalidCert` does.
+5. **Settled: the MCP server over MAC-Telnet and ApiSsl.** `mikrotik_call` over `MacTelnet`, `WinboxCliMac` and
+   `WinboxNativeMac` reads both routers, 6.49.13 and 7.24, addressed by MAC alone or by IP with `routerMac`
+   (2026-10-06); `ApiSsl` reads both with `allowInvalidCertificate`. Given an IP and no MAC, a MAC-layer call finds
+   the router through MNDP, an inbound broadcast the host firewall can drop per program — the dev launcher runs the
+   server from fixed slot directories so that a firewall rule outlives a rebuild (`Tools/tik4net.mcp/README.md`).
 
 6. **Settled: CLI completion of a shared prefix on 6.x.** `/interface bridge add frame-types=` completes inline to
    `admit-` on both versions; asked again with that prefix, RouterOS 7 lists the three `admit-*` values on the first

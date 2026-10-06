@@ -67,6 +67,17 @@ It stages `Debug` by default (what a plain `dotnet build` produces); override wi
 `-Configuration Release` or `$env:TIK4NET_MCP_CONFIGURATION`. Staged copies older than two days are
 deleted on the next launch, skipping any that a server is still using.
 
+**The server runs from one of eight fixed directories**, `%TEMP%\tik4net.mcp-dev\slot-0` … `slot-7`, the first
+one no other session is using. Windows Firewall keys its rules on the program's path, so the "allow access"
+prompt comes once per slot, not once per build — and a prompt that is dismissed becomes a **Block** rule, which
+drops the inbound broadcast `mikrotik_discover` listens for, and with it a MAC-layer call given an IP address
+instead of a MAC (`cannot determine MAC address`). Calls the router answers are not affected. Allow the slots once
+(elevated):
+
+```powershell
+0..7 | ForEach-Object { New-NetFirewallRule -DisplayName "tik4net.mcp dev slot $_" -Direction Inbound -Action Allow -Protocol UDP -Program "$env:TEMP\tik4net.mcp-dev\slot-$_\tik4net.mcp.exe" }
+```
+
 It is a PowerShell script, so on Linux/macOS use the installed-tool configuration shown above and
 reinstall after each change.
 
