@@ -254,8 +254,9 @@ namespace tik4net.Cli
         /// </summary>
         internal static string? DefaultCatalogCachePath = TikConnectionSetup.DefaultCatalogCachePath;
 
-        // The store for this router's build, found once per open: the build is asked the first time a menu is
-        // described (one command), not at open — a connection that never describes a menu pays nothing.
+        // The store for this router's build, found once per open: the build is asked (one command) before the first
+        // read, menu description or monitor — the first thing whose probes the store can save — not at open, so a
+        // connection that only writes pays nothing.
         private CliSchemaStore? _schemaStore;
         private bool _schemaStoreAsked;
 
@@ -268,22 +269,103 @@ namespace tik4net.Cli
                 return null;
             try
             {
-                string dir = System.IO.Path.GetFullPath(Environment.ExpandEnvironmentVariables(CatalogCachePath!));
-                string? key = CliSchemaStore.KeyFromAnswer(ExecuteCliCommand(CliSchemaStore.KeyCommand));
-                if (key == null)
-                    TikWireTrace.Emit(CliSchemaStore.TraceChannel, TikWireDir.Note, "cache off for this connection: no build key in the answer");
-                _schemaStore = CliSchemaStore.For(dir, key);
+                return AdoptSchemaStore(ExecuteCliCommand(CliSchemaStore.KeyCommand));
             }
-            catch (TikConnectionException)
+            catch (Exception ex) when (IsCacheProblem(ex))
             {
-                throw;   // the connection itself failed: that is the caller's to see, not a cache problem
+                return SchemaStoreOff(ex);
             }
-            catch (Exception ex)
+        }
+
+        private async Task EnsureSchemaStoreAsync(CancellationToken cancellationToken)
+        {
+            if (_schemaStoreAsked)
+                return;
+            _schemaStoreAsked = true;
+            if (string.IsNullOrWhiteSpace(CatalogCachePath))
+                return;
+            try
             {
-                TikWireTrace.Emit(CliSchemaStore.TraceChannel, TikWireDir.Note, "cache off for this connection: " + ex.Message);
-                _schemaStore = null;
+                AdoptSchemaStore(await ExecuteCliCommandAsync(CliSchemaStore.KeyCommand, cancellationToken).ConfigureAwait(false));
             }
+            catch (Exception ex) when (IsCacheProblem(ex))
+            {
+                SchemaStoreOff(ex);
+            }
+        }
+
+        // The connection failing, or the caller cancelling, is not a cache problem: those are the caller's to see.
+        private static bool IsCacheProblem(Exception ex) => !(ex is TikConnectionException) && !(ex is OperationCanceledException);
+
+        private CliSchemaStore? SchemaStoreOff(Exception ex)
+        {
+            TikWireTrace.Emit(CliSchemaStore.TraceChannel, TikWireDir.Note, "cache off for this connection: " + ex.Message);
+            return _schemaStore = null;
+        }
+
+        private CliSchemaStore? AdoptSchemaStore(string? keyAnswer)
+        {
+            string dir = System.IO.Path.GetFullPath(Environment.ExpandEnvironmentVariables(CatalogCachePath!));
+            string? key = CliSchemaStore.KeyFromAnswer(keyAnswer);
+            if (key == null)
+                TikWireTrace.Emit(CliSchemaStore.TraceChannel, TikWireDir.Note, "cache off for this connection: no build key in the answer");
+            _schemaStore = CliSchemaStore.For(dir, key);
+            if (_schemaStore != null)
+                LoadStoredFacts(_schemaStore);
             return _schemaStore;
+        }
+
+        // ── What the store keeps besides the menus ────────────────────────────
+        //
+        // Only what the router's own answer settled: a probe's reply, or a fallback taken after a recognised refusal
+        // whose other form then answered. Never a fact that a timeout or a menu's current rows could have produced —
+        // NoFlagFind (taken on any failure, and on row 0's value), SerializeJson (its "no" is taken on any command
+        // failure), PagingUnavailable from a window that did not report its size. A stored fact can be wrong only if
+        // the reader that learnt it was, which is what the store's FormatVersion bump is for.
+
+        private const string FeatureDsv = "dsv:";   // + the separator probed
+        private const string FeatureAsValueOmitsFlags = "asValueOmitsFlags";
+        private const string FeaturePrintProplist = "printProplist";
+        private const string FeatureConsoleInspect = "consoleInspect";
+
+        private const string FactShowSensitiveRefused = "showSensitiveRefused";
+        private const string FactPrintWithoutAsValue = "printWithoutAsValue";
+        private const string FactFlagFieldExists = "flagFieldExists";
+        private const string FactMonitorWithoutAsValue = "monitorWithoutAsValue";
+        private const string FactTorchWithoutProplist = "torchWithoutProplist";
+        private const string FactPagingUnavailable = "pagingUnavailable";
+        private const string FactWindowPrintsNoId = "windowPrintsNoId";
+
+        private void LoadStoredFacts(CliSchemaStore store)
+        {
+            if (CliFieldSeparator != null && _features.Dsv == null && store.TryGetFeature(FeatureDsv + CliFieldSeparator, out bool dsv))
+            {
+                _features.DsvProbedSeparator = CliFieldSeparator;
+                _features.Dsv = dsv;
+            }
+            if (_features.AsValueOmitsFlags == null && store.TryGetFeature(FeatureAsValueOmitsFlags, out bool omits))
+                _features.AsValueOmitsFlags = omits;
+            if (_features.PrintProplist == null && store.TryGetFeature(FeaturePrintProplist, out bool proplist))
+                _features.PrintProplist = proplist;
+            if (_features.ConsoleInspect == null && store.TryGetFeature(FeatureConsoleInspect, out bool inspect))
+                _features.ConsoleInspect = inspect;
+
+            _menuFacts.ShowSensitiveRefused.UnionWith(store.Facts(FactShowSensitiveRefused));
+            _menuFacts.PrintWithoutAsValue.UnionWith(store.Facts(FactPrintWithoutAsValue));
+            _menuFacts.FlagFieldExists.UnionWith(store.Facts(FactFlagFieldExists));
+            _menuFacts.MonitorWithoutAsValue.UnionWith(store.Facts(FactMonitorWithoutAsValue));
+            _menuFacts.TorchWithoutProplist.UnionWith(store.Facts(FactTorchWithoutProplist));
+            _menuFacts.PagingUnavailable.UnionWith(store.Facts(FactPagingUnavailable));
+            _menuFacts.WindowPrintsNoId.UnionWith(store.Facts(FactWindowPrintsNoId));
+        }
+
+        private void StoreFeature(string name, bool value) => _schemaStore?.PutFeature(name, value);
+
+        // Remembers a fact for the connection and, where the store is on, for the build.
+        private void LearnFact(HashSet<string> set, string storedAs, string member)
+        {
+            set.Add(member);
+            _schemaStore?.PutFact(storedAs, member);
         }
 
         // A live schema whose lists go into the store as they are asked. The value completions are router data and
@@ -361,12 +443,14 @@ namespace tik4net.Cli
                 {
                     var schema = ConsoleInspectSchemaReader.Read(this, p);
                     _features.ConsoleInspect = true;
+                    StoreFeature(FeatureConsoleInspect, true);
                     return schema;
                 }
                 catch (TikNoSuchCommandException ex) when (_features.ConsoleInspect == null
                     && ex.Message.IndexOf("bad command name inspect", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     _features.ConsoleInspect = false;
+                    StoreFeature(FeatureConsoleInspect, false);
                 }
             }
             // No inspect, and no Tab to ask with either: the router cannot be asked, which a caller treats as a
@@ -1209,7 +1293,7 @@ namespace tik4net.Cli
                 var table = await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false);
                 if (table == null)
                     throw;
-                _menuFacts.PrintWithoutAsValue.Add(descriptor.CommandText);
+                LearnFact(_menuFacts.PrintWithoutAsValue, FactPrintWithoutAsValue, descriptor.CommandText);
                 return table;
             }
             catch (TikCommandTrapException ex) when (wantSensitive && SyntaxErrorLine.IsMatch(ex.Message.Trim()))
@@ -1218,7 +1302,7 @@ namespace tik4net.Cli
                 records = await RunPrintQueryAsync(plain, wantJson,
                     (pars, from) => CliCommandBuilder.BuildPrintExpression(plain.CommandText, pars, from),
                     cancellationToken).ConfigureAwait(false);
-                _menuFacts.ShowSensitiveRefused.Add(descriptor.CommandText);
+                LearnFact(_menuFacts.ShowSensitiveRefused, FactShowSensitiveRefused, descriptor.CommandText);
                 descriptor = plain;
             }
 
@@ -1405,6 +1489,7 @@ namespace tik4net.Cli
             if (_features.PrintProplist == null)
             {
                 string output;
+                bool answered = true;
                 try
                 {
                     output = await ExecuteCliCommandAsync(CliCommandBuilder.ProplistSupportProbe, cancellationToken)
@@ -1413,10 +1498,13 @@ namespace tik4net.Cli
                 catch (TikCommandException)
                 {
                     output = string.Empty;
+                    answered = false;   // read as "supported" for this connection, but not a fact about the build
                 }
 
                 _features.PrintProplist = output.IndexOf(CliCommandBuilder.ArgumentRefusal,
                     StringComparison.OrdinalIgnoreCase) < 0;
+                if (answered)
+                    StoreFeature(FeaturePrintProplist, _features.PrintProplist.Value);
                 if (_features.PrintProplist == false)
                     TikWireTrace.Emit("cli.flags", TikWireDir.Note,
                         "this router's 'print' has no 'proplist=' argument (RouterOS 6) — the flags an entity maps "
@@ -1502,7 +1590,7 @@ namespace tik4net.Cli
                         _menuFacts.NoFlagFind.Add(key);
                         continue;
                     }
-                    _menuFacts.FlagFieldExists.Add(key);
+                    LearnFact(_menuFacts.FlagFieldExists, FactFlagFieldExists, key);
                 }
 
                 flagIds[name] = new HashSet<string>(tokens, StringComparer.OrdinalIgnoreCase);
@@ -1591,6 +1679,7 @@ namespace tik4net.Cli
                 if (probe.Count > 0)
                 {
                     _features.AsValueOmitsFlags = !probe[0].Words.ContainsKey("disabled");
+                    StoreFeature(FeatureAsValueOmitsFlags, _features.AsValueOmitsFlags.Value);
                     if (_features.AsValueOmitsFlags == true)
                         TikWireTrace.Emit("cli.flags", TikWireDir.Note,
                             "this router's 'print as-value' carries no flag fields (RouterOS before 7.20) — the flags "
@@ -1684,6 +1773,7 @@ namespace tik4net.Cli
         private async Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(TikCommandDescriptor descriptor,
             string modifier, bool includeFilters, CancellationToken cancellationToken)
         {
+            await EnsureSchemaStoreAsync(cancellationToken).ConfigureAwait(false);
             if (!_menuFacts.MonitorWithoutAsValue.Contains(descriptor.CommandText))
             {
                 string cliText = CliCommandBuilder.BuildMonitorSnapshot(
@@ -1719,7 +1809,7 @@ namespace tik4net.Cli
             if (!table.HasHeader && !string.IsNullOrWhiteSpace(plain))
                 throw new TikCommandTrapException(CreateDummyCommand(descriptor),
                     new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(plain)));
-            _menuFacts.MonitorWithoutAsValue.Add(descriptor.CommandText);
+            LearnFact(_menuFacts.MonitorWithoutAsValue, FactMonitorWithoutAsValue, descriptor.CommandText);
             return rows;
         }
 
@@ -1839,14 +1929,23 @@ namespace tik4net.Cli
         /// </remarks>
         private async Task EnsureDsvSupportKnownAsync(CancellationToken cancellationToken)
         {
+            // Every read passes here first, so this is where a connection meets its build's stored facts.
+            await EnsureSchemaStoreAsync(cancellationToken).ConfigureAwait(false);
             string? separator = CliFieldSeparator;
             if (separator == null || (_features.Dsv != null && _features.DsvProbedSeparator == separator))
                 return;
+            if (_schemaStore != null && _schemaStore.TryGetFeature(FeatureDsv + separator, out bool stored))
+            {
+                _features.DsvProbedSeparator = separator;
+                _features.Dsv = stored;
+                return;
+            }
 
             string answer = await ExecuteCliCommandAsync(
                 CliCommandBuilder.BuildDsvProbe(separator), cancellationToken).ConfigureAwait(false);
             _features.DsvProbedSeparator = separator;
             _features.Dsv = CliCommandBuilder.IsDsvProbeAccepted(answer);
+            StoreFeature(FeatureDsv + separator, _features.Dsv.Value);
             if (_features.Dsv == false)
                 TikWireTrace.Emit("cli.dsv", TikWireDir.Note,
                     "':serialize to=dsv' not available (" + answer.Trim() + ") — reading as-value on this connection; "
@@ -2054,7 +2153,7 @@ namespace tik4net.Cli
                     // this menu does not pay for the discovery again.
                     if (offset > 0)
                         throw;   // mid-table: this is a real failure, not a menu that cannot be paged
-                    _menuFacts.PagingUnavailable.Add(descriptor.CommandText);
+                    LearnFact(_menuFacts.PagingUnavailable, FactPagingUnavailable, descriptor.CommandText);
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
                         "'" + descriptor.CommandText + "' has no 'find' verb — reading it in a single command");
                     return null;
@@ -2092,7 +2191,7 @@ namespace tik4net.Cli
                     // The window held rows and its print named none of them — the menu's 'print from=' leaves
                     // '.id' out (RouterOS 6.49.13: /system/package, /ip/ipsec/policy), and without it the parser
                     // cannot even tell the rows apart. Take the same window again one id at a time.
-                    _menuFacts.WindowPrintsNoId.Add(descriptor.CommandText);
+                    LearnFact(_menuFacts.WindowPrintsNoId, FactWindowPrintsNoId, descriptor.CommandText);
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
                         "'" + descriptor.CommandText + "' prints no .id for a window — taking it one id at a time");
                     offset -= pageSize;   // the loop's increment brings it back to the same window
@@ -2794,6 +2893,7 @@ namespace tik4net.Cli
         {
             try
             {
+                SchemaStore();
                 bool plain = _menuFacts.TorchWithoutProplist.Contains(descriptor.CommandText);
                 string cliText = CliCommandBuilder.BuildTorchSnapshot(
                     descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds, withProplist: !plain);
@@ -2813,7 +2913,7 @@ namespace tik4net.Cli
                         if (plainOutput.IndexOf("-- [Q quit", StringComparison.Ordinal) < 0)
                             throw new TikCommandTrapException(CreateDummyCommand(descriptor),
                                 new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
-                        _menuFacts.TorchWithoutProplist.Add(descriptor.CommandText);
+                        LearnFact(_menuFacts.TorchWithoutProplist, FactTorchWithoutProplist, descriptor.CommandText);
                         plain = true;
                         cliText = plainText;
                         output = plainOutput;

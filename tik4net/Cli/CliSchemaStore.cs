@@ -27,14 +27,17 @@ namespace tik4net.Cli
     /// <para><b>Never throws.</b> A cache is an optimisation: an unreadable, corrupt or foreign file reads as empty, a
     /// failed save is skipped and retried, and every problem goes to the wire trace (channel <c>cli.schemacache</c>).
     /// The worst a cache problem can do is cost the probes the cache was meant to save.</para>
+    /// <para><b>Besides the menus, the build's features and per-command facts</b> (<see cref="TryGetFeature"/>,
+    /// <see cref="Facts"/>): what <c>RouterFeatureSet</c> and <c>RouterMenuFacts</c> learn, stored only where the router's
+    /// answer was recognised — never a fact learnt from a timeout or from the rows a menu happened to hold.</para>
     /// <para>The format is <see cref="FormatVersion"/>, part of the path. Bump it when the file's shape changes AND
     /// when a reader that produces the stored lists changes how it parses — a file written by the old reader must not
     /// outlive its bug.</para>
     /// </remarks>
     internal sealed class CliSchemaStore
     {
-        /// <summary>The store format; part of the directory (<c>cli-schema/v1/</c>), so another format is never read.</summary>
-        internal const int FormatVersion = 1;
+        /// <summary>The store format; part of the directory (<c>cli-schema/v2/</c>), so another format is never read.</summary>
+        internal const int FormatVersion = 2;
 
         internal const string TraceChannel = "cli.schemacache";
 
@@ -59,6 +62,9 @@ namespace tik4net.Cli
         private readonly object _sync = new object();
         // menu path → (list name → list; a null list means "asked, and the router has none")
         private readonly Dictionary<string, MenuEntry> _menus = new Dictionary<string, MenuEntry>(StringComparer.Ordinal);
+        private readonly Dictionary<string, bool> _features = new Dictionary<string, bool>(StringComparer.Ordinal);
+        // fact set → command texts (or "command|name" keys); a fact is only ever added
+        private readonly Dictionary<string, HashSet<string>> _facts = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         private volatile bool _loaded;
         private long _changes;     // bumped on every new list
         private long _savedChanges; // _changes as of the last successful save
@@ -204,6 +210,67 @@ namespace tik4net.Cli
             }
         }
 
+        // ── Features and facts ──────────────────────────────────────────────────
+
+        /// <summary><c>true</c> when the store holds <paramref name="name"/>; <paramref name="value"/> is then its answer.</summary>
+        internal bool TryGetFeature(string name, out bool value)
+        {
+            EnsureLoaded();
+            lock (_sync)
+                return _features.TryGetValue(name, out value);
+        }
+
+        /// <summary>Stores what the router answered for a feature; a later answer replaces it.</summary>
+        internal void PutFeature(string name, bool value)
+        {
+            try
+            {
+                EnsureLoaded();
+                lock (_sync)
+                {
+                    if (_features.TryGetValue(name, out bool old) && old == value)
+                        return;
+                    _features[name] = value;
+                    _changes++;
+                    ArmTimer();
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace("could not record feature " + name + ": " + ex.Message);
+            }
+        }
+
+        /// <summary>The members of a fact set (a copy; empty when the store has none).</summary>
+        internal IReadOnlyCollection<string> Facts(string set)
+        {
+            EnsureLoaded();
+            lock (_sync)
+                return _facts.TryGetValue(set, out var members) ? members.ToArray() : new string[0];
+        }
+
+        /// <summary>Adds a member to a fact set.</summary>
+        internal void PutFact(string set, string member)
+        {
+            try
+            {
+                EnsureLoaded();
+                lock (_sync)
+                {
+                    if (!_facts.TryGetValue(set, out var members))
+                        _facts[set] = members = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (!members.Add(member))
+                        return;
+                    _changes++;
+                    ArmTimer();
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace("could not record fact " + set + " " + member + ": " + ex.Message);
+            }
+        }
+
         private static bool SameList(string[]? a, string[]? b)
             => a == null ? b == null : b != null && a.SequenceEqual(b, StringComparer.Ordinal);
 
@@ -251,10 +318,25 @@ namespace tik4net.Cli
                         Trace("ignoring " + FilePath + ": another format or build");
                         return;
                     }
-                    if (!root.TryGetProperty("menus", out var menus) || menus.ValueKind != JsonValueKind.Object)
-                        return;
-                    foreach (var menu in menus.EnumerateObject())
-                        MergeMenu(menu);
+                    if (root.TryGetProperty("menus", out var menus) && menus.ValueKind == JsonValueKind.Object)
+                        foreach (var menu in menus.EnumerateObject())
+                            MergeMenu(menu);
+                    if (root.TryGetProperty("features", out var features) && features.ValueKind == JsonValueKind.Object)
+                        foreach (var feature in features.EnumerateObject())
+                            if (!_features.ContainsKey(feature.Name)   // memory wins
+                                && (feature.Value.ValueKind == JsonValueKind.True || feature.Value.ValueKind == JsonValueKind.False))
+                                _features[feature.Name] = feature.Value.GetBoolean();
+                    if (root.TryGetProperty("facts", out var facts) && facts.ValueKind == JsonValueKind.Object)
+                        foreach (var set in facts.EnumerateObject())
+                        {
+                            if (set.Value.ValueKind != JsonValueKind.Array)
+                                continue;
+                            if (!_facts.TryGetValue(set.Name, out var members))
+                                _facts[set.Name] = members = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var member in set.Value.EnumerateArray())
+                                if (member.ValueKind == JsonValueKind.String)
+                                    members.Add(member.GetString()!);   // a union: a fact is only ever added
+                        }
                 }
             }
             catch (Exception ex)
@@ -361,6 +443,19 @@ namespace tik4net.Cli
                         }
                         w.WriteEndObject();
                         w.WriteEndObject();
+                    }
+                    w.WriteEndObject();
+                    w.WriteStartObject("features");
+                    foreach (var feature in _features.OrderBy(f => f.Key, StringComparer.Ordinal))
+                        w.WriteBoolean(feature.Key, feature.Value);
+                    w.WriteEndObject();
+                    w.WriteStartObject("facts");
+                    foreach (var set in _facts.OrderBy(f => f.Key, StringComparer.Ordinal))
+                    {
+                        w.WriteStartArray(set.Key);
+                        foreach (string member in set.Value.OrderBy(m => m, StringComparer.Ordinal))
+                            w.WriteStringValue(member);
+                        w.WriteEndArray();
                     }
                     w.WriteEndObject();
                     w.WriteEndObject();

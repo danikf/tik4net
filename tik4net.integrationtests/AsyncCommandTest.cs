@@ -231,6 +231,11 @@ namespace tik4net.integrationtests
             ping.AddParameter("address", "127.0.0.1");
             ping.AddParameter("count", "3");
 
+            // What a connection asks once before its first read (the build its grammar cache is kept for) is not what
+            // is measured: over MAC-Telnet to RouterOS 6 it outlasts the 300 ms, and the cancel then lands before the
+            // ping is sent rather than in it.
+            Connection.CreateCommand("/system/identity/print").ExecuteScalar();
+
             var stopwatch = Stopwatch.StartNew();
             using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300)))
             {

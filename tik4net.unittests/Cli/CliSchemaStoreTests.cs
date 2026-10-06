@@ -20,7 +20,7 @@ namespace tik4net.unittests.Cli
     public class CliSchemaStoreTests
     {
         private const string Key = "7.24.4|x86_64|container,routeros";
-        private const string File = @"C:\cache\cli-schema\v1\7.24.4\abcd1234.json";
+        private const string File = @"C:\cache\cli-schema\v2\7.24.4\abcd1234.json";
 
         /// <summary>An in-memory file system that can be told to fail at each step.</summary>
         private sealed class FakeFs : ITikCacheFileSystem
@@ -149,6 +149,42 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void FeaturesAndFactsSurviveASaveAndALoad()
+        {
+            var fs = new FakeFs();
+            var a = Store(fs);
+            a.PutFeature("dsv:~^~", false);
+            a.PutFact("flagFieldExists", "/ip address|disabled");
+            a.Flush();
+
+            var b = Store(fs);
+            Assert.IsTrue(b.TryGetFeature("dsv:~^~", out bool dsv) && !dsv);
+            Assert.IsFalse(b.TryGetFeature("consoleInspect", out _), "never learnt is not stored");
+            CollectionAssert.AreEqual(new[] { "/ip address|disabled" }, b.Facts("flagFieldExists").ToArray());
+            Assert.AreEqual(0, b.Facts("printWithoutAsValue").Count);
+        }
+
+        [TestMethod]
+        public void TwoProcessesThatLearnDifferentFacts_BothKeepTheirs()
+        {
+            var fs = new FakeFs();
+            var one = Store(fs);
+            var two = Store(fs);
+            one.PutFact("flagFieldExists", "/ip address|disabled");
+            one.PutFeature("printProplist", false);
+            two.PutFact("flagFieldExists", "/ip firewall filter|invalid");
+            two.PutFeature("consoleInspect", false);
+            one.Flush();
+            two.Flush();
+
+            var reader = Store(fs);
+            CollectionAssert.AreEquivalent(new[] { "/ip address|disabled", "/ip firewall filter|invalid" },
+                reader.Facts("flagFieldExists").ToArray());
+            Assert.IsTrue(reader.TryGetFeature("printProplist", out _));
+            Assert.IsTrue(reader.TryGetFeature("consoleInspect", out _));
+        }
+
+        [TestMethod]
         public void ASaveThatFindsTheLockHeld_IsDeferredNotLost()
         {
             var fs = new FakeFs { LockBusy = true };
@@ -209,7 +245,7 @@ namespace tik4net.unittests.Cli
             var fs = new FakeFs();
             fs.Files[File] = "{\"format\":99,\"key\":\"" + Key + "\",\"menus\":{\"/ip/route\":{\"source\":\"ConsoleInspect\",\"lists\":{\"readable\":[\"x\"]}}}}";
             Assert.IsFalse(Store(fs).TryGet("/ip/route", "readable", out _));
-            fs.Files[File] = "{\"format\":1,\"key\":\"6.49.13|x86_64|routeros-x86\",\"menus\":{\"/ip/route\":{\"source\":\"ConsoleInspect\",\"lists\":{\"readable\":[\"x\"]}}}}";
+            fs.Files[File] = "{\"format\":" + CliSchemaStore.FormatVersion + ",\"key\":\"6.49.13|x86_64|routeros-x86\",\"menus\":{\"/ip/route\":{\"source\":\"ConsoleInspect\",\"lists\":{\"readable\":[\"x\"]}}}}";
             Assert.IsFalse(Store(fs).TryGet("/ip/route", "readable", out _));
         }
 
@@ -217,7 +253,7 @@ namespace tik4net.unittests.Cli
         public void AMalformedEntry_IsDropped_AndTheRestIsUsed()
         {
             var fs = new FakeFs();
-            fs.Files[File] = "{\"format\":1,\"key\":\"" + Key + "\",\"menus\":{"
+            fs.Files[File] = "{\"format\":" + CliSchemaStore.FormatVersion + ",\"key\":\"" + Key + "\",\"menus\":{"
                 + "\"/bad\":{\"source\":\"ConsoleInspect\",\"lists\":{\"readable\":[1,2]}},"
                 + "\"/odd\":{\"source\":\"NoSuchSource\",\"lists\":{\"readable\":[\"x\"]}},"
                 + "\"/ip/route\":{\"source\":\"ConsoleInspect\",\"lists\":{\"readable\":[\"dst-address\"]}}}}";
@@ -310,6 +346,79 @@ namespace tik4net.unittests.Cli
             public override void Open(string host, int port, string user, string password) => OpenScripted();
             public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
             public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
+        }
+
+        /// <summary>
+        /// A RouterOS 6 build for /ip/route: refuses the DSV probe ("bad command name serialize") and reads as-value.
+        /// </summary>
+        private sealed class Dsv6Router : CliConnectionBase
+        {
+            public readonly List<string> Sent = new List<string>();
+
+            public Dsv6Router(string? cacheDir)
+            {
+                CliFieldSeparator = "~^~";
+                CatalogCachePath = cacheDir;
+            }
+
+            protected override string TransportName => "Dsv6";
+
+            public void OpenScripted()
+                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+
+            private Task<string> SendAsync(string cliText, CancellationToken ct)
+            {
+                Sent.Add(cliText);
+                if (cliText.Contains(CliSchemaStore.KeyMarker))
+                    return Task.FromResult(CliSchemaStore.KeyMarker + "6.49.13 (long-term)|x86_64|system,routing,");
+                if (cliText.Contains(":serialize to=dsv"))
+                    return Task.FromResult("bad command name serialize (line 1 column 16)");
+                return Task.FromResult(CountedReadFake.Answer(cliText, ".id=*1;dst-address=0.0.0.0/0;routing-table=main"));
+            }
+
+            public int DsvProbes => Sent.Count(s => s.Contains(":serialize to=dsv"));
+
+            public override void Open(string host, string user, string password) => OpenScripted();
+            public override void Open(string host, int port, string user, string password) => OpenScripted();
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
+        }
+
+        [TestMethod]
+        public void AFeatureLearntByOneConnection_IsNotAskedByTheNextToTheSameBuild()
+        {
+            string dir = NewCacheDir();
+            try
+            {
+                using (var cold = new Dsv6Router(dir))
+                {
+                    cold.OpenScripted();
+                    cold.CreateCommand("/ip/route/print").ExecuteList();
+                    Assert.AreEqual(1, cold.DsvProbes);
+                }
+
+                CliSchemaStore.ResetRegistryForTests();   // as a new process: the file is all it has
+                using (var warm = new Dsv6Router(dir))
+                {
+                    warm.OpenScripted();
+                    Assert.AreEqual(1, warm.CreateCommand("/ip/route/print").ExecuteList().Count());
+                    Assert.AreEqual(0, warm.DsvProbes, string.Join(" | ", warm.Sent));
+                }
+            }
+            finally { Delete(dir); }
+        }
+
+        [TestMethod]
+        public void WithTheCacheOff_EveryConnectionAsksTheFeature()
+        {
+            for (int i = 0; i < 2; i++)
+                using (var router = new Dsv6Router(null))
+                {
+                    router.OpenScripted();
+                    router.CreateCommand("/ip/route/print").ExecuteList();
+                    Assert.AreEqual(1, router.DsvProbes);
+                    Assert.IsFalse(router.Sent.Any(t => t.Contains(CliSchemaStore.KeyMarker)));
+                }
         }
 
         private static string NewCacheDir() => Path.Combine(Path.GetTempPath(), "t4n-unit-cache-" + Guid.NewGuid().ToString("N"));
