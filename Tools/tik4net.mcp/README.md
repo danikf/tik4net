@@ -217,7 +217,7 @@ menu tree or resolve an object's writable fields from a live router.
 | `host`      | string | Router IP or hostname |
 | `username`  | string | Login user |
 | `password`  | string | Login password (may be empty) |
-| `input`     | string | Partial CLI line, **exactly as typed before Tab** — include the trailing space to list the next word |
+| `input`     | string | Partial CLI line, **exactly as typed before Tab** — include the trailing space to list the next word. RouterOS 6 completes only the space form of a menu path (`/ip firewall filter add `) and answers nothing after the slash form; RouterOS 7 takes both |
 | `transport` | string | CLI terminal transport (default `Telnet`): `Telnet`, `Ssh`, `WinboxCli`, `MacTelnet`, `WinboxCliMac`. `Api`/`Rest`/`WinboxNative*` are rejected |
 | `port`      | int    | TCP/UDP port; `0` = transport default |
 | `routerMac` | string | Router MAC — only `MacTelnet` / `WinboxCliMac` |

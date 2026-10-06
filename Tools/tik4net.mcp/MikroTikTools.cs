@@ -441,7 +441,8 @@ public sealed class MikroTikTools
         [Description("Partial CLI command line to complete, EXACTLY as you would type before pressing Tab — " +
                      "include the trailing space to list the next word. " +
                      "Examples: '/interface ' (child menus+verbs), '/ip/firewall/filter add ' (settable params), " +
-                     "'/system/resource ' (the singleton's verbs/fields).")]
+                     "'/system/resource ' (the singleton's verbs/fields). RouterOS 6 completes only the space form of a " +
+                     "menu path ('/ip firewall filter add ') and answers nothing after the slash form; RouterOS 7 takes both.")]
         string input,
         [Description("The whole connection as one tik4net connection string instead of host/username/password/transport/" +
                      "port/routerMac/romonAgent* (TikConnectionSetup.FromConnectionString): " +
