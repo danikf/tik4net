@@ -106,10 +106,11 @@ confusable.
 
 | Parameter         | Type     | Description |
 |-------------------|----------|-------------|
-| `host`            | string   | Router IP or hostname |
-| `username`        | string   | Login user |
-| `password`        | string   | Login password (may be empty) |
 | `command`         | string   | API command path, e.g. `/ip/address/print`, `/system/resource/print` |
+| `connectionString` | string | The whole connection as one connection string (`TikConnectionSetup.FromConnectionString`), in place of the connection parameters below: `transport=Ssh;host=192.168.88.1;user=admin;password=secret`. Without `transport` the tool's default is used; an unknown key is refused, and so is a connection parameter given beside it |
+| `host`            | string   | Router IP or hostname (required without `connectionString`) |
+| `username`        | string   | Login user (required without `connectionString`) |
+| `password`        | string   | Login password (may be empty) |
 | `transport`       | string   | Transport (default `Api`): `Api`, `ApiSsl`, `Rest`, `RestSsl`, `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac`, `WinboxNative`, `WinboxNativeMac` |
 | `port`            | int      | TCP/UDP port; `0` = transport default |
 | `routerMac`       | string   | Router MAC — only the MAC-layer transports `MacTelnet` / `WinboxCliMac` / `WinboxNativeMac` (else MNDP discovery) |
@@ -178,6 +179,10 @@ directory to be behind, so it never carries the note.
   "command": "/tool/wol", "parameters": ["=mac=00:11:22:33:44:55", "=interface=badiface"],
   "transport": "Telnet", "traceLevel": "bytes", "includeRouterLog": true }
 
+// the same connection as one string (host = the target's RoMON id, romon.* = the agent)
+{ "command": "/system/identity/print",
+  "connectionString": "transport=Ssh;host=AA:BB:CC:DD:EE:FF;user=admin;password=target-pw;romon.host=192.168.88.1;romon.user=admin;romon.password=agent-pw" }
+
 // a router behind a RoMON agent: host is its RoMON id, username/password its own
 { "host": "AA:BB:CC:DD:EE:FF", "username": "admin", "password": "target-pw",
   "command": "/system/identity/print", "transport": "Ssh",
@@ -197,6 +202,7 @@ menu tree or resolve an object's writable fields from a live router.
 
 | Parameter   | Type   | Description |
 |-------------|--------|-------------|
+| `connectionString` | string | The whole connection as one connection string (`TikConnectionSetup.FromConnectionString`), in place of the connection parameters below: `transport=Ssh;host=192.168.88.1;user=admin;password=secret`. Without `transport` the tool's default is used; an unknown key is refused, and so is a connection parameter given beside it |
 | `host`      | string | Router IP or hostname |
 | `username`  | string | Login user |
 | `password`  | string | Login password (may be empty) |
@@ -256,6 +262,7 @@ own segment, no credentials.)
 
 | Parameter         | Type | Description |
 |-------------------|------|-------------|
+| `connectionString` | str  | The whole connection as one connection string (`TikConnectionSetup.FromConnectionString`), in place of the connection parameters below: `transport=Ssh;host=192.168.88.1;user=admin;password=secret`. Without `transport` the tool's default is used; an unknown key is refused, and so is a connection parameter given beside it |
 | `host`            | str  | The router to scan **from** — the one that would relay. Its MAC on the MAC-layer transports |
 | `username` / `password` | str | Credentials on that router |
 | `transport`       | str  | Default `Api`; any tik4net transport |

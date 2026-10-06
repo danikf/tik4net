@@ -161,18 +161,27 @@ public sealed class MikroTikTools
         "assembly that answered: this server can be replaced while a client is connected, so that line is how you " +
         "confirm a rebuild actually took effect before trusting the answer to reflect it.")]
     public string MikrotikCall(
-        [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
-                     "Through a RoMON agent (romonAgentHost set): the router's RoMON id instead (AA:BB:CC:DD:EE:FF, its /tool/romon current-id).")] string host,
-        [Description("Username for authentication — on the router named by host (through RoMON: on the target, not the agent)")] string username,
-        [Description("Password for authentication — on the router named by host (through RoMON: the target's)")] string password,
         [Description("API command path, e.g. /ip/address/print or /system/resource/print or /ip/address/add")] string command,
+        [Description("The whole connection as one tik4net connection string instead of host/username/password/transport/" +
+                     "port/routerMac/allowInvalidCertificate/romonAgent* (TikConnectionSetup.FromConnectionString): " +
+                     "'transport=ApiSsl;host=192.168.88.1;user=admin;password=secret;allowInvalidCertificate=true'. " +
+                     "ADO.NET syntax, case-insensitive keys; a value holding ';' or '=' is quoted. Keys include transport, " +
+                     "host, routerMac, user, password, port, the timeouts, and romon.host/romon.user/romon.password/romon.port " +
+                     "for a router behind a RoMON agent (host is then its RoMON id). An unknown key is refused. Without " +
+                     "'transport' the tool's default transport is used. Giving it together with any of those parameters " +
+                     "is refused.")]
+        string? connectionString = null,
+        [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
+                     "Through a RoMON agent (romonAgentHost set): the router's RoMON id instead (AA:BB:CC:DD:EE:FF, its /tool/romon current-id).")] string? host = null,
+        [Description("Username for authentication — on the router named by host (through RoMON: on the target, not the agent)")] string? username = null,
+        [Description("Password for authentication — on the router named by host (through RoMON: the target's)")] string? password = null,
         [Description("Transport to use (case-insensitive): Api (default, TCP 8728), ApiSsl (TCP 8729), " +
                      "Rest (HTTP 80), RestSsl (HTTPS 443), Telnet (TCP 23), Ssh (TCP 22), MacTelnet (UDP 20561), " +
                      "WinboxCli (TCP 8291, encrypted terminal), WinboxCliMac (UDP 20561, encrypted terminal over MAC), " +
                      "WinboxNative (TCP 8291, structured M2), WinboxNativeMac (UDP 20561, structured M2 over MAC). " +
                      "All transports accept the same command/parameters format. " +
                      "Telnet/MacTelnet/Winbox* do not support Listen/Streaming.")]
-        string transport = "Api",
+        string? transport = null,
         [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
         [Description("Router MAC address 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports " +
                      "(MacTelnet / WinboxCliMac / WinboxNativeMac). " +
@@ -232,10 +241,20 @@ public sealed class MikroTikTools
                      "Example for filtered print: ['?disabled=yes'].")]
         string[]? parameters = null)
     {
-        if (!Enum.TryParse<TikConnectionType>(transport, ignoreCase: true, out var transportType)
-            || Array.IndexOf(SupportedTransports, transportType) < 0)
+        TikConnectionSetup setup;
+        try
         {
-            return Stamp($"ERROR (argument): unknown transport '{transport}'. Supported: "
+            setup = ResolveSetup(connectionString, transport, TikConnectionType.Api, host, username, password, port,
+                routerMac, allowInvalidCertificate, romonAgentHost, romonAgentUsername, romonAgentPassword, romonAgentPort);
+        }
+        catch (ArgumentException ex)
+        {
+            return Stamp($"ERROR (argument): {ex.Message}");
+        }
+        var transportType = setup.ConnectionType!.Value;
+        if (Array.IndexOf(SupportedTransports, transportType) < 0)
+        {
+            return Stamp($"ERROR (argument): unknown transport '{transportType}'. Supported: "
                        + string.Join(", ", SupportedTransports));
         }
 
@@ -258,18 +277,6 @@ public sealed class MikroTikTools
                 return Stamp($"ERROR (argument): unknown traceLevel '{traceLevel}'. Use 'off', 'words' or 'bytes'.");
         }
 
-        TikConnectionSetup setup;
-        try
-        {
-            setup = BuildSetup(host, username, password, port, routerMac,
-                romonAgentHost, romonAgentUsername, romonAgentPassword, romonAgentPort);
-        }
-        catch (ArgumentException ex)
-        {
-            return Stamp($"ERROR (argument): {ex.Message}");
-        }
-        setup.AllowInvalidCertificate = allowInvalidCertificate;
-
         // The side channel dials host over the API; through RoMON host is a RoMON id, and the agent's log is
         // not the target's.
         if (includeRouterLog && setup.RomonAgentSetup != null)
@@ -281,7 +288,7 @@ public sealed class MikroTikTools
 
         // Anchor the router-log window BEFORE the command runs (over a separate API connection so it never
         // perturbs the transport under test). Remember the newest log .id; the window is everything after it.
-        string? logAnchorId = includeRouterLog ? TryReadLogAnchorId(host, username, password) : null;
+        string? logAnchorId = includeRouterLog ? TryReadLogAnchorId(setup) : null;
         string? routerLog = null;
         bool routerLogCaptured = false;
 
@@ -292,7 +299,7 @@ public sealed class MikroTikTools
             if (includeRouterLog && !routerLogCaptured)
             {
                 routerLogCaptured = true;
-                routerLog = TryReadRouterLogWindow(host, username, password, logAnchorId, routerLogTail);
+                routerLog = TryReadRouterLogWindow(setup, logAnchorId, routerLogTail);
             }
 
             bool hasWords = trace is { Count: > 0 };
@@ -431,19 +438,28 @@ public sealed class MikroTikTools
         "Both are empty when there is nothing to complete. Only CLI terminal transports support this " +
         "(Telnet, Ssh, WinboxCli, MacTelnet, WinboxCliMac) — not Api/Rest/WinboxNative*.")]
     public string MikrotikCliComplete(
-        [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
-                     "Through a RoMON agent (romonAgentHost set): the router's RoMON id instead (AA:BB:CC:DD:EE:FF, its /tool/romon current-id).")] string host,
-        [Description("Username for authentication — on the router named by host (through RoMON: on the target, not the agent)")] string username,
-        [Description("Password for authentication — on the router named by host (through RoMON: the target's)")] string password,
         [Description("Partial CLI command line to complete, EXACTLY as you would type before pressing Tab — " +
                      "include the trailing space to list the next word. " +
                      "Examples: '/interface ' (child menus+verbs), '/ip/firewall/filter add ' (settable params), " +
                      "'/system/resource ' (the singleton's verbs/fields).")]
         string input,
+        [Description("The whole connection as one tik4net connection string instead of host/username/password/transport/" +
+                     "port/routerMac/romonAgent* (TikConnectionSetup.FromConnectionString): " +
+                     "'transport=Ssh;host=192.168.88.1;user=admin;password=secret'. " +
+                     "ADO.NET syntax, case-insensitive keys; a value holding ';' or '=' is quoted. Keys include transport, " +
+                     "host, routerMac, user, password, port, the timeouts, and romon.host/romon.user/romon.password/romon.port " +
+                     "for a router behind a RoMON agent (host is then its RoMON id). An unknown key is refused. Without " +
+                     "'transport' the tool's default transport is used. Giving it together with any of those parameters " +
+                     "is refused.")]
+        string? connectionString = null,
+        [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
+                     "Through a RoMON agent (romonAgentHost set): the router's RoMON id instead (AA:BB:CC:DD:EE:FF, its /tool/romon current-id).")] string? host = null,
+        [Description("Username for authentication — on the router named by host (through RoMON: on the target, not the agent)")] string? username = null,
+        [Description("Password for authentication — on the router named by host (through RoMON: the target's)")] string? password = null,
         [Description("CLI transport to use (default Telnet): Telnet (TCP 23), Ssh (TCP 22), WinboxCli (TCP 8291), " +
                      "MacTelnet (UDP 20561), WinboxCliMac (UDP 20561). Api/Rest/WinboxNative* are rejected — " +
                      "they have no terminal to complete on.")]
-        string transport = "Telnet",
+        string? transport = null,
         [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
         [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports (else MNDP discovery).")]
         string? routerMac = null,
@@ -460,22 +476,21 @@ public sealed class MikroTikTools
         [Description("RoMON: the agent's port for the transport; 0 = transport default.")]
         int romonAgentPort = 0)
     {
-        if (!Enum.TryParse<TikConnectionType>(transport, ignoreCase: true, out var transportType)
-            || Array.IndexOf(CompletionTransports, transportType) < 0)
-        {
-            return Stamp($"ERROR (argument): '{transport}' does not support Tab-completion. Use a CLI terminal "
-                       + "transport: " + string.Join(", ", CompletionTransports));
-        }
-
         TikConnectionSetup setup;
         try
         {
-            setup = BuildSetup(host, username, password, port, routerMac,
-                romonAgentHost, romonAgentUsername, romonAgentPassword, romonAgentPort);
+            setup = ResolveSetup(connectionString, transport, TikConnectionType.Telnet, host, username, password, port,
+                routerMac, false, romonAgentHost, romonAgentUsername, romonAgentPassword, romonAgentPort);
         }
         catch (ArgumentException ex)
         {
             return Stamp($"ERROR (argument): {ex.Message}");
+        }
+        var transportType = setup.ConnectionType!.Value;
+        if (Array.IndexOf(CompletionTransports, transportType) < 0)
+        {
+            return Stamp($"ERROR (argument): '{transportType}' does not support Tab-completion. Use a CLI terminal "
+                       + "transport: " + string.Join(", ", CompletionTransports));
         }
 
         try
@@ -594,25 +609,46 @@ public sealed class MikroTikTools
         "(/tool/romon/set enabled=yes) AND on the routers to be found, and it is off by default. " +
         "A neighbour appears only while it is running: this is a live scan, not a stored table.")]
     public string MikrotikRomonDiscover(
+        [Description("The whole connection as one tik4net connection string instead of host/username/password/transport/" +
+                     "port/routerMac/allowInvalidCertificate (TikConnectionSetup.FromConnectionString): " +
+                     "'transport=ApiSsl;host=192.168.88.1;user=admin;password=secret;allowInvalidCertificate=true'. " +
+                     "ADO.NET syntax, case-insensitive keys; a value holding ';' or '=' is quoted. Keys include transport, " +
+                     "host, routerMac, user, password, port, the timeouts, and romon.host/romon.user/romon.password/romon.port " +
+                     "for a router behind a RoMON agent (host is then its RoMON id). An unknown key is refused. Without " +
+                     "'transport' the tool's default transport is used. Giving it together with any of those parameters " +
+                     "is refused.")]
+        string? connectionString = null,
         [Description("IP address or hostname of the router to scan FROM — the one whose RoMON overlay is wanted " +
                      "(this is the router that would relay, i.e. the agent). On the MAC-layer transports its MAC " +
-                     "address (AA:BB:CC:DD:EE:FF) may be given instead.")] string host,
-        [Description("Username for authentication on that router")] string username,
-        [Description("Password for authentication on that router")] string password,
+                     "address (AA:BB:CC:DD:EE:FF) may be given instead.")] string? host = null,
+        [Description("Username for authentication on that router")] string? username = null,
+        [Description("Password for authentication on that router")] string? password = null,
         [Description("Transport to use (default Api). Any tik4net transport: Api, ApiSsl, Rest, RestSsl, Telnet, " +
                      "Ssh, MacTelnet, WinboxCli, WinboxCliMac, WinboxNative, WinboxNativeMac.")]
-        string transport = "Api",
+        string? transport = null,
         [Description("How long to scan, in seconds. Clamped to 2-30; below 2 the CLI transports report nothing. " +
                      "3 is enough on a small overlay — a neighbour is reported about once a second.")]
         int durationSeconds = 3,
         [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
+        [Description("ApiSsl / RestSsl only: when true, accept a self-signed or otherwise invalid router certificate.")]
+        bool allowInvalidCertificate = false,
         [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports (else MNDP discovery).")]
         string? routerMac = null)
     {
-        if (!Enum.TryParse<TikConnectionType>(transport, ignoreCase: true, out var transportType)
-            || Array.IndexOf(SupportedTransports, transportType) < 0)
+        TikConnectionSetup setup;
+        try
         {
-            return Stamp($"ERROR (argument): unknown transport '{transport}'. Use one of: "
+            setup = ResolveSetup(connectionString, transport, TikConnectionType.Api, host, username, password, port,
+                routerMac, allowInvalidCertificate, null, null, null, 0);
+        }
+        catch (ArgumentException ex)
+        {
+            return Stamp($"ERROR (argument): {ex.Message}");
+        }
+        var transportType = setup.ConnectionType!.Value;
+        if (Array.IndexOf(SupportedTransports, transportType) < 0)
+        {
+            return Stamp($"ERROR (argument): unknown transport '{transportType}'. Use one of: "
                        + string.Join(", ", SupportedTransports));
         }
 
@@ -621,10 +657,6 @@ public sealed class MikroTikTools
 
         try
         {
-            var setup = new TikConnectionSetup(host, username, password) { RouterMac = routerMac };
-            if (port > 0)
-                setup.Port = port;
-
             using var connection = setup.Create(transportType);
             connection.DebugEnabled = false;
 
@@ -666,7 +698,7 @@ public sealed class MikroTikTools
                 new
                 {
                     serverBuild = ServerBuild,
-                    host,
+                    host = setup.Address.ToString(),
                     transport = transportType.ToString(),
                     durationSeconds,
                     romonEnabled = Field(romon, "enabled"),
@@ -703,6 +735,48 @@ public sealed class MikroTikTools
         => parameters == null
             ? new ITikCommandParameter[0]
             : tik4net.Connection.TikCommandRow.ParseParameters(parameters, 0).ToArray();
+
+    // The connection from connectionString, or from the separate parameters — never both: a router or a transport
+    // named twice has no rule for which one wins, so the tool refuses rather than pick. The string goes through the
+    // library's own parser, so its keys and refusals are the library's; a string without 'transport' takes the
+    // tool's default, as the separate parameters do. ConnectionType is always set on the result.
+    private static TikConnectionSetup ResolveSetup(string? connectionString, string? transport,
+        TikConnectionType defaultTransport, string? host, string? username, string? password, int port,
+        string? routerMac, bool allowInvalidCertificate, string? romonAgentHost, string? romonAgentUsername,
+        string? romonAgentPassword, int romonAgentPort)
+    {
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            var given = new List<string>();
+            if (host != null) given.Add("host");
+            if (username != null) given.Add("username");
+            if (password != null) given.Add("password");
+            if (transport != null) given.Add("transport");
+            if (port > 0) given.Add("port");
+            if (routerMac != null) given.Add("routerMac");
+            if (allowInvalidCertificate) given.Add("allowInvalidCertificate");
+            if (romonAgentHost != null || romonAgentUsername != null || romonAgentPassword != null || romonAgentPort > 0)
+                given.Add("romonAgent*");
+            if (given.Count > 0)
+                throw new ArgumentException("connectionString already names the connection; give "
+                                            + string.Join(", ", given) + " inside it instead.");
+            var fromString = TikConnectionSetup.FromConnectionString(connectionString!);
+            fromString.ConnectionType ??= defaultTransport;
+            return fromString;
+        }
+
+        if (string.IsNullOrWhiteSpace(host) || username == null)
+            throw new ArgumentException("host and username are required, or a connectionString.");
+        var type = defaultTransport;
+        if (transport != null && !Enum.TryParse(transport, ignoreCase: true, out type))
+            throw new ArgumentException($"unknown transport '{transport}'.");
+
+        var setup = BuildSetup(host!, username, password ?? string.Empty, port, routerMac,
+            romonAgentHost, romonAgentUsername, romonAgentPassword, romonAgentPort);
+        setup.AllowInvalidCertificate = allowInvalidCertificate;
+        setup.ConnectionType = type;
+        return setup;
+    }
 
     // The tool parameters as one TikConnectionSetup, the way a library caller writes it. routerMac goes on
     // the setup rather than through a per-transport switch: the setup applies it only to the transports that
@@ -755,11 +829,11 @@ public sealed class MikroTikTools
     // ITikApiConnection, not ITikConnection: this is always the binary API, and the log reads below are
     // written in its sentence dialect. The typed factory hands the raw level over as a member rather
     // than something to check for.
-    private static ITikApiConnection? TryOpenSideApi(string host, string username, string password)
+    private static ITikApiConnection? TryOpenSideApi(TikConnectionSetup target)
     {
         try
         {
-            var setup = new TikConnectionSetup(host, username, password);   // API default port (8728)
+            var setup = new TikConnectionSetup(target.Address, target.User, target.Password);   // API default port (8728)
             return setup.CreateApiConnection();
         }
         catch
@@ -770,11 +844,11 @@ public sealed class MikroTikTools
 
     // Newest log .id before the command (log prints oldest-first, newest last). .proplist=.id keeps the
     // read thin. Null when the log is empty or the side channel cannot be opened.
-    private static string? TryReadLogAnchorId(string host, string username, string password)
+    private static string? TryReadLogAnchorId(TikConnectionSetup target)
     {
         try
         {
-            using var conn = TryOpenSideApi(host, username, password);
+            using var conn = TryOpenSideApi(target);
             if (conn == null)
                 return null;
 
@@ -794,12 +868,12 @@ public sealed class MikroTikTools
 
     // Reads /log after the command and returns the lines added since anchorId, oldest-first, capped at
     // tail. Falls back to the last `tail` lines when the anchor is null or has aged out of the ring buffer.
-    private static string TryReadRouterLogWindow(string host, string username, string password, string? anchorId, int tail)
+    private static string TryReadRouterLogWindow(TikConnectionSetup target, string? anchorId, int tail)
     {
         if (tail < 1) tail = 1;
         try
         {
-            using var conn = TryOpenSideApi(host, username, password);
+            using var conn = TryOpenSideApi(target);
             if (conn == null)
                 return "(router log unavailable: could not open side API connection)";
 
