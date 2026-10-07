@@ -38,7 +38,7 @@ namespace tik4net.Objects.Ip
         public TikField<string?> AuthMethod { get; set; }
 
         /// <summary>vrf — VRF instance the server listens on. Default: main.</summary>
-        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
 
         /// <summary>Human-readable summary of SOCKS settings.</summary>

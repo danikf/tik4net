@@ -6,7 +6,7 @@ namespace tik4net.Objects.Routing.Bgp
     /// BGP network announcement as provided by /routing/bgp/network (RouterOS 6).
     /// This menu was removed in RouterOS 7; network announcements are handled via routing filters.
     /// </summary>
-    [TikEntity("/routing/bgp/network")]
+    [TikEntity("/routing/bgp/network", MaxRouterOs = "6")]
     [Obsolete("RouterOS 7 removed /routing/bgp/network. Network announcements are handled via routing filters in RouterOS 7+.")]
     public class BgpNetwork
     {

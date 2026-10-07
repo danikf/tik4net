@@ -34,37 +34,37 @@ namespace tik4net.Objects.Routing.Bgp
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute connected routes.
         /// </summary>
-        [TikProperty("redistribute-connected")]
+        [TikProperty("redistribute-connected", MaxRouterOs = "6")]
         public TikField<bool?> RedistributeConnected { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute redistribute static routes.
         /// </summary>
-        [TikProperty("redistribute-static")]
+        [TikProperty("redistribute-static", MaxRouterOs = "6")]
         public TikField<bool?> RedistributeStatic { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute redistribute routes received via RIP. 
         /// </summary>
-        [TikProperty("redistribute-rip")]
+        [TikProperty("redistribute-rip", MaxRouterOs = "6")]
         public TikField<bool?> RedistributeRip { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute redistribute routes received via OSPF.
         /// </summary>
-        [TikProperty("redistribute-ospf")]
+        [TikProperty("redistribute-ospf", MaxRouterOs = "6")]
         public TikField<bool?> RedistributeOspf { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute redistribute routes received via other BGP instances.
         /// </summary>
-        [TikProperty("redistribute-other-bgp")]
+        [TikProperty("redistribute-other-bgp", MaxRouterOs = "6")]
         public TikField<bool?> RedistributeOtherBgp { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to do client-to-client reflection.
         /// </summary>
-        [TikProperty("client-to-client-reflection")]
+        [TikProperty("client-to-client-reflection", MaxRouterOs = "6")]
         public TikField<bool?> ClientToClientReflection { get; set; }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace tik4net.Objects.Routing.Bgp
         /// <summary>
         /// Gets a value indicating whether this is the default instance. A flag, not a setting.
         /// </summary>
-        [TikProperty("default", IsReadOnly = true)]
+        [TikProperty("default", IsReadOnly = true, MaxRouterOs = "6")]
         public TikField<bool?> Default { get; private set; }
 
         /// <summary>

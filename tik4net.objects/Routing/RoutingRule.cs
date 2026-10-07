@@ -9,7 +9,7 @@ namespace tik4net.Objects.Routing
     /// minimum prefix length, then perform an action (lookup in a table, drop, or return
     /// unreachable). This menu is ordered — use Move() to reorder entries.
     /// </summary>
-    [TikEntity("/routing/rule", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/routing/rule", IncludeDetails = true, IsOrdered = true, MinRouterOs = "7")]
     public class RoutingRule
     {
         /// <summary>action values for <see cref="RoutingRule"/></summary>

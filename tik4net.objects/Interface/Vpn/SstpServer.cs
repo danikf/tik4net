@@ -60,7 +60,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: aes256-sha, aes256-gcm-sha384.
         /// Default: aes256-sha,aes256-gcm-sha384
         /// </summary>
-        [TikProperty("ciphers", DefaultValue = "aes256-sha,aes256-gcm-sha384", WinboxLabel = "Ciphers")]
+        [TikProperty("ciphers", DefaultValue = "aes256-sha,aes256-gcm-sha384", WinboxLabel = "Ciphers", MinRouterOs = "7")]
         public TikField<string?> Ciphers { get; set; }
 
         /// <summary>

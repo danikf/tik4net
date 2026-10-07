@@ -20,7 +20,7 @@ namespace tik4net.Objects.Radius
         public TikField<int?> Port { get; set; }
 
         /// <summary>vrf — the VRF the listener runs in (RouterOS 7.x; 6.x has no such field). Default: main.</summary>
-        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
     }
 }

@@ -584,7 +584,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// tos: Matches the ToS (Type of Service) field of IP header.
         /// </summary>
-        [TikProperty("tos", WinboxLabel = "TOS", Negatable = true)]
+        [TikProperty("tos", WinboxLabel = "TOS", Negatable = true, MinRouterOs = "7")]
         public TikField<string?> Tos { get; set; }
 
         /// <summary>
@@ -664,7 +664,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// realm: matches the packet's routing realm, a number (<c>!5</c> matches every other realm).
         /// </summary>
-        [TikProperty("realm", Negatable = true)]
+        [TikProperty("realm", Negatable = true, MinRouterOs = "7")]
         public TikField<string?> Realm { get; set; }
 
         /// <summary>

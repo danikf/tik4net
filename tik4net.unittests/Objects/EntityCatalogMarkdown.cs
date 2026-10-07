@@ -80,6 +80,7 @@ namespace tik4net.unittests.Objects
                     Path = x.Attr.EntityPath,
                     Root = RootOf(x.Attr.EntityPath),
                     Markers = MarkersOf(x.Attr, x.Type, helpers),
+                    Versions = VersionsOf(x.Attr),
                 })
                 .OrderBy(x => x.Root, StringComparer.Ordinal)
                 .ThenBy(x => x.Path, StringComparer.Ordinal)
@@ -104,7 +105,7 @@ namespace tik4net.unittests.Objects
                 foreach (var row in group)
                 {
                     sb.AppendLine("| `" + row.Path + "` | `" + row.Type.Name + "` | "
-                                  + string.Join(" ", row.Markers.Select(Superscript)) + " |");
+                                  + string.Join(" ", row.Markers.Select(Superscript).Concat(row.Versions)) + " |");
                 }
             }
             return sb.ToString().Replace("\r\n", "\n");
@@ -134,6 +135,17 @@ namespace tik4net.unittests.Objects
             if (attr.IncludeCliStats) markers.Add(MarkerCliStats);
             if (helpers.ContainsKey(type.Name)) markers.Add(MarkerHelpers);
             return markers;
+        }
+
+        /// <summary>The releases the lab measured the menu in (MinRouterOs / MaxRouterOs), or nothing when it is in all.</summary>
+        private static IEnumerable<string> VersionsOf(TikEntityAttribute attr)
+        {
+            if (attr.MinRouterOs != null && attr.MaxRouterOs != null)
+                yield return "RouterOS " + attr.MinRouterOs + "–" + attr.MaxRouterOs;
+            else if (attr.MinRouterOs != null)
+                yield return "RouterOS " + attr.MinRouterOs + "+";
+            else if (attr.MaxRouterOs != null)
+                yield return "RouterOS ≤ " + attr.MaxRouterOs;
         }
 
         /// <summary>

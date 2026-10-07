@@ -23,7 +23,7 @@ namespace tik4net.Objects.Ip.Proxy
         public TikField<ProxyAccessAction?> Action { get; set; }
 
         /// <summary>action-data — URL to redirect to when action=deny (wiki: "redirect-to"). Only used with deny action.</summary>
-        [TikProperty("action-data", DefaultValue = "", WinboxLabel = "Action data")]
+        [TikProperty("action-data", DefaultValue = "", WinboxLabel = "Action data", MinRouterOs = "7")]
         public TikField<string?> ActionData { get; set; }
 
         /// <summary>src-address — source IP address or range to match (e.g. 192.168.1.0/24).</summary>

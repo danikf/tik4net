@@ -12,7 +12,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// Supports the <c>rsa-key</c> and <c>rsa-signature-hybrid</c> authentication methods
     /// in <c>/ip/ipsec/identity</c>.
     /// </summary>
-    [TikEntity("/ip/ipsec/key/rsa", IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/key/rsa", IncludeDetails = true, MinRouterOs = "7")]
     public class IpsecKey
     {
         /// <summary>.id — primary key of row</summary>

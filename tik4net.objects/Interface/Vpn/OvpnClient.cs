@@ -106,7 +106,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// disconnect-notify — send an explicit disconnect notification to the server on tunnel teardown.
         /// Default: no (undocumented; present in RouterOS tab-completion).
         /// </summary>
-        [TikProperty("disconnect-notify", DefaultValue = "no", WinboxLabel = "Disconnect Notify")]
+        [TikProperty("disconnect-notify", DefaultValue = "no", WinboxLabel = "Disconnect Notify", MinRouterOs = "7")]
         public TikField<bool?> DisconnectNotify { get; set; }
 
         /// <summary>
@@ -157,14 +157,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: tcp
         /// </summary>
         /// <seealso cref="ProtocolType"/>
-        [TikProperty("protocol", DefaultValue = "tcp", WinboxLabel = "Protocol")]
+        [TikProperty("protocol", DefaultValue = "tcp", WinboxLabel = "Protocol", MinRouterOs = "7")]
         public TikField<ProtocolType?> Protocol { get; set; }
 
         /// <summary>
         /// route-nopull — when <c>true</c> the client ignores routes pushed by the server.
         /// Default: no
         /// </summary>
-        [TikProperty("route-nopull", DefaultValue = "no")]
+        [TikProperty("route-nopull", DefaultValue = "no", MinRouterOs = "7")]
         public TikField<bool?> RouteNopull { get; set; }
 
         /// <summary>
@@ -172,7 +172,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: any
         /// </summary>
         /// <seealso cref="TlsVersionType"/>
-        [TikProperty("tls-version", DefaultValue = "any", WinboxLabel = "TLS Version")]
+        [TikProperty("tls-version", DefaultValue = "any", WinboxLabel = "TLS Version", MinRouterOs = "7")]
         public TikField<TlsVersionType?> TlsVersion { get; set; }
 
         /// <summary>

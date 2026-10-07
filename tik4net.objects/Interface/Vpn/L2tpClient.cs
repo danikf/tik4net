@@ -206,7 +206,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// packets (improves load-balancing over ECMP links).
         /// Default: no
         /// </summary>
-        [TikProperty("random-source-port", DefaultValue = "no", WinboxLabel = "Random Source Port")]
+        [TikProperty("random-source-port", DefaultValue = "no", WinboxLabel = "Random Source Port", MinRouterOs = "7")]
         public TikField<bool?> RandomSourcePort { get; set; }
 
         /// <summary>
@@ -221,14 +221,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: l2tpv2
         /// </summary>
         /// <seealso cref="L2tpProtoVersionType"/>
-        [TikProperty("l2tp-proto-version", DefaultValue = "l2tpv2")]
+        [TikProperty("l2tp-proto-version", DefaultValue = "l2tpv2", MinRouterOs = "7")]
         public TikField<L2tpProtoVersionType?> L2tpProtoVersion { get; set; }
 
         /// <summary>
         /// l2tpv3-circuit-id — virtual circuit identifier string sent in L2TPv3 AVPs.
         /// Only relevant when <see cref="L2tpProtoVersion"/> is <c>l2tpv3-ip</c> or <c>l2tpv3-udp</c>.
         /// </summary>
-        [TikProperty("l2tpv3-circuit-id", WinboxLabel = "L2TPv3 Circuit ID")]
+        [TikProperty("l2tpv3-circuit-id", WinboxLabel = "L2TPv3 Circuit ID", MinRouterOs = "7")]
         public TikField<string?> L2tpv3CircuitId { get; set; }
 
         /// <summary>
@@ -236,7 +236,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 0 (no cookie)
         /// </summary>
         /// <seealso cref="L2tpv3CookieLengthType"/>
-        [TikProperty("l2tpv3-cookie-length", DefaultValue = "0", WinboxLabel = "L2TPv3 Cookie Length")]
+        [TikProperty("l2tpv3-cookie-length", DefaultValue = "0", WinboxLabel = "L2TPv3 Cookie Length", MinRouterOs = "7")]
         public TikField<L2tpv3CookieLengthType?> L2tpv3CookieLength { get; set; }
 
         /// <summary>
@@ -244,7 +244,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: md5
         /// </summary>
         /// <seealso cref="L2tpv3DigestHashType"/>
-        [TikProperty("l2tpv3-digest-hash", DefaultValue = "md5", WinboxLabel = "L2TPv3 Digest Hash")]
+        [TikProperty("l2tpv3-digest-hash", DefaultValue = "md5", WinboxLabel = "L2TPv3 Digest Hash", MinRouterOs = "7")]
         public TikField<L2tpv3DigestHashType?> L2tpv3DigestHash { get; set; }
 
         /// <summary>comment — optional free-text description of this L2TP client interface.</summary>

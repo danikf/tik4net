@@ -60,13 +60,13 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// max-sessions — maximum number of simultaneous sessions for this service (1..1000).
         /// </summary>
-        [TikProperty("max-sessions", DefaultValue = "20", WinboxLabel = "Max Sessions")]
+        [TikProperty("max-sessions", DefaultValue = "20", WinboxLabel = "Max Sessions", MinRouterOs = "7")]
         public TikField<int?> MaxSessions { get; set; }
 
         /// <summary>
         /// vrf — specifies which VRF instance is used by this service.
         /// </summary>
-        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
 
         /// <summary>
@@ -78,13 +78,13 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// proto — transport protocol used by the service (tcp or udp). Read-only.
         /// </summary>
-        [TikProperty("proto", IsReadOnly = true, WinboxLabel = "Protocol")]
+        [TikProperty("proto", IsReadOnly = true, WinboxLabel = "Protocol", MinRouterOs = "7")]
         public TikField<string?> Proto { get; private set; }
 
         /// <summary>
         /// dynamic — whether this is a dynamically created connection entry (not a base service row). Read-only.
         /// </summary>
-        [TikProperty("dynamic", IsReadOnly = true)]
+        [TikProperty("dynamic", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
@@ -96,19 +96,19 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// local — router local address for an active connection (present on dynamic connection rows only). Read-only.
         /// </summary>
-        [TikProperty("local", IsReadOnly = true, WinboxLabel = "Local")]
+        [TikProperty("local", IsReadOnly = true, WinboxLabel = "Local", MinRouterOs = "7")]
         public TikField<string?> Local { get; private set; }
 
         /// <summary>
         /// remote — remote address of the active connection (present on dynamic connection rows only). Read-only.
         /// </summary>
-        [TikProperty("remote", IsReadOnly = true, WinboxLabel = "Remote")]
+        [TikProperty("remote", IsReadOnly = true, WinboxLabel = "Remote", MinRouterOs = "7")]
         public TikField<string?> Remote { get; private set; }
 
         /// <summary>
         /// connection — true when the row represents an active connection rather than a service definition. Read-only.
         /// </summary>
-        [TikProperty("connection", IsReadOnly = true, WinboxLabel = "connection")]
+        [TikProperty("connection", IsReadOnly = true, WinboxLabel = "connection", MinRouterOs = "7")]
         public TikField<bool?> Connection { get; private set; }
 
         /// <summary>Human-readable identity — service name and port.</summary>

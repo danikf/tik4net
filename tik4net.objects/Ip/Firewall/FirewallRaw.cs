@@ -391,7 +391,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// tos: Matches the ToS (Type of Service) field of IP header.
         /// </summary>
-        [TikProperty("tos", WinboxLabel = "TOS", Negatable = true)]
+        [TikProperty("tos", WinboxLabel = "TOS", Negatable = true, MinRouterOs = "7")]
         public TikField<string?> Tos { get; set; }
 
         /// <summary>

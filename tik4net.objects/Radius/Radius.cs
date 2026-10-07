@@ -107,7 +107,7 @@ namespace tik4net.Objects.Radius
         /// Value is a time string, e.g. "3s300ms". Default: 3s300ms.
         /// Only relevant when <see cref="Protocol"/> is <see cref="ProtocolType.Radsec"/>.
         /// </summary>
-        [TikProperty("radsec-timeout", DefaultValue = "3s300ms", WinboxLabel = "RadSec Timeout")]
+        [TikProperty("radsec-timeout", DefaultValue = "3s300ms", WinboxLabel = "RadSec Timeout", MinRouterOs = "7")]
         public TikField<TikDuration?> RadsecTimeout { get; set; }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace tik4net.Objects.Radius
         /// <seealso cref="RequireMessageAuthType"/>
         /// Default: yes-for-request-resp.
         /// </summary>
-        [TikProperty("require-message-auth", DefaultValue = "yes-for-request-resp", WinboxLabel = "Require Message Auth")]
+        [TikProperty("require-message-auth", DefaultValue = "yes-for-request-resp", WinboxLabel = "Require Message Auth", MinRouterOs = "7")]
         public TikField<RequireMessageAuthType?> RequireMessageAuth { get; set; }
 
         /// <summary>
@@ -180,7 +180,7 @@ namespace tik4net.Objects.Radius
         /// <summary>
         /// status — current connection status of the RADIUS server entry (read-only).
         /// </summary>
-        [TikProperty("status", IsReadOnly = true, WinboxLabel = "Status")]
+        [TikProperty("status", IsReadOnly = true, WinboxLabel = "Status", MinRouterOs = "7")]
         public TikField<string?> Status { get; private set; }
 
         /// <summary>Returns a human-readable summary of the entry.</summary>

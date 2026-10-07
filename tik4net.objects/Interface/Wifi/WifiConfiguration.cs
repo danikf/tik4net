@@ -13,7 +13,7 @@ namespace tik4net.Objects.Interface.Wifi
     /// (e.g. channel...., security....) are available on the router but are not mapped here —
     /// use the dedicated profile entities instead.
     /// </summary>
-    [TikEntity("/interface/wifi/configuration", IncludeDetails = true)]
+    [TikEntity("/interface/wifi/configuration", IncludeDetails = true, MinRouterOs = "7")]
     public class WifiConfiguration
     {
         // ── Operating mode ────────────────────────────────────────────────────

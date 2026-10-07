@@ -156,19 +156,19 @@ namespace tik4net.Objects.Interface
 
         /// <summary>lacp-mode — LACP participation mode for ports in 802.3ad mode. Default: active.</summary>
         /// <seealso cref="LacpParticipationMode"/>
-        [TikProperty("lacp-mode", DefaultValue = "active", WinboxLabel = "LACP Mode")]
+        [TikProperty("lacp-mode", DefaultValue = "active", WinboxLabel = "LACP Mode", MinRouterOs = "7")]
         public TikField<LacpParticipationMode?> LacpMode { get; set; }
 
         /// <summary>lacp-system-id — MAC address to use as the LACP system ID (overrides the default).</summary>
-        [TikProperty("lacp-system-id", DefaultValue = "", WinboxLabel = "LACP System Id")]
+        [TikProperty("lacp-system-id", DefaultValue = "", WinboxLabel = "LACP System Id", MinRouterOs = "7")]
         public TikField<string?> LacpSystemId { get; set; }
 
         /// <summary>lacp-system-priority — LACP system priority (1–65535). Real default: 65535. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("lacp-system-priority", DefaultValue = "65535", WinboxLabel = "LACP System Priority")]
+        [TikProperty("lacp-system-priority", DefaultValue = "65535", WinboxLabel = "LACP System Priority", MinRouterOs = "7")]
         public TikField<int?> LacpSystemPriority { get; set; }
 
         /// <summary>lacp-user-key — Upper 10 bits of the LACP port key (0–1023). Default: 0.</summary>
-        [TikProperty("lacp-user-key", DefaultValue = "0", WinboxLabel = "LACP User Key")]
+        [TikProperty("lacp-user-key", DefaultValue = "0", WinboxLabel = "LACP User Key", MinRouterOs = "7")]
         public TikField<int?> LacpUserKey { get; set; }
 
         /// <summary>transmit-hash-policy — the hash policy used for slave selection in balance-xor and 802.3ad modes.</summary>

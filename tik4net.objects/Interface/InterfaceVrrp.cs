@@ -123,15 +123,15 @@ namespace tik4net.Objects.Interface
         public TikField<string?> OnMaster { get; set; }
 
         /// <summary>on-fail — Script executed during failure.</summary>
-        [TikProperty("on-fail", DefaultValue = "")]
+        [TikProperty("on-fail", DefaultValue = "", MinRouterOs = "7")]
         public TikField<string?> OnFail { get; set; }
 
         /// <summary>group-authority — VRRP interface that acts as group authority, controlling this instance's state.</summary>
-        [TikProperty("group-authority", DefaultValue = "", WinboxLabel = "Group Authority")]
+        [TikProperty("group-authority", DefaultValue = "", WinboxLabel = "Group Authority", MinRouterOs = "7")]
         public TikField<string?> GroupAuthority { get; set; }
 
         /// <summary>sync-connection-tracking — Synchronizes connection tracking entries from master to backup.</summary>
-        [TikProperty("sync-connection-tracking", DefaultValue = "no", WinboxLabel = "Sync. Connection Tracking")]
+        [TikProperty("sync-connection-tracking", DefaultValue = "no", WinboxLabel = "Sync. Connection Tracking", MinRouterOs = "7")]
         public TikField<bool?> SyncConnectionTracking { get; set; }
 
         /// <summary>connection-tracking-mode — how connection tracking entries synchronize across VRRP nodes.</summary>
@@ -145,15 +145,15 @@ namespace tik4net.Objects.Interface
 
         /// <summary>connection-tracking-mode — How connection tracking synchronizes across VRRP nodes. Default: passive-active.</summary>
         /// <seealso cref="ConnectionTrackingModeType"/>
-        [TikProperty("connection-tracking-mode", DefaultValue = "passive-active")]
+        [TikProperty("connection-tracking-mode", DefaultValue = "passive-active", MinRouterOs = "7")]
         public TikField<ConnectionTrackingModeType?> ConnectionTrackingMode { get; set; }
 
         /// <summary>connection-tracking-port — UDP port used for connection tracking synchronization. Default: 8275. DefaultValue="0" prevents sending 0 on add.</summary>
-        [TikProperty("connection-tracking-port", DefaultValue = "8275", WinboxLabel = "Conn. Tracking Port")]
+        [TikProperty("connection-tracking-port", DefaultValue = "8275", WinboxLabel = "Conn. Tracking Port", MinRouterOs = "7")]
         public TikField<int?> ConnectionTrackingPort { get; set; }
 
         /// <summary>remote-address — Peer router IP address for connection tracking synchronization.</summary>
-        [TikProperty("remote-address", DefaultValue = "", WinboxLabel = "Remote Address")]
+        [TikProperty("remote-address", DefaultValue = "", WinboxLabel = "Remote Address", MinRouterOs = "7")]
         public TikField<string?> RemoteAddress { get; set; }
 
         /// <summary>invalid — Whether the VRRP configuration is invalid (read-only).</summary>

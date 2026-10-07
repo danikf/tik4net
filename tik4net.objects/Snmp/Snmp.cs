@@ -35,7 +35,7 @@ namespace tik4net.Objects.Snmp
         /// engine-id-suffix — optional hex suffix appended to the auto-generated engine-id.
         /// Set to customise the SNMPv3 engine identifier.
         /// </summary>
-        [TikProperty("engine-id-suffix", DefaultValue = "", WinboxLabel = "Engine ID suffix")]
+        [TikProperty("engine-id-suffix", DefaultValue = "", WinboxLabel = "Engine ID suffix", MinRouterOs = "7")]
         public TikField<string?> EngineIdSuffix { get; set; }
 
         /// <summary>src-address — source IP address used for SNMP responses and traps. Default <c>::</c> means auto-select.</summary>
@@ -77,7 +77,7 @@ namespace tik4net.Objects.Snmp
         /// vrf — Virtual Routing and Forwarding instance used by the SNMP service.
         /// Default is <c>main</c>.
         /// </summary>
-        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
     }
 

@@ -13,7 +13,7 @@ namespace tik4net.Objects.System
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/NTP</para>
     /// </summary>
     // IncludeDetails omitted — detail= is rejected by this singleton.
-    [TikEntity("/system/ntp/server", IsSingleton = true)]
+    [TikEntity("/system/ntp/server", IsSingleton = true, MinRouterOs = "7")]
     public class SystemNtpServer
     {
         /// <summary>enabled — activates the NTP server. Default: no.</summary>

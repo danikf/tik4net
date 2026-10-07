@@ -22,7 +22,7 @@ namespace tik4net.Objects.Routing.Bgp
         /// <summary>
         /// Gets or sets the advertised IP prefix.
         /// </summary>
-        [TikProperty("prefix")]
+        [TikProperty("prefix", MaxRouterOs = "6")]
         public TikField<string?> Prefix { get; set; }
 
         /// <summary>

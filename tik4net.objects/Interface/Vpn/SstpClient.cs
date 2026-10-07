@@ -71,7 +71,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 443; router default 443, omitted on add when left 0.
         /// </summary>
         // router default 443; omitted on add when left 0
-        [TikProperty("port", WinboxLabel = "Port")]
+        [TikProperty("port", WinboxLabel = "Port", MinRouterOs = "7")]
         public TikField<int?> Port { get; set; }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Valid values: aes256-sha, aes256-gcm-sha384 (or a combination).
         /// Default: aes256-sha
         /// </summary>
-        [TikProperty("ciphers", DefaultValue = "aes256-sha", WinboxLabel = "Ciphers")]
+        [TikProperty("ciphers", DefaultValue = "aes256-sha", WinboxLabel = "Ciphers", MinRouterOs = "7")]
         public TikField<string?> Ciphers { get; set; }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 443; router default 443, omitted on add when left 0.
         /// </summary>
         // router default 443; omitted on add when left 0
-        [TikProperty("proxy-port", WinboxLabel = "Proxy Port")]
+        [TikProperty("proxy-port", WinboxLabel = "Proxy Port", MinRouterOs = "7")]
         public TikField<int?> ProxyPort { get; set; }
 
         /// <summary>
@@ -208,7 +208,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// add-sni — when <c>true</c> the client sends the Server Name Indication TLS extension.
         /// Default: no
         /// </summary>
-        [TikProperty("add-sni", DefaultValue = "no", WinboxLabel = "Add SNI")]
+        [TikProperty("add-sni", DefaultValue = "no", WinboxLabel = "Add SNI", MinRouterOs = "7")]
         public TikField<bool?> AddSni { get; set; }
 
         /// <summary>comment — optional description of the client interface entry.</summary>
@@ -226,7 +226,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// hw-crypto — <c>true</c> when hardware-accelerated crypto is active on this tunnel.
         /// </summary>
-        [TikProperty("hw-crypto", IsReadOnly = true)]
+        [TikProperty("hw-crypto", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> HwCrypto { get; private set; }
 
         /// <summary>Human-readable identity of the SSTP client interface.</summary>

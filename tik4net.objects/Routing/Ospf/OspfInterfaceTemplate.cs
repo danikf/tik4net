@@ -8,7 +8,7 @@ namespace tik4net.Objects.Routing.Ospf
     /// OSPF settings (hello/dead intervals, cost, type, auth, etc.) to matching interfaces based
     /// on the first matching template in the ordered list.
     /// </summary>
-    [TikEntity("/routing/ospf/interface-template", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/routing/ospf/interface-template", IncludeDetails = true, IsOrdered = true, MinRouterOs = "7")]
     public class OspfInterfaceTemplate
     {
         /// <summary>OSPF network/interface type.</summary>
@@ -177,14 +177,14 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// vlink-neighbor-id — router-id of the virtual link neighbour. Used when type=virtual-link.
         /// </summary>
-        [TikProperty("vlink-neighbor-id")]
+        [TikProperty("vlink-neighbor-id", MaxRouterOs = "7.21")]
         public TikField<string?> VlinkNeighborId { get; set; }
 
         /// <summary>
         /// vlink-transit-area — name of the transit area through which the virtual link passes.
         /// Used when type=virtual-link.
         /// </summary>
-        [TikProperty("vlink-transit-area")]
+        [TikProperty("vlink-transit-area", MaxRouterOs = "7.21")]
         public TikField<string?> VlinkTransitArea { get; set; }
 
         /// <summary>

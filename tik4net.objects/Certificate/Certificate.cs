@@ -126,7 +126,7 @@ namespace tik4net.Objects.Certificate
         /// Default: all.
         /// WinBox: "Trust Store"
         /// </summary>
-        [TikProperty("trust-store", DefaultValue = "all", WinboxLabel = "Trust Store")]
+        [TikProperty("trust-store", DefaultValue = "all", WinboxLabel = "Trust Store", MinRouterOs = "7")]
         public TikField<string?> TrustStore { get; set; }
 
         /// <summary>
@@ -223,21 +223,21 @@ namespace tik4net.Objects.Certificate
         /// acme-status — Status reported by the ACME client for this certificate (read-only).
         /// WinBox: "ACME Status"
         /// </summary>
-        [TikProperty("acme-status", IsReadOnly = true, WinboxLabel = "ACME Status")]
+        [TikProperty("acme-status", IsReadOnly = true, WinboxLabel = "ACME Status", MinRouterOs = "7.22")]
         public TikField<string?> AcmeStatus { get; private set; }
 
         /// <summary>
         /// domain-names — Domain names managed by the ACME client for this certificate (read-only).
         /// WinBox: "Domain Names"
         /// </summary>
-        [TikProperty("domain-names", IsReadOnly = true)]
+        [TikProperty("domain-names", IsReadOnly = true, MinRouterOs = "7.22")]
         public TikField<string?> DomainNames { get; private set; }
 
         /// <summary>
         /// directory-url — ACME directory URL used to obtain this certificate (read-only).
         /// WinBox: "Directory URL"
         /// </summary>
-        [TikProperty("directory-url", IsReadOnly = true, WinboxLabel = "Directory URL")]
+        [TikProperty("directory-url", IsReadOnly = true, WinboxLabel = "Directory URL", MinRouterOs = "7.22")]
         public TikField<string?> DirectoryUrl { get; private set; }
 
         // ── Enums ────────────────────────────────────────────────────────────────

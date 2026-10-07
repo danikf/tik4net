@@ -153,7 +153,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// ppk — enable Post-quantum Preshared Key (PPK) support (IKEv2, RFC 8784).
         /// Default: no
         /// </summary>
-        [TikProperty("ppk", DefaultValue = "no", WinboxLabel = "PPK")]
+        [TikProperty("ppk", DefaultValue = "no", WinboxLabel = "PPK", MinRouterOs = "7")]
         public TikField<bool?> Ppk { get; set; }
 
         // NOTE: /ip/ipsec/profile has no "comment" field on RouterOS (confirmed via

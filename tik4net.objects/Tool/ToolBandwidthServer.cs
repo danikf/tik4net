@@ -34,11 +34,11 @@ namespace tik4net.Objects.Tool
         public TikField<int?> MaxSessions { get; set; }
 
         /// <summary>allowed-addresses4 — IPv4 address or prefix from which test connections are accepted. Empty means no restriction.</summary>
-        [TikProperty("allowed-addresses4", DefaultValue = "", WinboxLabel = "IPv4 allowed networks")]
+        [TikProperty("allowed-addresses4", DefaultValue = "", WinboxLabel = "IPv4 allowed networks", MinRouterOs = "7")]
         public TikField<TikValueList<string>?> AllowedAddresses4 { get; set; }
 
         /// <summary>allowed-addresses6 — IPv6 address or prefix from which test connections are accepted. Empty means no restriction.</summary>
-        [TikProperty("allowed-addresses6", DefaultValue = "", WinboxLabel = "IPv6 allowed networks")]
+        [TikProperty("allowed-addresses6", DefaultValue = "", WinboxLabel = "IPv6 allowed networks", MinRouterOs = "7")]
         public TikField<TikValueList<string>?> AllowedAddresses6 { get; set; }
 
         /// <summary>Returns a human-readable summary of the bandwidth server settings.</summary>

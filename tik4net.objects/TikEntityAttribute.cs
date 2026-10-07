@@ -109,6 +109,21 @@ namespace tik4net.Objects
         public bool IsSingleton { get; set; }
 
         /// <summary>
+        /// The oldest RouterOS release this menu is known to be in, as the lab measured it, or <c>null</c> when it is in every
+        /// release tik4net is tested on (6.49 and 7.x). A bound, not the release that introduced it: <c>"7"</c> is "in 7.x,
+        /// not in 6.49"; <c>"7.22"</c> is "not in 7.21.5, in 7.24.5". For documentation and test gating; the mapper does
+        /// not act on it.
+        /// </summary>
+        public string? MinRouterOs { get; set; }
+
+        /// <summary>
+        /// The newest RouterOS release this menu is known to be in, or <c>null</c> when the current release still has it:
+        /// <c>"6"</c> is "in 6.49, gone in 7"; <c>"7.21"</c> is "in 7.21.5, gone by 7.24.5". As <see cref="MinRouterOs"/>,
+        /// a measured bound for documentation and test gating.
+        /// </summary>
+        public string? MaxRouterOs { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class.
         /// </summary>
         /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>

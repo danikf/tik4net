@@ -42,11 +42,11 @@ namespace tik4net.Objects.System
         public TikField<string?> Scheduled { get; private set; }
 
         /// <summary>size — installed package size in bytes. Read-only.</summary>
-        [TikProperty("size", IsReadOnly = true, WinboxLabel = "Size")]
+        [TikProperty("size", IsReadOnly = true, WinboxLabel = "Size", MinRouterOs = "7")]
         public TikField<string?> Size { get; private set; }
 
         /// <summary>available — when true a newer version is available for download. Read-only.</summary>
-        [TikProperty("available", IsReadOnly = true)]
+        [TikProperty("available", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> Available { get; private set; }
 
         /// <summary>disabled — when true the package is scheduled to be disabled at next reboot. Changed via Enable/Disable commands, not via set. Read-only.</summary>

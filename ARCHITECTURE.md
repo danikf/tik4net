@@ -509,6 +509,10 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
    text `set` replaces only the half it names (`tcp-flags`). The router's behaviour is in
    [Docs/findings-value-lists.md](Docs/findings-value-lists.md); the catalog's VALUES section
    (`EntityJgCatalogProbe`) lists every multi-value or negatable field with its UI type.
+9. **A menu or field not in every lab release carries the measured bound** — `MinRouterOs` / `MaxRouterOs` on
+   `[TikEntity]` / `[TikProperty]` (`"7"`: in 7.x, not in 6.49; `MaxRouterOs = "6"`: gone in 7). Measured on the three
+   lab routers by `VersionPresenceProbe`, never guessed; documentation and test gating only
+   (`TikRouterOsRange`, `EnsureRouterOsHas<T>` in the integration tests).
 
 Most of these conventions are **enforced in CI**, not just documented — they run over every `[TikEntity]` on
 every push, so a new entity that breaks one fails the build rather than the first person to load that menu:
@@ -518,6 +522,7 @@ every push, so a new entity that breaks one fails the build rather than the firs
 | `EntityStructureConventionTests` | `.id`, every other property a `TikField<T?>`, paths, enums, read-only counters | pass/fail |
 | `EntityDefaultValueConventionTests` | the `DefaultValue` spelling (point 5) | pass/fail |
 | `TolerantEnumReadTests` | no built-in enum carries an `Unknown` member | pass/fail |
+| `EntityRouterOsRangeTests` | rule 9 — every bound against the measured table, and no bound without a measurement | pass/fail |
 | `EntityDurationConventionTests` | rule 6 — a duration is `TikDuration?`, never `string?` | **ratchet** |
 | `EntityRatePairConventionTests` | rule 7 — a paired rate is `TikRatePair?`, never `string?` | **ratchet, at zero** |
 

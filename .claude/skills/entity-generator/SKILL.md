@@ -278,6 +278,28 @@ re-ask with that prefix, and never prepend it to the values the listing then giv
 > row) from `print` on certain ROS versions — `LoadSingle` then throws "no such item"; fall back to `LoadAll`
 > (assert non-null) in the test and document why (see `Interface/Vpn/OvpnServer.cs`).
 
+### Which RouterOS releases have it — `MinRouterOs` / `MaxRouterOs`
+
+A menu or field that is not in every lab release carries the bound the lab measured, on `[TikEntity]` or
+`[TikProperty]`. **Measure it, never guess it**: describe the menu on all three lab routers (`mikrotik_cli_complete`
+with `<menu> add ` / `<menu> set ` over WinBox CLI, the space form `/ip firewall filter add ` on RouterOS 6 — the
+router profiles are in `tik4net.integrationtests/App.config`), or run `VersionPresenceProbe`, which does every mapped
+menu at once. Then:
+
+| Present on 7.24.5 / 7.21.5 / 6.49.13 | Bound |
+|---|---|
+| yes / yes / no | `MinRouterOs = "7"` |
+| yes / no / no | `MinRouterOs = "7.22"` |
+| no / no / yes | `MaxRouterOs = "6"` |
+| no / yes / (no menu) | `MaxRouterOs = "7.21"` |
+
+A field of a menu that itself carries a bound needs none of its own for the same releases. A menu missing because a
+**package** is not installed (wifi, container) or because the board lacks it (`/system/routerboard` on CHR) is not a
+version bound. The grammar cannot prove a field absent — a field the router prints but does not name to `get` looks
+missing — so check a bound against printed rows (`VersionPresenceProbe.TheRowsAgreeWithEveryBound`, which needs a row
+in the menu). Add the measured line to `EntityRouterOsRangeTests.Measured` in `tik4net.unittests`: it fails on a bound
+with no measurement behind it, and on a measurement no bound says. The entity's bound shows in `Docs/entity-catalog.md` — regenerate it, as AGENTS.md *Adding an entity* says.
+
 ## Step 6 — Documentation, including WinBox-native names
 
 - **Entity `///`**: the wiki "Summary" paragraph (multi-line allowed). If absent, at least put the path.
@@ -351,7 +373,8 @@ For a **read-only or singleton** entity write only the List test — `LoadSingle
 `LoadAll<T>()` otherwise.
 
 Guard with `EnsureCommandAvailable` first; a plain CRUD entity usually needs nothing else. Add a
-capability or version guard only when the specific test depends on that feature. There is deliberately no
+capability or version guard only when the specific test depends on that feature — for a version, the measured bound:
+`EnsureRouterOsHas<Entity>(nameof(Entity.Field))`, not a hand-written major version. There is deliberately no
 transport-name skip — see the guard table in `mikrotik-tests`.
 
 ```powershell

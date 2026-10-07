@@ -219,14 +219,14 @@ namespace tik4net.Objects.System
         /// remote-protocol — transport protocol used to reach the remote syslog server (remote target only).
         /// <seealso cref="RemoteProtocolType"/>
         /// </summary>
-        [TikProperty("remote-protocol", DefaultValue = "udp", WinboxLabel = "remote: Remote Log Protocol")]
+        [TikProperty("remote-protocol", DefaultValue = "udp", WinboxLabel = "remote: Remote Log Protocol", MinRouterOs = "7")]
         public TikField<RemoteProtocolType?> RemoteProtocol { get; set; }
 
         /// <summary>
         /// remote-log-format — wire format of messages sent to the remote server (remote target only).
         /// <seealso cref="RemoteLogFormatType"/>
         /// </summary>
-        [TikProperty("remote-log-format", DefaultValue = "default", WinboxLabel = "Remote Log Format")]
+        [TikProperty("remote-log-format", DefaultValue = "default", WinboxLabel = "Remote Log Format", MinRouterOs = "7")]
         public TikField<RemoteLogFormatType?> RemoteLogFormat { get; set; }
 
         /// <summary>
@@ -239,7 +239,7 @@ namespace tik4net.Objects.System
         /// <summary>
         /// vrf — VRF context used for remote syslog connections (RouterOS 7.19+).
         /// </summary>
-        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
 
         /// <summary>
@@ -269,7 +269,7 @@ namespace tik4net.Objects.System
         /// (remote target with <see cref="RemoteLogFormatType.Cef"/> only).
         /// Default is CRLF (<c>\r\n</c>).
         /// </summary>
-        [TikProperty("cef-event-delimiter", WinboxLabel = "CEF Event Delimiter")]
+        [TikProperty("cef-event-delimiter", WinboxLabel = "CEF Event Delimiter", MinRouterOs = "7")]
         public TikField<string?> CefEventDelimiter { get; set; }
 
         // ── email target ──────────────────────────────────────────────────────

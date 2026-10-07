@@ -79,13 +79,13 @@ namespace tik4net.Objects.Interface.Vpn
         public string? Id { get; private set; }
 
         /// <summary>inactive — the server is configured but not running.</summary>
-        [TikProperty("inactive", IsReadOnly = true)]
+        [TikProperty("inactive", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> Inactive { get; private set; }
 
         // ---- Writable properties ----
 
         /// <summary>name — server interface name identifier.</summary>
-        [TikProperty("name", WinboxLabel = "Name")]
+        [TikProperty("name", WinboxLabel = "Name", MinRouterOs = "7")]
         public TikField<string?> Name { get; set; }
 
         /// <summary>
@@ -122,14 +122,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// disabled — when <c>true</c> the OpenVPN server does not accept connections.
         /// Default: yes (disabled by default on a fresh router)
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "yes")]
+        [TikProperty("disabled", DefaultValue = "yes", MinRouterOs = "7")]
         public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
         /// enable-tun-ipv6 — permits IPv6 IP tunneling over the server interface.
         /// Default: no
         /// </summary>
-        [TikProperty("enable-tun-ipv6", DefaultValue = "no", WinboxLabel = "Enable Tun IPv6")]
+        [TikProperty("enable-tun-ipv6", DefaultValue = "no", WinboxLabel = "Enable Tun IPv6", MinRouterOs = "7")]
         public TikField<bool?> EnableTunIpv6 { get; set; }
 
         /// <summary>
@@ -137,7 +137,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 64; router default 64, omitted on add when left 0.
         /// </summary>
         // router default 64; omitted on add when left 0
-        [TikProperty("ipv6-prefix-len")]
+        [TikProperty("ipv6-prefix-len", MinRouterOs = "7")]
         public TikField<int?> Ipv6PrefixLen { get; set; }
 
         /// <summary>
@@ -192,20 +192,20 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: tcp
         /// <seealso cref="ProtocolType"/>
         /// </summary>
-        [TikProperty("protocol", DefaultValue = "tcp", WinboxLabel = "Protocol")]
+        [TikProperty("protocol", DefaultValue = "tcp", WinboxLabel = "Protocol", MinRouterOs = "7")]
         public TikField<ProtocolType?> Protocol { get; set; }
 
         /// <summary>
         /// push-routes — comma-separated list of IPv4 routes pushed to connecting clients.
         /// Maximum 1400 characters (approximately 37 routes).
         /// </summary>
-        [TikProperty("push-routes", WinboxLabel = "Push Routes")]
+        [TikProperty("push-routes", WinboxLabel = "Push Routes", MinRouterOs = "7")]
         public TikField<string?> PushRoutes { get; set; }
 
         /// <summary>
         /// push-routes-ipv6 — comma-separated list of IPv6 routes pushed to connecting clients.
         /// </summary>
-        [TikProperty("push-routes-ipv6", WinboxLabel = "Push Routes IPv6")]
+        [TikProperty("push-routes-ipv6", WinboxLabel = "Push Routes IPv6", MinRouterOs = "7")]
         public TikField<string?> PushRoutesIpv6 { get; set; }
 
         /// <summary>
@@ -213,7 +213,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// <seealso cref="RedirectGatewayMode"/>
         /// </summary>
-        [TikProperty("redirect-gateway", DefaultValue = "disabled", WinboxLabel = "Redirect Gateway")]
+        [TikProperty("redirect-gateway", DefaultValue = "disabled", WinboxLabel = "Redirect Gateway", MinRouterOs = "7")]
         public TikField<RedirectGatewayMode?> RedirectGateway { get; set; }
 
         /// <summary>
@@ -221,7 +221,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 3600; router default 3600, omitted on add when left 0.
         /// </summary>
         // router default 3600; omitted on add when left 0
-        [TikProperty("reneg-sec")]
+        [TikProperty("reneg-sec", MinRouterOs = "7")]
         public TikField<int?> RenegSec { get; set; }
 
         /// <summary>
@@ -237,14 +237,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: any
         /// <seealso cref="TlsVersionType"/>
         /// </summary>
-        [TikProperty("tls-version", DefaultValue = "any", WinboxLabel = "TLS Version")]
+        [TikProperty("tls-version", DefaultValue = "any", WinboxLabel = "TLS Version", MinRouterOs = "7")]
         public TikField<TlsVersionType?> TlsVersion { get; set; }
 
         /// <summary>
         /// tun-server-ipv6 — IPv6 address prefix assigned to the server-side tun interface.
         /// Default: :: (not set)
         /// </summary>
-        [TikProperty("tun-server-ipv6", DefaultValue = "::", WinboxLabel = "Tun Server IPv6")]
+        [TikProperty("tun-server-ipv6", DefaultValue = "::", WinboxLabel = "Tun Server IPv6", MinRouterOs = "7")]
         public TikField<string?> TunServerIpv6 { get; set; }
 
         /// <summary>
@@ -252,18 +252,18 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: pap
         /// <seealso cref="UserAuthMethodType"/>
         /// </summary>
-        [TikProperty("user-auth-method", DefaultValue = "pap")]
+        [TikProperty("user-auth-method", DefaultValue = "pap", MinRouterOs = "7")]
         public TikField<UserAuthMethodType?> UserAuthMethod { get; set; }
 
         /// <summary>
         /// vrf — Virtual Routing and Forwarding instance the server connections are bound to.
         /// Leave empty to use the main routing table.
         /// </summary>
-        [TikProperty("vrf", WinboxLabel = "VRF")]
+        [TikProperty("vrf", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
 
         /// <summary>comment — optional description of the server configuration.</summary>
-        [TikProperty("comment")]
+        [TikProperty("comment", MinRouterOs = "7")]
         public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable summary of the OpenVPN server configuration.</summary>

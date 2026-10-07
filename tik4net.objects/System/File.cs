@@ -46,7 +46,7 @@ namespace tik4net.Objects.System
         /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
         /// (<see cref="DateTimeKind.Unspecified"/>).
         /// </summary>
-        [TikProperty("creation-time", IsReadOnly = true)]
+        [TikProperty("creation-time", IsReadOnly = true, MaxRouterOs = "6")]
         public TikField<DateTime?> CreationTime { get; private set; }
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace tik4net.Objects.System
         /// Read from either spelling (7.x <c>2026-07-25 10:24:52</c>, 6.x <c>jul/25/2026 10:24:52</c>); no time zone is applied
         /// (<see cref="DateTimeKind.Unspecified"/>).
         /// </summary>
-        [TikProperty("last-modified", IsReadOnly = true, WinboxLabel = "Last Modified")]
+        [TikProperty("last-modified", IsReadOnly = true, WinboxLabel = "Last Modified", MinRouterOs = "7")]
         public TikField<DateTime?> LastModified { get; private set; }
 
         /// <summary>

@@ -38,7 +38,7 @@ namespace tik4net.Objects.Ip
 		/// <summary>
 		/// dhcp: Whether ARP entry is added by DHCP server
 		/// </summary>
-		[TikProperty("dhcp", IsReadOnly = true, WinboxLabel = "DHCP")]
+		[TikProperty("dhcp", IsReadOnly = true, WinboxLabel = "DHCP", MinRouterOs = "7")]
         public TikField<bool?> Dhcp { get; private set; }
 
 		/// <summary>

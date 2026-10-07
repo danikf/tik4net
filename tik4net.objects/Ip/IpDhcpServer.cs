@@ -165,7 +165,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// src-address: The address which the DHCP client must send requests to in order to renew an IP address lease. If there is only one static address on the DHCP server interface and the source-address is left as 0.0.0.0, then the static address will be used. If there are multiple addresses on the interface, an address in the same subnet as the range of given addresses should be used.
         /// </summary>
-        [TikProperty("src-address", DefaultValue = "0.0.0.0")]
+        [TikProperty("src-address", DefaultValue = "0.0.0.0", MaxRouterOs = "6")]
         public TikField<string?> SrcAddress { get; set; }
 
         /// <summary>

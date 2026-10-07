@@ -50,7 +50,7 @@
         /// <summary>
         /// Gets the gateway status of this route.
         /// </summary>
-        [TikProperty("gateway-status", IsReadOnly = true)]
+        [TikProperty("gateway-status", IsReadOnly = true, MaxRouterOs = "6")]
         public TikField<string?> GatewayStatus { get; private set; }
 
         /// <summary>
@@ -98,25 +98,25 @@
         /// <summary>
         /// Gets the BGP autonomuous system path as comma-separated list.
         /// </summary>
-        [TikProperty("bgp-as-path", IsReadOnly = true)]
+        [TikProperty("bgp-as-path", IsReadOnly = true, MaxRouterOs = "6")]
         public TikField<string?> BgpAsPath { get; private set; }
 
         /// <summary>
         /// Gets the BGP origin that provided this route.
         /// </summary>
-        [TikProperty("bgp-origin", IsReadOnly = true)]
+        [TikProperty("bgp-origin", IsReadOnly = true, MaxRouterOs = "6")]
         public TikField<string?> BgpOrigin { get; private set; }
 
         /// <summary>
         /// Gets the BGP communities of this route.
         /// </summary>
-        [TikProperty("bgp-communities", IsReadOnly = true)]
+        [TikProperty("bgp-communities", IsReadOnly = true, MaxRouterOs = "6")]
         public TikField<string?> BgpCommunities { get; private set; }
 
         /// <summary>
         /// Gets the info from which peer (peer name as defined for the routing protocol) this route has been received.
         /// </summary>
-        [TikProperty("received-from", IsReadOnly = true)]
+        [TikProperty("received-from", IsReadOnly = true, MaxRouterOs = "6")]
         public TikField<string?> ReceivedFrom { get; private set; }
 
         /// <summary>

@@ -7,7 +7,7 @@ namespace tik4net.Objects.Routing
     /// beyond the default "main" table. Custom routing tables are used with policy-based routing
     /// (routing rules) to route traffic via alternate paths.
     /// </summary>
-    [TikEntity("/routing/table", IncludeDetails = true)]
+    [TikEntity("/routing/table", IncludeDetails = true, MinRouterOs = "7")]
     public class RoutingTable
     {
         /// <summary>.id — primary key of row</summary>

@@ -56,7 +56,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// Comma-separated interface names.
         /// WinBox: "MVRP Forbidden"
         /// </summary>
-        [TikProperty("mvrp-forbidden", WinboxLabel = "MVRP Forbidden")]
+        [TikProperty("mvrp-forbidden", WinboxLabel = "MVRP Forbidden", MinRouterOs = "7")]
         public TikField<TikValueList<string>?> MvrpForbidden { get; set; }
 
         /// <summary>

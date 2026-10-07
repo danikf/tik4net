@@ -8,7 +8,7 @@ namespace tik4net.Objects.Wireguard
     /// <summary>
     /// Specific remote entity or device with which the local device establishes a secure communication tunnel
     /// </summary>
-    [TikEntity("/interface/wireguard/peers")]
+    [TikEntity("/interface/wireguard/peers", MinRouterOs = "7")]
     public class WireguardPeer
     {
         /// <summary>

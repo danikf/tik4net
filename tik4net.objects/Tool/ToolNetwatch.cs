@@ -20,7 +20,7 @@ namespace tik4net.Objects.Tool
         public string? Id { get; private set; }
 
         /// <summary>name — entry name (optional label).</summary>
-        [TikProperty("name", WinboxLabel = "Name")]
+        [TikProperty("name", WinboxLabel = "Name", MinRouterOs = "7")]
         public TikField<string?> Name { get; set; }
 
         /// <summary>host — IP address or DNS name of the host to probe.</summary>
@@ -32,7 +32,7 @@ namespace tik4net.Objects.Tool
         /// RouterOS 7 adds dns and https-get in addition to the classic simple/icmp/tcp-conn/http-get.
         /// </summary>
         /// <seealso cref="NeType"/>
-        [TikProperty("type", DefaultValue = "simple", WinboxLabel = "Type")]
+        [TikProperty("type", DefaultValue = "simple", WinboxLabel = "Type", MinRouterOs = "7")]
         public TikField<NeType?> Type { get; set; }
 
         /// <summary>Probe type values for <see cref="Type"/>.</summary>
@@ -63,11 +63,11 @@ namespace tik4net.Objects.Tool
         public TikField<TikDuration?> Timeout { get; set; }
 
         /// <summary>start-delay — delay before the first probe after the entry is enabled. Default: 3s.</summary>
-        [TikProperty("start-delay", DefaultValue = "3s", WinboxLabel = "Start Delay")]
+        [TikProperty("start-delay", DefaultValue = "3s", WinboxLabel = "Start Delay", MinRouterOs = "7")]
         public TikField<TikDuration?> StartDelay { get; set; }
 
         /// <summary>startup-delay — delay after a system restart before the first probe. Default: 5m.</summary>
-        [TikProperty("startup-delay", DefaultValue = "5m", WinboxLabel = "Startup Delay")]
+        [TikProperty("startup-delay", DefaultValue = "5m", WinboxLabel = "Startup Delay", MinRouterOs = "7")]
         public TikField<TikDuration?> StartupDelay { get; set; }
 
         // ── Scripts ─────────────────────────────────────────────────────────────
@@ -81,21 +81,21 @@ namespace tik4net.Objects.Tool
         public TikField<string?> DownScript { get; set; }
 
         /// <summary>test-script — RouterOS script to execute after each probe (regardless of state).</summary>
-        [TikProperty("test-script", IsFreeText = true)]
+        [TikProperty("test-script", IsFreeText = true, MinRouterOs = "7")]
         public TikField<string?> TestScript { get; set; }
 
         // ── Behaviour ───────────────────────────────────────────────────────────
 
         /// <summary>ignore-initial-up — when yes, skip up-script on the first Unknown→Up transition. Default: no.</summary>
-        [TikProperty("ignore-initial-up", DefaultValue = "no", WinboxLabel = "Ignore Initial Up")]
+        [TikProperty("ignore-initial-up", DefaultValue = "no", WinboxLabel = "Ignore Initial Up", MinRouterOs = "7")]
         public TikField<bool?> IgnoreInitialUp { get; set; }
 
         /// <summary>ignore-initial-down — when yes, skip down-script on the first Unknown→Down transition. Default: no.</summary>
-        [TikProperty("ignore-initial-down", DefaultValue = "no", WinboxLabel = "Ignore Initial Down")]
+        [TikProperty("ignore-initial-down", DefaultValue = "no", WinboxLabel = "Ignore Initial Down", MinRouterOs = "7")]
         public TikField<bool?> IgnoreInitialDown { get; set; }
 
         /// <summary>src-address — source IP address to use for probes.</summary>
-        [TikProperty("src-address", WinboxLabel = "Src. Address")]
+        [TikProperty("src-address", WinboxLabel = "Src. Address", MinRouterOs = "7")]
         public TikField<string?> SrcAddress { get; set; }
 
         /// <summary>disabled — when true the entry is disabled and probes are not sent.</summary>
@@ -109,90 +109,90 @@ namespace tik4net.Objects.Tool
         // ── ICMP-specific (type=icmp) ────────────────────────────────────────────
 
         /// <summary>packet-count — number of ICMP packets sent per probe cycle (type=icmp). Default: 10.</summary>
-        [TikProperty("packet-count", WinboxLabel = "Packet Count")] // router default 10; omitted on add when left 0
+        [TikProperty("packet-count", WinboxLabel = "Packet Count", MinRouterOs = "7")] // router default 10; omitted on add when left 0
         public TikField<int?> PacketCount { get; set; }
 
         /// <summary>packet-interval — interval between individual ICMP packets within one probe cycle (type=icmp). Default: 50ms.</summary>
-        [TikProperty("packet-interval", DefaultValue = "50ms", WinboxLabel = "Packet Interval")]
+        [TikProperty("packet-interval", DefaultValue = "50ms", WinboxLabel = "Packet Interval", MinRouterOs = "7")]
         public TikField<TikDuration?> PacketInterval { get; set; }
 
         /// <summary>packet-size — IP datagram size for ICMP packets (type=icmp). Default: 54.</summary>
-        [TikProperty("packet-size", WinboxLabel = "Packet Size")] // router default 54; omitted on add when left 0
+        [TikProperty("packet-size", WinboxLabel = "Packet Size", MinRouterOs = "7")] // router default 54; omitted on add when left 0
         public TikField<int?> PacketSize { get; set; }
 
         /// <summary>ttl — time-to-live value for ICMP packets (type=icmp). Default: 255.</summary>
-        [TikProperty("ttl", WinboxLabel = "TTL")] // router default 255; omitted on add when left 0
+        [TikProperty("ttl", WinboxLabel = "TTL", MinRouterOs = "7")] // router default 255; omitted on add when left 0
         public TikField<int?> Ttl { get; set; }
 
         /// <summary>accept-icmp-time-exceeded — accept ICMP Type 11 "Time Exceeded" as a valid response (type=icmp). Default: no.</summary>
-        [TikProperty("accept-icmp-time-exceeded", DefaultValue = "no", WinboxLabel = "Accept ICMP Time Exceeded")]
+        [TikProperty("accept-icmp-time-exceeded", DefaultValue = "no", WinboxLabel = "Accept ICMP Time Exceeded", MinRouterOs = "7")]
         public TikField<bool?> AcceptIcmpTimeExceeded { get; set; }
 
         /// <summary>early-failure-detection — stop the probe cycle early when a failure is already confirmed (type=icmp). Default: no.</summary>
-        [TikProperty("early-failure-detection", DefaultValue = "no", WinboxLabel = "Early Failure Detection")]
+        [TikProperty("early-failure-detection", DefaultValue = "no", WinboxLabel = "Early Failure Detection", MinRouterOs = "7")]
         public TikField<bool?> EarlyFailureDetection { get; set; }
 
         /// <summary>early-success-detection — stop the probe cycle early when success is already confirmed (type=icmp). Default: no.</summary>
-        [TikProperty("early-success-detection", DefaultValue = "no", WinboxLabel = "Early Success Detection")]
+        [TikProperty("early-success-detection", DefaultValue = "no", WinboxLabel = "Early Success Detection", MinRouterOs = "7")]
         public TikField<bool?> EarlySuccessDetection { get; set; }
 
         /// <summary>thr-max — maximum RTT threshold; probe fails when any packet exceeds this (type=icmp). Default: 1s.</summary>
-        [TikProperty("thr-max", DefaultValue = "1s", WinboxLabel = "Thr. Max")]
+        [TikProperty("thr-max", DefaultValue = "1s", WinboxLabel = "Thr. Max", MinRouterOs = "7")]
         public TikField<TikDuration?> ThrMax { get; set; }
 
         /// <summary>thr-avg — average RTT threshold (type=icmp). Default: 100ms.</summary>
-        [TikProperty("thr-avg", DefaultValue = "100ms", WinboxLabel = "Thr. Avg")]
+        [TikProperty("thr-avg", DefaultValue = "100ms", WinboxLabel = "Thr. Avg", MinRouterOs = "7")]
         public TikField<TikDuration?> ThrAvg { get; set; }
 
         /// <summary>thr-stdev — RTT standard-deviation threshold (type=icmp). Default: 250ms.</summary>
-        [TikProperty("thr-stdev", DefaultValue = "250ms", WinboxLabel = "Thr. Stdev")]
+        [TikProperty("thr-stdev", DefaultValue = "250ms", WinboxLabel = "Thr. Stdev", MinRouterOs = "7")]
         public TikField<TikDuration?> ThrStdev { get; set; }
 
         /// <summary>thr-jitter — jitter threshold (type=icmp). Default: 1s.</summary>
-        [TikProperty("thr-jitter", DefaultValue = "1s", WinboxLabel = "Thr. Jitter")]
+        [TikProperty("thr-jitter", DefaultValue = "1s", WinboxLabel = "Thr. Jitter", MinRouterOs = "7")]
         public TikField<TikDuration?> ThrJitter { get; set; }
 
         /// <summary>thr-loss-percent — packet loss percentage threshold; probe fails when loss exceeds this value (type=icmp). Default: 85.</summary>
-        [TikProperty("thr-loss-percent", DefaultValue = "85", WinboxLabel = "Thr. Loss Percent")]
+        [TikProperty("thr-loss-percent", DefaultValue = "85", WinboxLabel = "Thr. Loss Percent", MinRouterOs = "7")]
         public TikField<string?> ThrLossPercent { get; set; }
 
         /// <summary>thr-loss-count — packet loss count threshold; probe fails when lost packets exceed this value (type=icmp). Default: 4294967295.</summary>
-        [TikProperty("thr-loss-count", WinboxLabel = "Thr. Loss Count")] // router default 4294967295; omitted on add when left 0
+        [TikProperty("thr-loss-count", WinboxLabel = "Thr. Loss Count", MinRouterOs = "7")] // router default 4294967295; omitted on add when left 0
         public TikField<long?> ThrLossCount { get; set; }
 
         // ── TCP-specific (type=tcp-conn) ─────────────────────────────────────────
 
         /// <summary>port — TCP port number to connect to (type=tcp-conn; also used for http-get / https-get). Default: 80.</summary>
-        [TikProperty("port", WinboxLabel = "Port")] // router default 80; omitted on add when left 0
+        [TikProperty("port", WinboxLabel = "Port", MinRouterOs = "7")] // router default 80; omitted on add when left 0
         public TikField<int?> Port { get; set; }
 
         /// <summary>thr-tcp-conn-time — TCP connection time threshold range (e.g. "5ms-30ms"); probe fails when connection time is outside this range (type=tcp-conn).</summary>
-        [TikProperty("thr-tcp-conn-time")]
+        [TikProperty("thr-tcp-conn-time", MinRouterOs = "7")]
         public TikField<TikDuration?> ThrTcpConnTime { get; set; }
 
         // ── HTTP/HTTPS-specific (type=http-get / https-get) ──────────────────────
 
         /// <summary>http-codes — comma-separated list of HTTP status codes considered a successful response (e.g. "200,301"). Default: empty (200–299 range applies).</summary>
-        [TikProperty("http-codes", WinboxLabel = "HTTP Codes")]
+        [TikProperty("http-codes", WinboxLabel = "HTTP Codes", MinRouterOs = "7")]
         public TikField<TikValueList<TikNumberRange>?> HttpCodes { get; set; }
 
         /// <summary>thr-http-time — HTTP response time threshold; probe fails when response time exceeds this (type=http-get/https-get). Default: 10s.</summary>
-        [TikProperty("thr-http-time", DefaultValue = "10s", WinboxLabel = "Thr. HTTP Time")]
+        [TikProperty("thr-http-time", DefaultValue = "10s", WinboxLabel = "Thr. HTTP Time", MinRouterOs = "7")]
         public TikField<TikDuration?> ThrHttpTime { get; set; }
 
         /// <summary>certificate — name of a certificate to use for HTTPS verification (type=https-get).</summary>
-        [TikProperty("certificate", WinboxLabel = "Certificate")]
+        [TikProperty("certificate", WinboxLabel = "Certificate", MinRouterOs = "7")]
         public TikField<string?> Certificate { get; set; }
 
         /// <summary>check-certificate — when yes, validate the server certificate's trust chain (type=https-get). Default: no.</summary>
-        [TikProperty("check-certificate", DefaultValue = "no", WinboxLabel = "Check Certificate")]
+        [TikProperty("check-certificate", DefaultValue = "no", WinboxLabel = "Check Certificate", MinRouterOs = "7")]
         public TikField<bool?> CheckCertificate { get; set; }
 
         // ── DNS-specific (type=dns) ──────────────────────────────────────────────
 
         /// <summary>record-type — DNS record type to query (type=dns). Default: A.</summary>
         /// <seealso cref="DnsRecordType"/>
-        [TikProperty("record-type", DefaultValue = "A", WinboxLabel = "Record Type")]
+        [TikProperty("record-type", DefaultValue = "A", WinboxLabel = "Record Type", MinRouterOs = "7")]
         public TikField<DnsRecordType?> RecordType { get; set; }
 
         /// <summary>DNS record type values for <see cref="RecordType"/>.</summary>
@@ -209,7 +209,7 @@ namespace tik4net.Objects.Tool
         }
 
         /// <summary>dns-server — IP address of the DNS server to use for queries (type=dns). Defaults to the system DNS server.</summary>
-        [TikProperty("dns-server", WinboxLabel = "DNS Server")]
+        [TikProperty("dns-server", WinboxLabel = "DNS Server", MinRouterOs = "7")]
         public TikField<string?> DnsServer { get; set; }
 
         // ── Read-only status fields ──────────────────────────────────────────────
@@ -227,35 +227,35 @@ namespace tik4net.Objects.Tool
         public TikField<DateTime?> Since { get; private set; }
 
         /// <summary>done-tests — total number of probe attempts completed. Read-only.</summary>
-        [TikProperty("done-tests", IsReadOnly = true, WinboxLabel = "Done Tests")]
+        [TikProperty("done-tests", IsReadOnly = true, WinboxLabel = "Done Tests", MinRouterOs = "7")]
         public TikField<string?> DoneTests { get; private set; }
 
         /// <summary>failed-tests — number of failed probe attempts. Read-only.</summary>
-        [TikProperty("failed-tests", IsReadOnly = true, WinboxLabel = "Failed Tests")]
+        [TikProperty("failed-tests", IsReadOnly = true, WinboxLabel = "Failed Tests", MinRouterOs = "7")]
         public TikField<string?> FailedTests { get; private set; }
 
         // ── ICMP read-only counters (present when type=icmp and at least one probe has run) ──
 
         /// <summary>sent-count — number of ICMP packets sent in the last probe cycle. Read-only.</summary>
-        [TikProperty("sent-count", IsReadOnly = true, WinboxLabel = "Sent Count")]
+        [TikProperty("sent-count", IsReadOnly = true, WinboxLabel = "Sent Count", MinRouterOs = "7")]
         public TikField<string?> SentCount { get; private set; }
 
         /// <summary>response-count — number of ICMP responses received in the last probe cycle. Read-only.</summary>
-        [TikProperty("response-count", IsReadOnly = true, WinboxLabel = "Response Count")]
+        [TikProperty("response-count", IsReadOnly = true, WinboxLabel = "Response Count", MinRouterOs = "7")]
         public TikField<string?> ResponseCount { get; private set; }
 
         /// <summary>loss-count — number of lost ICMP packets in the last probe cycle. Read-only.</summary>
-        [TikProperty("loss-count", IsReadOnly = true, WinboxLabel = "Loss Count")]
+        [TikProperty("loss-count", IsReadOnly = true, WinboxLabel = "Loss Count", MinRouterOs = "7")]
         public TikField<string?> LossCount { get; private set; }
 
         /// <summary>loss-percent — packet loss percentage in the last probe cycle. Read-only.</summary>
-        [TikProperty("loss-percent", IsReadOnly = true, WinboxLabel = "Loss Percent")]
+        [TikProperty("loss-percent", IsReadOnly = true, WinboxLabel = "Loss Percent", MinRouterOs = "7")]
         public TikField<string?> LossPercent { get; private set; }
 
         // ── TCP read-only counters (present when type=tcp-conn and at least one probe has run) ──
 
         /// <summary>tcp-connect-time — measured TCP connection time in the last probe cycle. Read-only.</summary>
-        [TikProperty("tcp-connect-time", IsReadOnly = true, WinboxLabel = "TCP Connect Time")]
+        [TikProperty("tcp-connect-time", IsReadOnly = true, WinboxLabel = "TCP Connect Time", MinRouterOs = "7")]
         public TikField<string?> TcpConnectTime { get; private set; }
 
         /// <summary>Returns a human-readable summary of this netwatch entry.</summary>

@@ -126,7 +126,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// discovered-by: Comma-separated list of discovery protocols (cdp, lldp, mndp) that reported this neighbor.
         /// </summary>
-        [TikProperty("discovered-by", IsReadOnly = true, WinboxLabel = "Discovered By")]
+        [TikProperty("discovered-by", IsReadOnly = true, WinboxLabel = "Discovered By", MinRouterOs = "7")]
         public TikField<string?> DiscoveredBy { get; private set; }
 
         /// <summary>Human-readable identity of the neighbor.</summary>

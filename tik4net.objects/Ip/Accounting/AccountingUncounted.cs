@@ -13,7 +13,7 @@ namespace tik4net.Objects.Ip
     /// <i>no such command or directory (accounting)</i>.
     /// </para>
     /// </summary>
-    [TikEntity("/ip/accounting/uncounted", SupportedOperations = TikEntityOperations.None, IsSingleton = true)]
+    [TikEntity("/ip/accounting/uncounted", SupportedOperations = TikEntityOperations.None, IsSingleton = true, MaxRouterOs = "6")]
     [Obsolete("RouterOS 7 removed /ip/accounting (7.24.4: 'no such command'). Kept for RouterOS 6.")]
     public class AccountingUncounted
     {

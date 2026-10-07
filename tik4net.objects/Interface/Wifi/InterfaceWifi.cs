@@ -12,7 +12,7 @@ namespace tik4net.Objects.Interface.Wifi
     /// (/interface/wifi/configuration, /security, /datapath, /channel) referenced by name.
     /// The dotted 'aaa.*' fields are always inline per-interface AAA overrides.
     /// </summary>
-    [TikEntity("/interface/wifi", IncludeDetails = true)]
+    [TikEntity("/interface/wifi", IncludeDetails = true, MinRouterOs = "7")]
     public class InterfaceWifi
     {
         // ── ARP mode ──────────────────────────────────────────────────────────

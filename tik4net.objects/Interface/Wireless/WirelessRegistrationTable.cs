@@ -357,19 +357,19 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// tx-signal-strength-ch0: 
         /// </summary>
-        [TikProperty("tx-signal-strength-ch0", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch0")]
+        [TikProperty("tx-signal-strength-ch0", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch0", MinRouterOs = "7")]
         public TikField<string?> TxSignalStrengthCh0 { get; private set; }
 
         /// <summary>
         /// tx-signal-strength-ch1: 
         /// </summary>
-        [TikProperty("tx-signal-strength-ch1", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch1")]
+        [TikProperty("tx-signal-strength-ch1", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch1", MinRouterOs = "7")]
         public TikField<string?> TxSignalStrengthCh1 { get; private set; }
 
         /// <summary>
         /// tx-signal-strength-ch2: 
         /// </summary>
-        [TikProperty("tx-signal-strength-ch2", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch2")]
+        [TikProperty("tx-signal-strength-ch2", IsReadOnly = true, WinboxLabel = "Tx Signal Strength Ch2", MinRouterOs = "7")]
         public TikField<string?> TxSignalStrengthCh2 { get; private set; }
 
         /// <summary>

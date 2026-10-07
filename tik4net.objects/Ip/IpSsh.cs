@@ -19,7 +19,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>ciphers — SSH cipher suite selection. Default: auto (lets RouterOS pick the best available).
         /// <seealso cref="SshCiphers"/></summary>
-        [TikProperty("ciphers", DefaultValue = "auto", WinboxLabel = "Ciphers")]
+        [TikProperty("ciphers", DefaultValue = "auto", WinboxLabel = "Ciphers", MinRouterOs = "7")]
         public TikField<TikValueList<SshCiphers>?> Ciphers { get; set; }
 
         /// <summary>forwarding-enabled — controls which SSH port-forwarding modes are permitted.
@@ -33,17 +33,17 @@ namespace tik4net.Objects.Ip
 
         /// <summary>host-key-type — host key algorithm type.
         /// <seealso cref="SshHostKeyType"/></summary>
-        [TikProperty("host-key-type", DefaultValue = "rsa", WinboxLabel = "Host Key Type")]
+        [TikProperty("host-key-type", DefaultValue = "rsa", WinboxLabel = "Host Key Type", MinRouterOs = "7")]
         public TikField<SshHostKeyType?> HostKeyType { get; set; }
 
         /// <summary>password-authentication — controls whether password login is allowed alongside public-key auth.
         /// <seealso cref="SshPasswordAuth"/></summary>
-        [TikProperty("password-authentication", DefaultValue = "yes-if-no-key", WinboxLabel = "Password Authentication")]
+        [TikProperty("password-authentication", DefaultValue = "yes-if-no-key", WinboxLabel = "Password Authentication", MinRouterOs = "7")]
         public TikField<SshPasswordAuth?> PasswordAuthentication { get; set; }
 
         /// <summary>publickey-authentication-options — additional requirements for public-key authentication.
         /// <seealso cref="SshPubkeyOptions"/></summary>
-        [TikProperty("publickey-authentication-options", DefaultValue = "none", WinboxLabel = "Publickey Authentication Options")]
+        [TikProperty("publickey-authentication-options", DefaultValue = "none", WinboxLabel = "Publickey Authentication Options", MinRouterOs = "7")]
         public TikField<SshPubkeyOptions?> PublickeyAuthenticationOptions { get; set; }
 
         /// <summary>Human-readable SSH settings summary.</summary>

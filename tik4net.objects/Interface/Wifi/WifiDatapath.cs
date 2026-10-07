@@ -10,7 +10,7 @@ namespace tik4net.Objects.Interface.Wifi
     /// A datapath profile controls how client traffic is bridged, tagged with a VLAN, isolated
     /// from other clients, and whether it is processed on the CAP or forwarded to CAPsMAN.
     /// </summary>
-    [TikEntity("/interface/wifi/datapath", IncludeDetails = true)]
+    [TikEntity("/interface/wifi/datapath", IncludeDetails = true, MinRouterOs = "7")]
     public class WifiDatapath
     {
         // ── Traffic-processing ────────────────────────────────────────────────

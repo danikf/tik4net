@@ -28,7 +28,7 @@ namespace tik4net.Objects.Interface
         public TikField<int?> Mtu { get; set; }
 
         /// <summary>mac-address — MAC address of the LTE interface (read-only, assigned by modem).</summary>
-        [TikProperty("mac-address", IsReadOnly = true)]
+        [TikProperty("mac-address", IsReadOnly = true, MaxRouterOs = "6")]
         public TikField<string?> MacAddress { get; private set; }
 
         /// <summary>apn-profiles — APN profile(s) to use for data connection.</summary>
@@ -44,7 +44,7 @@ namespace tik4net.Objects.Interface
         public TikField<string?> Band { get; set; }
 
         /// <summary>nr-band — 5G NR frequency bands to use (comma-separated). Empty means all bands.</summary>
-        [TikProperty("nr-band", DefaultValue = "", WinboxLabel = "nr_band")]
+        [TikProperty("nr-band", DefaultValue = "", WinboxLabel = "nr_band", MinRouterOs = "7")]
         public TikField<string?> NrBand { get; set; }
 
         /// <summary>network-mode — the cellular network technology the modem is restricted to.</summary>
@@ -96,11 +96,11 @@ namespace tik4net.Objects.Interface
 
         /// <summary>sms-protocol — SMS signaling protocol. Default: auto.</summary>
         /// <seealso cref="SmsProtocolType"/>
-        [TikProperty("sms-protocol", DefaultValue = "auto")]
+        [TikProperty("sms-protocol", DefaultValue = "auto", MinRouterOs = "7")]
         public TikField<SmsProtocolType?> SmsProtocol { get; set; }
 
         /// <summary>sms-read — Whether to read incoming SMS messages. Default: no.</summary>
-        [TikProperty("sms-read", DefaultValue = "no")]
+        [TikProperty("sms-read", DefaultValue = "no", MinRouterOs = "7")]
         public TikField<bool?> SmsRead { get; set; }
 
         /// <summary>running — Whether the LTE interface is connected and running (read-only).</summary>

@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface
     /// <summary>
     /// Wireguard Interface
     /// </summary>
-    [TikEntity("/interface/wireguard")]
+    [TikEntity("/interface/wireguard", MinRouterOs = "7")]
     public class InterfaceWireguard
     {
         /// <summary>

@@ -119,7 +119,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// full-duplex: Defines whether the transmission of data appears in two directions simultaneously
         /// </summary>
-        [TikProperty("full-duplex", DefaultValue = "yes", WinboxLabel = "Full Duplex")]
+        [TikProperty("full-duplex", DefaultValue = "yes", WinboxLabel = "Full Duplex", MaxRouterOs = "6")]
         public TikField<bool?> FullDuplex { get; set; }
 
         /// <summary>

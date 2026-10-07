@@ -14,7 +14,7 @@ namespace tik4net.Objects.Interface.Wifi
     ///
     /// The list is ordered — use Move() / MoveToEnd() to reorder rules.
     /// </summary>
-    [TikEntity("/interface/wifi/access-list", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/interface/wifi/access-list", IncludeDetails = true, IsOrdered = true, MinRouterOs = "7")]
     public class WifiAccessList
     {
         // ── Action ────────────────────────────────────────────────────────────

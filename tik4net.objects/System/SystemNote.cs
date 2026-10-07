@@ -31,7 +31,7 @@ namespace tik4net.Objects.System
         public TikField<bool?> ShowAtLogin { get; set; }
 
         /// <summary>show-at-cli-login — when yes, the note is shown to users who log in via the CLI (console/SSH/Telnet). Default: no.</summary>
-        [TikProperty("show-at-cli-login", DefaultValue = "no", WinboxLabel = "Show At CLI Login")]
+        [TikProperty("show-at-cli-login", DefaultValue = "no", WinboxLabel = "Show At CLI Login", MinRouterOs = "7")]
         public TikField<bool?> ShowAtCliLogin { get; set; }
 
         /// <summary>Returns a human-readable summary of the login note settings.</summary>

@@ -48,7 +48,7 @@ namespace tik4net.Objects.System
         /// regex — optional POSIX regular expression; only messages whose text matches
         /// this pattern are forwarded. Empty string disables filtering by regex.
         /// </summary>
-        [TikProperty("regex", DefaultValue = "", WinboxLabel = "Regex")]
+        [TikProperty("regex", DefaultValue = "", WinboxLabel = "Regex", MinRouterOs = "7")]
         public TikField<string?> Regex { get; set; }
 
         /// <summary>

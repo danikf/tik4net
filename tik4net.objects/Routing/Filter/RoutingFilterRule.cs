@@ -13,7 +13,7 @@ namespace tik4net.Objects.Routing.Filter
     ///
     /// Rules in each chain are evaluated top-to-bottom (ordered list); the first matching rule wins.
     /// </summary>
-    [TikEntity("/routing/filter/rule", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/routing/filter/rule", IncludeDetails = true, IsOrdered = true, MinRouterOs = "7")]
     public class RoutingFilterRule
     {
         /// <summary>.id — primary key of row</summary>

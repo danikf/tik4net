@@ -51,7 +51,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// area — OSPF area this neighbor was discovered in.
         /// </summary>
-        [TikProperty("area", IsReadOnly = true, WinboxLabel = "Area")]
+        [TikProperty("area", IsReadOnly = true, WinboxLabel = "Area", MinRouterOs = "7")]
         public TikField<string?> Area { get; private set; }
 
         /// <summary>
@@ -95,13 +95,13 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// dr — IP address of the Designated Router on the shared segment, as reported by this neighbor.
         /// </summary>
-        [TikProperty("dr", IsReadOnly = true, WinboxLabel = "DR")]
+        [TikProperty("dr", IsReadOnly = true, WinboxLabel = "DR", MinRouterOs = "7")]
         public TikField<string?> Dr { get; private set; }
 
         /// <summary>
         /// bdr — IP address of the Backup Designated Router on the shared segment.
         /// </summary>
-        [TikProperty("bdr", IsReadOnly = true, WinboxLabel = "BDR")]
+        [TikProperty("bdr", IsReadOnly = true, WinboxLabel = "BDR", MinRouterOs = "7")]
         public TikField<string?> Bdr { get; private set; }
 
         /// <summary>
@@ -131,20 +131,20 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// timeout — time remaining until this neighbor is declared dead (dead-interval countdown).
         /// </summary>
-        [TikProperty("timeout", IsReadOnly = true)]
+        [TikProperty("timeout", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<string?> Timeout { get; private set; }
 
         /// <summary>
         /// dynamic — true when this neighbor entry was created dynamically by the OSPF process
         /// (as opposed to a statically configured NBMA neighbor).
         /// </summary>
-        [TikProperty("dynamic", IsReadOnly = true)]
+        [TikProperty("dynamic", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// virtual — true when this is a virtual link neighbor (crossing a non-backbone area).
         /// </summary>
-        [TikProperty("virtual", IsReadOnly = true)]
+        [TikProperty("virtual", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> Virtual { get; private set; }
 
         /// <summary>
@@ -152,7 +152,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// <c>comment</c> and nothing else (measured on RouterOS 7.24), which is why the entity declares
         /// <see cref="TikEntityOperations.Set"/> while every other property stays read-only.
         /// </summary>
-        [TikProperty("comment")]
+        [TikProperty("comment", MinRouterOs = "7")]
         public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>

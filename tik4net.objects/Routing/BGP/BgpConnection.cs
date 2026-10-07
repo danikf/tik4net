@@ -4,7 +4,7 @@ namespace tik4net.Objects.Routing.Bgp
     /// BGP connection (peer) configuration as provided by /routing/bgp/connection (RouterOS 7+).
     /// Replaces <see cref="BgpPeer"/> which was available in RouterOS 6 at /routing/bgp/peer.
     /// </summary>
-    [TikEntity("/routing/bgp/connection")]
+    [TikEntity("/routing/bgp/connection", MinRouterOs = "7")]
     public class BgpConnection
     {
         /// <summary>.id — primary key</summary>

@@ -50,7 +50,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>tcp-timestamps — TCP timestamp behaviour.
         /// <seealso cref="TcpTimestampsMode"/></summary>
-        [TikProperty("tcp-timestamps", DefaultValue = "random-offset", WinboxLabel = "TCP Timestamps")]
+        [TikProperty("tcp-timestamps", DefaultValue = "random-offset", WinboxLabel = "TCP Timestamps", MinRouterOs = "7")]
         public TikField<TcpTimestampsMode?> TcpTimestamps { get; set; }
 
         /// <summary>arp-timeout — base reachable time for ARP cache entries across interfaces. Default: 30s.</summary>
@@ -74,12 +74,12 @@ namespace tik4net.Objects.Ip
         public TikField<TikHexNumber?> IcmpRateMask { get; set; }
 
         /// <summary>icmp-errors-use-inbound-interface-address — when yes, ICMP error replies use the primary address of the receiving interface as source. Default: no.</summary>
-        [TikProperty("icmp-errors-use-inbound-interface-address", DefaultValue = "no", WinboxLabel = "ICMP Errors Use Inbound Interface Address")]
+        [TikProperty("icmp-errors-use-inbound-interface-address", DefaultValue = "no", WinboxLabel = "ICMP Errors Use Inbound Interface Address", MinRouterOs = "7")]
         public TikField<bool?> IcmpErrorsUseInboundInterfaceAddress { get; set; }
 
         /// <summary>ipv4-multipath-hash-policy — hash algorithm used for ECMP route selection.
         /// <seealso cref="MultipathHashPolicy"/></summary>
-        [TikProperty("ipv4-multipath-hash-policy", DefaultValue = "l3", WinboxLabel = "IPv4 Multipath Hash Policy")]
+        [TikProperty("ipv4-multipath-hash-policy", DefaultValue = "l3", WinboxLabel = "IPv4 Multipath Hash Policy", MinRouterOs = "7")]
         public TikField<MultipathHashPolicy?> Ipv4MultipathHashPolicy { get; set; }
 
         // --- Read-only properties ---

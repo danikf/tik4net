@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface.Wifi
     /// management frame protection, WPS) into a reusable object that can be referenced by name
     /// from /interface/wifi/configuration or /interface/wifi entries.
     /// </summary>
-    [TikEntity("/interface/wifi/security", IncludeDetails = true)]
+    [TikEntity("/interface/wifi/security", IncludeDetails = true, MinRouterOs = "7")]
     public class WifiSecurity
     {
         // ── Authentication type list ──────────────────────────────────────────

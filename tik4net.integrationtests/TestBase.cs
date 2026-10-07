@@ -596,6 +596,22 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// Marks the test as inconclusive when this router's release is outside the measured
+        /// <c>MinRouterOs</c>/<c>MaxRouterOs</c> of <typeparamref name="TEntity"/>'s menu, or of any of
+        /// <paramref name="propertyNames"/>. Prefer it to <see cref="EnsureMinRouterOsVersion"/> for a mapped menu or field:
+        /// the bound is the one the lab measured, not a guessed major version.
+        /// </summary>
+        protected void EnsureRouterOsHas<TEntity>(params string[] propertyNames)
+        {
+            var version = GetMikrotikVersion();
+            if (!tik4net.Objects.TikRouterOsRange.Has<TEntity>(version))
+                Assert.Inconclusive($"RouterOS {version} has no {typeof(TEntity).Name} menu (its MinRouterOs/MaxRouterOs).");
+            foreach (string property in propertyNames)
+                if (!tik4net.Objects.TikRouterOsRange.Has<TEntity>(version, property))
+                    Assert.Inconclusive($"RouterOS {version} has no {typeof(TEntity).Name}.{property} (its MinRouterOs/MaxRouterOs).");
+        }
+
+        /// <summary>
         /// Marks the test as inconclusive when the router version is below <paramref name="minimumMajor"/>.
         /// Use for features introduced in a specific major RouterOS version.
         /// </summary>

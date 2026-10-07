@@ -7,7 +7,7 @@ namespace tik4net.Objects.Routing.Bgp
     /// Access to the data provided by /routing/bgp/peer (RouterOS 6).
     /// Replaced by <see cref="BgpConnection"/> in RouterOS 7 (/routing/bgp/connection).
     /// </summary>
-    [TikEntity("/routing/bgp/peer")]
+    [TikEntity("/routing/bgp/peer", MaxRouterOs = "6")]
     [Obsolete("RouterOS 7 removed /routing/bgp/peer. Use BgpConnection (/routing/bgp/connection) instead.")]
     public class BgpPeer
     {

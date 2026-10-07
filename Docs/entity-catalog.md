@@ -70,17 +70,17 @@ Namespace `tik4net.Objects`.
 | `/interface/sstp-server/server` | `SstpServer` | ¹ |
 | `/interface/vlan` | `InterfaceVlan` |  |
 | `/interface/vrrp` | `InterfaceVrrp` |  |
-| `/interface/vxlan` | `InterfaceVxlan` |  |
-| `/interface/wifi` | `InterfaceWifi` |  |
-| `/interface/wifi/access-list` | `WifiAccessList` | ⁴ |
-| `/interface/wifi/channel` | `WifiChannel` |  |
-| `/interface/wifi/configuration` | `WifiConfiguration` |  |
-| `/interface/wifi/datapath` | `WifiDatapath` |  |
-| `/interface/wifi/provisioning` | `WifiProvisioning` | ⁴ |
-| `/interface/wifi/registration-table` | `WifiRegistrationTable` | ² ³ |
-| `/interface/wifi/security` | `WifiSecurity` |  |
-| `/interface/wireguard` | `InterfaceWireguard` |  |
-| `/interface/wireguard/peers` | `WireguardPeer` |  |
+| `/interface/vxlan` | `InterfaceVxlan` | RouterOS 7+ |
+| `/interface/wifi` | `InterfaceWifi` | RouterOS 7+ |
+| `/interface/wifi/access-list` | `WifiAccessList` | ⁴ RouterOS 7+ |
+| `/interface/wifi/channel` | `WifiChannel` | RouterOS 7+ |
+| `/interface/wifi/configuration` | `WifiConfiguration` | RouterOS 7+ |
+| `/interface/wifi/datapath` | `WifiDatapath` | RouterOS 7+ |
+| `/interface/wifi/provisioning` | `WifiProvisioning` | ⁴ RouterOS 7+ |
+| `/interface/wifi/registration-table` | `WifiRegistrationTable` | ² ³ RouterOS 7+ |
+| `/interface/wifi/security` | `WifiSecurity` | RouterOS 7+ |
+| `/interface/wireguard` | `InterfaceWireguard` | RouterOS 7+ |
+| `/interface/wireguard/peers` | `WireguardPeer` | RouterOS 7+ |
 | `/interface/wireless` | `InterfaceWireless` |  |
 | `/interface/wireless/access-list` | `WirelessAccessList` |  |
 | `/interface/wireless/channels` | `WirelessChannels` |  |
@@ -94,10 +94,10 @@ Namespace `tik4net.Objects.Ip`.
 
 | RouterOS path | Class | |
 |---|---|---|
-| `/ip/accounting` | `IpAccounting` | ¹ |
-| `/ip/accounting/snapshot` | `AccountingSnapshot` | ² ⁶ |
-| `/ip/accounting/uncounted` | `AccountingUncounted` | ¹ ² |
-| `/ip/accounting/web-access` | `AccountingWebAccess` | ¹ |
+| `/ip/accounting` | `IpAccounting` | ¹ RouterOS ≤ 6 |
+| `/ip/accounting/snapshot` | `AccountingSnapshot` | ² ⁶ RouterOS ≤ 6 |
+| `/ip/accounting/uncounted` | `AccountingUncounted` | ¹ ² RouterOS ≤ 6 |
+| `/ip/accounting/web-access` | `AccountingWebAccess` | ¹ RouterOS ≤ 6 |
 | `/ip/address` | `IpAddress` |  |
 | `/ip/arp` | `IpArp` |  |
 | `/ip/cloud` | `IpCloud` | ¹ |
@@ -133,7 +133,7 @@ Namespace `tik4net.Objects.Ip`.
 | `/ip/ipsec/active-peers` | `IpsecActivePeers` | ² ³ |
 | `/ip/ipsec/identity` | `IpsecIdentity` |  |
 | `/ip/ipsec/installed-sa` | `IpsecInstalledSa` | ² |
-| `/ip/ipsec/key/rsa` | `IpsecKey` | ⁶ |
+| `/ip/ipsec/key/rsa` | `IpsecKey` | ⁶ RouterOS 7+ |
 | `/ip/ipsec/mode-config` | `IpsecModeConfig` |  |
 | `/ip/ipsec/peer` | `IpsecPeer` |  |
 | `/ip/ipsec/policy` | `IpsecPolicy` | ⁴ |
@@ -206,17 +206,17 @@ Namespace `tik4net.Objects.Routing`.
 | RouterOS path | Class | |
 |---|---|---|
 | `/routing/bgp/advertisements` | `BgpAdvertisements` | ² |
-| `/routing/bgp/connection` | `BgpConnection` |  |
+| `/routing/bgp/connection` | `BgpConnection` | RouterOS 7+ |
 | `/routing/bgp/instance` | `BgpInstance` |  |
-| `/routing/bgp/network` | `BgpNetwork` |  |
-| `/routing/bgp/peer` | `BgpPeer` |  |
-| `/routing/filter/rule` | `RoutingFilterRule` | ⁴ |
+| `/routing/bgp/network` | `BgpNetwork` | RouterOS ≤ 6 |
+| `/routing/bgp/peer` | `BgpPeer` | RouterOS ≤ 6 |
+| `/routing/filter/rule` | `RoutingFilterRule` | ⁴ RouterOS 7+ |
 | `/routing/ospf/area` | `OspfArea` |  |
 | `/routing/ospf/instance` | `OspfInstance` |  |
-| `/routing/ospf/interface-template` | `OspfInterfaceTemplate` | ⁴ |
+| `/routing/ospf/interface-template` | `OspfInterfaceTemplate` | ⁴ RouterOS 7+ |
 | `/routing/ospf/neighbor` | `OspfNeighbor` |  |
-| `/routing/rule` | `RoutingRule` | ⁴ |
-| `/routing/table` | `RoutingTable` |  |
+| `/routing/rule` | `RoutingRule` | ⁴ RouterOS 7+ |
+| `/routing/table` | `RoutingTable` | RouterOS 7+ |
 
 ### /snmp
 
@@ -241,7 +241,7 @@ Namespace `tik4net.Objects.System`.
 | `/system/logging/action` | `SystemLoggingAction` |  |
 | `/system/note` | `SystemNote` | ¹ |
 | `/system/ntp/client` | `SystemNtpClient` | ¹ |
-| `/system/ntp/server` | `SystemNtpServer` | ¹ |
+| `/system/ntp/server` | `SystemNtpServer` | ¹ RouterOS 7+ |
 | `/system/package` | `SystemPackage` | ² ⁶ |
 | `/system/resource` | `SystemResource` | ¹ ² |
 | `/system/routerboard` | `SystemRouterboard` | ² |

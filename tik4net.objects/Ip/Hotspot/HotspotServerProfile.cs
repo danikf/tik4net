@@ -54,7 +54,7 @@ namespace tik4net.Objects.Ip.Hotspot
         public TikField<TikDuration?> HttpCookieLifetime { get; set; }
 
         /// <summary>install-hotspot-queue — create a simple queue to limit overall HotSpot throughput when enabled.</summary>
-        [TikProperty("install-hotspot-queue", DefaultValue = "no", WinboxLabel = "Install Hotspot Queue")]
+        [TikProperty("install-hotspot-queue", DefaultValue = "no", WinboxLabel = "Install Hotspot Queue", MinRouterOs = "7")]
         public TikField<bool?> InstallHotspotQueue { get; set; }
 
         /// <summary>split-user-domain — when yes, the domain part is stripped from the username before RADIUS lookup.</summary>

@@ -93,7 +93,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// ppk-secret — Post-quantum Preshared Key secret (IKEv2 RFC 8784). Leave empty
         /// when PPK is not used.
         /// </summary>
-        [TikProperty("ppk-secret", IsSensitive = true)]
+        [TikProperty("ppk-secret", IsSensitive = true, MinRouterOs = "7")]
         public TikField<string?> PpkSecret { get; set; }
 
         /// <summary>

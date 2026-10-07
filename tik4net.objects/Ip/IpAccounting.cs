@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip
     /// <summary>
     /// ip/accounting: Authentication, Authorization and Accounting feature provides a possibility of local and/or remote (on RADIUS server) Point-to-Point and HotSpot user management and traffic accounting (all IP traffic passing the router is accounted; local traffic acocunting is an option).
     /// </summary>
-	[TikEntity("/ip/accounting", IsSingleton = true)]
+	[TikEntity("/ip/accounting", IsSingleton = true, MaxRouterOs = "6")]
     [Obsolete("RouterOS 7 removed /ip/accounting (7.24.4: 'no such command'). Kept for RouterOS 6.")]
     public class IpAccounting
     {

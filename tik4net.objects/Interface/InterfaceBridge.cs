@@ -135,13 +135,13 @@ namespace tik4net.Objects.Interface
         /// forward-reserved-addresses: Reserved multicast destination MAC addresses (01:80:C2:00:00:0x) the bridge
         /// forwards instead of consuming.
         /// </summary>
-        [TikProperty("forward-reserved-addresses")]
+        [TikProperty("forward-reserved-addresses", MinRouterOs = "7")]
         public TikField<string?> ForwardReservedAddresses { get; set; }
 
         /// <summary>
         /// max-learned-entries: Maximum number of host entries the bridge learns. Router default: <c>auto</c>.
         /// </summary>
-        [TikProperty("max-learned-entries", DefaultValue = "auto", WinboxLabel = "Max Learned Entries")]
+        [TikProperty("max-learned-entries", DefaultValue = "auto", WinboxLabel = "Max Learned Entries", MinRouterOs = "7")]
         public TikField<string?> MaxLearnedEntries { get; set; }
 
         /// <summary>
@@ -220,7 +220,7 @@ namespace tik4net.Objects.Interface
         /// Router default: long.
         /// </summary>
         /// <seealso cref="PortCostModeType"/>
-        [TikProperty("port-cost-mode", DefaultValue = "long", WinboxLabel = "Port Cost Mode")]
+        [TikProperty("port-cost-mode", DefaultValue = "long", WinboxLabel = "Port Cost Mode", MinRouterOs = "7")]
         public TikField<PortCostModeType?> PortCostMode { get; set; }
 
         /// <summary>
@@ -326,7 +326,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// mvrp: Whether the Multiple VLAN Registration Protocol runs on the bridge. Router default: no.
         /// </summary>
-        [TikProperty("mvrp", DefaultValue = "no", WinboxLabel = "MVRP")]
+        [TikProperty("mvrp", DefaultValue = "no", WinboxLabel = "MVRP", MinRouterOs = "7")]
         public TikField<bool?> Mvrp { get; set; }
 
         /// <summary>
@@ -382,7 +382,7 @@ namespace tik4net.Objects.Interface
         /// querier-uses-bridge-address: Whether the querier sends with the bridge's own IP address rather than
         /// 0.0.0.0. Router default: yes.
         /// </summary>
-        [TikProperty("querier-uses-bridge-address", DefaultValue = "yes", WinboxLabel = "Querier Uses Bridge Address")]
+        [TikProperty("querier-uses-bridge-address", DefaultValue = "yes", WinboxLabel = "Querier Uses Bridge Address", MinRouterOs = "7.22")]
         public TikField<bool?> QuerierUsesBridgeAddress { get; set; }
 
         /// <summary>
@@ -443,56 +443,56 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// dhcp-agent-circuit-id: The DHCP Option 82 circuit ID the bridge inserts while <see cref="DhcpSnooping"/> is on.
         /// </summary>
-        [TikProperty("dhcp-agent-circuit-id", WinboxLabel = "DHCP Agent Circuit ID")]
+        [TikProperty("dhcp-agent-circuit-id", WinboxLabel = "DHCP Agent Circuit ID", MinRouterOs = "7.22")]
         public TikField<string?> DhcpAgentCircuitId { get; set; }
 
         /// <summary>
         /// dhcp-agent-remote-id: The DHCP Option 82 remote ID the bridge inserts while <see cref="DhcpSnooping"/> is on.
         /// </summary>
-        [TikProperty("dhcp-agent-remote-id", WinboxLabel = "DHCP Agent Remote ID")]
+        [TikProperty("dhcp-agent-remote-id", WinboxLabel = "DHCP Agent Remote ID", MinRouterOs = "7.22")]
         public TikField<string?> DhcpAgentRemoteId { get; set; }
 
         /// <summary>
         /// dhcpv6-snooping: Whether the bridge snoops DHCPv6 and drops server messages arriving on untrusted ports.
         /// Router default: no.
         /// </summary>
-        [TikProperty("dhcpv6-snooping", DefaultValue = "no", WinboxLabel = "DHCPv6 Snooping")]
+        [TikProperty("dhcpv6-snooping", DefaultValue = "no", WinboxLabel = "DHCPv6 Snooping", MinRouterOs = "7.22")]
         public TikField<bool?> Dhcpv6Snooping { get; set; }
 
         /// <summary>
         /// dhcpv6-agent-circuit-id: The DHCPv6 interface ID the bridge inserts while <see cref="Dhcpv6Snooping"/> is on.
         /// </summary>
-        [TikProperty("dhcpv6-agent-circuit-id", WinboxLabel = "DHCPv6 Agent Circuit ID")]
+        [TikProperty("dhcpv6-agent-circuit-id", WinboxLabel = "DHCPv6 Agent Circuit ID", MinRouterOs = "7.22")]
         public TikField<string?> Dhcpv6AgentCircuitId { get; set; }
 
         /// <summary>
         /// dhcpv6-agent-remote-id: The DHCPv6 remote ID the bridge inserts while <see cref="Dhcpv6Snooping"/> is on.
         /// </summary>
-        [TikProperty("dhcpv6-agent-remote-id", WinboxLabel = "DHCPv6 Agent Remote ID")]
+        [TikProperty("dhcpv6-agent-remote-id", WinboxLabel = "DHCPv6 Agent Remote ID", MinRouterOs = "7.22")]
         public TikField<string?> Dhcpv6AgentRemoteId { get; set; }
 
         /// <summary>
         /// ra-guard: Whether the bridge drops IPv6 router advertisements arriving on untrusted ports. Router default: no.
         /// </summary>
-        [TikProperty("ra-guard", DefaultValue = "no", WinboxLabel = "RA Guard")]
+        [TikProperty("ra-guard", DefaultValue = "no", WinboxLabel = "RA Guard", MinRouterOs = "7.22")]
         public TikField<bool?> RaGuard { get; set; }
 
         /// <summary>
         /// mlag-peer-port: The interface that links this bridge to its MLAG peer, or <c>none</c>. Router default: none.
         /// </summary>
-        [TikProperty("mlag-peer-port", DefaultValue = "none", WinboxLabel = "mlag: Peer Port")]
+        [TikProperty("mlag-peer-port", DefaultValue = "none", WinboxLabel = "mlag: Peer Port", MinRouterOs = "7.22")]
         public TikField<string?> MlagPeerPort { get; set; }
 
         /// <summary>
         /// mlag-priority: MLAG priority; the lower value becomes the primary peer. Router default: 128.
         /// </summary>
-        [TikProperty("mlag-priority", DefaultValue = "128", WinboxLabel = "mlag: Priority")]
+        [TikProperty("mlag-priority", DefaultValue = "128", WinboxLabel = "mlag: Priority", MinRouterOs = "7.22")]
         public TikField<int?> MlagPriority { get; set; }
 
         /// <summary>
         /// mlag-heartbeat: Interval between MLAG heartbeat messages. Router default: 5s.
         /// </summary>
-        [TikProperty("mlag-heartbeat", DefaultValue = "5s", WinboxLabel = "mlag: Heartbeat")]
+        [TikProperty("mlag-heartbeat", DefaultValue = "5s", WinboxLabel = "mlag: Heartbeat", MinRouterOs = "7.22")]
         public TikField<TikDuration?> MlagHeartbeat { get; set; }
 
         /// <summary>
@@ -522,13 +522,13 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// dynamic: Whether the bridge was created by another feature rather than configured.
         /// </summary>
-        [TikProperty("dynamic", IsReadOnly = true)]
+        [TikProperty("dynamic", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// managed: Whether the bridge is managed by another feature (e.g. CAPsMAN or quickset), which owns its configuration.
         /// </summary>
-        [TikProperty("managed", IsReadOnly = true)]
+        [TikProperty("managed", IsReadOnly = true, MinRouterOs = "7.22")]
         public TikField<bool?> Managed { get; private set; }
 
         /// <inheritdoc/>

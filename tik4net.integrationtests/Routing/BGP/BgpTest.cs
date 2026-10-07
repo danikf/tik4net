@@ -109,7 +109,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void ListAllConnectionsWillNotFail()
         {
-            EnsureMinRouterOsVersion(7, "/routing/bgp/connection");
+            EnsureRouterOsHas<BgpConnection>();
             var list = Connection.LoadAll<BgpConnection>();
             Assert.IsNotNull(list);
         }
@@ -119,7 +119,7 @@ namespace tik4net.integrationtests
         [Obsolete]
         public void ListAllPeersWillNotFail()
         {
-            EnsureMaxRouterOsVersion(7, "/routing/bgp/peer");
+            EnsureRouterOsHas<BgpPeer>();
 #pragma warning disable CS0618
             var list = Connection.LoadAll<BgpPeer>();
 #pragma warning restore CS0618
@@ -131,7 +131,7 @@ namespace tik4net.integrationtests
         [Obsolete]
         public void ListAllBgpNetworksWillNotFail()
         {
-            EnsureMaxRouterOsVersion(7, "/routing/bgp/network");
+            EnsureRouterOsHas<BgpNetwork>();
 #pragma warning disable CS0618
             var list = Connection.LoadAll<BgpNetwork>();
 #pragma warning restore CS0618

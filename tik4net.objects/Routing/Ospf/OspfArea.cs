@@ -72,7 +72,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// effectively making it a totally-stub or totally-NSSA area.
         /// Default: false
         /// </summary>
-        [TikProperty("no-summaries", DefaultValue = "no", WinboxLabel = "No Summaries")]
+        [TikProperty("no-summaries", DefaultValue = "no", WinboxLabel = "No Summaries", MinRouterOs = "7")]
         public TikField<bool?> NoSummaries { get; set; }
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: candidate
         /// </summary>
         /// <seealso cref="NssaTranslatorMode"/>
-        [TikProperty("nssa-translator", DefaultValue = "candidate", WinboxLabel = "NSSA Translator")]
+        [TikProperty("nssa-translator", DefaultValue = "candidate", WinboxLabel = "NSSA Translator", MinRouterOs = "7")]
         public TikField<NssaTranslatorMode?> NssaTranslator { get; set; }
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// inactive — true when this area is not active (e.g. the parent instance is disabled
         /// or the routing package is not running).
         /// </summary>
-        [TikProperty("inactive", IsReadOnly = true)]
+        [TikProperty("inactive", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>

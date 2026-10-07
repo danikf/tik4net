@@ -48,7 +48,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: 2
         /// </summary>
         /// <seealso cref="OspfVersion"/>
-        [TikProperty("version", DefaultValue = "2", WinboxLabel = "Version")]
+        [TikProperty("version", DefaultValue = "2", WinboxLabel = "Version", MinRouterOs = "7")]
         public TikField<OspfVersion?> Version { get; set; }
 
         /// <summary>
@@ -63,7 +63,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// vrf — VRF (Virtual Routing and Forwarding) instance this OSPF instance is bound to.
         /// Default: main
         /// </summary>
-        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: never
         /// </summary>
         /// <seealso cref="OriginateDefaultMode"/>
-        [TikProperty("originate-default", DefaultValue = "never", WinboxLabel = "Originate Default")]
+        [TikProperty("originate-default", DefaultValue = "never", WinboxLabel = "Originate Default", MinRouterOs = "7")]
         public TikField<OriginateDefaultMode?> OriginateDefault { get; set; }
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// fantasy, isis, modem, ospf, rip, slaac, static, vpn.
         /// Example: "connected,static"
         /// </summary>
-        [TikProperty("redistribute", WinboxLabel = "Redistribute")]
+        [TikProperty("redistribute", WinboxLabel = "Redistribute", MinRouterOs = "7")]
         public TikField<string?> Redistribute { get; set; }
 
         /// <summary>
@@ -108,20 +108,20 @@ namespace tik4net.Objects.Routing.Ospf
         /// in-filter-chain — routing filter chain applied to routes received (imported) via OSPF
         /// before they are installed in the routing table.
         /// </summary>
-        [TikProperty("in-filter-chain")]
+        [TikProperty("in-filter-chain", MinRouterOs = "7")]
         public TikField<string?> InFilterChain { get; set; }
 
         /// <summary>
         /// out-filter-chain — routing filter chain applied to routes being redistributed out into OSPF.
         /// </summary>
-        [TikProperty("out-filter-chain")]
+        [TikProperty("out-filter-chain", MinRouterOs = "7")]
         public TikField<string?> OutFilterChain { get; set; }
 
         /// <summary>
         /// out-filter-select — routing filter chain used to select which routes are eligible for
         /// redistribution into OSPF (applied before out-filter-chain).
         /// </summary>
-        [TikProperty("out-filter-select", WinboxLabel = "Out Filter Select")]
+        [TikProperty("out-filter-select", WinboxLabel = "Out Filter Select", MinRouterOs = "7")]
         public TikField<string?> OutFilterSelect { get; set; }
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// <summary>
         /// mpls-te-address — router address advertised in MPLS-TE LSAs. Typically an IPv4 loopback address.
         /// </summary>
-        [TikProperty("mpls-te-address", WinboxLabel = "MPLS TE Address")]
+        [TikProperty("mpls-te-address", WinboxLabel = "MPLS TE Address", MinRouterOs = "7")]
         public TikField<string?> MplsTeAddress { get; set; }
 
         /// <summary>
@@ -166,7 +166,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// inactive — true when the OSPF instance is not active (e.g. no areas configured,
         /// or the routing package is not running).
         /// </summary>
-        [TikProperty("inactive", IsReadOnly = true)]
+        [TikProperty("inactive", IsReadOnly = true, MinRouterOs = "7")]
         public TikField<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>

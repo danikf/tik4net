@@ -39,7 +39,7 @@ namespace tik4net.Objects.Tool
         /// WinBox: "TLS"
         /// </summary>
         /// <seealso cref="EmailTls"/>
-        [TikProperty("tls", DefaultValue = "no", WinboxLabel = "TLS")]
+        [TikProperty("tls", DefaultValue = "no", WinboxLabel = "TLS", MinRouterOs = "7")]
         public TikField<EmailTls?> Tls { get; set; }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace tik4net.Objects.Tool
         /// WinBox: "Certificate Verification"
         /// </summary>
         /// <seealso cref="EmailCertificateVerification"/>
-        [TikProperty("certificate-verification", DefaultValue = "no", WinboxLabel = "Certificate Verification")]
+        [TikProperty("certificate-verification", DefaultValue = "no", WinboxLabel = "Certificate Verification", MinRouterOs = "7")]
         public TikField<EmailCertificateVerification?> CertificateVerification { get; set; }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace tik4net.Objects.Tool
         /// vrf — VRF instance on which outgoing SMTP connections are created.
         /// WinBox: "VRF"
         /// </summary>
-        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF")]
+        [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
 
         /// <summary>TLS encryption mode for <see cref="ToolEmail"/>.</summary>
