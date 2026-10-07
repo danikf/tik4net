@@ -55,7 +55,7 @@ namespace tik4net.Cli
     /// </remarks>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
         ITikMonitorTransport, IPollingMonitorHost, ITikCliPagedReadConnection,
-        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection, ICliCompletionReaction, ITikCatalogCacheConnection
+        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection, ICliCompletionReaction, ICliHelpKey, ITikCatalogCacheConnection
     {
         /// <inheritdoc/>
         public string? CliFieldSeparator
@@ -395,7 +395,9 @@ namespace tik4net.Cli
                 verb => Record(store, path, source, SchemaListArgs + verb, live.Arguments(verb)),
                 () => Record(store, path, source, SchemaListReadable, live.ReadableFields),
                 () => Record(store, path, source, SchemaListUnset, live.UnsetFields),
-                (verb, argument) => live.ValuesOf(argument, verb));
+                (verb, argument) => live.ValuesOf(argument, verb),
+                live.Explanations,
+                (verb, argument) => live.ValueGrammar(argument, verb));
         }
 
         private static IReadOnlyCollection<string>? Record(CliSchemaStore store, string path, TikMenuSchemaSource source,
@@ -425,7 +427,9 @@ namespace tik4net.Cli
                 verb => List(SchemaListArgs + verb, s => s.Arguments(verb)),
                 () => List(SchemaListReadable, s => s.ReadableFields),
                 () => List(SchemaListUnset, s => s.UnsetFields),
-                (verb, argument) => live.Value.ValuesOf(argument, verb));
+                (verb, argument) => live.Value.ValuesOf(argument, verb),
+                verb => live.Value.Explanations(verb),
+                (verb, argument) => live.Value.ValueGrammar(argument, verb));
             schema.Relearn = () =>
             {
                 var fresh = Recording(store, path, DescribeMenuLive(path));
@@ -1020,6 +1024,35 @@ namespace tik4net.Cli
         /// <inheritdoc/>
         public string CompleteCliRaw(string partialInput)
             => ((ICliCompletionReaction)this).CompleteCliBoth(partialInput).Raw.TrimEnd();
+
+        /// <summary>
+        /// Types <paramref name="partialInput"/> and the help key, F1 (<c>ESC O P</c>), reads the answer on the settle
+        /// window, and clears the line with Ctrl-C. Nothing is executed. Docs/findings-cli.md §14, <i>F1</i>.
+        /// </summary>
+        string ICliHelpKey.HelpCli(string partialInput)
+        {
+            EnsureOpened();
+            var settle = _sendRawSettle
+                ?? throw new NotSupportedException($"The {TransportName} transport cannot press the help key.");
+            byte[] stem = Encoding.GetBytes(partialInput);
+            byte[] keys = new byte[stem.Length + F1.Length];
+            Array.Copy(stem, keys, stem.Length);
+            Array.Copy(F1, 0, keys, stem.Length, F1.Length);
+
+            _cmdLock.Wait();
+            try
+            {
+                FireWriteRow("<help-key> " + partialInput);
+                string answer = VtStripper.StripAnsi(SettleTab(settle, keys));
+                FireReadRow(answer);
+                try { SendRawAndReadAsync(new[] { CtrlC }, CancellationToken.None).GetAwaiter().GetResult(); }
+                catch { /* best-effort cleanup — the answer is already captured */ }
+                return answer;
+            }
+            finally { _cmdLock.Release(); }
+        }
+
+        private static readonly byte[] F1 = { 0x1B, (byte)'O', (byte)'P' };
 
         (IReadOnlyList<CliCompletionItem> Items, string Raw) ICliCompletionReaction.CompleteCliBoth(string partialInput)
         {

@@ -44,6 +44,14 @@ namespace tik4net
         private readonly Dictionary<string, IReadOnlyCollection<string>?> _argumentsCache
             = new Dictionary<string, IReadOnlyCollection<string>?>(StringComparer.Ordinal);
 
+        private readonly Func<string?, IReadOnlyDictionary<string, string>>? _explanations;
+        private readonly Dictionary<string, IReadOnlyDictionary<string, string>> _explanationsCache
+            = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+
+        private readonly Func<string, string, IReadOnlyList<string>>? _grammar;
+        private readonly Dictionary<string, IReadOnlyList<string>> _grammarCache
+            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+
         private readonly Lazy<(IReadOnlyCollection<string> Commands, IReadOnlyCollection<string>? Submenus)> _tree;
         private readonly Lazy<IReadOnlyCollection<string>?> _readable, _unset;
 
@@ -64,7 +72,9 @@ namespace tik4net
             Func<(IReadOnlyCollection<string> Commands, IReadOnlyCollection<string>? Submenus)> tree,
             Func<string, IReadOnlyCollection<string>?> arguments,
             Func<IReadOnlyCollection<string>?> readableFields, Func<IReadOnlyCollection<string>?> unsetFields,
-            Func<string, string, IReadOnlyList<string>>? values)
+            Func<string, string, IReadOnlyList<string>>? values,
+            Func<string?, IReadOnlyDictionary<string, string>>? explanations = null,
+            Func<string, string, IReadOnlyList<string>>? grammar = null)
         {
             Path = path;
             Source = source;
@@ -73,6 +83,8 @@ namespace tik4net
             _readable = new Lazy<IReadOnlyCollection<string>?>(readableFields);
             _unset = new Lazy<IReadOnlyCollection<string>?>(unsetFields);
             _values = values;
+            _explanations = explanations;
+            _grammar = grammar;
         }
 
         /// <summary>The menu, as it was asked for (<c>/ip/route</c>).</summary>
@@ -170,6 +182,73 @@ namespace tik4net
                 _valuesCache[key] = values;
             return values;
         }
+
+        /// <summary>
+        /// The router's description of <paramref name="word"/>: a sub-menu or a command of this menu when
+        /// <paramref name="verb"/> is <c>null</c> (<c>add</c> → "Create a new item"), else an argument of that command
+        /// (<c>distance</c> of <c>add</c> on <c>/ip/route</c> → "Administrative distance of the route"). <c>null</c> when
+        /// the router describes nothing for it — many words have no text — and on WinBox native.
+        /// </summary>
+        /// <remarks>
+        /// RouterOS 7 answers <c>/console/inspect request=syntax</c> on the API, REST and every CLI transport; RouterOS 6
+        /// answers the help key (F1) on a CLI transport, and over the API it has neither. One round trip per menu or
+        /// command, asked the first time and remembered; not kept in the on-disk grammar cache.
+        /// </remarks>
+        /// <param name="word">The sub-menu, command or argument (<c>distance</c>).</param>
+        /// <param name="verb">The command the argument belongs to, or <c>null</c> for a word of the menu itself.</param>
+        public string? Description(string word, string? verb = null)
+        {
+            Guard.ArgumentNotNullOrEmptyString(word, nameof(word));
+            return Explanations(verb).TryGetValue(word, out var text) ? text : null;
+        }
+
+        /// <summary>
+        /// The value grammar of <paramref name="argument"/>, as the router writes it, one definition per line:
+        /// <c>Distance ::= Num</c>, <c>Num ::= 1..255    (integer number)</c>. Empty when the router gives none (an enum
+        /// on RouterOS 7, whose words are <see cref="ValuesOf"/>) and on WinBox native. The notation is RouterOS's own and
+        /// is not parsed here.
+        /// </summary>
+        /// <remarks>Where it comes from, and what it costs, as for <see cref="Description"/>. RouterOS 6 writes an enum's
+        /// grammar too (<c>Chain ::= input | forward | output</c>), and cuts a long one with <c>...</c>.</remarks>
+        /// <param name="argument">The argument's RouterOS name (<c>distance</c>).</param>
+        /// <param name="verb">The command: <c>add</c>, <c>set</c>, or any other the menu has.</param>
+        public IReadOnlyList<string> ValueGrammar(string argument, string verb = "set")
+        {
+            Guard.ArgumentNotNullOrEmptyString(argument, nameof(argument));
+            Guard.ArgumentNotNullOrEmptyString(verb, nameof(verb));
+            if (_grammar == null)
+                return Array.Empty<string>();
+            string key = verb + " " + argument;
+            lock (_grammarCache)
+            {
+                if (_grammarCache.TryGetValue(key, out var cached))
+                    return cached;
+            }
+            var grammar = _grammar(verb, argument);
+            lock (_grammarCache)
+                _grammarCache[key] = grammar;
+            return grammar;
+        }
+
+        // Every description the router gives for one level: the menu's words (verb null) or one command's arguments.
+        internal IReadOnlyDictionary<string, string> Explanations(string? verb)
+        {
+            if (_explanations == null)
+                return EmptyExplanations;
+            string key = verb ?? "";
+            lock (_explanationsCache)
+            {
+                if (_explanationsCache.TryGetValue(key, out var cached))
+                    return cached;
+            }
+            var explanations = _explanations(verb);
+            lock (_explanationsCache)
+                _explanationsCache[key] = explanations;
+            return explanations;
+        }
+
+        private static readonly IReadOnlyDictionary<string, string> EmptyExplanations
+            = new Dictionary<string, string>(StringComparer.Ordinal);
 
         /// <inheritdoc/>
         public override string ToString()
@@ -306,8 +385,34 @@ namespace tik4net
                 verb => commands.Contains(verb) ? Arguments(connection, inspectPath + "," + verb) : null,
                 () => commands.Contains("get") ? (IReadOnlyCollection<string>?)Completions(connection, inspectPath + ",get,value-name") : null,
                 () => commands.Contains("unset") ? (IReadOnlyCollection<string>?)Completions(connection, inspectPath + ",unset,value-name") : null,
-                (verb, argument) => Completions(connection, inspectPath + "," + verb + "," + argument));
+                (verb, argument) => Completions(connection, inspectPath + "," + verb + "," + argument),
+                verb => Explanations(connection, verb == null ? inspectPath : inspectPath + "," + verb),
+                (verb, argument) => Grammar(connection, inspectPath + "," + verb + "," + argument));
         }
+
+        // 'syntax' on a menu or a command: one 'explanation' row per word, its description in 'text' (often empty).
+        private static IReadOnlyDictionary<string, string> Explanations(ITikConnection connection, string inspectPath)
+        {
+            var explanations = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var row in Inspect(connection, "syntax", inspectPath))
+            {
+                string? symbol = row.GetResponseFieldOrDefault("symbol", null);
+                string? text = row.GetResponseFieldOrDefault("text", null);
+                if (row.GetResponseFieldOrDefault("symbol-type", null) == "explanation"
+                    && !string.IsNullOrEmpty(symbol) && !string.IsNullOrEmpty(text) && symbol != "..")
+                    explanations[symbol!] = text!;
+            }
+            return explanations;
+        }
+
+        // 'syntax' on an argument: 'definition' rows, the first naming the value and the rest what it is built of
+        // (Distance, then Num = 1..255). An enum answers one empty definition.
+        private static IReadOnlyList<string> Grammar(ITikConnection connection, string inspectPath)
+            => Inspect(connection, "syntax", inspectPath)
+                .Where(r => r.GetResponseFieldOrDefault("symbol-type", null) == "definition"
+                            && !string.IsNullOrEmpty(r.GetResponseFieldOrDefault("symbol", null)))
+                .Select(r => r.GetResponseField("symbol") + " ::= " + r.GetResponseFieldOrDefault("text", ""))
+                .ToList();
 
         private static IReadOnlyCollection<string> Arguments(ITikConnection connection, string inspectPath)
             => Children(Inspect(connection, "child", inspectPath), "arg");

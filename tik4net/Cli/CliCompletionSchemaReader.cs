@@ -14,6 +14,54 @@ namespace tik4net.Cli
         (IReadOnlyList<CliCompletionItem> Items, string Raw) CompleteCliBoth(string partialInput);
     }
 
+    /// <summary>The line editor's help key (F1): what it writes after <c>partialInput</c>, escapes stripped.</summary>
+    internal interface ICliHelpKey
+    {
+        string HelpCli(string partialInput);
+    }
+
+    /// <summary>
+    /// Reads the help key's answer (Docs/findings-cli.md §14, <i>F1</i>): a listing of <c>name -- description</c> lines,
+    /// or after <c>argument=</c> the value grammar as <c>Name ::= definition</c> lines.
+    /// </summary>
+    internal static class CliHelpParser
+    {
+        private const string DescriptionSeparator = " -- ";
+        private const string DefinitionSeparator = " ::= ";
+
+        /// <summary>Word → description; a positional argument's angle brackets dropped (<c>&lt;numbers&gt;</c>).</summary>
+        internal static IReadOnlyDictionary<string, string> Descriptions(string help)
+        {
+            var descriptions = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (string line in Lines(help))
+            {
+                int at = line.IndexOf(DescriptionSeparator, StringComparison.Ordinal);
+                if (at <= 0)
+                    continue;
+                string word = line.Substring(0, at).Trim();
+                if (word.Length > 2 && word[0] == '<' && word[word.Length - 1] == '>')
+                    word = word.Substring(1, word.Length - 2);
+                string text = line.Substring(at + DescriptionSeparator.Length).Trim();
+                if (word.Length == 0 || word == ".." || word.IndexOf(' ') >= 0 || text.Length == 0)
+                    continue;
+                if (!descriptions.ContainsKey(word))
+                    descriptions[word] = text;
+            }
+            return descriptions;
+        }
+
+        /// <summary>The <c>Name ::= definition</c> lines, in the router's order.</summary>
+        internal static IReadOnlyList<string> Grammar(string help)
+            => Lines(help)
+                .Select(l => l.Trim())
+                .Where(l => { int at = l.IndexOf(DefinitionSeparator, StringComparison.Ordinal); return at > 0 && l.IndexOf(' ') == at; })
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+        private static IEnumerable<string> Lines(string help)
+            => help.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+    }
+
     /// <summary>
     /// A <see cref="TikMenuSchema"/> from Tab completion, for a router without <c>/console/inspect</c> (RouterOS 6).
     /// </summary>
@@ -70,7 +118,13 @@ namespace tik4net.Cli
                     var fields = Walk(completion, menu + " unset value-name=");
                     return fields.Count > 0 ? fields : null;
                 },
-                (verb, argument) => Walk(completion, menu + " " + verb + " " + argument + "="));
+                (verb, argument) => Walk(completion, menu + " " + verb + " " + argument + "="),
+                completion is ICliHelpKey help
+                    ? verb => CliHelpParser.Descriptions(help.HelpCli(verb == null ? menu + " " : menu + " " + verb + " "))
+                    : (Func<string?, IReadOnlyDictionary<string, string>>?)null,
+                completion is ICliHelpKey helpKey
+                    ? (verb, argument) => CliHelpParser.Grammar(helpKey.HelpCli(menu + " " + verb + " " + argument + "="))
+                    : (Func<string, string, IReadOnlyList<string>>?)null);
         }
 
         // A sub-menu by its colour, or — drawn without one — by a Tab on itself: a sub-menu's listing has '..'.

@@ -96,6 +96,35 @@ namespace tik4net.integrationtests
             CollectionAssert.DoesNotContain(schema.SetArguments.ToArray(), refused);
         }
 
+        /// <summary>
+        /// The router's own words about a menu: a description per command and argument, and an argument's value grammar —
+        /// <c>/console/inspect request=syntax</c> on RouterOS 7, the help key (F1) on a RouterOS 6 CLI.
+        /// </summary>
+        [TestMethod]
+        [TestCategory(TestCategories.AnyRouter)]
+        public void TheRouterDescribesItsWordsAndAnArgumentsGrammar()
+        {
+            var schema = Describe("/ip/route");
+            if (IsNative())
+            {
+                Assert.IsNull(schema.Description("add"), "the .jg catalog has no descriptions");
+                Assert.AreEqual(0, schema.ValueGrammar("distance", "add").Count);
+                return;
+            }
+
+            string add = schema.Description("add");
+            string distance = schema.Description("distance", "add");
+            var grammar = schema.ValueGrammar("distance", "add");
+            System.Console.WriteLine($"add: {add}{System.Environment.NewLine}distance: {distance}{System.Environment.NewLine}"
+                + string.Join(System.Environment.NewLine, grammar));
+
+            Assert.IsFalse(string.IsNullOrEmpty(add), "the command 'add' has a description");
+            Assert.IsFalse(string.IsNullOrEmpty(distance), "the argument 'distance' has a description");
+            Assert.IsTrue(grammar.Any(l => l.StartsWith("Distance ::= ", System.StringComparison.Ordinal)), string.Join(" | ", grammar));
+            Assert.IsTrue(grammar.Any(l => l.Contains("integer number")), string.Join(" | ", grammar));
+            Assert.IsNull(schema.Description("t4n-no-such-word"));
+        }
+
         [TestMethod]
         public void AnEnumArgumentListsItsWords()
         {

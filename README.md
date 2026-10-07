@@ -26,8 +26,8 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 * **[TikField](https://github.com/danikf/tik4net/wiki/TikField)** — a property knows whether the router printed the field; it never invents a default, and
   a value from a newer RouterOS does not break the read
 * **[Ask the router what a menu takes](https://github.com/danikf/tik4net/wiki/RouterOS-versions#asking-the-router-what-a-menu-takes)** — `DescribeMenu` lists a
-  menu's sub-menus and commands, the arguments each command takes, the fields it reads and can clear, and the words an
-  argument accepts, from the router's own grammar
+  menu's sub-menus and commands, the arguments each command takes, the fields it reads and can clear, the words an
+  argument accepts and the router's description of each, from the router's own grammar
 * **[Connection string](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities#from-a-connection-string)** — `TikConnectionSetup.FromConnectionString`: the router, the
   credentials and the transport come from config, not code
 * **[Negated matchers](https://github.com/danikf/tik4net/wiki/TikField#negated-matchers)** — `src-address=!10.0.0.0/8`

@@ -126,6 +126,127 @@ namespace tik4net.unittests.Connection
                 () => new TikFakeConnection().DescribeMenu("/ip/route"));
         }
 
+        private static ITikSentence Syntax(string symbolType, string symbol, string text)
+            => Row(("type", "syntax"), ("symbol", symbol), ("symbol-type", symbolType), ("nested", "1"), ("nonorm", "false"),
+                ("text", text));
+
+        [TestMethod]
+        public void Inspect_DescribesTheWordsAndGivesAnArgumentsGrammar_AskedOnce()
+        {
+            // 7.24.5: 'syntax' on a menu and on a command explains each word (many with no text); on an argument it
+            // defines the value, then what the definition is built of.
+            var answers = Route();
+            answers["syntax ip,route"] = new[] { Syntax("collection", "", ""), Syntax("explanation", "..", "go up to ip"),
+                Syntax("explanation", "add", "Create a new item"), Syntax("explanation", "check", "") };
+            answers["syntax ip,route,add"] = new[] { Syntax("explanation", "distance", "Administrative distance of the route"),
+                Syntax("explanation", "gateway", "") };
+            answers["syntax ip,route,add,distance"] = new[] { Syntax("definition", "Distance", "Num"),
+                Syntax("definition", "Num", "1..255    (integer number)") };
+            answers["syntax ip,route,add,routing-table"] = new[] { Syntax("definition", "", "") };
+            var router = Inspect(answers);
+            var schema = ConsoleInspectSchemaReader.Read(router, "/ip/route");
+
+            Assert.AreEqual("Create a new item", schema.Description("add"));
+            Assert.IsNull(schema.Description("check"), "a word without text has no description");
+            Assert.IsNull(schema.Description(".."));
+            Assert.AreEqual("Administrative distance of the route", schema.Description("distance", "add"));
+            Assert.IsNull(schema.Description("gateway", "add"));
+            CollectionAssert.AreEqual(new[] { "Distance ::= Num", "Num ::= 1..255    (integer number)" },
+                schema.ValueGrammar("distance", "add").ToArray());
+            Assert.AreEqual(0, schema.ValueGrammar("routing-table", "add").Count, "an enum answers one empty definition");
+
+            int asked = router.SentCommands.Count;
+            schema.Description("add");
+            schema.ValueGrammar("distance", "add");
+            Assert.AreEqual(asked, router.SentCommands.Count, "asked once and remembered");
+        }
+
+        // ── The help key (F1, RouterOS 6) ─────────────────────────────────────
+
+        [TestMethod]
+        public void HelpKey_AListingIsOneDescriptionPerWord()
+        {
+            // 6.49.13 '/ip address set ' F1: a one-line description of the command first, then 'name -- text' rows, the
+            // positional arguments in angle brackets, and the prompt redrawn after it.
+            const string help = "Change item properties\r\n"
+                + "<numbers> -- List of item numbers\r\n"
+                + "address -- Local IP address\r\n"
+                + ".. -- go up to ip\r\n"
+                + "comment -- Short description of the item\r\n"
+                + "[admin@CHR2] > /ip address set ";
+
+            var descriptions = CliHelpParser.Descriptions(help);
+
+            Assert.AreEqual("List of item numbers", descriptions["numbers"]);
+            Assert.AreEqual("Local IP address", descriptions["address"]);
+            Assert.AreEqual("Short description of the item", descriptions["comment"]);
+            Assert.IsFalse(descriptions.ContainsKey(".."));
+            Assert.AreEqual(3, descriptions.Count, string.Join(", ", descriptions.Keys));
+        }
+
+        [TestMethod]
+        public void HelpKey_AfterAnArgumentIsTheValueGrammar()
+        {
+            const string help = "Address ::= Address[/Netmask]\r\n"
+                + "  Netmask ::= Num\r\n"
+                + "    Num ::= 0..32    (integer number)\r\n"
+                + "Chain ::= input | forward | output\r\n"
+                + "[admin@CHR2] > /ip address add address=";
+
+            CollectionAssert.AreEqual(new[] { "Address ::= Address[/Netmask]", "Netmask ::= Num", "Num ::= 0..32    (integer number)",
+                "Chain ::= input | forward | output" }, CliHelpParser.Grammar(help).ToArray());
+            Assert.AreEqual(0, CliHelpParser.Descriptions(help).Count);
+        }
+
+        /// <summary>A Tab fake that also presses F1.</summary>
+        private sealed class ScriptedHelp : ITikCliCompletion, ICliHelpKey
+        {
+            private readonly ScriptedTab _tab;
+            private readonly Dictionary<string, string> _help;
+            public readonly List<string> Pressed = new List<string>();
+
+            public ScriptedHelp(ScriptedTab tab, Dictionary<string, string> help) { _tab = tab; _help = help; }
+            public IReadOnlyList<string> CompleteCli(string partialInput) => _tab.CompleteCli(partialInput);
+            public string CompleteCliRaw(string partialInput) => _tab.CompleteCliRaw(partialInput);
+
+            public string HelpCli(string partialInput)
+            {
+                Pressed.Add(partialInput);
+                return _help.TryGetValue(partialInput, out var answer) ? answer : "";
+            }
+        }
+
+        [TestMethod]
+        public void Tab_TheDescriptionsAndTheGrammarComeFromTheHelpKey()
+        {
+            var cli = new ScriptedHelp(
+                new ScriptedTab(new Dictionary<string, string[]> { ["/ip route "] = new[] { "add", "print", "set" } }),
+                new Dictionary<string, string>
+                {
+                    ["/ip route "] = "add -- Create a new item\r\n",
+                    ["/ip route add "] = "distance -- Administrative distance of the route\r\n",
+                    ["/ip route add distance="] = "Distance ::= 1..255    (integer number)\r\n",
+                });
+
+            var schema = CliCompletionSchemaReader.Read(cli, "/ip/route");
+
+            Assert.AreEqual("Create a new item", schema.Description("add"));
+            Assert.AreEqual("Administrative distance of the route", schema.Description("distance", "add"));
+            CollectionAssert.AreEqual(new[] { "Distance ::= 1..255    (integer number)" }, schema.ValueGrammar("distance", "add").ToArray());
+            CollectionAssert.AreEqual(new[] { "/ip route ", "/ip route add ", "/ip route add distance=" }, cli.Pressed,
+                "the menu path with spaces, as RouterOS 6 completes it");
+        }
+
+        [TestMethod]
+        public void Tab_WithoutAHelpKeyTheRouterDescribesNothing()
+        {
+            var schema = CliCompletionSchemaReader.Read(
+                new ScriptedTab(new Dictionary<string, string[]> { ["/ip route "] = new[] { "add" } }), "/ip/route");
+
+            Assert.IsNull(schema.Description("add"));
+            Assert.AreEqual(0, schema.ValueGrammar("distance", "add").Count);
+        }
+
         // ── Tab completion (RouterOS 6) ───────────────────────────────────────
 
         /// <summary>Answers a Tab from a table: a listing (tokens), or an inline completion (the completed line).</summary>

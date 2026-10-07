@@ -1356,6 +1356,12 @@ What it does not give: a long enum is cut with `...` (`speed`, `action` — Tab 
 arguments are not marked; F1 in the middle of a word (`/ip addr` F1) lists the parent menu, unfiltered; and
 `get` F1 names `<value-name>` without listing the names (Tab on `value-name=` does).
 
+`TikMenuSchema.Description` and `ValueGrammar` read it on a RouterOS 6 terminal (`ICliHelpKey`, `CliHelpParser`: the
+`name -- text` rows, a positional `<numbers>` without its brackets, and the `Name ::= …` rows). RouterOS 7 answers the
+same texts to `/console/inspect request=syntax` on every transport — an `explanation` row per word, `definition` rows
+per value (`Distance` → `Num`, `Num` → `1..255    (integer number)`; 6.49.13's F1 writes that as one row,
+`Distance ::= 1..255    (integer number)`) — so F1 is pressed only where `/console/inspect` is missing.
+
 ---
 
 ## Settled questions — do not re-investigate
