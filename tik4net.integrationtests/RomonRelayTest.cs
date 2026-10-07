@@ -689,6 +689,33 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// A receive timeout through the relay brings the session back in step as it does on a direct terminal
+        /// (CliResyncTest): the Ctrl-C and the fence go to the target through <c>/tool romon ssh</c>, and the Ctrl-C
+        /// must not end the relay — the next reads answer with the target's own id, not the agent's.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet)]
+        [DataRow(TikConnectionType.Ssh)]
+        [DataRow(TikConnectionType.MacTelnet)]
+        public void Relay_AfterAReceiveTimeout_StaysInStepOnTheTarget(TikConnectionType agentTransport)
+        {
+            RequireTarget();
+
+            // Shortened once open: the relay's own login waits on the agent's password prompt under the same timeout.
+            using (var relay = OpenRelay(agentTransport))
+            {
+                relay.ReceiveTimeout = TimeSpan.FromSeconds(1.5);
+                Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => ((ITikRawSentenceConnection)relay).CallCommandSync(":put t4n-early; :delay 5s; :put t4n-late").ToList());
+
+                Assert.IsTrue(relay.IsOpened, "the relay was closed instead of brought back in step");
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
+                    "after the timeout the relay answered from the agent, or read someone else's output");
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true);
+            }
+        }
+
         // ── Tab-completion ────────────────────────────────────────────────────
 
         /// <summary>
