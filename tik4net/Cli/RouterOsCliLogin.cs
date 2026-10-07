@@ -340,6 +340,11 @@ namespace tik4net.Cli
             }
         }
 
+        // Each step of the relay login is one read, and the connection's ReceiveTimeout is its deadline.
+        private const string WithinReceiveTimeout =
+            "before the read gave up (each step of the relay login waits up to the connection's ReceiveTimeout; "
+            + "a slow agent or target needs a longer one)";
+
         private static async Task<string> RomonSshLoginCoreAsync(
             string id,
             string user,
@@ -386,9 +391,10 @@ namespace tik4net.Cli
             bool loggedInWithoutPassword = !IsPasswordPrompt(opened) && IsChangePasswordNag(opened) && !IsRomonRelayEnd(opened);
             if (!IsPasswordPrompt(opened) && !loggedInWithoutPassword)
             {
+                // Nothing recognisable before the read's deadline — a slow prompt reads exactly like no prompt.
                 if (!IsShellPrompt(opened) && !IsRomonRelayEnd(opened))
                     throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id,
-                        "the agent did not answer /tool romon ssh with a password prompt", opened);
+                        "the agent did not answer /tool romon ssh with a password prompt " + WithinReceiveTimeout, opened);
                 throw Relay(TikRomonRelayFailure.TargetUnreachable, id,
                     "the agent could not reach RoMON id " + id + " (not in its RoMON overlay — see /tool romon discover on the agent)",
                     opened);
@@ -433,7 +439,7 @@ namespace tik4net.Cli
                 throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id,
                     IsRomonRelayEnd(result)
                         ? "the relay ended before the target's shell prompt"
-                        : "the target did not reach its shell prompt",
+                        : "the target did not reach its shell prompt " + WithinReceiveTimeout,
                     result);
             }
 

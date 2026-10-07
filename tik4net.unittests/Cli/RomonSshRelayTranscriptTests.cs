@@ -225,6 +225,19 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public async Task Relay_WithNoPasswordPromptBeforeTheDeadline_SaysTheReceiveTimeoutBoundsTheWait()
+        {
+            // Only the echo, and then nothing until the read gives up: a prompt slower than the connection's
+            // ReceiveTimeout (seen with 1.5 s over Telnet) — not an agent that answered something else.
+            var term = AgentTerminal().Emits(SshCommand + "\r\n\r\u001b7\u001b8");
+
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
+
+            Assert.AreEqual(TikRomonRelayFailure.TargetDidNotRespond, ex.Reason);
+            StringAssert.Contains(ex.Message, "ReceiveTimeout");
+        }
+
+        [TestMethod]
         public void AnUnreachableTargetIsNotALoginFailure()
         {
             var ex = new TikRomonRelayException(TikRomonRelayFailure.TargetUnreachable, "x");
