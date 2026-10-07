@@ -107,7 +107,7 @@ namespace tik4net.Winbox
                 {
                     if (f.UiType == "network" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
                     // The port half of an address:port field is not a field of its own to the API.
-                    if (f.UiType == WinboxFieldResolver.AddrPortUiType && f.MaskKey != 0)
+                    if ((f.UiType == WinboxFieldResolver.AddrPortUiType || f.UiType == "ipaddrandport") && f.MaskKey != 0)
                         consumedKeys.Add(f.MaskKey);
                     // Nor is the netmask half of a number,netmask field.
                     if (f.UiType == WinboxFieldResolver.NumberNetmaskUiType && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
@@ -394,6 +394,15 @@ namespace tik4net.Winbox
                     }
                     case "ipaddr":
                         return WinboxFieldResolver.IpFromU32(value);
+                    case "ipaddrandport":
+                    {
+                        // types.ipaddrandport.tostr: ipaddr2string(addr) + (port ? ':' + port : '') — the port at
+                        // 'portid' (MaskKey), left out when absent or 0, as the 6.x API prints a connection.
+                        string addr = WinboxFieldResolver.IpFromU32(value);
+                        long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
+                                    && WinboxFieldResolver.TryToInt64(pt.Item2, out long p) ? p : 0;
+                        return port == 0 ? addr : addr + ":" + port.ToString(CultureInfo.InvariantCulture);
+                    }
                     case "netmask":
                         // types.netmask.tostr is netmask2len(val).toString() — the LENGTH, not the mask,
                         // and RouterOS agrees: a pcq queue type prints pcq-src-address-mask=32 for the

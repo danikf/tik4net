@@ -1277,7 +1277,8 @@ namespace tik4net.Winbox
                     {
                         bool ro = dict.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
                         int maskKey = (dict.TryGetValue("maskid", out var mkv) && mkv is string mks
-                            && DecodeId(mks) is var md && md != null) ? md.Value.key : HighKeyOf(dict);
+                            && DecodeId(mks) is var md && md != null) ? md.Value.key
+                            : DecodedKeyOf(dict, "portid") is var pk && pk != 0 ? pk : HighKeyOf(dict);
                         int[]? refHandler = ExtractRefHandler(dict);
                         bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                         // A LIST's allow-mask lives on the element, not on the list node: wireguard's
@@ -1933,8 +1934,11 @@ namespace tik4net.Winbox
                 if (dec != null)
                 {
                     bool ro = cur.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
+                    // An 'ipaddrandport' names its port at 'portid' (6.x Connections, the sniffer's connections); it is
+                    // the same "my value needs a sibling" slot as a netmask.
                     int maskKey = (cur.TryGetValue("maskid", out var mkv) && mkv is string mks
-                        && DecodeId(mks) is var md && md != null) ? md.Value.key : HighKeyOf(cur);
+                        && DecodeId(mks) is var md && md != null) ? md.Value.key
+                        : DecodedKeyOf(cur, "portid") is var pk && pk != 0 ? pk : HighKeyOf(cur);
                     int[]? refHandler = ExtractRefHandler(cur);
                     // 'range' must be read here as well as on the unwrapped path: EVERY firewall address field
                     // is an opt→not→network with range:1, so dropping it here made the range-END sibling decode

@@ -1356,6 +1356,12 @@ the `.jg` says the two boxes are one field, so the pairing is shipped per path
 "my value needs a sibling" slot a `network`'s netmask uses — and is consumed, so it does not also surface as a
 field the API never reports.
 
+Where the `.jg` does say so, the type is `ipaddrandport` with the port at `portid`: RouterOS 6's Connections window
+(`u7`/`u9`, `u8`/`ua`, `ub`/`ud`, `uc`/`ue`) and the sniffer's connections on 6.x and 7.x. `types.ipaddrandport.tostr`
+is the address plus `:port` only when the port is non-zero — an ipencap connection, which carries no port, prints the
+bare address, as the 6.49 API does. RouterOS 7's Connections window has plain `ipaddr` fields and separate port
+fields instead, matching the 7.x API's `src-port`/`dst-port`.
+
 ### A firewall group is one API field
 
 The filter, raw and mangle windows draw several matchers as a `group` of boxes the API prints as one value

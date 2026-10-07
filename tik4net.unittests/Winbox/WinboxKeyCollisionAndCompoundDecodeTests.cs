@@ -185,6 +185,31 @@ namespace tik4net.unittests.Winbox
             "{name:'HTTP Proxy Port',type:'number',id:'u84',max:65535}," +
             "{name:'SMTP Server',type:'ipaddr',id:'u87',opt:1}]}]";
 
+        // roteros.jg on 6.49.13, Connections [20,32]: 'Src. Address' is type 'ipaddrandport' with the port at
+        // 'portid' (7.x splits the two into src-address and src-port). webfig's types.ipaddrandport.tostr is
+        // ipaddr2string(addr) + (port ? ':' + port : ''), and the 6.49 API prints the same: a UDP row reads
+        // 192.168.4.236:5678 and 255.255.255.255:5678, an ipencap row (no port on the wire) the bare address.
+        private const string ConnectionsWindow649 =
+            "[{name:'Connections',type:'map',path:[ 20,32 ],c:[" +
+            "{name:'Src. Address',type:'ipaddrandport',id:'u7',portid:'u9'}," +
+            "{name:'Dst. Address',type:'ipaddrandport',id:'u8',portid:'ua'}]}]";
+
+        [TestMethod]
+        public void A649ConnectionPrintsItsAddressJoinedToItsPort()
+        {
+            var catalog = Parse(ConnectionsWindow649);
+
+            var udp = Decode(catalog, new[] { 20, 32 }, Rec((0x7, "u32", 3959728320u), (0x8, "u32", 4294967295u),
+                (0x9, "u32", (uint)5678), (0xA, "u32", (uint)5678)));
+            Assert.AreEqual("192.168.4.236:5678", udp["src-address"]);
+            Assert.AreEqual("255.255.255.255:5678", udp["dst-address"]);
+            Assert.IsFalse(udp.ContainsKey("src-port") || udp.Count > 2,
+                "the port is half of one API field: " + string.Join(", ", udp.Keys));
+
+            var ipencap = Decode(catalog, new[] { 20, 32 }, Rec((0x7, "u32", 3976505536u), (0x8, "u32", 67134218u)));
+            Assert.AreEqual("192.168.4.237", ipencap["src-address"], "no port on the wire, no ':0'");
+        }
+
         [TestMethod]
         public void TheApiPrintsTheHotspotProxyAsAddressAndPortInOneField()
         {
