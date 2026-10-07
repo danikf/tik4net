@@ -756,6 +756,69 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// limit, dst-limit and ipsec-policy — the values WinBox native keeps as a group of boxes each — round-trip on
+        /// filter, mangle and raw on every lab router, RouterOS 6 included, and so do raw's bridge port and packet-mark,
+        /// whose keys its WinBox window does not declare. The tests above also write realm and tos,
+        /// which 6.49 lacks, so this is the one that covers the groups there.
+        /// </summary>
+        [TestMethod]
+        [TestCategory(TestCategories.AnyRouter)]
+        public void TheGroupedMatchersRoundTripOnEveryVersion()
+        {
+            const string comment = "t4n-grouped-matchers";
+            var limit = TikValue<string>.Not("10,5:packet");
+            const string dstLimit = "30/1m,5,addresses-and-dst-port/10s";
+            const string ipsecPolicy = "in,ipsec";
+            string on = " on " + ResolveConnectionType() + " / RouterOS " + GetMikrotikVersion();
+            foreach (string menu in new[] { "/ip/firewall/filter", "/ip/firewall/mangle", "/ip/firewall/raw" })
+                RemoveByComment(menu, comment);
+            try
+            {
+                var filter = new FirewallFilter
+                {
+                    Chain = "forward", Action = FirewallFilter.ActionType.Accept, Disabled = true, Comment = comment,
+                    Limit = limit, DstLimit = dstLimit, IpsecPolicy = ipsecPolicy,
+                };
+                SaveTracked(filter);
+                var readFilter = Connection.LoadById<FirewallFilter>(filter.Id);
+                Assert.AreEqual(filter.Limit, readFilter.Limit, "filter limit" + on);
+                Assert.AreEqual(filter.DstLimit, readFilter.DstLimit, "filter dst-limit" + on);
+                Assert.AreEqual(filter.IpsecPolicy, readFilter.IpsecPolicy, "filter ipsec-policy" + on);
+
+                var mangle = new FirewallMangle
+                {
+                    Chain = "prerouting", Action = FirewallMangle.ActionType.Passthrough, Disabled = true, Comment = comment,
+                    Limit = limit, DstLimit = dstLimit, IpsecPolicy = ipsecPolicy,
+                };
+                SaveTracked(mangle);
+                var readMangle = Connection.LoadById<FirewallMangle>(mangle.Id);
+                Assert.AreEqual(mangle.Limit, readMangle.Limit, "mangle limit" + on);
+                Assert.AreEqual(mangle.DstLimit, readMangle.DstLimit, "mangle dst-limit" + on);
+                Assert.AreEqual(mangle.IpsecPolicy, readMangle.IpsecPolicy, "mangle ipsec-policy" + on);
+
+                var raw = new FirewallRaw
+                {
+                    Chain = "prerouting", Action = FirewallRaw.ActionType.Passthrough, Disabled = true, Comment = comment,
+                    Limit = limit, DstLimit = dstLimit, IpsecPolicy = ipsecPolicy,
+                    // keys raw's WinBox window does not declare (shipped for native)
+                    InBridgePort = TikValue<string>.Not("ether1"), PacketMark = TikValue<string>.Not("t4n-pm"),
+                };
+                SaveTracked(raw);
+                var readRaw = Connection.LoadById<FirewallRaw>(raw.Id);
+                Assert.AreEqual(raw.Limit, readRaw.Limit, "raw limit" + on);
+                Assert.AreEqual(raw.DstLimit, readRaw.DstLimit, "raw dst-limit" + on);
+                Assert.AreEqual(raw.IpsecPolicy, readRaw.IpsecPolicy, "raw ipsec-policy" + on);
+                Assert.AreEqual(raw.InBridgePort, readRaw.InBridgePort, "raw in-bridge-port" + on);
+                Assert.AreEqual(raw.PacketMark, readRaw.PacketMark, "raw packet-mark" + on);
+            }
+            finally
+            {
+                foreach (string menu in new[] { "/ip/firewall/filter", "/ip/firewall/mangle", "/ip/firewall/raw" })
+                    RemoveByComment(menu, comment);
+            }
+        }
+
         private void RemoveByComment(string menu, string comment)
         {
             var rows = Connection.CreateCommandAndParameters(menu + "/print",
