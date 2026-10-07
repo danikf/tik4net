@@ -20,13 +20,13 @@ namespace tik4net.Cli
     ///
     /// Concrete transport subclasses must:
     /// <list type="bullet">
-    ///   <item>implement <see cref="TikCommandConnectionBase.Open(string, string, string)"/> /
-    ///     <see cref="TikCommandConnectionBase.Open(string, int, string, string)"/> and their async
+    ///   <item>implement <see cref="TikConnectionBase.Open(string, string, string)"/> /
+    ///     <see cref="TikConnectionBase.Open(string, int, string, string)"/> and their async
     ///     counterparts by building the concrete transport client and calling <see cref="OpenWith"/> /
     ///     <see cref="OpenWithAsync"/> with delegates bound to it;</item>
     ///   <item>implement <see cref="TransportName"/> (shown in the "not open" diagnostic).</item>
     /// </list>
-    /// <see cref="Close"/> and the not-open guards are provided by this base (R6).
+    /// <see cref="TikConnectionBase.Close"/> and the not-open guards are provided by this base (R6).
     ///
     /// The text returned by the send delegate must already have ANSI escape sequences stripped
     /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
@@ -960,7 +960,7 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Unrolls on a router without the scriptable <c>/safe-mode/unroll</c> (before 7.18) by ending the session:
-        /// <see cref="Close"/> answers <c>/quit</c>'s Safe Mode question with <c>y</c>, which unrolls. See
+        /// <see cref="TikConnectionBase.Close"/> answers <c>/quit</c>'s Safe Mode question with <c>y</c>, which unrolls. See
         /// <see cref="SafeModeUnroll"/> for why no in-place key exists.
         /// </summary>
         protected virtual void SafeModeUnrollByControlKey() => Close();

@@ -9,10 +9,11 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using tik4net.Connection;
 
 namespace tik4net.Api
 {  
-    internal sealed class ApiConnection : ITikApiConnection, ITikMenuSchemaConnection
+    internal sealed class ApiConnection : TikConnectionBase, ITikApiConnection, ITikMenuSchemaConnection
     {
         ///// <summary>
         ///// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login
@@ -41,19 +42,10 @@ namespace tik4net.Api
         // because the async path holds it across an await, which C# does not allow for a monitor — and two
         // different mutexes for the two paths would serialize neither against the other.
         private readonly System.Threading.SemaphoreSlim _writeLock = new System.Threading.SemaphoreSlim(1, 1);
-        private volatile bool _isOpened = false;
-        private bool _safeModeHeld = false;
         private bool _isSsl = false;
-        private Encoding _encoding = Encoding.UTF8;
         // On since 4.0: the router echoes the tag back, and that is the only thing tying a reply to the
         // caller that asked for it. Off, two threads on one connection cross-deliver rows rather than fail.
         private bool _sendTagWithSyncCommand = true;
-        // 30 s, the same default TikCommandConnectionBase gives every other transport. It used to be 0,
-        // which the Open path reads as "leave the socket alone" — so a connection built without a
-        // TikConnectionSetup was the one transport in eleven whose blocking send had no bound at all, and
-        // nothing said so. Zero still means exactly that, for a caller who asks for it deliberately.
-        private int _sendTimeout = 30000;
-        private int _receiveTimeout = 30000;
         private TcpClient _tcpConnection = null!; // assigned by Open()/OpenAsync(), called right after construction
         private /*NetworkStream*/System.IO.Stream _tcpConnectionStream = null!; // assigned by Open()/OpenAsync()
 
@@ -70,11 +62,6 @@ namespace tik4net.Api
         // reader still has to read the router's answer to /quit.
         private volatile bool _closeInitiated;
 
-        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
-        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
-
-        public bool DebugEnabled { get; set; }
-
         /// <summary>
         /// The binary API is the reference transport and natively supports every capability:
         /// CRUD, native <c>/listen</c>, streaming monitor windows (<c>.tag</c> + duration),
@@ -89,66 +76,24 @@ namespace tik4net.Api
         /// command leaves the connection usable instead of merely un-desynchronized-by-luck. It is the
         /// per-command <c>.tag</c> (<see cref="TikConnectionCapability.Tagging"/>) that makes this possible.
         /// </remarks>
-        public TikConnectionCapability Capabilities =>
+        public override TikConnectionCapability Capabilities =>
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.Streaming | TikConnectionCapability.RawCommand
             | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
             | TikConnectionCapability.MenuSchema;
 
-        // The menus described on this open; replaced when the connection opens.
-        private TikMenuSchemaCache _menuSchemas = new TikMenuSchemaCache();
-
         bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
 
 
         TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
-            => _menuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
-
-        public bool IsOpened
-        {
-            get { return _isOpened; }
-        }
-
-        /// <summary>
-        /// Wire text encoding for words. Defaults to UTF-8, matching RouterOS 7's own encoding
-        /// (and the CLI-family transports). Set to <see cref="Encoding.ASCII"/> for legacy RouterOS 6.x
-        /// routers if non-ASCII names/comments come back mangled.
-        /// </summary>
-        public Encoding Encoding
-        {
-            get { return _encoding; }
-            set { _encoding = value; }
-        }
+            => MenuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 
         public bool SendTagWithSyncCommand
         {
             get { return _sendTagWithSyncCommand; }
             set { _sendTagWithSyncCommand = value; }
         }
-
-        public TimeSpan SendTimeout
-        {
-            get { return TimeSpan.FromMilliseconds(_sendTimeout); }
-            set { _sendTimeout = TikTimeouts.ToMilliseconds(value); }
-        }
-
-        public TimeSpan ReceiveTimeout
-        {
-            get { return TimeSpan.FromMilliseconds(_receiveTimeout); }
-            set { _receiveTimeout = TikTimeouts.ToMilliseconds(value); }
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>Bounds the initial TCP handshake (and, on API-SSL, the TLS handshake).</remarks>
-        public TimeSpan ConnectTimeout
-        {
-            get { return TimeSpan.FromMilliseconds(ConnectTimeoutMs); }
-            set { ConnectTimeoutMs = TikTimeouts.ToMilliseconds(value); }
-        }
-
-        internal int ReceiveTimeoutMs => _receiveTimeout;
-        internal int ConnectTimeoutMs { get; private set; } = 15000;
 
         public bool IsSsl
         {
@@ -171,14 +116,18 @@ namespace tik4net.Api
             DebugEnabled = System.Diagnostics.Debugger.IsAttached;
         }
 
-        private void EnsureOpened()
+        /// <inheritdoc/>
+        protected override string DiagnosticPrefix => "API";
+
+        // Open is not enough: a session that stopped answering is refused here too, rather than costing the
+        // caller a full ReceiveTimeout to find out.
+        protected override void EnsureOpened()
         {
-            if (!_isOpened)
-                throw new TikConnectionNotOpenException("Connection has not been opened.");
+            base.EnsureOpened();
             EnsureSessionAnswering();
         }
 
-        public void Close()
+        public override void Close()
         {
             // Before /quit, not after: the router answers /quit with a !fatal and then closes the socket, so
             // the reader's very next read fails while _readerStopRequested is still false — and a monitor
@@ -229,7 +178,7 @@ namespace tik4net.Api
             _readerStopRequested = true;
             try { _tcpConnectionStream?.Dispose(); } catch { /* Close/Dispose must not throw */ }
             try { _tcpConnection?.Dispose(); } catch { /* Close/Dispose must not throw */ }
-            _isOpened = false;
+            SetClosed();
 
             // Bounded: the reader is blocked in a read on a stream that has just been disposed, so it is
             // about to throw. Waiting keeps "closed" meaning the reader is actually gone — a Dispose that
@@ -251,7 +200,7 @@ namespace tik4net.Api
             // RouterOS 7.18+ scriptable safe-mode. Bound to this API session: an unexpected
             // disconnect (without a SafeModeRelease) rolls back everything changed since.
             CreateCommand("/safe-mode/take").ExecuteNonQuery();
-            _safeModeHeld = true;
+            SafeModeHeld = true;
         }
 
         /// <inheritdoc/>
@@ -259,7 +208,7 @@ namespace tik4net.Api
         {
             EnsureOpened();
             CreateCommand("/safe-mode/release").ExecuteNonQuery();
-            _safeModeHeld = false;
+            SafeModeHeld = false;
         }
 
         /// <inheritdoc/>
@@ -267,13 +216,13 @@ namespace tik4net.Api
         {
             EnsureOpened();
             CreateCommand("/safe-mode/unroll").ExecuteNonQuery();
-            _safeModeHeld = false;
+            SafeModeHeld = false;
         }
 
         /// <inheritdoc/>
-        public bool SafeModeGet() => _safeModeHeld;
+        public bool SafeModeGet() => SafeModeHeld;
 
-        public void Open(string host, string user, string password)
+        public override void Open(string host, string user, string password)
         {
             Open(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
         }
@@ -287,15 +236,15 @@ namespace tik4net.Api
         // ApiSsl connection reported a certificate problem differently depending on which method opened it.
         // Every await below carries ConfigureAwait(false), which is what keeps the blocking entry point
         // safe under a UI / ASP.NET-classic SynchronizationContext.
-        public void Open(string host, int port, string user, string password)
+        public override void Open(string host, int port, string user, string password)
             => OpenAsync(host, port, user, password).GetAwaiter().GetResult();
 
-        public System.Threading.Tasks.Task OpenAsync(string host, string user, string password,
+        public override System.Threading.Tasks.Task OpenAsync(string host, string user, string password,
             System.Threading.CancellationToken cancellationToken = default)
             => OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password,
                 cancellationToken);
 
-        public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
+        public override async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
             System.Threading.CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -304,10 +253,10 @@ namespace tik4net.Api
                 _readerFault = null;    // a previous session's fault must not diagnose this one
                 //open connection
                 _tcpConnection = new TcpClient();
-                if (_sendTimeout > 0)
-                    _tcpConnection.SendTimeout = _sendTimeout;
-                if (_receiveTimeout > 0)
-                    _tcpConnection.ReceiveTimeout = _receiveTimeout;
+                if (SendTimeoutMs > 0)
+                    _tcpConnection.SendTimeout = SendTimeoutMs;
+                if (ReceiveTimeoutMs > 0)
+                    _tcpConnection.ReceiveTimeout = ReceiveTimeoutMs;
 
                 // Task.WhenAny + Task.Delay so we work on netstandard2.0 (no ConnectAsync(CancellationToken) overload there).
                 var connectTask = _tcpConnection.ConnectAsync(host, port);
@@ -327,10 +276,10 @@ namespace tik4net.Api
                 await connectTask.ConfigureAwait(false); // observe/rethrow any connect exception
 
                 var tcpStream = _tcpConnection.GetStream();
-                if (_receiveTimeout > 0)
-                    tcpStream.ReadTimeout = _receiveTimeout;
-                if (_sendTimeout > 0)
-                    tcpStream.WriteTimeout = _sendTimeout;
+                if (ReceiveTimeoutMs > 0)
+                    tcpStream.ReadTimeout = ReceiveTimeoutMs;
+                if (SendTimeoutMs > 0)
+                    tcpStream.WriteTimeout = SendTimeoutMs;
                 if (!_isSsl)
                 {
                     _tcpConnectionStream = tcpStream;
@@ -385,8 +334,7 @@ namespace tik4net.Api
                     _tcpConnectionStream = sslStream;
                 }
 
-                _menuSchemas = new TikMenuSchemaCache();
-                _isOpened = true;
+                SetOpened();
                 StartReaderLoop();        // login is an ordinary exchange — it goes through the reader too
                 try
                 {
@@ -460,9 +408,9 @@ namespace tik4net.Api
             return sslPolicyErrors == SslPolicyErrors.None;
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
-            if (_isOpened)
+            if (IsOpened)
             {
                 // Close() says /quit first, so the router releases the session rather than waiting for the
                 // socket to go, and ends in DisposeConnectionResources itself.
@@ -471,7 +419,7 @@ namespace tik4net.Api
             }
 
             // Not open is NOT the same as nothing to release. A reader that faulted — router rebooted, peer
-            // hung up, cable pulled — sets _isOpened to false from its own thread and leaves the socket
+            // hung up, cable pulled — marks the connection closed from its own thread and leaves the socket
             // exactly where it was. Trusting the flag here meant a caller who did everything right, inside a
             // using block, still held the handle until the finalizer, and the router still saw a connected
             // peer. Idempotent, so the Close() path above and a second Dispose cost nothing.
@@ -535,7 +483,7 @@ namespace tik4net.Api
 
         /// <summary>
         /// Refuses to use a session that has stopped answering, instead of spending a full
-        /// <see cref="ReceiveTimeout"/> per command discovering it again.
+        /// <see cref="TikConnectionBase.ReceiveTimeout"/> per command discovering it again.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -557,7 +505,7 @@ namespace tik4net.Api
         /// lets this say the command did not run and mean it.
         /// </para>
         /// <para>
-        /// <see cref="IsOpened"/> deliberately still reports the transport's own state. It is what callers
+        /// <see cref="TikConnectionBase.IsOpened"/> deliberately still reports the transport's own state. It is what callers
         /// test before <see cref="Close"/>, and a connection that claimed to be shut would have its socket
         /// leaked by the usual <c>if (IsOpened) Close();</c>. The session must still be closed and reopened —
         /// which is what this exception asks for.
@@ -728,10 +676,7 @@ namespace tik4net.Api
                 }
             } while (skipEmptyRow && string.IsNullOrWhiteSpace(result));
 
-            if (OnReadRow != null)
-                OnReadRow(this, new TikConnectionCommCallbackEventArgs(result));
-            if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine("< " + result);
+            FireReadRow(result);
             return result;
         }
 
@@ -765,9 +710,9 @@ namespace tik4net.Api
             }
             catch(IOException ex)
             {
-                _isOpened = _tcpConnection.Connected;
+                if (!_tcpConnection.Connected) SetClosed();
                 if (IsTimeout(ex))
-                    throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(_receiveTimeout), ex);
+                    throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(ReceiveTimeoutMs), ex);
                 throw;
             }
         }
@@ -829,7 +774,7 @@ namespace tik4net.Api
             {
                 foreach (string row in commandRows)
                 {
-                    byte[] bytes = _encoding.GetBytes(row.ToCharArray());
+                    byte[] bytes = Encoding.GetBytes(row.ToCharArray());
                     byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
 
                     _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence
@@ -839,10 +784,7 @@ namespace tik4net.Api
                         Diagnostics.TikWireTrace.EmitWord("api.word", Diagnostics.TikWireDir.Send,
                             bytes, 0, bytes.Length, row);
 
-                    if (OnWriteRow != null)
-                        OnWriteRow(this, new TikConnectionCommCallbackEventArgs(row));
-                    if (DebugEnabled)
-                        System.Diagnostics.Debug.WriteLine("> " + row);
+                    FireWriteRow(row);
                 }
 
                 _tcpConnectionStream.WriteByte(0); //final zero byte (sentence terminator)
@@ -850,7 +792,7 @@ namespace tik4net.Api
             }
             catch(IOException)
             {
-                _isOpened = _tcpConnection.Connected;
+                if (!_tcpConnection.Connected) SetClosed();
                 throw;
             }
         }
@@ -893,7 +835,7 @@ namespace tik4net.Api
                 // Every caller learns of this, not just whoever happened to own the read. Carry the reason:
                 // an empty !fatal makes a router reboot, a socket error and a bug in our own reader
                 // indistinguishable, and this is the only place the exception exists (P2.14).
-                _isOpened = false;
+                SetClosed();
                 // The sentence carries only the flattened text; keep the exception itself so a diagnosis
                 // that needs its TYPE (Open's protocol-mismatch check) does not have to parse the message.
                 bool ours = _readerStopRequested || _closeInitiated;
@@ -913,7 +855,7 @@ namespace tik4net.Api
                 return;
             }
 
-            _isOpened = false;
+            SetClosed();
             _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" },
                                                           clientInitiated: true));
         }
@@ -929,7 +871,7 @@ namespace tik4net.Api
             {
                 foreach (string row in commandRows)
                 {
-                    byte[] bytes = _encoding.GetBytes(row.ToCharArray());
+                    byte[] bytes = Encoding.GetBytes(row.ToCharArray());
                     byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
 
                     await _tcpConnectionStream.WriteAsync(length, 0, length.Length).ConfigureAwait(false);
@@ -939,9 +881,7 @@ namespace tik4net.Api
                         Diagnostics.TikWireTrace.EmitWord("api.word", Diagnostics.TikWireDir.Send,
                             bytes, 0, bytes.Length, row);
 
-                    OnWriteRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(row));
-                    if (DebugEnabled)
-                        System.Diagnostics.Debug.WriteLine("> " + row);
+                    FireWriteRow(row);
                 }
 
                 await _tcpConnectionStream.WriteAsync(new byte[] { 0 }, 0, 1).ConfigureAwait(false); //sentence terminator
@@ -949,7 +889,7 @@ namespace tik4net.Api
             }
             catch (IOException)
             {
-                _isOpened = _tcpConnection.Connected;
+                if (!_tcpConnection.Connected) SetClosed();
                 throw;
             }
             finally
@@ -958,7 +898,7 @@ namespace tik4net.Api
             }
         }
 
-        private ITikSentence GetOne(string tag) => GetOne(tag, _receiveTimeout);
+        private ITikSentence GetOne(string tag) => GetOne(tag, ReceiveTimeoutMs);
 
         private ITikSentence GetOne(string tag, int receiveTimeoutMs)
         {
@@ -1018,7 +958,7 @@ namespace tik4net.Api
             return (type + " " + string.Join(" ", words)).TrimEnd();
         }
 
-        private IEnumerable<ITikSentence> GetAll(string tag) => GetAll(tag, _receiveTimeout);
+        private IEnumerable<ITikSentence> GetAll(string tag) => GetAll(tag, ReceiveTimeoutMs);
 
         private IEnumerable<ITikSentence> GetAll(string tag, int receiveTimeoutMs)
         {
@@ -1059,7 +999,7 @@ namespace tik4net.Api
         /// tag as the bare row <c>.tag=N</c>, while a caller supplying it as a command parameter produces
         /// <c>=.tag=N</c>. Both have to be recognised, and missing one is invisible rather than loud: the
         /// command goes out correctly tagged, the router answers it correctly, and the client waits on the
-        /// untagged queue until <see cref="ReceiveTimeout"/> elapses for an answer that has already arrived —
+        /// untagged queue until <see cref="TikConnectionBase.ReceiveTimeout"/> elapses for an answer that has already arrived —
         /// a full timeout per such command (<c>ApiCallerSuppliedTagTests</c>).
         /// </remarks>
         private static string? FindTag(IEnumerable<string> commandRows)
@@ -1074,11 +1014,11 @@ namespace tik4net.Api
             return null;
         }
         public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
-            => CallCommandSync(commandRows, _receiveTimeout);
+            => CallCommandSync(commandRows, ReceiveTimeoutMs);
 
         /// <summary>
         /// <see cref="CallCommandSync(string[])"/> with an explicit reply deadline instead of the connection's
-        /// <see cref="ReceiveTimeout"/>.
+        /// <see cref="TikConnectionBase.ReceiveTimeout"/>.
         /// <para>
         /// Exists for <c>/cancel</c>. <see cref="ITikCommand.CancelAndJoin(TimeSpan)"/> documents a bounded wait and
         /// answers "did it stop in time", but the cancel it sends first is an ordinary command: on the
@@ -1203,7 +1143,7 @@ namespace tik4net.Api
                         // The wait itself is NOT given the caller's token: abandoning it would leave the
                         // router still answering a tag nobody is reading. We ask the router to stop and keep
                         // reading until it says it has — that is what keeps the connection usable afterwards.
-                        sentence = await _dispatcher.WaitAsync(tag, _receiveTimeout,
+                        sentence = await _dispatcher.WaitAsync(tag, ReceiveTimeoutMs,
                             System.Threading.CancellationToken.None).ConfigureAwait(false);
                     }
                     catch (TikConnectionReceiveTimeoutException ex)
@@ -1296,7 +1236,7 @@ namespace tik4net.Api
                         }
                     } while (!(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
                     //NOTE: Should be ended via !done or !trap+!done (called via Cancel() command for specific tag)
-                    // The loop no longer tests _isOpened: a closed connection reaches the callback as the
+                    // The loop no longer tests IsOpened: a closed connection reaches the callback as the
                     // reader's synthetic !fatal, which ends it. Testing the flag instead ended the pump
                     // silently, leaving ExecuteWithCallback's caller with a monitor that simply stopped.
                 }
@@ -1323,12 +1263,12 @@ namespace tik4net.Api
             return result;
         }
 
-        public ITikCommand CreateCommand()
+        public override ITikCommand CreateCommand()
         {
             return new ApiCommand(this);
         }
 
-        public ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
+        public override ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
         {
             var result = CreateCommand();
             result.DefaultParameterFormat = defaultParameterFormat;
@@ -1337,12 +1277,12 @@ namespace tik4net.Api
         }
 
 
-        public ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
+        public override ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
         {
             return new ApiCommand(this, commandText, parameters);
         }
 
-        public ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
+        public override ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
         {
             var result = CreateCommand(commandText, parameters);
             result.DefaultParameterFormat = defaultParameterFormat;
@@ -1351,7 +1291,7 @@ namespace tik4net.Api
         }
 
 
-        public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
+        public override ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
         {
             var result = new ApiCommand(this, commandText);
             result.AddParameterAndValues(parameterNamesAndValues);
@@ -1359,7 +1299,7 @@ namespace tik4net.Api
             return result;
         }
 
-        public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
+        public override ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
         {
             var result = CreateCommandAndParameters(commandText, parameterNamesAndValues);
             result.DefaultParameterFormat = defaultParameterFormat;
@@ -1367,12 +1307,12 @@ namespace tik4net.Api
             return result;
         }
 
-        public ITikCommandParameter CreateParameter(string name, string? value)
+        public override ITikCommandParameter CreateParameter(string name, string? value)
         {
             return new ApiCommandParameter(name, value);
         }
 
-        public ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
+        public override ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
         {
             var result = CreateParameter(name, value);
             result.ParameterFormat = parameterFormat;

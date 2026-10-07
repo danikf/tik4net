@@ -106,5 +106,61 @@ namespace tik4net.unittests.Connection
                 Assert.IsTrue(shim!.IsAssembly, $"Invoke{name} must stay internal");
             }
         }
+
+        /// <summary>
+        /// Every transport, the binary API included, sits on <see cref="TikConnectionBase"/>: one copy of the open
+        /// state, timeouts, encoding and row trace rather than one per protocol family.
+        /// </summary>
+        [TestMethod]
+        public void EveryTransportDerivesFromTheSharedBase()
+        {
+            tik4net.Ssh.Tik4NetSsh.Register();
+            var stray = new List<string>();
+            foreach (TikConnectionType type in Enum.GetValues(typeof(TikConnectionType)))
+            {
+                using (var connection = TikConnectionRegistry.Create(type))
+                    if (!(connection is TikConnectionBase))
+                        stray.Add(type + " (" + connection.GetType().Name + ")");
+            }
+            Assert.AreEqual(0, stray.Count, "not on TikConnectionBase: " + string.Join(", ", stray));
+        }
+
+        /// <summary>
+        /// A foreign transport derives from <see cref="TikCommandConnectionBase"/>, never straight from
+        /// <see cref="TikConnectionBase"/> — that one has no command model, and its constructor says so.
+        /// </summary>
+        [TestMethod]
+        public void TheSharedBaseCannotBeDerivedOutsideThisAssembly()
+        {
+            var constructors = typeof(TikConnectionBase).GetConstructors(
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            Assert.IsTrue(constructors.Length > 0);
+            foreach (var ctor in constructors)
+                Assert.IsTrue(ctor.IsFamilyAndAssembly, "TikConnectionBase's constructor must be 'private protected'");
+        }
+
+        /// <summary>
+        /// What a foreign transport calls from its <c>Open</c>, <c>Close</c> and hooks moved to
+        /// <see cref="TikConnectionBase"/>; it must still reach a subclass in another assembly.
+        /// </summary>
+        [TestMethod]
+        public void TheInheritedHelpersStayReachableBySubclasses()
+        {
+            var wrong = new List<string>();
+            foreach (string name in new[] { "SetOpened", "SetClosed", "EnsureOpened", "FireReadRow", "FireWriteRow" })
+            {
+                var m = typeof(TikConnectionBase).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                if (m == null || !(m.IsFamily || m.IsFamilyOrAssembly || m.IsPublic))
+                    wrong.Add(name);
+            }
+            foreach (string name in new[] { "SafeModeHeld", "RowTracingEnabled", "DiagnosticPrefix" })
+            {
+                var getter = typeof(TikConnectionBase).GetProperty(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+                    ?.GetGetMethod(true);
+                if (getter == null || !(getter.IsFamily || getter.IsFamilyOrAssembly || getter.IsPublic))
+                    wrong.Add(name);
+            }
+            Assert.AreEqual(0, wrong.Count, "not reachable from a subclass in another assembly: " + string.Join(", ", wrong));
+        }
     }
 }

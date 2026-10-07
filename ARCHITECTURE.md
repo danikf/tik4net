@@ -10,13 +10,14 @@ tik4net.objects  — O/R mapper: [TikEntity]/[TikProperty] → metadata cache �
         │
 ITikConnection / ITikCommand  — transport-neutral contract + capability model
         │
-   ┌────┴───────────────────────────────────────────────────────────────┐
-   │ ApiConnection             — binary sentence protocol (the reference)│
-   │ TikCommandConnectionBase  — shared base for all command transports  │
-   │   ├─ CliConnectionBase    — Telnet, MAC-Telnet, WinBox CLI ×2, SSH  │
-   │   ├─ RestConnection       — RouterOS 7.1+ REST/JSON                 │
-   │   └─ WinboxNativeConnection — structured M2 (+ MAC variant)         │
-   └─────────────────────────────────────────────────────────────────────┘
+   ┌────┴───────────────────────────────────────────────────────────────────┐
+   │ TikConnectionBase           — open state, timeouts, encoding, row trace │
+   │ ├─ ApiConnection            — binary sentence protocol (the reference)  │
+   │ └─ TikCommandConnectionBase — shared base for all command transports    │
+   │     ├─ CliConnectionBase    — Telnet, MAC-Telnet, WinBox CLI ×2, SSH    │
+   │     ├─ RestConnection       — RouterOS 7.1+ REST/JSON                   │
+   │     └─ WinboxNativeConnection — structured M2 (+ MAC variant)           │
+   └─────────────────────────────────────────────────────────────────────────┘
    Support: Mndp (discovery), Crypto (EC-SRP5, WinBox stream cipher),
             TikPath, TikQueryStack, PollingMonitorEngine, capability flags
 ```
@@ -252,10 +253,16 @@ not per-handler (`Docs/jg-catalog-format.md` has the `.jg` shapes):
   (`[28,0]` = UPnP settings *and* the UPnP interface list), so asking the handler returns one record where
   the router has many.
 
-### `TikCommandConnectionBase`
+### `TikConnectionBase` and `TikCommandConnectionBase`
 
-Every non-API transport derives from it (`tik4net/Connection/`). It implements the whole
-`ITikConnection` surface and factors real work down to three `protected abstract` hooks:
+`TikConnectionBase` (`tik4net/Connection/`) is what every transport, the binary API included, shares: the open
+flag (volatile — the API's reader thread clears it), the timeouts, encoding, `OnReadRow`/`OnWriteRow` with
+`FireReadRow`/`FireWriteRow`, the safe-mode flag, the per-open menu-schema cache, `EnsureOpened` and `Dispose`. It
+knows nothing about how a command travels, and its constructor is `private protected`, so it is derived only
+here: `ApiConnection` (its own tagged sentence protocol and `ApiCommand`) and `TikCommandConnectionBase`.
+
+Every non-API transport derives from `TikCommandConnectionBase`. It implements the command factory over
+`TikGenericCommand` and factors real work down to three `protected abstract` hooks:
 
 - `RunPrint(TikCommandDescriptor)` → `IList<TikRecordSentence>`
 - `RunAdd(...)` → new `.id`

@@ -9,9 +9,9 @@ namespace tik4net.Connection
 {
     /// <summary>
     /// Transport-neutral base class for RouterOS command-style connections that expose CRUD through
-    /// the four <c>Run*</c> hooks (instead of the binary API sentence protocol). It implements the full
-    /// <see cref="ITikConnection"/> surface — command factory, diagnostics and lifecycle — and serialises
-    /// commands through a <see cref="SemaphoreSlim"/>.
+    /// the four <c>Run*</c> hooks (instead of the binary API sentence protocol). On top of the plumbing it shares
+    /// with the binary API (<see cref="TikConnectionBase"/>) it implements the command factory over
+    /// <see cref="TikGenericCommand"/> and offers a <see cref="SemaphoreSlim"/> to serialise commands.
     ///
     /// It deliberately does <b>not</b> implement <see cref="ITikRawSentenceConnection"/>. That interface's
     /// contract is a command in the <i>connection-specific</i> format, and this class knows only the
@@ -21,10 +21,10 @@ namespace tik4net.Connection
     ///
     /// Concrete subclasses provide the transport (CLI terminal, native WinBox M2, …) by implementing:
     /// <list type="bullet">
-    ///   <item><see cref="Open(string, string, string)"/> / <see cref="Open(string, int, string, string)"/></item>
-    ///   <item><see cref="OpenAsync(string, string, string, CancellationToken)"/> /
-    ///       <see cref="OpenAsync(string, int, string, string, CancellationToken)"/></item>
-    ///   <item><see cref="Close"/></item>
+    ///   <item><see cref="TikConnectionBase.Open(string, string, string)"/> / <see cref="TikConnectionBase.Open(string, int, string, string)"/></item>
+    ///   <item><see cref="TikConnectionBase.OpenAsync(string, string, string, CancellationToken)"/> /
+    ///       <see cref="TikConnectionBase.OpenAsync(string, int, string, string, CancellationToken)"/></item>
+    ///   <item><see cref="TikConnectionBase.Close"/></item>
     ///   <item>the three CRUD hooks <see cref="RunPrint"/>, <see cref="RunAdd"/>, <see cref="RunNonQuery"/>.</item>
     /// </list>
     /// <para>
@@ -52,7 +52,7 @@ namespace tik4net.Connection
     /// document which one it made — a channel that needs serializing and does not get it fails by handing
     /// a caller someone else's answer, not by throwing.
     /// </remarks>
-    public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities
+    public abstract class TikCommandConnectionBase : TikConnectionBase
     {
         /// <summary>Serialises command execution — the underlying transports are inherently sequential.</summary>
         protected readonly SemaphoreSlim _cmdLock = new SemaphoreSlim(1, 1);
@@ -63,7 +63,7 @@ namespace tik4net.Connection
         /// <remarks>
         /// <c>Close</c> does not wait for an in-flight command — it must stay prompt, and a caller closing a
         /// connection to escape a stuck one would be defeated by a Close that blocked for
-        /// <see cref="ReceiveTimeout"/>. So the command loses its socket mid-flight, and the question is only
+        /// <see cref="TikConnectionBase.ReceiveTimeout"/>. So the command loses its socket mid-flight, and the question is only
         /// what it is told. Left alone it surfaces whatever the framework threw — an
         /// <see cref="ObjectDisposedException"/> or a raw <see cref="System.IO.IOException"/> — which is
         /// outside the tik4net hierarchy and reads like a bug in the library rather than a race the caller
@@ -80,50 +80,6 @@ namespace tik4net.Connection
                 "The connection was closed while this command was in flight. Whether the router received "
                 + "and executed it is not known — Close does not wait for a running command. Close from the "
                 + "thread that owns the connection, or let the command finish first.", inner);
-        private bool _isOpened;
-
-        // ── ITikConnection properties ─────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public bool DebugEnabled { get; set; }
-
-        /// <inheritdoc/>
-        public bool IsOpened => _isOpened;
-
-        /// <inheritdoc/>
-        public Encoding Encoding { get; set; } = Encoding.UTF8;
-
-        /// <inheritdoc/>
-        public TimeSpan SendTimeout
-        {
-            get => TimeSpan.FromMilliseconds(SendTimeoutMs);
-            set => SendTimeoutMs = TikTimeouts.ToMilliseconds(value);
-        }
-
-        /// <inheritdoc/>
-        public TimeSpan ReceiveTimeout
-        {
-            get => TimeSpan.FromMilliseconds(ReceiveTimeoutMs);
-            set => ReceiveTimeoutMs = TikTimeouts.ToMilliseconds(value);
-        }
-
-        /// <inheritdoc/>
-        public TimeSpan ConnectTimeout
-        {
-            get => TimeSpan.FromMilliseconds(ConnectTimeoutMs);
-            set => ConnectTimeoutMs = TikTimeouts.ToMilliseconds(value);
-        }
-
-        // The transports' sockets and read loops count in milliseconds; these are the public timeouts in that unit.
-        internal int SendTimeoutMs { get; set; } = 30000;
-        internal int ReceiveTimeoutMs { get; set; } = 30000;
-        internal int ConnectTimeoutMs { get; set; } = 15000;
-
-        /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
-
-        /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
 
         /// <summary>
         /// Optional callback for low-level transport diagnostics (raw packets, protocol events).
@@ -136,55 +92,7 @@ namespace tik4net.Connection
         // ── Capabilities ──────────────────────────────────────────────────────
 
         /// <inheritdoc/>
-        public virtual TikConnectionCapability Capabilities => TikConnectionCapability.Crud;
-
-        // ── Transport — subclass contract ─────────────────────────────────────
-
-        /// <inheritdoc/>
-        public abstract void Open(string host, string user, string password);
-
-        /// <inheritdoc/>
-        public abstract void Open(string host, int port, string user, string password);
-
-        /// <inheritdoc/>
-        public abstract Task OpenAsync(string host, string user, string password,
-            CancellationToken cancellationToken = default);
-
-        /// <inheritdoc/>
-        public abstract Task OpenAsync(string host, int port, string user, string password,
-            CancellationToken cancellationToken = default);
-
-        /// <inheritdoc/>
-        public abstract void Close();
-
-        /// <summary>
-        /// Tracks whether this connection currently holds Safe Mode. Maintained and reported by the
-        /// subclasses that implement <see cref="ITikSafeModeConnection"/> (the CLI terminals and native
-        /// WinBox M2); it lives here because the bookkeeping is identical wherever safe mode exists, while
-        /// the interface deliberately does not — REST cannot bind a rollback to a connection it does not
-        /// keep, so it implements neither the interface nor a set of methods that only throw.
-        /// </summary>
-        protected bool SafeModeHeld { get; set; }
-
-        // ── Open/Close helpers for subclasses ─────────────────────────────────
-
-        /// <summary>
-        /// Subclasses must call this after a successful login to mark the connection as open.
-        /// </summary>
-        protected void SetOpened()
-        {
-            // What the previous open learnt about its router's menus is not true of this one.
-            MenuSchemas = new TikMenuSchemaCache();
-            _isOpened = true;
-        }
-
-        /// <summary>The menus described on this open (<see cref="TikMenuSchemaExtensions.DescribeMenu(ITikConnection, string)"/>).</summary>
-        internal TikMenuSchemaCache MenuSchemas { get; private set; } = new TikMenuSchemaCache();
-
-        /// <summary>
-        /// Subclasses must call this when closing or on a fatal error to mark the connection as closed.
-        /// </summary>
-        protected void SetClosed() => _isOpened = false;
+        public override TikConnectionCapability Capabilities => TikConnectionCapability.Crud;
 
         // ── CRUD hooks — subclass contract ────────────────────────────────────
 
@@ -245,23 +153,23 @@ namespace tik4net.Connection
         // ── ITikConnection — Command factory ──────────────────────────────────
 
         /// <inheritdoc/>
-        public ITikCommand CreateCommand()
+        public sealed override ITikCommand CreateCommand()
             => new TikGenericCommand(this);
 
         /// <inheritdoc/>
-        public ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
+        public sealed override ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
             => new TikGenericCommand(this, defaultParameterFormat);
 
         /// <inheritdoc/>
-        public ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
+        public sealed override ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
             => new TikGenericCommand(this, commandText, parameters);
 
         /// <inheritdoc/>
-        public ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
+        public sealed override ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
             => new TikGenericCommand(this, commandText, defaultParameterFormat, parameters);
 
         /// <inheritdoc/>
-        public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
+        public sealed override ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
         {
             var cmd = new TikGenericCommand(this, commandText);
             cmd.AddParameterAndValues(parameterNamesAndValues);
@@ -269,7 +177,7 @@ namespace tik4net.Connection
         }
 
         /// <inheritdoc/>
-        public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
+        public sealed override ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
         {
             var cmd = new TikGenericCommand(this, commandText, defaultParameterFormat);
             cmd.AddParameterAndValues(parameterNamesAndValues);
@@ -277,11 +185,11 @@ namespace tik4net.Connection
         }
 
         /// <inheritdoc/>
-        public ITikCommandParameter CreateParameter(string name, string? value)
+        public sealed override ITikCommandParameter CreateParameter(string name, string? value)
             => new TikCommandParameter(name, value);
 
         /// <inheritdoc/>
-        public ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
+        public sealed override ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
             => new TikCommandParameter(name, value, parameterFormat);
 
         // ── Internal dispatch ─────────────────────────────────────────────────
@@ -326,52 +234,9 @@ namespace tik4net.Connection
         internal Task<string> InvokeRunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => RunRawTextAsync(descriptor, cancellationToken);
 
-        // ── IDisposable ────────────────────────────────────────────────────────
-
         /// <inheritdoc/>
-        public void Dispose() => Close();
-
-        // ── Diagnostics ────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// True when row-level tracing would be observed by someone — either <see cref="DebugEnabled"/>
-        /// is set, or a <see cref="OnReadRow"/>/<see cref="OnWriteRow"/> handler is attached. Subclasses
-        /// can gate the (potentially costly) rendering of a trace word behind this so it is only built
-        /// when something is actually listening.
-        /// </summary>
-        protected bool RowTracingEnabled => DebugEnabled || OnReadRow != null || OnWriteRow != null;
-
-        /// <summary>Short tag prefixing <see cref="DebugEnabled"/> trace lines (e.g. <c>CLI&gt;&gt;</c>).
-        /// Transports override it so the debug output names the right channel (CLI / REST / …).</summary>
-        protected virtual string DiagnosticPrefix => "CLI";
-
-        /// <summary>Fires <see cref="OnWriteRow"/> and writes a debug line when <see cref="DebugEnabled"/>.</summary>
-        protected void FireWriteRow(string word)
-        {
-            OnWriteRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
-            if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine(DiagnosticPrefix + ">> " + word);
-        }
-
-        /// <summary>Fires <see cref="OnReadRow"/> and writes a (truncated) debug line when <see cref="DebugEnabled"/>.</summary>
-        protected void FireReadRow(string word)
-        {
-            OnReadRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
-            if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine(DiagnosticPrefix + "<< " + (word != null && word.Length > 200 ? word.Substring(0, 200) + "..." : word));
-        }
-
-        // ── Private helpers ────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Throws <see cref="TikConnectionNotOpenException"/> when the connection has not been opened.
-        /// </summary>
-        protected void EnsureOpened()
-        {
-            if (!_isOpened)
-                throw new TikConnectionNotOpenException("Connection is not open.");
-        }
-
+        /// <remarks>Transports override it so the debug output names the right channel (CLI / REST / …).</remarks>
+        protected override string DiagnosticPrefix => "CLI";
 
         /// <summary>
         /// Creates a minimal command object for use in exception constructors when the original
