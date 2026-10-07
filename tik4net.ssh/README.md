@@ -28,6 +28,9 @@ Tik4NetSsh.Register();   // then TikConnectionType.Ssh works through ConnectionF
 
 ## Notes
 
+Logs in with the password or a private key (`TikConnectionSetup.SshPrivateKey`, applied through
+`ITikSshKeyConnection`); the key is read before connecting, so a bad one fails as itself, not as a refused login.
+
 It is a member of the CLI transport family, so it shares the command builder, output parser and VT100
 handling in `tik4net/Cli/` — a CLI-layer symptom here almost always affects Telnet, MAC-Telnet and both
 WinBox CLI transports too.

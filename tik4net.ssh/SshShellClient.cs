@@ -57,18 +57,19 @@ namespace tik4net.Ssh
         /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the port refused the connection,
         /// the host was unreachable, or the connection was not established within the timeout.</exception>
         /// <exception cref="SshAuthenticationException">The router answered and refused the credentials.</exception>
-        internal void Connect(string host, int port, string user, string password, int connectTimeoutMs)
+        internal void Connect(string host, int port, string user, string password, int connectTimeoutMs,
+            IPrivateKeySource? key = null)
         {
             try
             {
-                _ssh = CreateClient(host, port, user + RouterOsCliLogin.TerminalLoginFlags, password, connectTimeoutMs);
+                _ssh = CreateClient(host, port, user + RouterOsCliLogin.TerminalLoginFlags, password, connectTimeoutMs, key);
                 ConnectOrTimeOut(_ssh);
             }
             catch (SshAuthenticationException)
             {
                 // Router rejected the '+c' terminal-flag suffix on the user name — retry plain.
                 SafeDispose(_ssh);
-                _ssh = CreateClient(host, port, user, password, connectTimeoutMs);
+                _ssh = CreateClient(host, port, user, password, connectTimeoutMs, key);
                 ConnectOrTimeOut(_ssh);
             }
 
@@ -113,9 +114,36 @@ namespace tik4net.Ssh
             }
         }
 
-        private SshClient CreateClient(string host, int port, string user, string password, int connectTimeoutMs)
+        /// <summary>
+        /// Reads <see cref="ITikSshKeyConnection.SshPrivateKey"/> once, before connecting, so a key that cannot be read
+        /// (a wrong passphrase, an unknown format) is reported as that rather than as a refused login.
+        /// </summary>
+        internal static IPrivateKeySource ReadPrivateKey(string keyText, string? passphrase)
         {
-            var info = new ConnectionInfo(host, port, user, new PasswordAuthenticationMethod(user, password ?? string.Empty))
+            try
+            {
+                using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(keyText)))
+                    return new PrivateKeyFile(stream, passphrase);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException("SshPrivateKey could not be read: " + ex.Message
+                    + " It must be the text of an OpenSSH or PEM private key file, with SshPrivateKeyPassphrase when it is encrypted.",
+                    "SshPrivateKey", ex);
+            }
+        }
+
+        private SshClient CreateClient(string host, int port, string user, string password, int connectTimeoutMs,
+            IPrivateKeySource? key)
+        {
+            // With a key: the key first, and the password second only when one was given — an empty password would be
+            // one more refused attempt in the router's log.
+            var methods = new List<AuthenticationMethod>();
+            if (key != null)
+                methods.Add(new PrivateKeyAuthenticationMethod(user, key));
+            if (key == null || !string.IsNullOrEmpty(password))
+                methods.Add(new PasswordAuthenticationMethod(user, password ?? string.Empty));
+            var info = new ConnectionInfo(host, port, user, methods.ToArray())
             {
                 Timeout = TimeSpan.FromMilliseconds(connectTimeoutMs),
             };

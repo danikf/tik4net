@@ -27,13 +27,19 @@ namespace tik4net.Ssh
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class SshConnection : CliConnectionBase, ITikRomonConnection
+    public sealed class SshConnection : CliConnectionBase, ITikRomonConnection, ITikSshKeyConnection
     {
         // Only constructible via TikConnectionSetup (SshConnectionSetupExtensions)/ConnectionFactory (same assembly).
         internal SshConnection() { }
 
         /// <summary>Default SSH port.</summary>
         public const int DefaultPort = 22;
+
+        /// <inheritdoc/>
+        public string? SshPrivateKey { get; set; }
+
+        /// <inheritdoc/>
+        public string? SshPrivateKeyPassphrase { get; set; }
 
         /// <inheritdoc/>
         protected override string TransportName => "SSH";
@@ -85,13 +91,14 @@ namespace tik4net.Ssh
         {
             var client = new SshShellClient(Encoding, () => ReceiveTimeoutMs);
             var romonTarget = RomonTarget;
+            var key = SshPrivateKey == null ? null : SshShellClient.ReadPrivateKey(SshPrivateKey, SshPrivateKeyPassphrase);
             Func<CancellationToken, Task> login = async ct =>
             {
                 // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and
                 // reusing the send budget for it was how this transport ignored the option entirely (D1).
                 if (romonTarget == null)
                 {
-                    client.Connect(host, port, user, password, ConnectTimeoutMs);
+                    client.Connect(host, port, user, password, ConnectTimeoutMs, key);
                     await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
                     return;
                 }

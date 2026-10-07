@@ -38,6 +38,8 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 * **[Compile-time checks for `TikField` comparisons](https://github.com/danikf/tik4net/wiki/TikField#pitfalls)** — warning
   TIK001 flags `object.Equals("x", rule.Comment)` and its kin, which are never equal, and TIK002 `Assert.IsNull(rule.Comment)`,
   which is never null; both with a fix to `.Value`
+* **[SSH private-key login](https://github.com/danikf/tik4net/wiki/SSH-connection#authentication)** — `SshPrivateKey` logs in
+  with a key instead of a password
 * **[List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge)** — merge and `SaveListDifferences` reorder firewall rules
   with minimal moves, sync and async
 * **[Filtered CLI reads run on the router](https://github.com/danikf/tik4net/wiki/Command-translation-on-non-API-transports#read-runprint)** — the filter goes

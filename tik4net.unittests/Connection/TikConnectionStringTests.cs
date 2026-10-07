@@ -47,7 +47,11 @@ namespace tik4net.unittests.Connection
         public void EverySettableOptionHasAKey()
         {
             // A new option on the setup has to be sayable in configuration too — or listed here with the reason not.
-            var notInTheString = new[] { nameof(TikConnectionSetup.CertificateValidationCallback) }; // code, not text
+            var notInTheString = new[]
+            {
+                nameof(TikConnectionSetup.CertificateValidationCallback), // code, not text
+                nameof(TikConnectionSetup.SshPrivateKey), nameof(TikConnectionSetup.SshPrivateKeyPassphrase), // a key is not configuration text
+            };
             var covered = new[]
             {
                 nameof(TikConnectionSetup.ConnectionType), nameof(TikConnectionSetup.Port), nameof(TikConnectionSetup.ConnectTimeout),

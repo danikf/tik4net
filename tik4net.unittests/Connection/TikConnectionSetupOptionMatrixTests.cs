@@ -274,6 +274,64 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
+        public void TheSshKeyReachesTheSshTransport_AndIsRefusedEverywhereElse()
+        {
+            // A key is a credential: a transport that dropped it would try the password instead, so it is refused at
+            // Create rather than skipped like the certificate options.
+            var setup = new TikConnectionSetup("192.0.2.1", "user", "pwd")
+            {
+                SshPrivateKey = "-----BEGIN OPENSSH PRIVATE KEY-----",
+                SshPrivateKeyPassphrase = "not-a-secret",
+            };
+            foreach (var type in AllTransports)
+            {
+                if (type == TikConnectionType.Ssh)
+                {
+                    using (var conn = setup.CreateUnopened(type))
+                    {
+                        var ssh = (ITikSshKeyConnection)conn;
+                        Assert.AreEqual(setup.SshPrivateKey, ssh.SshPrivateKey);
+                        Assert.AreEqual(setup.SshPrivateKeyPassphrase, ssh.SshPrivateKeyPassphrase);
+                    }
+                    continue;
+                }
+                var ex = Assert.ThrowsException<NotSupportedException>(() => setup.CreateUnopened(type).Dispose(), type.ToString());
+                StringAssert.Contains(ex.Message, "SshPrivateKey", type.ToString());
+            }
+        }
+
+        [TestMethod]
+        public void ASetupWithoutAKeyLeavesTheSshTransportOnThePassword()
+        {
+            using (var conn = new TikConnectionSetup("192.0.2.1", "user", "pwd").CreateUnopened(TikConnectionType.Ssh))
+                Assert.IsNull(((ITikSshKeyConnection)conn).SshPrivateKey);
+        }
+
+        [TestMethod]
+        public void AnSshKeyThroughARomonAgentIsRefused()
+        {
+            var setup = new TikConnectionSetup(TikRouterAddress.FromRomonId("AA:BB:CC:DD:EE:FF"), "target-user", "")
+            {
+                RomonAgentSetup = new TikRomonAgentSetup("192.0.2.1", "agent-user", ""),
+                SshPrivateKey = "-----BEGIN OPENSSH PRIVATE KEY-----",
+            };
+
+            var ex = Assert.ThrowsException<NotSupportedException>(() => setup.CreateUnopened(TikConnectionType.Ssh).Dispose());
+            StringAssert.Contains(ex.Message, "RoMON");
+        }
+
+        [TestMethod]
+        public void AnUnreadableKeyIsReportedAsTheKey_NotAsARefusedLogin()
+        {
+            var setup = new TikConnectionSetup("192.0.2.1", "user", "") { SshPrivateKey = "not a key" };
+            using (var conn = setup.CreateUnopened(TikConnectionType.Ssh))
+            {
+                var ex = Assert.ThrowsException<ArgumentException>(() => conn.Open("192.0.2.1", "user", ""));
+                StringAssert.Contains(ex.Message, "SshPrivateKey");
+            }
+        }
+
+        [TestMethod]
         public void TheCatalogCachePathReachesExactlyTheCachingTransports()
         {
             var setup = NonDefaultSetup();

@@ -221,6 +221,23 @@ namespace tik4net
         public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
 
         /// <summary>
+        /// The SSH private key to log in with, as the text of the key file (OpenSSH or PEM), or <c>null</c> to log in
+        /// with <see cref="Password"/> only. SSH only (<see cref="ITikSshKeyConnection"/>): a key set for another
+        /// transport is refused when the connection is created, and so is a key with <see cref="RomonAgentSetup"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>The key is tried first, and the password second when one is given. Load a key file with
+        /// <c>File.ReadAllText</c>; a private key is not configuration text, so it has no connection-string key.</para>
+        /// <para>On the router, the user's public key goes under <c>/user/ssh-keys</c> (<c>add key="ssh-ed25519 …"</c>
+        /// on RouterOS 7, <c>import public-key-file=</c> on 6). A user with a key cannot log in with a password unless
+        /// <c>/ip/ssh</c> <c>always-allow-password-login</c> is on.</para>
+        /// </remarks>
+        public string? SshPrivateKey { get; set; }
+
+        /// <summary>The passphrase of an encrypted <see cref="SshPrivateKey"/>, or <c>null</c> when it has none.</summary>
+        public string? SshPrivateKeyPassphrase { get; set; }
+
+        /// <summary>
         /// The RoMON agent to reach this router through, or <c>null</c> to connect directly. When set,
         /// <see cref="Address"/> must be the router's RoMON id (<see cref="TikRouterAddress.FromRomonId"/>), and
         /// <see cref="User"/>/<see cref="Password"/> are the router's own; the connection logs in to the agent
@@ -452,6 +469,12 @@ namespace tik4net
             }
 
             // Through a RoMON agent the MAC layer carries the session to the AGENT, so its MAC is the agent's.
+            if (connection is ITikSshKeyConnection ssh)
+            {
+                ssh.SshPrivateKey = SshPrivateKey;
+                ssh.SshPrivateKeyPassphrase = SshPrivateKeyPassphrase;
+            }
+
             if (connection is ITikMacLayerConnection mac)
                 mac.RouterMac = RomonAgentSetup != null ? RomonAgentSetup.Address.Mac : EffectiveRouterMac;
 
@@ -494,6 +517,18 @@ namespace tik4net
         /// </remarks>
         private void RequireUsableAddress(ITikConnection connection)
         {
+            if (SshPrivateKey != null)
+            {
+                if (!(connection is ITikSshKeyConnection))
+                    throw new NotSupportedException(
+                        $"{connection.GetType().Name} cannot log in with an SSH private key; only the SSH transport can. "
+                        + "Leave SshPrivateKey unset for this transport.");
+                if (RomonAgentSetup != null)
+                    throw new NotSupportedException(
+                        "An SSH private key cannot be used through a RoMON agent: the SSH login is the agent's, with the "
+                        + "agent's credentials, and the target is entered from the agent's shell with a password.");
+            }
+
             if (RomonAgentSetup != null)
             {
                 if (!Address.HasRomonId)
