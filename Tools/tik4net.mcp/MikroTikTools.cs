@@ -209,9 +209,10 @@ public sealed class MikroTikTools
         [Description("When true, also append the router's own /log lines that appeared DURING the command, as a " +
                      "'--- ROUTER LOG ---' section — the device-side story next to the wire trace. Captured over a " +
                      "SEPARATE binary-API connection (TCP 8728, never the transport under test), so it does not " +
-                     "perturb a CLI/terminal session being debugged. Note: log resolution is coarse and many actions " +
+                     "perturb a CLI/terminal session being debugged; through a RoMON agent, over a second relayed session " +
+                     "to the target. Note: log resolution is coarse and many actions " +
                      "log nothing by default (a successful /tool/wol is silent; a bad MAC or an ipsec error is logged). " +
-                     "If the side API cannot be opened it degrades to '(router log unavailable)'. Default: false.")]
+                     "If the side connection cannot be opened it degrades to '(router log unavailable)'. Default: false.")]
         bool includeRouterLog = false,
         [Description("Max number of router-log lines to keep (includeRouterLog only), guarding against a chatty " +
                      "router flooding the window. Default 200.")]
@@ -276,12 +277,6 @@ public sealed class MikroTikTools
             default:
                 return Stamp($"ERROR (argument): unknown traceLevel '{traceLevel}'. Use 'off', 'words' or 'bytes'.");
         }
-
-        // The side channel dials host over the API; through RoMON host is a RoMON id, and the agent's log is
-        // not the target's.
-        if (includeRouterLog && setup.RomonAgentSetup != null)
-            return Stamp("ERROR (argument): includeRouterLog is not available through a RoMON agent — the side API "
-                       + "connection cannot reach the target, and the agent's log is not the target's.");
 
         var trace = wantWords ? new List<string>() : null;
         var wireCollector = wantBytes ? new WireTraceCollector(traceChannels) : null;
@@ -827,13 +822,16 @@ public sealed class MikroTikTools
     // window is an .id-diff — the newest log .id before the command, everything after it — which is exact
     // and independent of the router's log time format (which varies with /system/logging settings).
 
-    // ITikApiConnection, not ITikConnection: this is always the binary API, and the log reads below are
-    // written in its sentence dialect. The typed factory hands the raw level over as a member rather
-    // than something to check for.
-    private static ITikApiConnection? TryOpenSideApi(TikConnectionSetup target)
+    // Directly, the side channel is the binary API to the same host. Through a RoMON agent the host is a RoMON id the
+    // API cannot dial, and the agent's log is not the target's: the side channel is then a second relayed session to
+    // the target, through the same agent and agent transport — a session of its own, so the one being traced is
+    // still left alone.
+    private static ITikConnection? TryOpenSide(TikConnectionSetup target)
     {
         try
         {
+            if (target.RomonAgentSetup != null)
+                return target.Create(target.ConnectionType!.Value);
             var setup = new TikConnectionSetup(target.Address, target.User, target.Password);   // API default port (8728)
             return setup.CreateApiConnection();
         }
@@ -843,22 +841,26 @@ public sealed class MikroTikTools
         }
     }
 
-    // Newest log .id before the command (log prints oldest-first, newest last). .proplist=.id keeps the
-    // read thin. Null when the log is empty or the side channel cannot be opened.
+    // The /log rows, oldest first, with the named fields; the command layer translates the read for whichever
+    // transport the side channel is.
+    private static List<ITikReSentence> ReadLog(ITikConnection conn, params string[] fields)
+        => conn.CreateCommand("/log/print").ExecuteList(fields).ToList();
+
+    // Newest log .id before the command (log prints oldest-first, newest last). Reading only .id keeps the read
+    // thin. Null when the log is empty or the side channel cannot be opened.
     private static string? TryReadLogAnchorId(TikConnectionSetup target)
     {
         try
         {
-            using var conn = TryOpenSideApi(target);
+            using var conn = TryOpenSide(target);
             if (conn == null)
                 return null;
 
             string? last = null;
-            foreach (var s in conn.CallCommandSync(new[] { "/log/print", "=.proplist=.id" }))
-                if (s is ITikReSentence re)
-                    // last is null until the first row arrives; the default is only used when a row somehow
-                    // carries no .id, in which case "keep what we had" is the intended answer.
-                    last = re.GetResponseFieldOrDefault(".id", last!);
+            foreach (var re in ReadLog(conn, ".id"))
+                // last is null until the first row arrives; the default is only used when a row somehow
+                // carries no .id, in which case "keep what we had" is the intended answer.
+                last = re.GetResponseFieldOrDefault(".id", last!);
             return last;
         }
         catch
@@ -874,13 +876,11 @@ public sealed class MikroTikTools
         if (tail < 1) tail = 1;
         try
         {
-            using var conn = TryOpenSideApi(target);
+            using var conn = TryOpenSide(target);
             if (conn == null)
-                return "(router log unavailable: could not open side API connection)";
+                return "(router log unavailable: could not open the side connection)";
 
-            var rows = conn.CallCommandSync(new[] { "/log/print", "=.proplist=.id,time,topics,message" })
-                           .OfType<ITikReSentence>()
-                           .ToList();
+            var rows = ReadLog(conn, ".id", "time", "topics", "message");
 
             int start = 0;
             if (anchorId != null)

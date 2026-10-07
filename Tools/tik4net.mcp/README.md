@@ -129,7 +129,7 @@ confusable.
 | `traceLevel`      | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame-level wire trace: pre-ANSI terminal bytes, mepty `PULL`/prompt/settle notes, M2 frame chunks, socket I/O) |
 | `traceChannels`   | string[] | `bytes` only: keep just these channels (`wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`); omit = all |
 | `includeRawTrace` | bool     | Back-compat alias for `traceLevel='words'` |
-| `includeRouterLog`| bool     | Also append the router's own `/log` lines emitted **during** the command, as a `--- ROUTER LOG ---` section — captured over a **separate** API connection (TCP 8728) so it never perturbs the transport under test |
+| `includeRouterLog`| bool     | Also append the router's own `/log` lines emitted **during** the command, as a `--- ROUTER LOG ---` section — captured over a **separate** API connection (TCP 8728) so it never perturbs the transport under test; through a RoMON agent, over a second relayed session |
 | `routerLogTail`   | int      | Max router-log lines to keep (`includeRouterLog` only), default `200` |
 | `executeMode`     | string   | `auto` (default) or `nonquery` (force `ExecuteNonQuery()` for action verbs like `/system/script/run`) |
 | `romonAgentHost`  | string   | RoMON: the agent to go through — IP/hostname, or on `MacTelnet` its MAC. When set, `host` is the **target's RoMON id** and `username`/`password` are the **target's**. `Telnet`, `Ssh`, `MacTelnet` only |
@@ -203,8 +203,8 @@ directory to be behind, so it never carries the note.
 **Through RoMON.** The connection logs in to the agent and continues with `/tool romon ssh`; see the wiki's
 *RoMON connection* page for what the routers need. A relay failure answers `ERROR (romon: <Reason>)` —
 `TargetUnreachable`, `TargetRefusedLogin`, `RomonNotEnabledOnAgent`, … — and a relay that ends mid-command
-`ERROR (romon: relay ended, commandMayHaveRun=…)`. `includeRouterLog` is refused: its side API connection
-cannot reach the target.
+`ERROR (romon: relay ended, commandMayHaveRun=…)`. `includeRouterLog` reads the target's log over a second
+relayed session through the same agent, since an API connection cannot dial a RoMON id.
 
 ## The `mikrotik_cli_complete` tool
 
