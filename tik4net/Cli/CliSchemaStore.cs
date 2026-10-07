@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -118,17 +119,27 @@ namespace tik4net.Cli
 
         /// <summary>
         /// The command that answers the key: the version, the architecture and the enabled packages, on one
-        /// <see cref="KeyMarker"/> line. The same on RouterOS 6 and 7 (measured on 6.49.13 and 7.24.4).
+        /// <see cref="KeyMarker"/> line, followed by the router's own count of that text's characters. The same on
+        /// RouterOS 6 and 7 (measured on 6.49.13 and 7.24.4).
         /// </summary>
+        /// <remarks>The count makes the answer check itself, like a counted read: a line that lost characters on
+        /// the way is refused rather than filed under a wrong key. That is what lets the MAC-layer datagram-loss
+        /// heuristic stand down for this command — it condemned complete answers to it over a RoMON relay to
+        /// RouterOS 6, whose per-character echo of a line this long is many datagrams.</remarks>
         internal const string KeyCommand =
             ":local p \"\"; :foreach i in=[/system package find where disabled=no] do={:set p ($p . [/system package get $i name] . \",\")}; "
-            + ":put (\"" + KeyMarker + "\" . [/system resource get version] . \"|\" . [/system resource get architecture-name] . \"|\" . $p)";
+            + ":local k ([/system resource get version] . \"|\" . [/system resource get architecture-name] . \"|\" . $p); "
+            + ":put (\"" + KeyMarker + "\" . $k . \"|\" . [:len $k])";
 
         internal const string KeyMarker = "#t4n-build=";
 
+        /// <summary>The line <see cref="KeyCommand"/> prints for <paramref name="build"/> (<c>version|arch|packages</c>).</summary>
+        internal static string KeyLine(string build) => KeyMarker + build + "|" + build.Length;
+
         /// <summary>
         /// The key from <see cref="KeyCommand"/>'s answer: <c>7.24.4|x86_64|container,dude,…</c> — the channel word
-        /// (<c>(stable)</c>) dropped, the packages sorted. <c>null</c> when the answer carries no key line.
+        /// (<c>(stable)</c>) dropped, the packages sorted. <c>null</c> when the answer carries no key line, or one
+        /// whose length is not the one the router counted.
         /// </summary>
         internal static string? KeyFromAnswer(string? answer)
         {
@@ -140,7 +151,12 @@ namespace tik4net.Cli
                 int at = line.IndexOf(KeyMarker, StringComparison.Ordinal);
                 if (at != 0)
                     continue;
-                string[] parts = line.Substring(KeyMarker.Length).Split('|');
+                string body = line.Substring(KeyMarker.Length);
+                int counted = body.LastIndexOf('|');
+                if (counted < 0 || !int.TryParse(body.Substring(counted + 1), NumberStyles.None, CultureInfo.InvariantCulture, out int length)
+                    || length != counted)
+                    return null;
+                string[] parts = body.Substring(0, counted).Split('|');
                 if (parts.Length != 3)
                     return null;
                 string version = parts[0].Trim();

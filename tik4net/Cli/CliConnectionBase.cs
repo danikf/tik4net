@@ -267,6 +267,7 @@ namespace tik4net.Cli
             _schemaStoreAsked = true;
             if (string.IsNullOrWhiteSpace(CatalogCachePath))
                 return null;
+            _countedReadDepth++;   // the answer carries its own length (CliSchemaStore.KeyCommand)
             try
             {
                 return AdoptSchemaStore(ExecuteCliCommand(CliSchemaStore.KeyCommand));
@@ -274,6 +275,10 @@ namespace tik4net.Cli
             catch (Exception ex) when (IsCacheProblem(ex))
             {
                 return SchemaStoreOff(ex);
+            }
+            finally
+            {
+                _countedReadDepth--;
             }
         }
 
@@ -284,6 +289,7 @@ namespace tik4net.Cli
             _schemaStoreAsked = true;
             if (string.IsNullOrWhiteSpace(CatalogCachePath))
                 return;
+            _countedReadDepth++;   // the answer carries its own length (CliSchemaStore.KeyCommand)
             try
             {
                 AdoptSchemaStore(await ExecuteCliCommandAsync(CliSchemaStore.KeyCommand, cancellationToken).ConfigureAwait(false));
@@ -291,6 +297,10 @@ namespace tik4net.Cli
             catch (Exception ex) when (IsCacheProblem(ex))
             {
                 SchemaStoreOff(ex);
+            }
+            finally
+            {
+                _countedReadDepth--;
             }
         }
 
@@ -2093,8 +2103,8 @@ namespace tik4net.Cli
 
         /// <summary>
         /// True while the command on the wire is a read whose answer this class will count against the
-        /// router's own statement of its size — a window, a whole-table print, or a counted argument read
-        /// (<c>/console inspect</c>). The MAC-layer datagram-loss
+        /// router's own statement of its size — a window, a whole-table print, a counted argument read
+        /// (<c>/console inspect</c>), or the grammar cache's build key. The MAC-layer datagram-loss
         /// heuristic stands down for these: the count is exact and the heuristic is not, and it condemns
         /// complete answers now and then. It still covers every other command.
         /// </summary>

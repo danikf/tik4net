@@ -106,11 +106,20 @@ namespace tik4net.unittests.Cli
         public void TheKeyDropsTheChannelAndSortsThePackages()
         {
             Assert.AreEqual("7.24.4|x86_64|container,routeros",
-                CliSchemaStore.KeyFromAnswer("\r#t4n-build=7.24.4 (stable)|x86_64|routeros,container,\n"));
+                CliSchemaStore.KeyFromAnswer("\r#t4n-build=7.24.4 (stable)|x86_64|routeros,container,|42\n"));
             Assert.AreEqual("6.49.13|x86_64|dhcp,routeros-x86",
-                CliSchemaStore.KeyFromAnswer("#t4n-build=6.49.13 (long-term)|x86_64|routeros-x86,dhcp,"));
+                CliSchemaStore.KeyFromAnswer("#t4n-build=6.49.13 (long-term)|x86_64|routeros-x86,dhcp,|45"));
             Assert.IsNull(CliSchemaStore.KeyFromAnswer("bad command name package (line 1 column 30)"));
             Assert.IsNull(CliSchemaStore.KeyFromAnswer(CliSchemaStore.KeyCommand), "the echoed command is not the answer");
+        }
+
+        [TestMethod]
+        public void AKeyLineThatLostCharacters_IsNoKey()
+        {
+            string line = CliSchemaStore.KeyLine("7.24.4 (stable)|x86_64|routeros,container,");
+            Assert.IsNotNull(CliSchemaStore.KeyFromAnswer(line));
+            Assert.IsNull(CliSchemaStore.KeyFromAnswer(line.Replace("container,", "contai")), "a dropped run of characters");
+            Assert.IsNull(CliSchemaStore.KeyFromAnswer("#t4n-build=7.24.4 (stable)|x86_64|routeros,container,"), "no count");
         }
 
         [TestMethod]
@@ -328,7 +337,7 @@ namespace tik4net.unittests.Cli
             {
                 Sent.Add(cliText);
                 if (cliText.Contains(CliSchemaStore.KeyMarker))
-                    return Task.FromResult(CliSchemaStore.KeyMarker + Build);
+                    return Task.FromResult(CliSchemaStore.KeyLine(Build));
                 if (cliText.Contains("/console inspect"))
                 {
                     if (cliText.Contains("request=child"))
@@ -370,7 +379,7 @@ namespace tik4net.unittests.Cli
             {
                 Sent.Add(cliText);
                 if (cliText.Contains(CliSchemaStore.KeyMarker))
-                    return Task.FromResult(CliSchemaStore.KeyMarker + "6.49.13 (long-term)|x86_64|system,routing,");
+                    return Task.FromResult(CliSchemaStore.KeyLine("6.49.13 (long-term)|x86_64|system,routing,"));
                 if (cliText.Contains(":serialize to=dsv"))
                     return Task.FromResult("bad command name serialize (line 1 column 16)");
                 return Task.FromResult(CountedReadFake.Answer(cliText, ".id=*1;dst-address=0.0.0.0/0;routing-table=main"));
