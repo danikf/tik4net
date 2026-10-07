@@ -896,23 +896,13 @@ namespace tik4net.Cli
             if (val == null)
                 return name + "~\".\"";
 
-            // Negation: ?name=!value → name!=value
-            if (val.StartsWith("!"))
-                return name + "!=" + QuoteForWhere(BooleanForWhere(val.Substring(1)));
+            // A comparison is named by the filter, as on the binary API: '?>count=100' is 'count>100'.
+            if (name.Length > 1 && (name[0] == '>' || name[0] == '<'))
+                return name.Substring(1) + name[0] + QuoteForWhere(val);
 
-            // Greater-than: ?>count=5 encoded as value starting with ">"
-            if (val.StartsWith(">"))
-                return name + ">" + QuoteForWhere(val.Substring(1));
-
-            // Less-than: ?<count=5 encoded as value starting with "<"
-            if (val.StartsWith("<"))
-                return name + "<" + QuoteForWhere(val.Substring(1));
-
-            // Regex: ?~comment=eth encoded as value starting with "~"
-            if (val.StartsWith("~"))
-                return name + "~" + QuoteForWhere(val.Substring(1));
-
-            // Plain equality
+            // The value is literal, as on the API, REST and WinBox native: '?src-address=!10.0.0.0/8' asks for the
+            // rule whose value IS '!10.0.0.0/8' (7.24.4). "Not equal" is the query stack's '?#!', and a value
+            // starting with '>', '<' or '~' is a value too.
             return name + "=" + QuoteForWhere(BooleanForWhere(val));
         }
 

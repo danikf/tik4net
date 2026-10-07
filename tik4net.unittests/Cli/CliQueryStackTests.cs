@@ -57,14 +57,14 @@ namespace tik4net.unittests.Cli
         {
             // In a CLI expression a boolean field takes only yes/no: 'dynamic=true' is a syntax error ("expected
             // yes or no") and 'dynamic="true"' silently matches nothing (7.24). The API and the mapper say true.
-            Assert.AreEqual("dynamic=yes && disabled=no && running!=no",
-                CliCommandBuilder.BuildWhereClause(Filters(("dynamic", "true"), ("disabled", "False"), ("running", "!false"))));
+            Assert.AreEqual("dynamic=yes && disabled=no && !(running=no)",
+                CliCommandBuilder.BuildWhereClause(Filters(("dynamic", "true"), ("disabled", "False"), ("running", "false"), ("#!", null))));
         }
 
         [TestMethod]
         public void OnlyABareBooleanIsTranslated()
         {
-            Assert.AreEqual("comment=truely && name~true",
+            Assert.AreEqual("comment=truely && name=\"~true\"",
                 CliCommandBuilder.BuildWhereClause(Filters(("comment", "truely"), ("name", "~true"))));
         }
 

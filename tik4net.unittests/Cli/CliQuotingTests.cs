@@ -218,13 +218,30 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual("comment=\"\"", BuildWhere("comment", ""));
         }
 
+        // ── BuildWhereClause: the value is literal, as on the API, REST and WinBox native ───
+
         [TestMethod]
-        public void WhereClause_NegatedEmptyFilterValue_IsStillQuoted()
+        public void WhereClause_ALeadingBangIsPartOfTheValue()
         {
-            Assert.AreEqual("comment!=\"\"", BuildWhere("comment", "!"));
+            // '?src-address=!10.0.0.0/8' asks for the rule whose value IS '!10.0.0.0/8' on the API, REST and
+            // WinBox native (7.24.4). "Not equal" is the query stack's '?#!', on every transport alike.
+            Assert.AreEqual("src-address=\"!10.0.0.0/8\"", BuildWhere("src-address", "!10.0.0.0/8"));
+            Assert.AreEqual("comment=\"!\"", BuildWhere("comment", "!"));
         }
 
-        private static string BuildWhere(string name, string value)
+        [TestMethod]
+        public void WhereClause_ComparisonIsNamedByTheFilter_NotByTheValue()
+        {
+            // The API spells "greater than" '?>count=100': the operator belongs to the NAME. A value starting with
+            // '>', '<' or '~' is just a value.
+            Assert.AreEqual("count>100", BuildWhere(">count", "100"));
+            Assert.AreEqual("count<100", BuildWhere("<count", "100"));
+            Assert.AreEqual("comment=\">5\"", BuildWhere("comment", ">5"));
+            Assert.AreEqual("comment=\"<5\"", BuildWhere("comment", "<5"));
+            Assert.AreEqual("comment=\"~eth\"", BuildWhere("comment", "~eth"));
+        }
+
+        private static string BuildWhere(string name, string? value)
             => CliCommandBuilder.BuildWhereClause(new ITikCommandParameter[]
             {
                 new tik4net.Connection.TikCommandParameter(name, value, TikCommandParameterFormat.Filter)

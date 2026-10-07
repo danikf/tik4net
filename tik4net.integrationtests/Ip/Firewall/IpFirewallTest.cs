@@ -446,6 +446,57 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// A filter value is literal on every transport: <c>?src-address=!10.0.0.0/8</c> asks for the rule whose value
+        /// IS <c>!10.0.0.0/8</c>, as the API, REST and WinBox native answer it. "Not equal" is the query stack's
+        /// <c>?#!</c>, which also matches a rule with no src-address at all.
+        /// </summary>
+        [TestMethod]
+        public void FirewallFilter_ABangInAFilterValueIsLiteral()
+        {
+            const string comment = "t4n-bang-filter";
+            const string chain = "t4n-bang-filter";
+            RemoveFirewallFilterByComment(comment);
+            FirewallFilter Rule(TikField<string> srcAddress) => new FirewallFilter
+            {
+                Chain = chain,
+                Action = FirewallFilter.ActionType.Accept,
+                Disabled = true,
+                Comment = comment,
+                SrcAddress = srcAddress,
+            };
+            var negated = Rule(TikValue<string>.Not("10.0.0.0/8"));
+            var plain = Rule("10.0.0.0/8");
+            var none = Rule(default(TikField<string>));
+            try
+            {
+                SaveTracked(negated);
+                SaveTracked(plain);
+                SaveTracked(none);
+
+                string[] Ids(params ITikCommandParameter[] filters) => Connection
+                    .LoadList<FirewallFilter>(new[] { Connection.CreateParameter("chain", chain, TikCommandParameterFormat.Filter) }
+                        .Concat(filters).ToArray())
+                    .Select(r => r.Id).OrderBy(id => id).ToArray();
+                string[] Expect(params FirewallFilter[] rules) => rules.Select(r => r.Id).OrderBy(id => id).ToArray();
+
+                CollectionAssert.AreEqual(Expect(negated),
+                    Ids(Connection.CreateParameter("src-address", "!10.0.0.0/8", TikCommandParameterFormat.Filter)),
+                    $"'!10.0.0.0/8' as a value on {ResolveConnectionType()}");
+                CollectionAssert.AreEqual(Expect(plain),
+                    Ids(Connection.CreateParameter("src-address", "10.0.0.0/8", TikCommandParameterFormat.Filter)),
+                    $"'10.0.0.0/8' on {ResolveConnectionType()}");
+                CollectionAssert.AreEqual(Expect(negated, none),
+                    Ids(Connection.CreateParameter("src-address", "10.0.0.0/8", TikCommandParameterFormat.Filter),
+                        Connection.CreateParameter("#!", "", TikCommandParameterFormat.Filter)),
+                    $"'?#!' (not equal) on {ResolveConnectionType()}");
+            }
+            finally
+            {
+                RemoveFirewallFilterByComment(comment);
+            }
+        }
+
+        /// <summary>
         /// connection-rate and connection-bytes are low-high ranges, spelled out as the API prints them, and
         /// connection-limit is limit,netmask: the CLI abbreviates the rate (<c>0-100k</c>) and WinBox native keeps
         /// each of the three in two keys.

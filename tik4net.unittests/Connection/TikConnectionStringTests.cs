@@ -66,12 +66,12 @@ namespace tik4net.unittests.Connection
         [TestMethod]
         public void KeysAreCaseInsensitive_AndHaveTheUsualAliases()
         {
-            var setup = TikConnectionSetup.FromConnectionString("ConnectionType=telnet;Server=router.lan;UID=u;PWD=p");
+            var setup = TikConnectionSetup.FromConnectionString("ConnectionType=telnet;Server=router.lan;UID=u;PWD=not-a-secret");
 
             Assert.AreEqual(TikConnectionType.Telnet, setup.ConnectionType);
             Assert.AreEqual("router.lan", setup.Host);
             Assert.AreEqual("u", setup.User);
-            Assert.AreEqual("p", setup.Password);
+            Assert.AreEqual("not-a-secret", setup.Password);
         }
 
         [TestMethod]
