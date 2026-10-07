@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -207,7 +209,7 @@ namespace tik4net.WinboxCli
 
         // ── mepty message building (handler [76]) ─────────────────────────────
 
-        private int OpenTerminalSession(string password, string terminalType, int cols, int rows)
+        internal int OpenTerminalSession(string password, string terminalType, int cols, int rows)
         {
             if (!_session.IsEncrypted)
                 throw new NotSupportedException(
@@ -223,8 +225,65 @@ namespace tik4net.WinboxCli
                 M2Message.StringUser(WinboxM2Protocol.Mepty.Key.Input, terminalType),
                 M2Message.U32User(WinboxM2Protocol.Mepty.Key.Cols, cols),
                 M2Message.U32User(WinboxM2Protocol.Mepty.Key.Rows, rows));
-            byte[] resp = _session.SendReceive(msg, FrameTimeoutMs);
-            return M2Message.ParseSessionId(resp);
+            int requestId = M2Message.ParseSysReqId(msg) ?? -1;
+            _session.Send(msg);
+            return M2Message.ParseSessionId(ReceiveTerminalOpenReply(requestId));
+        }
+
+        /// <summary>
+        /// Reads the reply to the terminal open, skipping a frame that is not one.
+        /// </summary>
+        /// <remarks>
+        /// The reply echoes our request id. A frame with a different one, or with none and nothing a reply carries
+        /// (a session id, an error code), is not the answer: under a parallel load the router has pushed a
+        /// <see cref="WinboxM2Protocol.Command.Logout"/> there, with no request id, and taking it for the reply read
+        /// "no SESSION_ID". A skipped frame is traced, and named in the exception when no reply follows.
+        /// </remarks>
+        private byte[] ReceiveTerminalOpenReply(int requestId)
+        {
+            var skipped = new List<string>();
+            var deadline = Stopwatch.StartNew();
+            while (true)
+            {
+                int left = FrameTimeoutMs - (int)deadline.ElapsedMilliseconds;
+                byte[]? frame;
+                try { frame = left > 0 ? _session.Receive(left) : null; }
+                catch (Exception) when (skipped.Count > 0) { frame = null; } // the TCP read throws on timeout; name what came instead
+                if (frame == null)
+                {
+                    if (skipped.Count == 0)
+                        throw new InvalidOperationException($"The router did not answer the WinBox terminal open within {FrameTimeoutMs} ms.");
+                    throw new InvalidOperationException("The router did not answer the WinBox terminal open; it sent "
+                        + string.Join(", ", skipped) + " instead"
+                        + (skipped.Any(s => s.StartsWith("a logout", StringComparison.Ordinal)) ? " — it logged this session out" : "")
+                        + ".");
+                }
+                if (IsTerminalOpenReply(frame, requestId))
+                {
+                    if (TikWireTrace.Enabled)
+                        TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, "terminal open: reply " + M2Message.Describe(frame));
+                    return frame;
+                }
+
+                bool logout = M2Message.ParseAllFields(frame).TryGetValue(WinboxM2Protocol.SysKey.Command, out var command)
+                    && command.Item2 != null && Convert.ToInt64(command.Item2) == WinboxM2Protocol.Command.Logout;
+                string what = (logout ? "a logout push " : "a frame ") + M2Message.Describe(frame);
+                skipped.Add(what);
+                if (TikWireTrace.Enabled)
+                    TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, "terminal open: skipped " + what);
+                if (skipped.Count >= 8)
+                    throw new InvalidOperationException("The router did not answer the WinBox terminal open; it sent "
+                        + string.Join(", ", skipped) + " instead.");
+            }
+        }
+
+        internal static bool IsTerminalOpenReply(byte[] frame, int requestId)
+        {
+            int? echoed = M2Message.ParseSysReqId(frame);
+            if (echoed.HasValue)
+                return echoed.Value == requestId;
+            // No request id: a reply only if it carries what a reply carries.
+            return M2Message.TryParseSessionId(frame, out _) || M2Message.ParseSysStatus(frame) != 0;
         }
 
         private void SendTerminalReady(int sessionId)

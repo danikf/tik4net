@@ -254,12 +254,20 @@ Request `To=[20,1] From=[0,8]` comes back as `To=[0,8] From=[20,1]`. The handler
 only — not unique, since two concurrent requests to the same handler are indistinguishable by it.
 Dispatch stays exclusively on `0xFF0006`.
 
-### 12.5 There are no unsolicited incoming frames today
+### 12.5 One unsolicited frame: the logout push
 
 Monitors are polling loops, not subscriptions: `MonitorLoop` does `StartMonitor` → repeated
 `PollMonitor` → `CancelMonitor`, each step an ordinary request/response — which is exactly why lockstep
 works. A multiplexed implementation still needs to discard an unmatched frame (a late response after a
 timeout) as a robustness measure, not as the common path.
+
+The router does push one frame of its own: a **logout**, `Command=0xFE0014` (webfig sends the same command to
+log out), with the user's policy in `0xFF000B`, its own subscription in `From`, and **no request id**. Under a
+parallel load it has arrived where the mepty `Login` reply was expected, over TCP and over MAC. The terminal
+open therefore reads the frame that echoes its request id — the `Login` reply does, on 7.24.5 and 6.49.13 — and
+skips anything else; a frame with no request id still counts as the reply when it carries a session id or an
+error code. A skipped frame is traced (`terminal open: skipped …`) and named in the exception when no reply
+follows (`WinboxCliClient.ReceiveTerminalOpenReply`).
 
 ### 12.6 The request id is one byte
 

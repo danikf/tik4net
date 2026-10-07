@@ -153,7 +153,7 @@ namespace tik4net.Winbox
         private byte[] LockstepSendReceive(byte[] request)
         {
             // Discard any frame already buffered on the shared channel before issuing a synchronous
-            // request. The native M2 protocol is poll-based (no unsolicited server push), so anything
+            // request. The native M2 protocol is poll-based (its one push, a logout, has no request id), so anything
             // waiting here is a leftover — typically a delayed monitor/async reply from an earlier exchange
             // (observed: a tiny frame from a foreign handler with no echoed request-id). Reading it as THIS
             // request's reply would desync getall (no records → name resolution fails → "no such item", or

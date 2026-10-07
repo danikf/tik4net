@@ -241,7 +241,7 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual("comment=\"~eth\"", BuildWhere("comment", "~eth"));
         }
 
-        private static string BuildWhere(string name, string? value)
+        private static string BuildWhere(string name, string value)
             => CliCommandBuilder.BuildWhereClause(new ITikCommandParameter[]
             {
                 new tik4net.Connection.TikCommandParameter(name, value, TikCommandParameterFormat.Filter)

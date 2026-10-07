@@ -292,6 +292,13 @@
             internal const int Subscribe = 0xFE0012;
             /// <summary>unsubscribe — stop a push subscription.</summary>
             internal const int Unsubscribe = 0xFE0013;
+            /// <summary>
+            /// logout — webfig sends it to end the session (<c>post({uff0007:0xfe0014},()=>logout())</c>). The router
+            /// also PUSHES it, with no <see cref="SysKey.RequestId"/>, the user's policy in <c>0xFF000B</c> and its own
+            /// subscription in <see cref="SysKey.From"/>; it has been seen arriving where a terminal open's reply was
+            /// expected, under a parallel load.
+            /// </summary>
+            internal const int Logout = 0xFE0014;
 
             // ── SETUP / WIZARD ────────────────────────────────────────────────
             /// <summary>setup/wizard step — webfig <c>mfe000f</c>=obj, <c>ufe000e</c>=page.</summary>
