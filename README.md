@@ -35,8 +35,9 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 * **[Value lists](https://github.com/danikf/tik4net/wiki/TikField#value-lists-tikvaluelistt)** — a field of several values
   (`dst-port=22,8291`, `connection-state`, `tcp-flags=syn,!ack`, DNS servers) is a typed, immutable list, each item with
   its own `!` where the router takes one
-* **[A compile-time check for `TikField` comparisons](https://github.com/danikf/tik4net/wiki/TikField#pitfalls)** — warning
-  TIK001 flags `object.Equals("x", rule.Comment)` and its kin, which are never equal, with a fix to `.Value`
+* **[Compile-time checks for `TikField` comparisons](https://github.com/danikf/tik4net/wiki/TikField#pitfalls)** — warning
+  TIK001 flags `object.Equals("x", rule.Comment)` and its kin, which are never equal, and TIK002 `Assert.IsNull(rule.Comment)`,
+  which is never null; both with a fix to `.Value`
 * **[List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge)** — merge and `SaveListDifferences` reorder firewall rules
   with minimal moves, sync and async
 * **[Filtered CLI reads run on the router](https://github.com/danikf/tik4net/wiki/Command-translation-on-non-API-transports#read-runprint)** — the filter goes

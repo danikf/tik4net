@@ -108,7 +108,7 @@ namespace tik4net.Analyzers
         }
 
         /// <summary>The operand before the implicit boxing or reference conversion to <c>object</c>.</summary>
-        private static IOperation Unconvert(IOperation value)
+        internal static IOperation Unconvert(IOperation value)
         {
             while (value is IConversionOperation conversion && conversion.IsImplicit)
                 value = conversion.Operand;

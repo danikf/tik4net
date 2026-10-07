@@ -10,16 +10,17 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace tik4net.Analyzers
 {
     /// <summary>
-    /// The fix for TIK001: compare the wrapper's <c>.Value</c>, so both sides are the plain type.
+    /// The fix for TIK001 and TIK002: use the wrapper's <c>.Value</c>, so an equality compares two plain values and a null
+    /// check sees the value rather than a box.
     /// </summary>
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(TikFieldObjectEqualityCodeFix)), Shared]
     public sealed class TikFieldObjectEqualityCodeFix : CodeFixProvider
     {
-        private const string Title = "Compare '.Value'";
+        private const string Title = "Use '.Value'";
 
         /// <inheritdoc/>
         public override ImmutableArray<string> FixableDiagnosticIds
-            => ImmutableArray.Create(TikFieldObjectEqualityAnalyzer.DiagnosticId);
+            => ImmutableArray.Create(TikFieldObjectEqualityAnalyzer.DiagnosticId, TikFieldNullCheckAnalyzer.DiagnosticId);
 
         /// <inheritdoc/>
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
