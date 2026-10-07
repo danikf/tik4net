@@ -14,11 +14,12 @@ namespace tik4net.integrationtests
     /// </summary>
     /// <remarks>
     /// The key is RSA because .NET Framework can generate it; RouterOS takes <c>ssh-rsa</c> and <c>ssh-ed25519</c>. The
-    /// public key goes in with <c>/user/ssh-keys add key=</c>, which RouterOS 7 has and 6 does not (6 imports a file),
-    /// so the test runs on the default router only.
+    /// public key goes in with <c>/user/ssh-keys add key=</c> on RouterOS 7, and as a file <c>/user/ssh-keys import</c>
+    /// reads on 6, which has no <c>add</c>.
     /// </remarks>
     [TestClass]
     [TestCategory(TestCategories.LegIndependent)]
+    [TestCategory(TestCategories.AnyRouter)]
     [SafeInParallelLegs]
     public class SshPrivateKeyTest : LockedTestBase
     {
@@ -40,8 +41,7 @@ namespace tik4net.integrationtests
                     "password", Guid.NewGuid().ToString("N")).ExecuteNonQuery();
                 try
                 {
-                    admin.CreateCommandAndParameters("/user/ssh-keys/add", "user", user,
-                        "key", key.PublicKeyLine("tik4net-test")).ExecuteNonQuery();
+                    RegisterPublicKey(admin, user, key.PublicKeyLine("tik4net-test"));
 
                     using (var conn = new TikConnectionSetup(host, user, "") { SshPrivateKey = key.PrivateKeyPem }
                                .CreateUnopened(TikConnectionType.Ssh))
@@ -67,6 +67,41 @@ namespace tik4net.integrationtests
                                  TikCommandParameterFormat.Filter, "name", user).ExecuteList())
                         admin.CreateCommandAndParameters("/user/remove", ".id", row.GetId()).ExecuteNonQuery();
                 }
+            }
+        }
+
+        // RouterOS 7 takes the key line itself; 6 has no 'add' and imports a file, which '/file print file=' creates
+        // (as <name>.txt) and 'set contents=' fills.
+        private static void RegisterPublicKey(ITikConnection admin, string user, string publicKeyLine)
+        {
+            string version = admin.CreateCommand("/system/resource/print").ExecuteScalar("version");
+            if (!version.StartsWith("6.", StringComparison.Ordinal))
+            {
+                admin.CreateCommandAndParameters("/user/ssh-keys/add", "user", user, "key", publicKeyLine).ExecuteNonQuery();
+                return;
+            }
+
+            string file = user + ".txt";
+            admin.CreateCommandAndParameters("/file/print", TikCommandParameterFormat.NameValue, "file", user).ExecuteList();
+            try
+            {
+                // The file appears a moment after the print that creates it.
+                string id = null;
+                for (int i = 0; i < 30 && id == null; i++)
+                {
+                    id = admin.CreateCommandAndParameters("/file/print", TikCommandParameterFormat.Filter, "name", file)
+                        .ExecuteList().SingleOrDefault()?.GetId();
+                    if (id == null) System.Threading.Thread.Sleep(100);
+                }
+                Assert.IsNotNull(id, "'/file print file=" + user + "' created no " + file);
+                admin.CreateCommandAndParameters("/file/set", ".id", id, "contents", publicKeyLine).ExecuteNonQuery();
+                admin.CreateCommandAndParameters("/user/ssh-keys/import", "user", user, "public-key-file", file).ExecuteNonQuery();
+            }
+            finally
+            {
+                foreach (var row in admin.CreateCommandAndParameters("/file/print", TikCommandParameterFormat.Filter, "name", file)
+                             .ExecuteList())
+                    admin.CreateCommandAndParameters("/file/remove", ".id", row.GetId()).ExecuteNonQuery();
             }
         }
 
