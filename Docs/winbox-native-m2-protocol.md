@@ -1380,6 +1380,10 @@ the filter window's keys — `in-bridge-port=!ether1` is `{b1b0, bd1=true, u54=2
 `{bbb8, b7d0=true, u44c}`, `packet-mark=!x` `{b19a, b1d=true, s1e}` — and the filter's `realm` is mangle's
 undeclared `u7e` with flags `b1c2`/`be0`.
 
+The same keys and spellings hold on 6.49.13 and 7.21.5: `limit`, `dst-limit` and `ipsec-policy` on all three menus,
+and raw's `in-bridge-port` and `packet-mark`, are written over native and read back as the API prints them on every
+lab router (`IpFirewallTest.TheGroupedMatchersRoundTripOnEveryVersion`). `tos` and `realm` are 7.x fields.
+
 ### Keys and words no window gives
 
 Each pairing below was made by setting the value over the API and naming the one key that moved (7.24.2), read
