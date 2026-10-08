@@ -28,8 +28,10 @@ namespace tik4net.integrationtests
 {
     [TestClass]
     [TestCategory(TestCategories.LegIndependent)]
+    // The chr2 profile relays from CHR2 (RouterOS 6) to CHR3 (7.x); the default one from CHR to CHR2.
+    [TestCategory(TestCategories.AnyRouter)]
     // The relay writes to the RoMON target, takes Safe Mode there and counts the terminal sessions on it — a run
-    // against that router (-Router chr2) at the same time would move those counts and see these rows.
+    // against that router (-Router chr2 / chr3) at the same time would move those counts and see these rows.
     [TestLock(TestLockScope.Router, RouterHostKey = "romonTargetHost")]
     public class RomonRelayTest : LockedTestBase
     {
@@ -725,9 +727,9 @@ namespace tik4net.integrationtests
         /// would say so — only the next command answering from the agent. Hence the id check after each call.
         /// </summary>
         /// <remarks>
-        /// Tells the routers apart by a top-level menu the agent has and the target lacks (<c>app</c> and
-        /// <c>openflow</c> on the lab's agent, neither on its older target); Inconclusive when the two lab routers
-        /// list the same menus.
+        /// Tells the routers apart by a top-level menu only one of them lists (<c>app</c> and <c>openflow</c> on a
+        /// 7.24 agent, neither on its 6.49 target; the other way round with a 6.49 agent and a 7.21 target);
+        /// Inconclusive when the two lab routers list the same menus.
         /// </remarks>
         [DataTestMethod]
         [DataRow(TikConnectionType.Telnet)]
@@ -737,7 +739,7 @@ namespace tik4net.integrationtests
         {
             RequireTarget();
 
-            string[] agentOnly;
+            string[] onlyOneSide;
             using (var agent = new TikConnectionSetup(AgentHost, AgentUser, AgentPass).Create(TikConnectionType.Telnet))
             using (var relay = OpenRelay(agentTransport))
             {
@@ -749,11 +751,11 @@ namespace tik4net.integrationtests
                     var targetMenus = completion.CompleteCli("/");
                     Assert.IsTrue(targetMenus.Contains("system"), $"call {call}: no completion listing came back: "
                         + string.Join(" ", targetMenus));
-                    agentOnly = agentMenus.Except(targetMenus).ToArray();
-                    if (call == 1 && agentOnly.Length == 0)
+                    onlyOneSide = agentMenus.Except(targetMenus).Concat(targetMenus.Except(agentMenus)).ToArray();
+                    if (call == 1 && onlyOneSide.Length == 0)
                         Assert.Inconclusive("The two lab routers list the same top-level menus, so a completion cannot "
                             + "tell which of them answered.");
-                    Assert.IsTrue(agentOnly.Length > 0, $"call {call}: the completion listed the AGENT's menus");
+                    Assert.IsTrue(onlyOneSide.Length > 0, $"call {call}: the completion listed the AGENT's menus");
 
                     Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
                         $"after completion {call} the relay answered from the agent");

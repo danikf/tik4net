@@ -1,4 +1,4 @@
-# tik4net.integrationtests
+﻿# tik4net.integrationtests
 
 Tests that require a **live MikroTik router**. There are no mocks here.
 
@@ -34,17 +34,18 @@ The lab runs three CHRs. Only the first is needed for the suite; the others cove
 
 | | **CHR** — the suite's router | **CHR2** — RoMON target, older RouterOS | **CHR3** — a second RouterOS 7 |
 |---|---|---|---|
-| `App.config` keys | `host`, `user`, `pass`, `routerMac`, `routerIdentity` | `romonTargetId`, `romonTargetHost`, `romonTargetUser`, `romonTargetPass`; profile `chr2.*` | profile `chr3.*` |
+| `App.config` keys | `host`, `user`, `pass`, `routerMac`, `routerIdentity` | `romonTargetId`, `romonTargetHost`, `romonTargetUser`, `romonTargetPass`; profile `chr2.*` | profile `chr3.*`; `chr2.romonTarget*` |
 | RouterOS | the version README promises (current stable) | **6.49.13**, kept there on purpose | **7.21.5** (long-term), kept there on purpose |
 | Identity | `CHR` | `CHR2` — must differ from the first | `CHR3` |
 | Ports | two (`testInterface`, `testSecondInterface`) | two, the same names — aligned with CHR on purpose | two, the same names |
-| Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router | an older 7.x for the version-sensitive tests (`-Router chr3`) |
+| Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router; the agent of `-Router chr2` | an older 7.x for the version-sensitive tests (`-Router chr3`); the RoMON target of `-Router chr2` |
 
 **RoMON.** `RomonRelayTest` opens CHR2 *through* CHR (Telnet, SSH and MAC-Telnet to CHR, `/tool romon ssh`
-beyond it) and writes to it, checking each write over CHR2's own API connection (`romonTargetHost`). RoMON is
-enabled on both. With `romonTargetId` empty those tests are Inconclusive.
+beyond it) and writes to it, checking each write over CHR2's own API connection (`romonTargetHost`). With
+`-Router chr2` the same tests run from CHR2 to CHR3 — a RouterOS 6 agent and a 7.x target (`chr2.romonTarget*`).
+RoMON is enabled on all three. With `romonTargetId` empty those tests are Inconclusive.
 
-**Pin CHR2's RoMON id** to `romonTargetId` (`/tool romon set id=<romonTargetId>`). Left at its default
+**Pin each target's RoMON id** to its `romonTargetId` (`/tool romon set id=<romonTargetId>`: CHR2's, and CHR3's from `chr2.romonTargetId`). Left at its default
 (`id=00:00:00:00:00:00`), RouterOS picks an interface MAC, and on this two-port CHR the pick has moved twice —
 each time every relay test reported the target unreachable. Symptom: *the agent could not reach RoMON id …*;
 check `/tool romon discover` on CHR.

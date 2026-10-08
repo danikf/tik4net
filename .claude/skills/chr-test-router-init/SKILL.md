@@ -358,10 +358,13 @@ Provision it with steps 0–6 like the first, with these differences:
   `romonTargetPass`.
 - **Give it a different identity** (the lab uses `CHR2`) — `RomonRelayTest` tells the routers apart by it and
   fails when both answer the same name.
-- **Enable RoMON on both routers** (`/tool/romon/set =enabled=yes`, default empty secrets), then confirm from the
-  agent: `/tool/romon/discover =duration=5` must list the target's id.
-- Verify with `dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj --filter RomonRelayTest` —
-  9 tests, three agent transports each, about 15 s.
+- **Enable RoMON on both routers** (`/tool/romon/set =enabled=yes`, default empty secrets) and pin the target's
+  id (`=id=<romonTargetId>`), then confirm from the agent: `/tool/romon/discover =duration=5` must list the
+  target's id.
+- **CHR3 is the RoMON target of the `chr2` profile** (CHR2 relays to it: a RouterOS 6 agent, a 7.x target), in
+  `chr2.romonTarget*`. After re-provisioning CHR3, enable RoMON there and pin its id the same way.
+- Verify with `run-integration-tests.ps1 -Router @('default','chr2') -Transport @('api') -Filter
+  'FullyQualifiedName~RomonRelayTest'` — 40 tests per profile, three agent transports each, about 5 min.
 - **The lab keeps it on RouterOS 6.49.13**, the oldest public CHR, so the RouterOS 6 paths run somewhere
   (`Docs/findings-routeros-6.md`). Do not upgrade it with the first one. The version is chosen by the **disk
   image**, not by a package: a CHR refuses any package older than its `factory-software`, so a 7.x-built VM given
