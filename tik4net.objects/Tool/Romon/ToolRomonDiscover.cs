@@ -53,7 +53,8 @@ namespace tik4net.Objects.Tool.Romon
         [TikProperty("board", IsReadOnly = true)]
         public TikField<string?> Board { get; private set; }
 
-        /// <summary>uptime — the neighbour's uptime.</summary>
+        /// <summary>uptime — the neighbour's uptime. <c>null</c> for a RouterOS 6 neighbour: the agent reports no
+        /// uptime for it (Docs/findings-romon.md).</summary>
         [TikProperty("uptime", IsReadOnly = true)]
         public TikField<TikDuration?> Uptime { get; private set; }
 

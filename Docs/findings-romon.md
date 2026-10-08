@@ -1,6 +1,8 @@
 # RoMON — findings
 
-What RouterOS does with RoMON, as measured on a 7.24.4 agent (the lab CHR) relaying to a 7.17rc3 target.
+What RouterOS does with RoMON, as measured on a 7.24.4 agent (the lab CHR) relaying to a 7.17rc3 target. The
+relay (§4) is also measured to a 6.49.13 and a 7.21.5 target: reads and Tab completion over Telnet, SSH and
+MAC-Telnet to the agent answer from the target alike.
 Ids below are placeholders: `AA:BB:CC:00:00:01` is the agent, `AA:BB:CC:DD:EE:FF` the target.
 
 ## 1. The model
@@ -19,7 +21,7 @@ any interface's MAC (the lab CHR's is its ether2 MAC, not ether1's).
 
 | Verb | Parameters | Behaviour |
 |---|---|---|
-| `/tool/romon/discover` | `duration`, `freeze-frame-interval`, `proplist` | The neighbour set: `address`, `cost`, `hops`, `path`, `l2mtu`, `identity`, `version`, `board`, `uptime`; the CLI also prints flag `active`. Runs until `duration` ends |
+| `/tool/romon/discover` | `duration`, `freeze-frame-interval`, `proplist` | The neighbour set: `address`, `cost`, `hops`, `path`, `l2mtu`, `identity`, `version`, `board`, `uptime` (absent for a RouterOS 6 neighbour — the API row has no such word); the CLI also prints flag `active`. Runs until `duration` ends |
 | `/tool/romon/ping` | `id`, `count`, `size`, `interval` | One row per echo with running totals; a lost echo has `status=timeout` and no `time` |
 | `/tool/romon/ssh` | `address`, `user`, `command`, `output-to-file` | See §4 |
 
