@@ -96,6 +96,42 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// WinBox's own connect, as the decrypting proxy (RomonWinboxProxyProbe) logged it: SYS_TO=[2], command 2001,
+        /// target id raw at key 4, target user at 7, password at 8, bool 6 = true. The reply carries the link id in
+        /// STD_ID; the target's handlers are then reached with SYS_TO=[2, link, handler...]. WinBox logs in to the agent
+        /// as "user+r", but a plain login opens the link just the same. Target login from TIK4NET_ROMON_TARGET_USER /
+        /// _PASS, else App.config romonTarget*.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_StreamOpen_Connect()
+        {
+            string target = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET");
+            if (string.IsNullOrEmpty(target)) Assert.Inconclusive("Set TIK4NET_ROMON_TARGET=<romon id>.");
+            string user = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET_USER") ?? LabConfig.Get("romonTargetUser");
+            string pass = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET_PASS") ?? LabConfig.Get("romonTargetPass") ?? "";
+            using (var s = OpenAgent())
+            {
+                var connect = M2.BuildM2(M2.SysToArr(2), M2.SysFrom(1), M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true),
+                    s.NextReqIdField(), M2.U32Sys(WinboxM2Protocol.SysKey.Command, 2001), M2.BoolSys(6, true),
+                    M2.StringUser(8, pass), M2.StringUser(7, user), M2.RawUser(4, ParseMac(target)));
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                byte[] reply = s.SendReceive(connect, 10000);
+                Log($"connect status=0x{M2.ParseSysStatus(reply):X} in {sw.ElapsedMilliseconds} ms {M2.DescribeSysError(reply)}");
+                Log("    " + M2.Describe(reply));
+                if (M2.ParseSysStatus(reply) != 0) return;
+                int link = M2.ParseSessionId(reply);
+                Log($"    link id {link}");
+                foreach (var (label, h, cmd) in new[] { ("sysinfo", new[] { 2, link, 13, 4 }, 7), ("identity", new[] { 2, link, 24, 1 }, 0xFE000D) })
+                {
+                    byte[] r = s.SendReceive(M2.BuildM2(M2.SysToArr(h), M2.SysFrom(1),
+                        M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), s.NextReqIdField(),
+                        M2.U32Sys(WinboxM2Protocol.SysKey.Command, cmd)), 5000);
+                    Log($"    {label}: status=0x{M2.ParseSysStatus(r):X} {M2.Describe(r)}");
+                }
+            }
+        }
+
+        /// <summary>
         /// WinBox.exe names a system key SYS_ROMON; its key-name switch places it at 0xFF0018, type 0x30
         /// (raw). If the agent routes by it, a read of the RoMON settings singleton answers with the
         /// TARGET's current-id rather than the agent's. Read-only: get-singleton and get-all only.

@@ -2,7 +2,8 @@
 
 What RouterOS does with RoMON, as measured on a 7.24.4 agent (the lab CHR) relaying to a 7.17rc3 target. The
 relay (§4) is also measured to a 6.49.13 and a 7.21.5 target: reads and Tab completion over Telnet, SSH and
-MAC-Telnet to the agent answer from the target alike.
+MAC-Telnet to the agent answer from the target alike. The WinBox relay (§5) is measured on a 7.24.5 agent and a
+7.21.5 target.
 Ids below are placeholders: `AA:BB:CC:00:00:01` is the agent, `AA:BB:CC:DD:EE:FF` the target.
 
 ## 1. The model
@@ -178,10 +179,50 @@ tik4net's implementation: `RouterOsCliLogin.RomonSshLoginAsync`, used by Telnet,
 what it reads; MAC-Telnet's reconnect after an idle logout relays to the
 target again before it resends.
 
-## 5. Capture notes
+## 5. The WinBox relay — M2 through the agent
+
+Measured on a 7.24.5 agent relaying to a 7.21.5 target, from WinBox 4 through a decrypting relay
+(`RomonWinboxProxyProbe`) and reproduced with `RomonAgentProbeTest.Probe_Romon_StreamOpen_Connect`.
+
+**Agent login.** WinBox logs in to the agent as `<user>+r`; the agent lists that session `via=romon`. The router
+hashes only the name before `+` into the EC-SRP5 validator, so a client that sends options must hash the bare
+account name. The option is not needed: a plain login opens a link the same way.
+
+**Before the connect** WinBox sends `[127,2]` `SYS_CMD=9` (the "RoMON running" check, §3) and, to fill its
+neighbour list, starts a discover on `[127,4]` (`0xFE000F`) and polls it; neither is needed for the link.
+
+**Connect.** One request to binary 2 — the agent's `msg-proxy` router, not a `[127,x]` handler:
+
+| Key | Type | Value |
+|---|---|---|
+| `SYS_TO` | u32[] | `[2]` |
+| `SYS_CMD` | u32 | `2001` (`0x7D1`) |
+| `0x4` | raw | the target's RoMON id, 6 bytes |
+| `0x7` | string | user on the **target** |
+| `0x8` | string | password on the target |
+| `0x6` | bool | true |
+
+The reply comes after the agent has logged in to the target (~250 ms in the lab) and carries the **link id** in
+`STD_ID` (`0xFE0001`, u32) and `0x6 = true`. Without the id at key `0x4` (tried at keys 1–3, or
+missing) the answer is `0xFE0006` `bad destination or port`.
+
+**Routing.** Every message for the target puts `[2, <link id>]` in front of the handler path it would use on a
+direct session: `SYS_TO=[2,<link>,13,4]` `SYS_CMD=7` is the sysinfo request, `[2,<link>,24,1]` get-singleton
+is the identity, `[2,<link>,2,2]` is the target's mproxy (file list, `.jg` downloads). Replies come from
+`SYS_FROM=[2,<link>,…]`, and their trace (`0xFF001C`) names both routers, e.g.
+`[msg-proxy-7.21.5, tcp-msg(winbox):@::, msg-proxy-7.24.5]`.
+
+**What the agent does.** It opens a stream on the overlay to the target's RoMON **port 4** (TCP-like: SYN,
+SYN-ACK, data, ACK frames with 32-bit sequence and acknowledgement numbers) and runs an ordinary WinBox session
+over it — EC-SRP5 with the target user and password from the connect, then encrypted frames. It decrypts the
+target's stream and re-encrypts for the client, so it sees every message in plain form. The target lists the
+session `via=winbox` with `by-romon=<agent id>` and no address.
+
+## 6. Capture notes
 
 The CHR's `/tool sniffer` records only frames the CHR **transmits** for EtherType `0x88bf` — received RoMON
-frames never appear, whatever `filter-direction` or `filter-interface` say. A capture of both directions has to
-run on the Hyper-V host. Frame header as transmitted: byte 0 type (1 = hello to the multicast address, 2/3 =
+frames never appear, whatever `filter-direction` or `filter-interface` say. For both directions run a sniffer on
+each end (the agent records what it sends the target, the target what it sends back) or capture on the Hyper-V
+host. Frame header as transmitted: byte 0 type (1 = hello to the multicast address, 2/3 =
 unicast), a 2-byte total length including the Ethernet header, a 24-byte hash field (zeros with empty secrets),
 then the RoMON ids.
