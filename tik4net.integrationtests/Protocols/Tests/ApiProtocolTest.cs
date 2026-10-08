@@ -77,6 +77,11 @@ namespace tik4net.integrationtests
                     Login_ListInterfaces_SetComment_Body(conn);
                 }
             }
+            catch (TikNoSuchCommandException ex) when (ex.Message.IndexOf("has no REST API", StringComparison.Ordinal) >= 0)
+            {
+                // RouterOS 6 (CHR2) has no REST API: the www service answers webfig's 404 page.
+                Assert.Inconclusive("this router has no REST API: " + ex.Message);
+            }
             catch (TikConnectionException ex)
             {
                 Console.WriteLine($"Connection error for {type}: {ex.Message}");
