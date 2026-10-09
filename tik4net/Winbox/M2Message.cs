@@ -842,6 +842,80 @@ namespace tik4net.Winbox
             return null;
         }
 
+        /// <summary>
+        /// Reads a top-level u8/u32 system field (such as <c>SYS_CMD</c>, <c>0xFF0007</c>), or <c>null</c> when it is
+        /// absent.
+        /// </summary>
+        internal static int? ParseSysU32(byte[] m2, int fullKey)
+        {
+            if (m2 == null || m2.Length < 2) return null;
+            int pos = 2;
+            while (pos + 4 <= m2.Length)
+            {
+                int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
+                int key = (ns << 16) | (kh << 8) | kl;
+                pos += 4;
+                if (key == fullKey)
+                {
+                    if (type == 0x09 && pos < m2.Length) return m2[pos];
+                    if (type == 0x08 && pos + 4 <= m2.Length) return (int)BitConverter.ToUInt32(m2, pos);
+                    return null;
+                }
+                pos += SkipTypeBytes(type, m2, pos);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Reads a top-level u32-array field (such as <c>SYS_FROM</c>), or <c>null</c> when it is absent.
+        /// </summary>
+        internal static int[]? ParseU32ArrayField(byte[] m2, int fullKey)
+        {
+            int[]? found = null;
+            RewriteU32ArrayField(m2, fullKey, values => found = values);
+            return found;
+        }
+
+        /// <summary>
+        /// Returns <paramref name="m2"/> with its top-level u32-array field <paramref name="fullKey"/> replaced by
+        /// what <paramref name="rewrite"/> makes of it, re-encoded in the normal-width form (type <c>0x88</c>, a
+        /// 2-byte count). A message without the field comes back unchanged — the same instance.
+        /// </summary>
+        /// <remarks>
+        /// What the RoMON relay uses to put a link's <c>[2, link]</c> in front of <c>SYS_TO</c> and take it off
+        /// <c>SYS_FROM</c> (<c>Docs/findings-romon.md</c> §5). Only the top level is walked, by the same skip rule
+        /// every parser here uses, so a nested message holding the same key is never touched.
+        /// </remarks>
+        internal static byte[] RewriteU32ArrayField(byte[] m2, int fullKey, Func<int[], int[]> rewrite)
+        {
+            if (m2 == null || m2.Length < 2 || m2[0] != 'M' || m2[1] != '2') return m2!;
+            int pos = 2;
+            while (pos + 4 <= m2.Length)
+            {
+                int start = pos;
+                int kl = m2[pos], kh = m2[pos + 1], ns = m2[pos + 2], type = m2[pos + 3];
+                int key = (ns << 16) | (kh << 8) | kl;
+                pos += 4;
+                int size = SkipTypeBytes(type, m2, pos);
+                if (key == fullKey && (type == 0x88 || type == 0x89 || type == 0x8A))
+                {
+                    int p = pos;
+                    int count = ReadCounter(m2, ref p, LenWidth(type));
+                    var values = new int[count];
+                    for (int i = 0; i < count; i++) values[i] = (int)BitConverter.ToUInt32(m2, p + 4 * i);
+                    byte[] field = U32ArraySys(fullKey, rewrite(values));
+                    var result = new byte[m2.Length - (pos + size - start) + field.Length];
+                    Buffer.BlockCopy(m2, 0, result, 0, start);
+                    Buffer.BlockCopy(field, 0, result, start, field.Length);
+                    Buffer.BlockCopy(m2, pos + size, result, start + field.Length, m2.Length - pos - size);
+                    return result;
+                }
+                if (size == 0 && type != 0x00 && type != 0x01) return m2;   // unknown type: cannot walk further
+                pos += size;
+            }
+            return m2;
+        }
+
         // Returns number of bytes to skip for a given TLV type byte (not counting the type byte itself).
         // The 0xA0 str_array case MUST be kept — RouterOS 7.21.4 sends it in mepty responses
         // (e.g. "msg-proxy-7.21.4"); without it the parser walks into the payload and misaligns.

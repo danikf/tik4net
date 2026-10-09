@@ -35,7 +35,7 @@ namespace tik4net.WinboxCliMac
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacCliConnection
+    public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacCliConnection, ITikRomonConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         // The MAC layer pages by default, and that is a correctness setting rather than a tuning one: a
@@ -53,6 +53,12 @@ namespace tik4net.WinboxCliMac
 
         /// <inheritdoc/>
         protected override string TransportName => "WinBox CLI MAC";
+
+        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+
+        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.WinboxCliMac;
+
+        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         /// <summary>
         /// Whether a command may be re-issued on a fresh session after the router stopped acknowledging the
@@ -127,8 +133,23 @@ namespace tik4net.WinboxCliMac
             // and every delegate below must then be talking to the new one.
             // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of
             // scope here), but null is its documented meaning: discover the router via MNDP.
-            var client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
-            Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
+            // Through a RoMON agent the MAC-layer session goes to the agent and the relay channel routes it on to the
+            // target, whose password opens the terminal there. A reopen builds a new relay, and a new link, with it.
+            var target = RomonTarget;
+            WinboxRomonChannel? relay = null;
+            IWinboxM2Channel NewChannel()
+            {
+                var carrier = new WinboxMacM2Session(RouterMac!);
+                relay = target == null ? null : new WinboxRomonChannel(carrier, target);
+                return relay ?? (IWinboxM2Channel)carrier;
+            }
+            var client = new WinboxCliClient(NewChannel(), Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
+            Func<CancellationToken, Task> login = async ct =>
+            {
+                await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
+                if (relay != null)
+                    RomonEntered(TikConnectionType.WinboxCliMac, host, user, relay.AgentRomonId!, TikRomonRelay.Winbox);
+            };
             Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
 
             // The re-login goes through RouterLoginRetry for the same reason the initial one does: RouterOS
@@ -147,8 +168,8 @@ namespace tik4net.WinboxCliMac
                 await RouterLoginRetry.RunAsync(async () =>
                 {
                     // See the comment on the first WinboxMacM2Session construction above.
-                    client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
-                    await client.LoginAsync(host, port, user, password, ct).ConfigureAwait(false);
+                    client = new WinboxCliClient(NewChannel(), Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
+                    await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
                 }).ConfigureAwait(false);
             };
 

@@ -241,28 +241,34 @@ namespace tik4net
         /// The RoMON agent to reach this router through, or <c>null</c> to connect directly. When set,
         /// <see cref="Address"/> must be the router's RoMON id (<see cref="TikRouterAddress.FromRomonId"/>), and
         /// <see cref="User"/>/<see cref="Password"/> are the router's own; the connection logs in to the agent
-        /// first and continues into the router from the agent's shell.
+        /// first and continues into the router through the agent.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Which transports relay: <b>Telnet, SSH and MAC-Telnet</b>, through <c>/tool romon ssh</c> on the agent
-        /// (<see cref="SupportsRomon"/>). Every other transport is refused at <see cref="CreateUnopened(TikConnectionType, Action{ITikConnection})"/>, before
-        /// anything connects. The session options (timeouts, encoding, paging, cancellation) come from this setup;
-        /// the agent contributes only where it is and who logs in to it. <see cref="Port"/> and
-        /// <see cref="RouterMac"/> must stay unset here — the port dialled and the MAC reached are the agent's, from
-        /// <see cref="TikRomonAgentSetup"/>. Over MAC-Telnet the agent needs no IP address at all.
+        /// Which transports relay (<see cref="SupportsRomon"/>): <b>Telnet, SSH and MAC-Telnet</b>, through
+        /// <c>/tool romon ssh</c> in the agent's shell (<see cref="TikRomonRelay.Ssh"/>), and the four <b>WinBox</b>
+        /// transports — WinBox CLI and WinBox native, over TCP or the MAC layer — through the agent's own WinBox
+        /// relay, as WinBox itself connects over RoMON (<see cref="TikRomonRelay.Winbox"/>). Every other transport is
+        /// refused at <see cref="CreateUnopened(TikConnectionType, Action{ITikConnection})"/>, before anything
+        /// connects. The session options (timeouts, encoding, paging, cancellation) come from this setup; the agent
+        /// contributes only where it is and who logs in to it. <see cref="Port"/> and <see cref="RouterMac"/> must
+        /// stay unset here — the port dialled and the MAC reached are the agent's, from
+        /// <see cref="TikRomonAgentSetup"/>. Over the MAC-layer transports the agent needs no IP address at all.
         /// </para>
         /// <para>
-        /// If the relay ends while the connection is open (the target logs the session out or reboots), the
-        /// agent's session ends with it and the connection fails — it never carries on against the agent. MAC-Telnet,
-        /// which reconnects a session RouterOS has logged out, relays to the target again before it resends.
+        /// If the relay ends while the connection is open (the target logs the session out, reboots or leaves the
+        /// RoMON overlay), the connection fails with <see cref="TikRomonRelayEndedException"/> and closes — it never
+        /// carries on against the agent. A transport that reconnects a session RouterOS dropped while idle relays to
+        /// the target again before it resends.
         /// </para>
         /// <para>
-        /// What the target needs: RoMON reachable from the agent, and a user whose group has the <c>ssh</c>
-        /// policy — the target's IP ssh service itself is not used. Security: the agent runs the SSH client, so it
-        /// sees the session in clear, and the leg to the agent is as private as the transport chosen for it —
-        /// over Telnet the target's password crosses the network in cleartext. A user's IP <c>address</c>
-        /// restriction on the target does not limit RoMON logins: the target sees the agent's RoMON id, not an IP.
+        /// What the target needs: RoMON reachable from the agent, and a user whose group has the <c>ssh</c> policy
+        /// (the SSH relay) or the <c>winbox</c> policy (the WinBox relay) — the target's IP services themselves are not
+        /// used. Security: the agent logs in to the target itself and re-encrypts the session, so it sees the session
+        /// in clear, the target's password included, and the leg to the agent is as private as the transport chosen
+        /// for it — over Telnet the target's password crosses the network in cleartext. A user's IP
+        /// <c>address</c> restriction on the target does not limit RoMON logins: the target sees the agent's RoMON
+        /// id, not an IP.
         /// </para>
         /// <para>Once open, <see cref="TikRomonConnectionExtensions.GetRomonConnectionInfo"/> describes the route;
         /// a relay that cannot reach the target raises <see cref="TikRomonRelayException"/>.</para>
@@ -501,7 +507,7 @@ namespace tik4net
             if (connection is ITikRomonConnection romon)
                 romon.RomonTarget = RomonAgentSetup == null
                     ? null
-                    : new Cli.RomonSshTarget(Address.RomonId!, User, Password, RomonAgentSetup);
+                    : new Cli.RomonRelayTarget(Address.RomonId!, User, Password, RomonAgentSetup);
         }
 
         /// <summary>
@@ -537,8 +543,9 @@ namespace tik4net
                         + $"TikRouterAddress.FromRomonId(\"AA:BB:CC:DD:EE:FF\"), not {Address}.");
                 if (!(connection is ITikRomonConnection))
                     throw new NotSupportedException(
-                        $"{connection.GetType().Name} cannot reach a router through a RoMON agent. Telnet, SSH and "
-                        + "MAC-Telnet can (TikConnectionSetup.SupportsRomon tells which transports do).");
+                        $"{connection.GetType().Name} cannot reach a router through a RoMON agent. Telnet, SSH, "
+                        + "MAC-Telnet and the four WinBox transports can (TikConnectionSetup.SupportsRomon tells which "
+                        + "transports do).");
                 if (Port.HasValue)
                     throw new InvalidOperationException(
                         "Port is not used when connecting through a RoMON agent — the port dialled is the agent's. "

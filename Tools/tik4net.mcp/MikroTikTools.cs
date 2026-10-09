@@ -224,11 +224,12 @@ public sealed class MikroTikTools
                      "where 'auto' would treat the verb as a read and throw NotSupportedException. " +
                      "On success 'nonquery' returns 'OK (action executed, no data returned)'.")]
         string executeMode = "auto",
-        [Description("RoMON: the agent to reach the router through — its IP address or hostname, or on MacTelnet its MAC " +
-                     "(AA:BB:CC:DD:EE:FF). When set, host is the target's RoMON id and username/password are the target's; " +
-                     "the connection logs in to the agent and continues with /tool/romon/ssh. Only Telnet, Ssh and MacTelnet " +
-                     "relay; the target needs a user whose group has the 'ssh' policy. port and routerMac are not used — " +
-                     "see romonAgentPort. Omit for a direct connection.")]
+        [Description("RoMON: the agent to reach the router through — its IP address or hostname, or on the MAC-layer " +
+                     "transports its MAC (AA:BB:CC:DD:EE:FF). When set, host is the target's RoMON id and username/password are " +
+                     "the target's; the connection logs in to the agent and continues through it — Telnet, Ssh and MacTelnet " +
+                     "with /tool/romon/ssh (the target user needs the 'ssh' policy), the four Winbox* transports through the " +
+                     "agent's WinBox relay (the 'winbox' policy). The API and REST transports do not relay. port and routerMac " +
+                     "are not used — see romonAgentPort. Omit for a direct connection.")]
         string? romonAgentHost = null,
         [Description("RoMON: user name on the agent (required with romonAgentHost).")]
         string? romonAgentUsername = null,
@@ -459,11 +460,12 @@ public sealed class MikroTikTools
         [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
         [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports (else MNDP discovery).")]
         string? routerMac = null,
-        [Description("RoMON: the agent to reach the router through — its IP address or hostname, or on MacTelnet its MAC " +
-                     "(AA:BB:CC:DD:EE:FF). When set, host is the target's RoMON id and username/password are the target's; " +
-                     "the connection logs in to the agent and continues with /tool/romon/ssh. Only Telnet, Ssh and MacTelnet " +
-                     "relay; the target needs a user whose group has the 'ssh' policy. port and routerMac are not used — " +
-                     "see romonAgentPort. Omit for a direct connection.")]
+        [Description("RoMON: the agent to reach the router through — its IP address or hostname, or on the MAC-layer " +
+                     "transports its MAC (AA:BB:CC:DD:EE:FF). When set, host is the target's RoMON id and username/password are " +
+                     "the target's; the connection logs in to the agent and continues through it — Telnet, Ssh and MacTelnet " +
+                     "with /tool/romon/ssh (the target user needs the 'ssh' policy), the four Winbox* transports through the " +
+                     "agent's WinBox relay (the 'winbox' policy). The API and REST transports do not relay. port and routerMac " +
+                     "are not used — see romonAgentPort. Omit for a direct connection.")]
         string? romonAgentHost = null,
         [Description("RoMON: user name on the agent (required with romonAgentHost).")]
         string? romonAgentUsername = null,

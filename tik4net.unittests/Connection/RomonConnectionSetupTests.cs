@@ -25,11 +25,16 @@ namespace tik4net.unittests.Connection
         private const string TargetId = "AA:BB:CC:DD:EE:FF";
         private const string AgentRomonId = "AA:BB:CC:00:00:01";
 
-        private static readonly TikConnectionType[] RelayingTransports =
-            { TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.MacTelnet };
-
         // The relaying transports that reach the agent over IP.
-        private static readonly TikConnectionType[] IpRelayingTransports = { TikConnectionType.Telnet, TikConnectionType.Ssh };
+        private static readonly TikConnectionType[] IpRelayingTransports =
+            { TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.WinboxCli, TikConnectionType.WinboxNative };
+
+        // The relaying transports that reach the agent over the MAC layer.
+        private static readonly TikConnectionType[] MacRelayingTransports =
+            { TikConnectionType.MacTelnet, TikConnectionType.WinboxCliMac, TikConnectionType.WinboxNativeMac };
+
+        private static readonly TikConnectionType[] RelayingTransports =
+            IpRelayingTransports.Concat(MacRelayingTransports).ToArray();
 
         private const string AgentMac = "AA:BB:CC:00:00:02";
 
@@ -84,7 +89,7 @@ namespace tik4net.unittests.Connection
         // ── what is refused, before anything connects ─────────────────────────
 
         [TestMethod]
-        public void OnlyTelnetSshAndMacTelnetRelay_AndSupportsRomonSaysExactlyThat()
+        public void OnlyTheTerminalAndWinBoxTransportsRelay_AndSupportsRomonSaysExactlyThat()
         {
             foreach (TikConnectionType type in Enum.GetValues(typeof(TikConnectionType)))
             {
@@ -134,19 +139,21 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void MacTelnet_ReachesAnAgentByMacAlone_AndTheMacIsTheAgents()
+        public void TheMacTransports_ReachAnAgentByMacAlone_AndTheMacIsTheAgents()
         {
             var setup = RomonSetup(new TikRomonAgentSetup(TikRouterAddress.FromMac(AgentMac), "a", "b"));
-            using (var conn = setup.CreateUnopened(TikConnectionType.MacTelnet))
-                Assert.AreEqual(AgentMac, ((ITikMacLayerConnection)conn).RouterMac);
+            foreach (var type in MacRelayingTransports)
+                using (var conn = setup.CreateUnopened(type))
+                    Assert.AreEqual(AgentMac, ((ITikMacLayerConnection)conn).RouterMac, type.ToString());
         }
 
         [TestMethod]
-        public void MacTelnet_ToAnAgentGivenByHost_LeavesTheMacToMndp()
+        public void TheMacTransports_ToAnAgentGivenByHost_LeaveTheMacToMndp()
         {
-            using (var conn = RomonSetup().CreateUnopened(TikConnectionType.MacTelnet))
-                Assert.IsNull(((ITikMacLayerConnection)conn).RouterMac,
-                    "no MAC was given for the agent; one taken from anywhere else would reach the wrong router");
+            foreach (var type in MacRelayingTransports)
+                using (var conn = RomonSetup().CreateUnopened(type))
+                    Assert.IsNull(((ITikMacLayerConnection)conn).RouterMac,
+                        type + ": no MAC was given for the agent; one taken from anywhere else would reach the wrong router");
         }
 
         [TestMethod]
@@ -161,7 +168,7 @@ namespace tik4net.unittests.Connection
         [TestMethod]
         public void ACliTransportWithoutTheRelay_RefusesATargetAtOpen_BeforeItLogsIn()
         {
-            var conn = new PlainCli { RomonTarget = new RomonSshTarget(TargetId, "u", "p") };
+            var conn = new PlainCli { RomonTarget = new RomonRelayTarget(TargetId, "u", "p") };
 
             Assert.ThrowsException<NotSupportedException>(() => conn.Open("192.0.2.1", "u", "p"));
             Assert.IsFalse(conn.LoginRan, "nothing may reach the agent");
@@ -256,7 +263,7 @@ namespace tik4net.unittests.Connection
 
             protected override string TransportName => "RecordingRomon";
 
-            RomonSshTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+            RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
             TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Telnet;
             TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 

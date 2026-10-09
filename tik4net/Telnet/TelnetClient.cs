@@ -111,7 +111,7 @@ namespace tik4net.Telnet
         /// (<see cref="RouterOsCliLogin.RomonSshLoginAsync"/>). Every command after it runs on the target.
         /// </summary>
         /// <returns>The agent's own RoMON id.</returns>
-        internal async Task<string> EnterRomonAsync(RomonSshTarget target, CancellationToken ct)
+        internal async Task<string> EnterRomonAsync(RomonRelayTarget target, CancellationToken ct)
         {
             string agentRomonId = await RouterOsCliLogin.RomonSshLoginAsync(
                 target.RomonId, target.User, target.Password,

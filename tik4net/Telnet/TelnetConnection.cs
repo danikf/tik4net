@@ -35,7 +35,7 @@ namespace tik4net.Telnet
         /// <inheritdoc/>
         protected override string TransportName => "Telnet";
 
-        RomonSshTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
 
         TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Telnet;
 

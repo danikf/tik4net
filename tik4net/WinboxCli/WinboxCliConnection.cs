@@ -41,7 +41,7 @@ namespace tik4net.WinboxCli
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class WinboxCliConnection : CliConnectionBase
+    public sealed class WinboxCliConnection : CliConnectionBase, ITikRomonConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         internal WinboxCliConnection() { }
@@ -51,6 +51,12 @@ namespace tik4net.WinboxCli
 
         /// <inheritdoc/>
         protected override string TransportName => "WinBox CLI";
+
+        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+
+        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.WinboxCli;
+
+        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
@@ -110,8 +116,18 @@ namespace tik4net.WinboxCli
             Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
-            var client = new WinboxCliClient(new tik4net.Winbox.WinboxM2Session(), Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
-            Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
+            // Through a RoMON agent the session goes to the agent and the relay channel routes it on to the target,
+            // whose password opens the terminal there.
+            var target = RomonTarget;
+            var carrier = new tik4net.Winbox.WinboxM2Session();
+            var relay = target == null ? null : new tik4net.Winbox.WinboxRomonChannel(carrier, target);
+            var client = new WinboxCliClient(relay ?? (tik4net.Winbox.IWinboxM2Channel)carrier, Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
+            Func<CancellationToken, Task> login = async ct =>
+            {
+                await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
+                if (relay != null)
+                    RomonEntered(TikConnectionType.WinboxCli, host, user, relay.AgentRomonId!, TikRomonRelay.Winbox);
+            };
             Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, close);

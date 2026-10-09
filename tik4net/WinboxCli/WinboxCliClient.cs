@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -110,8 +110,12 @@ namespace tik4net.WinboxCli
         /// <c>Open</c> is a synchronous EC-SRP5 handshake down through the crypto, and the prompt wait that
         /// follows it runs before there is a command path to speak of. Open happens once per connection and
         /// is not what <see cref="TikConnectionCapability.AsyncCommands"/> is a claim about.
+        /// <para><paramref name="terminalPassword"/> is the password the terminal is opened with when it differs
+        /// from the channel's: through a RoMON agent the channel logs in to the agent, and the terminal lives on the
+        /// target (<see cref="Winbox.WinboxRomonChannel"/>).</para>
         /// </remarks>
-        internal Task LoginAsync(string host, int port, string user, string pass, CancellationToken ct)
+        internal Task LoginAsync(string host, int port, string user, string pass, CancellationToken ct,
+            string? terminalPassword = null)
         {
             return Task.Run(async () =>
             {
@@ -123,7 +127,7 @@ namespace tik4net.WinboxCli
                 // size hint stays at the PoC-proven 80x25 (RouterOS rejects oversized values with an
                 // error response carrying no SESSION_ID); the real width comes from the VT100 cursor-probe
                 // answered by the wide _vt100 below.
-                _sessionId = OpenTerminalSession(pass, "vt102", 80, 25);
+                _sessionId = OpenTerminalSession(terminalPassword ?? pass, "vt102", 80, 25);
                 SendTerminalReady(_sessionId);
 
                 WaitForPromptSync();

@@ -11,6 +11,13 @@ namespace tik4net
         /// session in clear; the overlay hop itself is SSH-encrypted.
         /// </summary>
         Ssh,
+
+        /// <summary>
+        /// The WinBox relay: the agent opens a link to the target on its WinBox service and routes the connection's
+        /// M2 messages over it. The agent logs in to the target itself, with the target's credentials, and
+        /// re-encrypts the target's session for the connection — it sees the session in clear.
+        /// </summary>
+        Winbox,
     }
 
     /// <summary>
@@ -201,7 +208,7 @@ namespace tik4net
     internal interface ITikRomonConnection
     {
         /// <summary>The target, set by <see cref="TikConnectionSetup.ApplyTo"/>; <c>null</c> for a direct connection.</summary>
-        Cli.RomonSshTarget? RomonTarget { get; set; }
+        Cli.RomonRelayTarget? RomonTarget { get; set; }
 
         /// <summary>This transport, as the agent side of <see cref="TikRomonConnectionInfo"/> reports it.</summary>
         TikConnectionType RomonAgentConnectionType { get; }

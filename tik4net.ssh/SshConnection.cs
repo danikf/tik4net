@@ -44,7 +44,7 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         protected override string TransportName => "SSH";
 
-        RomonSshTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
 
         TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Ssh;
 

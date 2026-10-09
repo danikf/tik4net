@@ -41,7 +41,7 @@ The lab runs three CHRs. Only the first is needed for the suite; the others cove
 | Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router; the agent of `-Router chr2` | an older 7.x for the version-sensitive tests (`-Router chr3`); the RoMON target of `-Router chr2` |
 
 **RoMON.** `RomonRelayTest` opens CHR2 *through* CHR (Telnet, SSH and MAC-Telnet to CHR, `/tool romon ssh`
-beyond it) and writes to it, checking each write over CHR2's own API connection (`romonTargetHost`). With
+beyond it; the four WinBox transports through CHR's WinBox relay) and writes to it, checking each write over CHR2's own API connection (`romonTargetHost`). With
 `-Router chr2` the same tests run from CHR2 to CHR3 — a RouterOS 6 agent and a 7.x target (`chr2.romonTarget*`).
 RoMON is enabled on all three. With `romonTargetId` empty those tests are Inconclusive.
 

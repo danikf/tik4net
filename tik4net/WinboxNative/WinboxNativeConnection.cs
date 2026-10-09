@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Cli;
 using tik4net.Connection;
 using tik4net.Diagnostics;
 using tik4net.Winbox;
@@ -56,7 +57,8 @@ namespace tik4net.WinboxNative
     /// state, and the router's shared throughput ceiling — is on <see cref="ITikConnection"/>.</para>
     /// </remarks>
     public class WinboxNativeConnection : TikCommandConnectionBase, ITikWinboxNativeConnection,
-        ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection, ITikCatalogCacheConnection
+        ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection, ITikCatalogCacheConnection,
+        ITikRomonConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly); the MAC-layer
         // subclass constructor is internal too and calls this one.
@@ -220,11 +222,35 @@ namespace tik4net.WinboxNative
         // ── Open / Close ───────────────────────────────────────────────────────
 
         /// <summary>
-        /// Creates the (not-yet-opened) M2 channel this connection rides on. The base uses the TCP
+        /// Creates the (not-yet-opened) carrier this connection rides on. The base uses the TCP
         /// WinBox session (port 8291); <see cref="WinboxNativeMac.WinboxNativeMacConnection"/> overrides it
         /// to ride the MAC-layer channel (UDP 20561).
         /// </summary>
-        private protected virtual IWinboxM2Channel CreateChannel() => new WinboxM2Session();
+        private protected virtual IWinboxM2Channel CreateCarrier() => new WinboxM2Session();
+
+        /// <summary>This transport, as the agent side of <see cref="TikRomonConnectionInfo"/> reports it.</summary>
+        private protected virtual TikConnectionType RomonAgentConnectionType => TikConnectionType.WinboxNative;
+
+        // Through a RoMON agent the carrier goes to the agent, and the relay channel routes every message on to the
+        // target (Docs/findings-romon.md §5).
+        private IWinboxM2Channel CreateChannel()
+            => RomonTarget == null ? CreateCarrier() : new WinboxRomonChannel(CreateCarrier(), RomonTarget);
+
+        /// <summary>
+        /// When set before <c>Open</c>, the host, user and password given to <c>Open</c> are the AGENT's, and the
+        /// connection continues to this target over the WinBox RoMON relay. Set by
+        /// <see cref="TikConnectionSetup.ApplyTo"/> through <see cref="ITikRomonConnection"/>.
+        /// </summary>
+        internal RomonRelayTarget? RomonTarget { get; set; }
+
+        /// <summary>Set once the relay has reached the target; <c>null</c> on a direct connection.</summary>
+        internal TikRomonConnectionInfo? RomonConnectionInfo { get; private set; }
+
+        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+
+        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => RomonAgentConnectionType;
+
+        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -247,6 +273,7 @@ namespace tik4net.WinboxNative
             string host = _host, user = _user, password = _password;
             int port = _port;
             IWinboxM2Channel? session = null;
+            RomonConnectionInfo = null;
             // A refused handshake leaves the channel unusable, so the retry builds a fresh one rather
             // than reopening this one — see RouterLoginRetry for why a WinBox login is retried at all.
             Winbox.RouterLoginRetry.Run(() =>
@@ -256,7 +283,7 @@ namespace tik4net.WinboxNative
                 {
                     session.Open(host, port, user, password, ConnectTimeoutMs, ReceiveTimeoutMs, SendTimeoutMs);
                 }
-                catch (TikConnectionLoginException)
+                catch (Exception ex) when (ex is TikConnectionLoginException || ex is TikRomonRelayException)
                 {
                     session.Dispose();
                     throw;
@@ -275,7 +302,18 @@ namespace tik4net.WinboxNative
                 }
             });
             // Run() either assigns session above or throws, so it is always set here.
-            InitAfterAuth(session!, host);
+            string routerKey = host;
+            if (session is WinboxRomonChannel relay)
+            {
+                RomonConnectionInfo = new TikRomonConnectionInfo(TikRomonRelay.Winbox,
+                    new TikRomonAgentInfo(RomonTarget!.Agent?.Address ?? TikRouterAddress.FromHost(host),
+                        RomonAgentConnectionType, user, relay.AgentRomonId!),
+                    new TikRomonTargetInfo(RomonTarget.RomonId, RomonTarget.User));
+                // The remembered plugin list is the TARGET's: keyed by the agent's host it would answer for every
+                // router reached through that agent.
+                routerKey = "romon-" + RomonTarget.RomonId + "-via-" + host;
+            }
+            InitAfterAuth(session!, routerKey);
         }
 
         /// <inheritdoc/>
@@ -320,6 +358,8 @@ namespace tik4net.WinboxNative
             // OnWriteRow/OnReadRow events (gated so the describe is only built when something listens).
             _ops.OnRequest = msg => { if (RowTracingEnabled) FireWriteRow(M2Message.Describe(msg)); };
             _ops.OnResponse = msg => { if (RowTracingEnabled) FireReadRow(M2Message.Describe(msg)); };
+            // A RoMON relay whose link ended takes nothing more, so the connection closes as the CLI transports do.
+            _ops.OnRelayEnded = Close;
             // Through _ops, not the raw channel: the catalog's mproxy transfer must share the same
             // request-id correlation as every other operation, or a stray frame during it desyncs the
             // channel for the rest of the connection (worst on MAC, which has no stale drain).

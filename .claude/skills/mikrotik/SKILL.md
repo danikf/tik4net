@@ -47,7 +47,7 @@ rather than guessing.
 | `routerLogTail`  | int      | `includeRouterLog` only: cap on kept log lines, default 200 |
 | `executeMode`    | string   | `auto` (default) = verb dispatch over `ITikCommand`; `nonquery` = `ExecuteNonQuery()` — needed for action verbs (see below) |
 | `parameters`     | string[] | Extra API words (see below) |
-| `romonAgentHost` / `romonAgentUsername` / `romonAgentPassword` / `romonAgentPort` | | Reach a router **through a RoMON agent** (`Telnet`, `Ssh`, `MacTelnet`; on `MacTelnet` the agent host may be its MAC). Then `host` is the target's RoMON id and `username`/`password` are the target's; `port` and `routerMac` are refused, and `includeRouterLog` reads the target's log over a second relayed session. Relay failures read `ERROR (romon: <Reason>)` |
+| `romonAgentHost` / `romonAgentUsername` / `romonAgentPassword` / `romonAgentPort` | | Reach a router **through a RoMON agent** (`Telnet`, `Ssh`, `MacTelnet` and the four `Winbox*` transports; on the MAC-layer ones the agent host may be its MAC). Then `host` is the target's RoMON id and `username`/`password` are the target's; `port` and `routerMac` are refused, and `includeRouterLog` reads the target's log over a second relayed session. Relay failures read `ERROR (romon: <Reason>)` |
 
 ## Transports
 

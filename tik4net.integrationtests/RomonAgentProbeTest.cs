@@ -132,6 +132,214 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// The same link end, one layer down: every frame the agent sends on the raw relay channel once RoMON is switched
+        /// off on the target, decoded, routed or not. Writes /tool romon enabled on the TARGET and restores it.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_WinboxRelay_LinkEndFrames()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            var relayTarget = new tik4net.Cli.RomonRelayTarget(LabConfig.Get("romonTargetId"),
+                LabConfig.Get("romonTargetUser"), LabConfig.Get("romonTargetPass") ?? "");
+            using (var target = new TikConnectionSetup(LabConfig.Get("romonTargetHost"), LabConfig.Get("romonTargetUser"),
+                       LabConfig.Get("romonTargetPass") ?? "").Create(TikConnectionType.Api))
+            using (var ch = new WinboxRomonChannel(new WinboxM2Session(), relayTarget))
+            {
+                ch.Open(LabConfig.Get("host"), 8291, LabConfig.Get("user"), LabConfig.Get("pass") ?? "", 5000, 5000);
+                Log($"link {ch.Link}");
+                byte[] Identity() => M2.BuildM2(M2.SysToArr(24, 1), M2.SysFrom(),
+                    M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ch.NextReqIdField(),
+                    M2.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton));
+                Log("before: " + M2.Describe(ch.SendReceive(Identity(), 5000)));
+                target.CreateCommandAndParameters("/tool/romon/set", "enabled", "no").ExecuteNonQuery();
+                try
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    ch.Send(Identity());
+                    while (sw.ElapsedMilliseconds < 15000)
+                    {
+                        byte[] f;
+                        try { f = ch.Receive(3000); }
+                        catch (Exception ex) { Log($"{sw.ElapsedMilliseconds} ms: {ex.GetType().Name}: {ex.Message}"); continue; }
+                        Log($"{sw.ElapsedMilliseconds} ms: " + (f == null ? "(null)" : M2.Describe(f) + "\n    hex " + BitConverter.ToString(f)));
+                        if (f == null) break;
+                    }
+                }
+                finally { target.CreateCommandAndParameters("/tool/romon/set", "enabled", "yes").ExecuteNonQuery(); }
+            }
+        }
+
+        /// <summary>
+        /// What ends the target's session when a relay channel closes: for each variant a fresh link is opened, the
+        /// variant sent, the channel disposed, and the target's relayed WinBox sessions (/user/active by-romon) counted
+        /// over its own API before and 5 s after. Read-only on both routers apart from the sessions themselves.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_WinboxRelay_CloseVariants()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            var relayTarget = new tik4net.Cli.RomonRelayTarget(LabConfig.Get("romonTargetId"),
+                LabConfig.Get("romonTargetUser"), LabConfig.Get("romonTargetPass") ?? "");
+            using (var target = new TikConnectionSetup(LabConfig.Get("romonTargetHost"), LabConfig.Get("romonTargetUser"),
+                       LabConfig.Get("romonTargetPass") ?? "").Create(TikConnectionType.Api))
+            {
+                int Relayed() => target.CreateCommand("/user/active/print").ExecuteList()
+                    .Count(r => r.GetResponseFieldOrDefault("via", "") == "winbox"
+                                && !string.IsNullOrEmpty(r.GetResponseFieldOrDefault("by-romon", "")));
+                byte[] Logout(int[] to, bool reply, WinboxM2Session a, params byte[][] extra)
+                {
+                    var f = new System.Collections.Generic.List<byte[]> { M2.SysToArr(to), M2.SysFrom(),
+                        M2.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Logout) };
+                    if (reply) { f.Add(M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true)); f.Add(a.NextReqIdField()); }
+                    f.AddRange(extra);
+                    return M2.BuildM2(f.ToArray());
+                }
+                var variants = new (string, Action<WinboxM2Session, WinboxRomonChannel>)[]
+                {
+                    ("nothing", (a, ch) => { }),
+                    ("logout [2,link] reply expected", (a, ch) => a.Send(Logout(new[] { 2, ch.Link }, true, a))),
+                    ("logout [0xFF0003,link]", (a, ch) => a.Send(Logout(new[] { 0xFF0003, ch.Link }, true, a))),
+                    ("logout [2] reply expected", (a, ch) => a.Send(Logout(new[] { 2 }, true, a))),
+                    ("logout [2,link,13,4]", (a, ch) => a.Send(Logout(new[] { 2, ch.Link, 13, 4 }, true, a))),
+                };
+                foreach (var (label, send) in variants)
+                {
+                    int before = Relayed();
+                    var agent = new WinboxM2Session();
+                    var ch = new WinboxRomonChannel(agent, relayTarget);
+                    ch.Open(LabConfig.Get("host"), 8291, LabConfig.Get("user"), LabConfig.Get("pass") ?? "", 5000, 5000);
+                    int open = Relayed();
+                    try { send(agent, ch); } catch (Exception ex) { Log($"{label}: send threw {ex.GetType().Name}: {ex.Message}"); }
+                    System.Threading.Thread.Sleep(1000);
+                    string pushed = "";
+                    try { while (agent.DataAvailable) pushed += " | " + M2.Describe(agent.Receive(1000)); } catch (Exception ex) { pushed += " | " + ex.GetType().Name; }
+                    ch.Dispose();
+                    System.Threading.Thread.Sleep(5000);
+                    Log($"{label}: relayed sessions before {before}, open {open}, 5 s after close {Relayed()}; frames after send:{pushed}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// The msg-proxy's commands around the connect (2001), each sent with the open link's id and a reply expected,
+        /// with the target's relayed-session count after each — which one, if any, ends a link.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_WinboxRelay_ProxyCommandScan()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            var relayTarget = new tik4net.Cli.RomonRelayTarget(LabConfig.Get("romonTargetId"),
+                LabConfig.Get("romonTargetUser"), LabConfig.Get("romonTargetPass") ?? "");
+            using (var target = new TikConnectionSetup(LabConfig.Get("romonTargetHost"), LabConfig.Get("romonTargetUser"),
+                       LabConfig.Get("romonTargetPass") ?? "").Create(TikConnectionType.Api))
+            {
+                int Relayed() => target.CreateCommand("/user/active/print").ExecuteList()
+                    .Count(r => r.GetResponseFieldOrDefault("via", "") == "winbox"
+                                && !string.IsNullOrEmpty(r.GetResponseFieldOrDefault("by-romon", "")));
+                var agent = new WinboxM2Session();
+                using (var ch = new WinboxRomonChannel(agent, relayTarget))
+                {
+                    ch.Open(LabConfig.Get("host"), 8291, LabConfig.Get("user"), LabConfig.Get("pass") ?? "", 5000, 5000);
+                    Log($"link {ch.Link}, relayed sessions {Relayed()}");
+                    foreach (int cmd in new[] { 2000, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010 })
+                    {
+                        string answer;
+                        try
+                        {
+                            byte[] r = agent.SendReceive(M2.BuildM2(M2.SysToArr(2), M2.SysFrom(),
+                                M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), agent.NextReqIdField(),
+                                M2.U32Sys(WinboxM2Protocol.SysKey.Command, cmd), M2.SessionIdField(ch.Link)), 7000);
+                            answer = $"status=0x{M2.ParseSysStatus(r):X} {M2.Describe(r)}";
+                        }
+                        catch (Exception ex) { answer = ex.GetType().Name + ": " + ex.Message; }
+                        System.Threading.Thread.Sleep(1500);
+                        Log($"cmd {cmd}: {answer}; relayed sessions {Relayed()}");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The raw frames a relay channel's agent session receives when an unrelated Telnet session of the same user
+        /// on the agent logs out, read off the carrier below the relay channel (so nothing is interpreted), followed by
+        /// an identity read through the link. Read-only.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_WinboxRelay_FramesOnAnotherLogout()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            var relayTarget = new tik4net.Cli.RomonRelayTarget(LabConfig.Get("romonTargetId"),
+                LabConfig.Get("romonTargetUser"), LabConfig.Get("romonTargetPass") ?? "");
+            var agent = new WinboxM2Session();
+            using (var ch = new WinboxRomonChannel(agent, relayTarget))
+            {
+                ch.Open(LabConfig.Get("host"), 8291, LabConfig.Get("user"), LabConfig.Get("pass") ?? "", 5000, 5000);
+                Log($"link {ch.Link}");
+                using (var telnet = new TikConnectionSetup(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass") ?? "")
+                           .Create(TikConnectionType.Telnet))
+                    telnet.LoadSingle<tik4net.Objects.System.SystemIdentity>();
+                Log("telnet session closed");
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < 5000)
+                {
+                    if (!agent.DataAvailable) { System.Threading.Thread.Sleep(100); continue; }
+                    Log($"{sw.ElapsedMilliseconds} ms raw: {M2.Describe(agent.Receive(2000))}");
+                }
+                try
+                {
+                    Log("identity through the link: " + M2.Describe(agent.SendReceive(M2.BuildM2(M2.SysToArr(2, ch.Link, 24, 1), M2.SysFrom(),
+                        M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), agent.NextReqIdField(),
+                        M2.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton)), 5000)));
+                }
+                catch (Exception ex) { Log("identity through the link: " + ex.GetType().Name + ": " + ex.Message); }
+            }
+        }
+
+        /// <summary>
+        /// An idle relay channel, nothing sent for 150 s: every frame the agent pushes meanwhile, with its arrival time.
+        /// TIK4NET_ROMON_IDLE_CARRIER=mac uses the MAC-layer carrier (default TCP). Read-only.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_WinboxRelay_IdleFrames()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            bool mac = Environment.GetEnvironmentVariable("TIK4NET_ROMON_IDLE_CARRIER") == "mac";
+            var relayTarget = new tik4net.Cli.RomonRelayTarget(LabConfig.Get("romonTargetId"),
+                LabConfig.Get("romonTargetUser"), LabConfig.Get("romonTargetPass") ?? "");
+            IWinboxM2Channel carrier = mac ? new WinboxMacM2Session(LabConfig.Get("routerMac")) : (IWinboxM2Channel)new WinboxM2Session();
+            using (var ch = new WinboxRomonChannel(carrier, relayTarget))
+            {
+                ch.Open(LabConfig.Get("host"), mac ? 20561 : 8291, LabConfig.Get("user"), LabConfig.Get("pass") ?? "", 5000, 5000);
+                Log($"{(mac ? "MAC" : "TCP")} link {ch.Link}");
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < 150000)
+                {
+                    if (!ch.DataAvailable) { System.Threading.Thread.Sleep(200); continue; }
+                    try
+                    {
+                        byte[] f = ch.Receive(3000);
+                        Log($"{sw.ElapsedMilliseconds} ms: " + (f == null ? "(null)" : M2.Describe(f)));
+                        if (f == null) break;
+                    }
+                    catch (Exception ex) { Log($"{sw.ElapsedMilliseconds} ms: {ex.GetType().Name}: {ex.Message}"); break; }
+                }
+                Log($"{sw.ElapsedMilliseconds} ms: idle over, sendAbandoned={ch.SendAbandoned}");
+                try
+                {
+                    Log("identity through the link: " + M2.Describe(ch.SendReceive(M2.BuildM2(M2.SysToArr(24, 1), M2.SysFrom(),
+                        M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ch.NextReqIdField(),
+                        M2.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton)), 5000)));
+                }
+                catch (Exception ex) { Log("identity through the link: " + ex.GetType().Name + ": " + ex.Message); }
+            }
+        }
+
+        /// <summary>
         /// WinBox.exe names a system key SYS_ROMON; its key-name switch places it at 0xFF0018, type 0x30
         /// (raw). If the agent routes by it, a read of the RoMON settings singleton answers with the
         /// TARGET's current-id rather than the agent's. Read-only: get-singleton and get-all only.

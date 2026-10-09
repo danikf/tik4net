@@ -1,15 +1,16 @@
-namespace tik4net.Cli
+﻿namespace tik4net.Cli
 {
     /// <summary>
-    /// The router a CLI connection continues into, through the agent it logged in to, over RoMON SSH
-    /// (<see cref="RouterOsCliLogin.RomonSshLoginAsync"/>). Built by <see cref="TikConnectionSetup.ApplyTo"/> from
+    /// The router a connection continues into through the agent it logged in to — over RoMON SSH for the CLI
+    /// transports (<see cref="RouterOsCliLogin.RomonSshLoginAsync"/>), over the WinBox relay for the WinBox ones
+    /// (<see cref="Winbox.WinboxRomonChannel"/>). Built by <see cref="TikConnectionSetup.ApplyTo"/> from
     /// <see cref="TikConnectionSetup.RomonAgentSetup"/>; the host, port and credentials the connection is then
     /// opened with are the agent's.
     /// </summary>
     /// <remarks>Nothing here is ever logged: <see cref="Password"/> is the target's.</remarks>
-    internal sealed class RomonSshTarget
+    internal sealed class RomonRelayTarget
     {
-        internal RomonSshTarget(string romonId, string user, string password, TikRomonAgentSetup? agent = null)
+        internal RomonRelayTarget(string romonId, string user, string password, TikRomonAgentSetup? agent = null)
         {
             RomonId = RouterOsCliLogin.NormalizeRomonId(romonId);
             User = user;

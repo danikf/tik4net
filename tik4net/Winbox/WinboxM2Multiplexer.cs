@@ -398,6 +398,9 @@ namespace tik4net.Winbox
         {
             if (_disposed) throw new ObjectDisposedException(nameof(WinboxM2Multiplexer));
             var fault = _fault;
+            // A RoMON link that ended stays that verdict for every later request, which was then never sent.
+            if (fault is TikRomonRelayEndedException ended)
+                throw new TikRomonRelayEndedException(ended.Message, commandMayHaveRun: false, partialResponse: null);
             if (fault != null)
                 throw new IOException("The WinBox M2 channel is no longer usable.", fault);
         }

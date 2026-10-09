@@ -49,6 +49,9 @@ namespace tik4net.WinboxNativeMac
         /// <inheritdoc/>
         // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of
         // scope here), but null is its documented meaning: discover the router via MNDP.
-        private protected override IWinboxM2Channel CreateChannel() => new WinboxMacM2Session(RouterMac!);
+        private protected override IWinboxM2Channel CreateCarrier() => new WinboxMacM2Session(RouterMac!);
+
+        /// <inheritdoc/>
+        private protected override TikConnectionType RomonAgentConnectionType => TikConnectionType.WinboxNativeMac;
     }
 }

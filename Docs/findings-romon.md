@@ -218,6 +218,40 @@ over it — EC-SRP5 with the target user and password from the connect, then enc
 target's stream and re-encrypts for the client, so it sees every message in plain form. The target lists the
 session `via=winbox` with `by-romon=<agent id>` and no address.
 
+**Connect failures.** An id the agent cannot reach answers `0xFE0006` `timeout` after about 5 s; RoMON switched
+off on the agent looks the same, which is why the agent's own settings (`[127,2]` get-singleton: `0x1` enabled,
+`0x65` its current-id, absent when disabled) are read first. A target that refuses the login answers `0xFE0009`.
+
+**When the link ends.** With RoMON switched off on the target under an open link, a request routed to it gets no
+reply. About 5.5 s after the target went quiet the agent pushes logouts (`SYS_CMD = 0xFE0014`, no request id),
+among them one with `SYS_FROM=[0xFF0003, <link>]` — the only frame that names the link. Nothing answers on the link
+after that, not even once the target is back in the overlay; a new connect is needed.
+(`RomonAgentProbeTest.Probe_Romon_WinboxRelay_LinkEndFrames`, 7.24.5 agent, 6.49.13 target.)
+
+**Logouts that are not this link's.** The agent pushes a logout to every WinBox session of the user whenever another
+session of that user ends on it — a Telnet login closing is enough: `SYS_FROM=[<that session>]`,
+`0xFF000B = 0xFFFFFFFF`. The link answers normally afterwards (`Probe_Romon_WinboxRelay_FramesOnAnotherLogout`).
+When the agent reaps links that other sessions left behind, it pushes their pairs too — `[0xFF0003, <their link>]`
+and `[2, <their link>]` with `0xFF000B` — to every session of the user. Only a link id match says "this link ended".
+
+**Idle.** A link with no traffic stays up: 150 s idle, then an ordinary read through it
+(`Probe_Romon_WinboxRelay_IdleFrames`). It needs no keepalive.
+
+**Closing.** Closing the session to the agent does **not** end the agent's session on the target: the target keeps a
+`via=winbox by-romon=<agent id>` row for every link ever opened, for minutes at least (40 such rows were still there
+16 minutes after a test run), and anything that session held — Safe Mode included — stays held. Neither a logout routed
+through the link (`SYS_TO=[2,<link>]`, `[2,<link>,13,4]`, with or without a reply expected — no answer), nor one to
+`[0xFF0003,<link>]` or to the msg-proxy, nor any msg-proxy command 2000–2010 with the link id (all `0xFE0009`) ends it
+(`Probe_Romon_WinboxRelay_CloseVariants`, `Probe_Romon_WinboxRelay_ProxyCommandScan`). The agent reaps such sessions
+at some later point; switching RoMON off and on on the target ends them all at once. How WinBox itself closes a link is
+not measured yet. The WinBox CLI is not affected: it ends the target's terminal with `/quit`, which ends the session.
+
+**tik4net's implementation.** `WinboxRomonChannel` wraps the carrier session to the agent (TCP or MAC layer):
+it logs in, reads the agent's settings, sends the connect, and then rewrites `SYS_TO`/`SYS_FROM` on every
+message, so WinBox native and the WinBox CLI's mepty terminal run on it unchanged. The logout naming the link raises
+`TikRomonRelayEndedException`, and the connection closes; every other logout is passed up as on a direct session.
+Measured with a 7.24.5 agent and a 6.49.13 target on all four WinBox transports (`RomonRelayTest`).
+
 ## 6. Capture notes
 
 The CHR's `/tool sniffer` records only frames the CHR **transmits** for EtherType `0x88bf` — received RoMON

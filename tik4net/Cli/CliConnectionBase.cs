@@ -504,20 +504,22 @@ namespace tik4net.Cli
         /// which only the transports that relay implement (Telnet, SSH, MAC-Telnet); every other CLI transport refuses a
         /// target at open — ignoring one would open the AGENT and run every command there.
         /// </summary>
-        internal RomonSshTarget? RomonTarget { get; set; }
+        internal RomonRelayTarget? RomonTarget { get; set; }
 
         /// <summary>Set once the relay has reached the target — see <see cref="ITikRomonConnection"/>.</summary>
         internal TikRomonConnectionInfo? RomonConnectionInfo { get; private set; }
 
         /// <summary>
         /// Records that the relay reached <see cref="RomonTarget"/>. Called by a relaying transport's login, after
-        /// <see cref="RouterOsCliLogin.RomonSshLoginAsync"/> returned the agent's own RoMON id.
+        /// <see cref="RouterOsCliLogin.RomonSshLoginAsync"/> returned the agent's own RoMON id, or by a WinBox CLI
+        /// transport once the WinBox relay (<see cref="Winbox.WinboxRomonChannel"/>) has opened its link.
         /// </summary>
-        internal void RomonEntered(TikConnectionType agentConnectionType, string host, string user, string agentRomonId)
+        internal void RomonEntered(TikConnectionType agentConnectionType, string host, string user, string agentRomonId,
+            TikRomonRelay relay = TikRomonRelay.Ssh)
         {
             var target = RomonTarget!;
             TikRouterAddress agentAddress = target.Agent?.Address ?? TikRouterAddress.FromHost(host);
-            RomonConnectionInfo = new TikRomonConnectionInfo(TikRomonRelay.Ssh,
+            RomonConnectionInfo = new TikRomonConnectionInfo(relay,
                 new TikRomonAgentInfo(agentAddress, agentConnectionType, user, agentRomonId),
                 new TikRomonTargetInfo(target.RomonId, target.User));
         }
@@ -556,7 +558,7 @@ namespace tik4net.Cli
             cancellationToken.ThrowIfCancellationRequested();
             if (RomonTarget != null && !(this is ITikRomonConnection))
                 throw new NotSupportedException(TransportName + " cannot relay to a RoMON target (" + RomonTarget +
-                    "); use Telnet, SSH or MAC-Telnet to the agent.");
+                    "); see TikConnectionSetup.SupportsRomon for the transports that can.");
             RomonConnectionInfo = null;
             _features = new RouterFeatureSet();
             _menuFacts = new RouterMenuFacts();

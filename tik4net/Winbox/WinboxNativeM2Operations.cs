@@ -97,6 +97,12 @@ namespace tik4net.Winbox
         /// <inheritdoc cref="OnRequest"/>
         internal Action<byte[]>? OnResponse { get; set; }
 
+        /// <summary>
+        /// Invoked, before the exception propagates, when a round trip fails with
+        /// <see cref="TikRomonRelayEndedException"/>: the RoMON link the channel ran over has ended for good.
+        /// </summary>
+        internal Action? OnRelayEnded { get; set; }
+
         // Single send/receive seam — fires the trace hooks around the channel round-trip so every M2
         // operation (read and write) is observable without duplicating the hook at each call site.
         private byte[] SendReceive(byte[] request)
@@ -104,7 +110,9 @@ namespace tik4net.Winbox
             if (_mux != null)
             {
                 OnRequest?.Invoke(request);
-                byte[] multiplexed = _mux.SendReceive(request, _timeoutMs);
+                byte[] multiplexed;
+                try { multiplexed = _mux.SendReceive(request, _timeoutMs); }
+                catch (TikRomonRelayEndedException) { OnRelayEnded?.Invoke(); throw; }
                 OnResponse?.Invoke(multiplexed);
                 return multiplexed;
             }
@@ -142,7 +150,9 @@ namespace tik4net.Winbox
 
         private async Task<byte[]> AwaitReply(Task<byte[]> reply)
         {
-            byte[] response = await reply.ConfigureAwait(false);
+            byte[] response;
+            try { response = await reply.ConfigureAwait(false); }
+            catch (TikRomonRelayEndedException) { OnRelayEnded?.Invoke(); throw; }
             OnResponse?.Invoke(response);
             return response;
         }
