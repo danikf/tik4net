@@ -213,17 +213,36 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// #31: an async open with a receive timeout set must open. That bug failed at any timeout (20 s too), so a
+        /// slow login is retried with a longer one — under the runner's parallel legs the lab router has taken more
+        /// than 500 ms to answer the login (2 in 693 runs). Only a receive timeout is retried; anything else fails
+        /// at once, and the attempt that opened is logged, so a login that needs the retry stays visible.
+        /// </summary>
         [TestMethod]
         public void OpenAsyncWillNotFail()
         {
-            Task.Run(async () =>
+            var timeouts = new[] { 500, 1000, 2000 };
+            for (int attempt = 0; ; attempt++)
+            {
+                try
                 {
-                    using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
-                    {
-                        connection.ReceiveTimeout = TimeSpan.FromMilliseconds(500); //wait for 2x 500ms
-                        await connection.OpenAsync(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass"));
-                    }
-                }).GetAwaiter().GetResult();
+                    Task.Run(async () =>
+                        {
+                            using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
+                            {
+                                connection.ReceiveTimeout = TimeSpan.FromMilliseconds(timeouts[attempt]);
+                                await connection.OpenAsync(LabConfig.Get("host"), LabConfig.Get("user"), LabConfig.Get("pass"));
+                            }
+                        }).GetAwaiter().GetResult();
+                    Console.WriteLine($"opened with a {timeouts[attempt]} ms receive timeout (attempt {attempt + 1})");
+                    return;
+                }
+                catch (TikConnectionReceiveTimeoutException ex) when (attempt < timeouts.Length - 1)
+                {
+                    Console.WriteLine($"no login reply within {timeouts[attempt]} ms, retrying: {ex.Message}");
+                }
+            }
         }
 
         [TestMethod]
