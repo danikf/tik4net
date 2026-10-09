@@ -207,6 +207,16 @@ separate, non-derivable per-path table for which spelling a *read* should report
 similarly-shaped catalogs (`/queue/type` and `/system/logging/action`) disagree on whether the API
 prefixes the field at all.
 
+### 6.x route fields judged available only row by row
+
+On RouterOS 6.49.13 the route window's `getall` carried no `scope`, `target-scope`, `routing-mark` or vrf-interface,
+and a `get-one` of the row carried all four. A sweep of getall flags `0x10000005` through `0x100000FF` added none of
+them, so the record was taken to be `get-one`-only, and on 2026-10-04 the four fields were left absent over WinBox
+native on 6.x rather than read with one request per row (`IpRouteTest` Inconclusive on the routing mark). The sweep
+had covered the low byte only. The window declares `refreshfilter:131072`, and webfig ORs a window's
+`refreshfilter`/`refetchonopen` into its getall flags — §29.1 already said so, but the transport sent a fixed word.
+Setting `0x20000` (2026-10-09) returned the whole record in the one `getall` (§35.1).
+
 ---
 
 ## Measurements pinned to a moment

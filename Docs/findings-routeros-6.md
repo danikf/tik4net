@@ -13,7 +13,7 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 | `Api`, `ApiSsl` | all pass | — |
 | `Telnet`, `Ssh`, `MacTelnet` | all pass | — |
 | `WinboxCli`, `WinboxCliMac` | all pass | — |
-| `WinboxNative`, `WinboxNativeMac` | 20 of 22 | route `scope` and `routing-mark` are not in the record; the path-map audit finds more — open problem 1 |
+| `WinboxNative`, `WinboxNativeMac` | all pass | — (the path-map audit finds fields still missing — open problem 1) |
 | `Rest`, `RestSsl` | all Inconclusive | RouterOS 6 has no REST API (§3); `TestBase` skips every test on the router's refusal (problem 2) |
 
 Beyond the smoke subset, the path-map audit has been run over every transport 6.x has (open problems 1 and 4),
@@ -239,7 +239,10 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      the router sends, the route's `connect` and `static` (its origin `numflag`), and the fields the API
      itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail` `address`, the OSPF area's `invalid` —
      and the remote action's `syslog-severity=auto` (§4).
-     The route's `gateway-status` is the gateway element's unnamed read-only half
+     The route's `scope`, `target-scope`, `routing-mark` and `vrf-interface` come in the same `getall` once its flags
+     carry the window's `refreshfilter:131072` (`0x20000`), which webfig sends and which, without it, leaves them out
+     ([winbox-native-m2-protocol.md](winbox-native-m2-protocol.md) §35.1); vrf-interface is the undeclared `0x3C`, an
+     interface id. The route's `gateway-status` is the gateway element's unnamed read-only half
      (`{tuple,ro:1}`: `on` `s4`, status `u5` over `unreachable/reachable/recursive`, `via` `U6`, interfaces
      `U8`), which `getall` does carry. Native composes it as the API prints it — `192.168.4.1 reachable via  ether1`
      (two spaces: the `via` addresses are empty), `ether1 reachable` on a connected route. 7.x has no
@@ -248,16 +251,6 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      A neighbour heard only over IPv6 has no IPv4 key, and the API prints its IPv6 address as `address`; so does
      native (`address6` reported under both names).
      Still missing, each for a reason of its own:
-     - `/ip/route` `scope`, `target-scope`, `routing-mark`, `vrf-interface`: **left absent, by decision**
-       (maintainer, 2026-10-04). The 6.x `getall` of the route window `[44,1]` is a sketch of the list columns:
-       no getall flag tried (`0x10000005` … `0x100000FF`) adds them. A `get-one` (`0xFE0002`) of the row carries
-       them all — `0xF` scope (`u8`, 20 on a row set to 20), `0x10` target-scope, `0x13` routing-mark (string,
-       with its opt flag `0x3FB`) and `0x3C` vrf-interface (an interface id, on the default route only, where the
-       API prints `vrf-interface=ether1`). Reading them would cost one extra request per row (the window allows
-       10000 rows; the lab router answers ~25–36 requests a second), so they are not read. The library has the
-       `get-one` op (`WinboxNativeM2Operations.GetOne`); a later change would re-read the rows that lack a
-       requested field. What it costs a caller: `IpRoute.RoutingTable` reads absent over native on 6.x, so a route's
-       routing mark cannot be read there (`IpRouteTest` is Inconclusive on it).
      - `/system/logging/action` `syslog-time-format`: left unmapped on purpose (see the resolver's
        `/system/logging/action` entry).
      - `/ip/neighbor` `system-caps`, `system-caps-enabled`: 6.x sends `0x11`/`0x12`, the 7.x keys, but only
@@ -342,7 +335,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      topology. What failed was RouterOS 7 assumed by the test — Safe Mode over the API, `/ip/dns/forwarders`, the
      firewall `tos`/`realm` matchers, bridge MLAG, the mDNS repeater, `lo`, the lowercase `radius-mac-format`s, the
      package name, the 6.x date spelling, OSPF neighbour `set` — and now skips or reads either version. Over WinBox
-     native, the route fields of problem 1b; and a single-item menu's `add` refusal, which native now reports as
+     native, the route fields of problem 1b, which it reads now (`winbox-native-m2-protocol.md` §35.1); and a
+     single-item menu's `add` refusal, which native now reports as
      *no such command* like the API (`winbox-native-m2-protocol.md` §6).
 
    **`RomonRelayTest` with the 6.49.13 target: 37 of 37 pass (2026-10-06)**, over all three agent transports.

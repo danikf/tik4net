@@ -94,6 +94,12 @@ namespace tik4net.Winbox
         // router includes the runtime counter fields (matching what RouterOS `print` returns).
         private readonly HashSet<string> _dynamicHandlers = new HashSet<string>(StringComparer.Ordinal);
 
+        // The flag bits a handler's windows ask a read for: `refreshfilter` and `refetchonopen`, OR'd across every
+        // window on the handler. webfig sends `base | refetchonopen | refreshfilter` on getall and get-singleton
+        // alike; without the window's bits a read can be a sketch of the list columns — RouterOS 6.49's route
+        // window (refreshfilter:131072) leaves out scope, target-scope, routing-mark and vrf-interface.
+        private readonly Dictionary<string, int> _readFlagsByHandler = new Dictionary<string, int>(StringComparer.Ordinal);
+
         // Interface subtype filters. RouterOS interface subtypes (bridge, vlan, eoip, …) are NOT separate M2
         // handlers — they all live in the generic interface table (the `generic:'iface'` window, [20,0]) and are
         // distinguished by a numeric `type` field. The .jg declares each subtype window with `inherit:'iface'`
@@ -450,6 +456,21 @@ namespace tik4net.Winbox
         /// when the stats flag bit is set.</summary>
         internal bool HasDynamicFields(int[] handler) =>
             handler != null && _dynamicHandlers.Contains(HandlerKey(handler));
+
+        /// <summary>The flag word (<c>ufe000c</c>) a getall or get-singleton on <paramref name="handler"/> sends:
+        /// <see cref="WinboxM2Protocol.GetAllFlags"/>, OR the bits its windows declare as <c>refreshfilter</c> and
+        /// <c>refetchonopen</c> (what webfig sends), OR <see cref="WinboxM2Protocol.GetAllStatsFlag"/> when a window
+        /// is <c>autorefresh</c> (<see cref="HasDynamicFields"/>) — a bit webfig sends only where the window's
+        /// <c>refreshfilter</c> carries it, kept because the counters this transport returns depend on it.</summary>
+        internal int GetReadFlags(int[] handler)
+            => WinboxM2Protocol.GetAllFlags | GetWindowReadFlags(handler)
+               | (HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
+
+        /// <summary>The <c>refreshfilter | refetchonopen</c> bits <paramref name="handler"/>'s windows declare, or
+        /// <c>0</c>. A get-singleton sends <see cref="WinboxM2Protocol.GetAllFlags"/> OR these, as webfig's
+        /// <c>ObjectHolder.fetch</c> does.</summary>
+        internal int GetWindowReadFlags(int[] handler)
+            => handler != null && _readFlagsByHandler.TryGetValue(HandlerKey(handler), out int flags) ? flags : 0;
 
         /// <summary>Number of field maps this catalog holds. <c>0</c> means the <c>.jg</c> load produced
         /// nothing and every lookup will fall back to the seed table — see
@@ -1104,6 +1125,13 @@ namespace tik4net.Winbox
                     if (ty == "doit" || ty == "action") _actionWindowHandlers.Add(HandlerKey(handlerInts));
                     else _recordWindowHandlers.Add(HandlerKey(handlerInts));
                     if (dict.ContainsKey("autorefresh")) _dynamicHandlers.Add(HandlerKey(handlerInts));
+                    int readFlags = (dict.TryGetValue("refreshfilter", out var rfv) && rfv is int rf ? rf : 0)
+                                  | (dict.TryGetValue("refetchonopen", out var rov) && rov is int ro ? ro : 0);
+                    if (readFlags != 0)
+                    {
+                        _readFlagsByHandler.TryGetValue(HandlerKey(handlerInts), out int known);
+                        _readFlagsByHandler[HandlerKey(handlerInts)] = known | readFlags;
+                    }
                     HarvestMonitor(handlerInts, ty, dict);
 
                     // The base interface window (generic:'iface') anchors the subtype filtering: remember its

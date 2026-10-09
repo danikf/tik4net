@@ -75,13 +75,18 @@ namespace tik4net.Winbox
                 var windowFields = _catalog?.GetWindowFields(_windowKey);
                 var synthetic = OwnSyntheticFields;
                 var inherited = InheritedSyntheticFields;
+                var fallback = FallbackFields;
                 bool hasWindow = windowFields != null && windowFields.Count > 0;
                 bool hasAction = _actionFields != null && _actionFields.Count > 0;
                 bool hasSynthetic = synthetic != null && synthetic.Count > 0;
                 bool hasInherited = inherited != null && inherited.Count > 0;
-                if (!hasWindow && !hasAction && !hasSynthetic && !hasInherited) return _fields = handlerFields;
+                bool hasFallback = fallback != null && fallback.Count > 0;
+                if (!hasWindow && !hasAction && !hasSynthetic && !hasInherited && !hasFallback) return _fields = handlerFields;
 
                 var merged = new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase);
+                // A fallback field is the lowest of all: any catalog field of the same name replaces it.
+                if (hasFallback && fallback != null)
+                    foreach (var kv in fallback) merged[kv.Key] = kv.Value;
                 if (handlerFields != null)
                     foreach (var kv in handlerFields) merged[kv.Key] = kv.Value;
                 // A synthetic field shipped for an ANCESTOR path (the /interface set, for an interface subtype)
@@ -147,6 +152,17 @@ namespace tik4net.Winbox
             var handlerFields = _catalog?.GetHandlerFields(_handler);
             if (handlerFields != null)
                 foreach (var kv in Scoped(handlerFields)) if (!Replaced(kv)) yield return kv;
+            // Last: a fallback names its key only where the catalog leaves the name to it.
+            var fallback = FallbackFields;
+            if (fallback != null)
+                foreach (var kv in fallback)
+                    if (!Replaced(kv) && !CatalogNames(kv.Key)) yield return kv;
+
+            bool CatalogNames(string apiName)
+                => (_actionFields != null && _actionFields.ContainsKey(apiName))
+                   || (windowFields != null && windowFields.ContainsKey(apiName))
+                   || (inherited != null && inherited.ContainsKey(apiName))
+                   || (handlerFields != null && handlerFields.ContainsKey(apiName));
         }
 
         /// <summary>
@@ -390,6 +406,17 @@ namespace tik4net.Winbox
             public readonly IReadOnlyDictionary<string, WinboxJgField>? SyntheticFields;
 
             /// <summary>
+            /// Synthetic fields for a key only SOME versions' windows leave unnamed: they rank below the path's
+            /// window, as an ancestor's synthetics do, so a version whose window names the field keeps its own key.
+            /// </summary>
+            /// <remarks>
+            /// RouterOS 6.49's route window sends vrf-interface at <c>0x3C</c> and declares no field for it; 7.x
+            /// declares 'VRF Interface' at <c>u111</c>. An ordinary synthetic outranks the window by name and would
+            /// send a 7.x write to <c>0x3C</c>. The same pairing rule applies as to <see cref="SyntheticFields"/>.
+            /// </remarks>
+            public readonly IReadOnlyDictionary<string, WinboxJgField>? FallbackFields;
+
+            /// <summary>
             /// The API flags this path's <c>numflag</c> members are reported as — each a name the API has been
             /// seen printing as <c>name=true</c> on a row whose key carried that member.
             /// </summary>
@@ -410,7 +437,8 @@ namespace tik4net.Winbox
                 IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null,
                 IReadOnlyDictionary<string, WinboxJgField>? syntheticFields = null,
                 IReadOnlyDictionary<string, Tuple<string, string>>? pairedFields = null,
-                IEnumerable<string>? numFlagMembers = null)
+                IEnumerable<string>? numFlagMembers = null,
+                IReadOnlyDictionary<string, WinboxJgField>? fallbackFields = null)
             {
                 ApiToJg = apiToJg; JgToApi = jgToApi;
                 AlsoKnownAs = alsoKnownAs;
@@ -422,6 +450,7 @@ namespace tik4net.Winbox
                 PairedFields = pairedFields;
                 DerivedBools = derivedBools;
                 SyntheticFields = syntheticFields;
+                FallbackFields = fallbackFields;
             }
         }
 
@@ -1220,7 +1249,16 @@ namespace tik4net.Winbox
                         ["immediate-gw"] = new WinboxJgField("immediate-gw", 0x108, "addr[]", true,
                                                              uiType: "multi", elementUiType: "addr"),
                     },
-                    numFlagMembers: new[] { "active", "connect", "static", "dhcp" }),
+                    numFlagMembers: new[] { "active", "connect", "static", "dhcp" },
+                    // vrf-interface: 6.49.13 sends it at 0x3C (with the window's refreshfilter bit) and its window
+                    // declares nothing there; setting it to ether1 then ether2 over the API moved 0x3C from 1 to 2,
+                    // the interfaces' ids. 7.x names it itself ('VRF Interface', u111), so this ranks below the
+                    // window. Read-only: a native write of it has not been measured.
+                    fallbackFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["vrf-interface"] = new WinboxJgField("vrf-interface", 0x3C, "u32", true,
+                                                              uiType: "enm", refHandler: new[] { 20, 0 }),
+                    }),
 
                 // /system/history: 'undoable' is a numflag member (u4=0), and the API prints undoable=true on
                 // every such row (7.24). Its redoable and floating-undo members have not been seen printed.
@@ -1835,11 +1873,18 @@ namespace tik4net.Winbox
             get { ResolveAliases(); return _inheritedSynthetic; }
         }
 
+        /// <summary>The path's <see cref="FieldAliasSet.FallbackFields"/> — below every catalog field.</summary>
+        private IReadOnlyDictionary<string, WinboxJgField>? FallbackFields
+        {
+            get { ResolveAliases(); return _fallback; }
+        }
+
         private static readonly int[] GenericInterfaceHandler = { 20, 0 };
         private bool _aliasesResolved;
         private FieldAliasSet? _aliases;
         private IReadOnlyDictionary<string, WinboxJgField>? _ownSynthetic;
         private IReadOnlyDictionary<string, WinboxJgField>? _inheritedSynthetic;
+        private IReadOnlyDictionary<string, WinboxJgField>? _fallback;
 
         // The nearest shipped set (the path's own, or its nearest ancestor's), and — for an interface subtype
         // read on the generic [20,0] handler that has a set of its OWN — the base /interface set merged beneath
@@ -1883,6 +1928,7 @@ namespace tik4net.Winbox
                                      .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
             }
             _inheritedSynthetic = inherited;
+            _fallback = exact ? found.FallbackFields : null;
         }
 
         // Child entries win; synthetic fields are kept apart (see ResolveAliases), so the merged set carries none.

@@ -251,7 +251,8 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   handler map alone answers with whichever window parsed first. Symptom: a row missing a field entirely
   ("Missing field 'interface'") while a sibling field of the other window appears in its place.
 - **Read command per window kind:** singleton (`item`) = `GetSingleton` (`0xFE000D`); list (`map`) =
-  `GetAll` (`0xFE0004`) + `Flags 0x10000005` (+ stats bit when `HasDynamicFields`). Wrong one → 0xFE0002/3/4.
+  `GetAll` (`0xFE0004`) + `Flags` = `WinboxJgCatalog.GetReadFlags` (`0x10000005` | the window's `refreshfilter` |
+  `refetchonopen`, + stats bit when `HasDynamicFields`). Wrong one → 0xFE0002/3/4.
 - **`.id`/SESSION_ID is u8 for ≤255, u32 above** — `M2Message.SessionIdField` auto-switches; a handle can
   exceed 255 (mproxy/monitor). A monitor `.id` can exceed `int.MaxValue` (true u32).
 - **`0xA0` str_array trap** in TLV parsing — RouterOS 7.x sends it (e.g. `[msg-proxy-7.21.4]`); the parser
@@ -264,8 +265,11 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   cmd=3 (/var/pckg, denied on CHR). Also available over plain HTTP `GET /webfig/<name>.jg` with
   `Accept-Encoding: gzip` (else HTTP 406).
 
-- **A `getall` row can be a sketch of the list columns.** 6.x routes send scope/target-scope/routing-mark only on
-  `get-one` (`Docs/winbox-native-m2-protocol.md` §35.1). Before calling a declared field "not sent", `get-one` the row.
+- **A `getall` row can be a sketch of the list columns — the window's `refreshfilter` bits fill it in.** 6.x routes
+  send scope/target-scope/routing-mark only with `0x20000` (their `refreshfilter:131072`; §35.1). Before calling a
+  declared field "not sent", `get-one` the row; if that carries it, read the window's flag attributes and webfig's
+  `ObjectMap.getall` before sweeping flags — a sweep of the low byte missed this one. A key one version's window
+  leaves unnamed and another names elsewhere is a `FallbackFields` entry, not a synthetic.
 - **A list element's unnamed `{tuple,ro:1}` half is the API's `<field>-status`** (6.x route `gateway-status`, §35.2) —
   kept in `ElementStatusParts`, never in `ElementParts`.
 - **One path, one entry in a shipped table.** The alias tables are indexer initializers: a second `["/path"] =` silently

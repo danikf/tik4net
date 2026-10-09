@@ -663,7 +663,8 @@ namespace tik4net.WinboxNative
                 if (IsSingletonWindow(apiPath, handler))
                 {
                     _catalog.GetSingletonCommands(_handlerMap.ResolveDerivedKey(apiPath), out int? getCommand, out _);
-                    var one = await _ops.GetSingletonAsync(handler, cancellationToken, command: getCommand)
+                    var one = await _ops.GetSingletonAsync(handler, cancellationToken,
+                            WinboxM2Protocol.GetAllFlags | _catalog.GetWindowReadFlags(handler), getCommand)
                         .ConfigureAwait(false);
                     records = (one != null && one.Count > 0)
                         ? new List<Dictionary<int, Tuple<string, object>>> { one }
@@ -671,10 +672,9 @@ namespace tik4net.WinboxNative
                 }
                 else
                 {
-                    // autorefresh windows (e.g. firewall rules) carry runtime counters the base flag omits;
-                    // OR the stats bit so getall returns bytes/packets, matching RouterOS `print`.
-                    int flags = WinboxM2Protocol.GetAllFlags
-                        | (_catalog.HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
+                    // The window's own refreshfilter/refetchonopen bits (6.x routes send scope and routing-mark
+                    // only with them), plus the stats bit on autorefresh windows for the runtime counters.
+                    int flags = _catalog.GetReadFlags(handler);
                     records = await _ops.GetAllAsync(handler, cancellationToken, flags).ConfigureAwait(false);
                 }
             }
@@ -798,8 +798,7 @@ namespace tik4net.WinboxNative
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             var numFlags = resolver.BuildNumFlags();
-            int flags = WinboxM2Protocol.GetAllFlags
-                | (_catalog.HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
+            int flags = _catalog.GetReadFlags(handler);
 
             List<Dictionary<int, Tuple<string, object>>> records;
             try { records = await _ops.GetAllAsync(handler, cancellationToken, flags).ConfigureAwait(false); }

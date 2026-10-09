@@ -230,8 +230,9 @@
         }
 
         /// <summary>
-        /// Base getall flags <c>refetchonopen | refreshfilter</c> carried in <see cref="RecordKey.Flags"/>
-        /// (<c>ufe000c</c>). Without this the handler returns no rows. webfig: <c>req.ufe000c = 0x10000005</c>.
+        /// Base getall/get-singleton flags carried in <see cref="RecordKey.Flags"/> (<c>ufe000c</c>). Without this the
+        /// handler returns no rows. webfig: <c>req.ufe000c = 0x10000005</c>, then OR-ed with the window's
+        /// <c>refetchonopen</c> and <c>refreshfilter</c> — see <see cref="WinboxJgCatalog.GetReadFlags"/>.
         /// </summary>
         internal const int GetAllFlags = 0x10000005;
 

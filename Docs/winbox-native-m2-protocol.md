@@ -118,8 +118,9 @@ defaults** — the numbers only show up in `.jg` when a window overrides one of 
 - `uff0007` (u32) = **SYS_CMD**.  `Sff001c` = trace (webfig, can be omitted).
 - `Uff0002` (u32[]) = SYS_FROM (in a push notification = which subscription).
 - `uff0008` = error code, `sff0009` = error string.
-- `ufe0001` = **.id** (record handle).  `ufe000c` = getall/get **flags** (getall requires
-  `0x10000005` = `refetchonopen | refreshfilter` — without it the handler returns no rows).
+- `ufe0001` = **.id** (record handle).  `ufe000c` = getall/get **flags**: webfig sends `0x10000005` (without it
+  the handler returns no rows) OR-ed with the window's `refetchonopen` and `refreshfilter`, on getall and
+  get-singleton alike. The window's bits decide which fields the read carries (§35.1).
 - `ufe0018` = maxobjs — a row **cap**, not a page size; the router picks the page size and ignores
   this for it (§29).  `ufe0003` = getall continuation token.  `ufe0019` = count.
 - `Mfe0002` = **records** (message-array, wire type `0xA8`).  `ufe0005` = next-id (ordered).
@@ -2460,16 +2461,22 @@ field absent from a version's catalog — while other versions' catalogs have it
 
 ## 35. A `getall` row can be a sketch, and a list element can carry a status of its own
 
-### 35.1 `getall` sends the list columns; `get-one` sends the record
+### 35.1 A window's `refreshfilter` bits decide what `getall` sends
 
-On RouterOS 6.49.13 the route window `[44,1]` answers `getall` with what its LIST shows: `scope` (`uf`),
-`target-scope` (`u10`) and `routing-mark` (`s13`) are declared and never sent, whatever getall flags are set
-(`0x10000005` through `0x100000FF` measured; `0x7FFFFFFF` returns no rows). A `get-one` (`0xFE0002` with the row's
-`0xFE0001`) returns the whole record: `0xF`=20 on a route set to `scope=20`, `0x10`=10, `0x13`="t4n-probe-mark" with
-its opt flag `0x3FB`=True, and the undeclared `0x3C` (the vrf-interface's id on the default route). The window
-carries `refetchonchange:1` and allows 10000 rows. The native transport reads with `getall` only, so these fields
-are absent on 6.x — a decision, because a complete read costs one request per row (`Docs/findings-routeros-6.md`
-§1b). 7.24.5's IPv4 route window sends them in `getall`.
+A window's `refreshfilter` and `refetchonopen` are flag bits for `ufe000c`, and webfig ORs them into every getall
+and get-singleton of the window (`ObjectMap.getall`, `ObjectHolder.fetch` in `master*.js`, 6.49 and 7.x alike).
+Without them a read can be a sketch of the list columns. RouterOS 6.49.13's route window `[44,1]` declares
+`refreshfilter:131072`: with `0x20000` set, `getall` carries `scope` (`uf`), `target-scope` (`u10`), `routing-mark`
+(`s13`, opt flag `0x3FB`), the BGP attribute keys (`0x3FC`–`0x405`) and the undeclared `0x3C`; without it, none of
+them. Of the single bits `0x100` through `0x40000000` OR-ed into `0x10000005`, `0x20000` is the only one that
+returns every row with them; `0x40000000` carries the keys but returns one row, and the rest change nothing. `0x3C` is vrf-interface, the
+interface's id — setting it to ether1, then ether2, moved it from 1 to 2 — and is shipped as a fallback field
+(`FieldAliasSet.FallbackFields`), because 7.x names the field itself ('VRF Interface', `u111`).
+
+The transport sends `WinboxJgCatalog.GetReadFlags`: `0x10000005`, the window's bits, and the stats bit `0x2` on an
+`autorefresh` window. webfig sends the stats bit only where `refreshfilter` carries it; the transport sends it on
+every `autorefresh` window too, because the runtime counters it returns (firewall `bytes`/`packets`) depend on it. A
+get-singleton sends `0x10000005` and the window's bits only, as webfig does.
 
 ### 35.2 A list element's unnamed read-only half is the API's `<field>-status`
 
