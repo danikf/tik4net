@@ -885,12 +885,13 @@ namespace tik4net.integrationtests
 
         // The rollback of a closed session lands on the target some time after the close: the rows still there
         // after up to 30 s.
-        private static int RowsAfterRollback(ITikConnection direct, string comment)
+        private static int RowsAfterRollback(ITikConnection direct, string comment, int seconds = 30)
         {
             int remaining;
-            var deadline = DateTime.UtcNow.AddSeconds(30);
-            while ((remaining = OurRows(direct, comment).Length) > 0 && DateTime.UtcNow < deadline)
+            var watch = Stopwatch.StartNew();
+            while ((remaining = OurRows(direct, comment).Length) > 0 && watch.ElapsedMilliseconds < seconds * 1000L)
                 System.Threading.Thread.Sleep(1000);
+            Console.WriteLine($"[romon] rollback after {watch.ElapsedMilliseconds} ms, {remaining} row(s) left");
             return remaining;
         }
 
@@ -1021,16 +1022,10 @@ namespace tik4net.integrationtests
         [DataRow(TikConnectionType.WinboxCliMac, "192.0.2.122")]
         [DataRow(TikConnectionType.WinboxNative, "192.0.2.123")]
         [DataRow(TikConnectionType.WinboxNativeMac, "192.0.2.124")]
-        [Timeout(120000)]
+        [Timeout(420000)]
         public void Relay_SafeMode_CloseWithoutReleaseRollsBackOnTheTarget(TikConnectionType agentTransport, string address)
         {
             RequireTargetHost();
-            // Open defect, not a router limit: closing a WinBox native relay leaves its session on the target, so the
-            // hold outlives the connection (and would break every later Safe Mode test). How WinBox itself ends a link
-            // is not measured yet — Docs/findings-romon.md §5, "Closing". The CLI closes with /quit and is unaffected.
-            if (agentTransport == TikConnectionType.WinboxNative || agentTransport == TikConnectionType.WinboxNativeMac)
-                Assert.Inconclusive("A WinBox native relay does not end its session on the target when it closes yet "
-                    + "(Docs/findings-romon.md §5, Closing), so nothing rolls Safe Mode back.");
             string comment = "tik4net-romon-" + Guid.NewGuid().ToString("N").Substring(0, 8);
 
             using (var direct = OpenTargetDirect())
@@ -1048,7 +1043,13 @@ namespace tik4net.integrationtests
                         Assert.AreEqual(1, OurRows(direct, comment).Length, "the change must be on the target before the close");
                     }
 
-                    Assert.AreEqual(0, RowsAfterRollback(direct, comment), "closing the relay with Safe Mode held did not roll back the change on the target");
+                    // WinBox native has no terminal to /quit, and the agent ends a WinBox link's session on the target
+                    // only when it reaps dead links — measured 2 to 3 minutes after the close (WinBox's own: ~30 s).
+                    // The rollback comes then (Docs/findings-romon.md §5, "Closing").
+                    bool reapedLater = agentTransport == TikConnectionType.WinboxNative
+                                       || agentTransport == TikConnectionType.WinboxNativeMac;
+                    Assert.AreEqual(0, RowsAfterRollback(direct, comment, reapedLater ? 300 : 30),
+                        "closing the relay with Safe Mode held did not roll back the change on the target");
                 }
                 finally
                 {

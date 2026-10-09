@@ -180,9 +180,12 @@ namespace tik4net.integrationtests
         {
             if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
                 Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
-            var relayTarget = new tik4net.Cli.RomonRelayTarget(LabConfig.Get("romonTargetId"),
+            // TIK4NET_ROMON_CLOSE_TARGET_ID / _HOST point it at another target than App.config's (never stored here).
+            string closeId = Environment.GetEnvironmentVariable("TIK4NET_ROMON_CLOSE_TARGET_ID") ?? LabConfig.Get("romonTargetId");
+            string closeHost = Environment.GetEnvironmentVariable("TIK4NET_ROMON_CLOSE_TARGET_HOST") ?? LabConfig.Get("romonTargetHost");
+            var relayTarget = new tik4net.Cli.RomonRelayTarget(closeId,
                 LabConfig.Get("romonTargetUser"), LabConfig.Get("romonTargetPass") ?? "");
-            using (var target = new TikConnectionSetup(LabConfig.Get("romonTargetHost"), LabConfig.Get("romonTargetUser"),
+            using (var target = new TikConnectionSetup(closeHost, LabConfig.Get("romonTargetUser"),
                        LabConfig.Get("romonTargetPass") ?? "").Create(TikConnectionType.Api))
             {
                 int Relayed() => target.CreateCommand("/user/active/print").ExecuteList()
@@ -199,6 +202,7 @@ namespace tik4net.integrationtests
                 var variants = new (string, Action<WinboxM2Session, WinboxRomonChannel>)[]
                 {
                     ("nothing", (a, ch) => { }),
+                    ("request with a reply, closed before it arrives", (a, ch) => { }),
                     ("logout [2,link] reply expected", (a, ch) => a.Send(Logout(new[] { 2, ch.Link }, true, a))),
                     ("logout [0xFF0003,link]", (a, ch) => a.Send(Logout(new[] { 0xFF0003, ch.Link }, true, a))),
                     ("logout [2] reply expected", (a, ch) => a.Send(Logout(new[] { 2 }, true, a))),
@@ -211,6 +215,15 @@ namespace tik4net.integrationtests
                     var ch = new WinboxRomonChannel(agent, relayTarget);
                     ch.Open(LabConfig.Get("host"), 8291, LabConfig.Get("user"), LabConfig.Get("pass") ?? "", 5000, 5000);
                     int open = Relayed();
+                    if (label.StartsWith("request with a reply"))
+                    {
+                        agent.Send(M2.BuildM2(M2.SysToArr(2, ch.Link, 13, 4), M2.SysFrom(), M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true),
+                            agent.NextReqIdField(), M2.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton)));
+                        ch.Dispose();
+                        System.Threading.Thread.Sleep(5000);
+                        Log($"{label}: relayed sessions before {before}, open {open}, 5 s after close {Relayed()}");
+                        continue;
+                    }
                     try { send(agent, ch); } catch (Exception ex) { Log($"{label}: send threw {ex.GetType().Name}: {ex.Message}"); }
                     System.Threading.Thread.Sleep(1000);
                     string pushed = "";
@@ -296,6 +309,34 @@ namespace tik4net.integrationtests
                         M2.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton)), 5000)));
                 }
                 catch (Exception ex) { Log("identity through the link: " + ex.GetType().Name + ": " + ex.Message); }
+            }
+        }
+
+        /// <summary>
+        /// Watches a target's relayed WinBox sessions (/user/active by-romon) once a second for 5 minutes and logs every
+        /// change with its time — when a session closed through the agent actually ends. Target from
+        /// TIK4NET_ROMON_CLOSE_TARGET_HOST (else App.config romonTargetHost). Read-only.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_WatchTargetSessions()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            string host = Environment.GetEnvironmentVariable("TIK4NET_ROMON_CLOSE_TARGET_HOST") ?? LabConfig.Get("romonTargetHost");
+            using (var target = new TikConnectionSetup(host, LabConfig.Get("romonTargetUser"), LabConfig.Get("romonTargetPass") ?? "")
+                       .Create(TikConnectionType.Api))
+            {
+                string last = null;
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < 300000)
+                {
+                    string now = string.Join(" ", target.CreateCommand("/user/active/print").ExecuteList()
+                        .Where(r => r.GetResponseFieldOrDefault("via", "") == "winbox")
+                        .Select(r => r.GetId() + "@" + r.GetResponseFieldOrDefault("when", "")));
+                    if (now != last) Log($"{DateTime.Now:HH:mm:ss} winbox sessions: [{now}]");
+                    last = now;
+                    System.Threading.Thread.Sleep(1000);
+                }
             }
         }
 

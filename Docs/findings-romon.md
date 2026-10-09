@@ -237,14 +237,18 @@ and `[2, <their link>]` with `0xFF000B` — to every session of the user. Only a
 **Idle.** A link with no traffic stays up: 150 s idle, then an ordinary read through it
 (`Probe_Romon_WinboxRelay_IdleFrames`). It needs no keepalive.
 
-**Closing.** Closing the session to the agent does **not** end the agent's session on the target: the target keeps a
-`via=winbox by-romon=<agent id>` row for every link ever opened, for minutes at least (40 such rows were still there
-16 minutes after a test run), and anything that session held — Safe Mode included — stays held. Neither a logout routed
-through the link (`SYS_TO=[2,<link>]`, `[2,<link>,13,4]`, with or without a reply expected — no answer), nor one to
-`[0xFF0003,<link>]` or to the msg-proxy, nor any msg-proxy command 2000–2010 with the link id (all `0xFE0009`) ends it
-(`Probe_Romon_WinboxRelay_CloseVariants`, `Probe_Romon_WinboxRelay_ProxyCommandScan`). The agent reaps such sessions
-at some later point; switching RoMON off and on on the target ends them all at once. How WinBox itself closes a link is
-not measured yet. The WinBox CLI is not affected: it ends the target's terminal with `/quit`, which ends the session.
+**Closing.** Closing the session to the agent does not end the agent's session on the target. WinBox does nothing
+more: at a disconnect it unsubscribes its open windows through the link and closes the TCP connection (captured
+through `RomonWinboxProxyProbe`). The agent ends a dead link's session on the target later, when it reaps dead links
+— WinBox's after ~30 s, ours after 2 to 3 minutes, several at once (`Probe_Romon_WatchTargetSessions`) — and the
+target then rolls back what the session held, Safe Mode included (`RomonRelayTest`, WinBox native rows: 133 s and
+179 s). Nothing the client sends ends it sooner: not a logout routed through the link (`SYS_TO=[2,<link>]`,
+`[2,<link>,13,4]`, with or without a reply expected — no answer), nor one to `[0xFF0003,<link>]` or to the
+msg-proxy, nor any msg-proxy command 2000–2010 with the link id (all `0xFE0009`), nor a request still in flight at
+the close, nor WinBox's `user+r` login (`Probe_Romon_WinboxRelay_CloseVariants`,
+`Probe_Romon_WinboxRelay_ProxyCommandScan`). A `+r` session is restricted on the agent: `[127,2]` get-singleton
+answers `0xFE0009`, and WinBox checks RoMON with `[127,2]` command 9 instead. The WinBox CLI is not affected: it
+ends the target's terminal with `/quit`, which ends the session at once.
 
 **tik4net's implementation.** `WinboxRomonChannel` wraps the carrier session to the agent (TCP or MAC layer):
 it logs in, reads the agent's settings, sends the connect, and then rewrites `SYS_TO`/`SYS_FROM` on every
