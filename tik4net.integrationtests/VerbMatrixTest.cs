@@ -329,18 +329,18 @@ namespace tik4net.integrationtests
             string first = AddRule("192.0.2.82", _stamp + "-move-1");
             string second = AddRule("192.0.2.83", _stamp + "-move-2");
 
-            Assert.IsTrue(IndexOf(first) < IndexOf(second), "precondition: the rules are in creation order");
+            Assert.IsTrue(IsBefore(first, second), "precondition: the rules are in creation order");
 
             var cmd = Connection.CreateCommand(Path + "/move", TikCommandParameterFormat.NameValue);
             cmd.AddParameter(TikSpecialProperties.Id, second, TikCommandParameterFormat.NameValue);
             cmd.AddParameter("destination", first);
             cmd.ExecuteNonQuery();
 
-            if (IndexOf(second) > IndexOf(first))
+            if (!IsBefore(second, first))
             {
-                // Seen once (telnet, 2026-10-02) with the move answered cleanly: tell "wrong" from "late".
+                // Tell "wrong" from "late".
                 System.Threading.Thread.Sleep(1000);
-                bool movedLate = IndexOf(second) < IndexOf(first);
+                bool movedLate = IsBefore(second, first);
                 Assert.Fail("move reported success but the rule order on the router is unchanged"
                     + (movedLate ? " — and changed a second later (the router applied it late)" : " — still a second later"));
             }
@@ -537,12 +537,17 @@ namespace tik4net.integrationtests
             return row.GetResponseFieldOrDefault(fieldName, string.Empty);
         }
 
-        private int IndexOf(string id)
+        // Both positions from ONE read: the other legs add and remove rules of their own meanwhile, so indexes taken from
+        // two reads can shift between them (a removal ahead of ours made a correct order read as "unchanged") — the
+        // relative order of two rows cannot.
+        private bool IsBefore(string id, string otherId)
         {
             var rows = Connection.CreateCommand(Path + "/print").ExecuteList().ToList();
             int idx = rows.FindIndex(r => r.GetId() == id);
+            int otherIdx = rows.FindIndex(r => r.GetId() == otherId);
             Assert.IsTrue(idx >= 0, "the rule " + id + " is no longer on the router");
-            return idx;
+            Assert.IsTrue(otherIdx >= 0, "the rule " + otherId + " is no longer on the router");
+            return idx < otherIdx;
         }
 
         private void SimpleVerb(string verb, string id)
