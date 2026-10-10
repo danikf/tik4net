@@ -187,6 +187,11 @@ comment, a prose example in `Docs/`, or test data where the value is arbitrary. 
 contain: a real address in a comment is no less published than one in code, and it teaches the next reader
 that pasting captures is fine.
 
+**The lab subnet and login are not secrets.** `192.168.4.x` — the lab routers' own addresses included — and
+`admin` with an empty password are the published lab setup. They may appear anywhere: test data, comments,
+`Docs/`, the examples' `App.config`. Do not flag them and do not replace them; the rule above is about real
+MACs, real credentials and machine-local paths.
+
 ### Documentation is present-tense
 
 Reference documentation describes **how things work now**. It does not narrate how they used to be
