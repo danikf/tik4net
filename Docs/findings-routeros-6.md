@@ -430,10 +430,11 @@ Each is a statement of what is measured and what is not, to be settled one at a 
     - **What the library does.** A terminal close in Safe Mode sends `/quit` and `y`, then waits for RouterOS to end
       the session before closing its own end — Telnet until the router closes the connection
       (`TelnetClient.Close`), WinBox CLI until its terminal has been quiet for 500 ms (`WinboxCliClient.TryCloseSession`),
-      both at most 3 s. Through the library, a take-read-close loop wedged 6.49.13 within 4 rounds over Telnet and 21
-      over WinBox CLI without the wait, and ran 230 and 131 rounds clean with it (5 min each). SSH (75 rounds) and
-      WinBox CLI over MAC (73) did not wedge without it; MAC-Telnet was not measured past 16 rounds, its sessions
-      failing on their own (the MAC backlog of problem 7). Four connections side by side — rejected logins, `/quit` as
+      MAC-Telnet until the router sends its own `PKT_END` (`MacTelnetUdpClient.TryCloseSession`, which types the answer
+      while the receive pump still acknowledges and retransmits), all at most 3 s. Through the library, a
+      take-read-close loop wedged 6.49.13 within 4 rounds over Telnet, 21 over WinBox CLI and 34 over MAC-Telnet without
+      the wait, and ran 230, 131 and 956 rounds clean with it (5, 5 and 10 min). SSH (75 rounds) and WinBox CLI over MAC
+      (73) did not wedge without it. Four connections side by side — rejected logins, `/quit` as
       a user name, safe-mode take and close, a cold Tab-completion describe, an idle session — wedged it within
       seconds without the wait and ran 1125 steps clean for 8 min with it.
     - **A second session's `Ctrl+X` while another holds Safe Mode** is asked
@@ -443,4 +444,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
       as holding it for a while, so the next session's take can be asked the same question (41 of 60 takes right
       after a drop). `CliConnectionBase.SafeModeTake` recognises both wordings (`CliSafeModeParser.IsTakeConflict`)
       and answers Enter before reporting the refusal: a session left in the question takes its next command as the
-      answer.
+      answer. The `Ctrl+X` read ends at the question (`CliOutputHelper.EndsWithKeyQuestion`): it is not followed by a
+      prompt, and a read waiting for one ran to the 30 s receive deadline first — long enough for RouterOS to log an
+      idle MAC-Telnet console out, so the Enter never arrived (10 takes in 34). The refusal takes 0.3–0.45 s on all five
+      CLI transports, on 6.49.13 and 7.24.4, and the session stays usable.

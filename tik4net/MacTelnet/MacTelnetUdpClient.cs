@@ -57,6 +57,8 @@ namespace tik4net.MacTelnet
         private Thread?           _pump;
         private volatile bool     _pumpStop;
         private volatile Exception? _pumpFault;
+        // The router sent PKT_END: it has ended the session (see TryCloseSession).
+        private volatile bool     _routerEnded;
 
         // The target's RoMON id once EnterRomonAsync has relayed this terminal; null for a direct session.
         private string? _romonTarget;
@@ -281,11 +283,39 @@ namespace tik4net.MacTelnet
         /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
         /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
         /// reboot.</param>
+        /// <remarks>The <c>y</c> must be read by the console before the session ends. With <c>PKT_END</c> sent in
+        /// the same instant, RouterOS 6.49.13 sometimes ended the session inside the question, and its console then
+        /// stopped serving new Telnet, SSH and API logins until a reboot (once in 34 closes). The answer is therefore
+        /// typed while the receive pump still acknowledges and retransmits, and the close waits for the router's own
+        /// <c>PKT_END</c> — at most <see cref="SafeModeQuitWaitMs"/> — before ending the session itself.</remarks>
         internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
-            StopPump();
-            try { Send(PKT_DATA, _encoding.GetBytes(answerSafeModeQuestion ? "/quit\ry" : "/quit\r")); } catch { /* ignore */ }
+            if (answerSafeModeQuestion && _pump != null)
+            {
+                try { SendTerminalBytes(_encoding.GetBytes("/quit\ry")); } catch { /* ignore */ }
+                WaitForRouterToEndSession(SafeModeQuitWaitMs);
+                StopPump();
+            }
+            else
+            {
+                StopPump();
+                try { Send(PKT_DATA, _encoding.GetBytes(answerSafeModeQuestion ? "/quit\ry" : "/quit\r")); } catch { /* ignore */ }
+            }
             try { Send(PKT_END, null); } catch { /* ignore */ }
+        }
+
+        /// <summary>The longest a close in Safe Mode waits for the router to end the session (ms).</summary>
+        internal const int SafeModeQuitWaitMs = 3000;
+
+        private void WaitForRouterToEndSession(int maxMs)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (!_routerEnded && _pumpFault == null && sw.ElapsedMilliseconds < maxMs)
+            {
+                _rxSignal.Reset();
+                if (_routerEnded) break;
+                _rxSignal.WaitAsync(ReadWaitMs).GetAwaiter().GetResult();
+            }
         }
 
         /// <inheritdoc/>
@@ -342,6 +372,7 @@ namespace tik4net.MacTelnet
 
                         if (type == PKT_ACK)  { NoteAck(counter);  continue; }
                         if (type == PKT_PING) { SendPong(counter); continue; }
+                        if (type == PKT_END)  { _routerEnded = true; _rxSignal.Set(); continue; }
                         if (type != PKT_DATA) continue;
 
                         if (!AckData(counter, payload.Length)) continue;   // duplicate or out-of-order

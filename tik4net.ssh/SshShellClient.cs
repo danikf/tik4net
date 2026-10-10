@@ -413,7 +413,7 @@ namespace tik4net.Ssh
                 if (!echoSeen)
                     echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
 
-                if (echoSeen && RouterOsCliLogin.IsShellPrompt(stripped))
+                if (echoSeen && (RouterOsCliLogin.IsShellPrompt(stripped) || CliOutputHelper.EndsWithKeyQuestion(stripped, sentCommand)))
                 {
                     var verdict = CliOutputHelper.JudgePrompt(stripped, sentCommand);
                     if (verdict == CliOutputHelper.PromptVerdict.Complete)

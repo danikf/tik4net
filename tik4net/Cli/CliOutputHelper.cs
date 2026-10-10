@@ -302,9 +302,12 @@ namespace tik4net.Cli
         /// over the WinBox terminal, where the read then stopped pulling and returned nothing. The prompt that
         /// ends the response follows the output's line break (only carriage returns between). A control key
         /// (<paramref name="sentCommand"/> null) is not ended by a line break, so it keeps the plain prompt test.
+        /// <para>A control key is ended by a question as well (<see cref="EndsWithKeyQuestion"/>).</para>
         /// </remarks>
         internal static bool EndsWithCompletionPrompt(string strippedSoFar, string? sentCommand)
         {
+            if (EndsWithKeyQuestion(strippedSoFar, sentCommand))
+                return true;
             if (!RouterOsCliLogin.IsShellPrompt(strippedSoFar))
                 return false;
             if (sentCommand == null)
@@ -312,6 +315,38 @@ namespace tik4net.Cli
             string t = strippedSoFar.TrimEnd('\r', '\n', ' ');
             string lastLine = t.Substring(t.LastIndexOf('\n') + 1).TrimStart('\r');
             return lastLine.IndexOf('\r') < 0;
+        }
+
+        /// <summary>
+        /// True when a control key (<paramref name="sentCommand"/> null) was answered with a question that waits for
+        /// its answer — the text ends in a choice list such as <c>[u/r/d]:</c>, <c>[u/r]?</c> or <c>[y/N]</c>. No
+        /// prompt follows until it is answered, so the read ends there rather than at the receive deadline.
+        /// </summary>
+        /// <remarks>
+        /// The Safe Mode key meets one when another session holds Safe Mode (6.49.13 <c>Hijacking Safe Mode from
+        /// someone - unroll/release/don't take it [u/r/d]:</c>, 7.24.4 <c>Unroll, release or abort [u/r]?</c>).
+        /// Waiting out the deadline there is not only slow: RouterOS logs an idle MAC-Telnet console out after about
+        /// 30 s, so the answer sent after it never arrived (6.49.13, 10 takes in 34).
+        /// </remarks>
+        internal static bool EndsWithKeyQuestion(string strippedSoFar, string? sentCommand)
+        {
+            if (sentCommand != null)
+                return false;
+            string t = strippedSoFar.TrimEnd(' ', '\r', '\n');
+            if (t.EndsWith(":", StringComparison.Ordinal) || t.EndsWith("?", StringComparison.Ordinal))
+                t = t.Substring(0, t.Length - 1);
+            if (!t.EndsWith("]", StringComparison.Ordinal))
+                return false;
+            int open = t.LastIndexOf('[');
+            if (open < 0)
+                return false;
+            string[] choices = t.Substring(open + 1, t.Length - open - 2).Split('/');
+            if (choices.Length < 2)
+                return false;
+            foreach (string c in choices)
+                if (c.Length != 1 || !char.IsLetter(c[0]))
+                    return false;
+            return true;
         }
 
         /// <summary>
