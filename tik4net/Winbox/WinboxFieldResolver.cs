@@ -661,7 +661,7 @@ namespace tik4net.Winbox
                 // The pairings added below it, and everything down to /ip/route, were each established by
                 // MOVING the value: the audit reads every path
                 // over both transports and, for a name only the API reports, names the field only native
-                // reports that carries the SAME value on every row (WinboxNativePathMapAuditTest's
+                // reports that carries the SAME value on every row (TransportPathMapAuditTest's
                 // "value matches"). A proposal it makes on a bool or a zero is a coincidence and is not
                 // taken; the ones here either move a distinctive value or were confirmed by writing one.
 
