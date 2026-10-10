@@ -7,3 +7,4 @@ Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 TIK001 | Usage | Warning | TikFieldObjectEqualityAnalyzer
 TIK002 | Usage | Warning | TikFieldNullCheckAnalyzer
+TIK003 | Usage | Warning | TikValueListCommaItemAnalyzer

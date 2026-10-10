@@ -123,7 +123,7 @@ jobs:
             - **`DescribeMenu`** — ask the router what a menu takes: sub-menus, commands, arguments, readable and clearable fields, accepted words, from the router's own grammar
             - **Connection string** — `TikConnectionSetup.FromConnectionString`: router, credentials and transport come from config
             - **Negated matchers and value lists** — `src-address=!10.0.0.0/8` is a negated address; `dst-port=22,8291`, `tcp-flags=syn,!ack` are typed, immutable `TikValueList<T>`
-            - **Analyzers TIK001 / TIK002** — compile-time warnings for `TikField` comparisons that can never be true, with a code fix
+            - **Analyzers TIK001 / TIK002 / TIK003** — compile-time warnings for `TikField` comparisons that can never be true and for a list item containing `,`, each with a code fix
             - **SSH private-key login**, **list sync with the fewest moves**, and **filtered CLI reads that run on the router**
 
             ### Breaking changes (from 4.x)
