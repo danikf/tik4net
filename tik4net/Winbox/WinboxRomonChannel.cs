@@ -77,7 +77,7 @@ namespace tik4net.Winbox
 
         private string ReadAgentRomonId(string host, int timeoutMs)
         {
-            byte[] reply = _agent.SendReceive(M2Message.BuildM2(
+            byte[] reply = AgentRequest(M2Message.BuildM2(
                 M2Message.SysToArr(RomonSettingsHandler), M2Message.SysFrom(),
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _agent.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton),
@@ -94,7 +94,7 @@ namespace tik4net.Winbox
 
         private int Connect(string host, int timeoutMs)
         {
-            byte[] reply = _agent.SendReceive(M2Message.BuildM2(
+            byte[] reply = AgentRequest(M2Message.BuildM2(
                 M2Message.SysToArr(ProxyHandler), M2Message.SysFrom(),
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _agent.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, ConnectCommand),
@@ -117,6 +117,21 @@ namespace tik4net.Winbox
                     "The RoMON agent " + host + " did not open a link to " + _target.RomonId + ": "
                     + M2Message.DescribeSysError(reply));
             return link;
+        }
+
+        // While the link opens, the agent may push frames of its own between a request and its answer: when it reaps
+        // links that other sessions left behind it pushes their logouts (SYS_CMD 0xFE0014, SYS_FROM [0xFF0003, <their
+        // link>], no request id) to every WinBox session of the user. The answer is the frame carrying the request's
+        // own id; anything else is read past.
+        private byte[] AgentRequest(byte[] m2, int timeoutMs)
+        {
+            int? sent = M2Message.ParseSysReqId(m2);
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            byte[] reply = _agent.SendReceive(m2, timeoutMs);
+            while (sent != null && reply != null && M2Message.ParseSysReqId(reply) != sent
+                   && watch.ElapsedMilliseconds < timeoutMs)
+                reply = _agent.Receive(Math.Max(1, timeoutMs - (int)watch.ElapsedMilliseconds));
+            return reply!;
         }
 
         private static byte[] ParseRomonId(string id)

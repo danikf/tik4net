@@ -233,6 +233,10 @@ session of that user ends on it — a Telnet login closing is enough: `SYS_FROM=
 `0xFF000B = 0xFFFFFFFF`. The link answers normally afterwards (`Probe_Romon_WinboxRelay_FramesOnAnotherLogout`).
 When the agent reaps links that other sessions left behind, it pushes their pairs too — `[0xFF0003, <their link>]`
 and `[2, <their link>]` with `0xFF000B` — to every session of the user. Only a link id match says "this link ended".
+Those pushes arrive at any time, including between the two requests that open a link and their answers — the
+`[127,2]` settings read and the connect — so each answer is the frame carrying its request's id, and a push in front
+of it is read past (`WinboxRomonChannel.AgentRequest`, `WinboxRomonChannelPushTests`). Taken as the answer, the
+reaped link's logout reads as a connect refused with no error field.
 
 **Idle.** A link with no traffic stays up: 150 s idle, then an ordinary read through it
 (`Probe_Romon_WinboxRelay_IdleFrames`). It needs no keepalive.
