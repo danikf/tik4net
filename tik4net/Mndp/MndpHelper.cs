@@ -84,60 +84,67 @@ namespace tik4net.Mndp
         /// <summary>
         /// Discover with specified timeout and encoding.
         /// </summary>
+        /// <remarks>
+        /// <para>Solicits once a second for <paramref name="timeout"/> and collects every router that answers; with
+        /// <paramref name="stopWhenFirstFound"/>, returns at the first one.</para>
+        /// <para>Answers are received on the calling thread, between solicitations, so a discovery does not depend on
+        /// the thread pool — a receiver queued to a busy pool would not start before the window is over. The MNDP port is bound shared, so two discoveries can run at once (in this process or
+        /// another): RouterOS broadcasts its answers, and every socket bound to the port receives them. A packet that
+        /// is not a whole announcement — no MAC, a field cut short — is skipped rather than failing the discovery.</para>
+        /// </remarks>
         public static IEnumerable<TikInstanceDescriptor> Discover(TimeSpan timeout, Encoding encoding, bool stopWhenFirstFound = false)
         {
             var result = new List<TikInstanceDescriptor>();
-            var receiveEndpoint = new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT);
 
-            using (var udpClient = new UdpClient() { EnableBroadcast = true, ExclusiveAddressUse = false, MulticastLoopback = true })            
+            using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true })
             {
-                udpClient.Client.Bind(receiveEndpoint);
-                using (var cancelSource = new CancellationTokenSource())
-                {
-                    //start async receive
-                    var receiveCancellToken = cancelSource.Token;
-                    var receivingTask = Task.Run(() =>
-                    {
-                        try
-                        {
-                            while (!receiveCancellToken.IsCancellationRequested)
-                            {
-                                var receiveBufferTask = udpClient.ReceiveAsync();
-                                receiveBufferTask.ConfigureAwait(false);
-                                receiveBufferTask.Wait(receiveCancellToken);
-                                if (!receiveBufferTask.IsCanceled)
-                                {
-                                    var data = receiveBufferTask.Result.Buffer;
-                                    if (TryParseResponsePacket(data, encoding, out var routerDescriptor))
-                                    {
-                                        if (!result.Any(r => r.IpDescription == routerDescriptor.IpDescription))
-                                            result.Add(routerDescriptor);
-                                    }
-                                }
-                            }
-                        }
-                        catch (OperationCanceledException)
-                        {
-                        }
-                    }, receiveCancellToken);
+                SharePort(socket);
+                socket.Bind(new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT));
 
-                    //send broadcast
-                    const int BROADCAST_DELAY = 1000;
-                    for (int i = 0; i < timeout.TotalMilliseconds / BROADCAST_DELAY; i++)
+                var buffer = new byte[ushort.MaxValue];
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                long window = (long)timeout.TotalMilliseconds;
+                long nextSolicitation = 0;
+                while (clock.ElapsedMilliseconds < window)
+                {
+                    if (clock.ElapsedMilliseconds >= nextSolicitation)
                     {
                         SendMndpBroadcast();
-                        
-                        Thread.Sleep(BROADCAST_DELAY);
-                        if (stopWhenFirstFound && result.Count > 0)
-                            break;
+                        nextSolicitation += SolicitationIntervalMs;
                     }
 
-                    cancelSource.Cancel();
-                    receivingTask.Wait();
+                    long waitMs = Math.Min(nextSolicitation, window) - clock.ElapsedMilliseconds;
+                    if (waitMs <= 0 || !socket.Poll((int)waitMs * 1000, SelectMode.SelectRead))
+                        continue;
+
+                    int length;
+                    EndPoint from = new IPEndPoint(IPAddress.Any, 0);
+                    try { length = socket.ReceiveFrom(buffer, ref from); }
+                    catch (SocketException) { continue; }   // e.g. an ICMP error reported on the socket: not an answer
+
+                    if (!TryParseResponsePacket(buffer, length, encoding, out var routerDescriptor))
+                        continue;
+                    if (!result.Any(r => r.IpDescription == routerDescriptor.IpDescription))
+                        result.Add(routerDescriptor);
+                    if (stopWhenFirstFound)
+                        break;
                 }
-            }            
+            }
 
             return result;
+        }
+
+        private const int SolicitationIntervalMs = 1000;
+
+        // SO_REUSEADDR lets another socket bind the MNDP port beside this one. ExclusiveAddressUse = false only lifts
+        // Windows' exclusive mode; on its own a second bind is refused (AddressAlreadyInUse). A platform that refuses
+        // the option (Android) still gets a discovery, just not a shared one.
+        private static void SharePort(Socket socket)
+        {
+            try { socket.ExclusiveAddressUse = false; }
+            catch (SocketException) { } catch (PlatformNotSupportedException) { }
+            try { socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true); }
+            catch (SocketException) { } catch (PlatformNotSupportedException) { }
         }
 
         /// <summary>
@@ -373,52 +380,49 @@ namespace tik4net.Mndp
         //    }
         //}
 
-        private static bool TryParseResponsePacket(byte[] data, Encoding encoding, out TikInstanceDescriptor routerDescriptor)
+        /// <summary>
+        /// Reads an MNDP announcement: a 4-byte header, then type-length-value items (big-endian type and length).
+        /// </summary>
+        /// <remarks>
+        /// Only the MAC (item 1) makes a packet an announcement; it is what the result is used for. Every other item
+        /// is read when present and is empty otherwise — the solicitation itself (4 zero bytes, received back from the
+        /// broadcast) and a packet whose items stop short are not announcements, and a repeated item keeps its last
+        /// value. Anything else on the MNDP port is not this library's to fail on.
+        /// </remarks>
+        private static bool TryParseResponsePacket(byte[] data, int length, Encoding encoding, out TikInstanceDescriptor routerDescriptor)
         {
-            if (data == null || data.Length < 18)
+            routerDescriptor = default(TikInstanceDescriptor);
+
+            var items = new Dictionary<ushort, byte[]>();
+            int pos = 4;   // type, ttl, sequence
+            while (pos + 4 <= length)
             {
-                routerDescriptor = default(TikInstanceDescriptor);
-                return false; //malformed response (or request message itself)
+                ushort itemType = (ushort)(data[pos] << 8 | data[pos + 1]);
+                int itemSize = data[pos + 2] << 8 | data[pos + 3];
+                pos += 4;
+                if (pos + itemSize > length)
+                    break;   // cut short: keep the items before it
+                var itemData = new byte[itemSize];
+                Array.Copy(data, pos, itemData, 0, itemSize);
+                items[itemType] = itemData;
+                pos += itemSize;
             }
 
-            //parse
-            using (var stream = new MemoryStream(data))
-            {
-                using (var reader = new BinaryReader(stream))
-                {
-                    //Message header
-                    var type = reader.ReadByte();     // 0. byte   = TYPE
-                    var ttl = reader.ReadByte();      // 1. byte   = TTL
-                    var sequence = reader.ReadWord(); // 2-3. byte = SEQUENCE
+            if (!items.TryGetValue(1, out byte[]? macBytes) || macBytes.Length == 0)
+                return false;
 
-                    //Message items 
-                    var messageItems = new Dictionary<UInt16, byte[]>();
-                    while (reader.BaseStream.Position < data.Length)
-                    {
-                        var itemType = reader.ReadWord();          //x+0-1           = ITEM_TYPE
-                        var itemSize = reader.ReadWord();          //x+2-3           = ITEM_SIZE
-                        var itemData = reader.ReadBytes(itemSize); //X+4-x+ITEM_SIZE = ITEM_DATA
+            string Text(ushort type) => items.TryGetValue(type, out byte[]? v) ? encoding.GetString(v) : string.Empty;
 
-                        messageItems.Add(itemType, itemData);
-                    }
+            var mac = string.Join(":", macBytes.Select(b => b.ToString("X2")).ToArray());                                // 1  = MAC
+            var uptime = items.TryGetValue(10, out byte[]? up) && up.Length >= 4
+                ? TimeSpan.FromSeconds(BitConverter.ToUInt32(up, 0)) : TimeSpan.Zero;                                   // 10 = Uptime
+            var ipv6 = items.TryGetValue(15, out byte[]? v6) ? FormatIpAddress(v6) : string.Empty;                      // 15 = IPv6
+            var ipv4 = items.TryGetValue(17, out byte[]? v4) && v4.Length == 4 ? new IPAddress(v4) : IPAddress.Any;     // 17 = IPv4
 
-                    // MessageItems -> Data
-                    var mac = string.Join(":", messageItems[1].Select(b => b.ToString("X2")).ToArray());             // 1  = MAC
-                    var identity = encoding.GetString(messageItems[5]);                                              // 5  = Identity
-                    var version = encoding.GetString(messageItems[7]);                                               // 7  = Version
-                    var platform = encoding.GetString(messageItems[8]);                                              // 8  = Platform
-                    var uptime = TimeSpan.FromSeconds(BitConverter.ToUInt32(messageItems[10], 0));                   // 10 = Uptime
-                    var softwareId = encoding.GetString(messageItems[11]);                                           // 11 = SoftwareId
-                    var boardName = encoding.GetString(messageItems[12]);                                            // 12 = BoardName
-                    var unpack = encoding.GetString(messageItems[14]);                                               // 14 = Unpack ???
-                    var IPV6 = messageItems.ContainsKey(15) ? FormatIpAddress(messageItems[15]) : string.Empty;       // 15 = IPV6 (optional)
-                    var interfaceName = encoding.GetString(messageItems[16]);                                        // 16 = InterfaceName
-                    var IPV4 = messageItems.ContainsKey(17) ? new IPAddress(messageItems[17]) : IPAddress.Any;       // 17 = IPV4 (optional)    
-
-                    routerDescriptor = new TikInstanceDescriptor(identity, version, platform, uptime, softwareId, boardName, unpack, mac, IPV6, interfaceName, IPV4);
-                    return true;
-                }
-            }
+            routerDescriptor = new TikInstanceDescriptor(
+                Text(5), Text(7), Text(8), uptime, Text(11), Text(12), Text(14),                                        // identity, version, platform, -, software id, board, unpack
+                mac, ipv6, Text(16), ipv4);                                                                              // -, -, interface
+            return true;
         }
     }
 
