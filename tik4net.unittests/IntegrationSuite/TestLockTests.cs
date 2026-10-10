@@ -161,6 +161,31 @@ namespace tik4net.unittests.IntegrationSuite
             set.Release();
         }
 
+        /// <summary>
+        /// A test whose <c>[Timeout]</c> ran out while TestInitialize waited for a lock: MSTest abandons the thread,
+        /// which goes on waiting and gets the lock later, with nothing left to release it. In the 2026-10-10
+        /// release-gate run one held a router exclusive for the rest of the process, and every later test waited out
+        /// its 20 minutes for it. Closed, the set gives back whatever it gets.
+        /// </summary>
+        [TestMethod]
+        public void ALockTakenAfterTheSetWasClosedIsGivenBack()
+        {
+            string key = NewKey();
+            var blocker = FileLock.Acquire(Key(true, key), "the test ahead");
+            var abandoned = new TestLockSet("timed-out test");
+            var waiting = Task.Run(() => abandoned.Acquire(new[] { Key(true, key) }));
+            Assert.IsFalse(waiting.Wait(NotYet), "the set got in while the lock was held");
+
+            abandoned.Close();   // its TestCleanup, or the next test's TestInitialize
+            blocker.Dispose();   // ... and then the lock it was waiting for comes free
+
+            try { waiting.Wait(Soon); } catch (AggregateException) { }
+            Assert.IsTrue(waiting.IsCompleted, "the closed set is still waiting");
+            var next = AcquireAsync(Key(true, key));
+            Assert.IsTrue(next.Wait(Soon), "a closed set kept the lock it got after the close");
+            next.Result.Dispose();
+        }
+
         [TestMethod]
         public void ALeaseIsAliveExactlyWhileItsFileIsHeld()
         {

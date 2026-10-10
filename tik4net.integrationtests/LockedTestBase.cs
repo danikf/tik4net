@@ -63,7 +63,7 @@ namespace tik4net.integrationtests
             {
                 if (_heldInThisProcess != null)
                 {
-                    _heldInThisProcess.Release();
+                    _heldInThisProcess.Close();
                     Console.WriteLine("[lock] released the locks of the previous test: its TestCleanup failed before ours ran");
                 }
                 _locks = new TestLockSet(TestId);
@@ -87,7 +87,7 @@ namespace tik4net.integrationtests
         {
             lock (HeldSync)
             {
-                _locks?.Release();
+                _locks?.Close();
                 if (ReferenceEquals(_heldInThisProcess, _locks))
                     _heldInThisProcess = null;
                 _locks = null;

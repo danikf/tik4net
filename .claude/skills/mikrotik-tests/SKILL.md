@@ -197,6 +197,13 @@ The legs run against one router at the same time. What keeps them apart is in th
 `-LockAll` (every test takes the global lock exclusive — the processes stay parallel, the tests do not). Green
 there means two tests share something neither of them locks: lock it, or make the name unique.
 
+**A `[Timeout]` includes the lock wait.** MSTest times TestInitialize with the test, so a test with a short
+`[Timeout]` can run out while it still waits for its locks, and under parallel legs that is the common case. MSTest
+then abandons the thread, which goes on waiting; the set is closed by then (`TestLockSet.Close`, from the cleanup or
+the next test's TestInitialize), so the lock it gets later is given back at once instead of being held for the rest of
+the process. Such a failure reads "exceeded execution timeout period" with a `[lock] waited …` line in its output —
+a collision, not a slow router; give the test a timeout that covers the wait, or none.
+
 **Timing assertions stretch under load.** The router's throughput is shared by every connection
 (`Docs/findings-router-throughput-ceiling.md`), so a test that asserts how long something takes belongs under
 `TestLockScope.Router`, or waits with `WaitUntil` and a budget rather than a fixed sleep.

@@ -166,10 +166,26 @@ namespace tik4net.integrationtests
 
         public void Release()
         {
-            for (int i = _held.Count - 1; i >= 0; i--)
-                _held[i].Dispose();
-            _held.Clear();
+            lock (_held)
+            {
+                for (int i = _held.Count - 1; i >= 0; i--)
+                    _held[i].Dispose();
+                _held.Clear();
+            }
         }
+
+        /// <summary>
+        /// Releases the set for good: a lock its owner's thread gets after this is given back at once. A test whose
+        /// <c>[Timeout]</c> runs out while TestInitialize waits for a lock is abandoned by MSTest, and the thread goes
+        /// on waiting — without this, the lock it gets later is held for the rest of the process.
+        /// </summary>
+        public void Close()
+        {
+            _closed = true;
+            Release();
+        }
+
+        private volatile bool _closed;
 
         /// <summary>
         /// Adds <paramref name="extra"/> for the lifetime of the returned handle. Everything is released and taken
@@ -198,9 +214,11 @@ namespace tik4net.integrationtests
             {
                 foreach (var spec in _specs)
                 {
+                    if (_closed) throw Closed();
                     var held = FileLock.Acquire(spec, _holder);
                     Waited += held.Waited;
-                    _held.Add(held);
+                    lock (_held) _held.Add(held);
+                    if (_closed) throw Closed();
                 }
             }
             catch
@@ -209,6 +227,10 @@ namespace tik4net.integrationtests
                 throw;
             }
         }
+
+        private OperationCanceledException Closed()
+            => new OperationCanceledException("The test locks of " + _holder + " were closed while it waited for them: "
+                                              + "the test was abandoned (its [Timeout] ran out) or cleaned up.");
 
         private sealed class Restore : IDisposable
         {
