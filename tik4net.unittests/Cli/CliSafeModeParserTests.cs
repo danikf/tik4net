@@ -31,6 +31,23 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void TheRouterOs6HijackQuestion_IsARefusal()
+        {
+            // 6.49.13, measured with a second session holding Safe Mode. Read as granted, the next command was typed
+            // into the question and the session later ended inside it, which wedged the router's console.
+            const string asked = "\r\nHijacking Safe Mode from someone - unroll/release/don't take it [u/r/d]: ";
+            Assert.IsTrue(CliSafeModeParser.IsTakeConflict(asked));
+            Assert.ThrowsException<TikCommandTrapException>(() => Take(asked));
+        }
+
+        [TestMethod]
+        public void TheSuccessMessage_IsNoConflict()
+        {
+            Assert.IsFalse(CliSafeModeParser.IsTakeConflict("\r\n[Safe Mode taken]\r\n[admin@CHR2] <SAFE> "));
+            Assert.IsFalse(CliSafeModeParser.IsTakeConflict("Taking Safe Mode session... Success!\r\n[admin@CHR] <SAFE> "));
+        }
+
+        [TestMethod]
         public void TheOlderConflictWording_IsStillARefusal()
         {
             Assert.ThrowsException<TikCommandTrapException>(() => Take(

@@ -872,6 +872,9 @@ namespace tik4net.Cli
         /// <summary>Ctrl+X — toggles Safe Mode in the RouterOS terminal (take, then commit). Byte 0x18.</summary>
         private const byte CtrlX = 0x18;
 
+        /// <summary>Enter — declines RouterOS's question about another session's Safe Mode. Byte 0x0D.</summary>
+        private const byte Enter = 0x0D;
+
         /// <summary>
         /// Sends raw bytes (a control key such as Ctrl+X, with no line terminator) to the terminal and returns
         /// the ANSI-stripped response read up to the next stable shell prompt. The bytes are sent verbatim and
@@ -901,11 +904,20 @@ namespace tik4net.Cli
         /// dropping the connection without a <see cref="SafeModeRelease"/> reverts every change made since. Works
         /// on any RouterOS version (no scriptable <c>/safe-mode</c> needed). No-op when already held.
         /// </summary>
+        /// <remarks>
+        /// When another session holds Safe Mode, RouterOS asks what to do with it and waits. The question is answered
+        /// with Enter, which changes nothing on either version measured (6.49.13 "Safe mode not taken", 7.24.4
+        /// "Action aborted."), before the refusal is thrown: a session left inside the question takes the next command
+        /// as its answer, and one that ends there wedges RouterOS 6.49.13's console until a reboot — every later
+        /// Telnet, SSH and API login is accepted and never served.
+        /// </remarks>
         public virtual void SafeModeTake()
         {
             EnsureOpened();
             if (SafeModeHeld) return;
             string output = SendControlKey(CtrlX);
+            if (CliSafeModeParser.IsTakeConflict(output))
+                SendControlKey(Enter);
             CliSafeModeParser.ThrowIfTakeFailed(output, new TikGenericCommand(this, "/safe-mode/take"));
             SafeModeHeld = true;
         }
