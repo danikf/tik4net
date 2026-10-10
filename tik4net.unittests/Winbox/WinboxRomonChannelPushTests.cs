@@ -38,6 +38,35 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(0, agent.Pending, "every frame the agent sent was read");
         }
 
+        // Over the MAC layer the agent session's Receive answers null for a frame that carries no M2 data, and for a
+        // receive that timed out. A null in the middle of the open is neither the answer nor the end of the wait.
+        [TestMethod]
+        public void ANonDataMacFrame_BeforeTheSettingsAnswer_IsReadPast()
+        {
+            var agent = new MacAgent(answer: true);
+            var channel = new WinboxRomonChannel(agent, new RomonRelayTarget("00:11:22:33:44:55", "admin", ""));
+
+            channel.Open("agent", 20561, "admin", "", 1000, 1000);
+
+            Assert.AreEqual(OurLink, channel.Link);
+            Assert.AreEqual("AA:BB:CC:DD:EE:FF", channel.AgentRomonId);
+        }
+
+        // An agent that never answers timed out; it did not say RoMON is off, which is what reading its silence as a
+        // settings reply with no 'enabled' field reported.
+        [TestMethod]
+        public void AnAgentThatNeverAnswers_IsATimeout_NotRomonSwitchedOff()
+        {
+            var agent = new MacAgent(answer: false);
+            var channel = new WinboxRomonChannel(agent, new RomonRelayTarget("00:11:22:33:44:55", "admin", ""));
+
+            var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                () => channel.Open("agent", 20561, "admin", "", 1000, 200));
+
+            StringAssert.Contains(ex.Message, "RoMON settings");
+            StringAssert.Contains(ex.Message, "agent");
+        }
+
         // The agent's logout of a link somebody else left behind: no request id, and nothing in it is ours.
         private static byte[] ReapedLinkLogout()
             => M2Message.BuildM2(
@@ -86,6 +115,60 @@ namespace tik4net.unittests.Winbox
             {
                 if (_inbound.Count > 0) return _inbound.Dequeue();
                 throw new IOException("receive timed out");
+            }
+
+            public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, ++_reqId);
+
+            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0) { }
+            public bool IsEncrypted => true;
+            public bool DataAvailable => _inbound.Count > 0;
+            public long BytesReceived => 0;
+            public bool SupportsStaleDrain => false;
+            public bool SendAbandoned => false;
+            public bool SendStalled => false;
+            public bool SupportsReaderLoop => false;
+            public byte[] ReceiveNextFrame() => throw new NotSupportedException();
+            public void StartIdleServicing() { }
+            public void Dispose() { }
+        }
+
+        /// <summary>
+        /// An agent session over the MAC layer: a non-data frame and a receive that timed out both come back null. With
+        /// <c>answer</c> it answers the settings read (after one non-data frame) and the connect; without, nothing.
+        /// </summary>
+        private sealed class MacAgent : IWinboxM2Channel
+        {
+            private readonly bool _answer;
+            private readonly Queue<byte[]> _inbound = new Queue<byte[]>();
+            private byte _reqId;
+
+            public MacAgent(bool answer) { _answer = answer; }
+
+            public byte[] SendReceive(byte[] m2, int timeoutMs)
+            {
+                Send(m2);
+                return Receive(timeoutMs);
+            }
+
+            public void Send(byte[] m2)
+            {
+                if (!_answer)
+                    return;
+                var reqId = M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)M2Message.ParseSysReqId(m2)!.Value);
+                if (M2Message.ParseU32ArrayField(m2, WinboxM2Protocol.SysKey.To)![0] == 127)
+                {
+                    _inbound.Enqueue(null);
+                    _inbound.Enqueue(M2Message.BuildM2(reqId, M2Message.BoolSys(0x1, true), M2Message.RawUser(0x65, AgentId)));
+                }
+                else
+                    _inbound.Enqueue(M2Message.BuildM2(reqId, M2Message.U32Sys(0xFE0001, OurLink)));
+            }
+
+            public byte[] Receive(int timeoutMs)
+            {
+                if (_inbound.Count > 0) return _inbound.Dequeue()!;
+                System.Threading.Thread.Sleep(Math.Min(timeoutMs, 50));
+                return null!;
             }
 
             public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, ++_reqId);

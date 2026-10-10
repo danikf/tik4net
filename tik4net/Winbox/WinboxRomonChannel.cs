@@ -81,7 +81,7 @@ namespace tik4net.Winbox
                 M2Message.SysToArr(RomonSettingsHandler), M2Message.SysFrom(),
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _agent.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton),
-                M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, WinboxM2Protocol.GetAllFlags)), timeoutMs);
+                M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, WinboxM2Protocol.GetAllFlags)), timeoutMs, host, "read of its RoMON settings");
             var fields = M2Message.ParseAllFields(reply);
             bool enabled = fields.TryGetValue(KeySettingsEnabled, out var e) && e.Item2 is bool b && b;
             byte[]? id = M2Message.ParseRawUser(reply, KeySettingsCurrentId);
@@ -101,7 +101,7 @@ namespace tik4net.Winbox
                 M2Message.BoolSys(KeyConnectFlag, true),
                 M2Message.StringUser(KeyTargetPassword, _target.Password),
                 M2Message.StringUser(KeyTargetUser, _target.User),
-                M2Message.RawUser(KeyTargetId, ParseRomonId(_target.RomonId))), timeoutMs);
+                M2Message.RawUser(KeyTargetId, ParseRomonId(_target.RomonId))), timeoutMs, host, "request to open a link to " + _target.RomonId);
 
             int status = M2Message.ParseSysStatus(reply);
             if (status == StatusTimeout)
@@ -122,16 +122,27 @@ namespace tik4net.Winbox
         // While the link opens, the agent may push frames of its own between a request and its answer: when it reaps
         // links that other sessions left behind it pushes their logouts (SYS_CMD 0xFE0014, SYS_FROM [0xFF0003, <their
         // link>], no request id) to every WinBox session of the user. The answer is the frame carrying the request's
-        // own id; anything else is read past.
-        private byte[] AgentRequest(byte[] m2, int timeoutMs)
+        // own id; anything else is read past. Over the MAC layer a frame with no M2 data, and a receive that timed out,
+        // come back null: neither is the answer, so the wait goes on to the deadline, and a deadline with no answer is a
+        // timeout — not a reply lacking every field, which would read as "RoMON is not enabled" or "no link".
+        private byte[] AgentRequest(byte[] m2, int timeoutMs, string host, string step)
         {
             int? sent = M2Message.ParseSysReqId(m2);
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            byte[] reply = _agent.SendReceive(m2, timeoutMs);
-            while (sent != null && reply != null && M2Message.ParseSysReqId(reply) != sent
-                   && watch.ElapsedMilliseconds < timeoutMs)
-                reply = _agent.Receive(Math.Max(1, timeoutMs - (int)watch.ElapsedMilliseconds));
-            return reply!;
+            byte[]? reply = _agent.SendReceive(m2, timeoutMs);
+            int readPast = 0;
+            while (reply == null || (sent != null && M2Message.ParseSysReqId(reply) != sent))
+            {
+                if (reply != null)
+                    readPast++;
+                int left = timeoutMs - (int)watch.ElapsedMilliseconds;
+                if (left <= 0)
+                    throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs),
+                        "The RoMON agent " + host + " did not answer the " + step + " within " + timeoutMs + " ms"
+                        + (readPast > 0 ? " (" + readPast + " frame(s) of its own were read past)." : "."));
+                reply = _agent.Receive(left);
+            }
+            return reply;
         }
 
         private static byte[] ParseRomonId(string id)
