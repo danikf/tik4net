@@ -31,6 +31,11 @@ namespace tik4net.Objects
     /// lists in an order of its own (<c>ack,!syn,fin</c> reads back <c>fin,ack,!syn</c>), so an order-sensitive comparison
     /// would see a change on every reload. A save sends the items in the order the list holds them.
     /// </para>
+    /// <para>
+    /// An item never contains a <c>,</c>: the router separates the items with it, so <c>"a,b"</c> as one item would be
+    /// sent as two and never equal the two-item list a load returns — a merge would update the row on every run. Every
+    /// way of building a list refuses such an item; text that holds several values goes through <see cref="Parse"/>.
+    /// </para>
     /// </remarks>
 #if NET8_0_OR_GREATER
     [global::System.Text.Json.Serialization.JsonConverter(typeof(TikValueListJsonConverterFactory))]
@@ -39,8 +44,13 @@ namespace tik4net.Objects
     {
         private readonly TikValue<T>[] _items;
 
-        /// <summary>A list of plain values: <c>new TikValueList&lt;TikPortRange&gt;(22, 8291)</c>.</summary>
+        /// <summary>
+        /// A list of plain values, one argument per item: <c>new TikValueList&lt;TikPortRange&gt;(22, 8291)</c>,
+        /// <c>new TikValueList&lt;string&gt;("1.1.1.1", "8.8.8.8")</c>. For text in the router's spelling
+        /// (<c>"1.1.1.1,8.8.8.8"</c>) use <see cref="Parse"/>.
+        /// </summary>
         /// <exception cref="ArgumentNullException">An item is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">An item contains a <c>,</c> — it is several items; use <see cref="Parse"/>.</exception>
         public TikValueList(params T[] items)
             : this(Checked(items).Select(i => (TikValue<T>)i))
         {
@@ -51,6 +61,7 @@ namespace tik4net.Objects
         /// <c>new TikValueList&lt;HotspotMatch&gt;(TikValue&lt;HotspotMatch&gt;.Not(HotspotMatch.FromClient), HotspotMatch.Http)</c>.
         /// </summary>
         /// <exception cref="ArgumentNullException">An item holds a <c>null</c> value.</exception>
+        /// <exception cref="ArgumentException">An item's value or word contains a <c>,</c>.</exception>
         public TikValueList(params TikValue<T>[] items)
             : this((IEnumerable<TikValue<T>>)(items ?? throw new ArgumentNullException(nameof(items))))
         {
@@ -58,12 +69,20 @@ namespace tik4net.Objects
 
         /// <summary>A list of the given items, in their order.</summary>
         /// <exception cref="ArgumentNullException">An item holds a <c>null</c> value.</exception>
+        /// <exception cref="ArgumentException">An item's value or word contains a <c>,</c>.</exception>
         public TikValueList(IEnumerable<TikValue<T>> items)
         {
             _items = (items ?? throw new ArgumentNullException(nameof(items))).ToArray();
             foreach (var item in _items)
+            {
                 if (!item.IsWord && item.Value == null)
                     throw new ArgumentNullException(nameof(items), "A list item holds a value; null is not one.");
+                string? text = item.IsWord ? item.RawValue : item.Value as string;
+                if (text != null && text.IndexOf(',') >= 0)
+                    throw new ArgumentException("The list item \"" + text + "\" contains ',', which separates the router's "
+                        + "items: pass one argument per item, or TikValueList<" + typeof(T).Name + ">.Parse(\"" + text
+                        + "\") for text in the router's spelling.", nameof(items));
+            }
         }
 
         private static T[] Checked(T[] items)
@@ -143,10 +162,12 @@ namespace tik4net.Objects
         public bool HasNegatedItems => _items.Any(i => i.IsNegated);
 
         /// <summary>This list with <paramref name="items"/> appended.</summary>
+        /// <exception cref="ArgumentException">An item's value or word contains a <c>,</c>.</exception>
         public TikValueList<T> With(params TikValue<T>[] items)
             => new TikValueList<T>(_items.Concat(items ?? throw new ArgumentNullException(nameof(items))));
 
         /// <summary>This list with <paramref name="items"/> appended: <c>ports.With(443)</c>.</summary>
+        /// <exception cref="ArgumentException">An item contains a <c>,</c>.</exception>
         public TikValueList<T> With(params T[] items)
             => With(Checked(items).Select(i => (TikValue<T>)i).ToArray());
 

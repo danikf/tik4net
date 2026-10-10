@@ -47,6 +47,20 @@ namespace tik4net.unittests.Objects
             Assert.ThrowsException<ArgumentNullException>(() => new TikValueList<string>((string[])null!));
         }
 
+        // "a,b" as ONE item printed like the two-item list but never equalled it, nor what a load returns (split on ','),
+        // so a merge updated the row on every run (reported from an upgrade, 2026-10-10). Every way in refuses it.
+        [TestMethod]
+        public void AnItemContainingAComma_IsRefused_OnEveryWayIn()
+        {
+            Assert.ThrowsException<ArgumentException>(() => new TikValueList<string>("a,b"));
+            Assert.ThrowsException<ArgumentException>(() => new TikValueList<string>(TikValue<string>.Not("a,b")));
+            Assert.ThrowsException<ArgumentException>(() => Modes(TikValue<TikFieldMapperTests.Mode>.FromWire("newer,older")));
+            Assert.ThrowsException<ArgumentException>(() => new TikValueList<string>("a").With("b,c"));
+
+            var parsed = TikValueList<string>.Parse("a,b");
+            Assert.AreEqual(2, parsed.Count, "Parse is the way for text holding several items");
+        }
+
         [TestMethod]
         public void Empty_HasNoItems()
         {
