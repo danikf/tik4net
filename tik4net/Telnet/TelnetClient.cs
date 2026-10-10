@@ -261,8 +261,42 @@ namespace tik4net.Telnet
             // the TCP timeout to expire. Errors are silently ignored (e.g. already closed).
             string quit = answerSafeModeQuestion ? "/quit\r\ny" : "/quit\r\n";
             try { _stream?.Write(_encoding.GetBytes(quit), 0, _encoding.GetByteCount(quit)); } catch { /* ignore */ }
+            if (answerSafeModeQuestion)
+                WaitForRouterToEndSession(SafeModeQuitWaitMs);
             try { _stream?.Close(); } catch { /* ignore */ }
             try { _tcpClient?.Close(); } catch { /* ignore */ }
+        }
+
+        /// <summary>How long a close in Safe Mode waits for RouterOS to end the session itself (ms).</summary>
+        internal const int SafeModeQuitWaitMs = 3000;
+
+        /// <summary>
+        /// Reads, discarding, until RouterOS closes the connection or <paramref name="maxMs"/> passes.
+        /// </summary>
+        /// <remarks>
+        /// The <c>y</c> that answers <c>/quit</c>'s Safe Mode question must be read by the console before the connection
+        /// goes: a close that races it leaves the session ending inside the question, and on RouterOS 6.49.13 that stops
+        /// the console from serving any new Telnet, SSH or API login until a reboot (2 in 36 racing closes; 0 in 60 that
+        /// waited for the router to close first, which it does in well under a second).
+        /// </remarks>
+        private void WaitForRouterToEndSession(int maxMs)
+        {
+            var buffer = new byte[4096];
+            var deadline = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                _stream.ReadTimeout = 200;
+                while (deadline.ElapsedMilliseconds < maxMs)
+                {
+                    try
+                    {
+                        if (_stream.Read(buffer, 0, buffer.Length) == 0)
+                            return;
+                    }
+                    catch (IOException ex) when (ex.InnerException is SocketException se && se.SocketErrorCode == SocketError.TimedOut) { }
+                }
+            }
+            catch { /* the connection is gone or going: either way the wait is over */ }
         }
 
         public void Dispose() => Close();

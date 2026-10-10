@@ -415,31 +415,32 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    `BgpTest.AdvertisementsMatchTheBinaryApi` (run with `-Router chr2`) compares every row with the binary API's: green
    over the five CLI transports and both API legs, Inconclusive over WinBox native (no window).
 
-10. **The console stops serving new sessions.** Seen in two suite runs (the full suite over Telnet, CHR2) and
-    reproduced on purpose (2026-10-10). The state: every Telnet and SSH login is logged as *logged in* but never gets
-    a shell (`RouterOS CLI login failed. Server response: ''`), the binary API sends 0 bytes, and only WinBox native
-    still answers. `/system/resource` there shows `cpu-load=50` on 2 vCPUs, one core spinning. Sessions already open
-    keep working. Only a reboot clears it, and a reboot asked for in that state can take minutes, or need asking
-    twice. A change made in a safe-mode session that ended in the wedge is not rolled back, and survives the reboot.
-    - **Measured trigger: a session that ends inside a console question.** Take Safe Mode (`Ctrl+X`), type `/quit`,
-      leave *"You are in Safe Mode. Quitting will unroll chages. Quit? [y/N]:"* unanswered and drop the connection:
-      the next login is not served, from a freshly booted router, first try. Not a trigger: a connection dropped
-      while holding Safe Mode at the prompt (3 of 3 clean), `Ctrl+X` from a second session and that session dropped
-      on its question (2 of 2 clean), the library's own close in Safe Mode (`/quit` and `y` in one write, 5 of 5
-      clean — the `y` is taken as the answer).
-    - **Measured: a second session's `Ctrl+X` while another holds Safe Mode** is asked
+10. **Settled: the console stops serving new sessions.** The state: every Telnet and SSH login is logged as *logged
+    in* but never gets a shell (`RouterOS CLI login failed. Server response: ''`), the binary API sends 0 bytes, and
+    only WinBox native still answers. `/system/resource` there shows `cpu-load=50` on 2 vCPUs, one core spinning.
+    Sessions already open keep working. Only a reboot clears it, and a reboot asked for in that state can take
+    minutes, or need asking twice. A change made in a safe-mode session that ended in the wedge is not rolled back,
+    and survives the reboot.
+    - **The trigger: a session that ends inside a console question.** Take Safe Mode (`Ctrl+X`), type `/quit`, and
+      the console asks *"You are in Safe Mode. Quitting will unroll chages. Quit? [y/N]:"*. A connection that closes
+      before the console has read the answer wedges it — unanswered, from a freshly booted router, first try; and
+      answered with `y` in the same write as `/quit` and the socket closed at once, 2 times in 36 (raw Telnet, back to
+      back). Answered and left open until the router ends the session, 0 in 60; so is `Ctrl+D` (unroll and end) and a
+      connection dropped at the prompt while holding Safe Mode (0 in 60 each).
+    - **What the library does.** A terminal close in Safe Mode sends `/quit` and `y`, then waits for RouterOS to end
+      the session before closing its own end — Telnet until the router closes the connection
+      (`TelnetClient.Close`), WinBox CLI until its terminal has been quiet for 500 ms (`WinboxCliClient.TryCloseSession`),
+      both at most 3 s. Through the library, a take-read-close loop wedged 6.49.13 within 4 rounds over Telnet and 21
+      over WinBox CLI without the wait, and ran 230 and 131 rounds clean with it (5 min each). SSH (75 rounds) and
+      WinBox CLI over MAC (73) did not wedge without it; MAC-Telnet was not measured past 16 rounds, its sessions
+      failing on their own (the MAC backlog of problem 7). Four connections side by side — rejected logins, `/quit` as
+      a user name, safe-mode take and close, a cold Tab-completion describe, an idle session — wedged it within
+      seconds without the wait and ran 1125 steps clean for 8 min with it.
+    - **A second session's `Ctrl+X` while another holds Safe Mode** is asked
       *"Hijacking Safe Mode from someone - unroll/release/don't take it [u/r/d]:"* (7.24.4 asks *"… Unroll, release
       or abort [u/r]?"*). Enter declines on both (6.49.13 *Safe mode not taken*, 7.24.4 *Action aborted.*), and so do
-      `d` and `Ctrl+C` on 6.49.13; `Ctrl+C` answers nothing on 7.24.4. A session dropped in Safe Mode is still
-      counted as holding it for a while, so the next session's take can be asked the same question (2 of 3, taken
-      0–3 ms after the drop). `CliConnectionBase.SafeModeTake` recognises both wordings
-      (`CliSafeModeParser.IsTakeConflict`) and answers Enter before reporting the refusal: a session left in the
-      question takes its next command as the answer.
-    - **Open: what wedges it in the suite.** `SafeModeTest`'s 6.x sequence through the library — a close that
-      unrolls, then a take on a new connection, a command, a close — wedged the router once in 26 rounds with a
-      library that left the hijack question unanswered, and not in 12 with one that answers it, which does not yet
-      separate the two. Four connections running rejected logins,
-      `/quit` as a user name, a safe-mode take, a change and a close, and a cold Tab-completion describe, side by side,
-      wedge it within about three minutes with the change as well: the last frame before it is a `Ctrl+X` that got no
-      answer. The harness is a scratch tool, not in `Tools/probes/` yet; the step that wedges it is the measured
-      trigger above.
+      `d` and `Ctrl+C` on 6.49.13; `Ctrl+C` answers nothing on 7.24.4. A session dropped in Safe Mode is still counted
+      as holding it for a while, so the next session's take can be asked the same question (41 of 60 takes right
+      after a drop). `CliConnectionBase.SafeModeTake` recognises both wordings (`CliSafeModeParser.IsTakeConflict`)
+      and answers Enter before reporting the refusal: a session left in the question takes its next command as the
+      answer.

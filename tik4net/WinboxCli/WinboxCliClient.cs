@@ -204,10 +204,23 @@ namespace tik4net.WinboxCli
         /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
         /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
         /// reboot.</param>
+        /// <remarks>In Safe Mode the router is given time to take the <c>y</c> before the session goes: a close that
+        /// races it ends the session inside the question, which wedges RouterOS 6.49.13's console (measured over WinBox
+        /// CLI and Telnet). The reaction — the question, the unroll, the end of the session — is read until the
+        /// terminal has been quiet for <see cref="SafeModeQuitQuietMs"/>.</remarks>
         internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
-            try { if (_sessionId >= 0) SendInput(_encoding.GetBytes(answerSafeModeQuestion ? "/quit\ry" : "/quit\r")); } catch { /* ignore */ }
+            if (_sessionId < 0) return;
+            try { SendInput(_encoding.GetBytes(answerSafeModeQuestion ? "/quit\ry" : "/quit\r")); } catch { return; }
+            if (!answerSafeModeQuestion) return;
+            try { ReadUntilQuietAsync(SafeModeQuitQuietMs).Wait(SafeModeQuitWaitMs); } catch { /* the session is gone: the wait is over */ }
         }
+
+        /// <summary>Quiet that ends the wait for the router's reaction to a Safe Mode <c>/quit</c> (ms).</summary>
+        private const int SafeModeQuitQuietMs = 500;
+
+        /// <summary>The longest a close in Safe Mode waits for that reaction (ms).</summary>
+        private const int SafeModeQuitWaitMs = 3000;
 
         public void Dispose() => _session.Dispose();
 
