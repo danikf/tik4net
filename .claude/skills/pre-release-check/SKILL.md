@@ -150,7 +150,7 @@ Nothing checks these; a renamed heading silently breaks every link into it.
 cd ../tik4net.wiki && python - <<'PY'
 import os,re,glob,collections
 def slug(t):
-    t=re.sub(r'<[^>]+>','',t).strip().lower()
+    t=''.join(s if i%2 else re.sub(r'<[^>]+>','',s) for i,s in enumerate(t.split('`'))).strip().lower()
     return re.sub(r'[^a-z0-9 _\-]','',t).replace(' ','-')
 anchors=collections.defaultdict(set)
 for p in glob.glob("*.md"):
@@ -178,7 +178,9 @@ PY
 **The slug algorithm is the trap.** GitHub lowercases, strips everything outside `[a-z0-9 _-]`, then
 replaces **each** space with a hyphen. A naive version that collapses whitespace runs turns `A — B` into
 `a-b` instead of `a--b` and reports every em-dash heading as broken. Measured: the collapsing version
-claimed 32 broken anchors where 2 were real.
+claimed 32 broken anchors where 2 were real. The tag strip is the other half: `<T>` inside a code span is
+text GitHub keeps (`` `TikValueList<T>` `` slugs to `tikvaluelistt`), so the strip applies only outside
+backticks — stripping it everywhere reported 10 broken anchors where none was.
 
 ## 1.6 Secrets and machine-local paths
 
@@ -186,13 +188,22 @@ The repository and the wiki are both public.
 
 ```bash
 grep -rniE "password *= *[\"'][^\"']|[0-9]{1,3}(\.[0-9]{1,3}){3}|([0-9A-F]{2}:){5}[0-9A-F]{2}|C:\\\\Users\\\\" \
-  --include=*.md --include=*.cs --include=*.json . ../tik4net.wiki | grep -v "/bin/\|/obj/"
+  --include=*.md --include=*.cs --include=*.json . ../tik4net.wiki | grep -v "/bin/\|/obj/" \
+  | grep -vE "192\.168\.(4|88)\.[0-9]+|192\.0\.2\.|AA:BB:CC:DD:EE:FF"
 ```
 
-Expected, not findings: `tik4net.integrationtests/App.config` holds RouterOS **defaults** (the stock host,
-`admin`, empty password) — generic, not a leak. Documentation-only addresses (`10.0.0.1`, `192.168.88.1`)
-are fine. Anything else — a real router, a MAC, a software id, a path only one machine has — is a finding.
-Docs and skills must **read** router coordinates from `App.config`, never restate them.
+Expected, not findings — **do not "fix" them**:
+
+* **The lab subnet `192.168.4.x`**, the lab routers' addresses included, in tests, code comments, Docs,
+  `tik4net.examples/App.config` and anywhere else. It is the published lab setup (a private network nobody
+  outside can reach), not a secret; test data and comments quote it because that is what the router printed.
+* **`admin` with an empty password** — the RouterOS default login the lab uses.
+* Documentation-only addresses (`10.0.0.1`, `192.0.2.x`, `192.168.88.1`) and placeholder MACs
+  (`AA:BB:CC:DD:EE:FF`).
+
+Findings: a **real MAC** outside `tik4net.integrationtests/App.config` (the lab routers' `routerMac` values are
+real addresses — compare them against the grep), a public or non-lab address, a real password or key, a
+software id, a path only one machine has.
 
 ---
 
