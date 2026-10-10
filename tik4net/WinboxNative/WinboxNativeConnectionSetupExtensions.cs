@@ -43,8 +43,8 @@ namespace tik4net.WinboxNative
         /// <code>
         /// using var conn = setup.CreateWinboxNativeConnection(c =>
         /// {
-        ///     // WinBox menu:  PPP ▸ Secrets ▸ (window) PPP Secret     API path: /ppp/secret
-        ///     c.PathAlias("/ppp/secret", "/ppp/secrets/ppp-secret");
+        ///     // WinBox menu:  PPP ▸ (window) PPP Secret, opened from the Secrets tab     API path: /ppp/secret
+        ///     c.PathAlias("/ppp/secret", "/ppp/ppp-secret");
         ///
         ///     // Accept field captions as typed in the GUI ("MAC Address" → mac-address, "Dst. Address" → dst-address).
         ///     c.UseGuiNames = true;

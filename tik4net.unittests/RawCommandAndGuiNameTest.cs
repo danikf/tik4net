@@ -128,6 +128,81 @@ namespace tik4net.unittests
             Assert.AreEqual(WinboxM2Protocol.RecordKey.Name, Resolver(useGuiNames: true).ResolveKey(" name "));
         }
 
+        // ── C. A GUI spelling turned into the API one before anything reads it ──
+
+        [TestMethod]
+        public void HandlerMap_MenuLabelPath_IsTheApiPathItsAliasNames()
+        {
+            // Field aliases, field overrides and subtype filters are keyed by API path: read under the menu-label
+            // path, /interface decoded 'type' as the numeric type id (7.24.5).
+            var map = MapWithDerived(("/interfaces/interface", new[] { 20, 0 }), ("/ppp/ppp-secret", new[] { 21, 1 }),
+                                     ("/ip/firewall/filter", new[] { 20, 3 }));
+
+            Assert.AreEqual("/interface", map.CanonicalApiPath("/Interfaces/Interface"));
+            Assert.AreEqual("/interface", map.CanonicalApiPath("/interfaces/interface"));
+            Assert.AreEqual("/ip/firewall/filter", map.CanonicalApiPath("/IP/Firewall/Filter"), "the clean case, any case");
+            Assert.IsNull(map.CanonicalApiPath("/interface"), "an API path stays");
+            Assert.IsNull(map.CanonicalApiPath("/ip/firewall/filter"), "an API path stays");
+            Assert.IsNull(map.CanonicalApiPath("/no/such/window"));
+
+            Assert.IsNull(map.CanonicalApiPath("/PPP/PPP Secret"), "a caption with a space needs GUI names");
+            map.UseGuiNames = true;
+            Assert.AreEqual("/ppp/secret", map.CanonicalApiPath("/PPP/PPP Secret"));
+            Assert.IsNull(map.CanonicalApiPath("/PPP/Secrets/PPP Secret"), "Secrets is the list's tab, not a level");
+        }
+
+        [TestMethod]
+        public void HandlerMap_SessionAliasNamesTheApiPath()
+        {
+            var map = MapWithDerived(("/routing/my-window", new[] { 44, 9 }));
+            map.AddAlias("/routing/mine", "/routing/my-window");
+
+            Assert.AreEqual("/routing/mine", map.CanonicalApiPath("/Routing/My-Window"));
+            Assert.IsNull(map.CanonicalApiPath("/routing/mine"));
+        }
+
+        [TestMethod]
+        public void HandlerMap_WindowTwoAliasesName_KeepsThePathAsGiven()
+        {
+            var map = MapWithDerived(("/routing/shared", new[] { 44, 9 }));
+            map.AddAlias("/routing/one", "/routing/shared");
+            map.AddAlias("/routing/two", "/routing/shared");
+
+            Assert.IsNull(map.CanonicalApiPath("/routing/shared"), "ambiguous: neither API path is the answer");
+        }
+
+        private const string FilterWindow =
+            "[{name:'IP',c:[{name:'Firewall',c:[{name:'Firewall Rule',title:'Filter Rules',type:'map',path:[ 20,3 ],c:[" +
+            "{name:'Chain',type:'string',id:'s1'}," +
+            "{name:'Src. Address',type:'string',id:'s2'}" +
+            "]}]}]}]";
+
+        private static WinboxFieldResolver FilterResolver(bool useGuiNames)
+        {
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto(FilterWindow), "the trimmed window must parse");
+            return new WinboxFieldResolver("/ip/firewall/filter", new[] { 20, 3 }, catalog,
+                new Dictionary<string, int>(), useGuiNames: useGuiNames);
+        }
+
+        [TestMethod]
+        public void FieldResolver_GuiCaption_IsTheApiNameAReadReports()
+        {
+            var resolver = FilterResolver(useGuiNames: true);
+
+            Assert.AreEqual("chain", resolver.GuiCaptionToApiName("Chain"));
+            Assert.AreEqual("src-address", resolver.GuiCaptionToApiName("Src. Address"));
+            Assert.AreEqual("comment", resolver.GuiCaptionToApiName("Comment"));
+            Assert.IsNull(resolver.GuiCaptionToApiName("chain"), "already the API name");
+            Assert.IsNull(resolver.GuiCaptionToApiName("Bogus Field"), "no such field: the filter check reports it");
+        }
+
+        [TestMethod]
+        public void FieldResolver_GuiCaption_NeedsGuiNames()
+        {
+            Assert.IsNull(FilterResolver(useGuiNames: false).GuiCaptionToApiName("Chain"));
+        }
+
         [TestMethod]
         public void FieldResolver_OverrideWinsOverGuiNormalization()
         {

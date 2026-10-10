@@ -202,6 +202,7 @@ namespace tik4net.Connection
 
         internal IList<TikRecordSentence> InvokeRunPrint(TikCommandDescriptor descriptor)
         {
+            descriptor = Canonical(descriptor);
             CheckFilters(descriptor);
             return RunPrint(descriptor);
         }
@@ -213,23 +214,32 @@ namespace tik4net.Connection
                 descriptor.Parameters.Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter).Select(p => p.Name),
                 descriptor.Parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.WinboxLabels)?.Value);
 
-        internal string InvokeRunAdd(TikCommandDescriptor descriptor) => RunAdd(descriptor);
+        internal string InvokeRunAdd(TikCommandDescriptor descriptor) => RunAdd(Canonical(descriptor));
 
-        internal void InvokeRunNonQuery(TikCommandDescriptor descriptor) => RunNonQuery(descriptor);
+        internal void InvokeRunNonQuery(TikCommandDescriptor descriptor) => RunNonQuery(Canonical(descriptor));
 
         internal string InvokeRunRawText(TikCommandDescriptor descriptor) => RunRawText(descriptor);
 
         internal Task<IList<TikRecordSentence>> InvokeRunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
+            descriptor = Canonical(descriptor);
             CheckFilters(descriptor);
             return RunPrintAsync(descriptor, cancellationToken);
         }
 
         internal Task<string> InvokeRunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => RunAddAsync(descriptor, cancellationToken);
+            => RunAddAsync(Canonical(descriptor), cancellationToken);
 
         internal Task InvokeRunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => RunNonQueryAsync(descriptor, cancellationToken);
+            => RunNonQueryAsync(Canonical(descriptor), cancellationToken);
+
+        /// <summary>
+        /// The command in the form the rest of the pipeline expects, before anything — the filter check included
+        /// — reads it. The identity here; WinBox native turns a menu-label path into its API path and, with GUI
+        /// names on, a filter on a WinBox caption into the API field it labels. Not applied to a raw command.
+        /// </summary>
+        /// <remarks>Internal virtual rather than protected: only this assembly's transports may rewrite a command.</remarks>
+        internal virtual TikCommandDescriptor Canonical(TikCommandDescriptor descriptor) => descriptor;
 
         internal Task<string> InvokeRunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => RunRawTextAsync(descriptor, cancellationToken);

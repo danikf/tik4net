@@ -125,6 +125,62 @@ namespace tik4net.WinboxNative
 
         private void TakeLabelHints(TikCommandDescriptor descriptor)
             => _labelHints.Value = WinboxFieldResolver.ParseLabelHints(FindParam(descriptor, TikSpecialProperties.WinboxLabels));
+
+        /// <summary>
+        /// A menu-label path becomes the API path it stands for (<c>/Interfaces/Interface/print</c> →
+        /// <c>/interface/print</c>), and with <see cref="UseGuiNames"/> a filter on a WinBox caption becomes a
+        /// filter on the API field it labels (<c>Chain</c> → <c>chain</c>).
+        /// </summary>
+        /// <remarks>
+        /// Both happen once, before the filter check and the transport see the command. The handler resolves either
+        /// spelling of the path, but everything keyed by API path does not: read under the menu-label path,
+        /// <c>/interface</c>'s field aliases were skipped and <c>type</c> came back as the numeric type id. And the
+        /// filter check compares a filter with the field names the router reports, which a caption is not.
+        /// </remarks>
+        internal override TikCommandDescriptor Canonical(TikCommandDescriptor descriptor)
+        {
+            if (descriptor.IsRaw)
+                return descriptor;
+
+            // An action window is addressed by the whole path (/tool/wol); everything else by the parent of its verb.
+            string text = descriptor.CommandText;
+            bool whole = _handlerMap.Resolve(text) != null;
+            string path = whole ? text : TikPath.Parent(text);
+            if (!whole && string.Equals(path, TikPath.Normalize(text), StringComparison.Ordinal))
+                return descriptor;   // a single segment: no verb to split off
+            string? apiPath = _handlerMap.CanonicalApiPath(path);
+            string commandText = apiPath == null ? text : whole ? apiPath : apiPath + "/" + TikPath.Verb(text);
+
+            IList<ITikCommandParameter> parameters = descriptor.Parameters;
+            if (_useGuiNames && parameters.Any(p => p.ParameterFormat == TikCommandParameterFormat.Filter))
+            {
+                string resolvePath = apiPath ?? path;
+                int[]? handler = _handlerMap.Resolve(resolvePath);
+                if (handler != null)
+                {
+                    var resolver = MakeResolver(resolvePath, handler);
+                    parameters = parameters.Select(p => p.ParameterFormat == TikCommandParameterFormat.Filter
+                        ? FilterOnApiName(p, resolver) : p).ToList();
+                }
+            }
+
+            return ReferenceEquals(commandText, text) && ReferenceEquals(parameters, descriptor.Parameters)
+                ? descriptor
+                : new TikCommandDescriptor(commandText, parameters, descriptor.IsRaw, descriptor.WrapAsValue);
+        }
+
+        // The filter with its caption replaced by the API name; an operator prefix ('?', '-', '<', '>', '=') stays.
+        private static ITikCommandParameter FilterOnApiName(ITikCommandParameter filter, WinboxFieldResolver resolver)
+        {
+            string name = filter.Name;
+            int start = 0;
+            while (start < name.Length && "?-<>=".IndexOf(name[start]) >= 0)
+                start++;
+            string? apiName = resolver.GuiCaptionToApiName(name.Substring(start));
+            return apiName == null
+                ? filter
+                : new TikCommandParameter(name.Substring(0, start) + apiName, filter.Value, filter.ParameterFormat);
+        }
         private WinboxIdResolver _idResolver = null!;   // friendly-name → M2 id lookup (see WinboxIdResolver)
         // Replaced at open time by the process-shared catalog for this router's plugin set
         // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
@@ -165,13 +221,14 @@ namespace tik4net.WinboxNative
         /// <summary>
         /// Maps an API path to the path of <b>labels shown in the WinBox GUI menu tree</b> — the window's
         /// breadcrumb plus its record label, lower-cased with spaces as dashes (e.g. <c>/ppp/secret</c> →
-        /// <c>PPP ▸ Secrets ▸ PPP Secret</c> = <c>/ppp/secrets/ppp-secret</c>). The numeric handler behind that
+        /// <c>PPP ▸ PPP Secret</c> = <c>/ppp/ppp-secret</c>; <i>Secrets</i> is the tab the list is on, not a
+        /// level of the path). The numeric handler behind that
         /// window is still read live from the router's version-matched <c>.jg</c> catalog, so this mapping keeps
         /// working across RouterOS upgrades. <b>Prefer this over <see cref="PathOverride"/></b>, which pins a
         /// handler number that may move.
         /// </summary>
         /// <param name="apiPath">RouterOS API path, e.g. <c>/ppp/secret</c>.</param>
-        /// <param name="winboxMenuPath">WinBox menu-label path, e.g. <c>/ppp/secrets/ppp-secret</c>.</param>
+        /// <param name="winboxMenuPath">WinBox menu-label path, e.g. <c>/ppp/ppp-secret</c>.</param>
         public void PathAlias(string apiPath, string winboxMenuPath)
         {
             _handlerMap.AddAlias(apiPath, winboxMenuPath);
@@ -198,6 +255,12 @@ namespace tik4net.WinboxNative
         /// verbatim is never re-normalized, and <see cref="FieldOverride"/>/<see cref="PathOverride"/> still win,
         /// so this is a best-effort convenience layered under strict API-name resolution. Default <c>false</c>
         /// (strict, predictable). Decoded output always uses canonical API names regardless of this flag.
+        /// <para>
+        /// It covers a read's filters as well as writes: <c>CreateCommandAndParameters("/IP/Firewall/Filter/print",
+        /// "Chain", "forward")</c> filters on <c>chain</c>. A path given as WinBox menu labels is read exactly as its
+        /// API path — <c>/Interfaces/Interface/print</c> answers like <c>/interface/print</c> — with or without the flag
+        /// for a path already in menu-label form, and with it for one with spaces or underscores.
+        /// </para>
         /// <para>
         /// <b>Switchable at any time</b>, including after <c>Open</c> and between commands — the path/field
         /// resolvers are built per operation and read this flag then, so it can be scoped to a single call
@@ -1234,6 +1297,7 @@ namespace tik4net.WinboxNative
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
         {
             EnsureNativeOpen();
+            descriptor = Canonical(descriptor);
             string verb = TikPath.Verb(descriptor.CommandText);
 
             // /path/listen — RouterOS pushes add/change/delete deltas over the API. WinBox M2 has no server

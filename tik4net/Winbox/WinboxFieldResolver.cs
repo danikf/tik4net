@@ -2343,6 +2343,23 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// The API field name a WinBox caption stands for (<c>Chain</c> → <c>chain</c>, <c>Src. Address</c> →
+        /// <c>src-address</c>), as a read reports it; <c>null</c> when GUI names are off, the name is already
+        /// API-styled (lower case, no space, underscore or dot), or it resolves to no field. For a filter: the
+        /// filter check and the read compare names as the router spells them, where a write resolves the
+        /// caption itself (<see cref="ResolveKey"/>).
+        /// </summary>
+        internal string? GuiCaptionToApiName(string name)
+        {
+            if (!_useGuiNames || !name.Any(c => char.IsUpper(c) || c == ' ' || c == '_' || c == '.'))
+                return null;
+            int key;
+            try { key = ResolveKey(name); }
+            catch (WinboxFieldResolutionException) { return null; }
+            return BuildKeyToApiName().TryGetValue(key, out string? apiName) ? apiName : null;
+        }
+
+        /// <summary>
         /// Maps a possibly GUI-styled field name to the canonical name the catalog/seeds actually know — identity
         /// when GUI-names is off or the input already resolves, otherwise the label-normalized form when THAT
         /// resolves. Lets <see cref="EncodeField"/>'s typed <c>.jg</c> lookup and <see cref="ResolveKey"/> agree on

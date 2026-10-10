@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace tik4net.Winbox
 {
@@ -562,7 +563,7 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// Registers a session <b>text</b> alias <c>apiPath → WinBox menu-label path</c> (e.g.
-        /// <c>/ppp/secret → /ppp/secrets/ppp-secret</c>). The handler number is still read live from the
+        /// <c>/ppp/secret → /ppp/ppp-secret</c>). The handler number is still read live from the
         /// version-matched <c>.jg</c>, so unlike <see cref="AddOverride"/> the mapping survives a RouterOS upgrade.
         /// Resolved after session handler overrides and the direct derived map, before the shipped alias tail.
         /// </summary>
@@ -590,6 +591,58 @@ namespace tik4net.Winbox
                     return guiHandler;
             }
             return null;
+        }
+
+        /// <summary>
+        /// The API path a WinBox menu-label path stands for: <c>/Interfaces/Interface</c> → <c>/interface</c>,
+        /// <c>/PPP/PPP Secret</c> → <c>/ppp/secret</c>, <c>/IP/Firewall/Filter</c> → <c>/ip/firewall/filter</c>.
+        /// An API path comes back in lower case. Returns <c>null</c> when <paramref name="path"/> needs no change,
+        /// does not resolve, or names a window more than one API path aliases — the caller then keeps the path as
+        /// given.
+        /// </summary>
+        /// <remarks>
+        /// Handler resolution does not need it — a menu-label path resolves to the same window either way — but
+        /// everything keyed by API path does: the field aliases, the session field overrides and the interface
+        /// subtype filters. Without it <c>/Interfaces/Interface/print</c> decoded <c>type</c> as the numeric type
+        /// id (<c>1</c>, <c>76</c>) where <c>/interface/print</c> gives <c>ether</c>, <c>loopback</c>.
+        /// </remarks>
+        internal string? CanonicalApiPath(string path)
+        {
+            string key = Normalize(path);
+            if (key.Length == 0 || _overrides.ContainsKey(key) || _aliases.ContainsKey(key)
+                || ShippedAlias.ContainsKey(key) || OlderCatalogAlias.ContainsKey(key))
+                return LowerCase(key);   // an API path tik4net maps by name
+
+            string? derived = ResolveDerivedKey(path);
+            if (derived == null)
+            {
+                // A path the .jg map does not name, which the GUI-name fold still resolves (a session override).
+                if (!UseGuiNames) return null;
+                string guiKey = NormalizeGui(path);
+                return !string.Equals(guiKey, key, StringComparison.OrdinalIgnoreCase) && TryResolve(guiKey, out _)
+                    ? guiKey : null;
+            }
+
+            // The API path whose alias names this window: a session alias first, then the shipped ones.
+            var session = _aliases.Where(a => string.Equals(a.Value, derived, StringComparison.OrdinalIgnoreCase))
+                                  .Select(a => a.Key).ToList();
+            if (session.Count > 0)
+                return session.Count == 1 ? session[0] : null;
+            var shipped = ShippedAlias.Keys.Concat(OlderCatalogAlias.Keys)
+                                      .Where(k => string.Equals(ShippedMenuPath(k), derived, StringComparison.OrdinalIgnoreCase))
+                                      .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (shipped.Count > 0)
+                return shipped.Count == 1 ? shipped[0] : null;
+
+            // The clean case: the menu-label path is the API path (/ip/firewall/filter).
+            return LowerCase(derived) ?? (string.Equals(derived, key, StringComparison.Ordinal) ? null : derived);
+        }
+
+        // The path in lower case, as API paths are spelled; null when it already is.
+        private static string? LowerCase(string path)
+        {
+            string lower = path.ToLowerInvariant();
+            return string.Equals(lower, path, StringComparison.Ordinal) ? null : lower;
         }
 
         // Single resolution attempt for an already-normalized path key: session override → direct .jg-derived
