@@ -962,6 +962,14 @@ just the first, using the same foreign-content test. The trailing prompt is stri
 reverse — RouterOS can repaint it more than once with blank lines between, so all trailing prompt lines
 are removed, not just the last.
 
+A repaint can also happen **in place**: the line editor moves the cursor back over the typed command and
+writes it again in syntax colours. Over the WinBox terminal on 7.24.5, `/interface prnt` arrives as
+`/interface prnt ESC[15D ESC[36m/interface ESC[m ESC[31mprnt ESC[m CR LF` before the error line (the
+`/ip address prnt` repaint on the same session uses `CR` + prompt instead). `VtStripper.StripAnsi` therefore
+applies cursor-back (`ESC[nD`) and erase-to-end-of-line (`ESC[K`) within the current line rather than
+dropping them: dropping the move runs the two copies together as `/interface prnt/interface prnt`, which no
+echo test matches and which would become the error message.
+
 Measured over full traced suite runs on all five CLI transports, the "no echo found" trace note fired
 zero times: at the moment each read actually returned, its own echo was already present. Requiring it
 therefore changes nothing on a healthy session, and only a response that never arrives at all reaches
@@ -1034,10 +1042,13 @@ a RoMON relay, whose session is gone.
   consequence of the above: `value-name=.id` answers "input does not match any value of value-name", so
   `get` cannot return an `.id` at all, while `:put [/path print as-value where .id=*N]` works for every
   field. The `get` translation exists for callers who name the verb themselves.
-- **A missing row and an empty field are the same answer.** `get number=*BAD value-name=comment` is refused
-  by the CLI, but over the binary API both that and a real row with an empty comment reply `!done` with an
-  empty `=ret=` — measured byte-for-byte identical. The API therefore cannot report "no such item" for a
-  get without misreporting a genuinely empty field, and does not try.
+- **A missing row and an empty field are the same answer.** `get number=*FFFFFF value-name=name` on an id no
+  row has prints nothing over the CLI — bare, and as an empty line inside `:put [ … ]` (measured on 7.24.5 and
+  6.49.13 over Telnet, and on 7.24.5 over the WinBox terminal) — and over the binary API both that and a real
+  row with an empty comment reply `!done` with an empty `=ret=`, byte-for-byte identical. Neither can report
+  "no such item" for a get without misreporting a genuinely empty field, and neither tries: a raw `get` on a
+  missing id gives `ExecuteScalarOrDefault` → `null`. Only a selector the router cannot resolve at all is
+  refused — `get number=nosuch` (a name on a menu with no such name) answers `no such item`.
 - **Action commands with no per-row output** (`/system/script/run` and similar): the command runs, but
   RouterOS does not return the per-row `!re` output the binary API produces — it is fire-and-forget over
   a terminal. `CliConnectionBase` routes such verbs (`IsActionVerb`) to a non-query path and returns an
@@ -1176,7 +1187,7 @@ error classification is necessarily by pattern, shared with the API and REST tra
 | `no such command`, `bad command name`, `expected end of command`, `no such directory`, `syntax error` | `TikNoSuchCommandException` |
 | `already have … such …`, `item with such name already …` | `TikAlreadyHaveSuchItemException` |
 | `failure:` / `error:` prefix, or any unrecognised non-empty text on a verb classified below | `TikCommandTrapException` |
-| a read whose whole answer is one line ending `(line N column M)` — a parse error such as `expected yes or no (line 1 column 62)` or `bad parameter detail (line 1 column 27)` | `TikCommandTrapException` |
+| a read whose whole answer is one line ending `(line N column M)` — a parse error such as `expected yes or no (line 1 column 62)` or `bad parameter detail (line 1 column 27)` — and the same for a raw command (`CreateRawCommand`, `CallCommandSync`) | `TikCommandTrapException` |
 
 Verbs RouterOS answers with **no output at all** on success (`set`, `remove`, `enable`, `disable`,
 `move`, `unset`, `comment` — `CliErrorParser.IsSilentOnSuccessVerb`) get an extra, purely positional

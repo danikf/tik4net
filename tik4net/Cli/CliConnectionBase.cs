@@ -2315,8 +2315,10 @@ namespace tik4net.Cli
         /// answer is incomplete", and a window at offset 0 switched paging off for the path.
         /// </summary>
         /// <remarks>
-        /// Called only where the answer is already known to lack its closing marker, so a record whose text
+        /// Called where the answer is already known to lack its closing marker, so a record whose text
         /// happens to end the same way cannot be taken for an error: a real answer always ends with the marker.
+        /// The one other caller is the raw text path (<see cref="RunRawTextAsync"/>), which has no marker: there a
+        /// one-line answer of that shape is taken for the refusal it almost always is.
         /// </remarks>
         private void ThrowIfSyntaxError(string? output, TikCommandDescriptor descriptor)
         {
@@ -2697,6 +2699,12 @@ namespace tik4net.Cli
         /// returned as a successful value, to be assigned and used, while the command had never run. The
         /// check is <see cref="CliErrorParser"/>'s text-only one — the same the rest of the CLI path relies
         /// on — and it recognises a router error line rather than the word "error" appearing in a value.
+        /// <para>
+        /// On top of the phrases, an answer that is one parse error and nothing else — a single line ending in
+        /// <c>(line N column M)</c>, such as <c>expected yes or no (line 1 column 44)</c> — is the router refusing
+        /// the line (findings-cli §10), and is raised as <see cref="TikCommandTrapException"/>. Output of several
+        /// lines is never read that way.
+        /// </para>
         /// </remarks>
         protected override async Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
@@ -2706,6 +2714,7 @@ namespace tik4net.Cli
                 : descriptor.CommandText;
             string output = (await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false) ?? string.Empty).Trim();
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            ThrowIfSyntaxError(output, descriptor);
             return output;
         }
 

@@ -286,5 +286,39 @@ namespace tik4net.unittests.Cli
             Assert.IsTrue(CliOutputHelper.IsRouterLogLine("19:54:32 system,info account: user admin logged in"));
             Assert.IsTrue(CliOutputHelper.IsRouterLogLine("jul/25 19:54:32 system,error,critical login failure"));
         }
+
+        [TestMethod]
+        public void StripAnsi_AppliesTheLineEditorsColourRepaint()
+        {
+            // The WinBox terminal (7.24.5) echoes a mistyped command, moves the cursor back over it and writes it
+            // again in syntax colours, then prints the error. The bytes as the mepty read received them:
+            const string sent = "/interface prnt";
+            string raw = "/interface prnt\x1b[15D\x1b[m\x1b[36m/interface\x1b[m \x1b[m\x1b[31mprnt\x1b[m\r\n"
+                       + "\rbad command name prnt (line 1 column 12)\r\n"
+                       + "\r\r\r\x1b[9999B\x1b[K[\x1b[m\x1b[36madmin\x1b[m@\x1b[m\x1b[32mCHR\x1b[m] > ";
+
+            Assert.AreEqual("bad command name prnt (line 1 column 12)",
+                CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), sent),
+                "the repaint overwrites the echo; it must not be appended to it");
+        }
+
+        [TestMethod]
+        public void StripAnsi_CursorBackStaysOnItsLineAndEraseCutsAtTheCursor()
+        {
+            Assert.AreEqual("ab\nxyz", VtStripper.StripAnsi("ab\nxyz\x1b[9D"),
+                "a move back stops at the start of the line and erases nothing by itself");
+            Assert.AreEqual("ab\nzz", VtStripper.StripAnsi("ab\nxyz\x1b[9Dzz\x1b[K"),
+                "text overwrites from the cursor; erase to end of line cuts there once the cursor has moved back");
+            Assert.AreEqual("abc", VtStripper.StripAnsi("abc\x1b[K"), "at the end of the text erase is a no-op");
+        }
+
+        [TestMethod]
+        public void StripAnsi_WithoutCursorBackRemovesOnlyTheSequences()
+        {
+            Assert.AreEqual("[admin@CHR] > /i\r\n\x1b", VtStripper.StripAnsi(
+                "\x1b[m\x1b[36m[admin@CHR]\x1b[m > \x1b[K/i\x1b]0;title\x07\x1b" + "7\r\n\x1b"),
+                "CSI, OSC and ESC+char are dropped; a trailing lone ESC is kept");
+            Assert.AreEqual("", VtStripper.StripAnsi(null!));
+        }
     }
 }

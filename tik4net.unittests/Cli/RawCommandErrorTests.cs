@@ -101,6 +101,56 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // A parse error none of the classifier's phrases names: the whole answer is one line ending
+        // "(line N column M)" (findings-cli §10). Measured on 7.24.5 over Telnet and the WinBox terminal, for a
+        // boolean compared with 'false' inside ':put [ … ]'.
+        private const string UnclassifiedParseError = "expected yes or no (line 1 column 44)";
+        private const string ScriptWithAParseError = ":put [:len [/interface find where disabled=false]]";
+
+        [TestMethod]
+        public void RawExecuteScalarRaisesAParseErrorTheClassifierDoesNotName()
+        {
+            using (var conn = OpenConnection(UnclassifiedParseError))
+            {
+                var ex = Assert.ThrowsException<TikCommandTrapException>(
+                    () => conn.CreateRawCommand(ScriptWithAParseError).ExecuteScalar());
+                StringAssert.Contains(ex.Message, UnclassifiedParseError);
+            }
+        }
+
+        [TestMethod]
+        public void RawExecuteScalarOrDefaultRaisesAParseErrorTheClassifierDoesNotName()
+        {
+            using (var conn = OpenConnection(UnclassifiedParseError))
+            {
+                Assert.ThrowsException<TikCommandTrapException>(
+                    () => conn.CreateRawCommand(ScriptWithAParseError).ExecuteScalarOrDefault());
+            }
+        }
+
+        [TestMethod]
+        public void RawExecuteNonQueryRaisesAParseErrorTheClassifierDoesNotName()
+        {
+            using (var conn = OpenConnection(UnclassifiedParseError))
+            {
+                Assert.ThrowsException<TikCommandTrapException>(
+                    () => conn.CreateRawCommand(ScriptWithAParseError).ExecuteNonQuery());
+            }
+        }
+
+        [TestMethod]
+        public void AParseErrorLineInsideLongerOutputIsNotTheWholeAnswer()
+        {
+            // The rule is the WHOLE answer being one such line; a script that prints several lines, one of which
+            // happens to end the same way, is output.
+            const string output = "first\nsecond (line 1 column 2)";
+            using (var conn = OpenConnection(output))
+            {
+                Assert.AreEqual(output,
+                    conn.CreateRawCommand(":put \"first\"; :put \"second (line 1 column 2)\"").ExecuteScalar());
+            }
+        }
+
         // ── …and a raw command that worked is left alone ──────────────────────
 
         [TestMethod]
