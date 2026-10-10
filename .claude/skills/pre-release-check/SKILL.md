@@ -68,7 +68,8 @@ dotnet build tik4net.sln --configuration Release -warnaserror
 dotnet test tik4net.unittests/tik4net.unittests.csproj --configuration Release
 ```
 
-Then the integration suite per the `mikrotik-tests` skill: a full pass on the binary API, plus the smoke
+Then the integration suite per the `mikrotik-tests` skill — **on the latest stable RouterOS, so check 1.7
+first**: a matrix run before an upgrade measured the wrong version. A full pass on the binary API, plus the smoke
 subset on the other transports. For a release, run the **full 11-transport matrix** — this is one of the
 two occasions that justifies it.
 
@@ -204,6 +205,41 @@ Expected, not findings — **do not "fix" them**:
 Findings: a **real MAC** outside `tik4net.integrationtests/App.config` (the lab routers' `routerMac` values are
 real addresses — compare them against the grep), a public or non-lab address, a real password or key, a
 software id, a path only one machine has.
+
+## 1.7 The main lab router runs the latest stable RouterOS
+
+A release says which RouterOS it was tested on, and that claim should be the version users are installing now.
+Before a release is published, **CHR1 — the default lab router, `host` in `tik4net.integrationtests/App.config`
+— runs the latest RouterOS on the `stable` channel**, and the integration matrix of 1.1 ran on it after the
+upgrade. CHR2 (6.49.13) and CHR3 (7.21.x) stay where they are on purpose; they are the older versions.
+
+Ask the router itself which stable is current (the `mikrotik` skill, over the API):
+
+```
+/system/package/update/print                  → channel (set it to stable if it is not)
+/system/package/update/check-for-updates      → answers "finding out latest version..." and returns
+/system/package/update/print                  → installed-version vs latest-version, status
+```
+
+`latest-version` appears only on the `print` after the check; "System is already up to date" is the pass.
+
+`latest-version` newer than `installed-version` blocks the tag until the maintainer has upgraded (the upgrade
+reboots the router — ask, never do it from a test session) and the matrix has been re-run on the new version.
+
+Then every statement of **the current lab version** names it — sweep for the old number:
+
+```bash
+grep -n "<old version>" README.md ../tik4net.wiki/*.md
+```
+
+* `README.md` — the "Tested and debugged against **RouterOS x.y.z**" sentence and the tested-versions list.
+* Wiki `Home` — the same two places.
+* Wiki `RouterOS-versions` — the main-lab-router row of the version table.
+
+A **measurement stamp** ("measured on 7.24.4", "on 7.23.2 the API took 30.2 s", the versions the
+`MinRouterOs`/`MaxRouterOs` bounds were measured on in `RouterOS-versions` and `Entity-reference`) is history
+and keeps its number until it is measured again; only a sentence saying what the lab runs *now* moves with the
+upgrade.
 
 ---
 
