@@ -262,12 +262,19 @@ works. A multiplexed implementation still needs to discard an unmatched frame (a
 timeout) as a robustness measure, not as the common path.
 
 The router does push one frame of its own: a **logout**, `Command=0xFE0014` (webfig sends the same command to
-log out), with the user's policy in `0xFF000B`, its own subscription in `From`, and **no request id**. Under a
-parallel load it has arrived where the mepty `Login` reply was expected, over TCP and over MAC. The terminal
-open therefore reads the frame that echoes its request id — the `Login` reply does, on 7.24.5 and 6.49.13 — and
-skips anything else; a frame with no request id still counts as the reply when it carries a session id or an
-error code. A skipped frame is traced (`terminal open: skipped …`) and named in the exception when no reply
-follows (`WinboxCliClient.ReceiveTerminalOpenReply`).
+log out), with the user's policy in `0xFF000B` where it carries one, and **no request id**. It goes to **every
+WinBox session** on the router, not only the one ending: when a RoMON relay link through the router closes, each
+session receives three — `From=[0xFF0003,<link>]`, `From=[2,<link>]` (with `0xFF000B`) and `From=[<id>]` (with
+`0xFF000B`). Measured on 7.24.5 with six terminal opens in parallel beside RoMON relay sessions (Telnet, WinBox
+CLI and WinBox native) opening and closing through the router: 68 such pushes in 240 opens, up to eight of them
+in one millisecond, every open still answered behind them.
+
+The terminal open therefore reads the frame that echoes its request id — the `Login` reply does, on 7.24.5 and
+6.49.13 — and skips anything else, however many, until its frame timeout; a frame with no request id still
+counts as the reply when it carries a session id or an error code. A skipped frame is traced (`terminal open:
+skipped …`) and named in the exception when no reply follows (`WinboxCliClient.ReceiveTerminalOpenReply`).
+Counting them out is wrong: a cap of eight skipped frames failed one open in 150 under that load, with the reply
+next in line.
 
 ### 12.6 The request id is one byte
 

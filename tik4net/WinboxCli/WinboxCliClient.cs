@@ -239,12 +239,16 @@ namespace tik4net.WinboxCli
         /// </summary>
         /// <remarks>
         /// The reply echoes our request id. A frame with a different one, or with none and nothing a reply carries
-        /// (a session id, an error code), is not the answer: under a parallel load the router has pushed a
-        /// <see cref="WinboxM2Protocol.Command.Logout"/> there, with no request id, and taking it for the reply read
-        /// "no SESSION_ID". A skipped frame is traced, and named in the exception when no reply follows.
+        /// (a session id, an error code), is not the answer. The one seen there is a
+        /// <see cref="WinboxM2Protocol.Command.Logout"/> push with no request id: RouterOS sends it to every WinBox
+        /// session when another session or a RoMON relay link ends — three per relay link — so several links ending
+        /// together put a burst of them ahead of the reply. Taking one for the reply read "no SESSION_ID". Skipped
+        /// frames are not counted, only timed by <see cref="FrameTimeoutMs"/>; each is traced, and named in the
+        /// exception when no reply follows.
         /// </remarks>
         private byte[] ReceiveTerminalOpenReply(int requestId)
         {
+            const int NamedInFailure = 8;
             var skipped = new List<string>();
             var deadline = Stopwatch.StartNew();
             while (true)
@@ -257,9 +261,11 @@ namespace tik4net.WinboxCli
                 {
                     if (skipped.Count == 0)
                         throw new InvalidOperationException($"The router did not answer the WinBox terminal open within {FrameTimeoutMs} ms.");
-                    throw new InvalidOperationException("The router did not answer the WinBox terminal open; it sent "
-                        + string.Join(", ", skipped) + " instead"
-                        + (skipped.Any(s => s.StartsWith("a logout", StringComparison.Ordinal)) ? " — it logged this session out" : "")
+                    throw new InvalidOperationException($"The router did not answer the WinBox terminal open within {FrameTimeoutMs} ms; it sent "
+                        + string.Join(", ", skipped.Take(NamedInFailure))
+                        + (skipped.Count > NamedInFailure ? $" and {skipped.Count - NamedInFailure} more frame(s)" : "") + " instead"
+                        + (skipped.Any(s => s.StartsWith("a logout", StringComparison.Ordinal))
+                            ? " (RouterOS pushes a logout to every WinBox session when any session or RoMON relay link ends)" : "")
                         + ".");
                 }
                 if (IsTerminalOpenReply(frame, requestId))
@@ -275,9 +281,6 @@ namespace tik4net.WinboxCli
                 skipped.Add(what);
                 if (TikWireTrace.Enabled)
                     TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, "terminal open: skipped " + what);
-                if (skipped.Count >= 8)
-                    throw new InvalidOperationException("The router did not answer the WinBox terminal open; it sent "
-                        + string.Join(", ", skipped) + " instead.");
             }
         }
 
