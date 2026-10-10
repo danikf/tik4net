@@ -671,13 +671,18 @@ namespace tik4net.MacTelnet
             && stripped.IndexOf("Login failed", StringComparison.OrdinalIgnoreCase) >= 0;
 
         // Whatever the router said before it hung up: a refusal if it said one, otherwise the plain fact
-        // that the session was closed during login.
-        private Exception RefusalOrClosure(string stripped)
-            => IsLoginRefusal(stripped)
-             ? (Exception)new TikConnectionLoginRefusedException("MAC-Telnet", FirstLine(stripped))
-             : new TikConnectionSessionClosedException(
-                   "MAC-Telnet: the router closed the session during login"
-                   + (string.IsNullOrEmpty(stripped.Trim()) ? "." : ": " + FirstLine(stripped)));
+        // that the session was closed during login. With nothing on screen it is a refusal whose one data
+        // packet was lost: RouterOS sends the refusal and its PKT_END 1-4 ms apart and never resends the text
+        // (7.24, measured by dropping it), so RouterLoginRetry retries that case as it retries a refusal.
+        internal static Exception RefusalOrClosure(string stripped)
+        {
+            if (IsLoginRefusal(stripped))
+                return new TikConnectionLoginRefusedException("MAC-Telnet", FirstLine(stripped));
+            if (string.IsNullOrEmpty(stripped.Trim()))
+                return new MacTelnetLoginClosedSilentlyException();
+            return new TikConnectionSessionClosedException(
+                "MAC-Telnet: the router closed the session during login: " + FirstLine(stripped));
+        }
 
         private static string FirstLine(string s)
         {

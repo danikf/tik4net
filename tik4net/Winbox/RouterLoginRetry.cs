@@ -28,6 +28,9 @@ namespace tik4net.Winbox
     /// is bounded and deliberate: a genuine failure takes <see cref="MaxAttempts"/> attempts and about
     /// <c>(MaxAttempts-1) × <see cref="DelayMs"/></c> ms longer, and leaves that many
     /// <c>login failure</c> lines in the router's log instead of one.</para>
+    /// <para>A MAC-Telnet login the router ends with nothing on screen
+    /// (<see cref="MacTelnet.MacTelnetLoginClosedSilentlyException"/>) is a refusal whose single data packet was lost
+    /// — RouterOS ends the session 1–4 ms after it and never resends it — and is retried as one.</para>
     /// <para>The caller supplies a delegate that performs a <b>complete</b> open, because a refused
     /// handshake leaves the channel unusable — the retry has to build a new one, not reuse the old.</para>
     /// </remarks>
@@ -84,10 +87,13 @@ namespace tik4net.Winbox
             if (!Diagnostics.TikWireTrace.Enabled)
                 return;
             var silence = NoAnswer(ex);
-            string transport = Refusal(ex)?.Transport ?? silence?.Transport ?? "router";
+            string transport = Refusal(ex)?.Transport ?? silence?.Transport
+                ?? (SilentClosure(ex) != null ? "MAC-Telnet" : "router");
             string what = silence != null
                 ? $"login unanswered by the router ({silence.WaitDescription})"
-                : "login refused by the router";
+                : SilentClosure(ex) != null
+                    ? "login ended by the router with nothing on screen (a refusal whose text was lost)"
+                    : "login refused by the router";
             Diagnostics.TikWireTrace.Emit("login", Diagnostics.TikWireDir.Note,
                 $"{transport} {what}, retrying (attempt {attempt} of {MaxAttempts})");
         }
@@ -96,7 +102,26 @@ namespace tik4net.Winbox
         // layer, and an AggregateException as well when it came out of a task — so the whole chain is
         // searched rather than the outermost type tested.
         private static bool IsTransientRefusal(Exception ex)
-            => Refusal(ex) != null || NoAnswer(ex) != null;
+            => Refusal(ex) != null || NoAnswer(ex) != null || SilentClosure(ex) != null;
+
+        // A MAC-Telnet login ended with nothing on screen: the refusal's one data packet was lost
+        // (MacTelnetLoginClosedSilentlyException).
+        private static MacTelnet.MacTelnetLoginClosedSilentlyException? SilentClosure(Exception ex)
+        {
+            for (Exception? e = ex; e != null; e = e.InnerException)
+            {
+                if (e is MacTelnet.MacTelnetLoginClosedSilentlyException closed) return closed;
+                if (e is AggregateException aggregate)
+                {
+                    foreach (var inner in aggregate.InnerExceptions)
+                    {
+                        var found = SilentClosure(inner);
+                        if (found != null) return found;
+                    }
+                }
+            }
+            return null;
+        }
 
         private static TikConnectionLoginNoAnswerException? NoAnswer(Exception ex)
         {

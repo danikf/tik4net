@@ -186,22 +186,28 @@ then refuse the session about a second later, in plain text on the terminal stre
 ```
 | +0.0 s | RECV 0x01 counter=58 × 3     | CTRL_END_AUTH — authentication reported success
 | +1.1 s | RECV 0x01 counter=67 len=46  | Login failed, incorrect username or password
-| +1.1 s | RECV 0xff × n                | PKT_END — the router tears the session down
+| +1.1 s | RECV 0xff × n                | PKT_END — the router tears the session down, 1–4 ms after the line
 ```
+
+**The refusal is one data packet, and it is never resent.** RouterOS sends `PKT_END` 1–4 ms after it, without
+waiting for its acknowledgement (7.24, wrong-password logins). With that datagram dropped on purpose, nothing
+else arrives: the session ends with an empty screen, three times in three.
 
 This is the MAC-Telnet face of the transient refusal also measured on the WinBox handshake
 ([findings-winbox.md](findings-winbox.md) §13): **the same login, retried immediately, is accepted.**
 The router logs it as `login failure for user <user> from <mac> via mac-telnet`.
 
-Three consequences for the code:
+Four consequences for the code:
 
 1. **The refusal cannot be detected inside the EC-SRP5 exchange**, which correctly ends at
    `CTRL_END_AUTH`. It has to be recognised by the code waiting for the prompt.
-2. **`PKT_END` is handled in the login wait only.** That is the one place it has been observed — across
-   two full traced runs it appears exactly six times, all six in a refused session. RouterOS does *not*
-   send it when logging an idle console out, so teaching the general pump about it would be inventing a
-   contract that does not exist.
+2. **`PKT_END` arrives when the router ends the session itself:** after a refused login, and after `/quit` (the Safe Mode
+   close waits for it in `MacTelnetUdpClient.TryCloseSession`). RouterOS does *not* send it when logging an
+   idle console out, so nothing but those two waits relies on it.
 3. **A refusal says nothing about the credentials.** It is transient.
+4. **An empty screen at `PKT_END` is a refusal whose text was lost** (`MacTelnetLoginClosedSilentlyException`, an
+   internal `TikConnectionSessionClosedException`), and is retried as a refusal. A closure with other text on
+   screen is not retried.
 
 `TikConnectionLoginRefusedException` is thrown as soon as the line appears or the router hangs up, and
 `MacTelnetConnection.Open`/`OpenAsync` are wrapped in `Winbox.RouterLoginRetry`, as the three WinBox
