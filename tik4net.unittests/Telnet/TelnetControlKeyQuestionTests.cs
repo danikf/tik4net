@@ -13,6 +13,7 @@ namespace tik4net.unittests.Telnet
     /// stands in for RouterOS 6.49.13 answering the Safe Mode key while another session holds Safe Mode.
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // a local listener answers within a time budget
     public class TelnetControlKeyQuestionTests
     {
         [TestMethod]

@@ -19,6 +19,7 @@ namespace tik4net.unittests.Telnet
     /// until a reboot (2 in 36 racing closes, 0 in 60 that waited). A local listener stands in for the router.
     /// </remarks>
     [TestClass]
+    [DoNotParallelize]   // a local listener answers within a time budget
     public class TelnetSafeModeCloseTests
     {
         private static TelnetClient Connect(TcpListener listener)
