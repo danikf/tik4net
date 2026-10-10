@@ -17,7 +17,7 @@ namespace tik4net.Objects.Routing.Bgp
         public string? Id { get; private set; }
 
         /// <summary>
-        /// Gets or sets the BGP advirtised network in CIDR format (e.g. 44.224.10.64/29).
+        /// Gets or sets the BGP advirtised network in CIDR format (e.g. 192.0.2.64/29).
         /// </summary>
         [TikProperty("network")]
         public TikField<string?> Network { get; set; }

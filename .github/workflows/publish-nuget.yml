@@ -115,53 +115,28 @@ jobs:
 
             Full release notes and version history: **[Wiki → History](https://github.com/danikf/tik4net/wiki/History)**
 
-            ### What's new in 4.0
+            ### What's new in 5.0
 
-            **9 new connection types** — all implement the same `ITikConnection` / `LoadAll<T>()` / `Save<T>()` interface:
-            | Type | Transport | Port | Notes |
-            |---|---|---|---|
-            | `Rest` / `RestSsl` | HTTP/HTTPS | 80/443 | RouterOS 7.1+; no streaming, no Safe Mode |
-            | `Telnet` | TCP | 23 | plain-text terminal |
-            | `MacTelnet` | UDP broadcast | 20561 | Layer-2, no IP needed |
-            | `WinboxCli` | TCP | 8291 | WinBox terminal over TCP |
-            | `WinboxCliMac` | UDP | 20561 | WinBox terminal over MAC |
-            | `WinboxNative` | TCP | 8291 | native M2 binary protocol, CRUD — **experimental** |
-            | `WinboxNativeMac` | UDP | 20561 | native M2 over MAC — **experimental** |
-            | `Ssh` *(satellite)* | TCP | 22 | requires `tik4net.ssh` NuGet |
+            - **RoMON** — reach a router you have no IP route to, through a neighbouring MikroTik, over Telnet, SSH, MAC-Telnet or any WinBox transport; RoMON discover and ping included
+            - **One codebase from RouterOS 6.49 to 7.24** — the same entities read and write correctly on each version, tested on 7.24.5, 7.21.5 and 6.49.13
+            - **`TikField<T>`** — a property knows whether the router printed the field; it never invents a default, and a value from a newer RouterOS does not break the read
+            - **`DescribeMenu`** — ask the router what a menu takes: sub-menus, commands, arguments, readable and clearable fields, accepted words, from the router's own grammar
+            - **Connection string** — `TikConnectionSetup.FromConnectionString`: router, credentials and transport come from config
+            - **Negated matchers and value lists** — `src-address=!10.0.0.0/8` is a negated address; `dst-port=22,8291`, `tcp-flags=syn,!ack` are typed, immutable `TikValueList<T>`
+            - **Analyzers TIK001 / TIK002** — compile-time warnings for `TikField` comparisons that can never be true, with a code fix
+            - **SSH private-key login**, **list sync with the fewest moves**, and **filtered CLI reads that run on the router**
 
-            **Other additions:**
-            - **Multi-targeting `netstandard2.0;net8.0`** — netstandard2.0 keeps the Unity / Xamarin / .NET Framework reach; the net8.0 leg carries the modern surface
-            - **Async everywhere** — async CRUD on the O/R mapper, an async surface on every transport, and a cancel that actually cancels
-            - **Streaming reads as `IAsyncEnumerable<ITikReSentence>`** (net8.0) — `await foreach` over a live monitor
-            - **Change tracking** — the O/R mapper tracks which properties changed; `Save<T>()` sends only the diff
-            - **Safe Mode** — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` on every transport except REST; auto-rollback on disconnect
-            - **`TikConnectionSetup`** — the single entry point; every option is applied in one place, and a transport declares what it can honour by implementing `ITikTlsConnection` / `ITikMacLayerConnection` / `ITikCancellationModeConnection`
-            - **Connection capability model** — `connection.Supports(TikConnectionCapability.Listen)` etc.
-            - **Raw command pass-through** — `connection.CreateRawCommand(raw)` for commands outside the O/R mapper
-            - **WinBox GUI-name addressing** — address entities by their WinBox display name on `WinboxNative`
-            - **`tik4net.mcp`** — drive any command over any transport from an AI assistant
+            ### Breaking changes (from 4.x)
 
-            ### Breaking changes (from 3.6)
+            Full guide, with before/after code: **[Upgrading from 4.x to 5.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-4.x-to-5.0)** — and a ready-to-paste prompt for an AI coding agent: **[with an AI agent](https://github.com/danikf/tik4net/wiki/Upgrading-from-4.x-to-5.0-with-an-AI-agent)**
 
-            Full guide, with before/after code: **[Upgrading from 3.x to 4.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0)**
+            Package IDs, namespaces and the connection API are unchanged. What changed:
 
-            These change what a working 3.x program does **without stopping the compiler** — read them first:
-
-            - **An invalid TLS certificate is now rejected** — `AllowInvalidCertificate` defaults to `false` (was `true`). RouterOS normally presents a *self-signed* certificate, so an API-SSL / REST-SSL connection that opened in 3.x can now fail. Ask for it explicitly, or pin the certificate with `CertificateValidationCallback`
-            - **Synchronous commands are tagged** — `SendTagWithSyncCommand` defaults to `true` (was `false`). This is what makes one connection usable from several threads. If you script a fake RouterOS in your tests, echo the tag back
-            - **`ExecuteScalar` on a command that returns nothing** throws the new `TikCommandEmptyResponseException`, not `TikNoSuchItemException` — after a write, an empty answer means success
-            - **`Save` diffs against the local snapshot** instead of a `LoadById` round-trip. `TikDefaults.SaveMode = TikSaveMode.FullUpdate` restores the 3.x behaviour
-
-            And these stop the compiler:
-
-            - **The O/R mapper is now inside the `tik4net` package** — it used to ship as `tik4net.objects` (3.x), then `tik4net.entities` (4.0.0-alpha). **Remove any `PackageReference` to those** or you get an assembly conflict. No source changes: namespaces and assembly names are unchanged
-            - **`ITikConnection` is lifecycle and command factory only** — `CallCommandSync` moved to `ITikRawSentenceConnection`, Safe Mode to `ITikSafeModeConnection`, `SendTagWithSyncCommand` to `ITikTaggedConnection` (extension methods keep the call sites compiling). The `Thread`-returning `CallCommandAsync` is removed
-            - **Nullable reference types are on** — every mapped reference-typed entity property is `string?`; every writable `bool` is `bool?`, as are numeric and enum properties carrying a router default, because `null` means "the router decides"
-            - **Exception hierarchy unified** — `TikCommandException` subtypes restructured; review `catch` blocks on specific subtypes
-            - **SSH is a satellite package** — add `tik4net.ssh` and call `Tik4NetSsh.Register()` at startup
-            - **`TikConnectionType.Api_v2` / `ApiSsl_v2` are gone** — they were `[Obsolete(error)]` in 3.6
-            - **Three `Interface` properties are read-only** (`Type`, `MacAddress`, `FastPath`) — `/interface set` does not accept them; `L2Mtu` was added, which it does
-            - **`InterfaceBridge` no longer seeds router defaults in its constructor**, and `TransmitHoldCount` is `int?` — the entity now maps the whole RouterOS 7 bridge
+            - **Every entity property except `.id` is a `TikField<T?>`** — the compiler finds most of it; read *What compiles but changed meaning* in the guide, above all if you merge or diff entity lists
+            - **Adds and singleton saves send only what you assigned** — a property's `DefaultValue` documents the router's default without acting on it
+            - **Multi-value fields are `TikValueList<T>`**; timeouts and command durations are `TimeSpan`; dates are `DateTime`
+            - **A filter on a field the menu does not have throws**, and a CLI read the router refuses with a parse error throws `TikCommandTrapException`
+            - A refused or unreachable port throws `SocketException`; `Guard` and `LinqEx` are internal; a few entities changed shape (see the guide)
 
             ### NuGet packages
             | Package | Install |

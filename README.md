@@ -18,9 +18,9 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 
 ## What's new
 
-**5.0** — in development on `master`, not released yet:
+**5.0** — prerelease, `5.0.0-alpha` on NuGet ([Upgrading from 4.x](https://github.com/danikf/tik4net/wiki/Upgrading-from-4.x-to-5.0)):
 * **[RoMON](https://github.com/danikf/tik4net/wiki/RoMON-connection)** — reach a router you have no IP route to, through a neighbouring router, over Telnet,
-  SSH or MAC-Telnet; RoMON discover and ping included
+  SSH, MAC-Telnet or any WinBox transport; RoMON discover and ping included
 * **One codebase from RouterOS 6.49 to 7.24** — the same entities read and write correctly on each version, tested on
   7.24.5, 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions))
 * **[TikField](https://github.com/danikf/tik4net/wiki/TikField)** — a property knows whether the router printed the field; it never invents a default, and

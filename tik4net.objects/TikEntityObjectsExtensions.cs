@@ -63,12 +63,13 @@ namespace tik4net.Objects
         /// </summary>
         /// <typeparam name="TEntity">Type of entity.</typeparam>
         /// <param name="entity">An entity read from the router.</param>
-        /// <param name="propertyName">The CLR property's name — <c>nameof(FirewallFilter.Action)</c>.</param>
+        /// <param name="propertyName">The CLR property's name — <c>nameof(MyRule.Action)</c>.</param>
         /// <returns>The router's word (for a <c>[Flags]</c> property, the unknown parts, comma-separated), or <c>null</c>.</returns>
         /// <remarks>
         /// RouterOS adds words to a field's vocabulary between versions, and an old router uses words a newer one
-        /// dropped. A word the enum does not know used to fail the read of the whole menu; the property now reads
-        /// as <c>Unknown</c> and the word is kept here, and a save writes it back unchanged.
+        /// dropped. A plain enum property whose enum declares a <see cref="TikEnumUnknownAttribute"/> member reads such a
+        /// word as that member; the word is kept here, and a save writes it back unchanged. A <see cref="TikField{T}"/>
+        /// property keeps it in <see cref="TikField{T}.RawValue"/> instead and never appears here.
         /// </remarks>
         /// <exception cref="ArgumentException">The entity has no mapped property of that name.</exception>
         public static string? GetUnknownWord<TEntity>(this TEntity entity, string propertyName)
