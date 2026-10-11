@@ -250,7 +250,9 @@ target then rolls back what the session held, Safe Mode included (`RomonRelayTes
 `[2,<link>,13,4]`, with or without a reply expected — no answer), nor one to `[0xFF0003,<link>]` or to the
 msg-proxy, nor any msg-proxy command 2000–2010 with the link id (all `0xFE0009`), nor a request still in flight at
 the close, nor WinBox's `user+r` login (`Probe_Romon_WinboxRelay_CloseVariants`,
-`Probe_Romon_WinboxRelay_ProxyCommandScan`). A `+r` session is restricted on the agent: `[127,2]` get-singleton
+`Probe_Romon_WinboxRelay_ProxyCommandScan`), nor the generic M2 remove (`0xFE0006`) or unsubscribe (`0xFE0013`) for the
+link — to the msg-proxy with the link as session id or `.id` (remove: `0xFE0003`; unsubscribe: accepted, no effect),
+to `[2,<link>]` (no answer) or to `[0xFF0003,<link>]` (`0xFE0002`) (`Probe_Romon_WinboxRelay_GenericEndCommands`). A `+r` session is restricted on the agent: `[127,2]` get-singleton
 answers `0xFE0009`, and WinBox checks RoMON with `[127,2]` command 9 instead. The WinBox CLI ends the target's
 terminal with `/quit`, which ends the terminal, and what it held, at once; the link's own WinBox session on the
 target stays until it is reaped, as a native one does (31 relays through the WinBox CLI left 23 more `by-romon`

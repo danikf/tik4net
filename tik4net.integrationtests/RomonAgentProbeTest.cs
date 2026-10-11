@@ -236,6 +236,62 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// The generic M2 commands that end an object — remove (<c>0xFE0006</c>) and unsubscribe (<c>0xFE0013</c>) —
+        /// sent for the link to the msg-proxy and to the link's own addresses, each on a fresh link: does any of them end
+        /// the agent's session on the target at once? Counts the target's relayed WinBox sessions 5 s after the close.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_WinboxRelay_GenericEndCommands()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            var relayTarget = new tik4net.Cli.RomonRelayTarget(LabConfig.Get("romonTargetId"),
+                LabConfig.Get("romonTargetUser"), LabConfig.Get("romonTargetPass") ?? "");
+            using (var target = new TikConnectionSetup(LabConfig.Get("romonTargetHost"), LabConfig.Get("romonTargetUser"),
+                       LabConfig.Get("romonTargetPass") ?? "").Create(TikConnectionType.Api))
+            {
+                int Relayed() => target.CreateCommand("/user/active/print").ExecuteList()
+                    .Count(r => r.GetResponseFieldOrDefault("via", "") == "winbox"
+                                && !string.IsNullOrEmpty(r.GetResponseFieldOrDefault("by-romon", "")));
+                const int Remove = 0xFE0006, Unsubscribe = 0xFE0013, ObjId = 0xFE0001;
+                var variants = new (string Label, Func<int, int[]> To, int Cmd, Func<int, byte[]> Extra)[]
+                {
+                    ("remove [2] session-id=link", l => new[] { 2 }, Remove, l => M2.SessionIdField(l)),
+                    ("remove [2] .id=link", l => new[] { 2 }, Remove, l => M2.U32Sys(ObjId, l)),
+                    ("unsubscribe [2] session-id=link", l => new[] { 2 }, Unsubscribe, l => M2.SessionIdField(l)),
+                    ("unsubscribe [2,link]", l => new[] { 2, l }, Unsubscribe, l => new byte[0]),
+                    ("remove [2,link]", l => new[] { 2, l }, Remove, l => new byte[0]),
+                    ("remove [0xFF0003,link]", l => new[] { 0xFF0003, l }, Remove, l => new byte[0]),
+                    ("remove [0xFF0003] .id=link", l => new[] { 0xFF0003 }, Remove, l => M2.U32Sys(ObjId, l)),
+                };
+                foreach (var v in variants)
+                {
+                    int before = Relayed();
+                    var agent = new WinboxM2Session();
+                    var ch = new WinboxRomonChannel(agent, relayTarget);
+                    ch.Open(LabConfig.Get("host"), 8291, LabConfig.Get("user"), LabConfig.Get("pass") ?? "", 5000, 5000);
+                    int open = Relayed();
+                    string answer;
+                    try
+                    {
+                        var fields = new System.Collections.Generic.List<byte[]> { M2.SysToArr(v.To(ch.Link)), M2.SysFrom(),
+                            M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), agent.NextReqIdField(),
+                            M2.U32Sys(WinboxM2Protocol.SysKey.Command, v.Cmd) };
+                        byte[] extra = v.Extra(ch.Link);
+                        if (extra.Length > 0) fields.Add(extra);
+                        byte[] r = agent.SendReceive(M2.BuildM2(fields.ToArray()), 7000);
+                        answer = $"status=0x{M2.ParseSysStatus(r):X} {M2.Describe(r)}";
+                    }
+                    catch (Exception ex) { answer = ex.GetType().Name + ": " + ex.Message; }
+                    int afterSend = Relayed();
+                    ch.Dispose();
+                    System.Threading.Thread.Sleep(5000);
+                    Log($"{v.Label}: before {before}, open {open}, after send {afterSend}, 5 s after close {Relayed()}; answer {answer}");
+                }
+            }
+        }
+
+        /// <summary>
         /// The msg-proxy's commands around the connect (2001), each sent with the open link's id and a reply expected,
         /// with the target's relayed-session count after each — which one, if any, ends a link.
         /// </summary>
