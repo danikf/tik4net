@@ -238,6 +238,10 @@ Those pushes arrive at any time, including between the two requests that open a 
 of it is read past (`WinboxRomonChannel.AgentRequest`, `WinboxRomonChannelPushTests`). Taken as the answer, the
 reaped link's logout reads as a connect refused with no error field.
 
+**Many links to one target.** An agent holds many relays to the same target at once: ten relays held open together,
+each read in turn for three rounds, all answered — over WinBox native, the WinBox CLI and Telnet with `/tool romon ssh`
+alike — and the target listed one `by-romon` session for each.
+
 **Idle.** A link with no traffic stays up: 150 s idle, then an ordinary read through it
 (`Probe_Romon_WinboxRelay_IdleFrames`). It needs no keepalive.
 
@@ -253,7 +257,8 @@ the close, nor WinBox's `user+r` login (`Probe_Romon_WinboxRelay_CloseVariants`,
 `Probe_Romon_WinboxRelay_ProxyCommandScan`), nor the generic M2 remove (`0xFE0006`) or unsubscribe (`0xFE0013`) for the
 link — to the msg-proxy with the link as session id or `.id` (remove: `0xFE0003`; unsubscribe: accepted, no effect),
 to `[2,<link>]` (no answer) or to `[0xFF0003,<link>]` (`0xFE0002`) (`Probe_Romon_WinboxRelay_GenericEndCommands`). A `+r` session is restricted on the agent: `[127,2]` get-singleton
-answers `0xFE0009`, and WinBox checks RoMON with `[127,2]` command 9 instead. The WinBox CLI ends the target's
+answers `0xFE0009`, and WinBox checks RoMON with `[127,2]` command 9 instead. WebFig has no RoMON relay to compare
+with: its script carries no msg-proxy connect. The WinBox CLI ends the target's
 terminal with `/quit`, which ends the terminal, and what it held, at once; the link's own WinBox session on the
 target stays until it is reaped, as a native one does (31 relays through the WinBox CLI left 23 more `by-romon`
 WinBox sessions on the target).
