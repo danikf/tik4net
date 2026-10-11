@@ -48,8 +48,8 @@ namespace tik4net.integrationtests
                 var watch = Stopwatch.StartNew();
                 var ex2 = Assert.ThrowsException<TikConnectionLoginException>(() => OpenWinbox().Dispose());
                 StringAssert.Contains(ex2.Message, "WinBox/Dude sessions");
-                Assert.IsTrue(watch.ElapsedMilliseconds >= 2500,
-                    $"the refusal must be retried (1 s, then 2 s) before it is reported; it took {watch.ElapsedMilliseconds} ms");
+                Assert.IsTrue(watch.ElapsedMilliseconds >= 6500,
+                    $"the refusal must be retried (after 1, 2 and 4 s) before it is reported; it took {watch.ElapsedMilliseconds} ms");
 
                 // A slot frees while the open waits to retry: the open succeeds on a later attempt.
                 var freeOne = Task.Run(() => { Thread.Sleep(300); held[0].Dispose(); });

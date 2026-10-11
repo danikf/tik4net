@@ -36,6 +36,9 @@ namespace tik4net.Winbox
     /// agent reaps as soon as the slots are full, so the refusal lasts a fraction of a second; it is retried after
     /// <see cref="SessionLimitDelayMs"/> × the attempt number, longer than the login pauses because it is the router
     /// freeing slots, not a dropped packet.</para>
+    /// <para>A RoMON link that the agent opened but nothing answers through (<see cref="WinboxRomonLinkSilentException"/>)
+    /// is retried on the same pause: it happens while <c>/tool romon ssh</c> relays start and end on the agent, and a
+    /// new link opened a moment later answers.</para>
     /// <para>The caller supplies a delegate that performs a <b>complete</b> open, because a refused
     /// handshake leaves the channel unusable — the retry has to build a new one, not reuse the old.</para>
     /// </remarks>
@@ -48,13 +51,22 @@ namespace tik4net.Winbox
         internal const int DelayMs = 100;
 
         /// <summary>
-        /// Pause before retrying a <see cref="WinboxSessionLimitException"/>, multiplied by the attempt number (so 1 s,
-        /// then 2 s). Measured refusal bursts lasted 0.2–2 s. Settable for tests.
+        /// Pause before retrying a <see cref="WinboxSessionLimitException"/> or a <see cref="WinboxRomonLinkSilentException"/>,
+        /// doubling each time (1 s, 2 s, 4 s). Most refusal bursts lasted 0.2–2 s; one in a dozen outlasted 3 s. Settable
+        /// for tests.
         /// </summary>
         internal static int SessionLimitDelayMs = 1000;
 
+        /// <summary>Total attempts for those two, including the first: 7 s of pauses in all.</summary>
+        internal const int SessionLimitAttempts = 4;
+
+        private static bool IsAgentBusy(Exception ex) => SessionLimit(ex) != null || LinkSilent(ex) != null;
+
         private static int DelayFor(Exception ex, int attempt)
-            => SessionLimit(ex) != null ? SessionLimitDelayMs * attempt : DelayMs;
+            => IsAgentBusy(ex) ? SessionLimitDelayMs << (attempt - 1) : DelayMs;
+
+        private static bool MayRetry(Exception ex, int attempt)
+            => IsTransientRefusal(ex) && attempt < (IsAgentBusy(ex) ? SessionLimitAttempts : MaxAttempts);
 
         /// <summary>Runs <paramref name="openOnce"/>, retrying only a transient router refusal.</summary>
         internal static void Run(Action openOnce)
@@ -66,7 +78,7 @@ namespace tik4net.Winbox
                     openOnce();
                     return;
                 }
-                catch (Exception ex) when (attempt < MaxAttempts && IsTransientRefusal(ex))
+                catch (Exception ex) when (MayRetry(ex, attempt))
                 {
                     NoteRetry(attempt, ex);
                     Thread.Sleep(DelayFor(ex, attempt));
@@ -84,7 +96,7 @@ namespace tik4net.Winbox
                     await openOnce().ConfigureAwait(false);
                     return;
                 }
-                catch (Exception ex) when (attempt < MaxAttempts && IsTransientRefusal(ex))
+                catch (Exception ex) when (MayRetry(ex, attempt))
                 {
                     NoteRetry(attempt, ex);
                     await Task.Delay(DelayFor(ex, attempt)).ConfigureAwait(false);
@@ -102,8 +114,10 @@ namespace tik4net.Winbox
                 return;
             var silence = NoAnswer(ex);
             string transport = Refusal(ex)?.Transport ?? silence?.Transport
-                ?? (SilentClosure(ex) != null ? "MAC-Telnet" : SessionLimit(ex) != null ? "WinBox" : "router");
-            string what = SessionLimit(ex) != null
+                ?? (SilentClosure(ex) != null ? "MAC-Telnet" : SessionLimit(ex) != null || LinkSilent(ex) != null ? "WinBox" : "router");
+            string what = LinkSilent(ex) != null
+                ? "RoMON link opened but silent"
+                : SessionLimit(ex) != null
                 ? "connection closed by the router before any byte (its WinBox/Dude session limit)"
                 : silence != null
                 ? $"login unanswered by the router ({silence.WaitDescription})"
@@ -111,14 +125,32 @@ namespace tik4net.Winbox
                     ? "login ended by the router with nothing on screen (a refusal whose text was lost)"
                     : "login refused by the router";
             Diagnostics.TikWireTrace.Emit("login", Diagnostics.TikWireDir.Note,
-                $"{transport} {what}, retrying (attempt {attempt} of {MaxAttempts})");
+                $"{transport} {what}, retrying (attempt {attempt} of {(IsAgentBusy(ex) ? SessionLimitAttempts : MaxAttempts)})");
         }
 
         // The refusal is wrapped by the time it gets here — TikConnectionLoginException at the connection
         // layer, and an AggregateException as well when it came out of a task — so the whole chain is
         // searched rather than the outermost type tested.
         private static bool IsTransientRefusal(Exception ex)
-            => Refusal(ex) != null || NoAnswer(ex) != null || SilentClosure(ex) != null || SessionLimit(ex) != null;
+            => Refusal(ex) != null || NoAnswer(ex) != null || SilentClosure(ex) != null || SessionLimit(ex) != null
+               || LinkSilent(ex) != null;
+
+        private static WinboxRomonLinkSilentException? LinkSilent(Exception ex)
+        {
+            for (Exception? e = ex; e != null; e = e.InnerException)
+            {
+                if (e is WinboxRomonLinkSilentException silent) return silent;
+                if (e is AggregateException aggregate)
+                {
+                    foreach (var inner in aggregate.InnerExceptions)
+                    {
+                        var found = LinkSilent(inner);
+                        if (found != null) return found;
+                    }
+                }
+            }
+            return null;
+        }
 
         private static WinboxSessionLimitException? SessionLimit(Exception ex)
         {

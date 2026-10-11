@@ -131,7 +131,11 @@ namespace tik4net
         /// </summary>
         TargetRefusedLogin,
 
-        /// <summary>The target accepted the connection but never reached its shell prompt.</summary>
+        /// <summary>
+        /// The target accepted the connection but never reached its shell prompt; through the WinBox relay, the agent
+        /// did not open the link, or opened one that nothing answered through. A silent link is opened again before
+        /// this is reported.
+        /// </summary>
         TargetDidNotRespond,
 
         /// <summary>

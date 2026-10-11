@@ -70,6 +70,30 @@ namespace tik4net.Winbox
 
             AgentRomonId = ReadAgentRomonId(host, ioTimeoutMs);
             _link = Connect(host, Math.Max(ioTimeoutMs, ConnectWaitMs));
+            CheckLinkAnswers(host, Math.Min(ioTimeoutMs > 0 ? ioTimeoutMs : LinkAnswerWaitMs, LinkAnswerWaitMs));
+        }
+
+        // A link the agent has just opened is now and then silent for good — it happens while /tool romon ssh relays
+        // start and end on the agent — and the first command through it would wait out its whole receive timeout. One
+        // system-info read through the link tells it apart; any answer will do (WinboxRomonLinkSilentException).
+        private const int LinkAnswerWaitMs = 5000;
+
+        private void CheckLinkAnswers(string host, int timeoutMs)
+        {
+            try
+            {
+                AgentRequest(M2Message.BuildM2(
+                    M2Message.SysToArr(new[] { ProxyHandler, _link }.Concat(WinboxM2Protocol.SysInfo.Handler).ToArray()),
+                    M2Message.SysFrom(),
+                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _agent.NextReqIdField(),
+                    M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SysInfo.Command)),
+                    timeoutMs, host, "first request through the link to " + _target.RomonId);
+            }
+            catch (TikConnectionReceiveTimeoutException ex)
+            {
+                throw new WinboxRomonLinkSilentException("The RoMON agent " + host + " opened a link to "
+                    + _target.RomonId + ", but nothing answered through it within " + timeoutMs + " ms.", ex);
+            }
         }
 
         // The agent answers an unreachable id after 5 s; a shorter read timeout must not cut that answer off.
@@ -123,26 +147,42 @@ namespace tik4net.Winbox
         // links that other sessions left behind it pushes their logouts (SYS_CMD 0xFE0014, SYS_FROM [0xFF0003, <their
         // link>], no request id) to every WinBox session of the user. The answer is the frame carrying the request's
         // own id; anything else is read past. Over the MAC layer a frame with no M2 data, and a receive that timed out,
-        // come back null: neither is the answer, so the wait goes on to the deadline, and a deadline with no answer is a
-        // timeout — not a reply lacking every field, which would read as "RoMON is not enabled" or "no link".
+        // come back null; over TCP a receive that timed out throws. Neither is the answer, so the wait goes on to the
+        // deadline, and a deadline with no answer is a timeout — not a reply lacking every field, which would read as
+        // "RoMON is not enabled" or "no link", nor a socket error, which would read as a failed login.
         private byte[] AgentRequest(byte[] m2, int timeoutMs, string host, string step)
         {
             int? sent = M2Message.ParseSysReqId(m2);
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            byte[]? reply = _agent.SendReceive(m2, timeoutMs);
+            byte[]? reply = UntilTimeout(() => _agent.SendReceive(m2, timeoutMs));
             int readPast = 0;
             while (reply == null || (sent != null && M2Message.ParseSysReqId(reply) != sent))
             {
                 if (reply != null)
+                {
                     readPast++;
+                    if (Diagnostics.TikWireTrace.Enabled)
+                        Diagnostics.TikWireTrace.Emit("wbx.romon", Diagnostics.TikWireDir.Recv,
+                            "read past during the " + step + ": " + M2Message.Describe(reply));
+                }
                 int left = timeoutMs - (int)watch.ElapsedMilliseconds;
                 if (left <= 0)
                     throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs),
                         "The RoMON agent " + host + " did not answer the " + step + " within " + timeoutMs + " ms"
                         + (readPast > 0 ? " (" + readPast + " frame(s) of its own were read past)." : "."));
-                reply = _agent.Receive(left);
+                reply = UntilTimeout(() => _agent.Receive(left));
             }
             return reply;
+        }
+
+        private static byte[]? UntilTimeout(Func<byte[]?> receive)
+        {
+            try { return receive(); }
+            catch (System.IO.IOException ex) when (ex.InnerException is System.Net.Sockets.SocketException se
+                                                  && se.SocketErrorCode == System.Net.Sockets.SocketError.TimedOut)
+            {
+                return null;
+            }
         }
 
         private static byte[] ParseRomonId(string id)
@@ -185,6 +225,9 @@ namespace tik4net.Winbox
 
         private byte[] Inbound(byte[] m2)
         {
+            if (m2 != null && Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit("wbx.romon", Diagnostics.TikWireDir.Recv,
+                    "link " + _link + ": " + M2Message.Describe(m2));
             if (m2 != null && IsLinkLogout(m2))
             {
                 _ended = true;

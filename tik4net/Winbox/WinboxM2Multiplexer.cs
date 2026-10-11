@@ -219,11 +219,12 @@ namespace tik4net.Winbox
                 // The byte baseline is taken BEFORE the write, for the same reason the registration is: the
                 // reader loop counts on its own thread, and a reply that starts arriving while Send returns
                 // would otherwise sit in the baseline and read as a router that answered nothing.
-                long bytesAtSend;
+                long bytesAtSend, framesAtSend;
                 lock (_writeLock)
                 {
                     ThrowIfFaulted();
                     bytesAtSend = _channel.BytesReceived;
+                    framesAtSend = Interlocked.Read(ref _framesRead);
                     _channel.Send(request);
                 }
 
@@ -262,7 +263,7 @@ namespace tik4net.Winbox
                                 // the timeout carries the evidence rather than just the fact.
                                 throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs),
                                     $"No WinBox M2 reply for request id {id} within {timeoutMs} ms. "
-                                    + ChannelActivity(bytesSeen - bytesAtSend,
+                                    + ChannelActivity(bytesSeen - bytesAtSend, Interlocked.Read(ref _framesRead) - framesAtSend,
                                                       lastByteMs < 0 ? -1 : elapsed.ElapsedMilliseconds - lastByteMs));
                             }
 
@@ -288,7 +289,7 @@ namespace tik4net.Winbox
                                     + $"bytes of request id {id}, so the command did not run. RouterOS drops an idle "
                                     + "MAC-layer session after about 30 s without closing the socket or reporting an "
                                     + "error, so the session goes silent rather than failing. "
-                                    + ChannelActivity(bytesSeen - bytesAtSend,
+                                    + ChannelActivity(bytesSeen - bytesAtSend, Interlocked.Read(ref _framesRead) - framesAtSend,
                                                       lastByteMs < 0 ? -1 : elapsed.ElapsedMilliseconds - lastByteMs));
                         }
                     }
@@ -323,7 +324,11 @@ namespace tik4net.Winbox
         /// How long ago the last of those bytes arrived, or a negative value when none did. Quantized to the
         /// poll interval.
         /// </param>
-        private string ChannelActivity(long bytesSinceSend, long msSinceLastByte)
+        /// <param name="framesSinceSend">
+        /// Frames completed since this request went out. Bytes with frames among them are other messages — pushes
+        /// such as the logouts a RoMON agent sends — not a reply still being delivered.
+        /// </param>
+        private string ChannelActivity(long bytesSinceSend, long framesSinceSend, long msSinceLastByte)
         {
             long frames = Interlocked.Read(ref _framesRead);
             long ticks = Interlocked.Read(ref _lastFrameTicks);
@@ -340,6 +345,10 @@ namespace tik4net.Winbox
             // is answering and we are mid-frame; no bytes at all means it sent nothing, whoever is at fault.
             string liveness = bytesSinceSend == 0
                 ? "Not one byte has arrived since this request was sent, so the router answered nothing at all"
+                : framesSinceSend > 0
+                ? $"{bytesSinceSend} byte(s) have arrived since this request was sent, the last {msSinceLastByte} ms ago, "
+                  + $"in {framesSinceSend} complete frame(s), none of them its reply — so the router is sending other "
+                  + "messages and has not answered this one"
                 : $"{bytesSinceSend} byte(s) have arrived since this request was sent, the last "
                   + $"{msSinceLastByte} ms ago, without completing a frame — so a reply is being delivered and "
                   + "is either huge or trickling";

@@ -88,7 +88,26 @@ namespace tik4net.unittests.Winbox
         {
             int calls = 0;
             Assert.ThrowsException<TikConnectionLoginException>(() => RunCounting(call => { calls = call; return Refused(); }));
-            Assert.AreEqual(RouterLoginRetry.MaxAttempts, calls);
+            Assert.AreEqual(RouterLoginRetry.SessionLimitAttempts, calls);
+        }
+
+        // A RoMON link the agent opened but nothing answers through is retried on a new link; callers would see it as
+        // the public TikRomonRelayException with TargetDidNotRespond.
+        [TestMethod]
+        public void ASilentRomonLink_IsRetried()
+        {
+            var silent = new WinboxRomonLinkSilentException("silent", null);
+            Assert.AreEqual(TikRomonRelayFailure.TargetDidNotRespond, silent.Reason);
+            Assert.AreEqual(2, RunCounting(call => call == 1 ? silent : null));
+        }
+
+        [TestMethod]
+        public void AnotherRelayFailure_IsNotRetried()
+        {
+            int calls = 0;
+            Assert.ThrowsException<TikRomonRelayException>(() => RunCounting(call =>
+            { calls = call; return new TikRomonRelayException(TikRomonRelayFailure.TargetDidNotRespond, "no prompt"); }));
+            Assert.AreEqual(1, calls);
         }
 
         [TestMethod]

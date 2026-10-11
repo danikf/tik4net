@@ -35,6 +35,64 @@ namespace tik4net.unittests.Winbox
             }
         }
 
+        // A RoMON agent keeps pushing logouts of other sessions on a link that never answers (Docs/findings-romon.md,
+        // "A link that is silent from the start"); those are complete frames, not a reply still being delivered.
+        [TestMethod]
+        public void Timeout_WithOtherFramesArriving_SaysNoneWasTheReply()
+        {
+            using (var channel = new OtherFrameAfterSendChannel())
+            using (var mux = new WinboxM2Multiplexer(channel))
+            {
+                byte[] request = M2Message.BuildM2(M2Message.SysToArr(24, 1), M2Message.SysFrom(), mux.NextReqIdField());
+
+                var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => mux.SendReceive(request, 600));
+
+                StringAssert.Contains(ex.Message, "1 complete frame(s), none of them its reply");
+                Assert.IsFalse(ex.Message.Contains("without completing a frame"), ex.Message);
+            }
+        }
+
+        /// <summary>A channel that, once the request is sent, delivers one complete push frame and then nothing.</summary>
+        private sealed class OtherFrameAfterSendChannel : IWinboxM2Channel
+        {
+            private static readonly byte[] Push = M2Message.BuildM2(M2Message.SysToArr(), M2Message.SysFrom(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Logout));
+            private readonly ManualResetEventSlim _sent = new ManualResetEventSlim();
+            private readonly ManualResetEventSlim _closed = new ManualResetEventSlim();
+            private long _bytesReceived;
+            private int _delivered;
+
+            public long BytesReceived => Interlocked.Read(ref _bytesReceived);
+            public void Send(byte[] m2) => _sent.Set();
+
+            public byte[] ReceiveNextFrame()
+            {
+                _sent.Wait();
+                if (Interlocked.Exchange(ref _delivered, 1) == 0)
+                {
+                    Interlocked.Add(ref _bytesReceived, Push.Length);
+                    return Push;
+                }
+                _closed.Wait();
+                return null!;
+            }
+
+            public bool SupportsReaderLoop => true;
+            public bool IsEncrypted => false;
+            public bool DataAvailable => false;
+            public bool SupportsStaleDrain => false;
+            public bool SendAbandoned => false;
+            public bool SendStalled => false;
+            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs,
+                int sendTimeoutMs = 0) { }
+            public byte[] NextReqIdField() => throw new System.NotSupportedException();
+            public byte[] Receive(int timeoutMs) => throw new System.NotSupportedException();
+            public byte[] SendReceive(byte[] m2, int timeoutMs) => throw new System.NotSupportedException();
+            public void StartIdleServicing() { }
+            public void Dispose() { _sent.Set(); _closed.Set(); }
+        }
+
         /// <summary>
         /// A channel whose reply starts arriving before <see cref="Send"/> returns and never completes a frame.
         /// </summary>
