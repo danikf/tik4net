@@ -111,8 +111,16 @@ namespace tik4net.unittests
         }
 
         // A thread of its own (not the pool) sends the packets to the MNDP port on loopback every 100 ms until disposed.
+        //
+        // Held under a machine-wide lock: `dotnet test` runs the net8.0 and net48 legs at once, in two processes, and
+        // both bind the MNDP port shared. A unicast datagram to a shared port reaches one of the sockets only, so one
+        // leg's discovery could take the other leg's announcement for 192.0.2.7 — a whole one where it announced a
+        // sparse one — and fail on its identity (seen in 2 of 3 full runs, never with one leg alone).
         private static IDisposable Announce(params byte[][] packets)
         {
+            var portLock = new Mutex(false, "tik4net.unittests.mndp-port");
+            try { Assert.IsTrue(portLock.WaitOne(TimeSpan.FromMinutes(2)), "the other test leg kept the MNDP port"); }
+            catch (AbandonedMutexException) { /* the other leg ended while holding it: the port is ours */ }
             var stop = new ManualResetEventSlim(false);
             var thread = new Thread(() =>
             {
@@ -125,7 +133,13 @@ namespace tik4net.unittests
                 }
             }) { IsBackground = true };
             thread.Start();
-            return new Stopper(() => { stop.Set(); thread.Join(2000); });
+            return new Stopper(() =>
+            {
+                stop.Set();
+                thread.Join(2000);
+                portLock.ReleaseMutex();
+                portLock.Dispose();
+            });
         }
 
         private sealed class Stopper : IDisposable
