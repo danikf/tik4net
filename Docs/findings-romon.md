@@ -261,8 +261,12 @@ sessions, drop connect from <client>` (`/ip service winbox max-sessions=20`). Ne
 direct WinBox session: 4 minutes each of direct WinBox native (572 sessions), relayed WinBox native (562), relayed
 Telnet (127) and relayed WinBox native beside MAC-Telnet logins (515) gave no refusal; both relays together gave 3
 in 4 minutes, and with MAC-Telnet logins added, bursts of 20–100 refusals every 1.5–3 minutes. What the limit
-counts there is open: the service's dynamic connection rows stayed at 1 or fewer (polled every 500 ms through a
-burst), and `/user active` listed one WinBox session. The same load also produced a relayed WinBox reply that never
+counts there is open, but it is not the client's connections: the client held one established connection to port
+8291 at a time throughout, bursts included (the rest in TIME_WAIT), the service's dynamic connection rows stayed at 1
+or fewer (polled every 500 ms through a burst), and `/user active` on the agent listed one WinBox session. Nor is it
+the relayed sessions left on the target alone: under relayed WinBox native churn by itself the target's `/user active`
+climbs to 80–100 WinBox sessions and falls back to about 20 every ~37 s as the agent reaps dead links in batches, with
+no refusal on the agent. The same load also produced a relayed WinBox reply that never
 completed its frame (2688 bytes arrived, then nothing). Measured with a 7.24 agent and a 6.49.13 target.
 
 **tik4net's implementation.** `WinboxRomonChannel` wraps the carrier session to the agent (TCP or MAC layer):
