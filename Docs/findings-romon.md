@@ -266,7 +266,8 @@ counts there is open, but it is not the client's connections: the client held on
 or fewer (polled every 500 ms through a burst), and `/user active` on the agent listed one WinBox session. Nor is it
 the relayed sessions left on the target alone: under relayed WinBox native churn by itself the target's `/user active`
 climbs to 80–100 WinBox sessions and falls back to about 20 every ~37 s as the agent reaps dead links in batches, with
-no refusal on the agent. The same load also produced a relayed WinBox reply that never
+no refusal on the agent. Nor is it the agent's `/user active` total: with 24 rows there (stale `rest-api` rows and idle
+API sessions), a direct WinBox login is accepted. The same load also produced a relayed WinBox reply that never
 completed its frame (2688 bytes arrived, then nothing). Measured with a 7.24 agent and a 6.49.13 target. A refused
 connection is closed or reset before the agent sends a byte; `WinboxTcpTransport.ReadExact` reports that case as the
 max-sessions refusal rather than as a generic closure.
