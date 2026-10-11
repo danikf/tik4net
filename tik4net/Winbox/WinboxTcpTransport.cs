@@ -278,13 +278,20 @@ namespace tik4net.Winbox
                     TikWireTrace.Emit("wbxtcp.sock", TikWireDir.Note,
                         "read want=" + (count - total) + " into " + total + "/" + count);
 
-                int n = _ns.Read(buf, total, count - total);
+                int n;
+                try { n = _ns.Read(buf, total, count - total); }
+                catch (IOException ex) when (BytesRead == 0 && total == 0 && ex.InnerException is SocketException se
+                    && (se.SocketErrorCode == SocketError.ConnectionReset || se.SocketErrorCode == SocketError.ConnectionAborted))
+                {
+                    throw ClosedBeforeAnyByte(ex);
+                }
 
                 if (TikWireTrace.Enabled)
                     TikWireTrace.Emit("wbxtcp.sock", TikWireDir.Recv, buf, total, n > 0 ? n : 0,
                         "got=" + n + " " + (total + (n > 0 ? n : 0)) + "/" + count);
 
-                if (n <= 0) throw new IOException("Connection closed unexpectedly");
+                if (n <= 0)
+                    throw BytesRead == 0 && total == 0 ? ClosedBeforeAnyByte(null) : new IOException("Connection closed unexpectedly");
 
                 // Counted here, not once the frame is assembled: a waiter asking "is anything arriving?"
                 // has to be answered while the frame is still incomplete, or the answer is useless.
@@ -293,6 +300,14 @@ namespace tik4net.Winbox
             }
             return buf;
         }
+
+        // RouterOS refuses a WinBox connection over its service's max-sessions by accepting it and closing or resetting it
+        // at once, logging "too many winbox/dude sessions, drop connect from <client>" (7.24, Docs/findings-romon.md,
+        // "Relays from two transports at once"). A connection that ends before the router has sent one byte says so.
+        private static IOException ClosedBeforeAnyByte(Exception? inner)
+            => new IOException("The router closed the WinBox connection before sending anything. RouterOS does this when "
+                + "its WinBox service has reached max-sessions (/ip service winbox; the router then logs 'too many "
+                + "winbox/dude sessions'); a new connection is accepted once sessions end.", inner);
 
         public void SetReceiveTimeout(int ms) => _tcp.ReceiveTimeout = ms;
         public int  GetReceiveTimeout()       => _tcp.ReceiveTimeout;

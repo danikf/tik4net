@@ -267,7 +267,9 @@ or fewer (polled every 500 ms through a burst), and `/user active` on the agent 
 the relayed sessions left on the target alone: under relayed WinBox native churn by itself the target's `/user active`
 climbs to 80–100 WinBox sessions and falls back to about 20 every ~37 s as the agent reaps dead links in batches, with
 no refusal on the agent. The same load also produced a relayed WinBox reply that never
-completed its frame (2688 bytes arrived, then nothing). Measured with a 7.24 agent and a 6.49.13 target.
+completed its frame (2688 bytes arrived, then nothing). Measured with a 7.24 agent and a 6.49.13 target. A refused
+connection is closed or reset before the agent sends a byte; `WinboxTcpTransport.ReadExact` reports that case as the
+max-sessions refusal rather than as a generic closure.
 
 **tik4net's implementation.** `WinboxRomonChannel` wraps the carrier session to the agent (TCP or MAC layer):
 it logs in, reads the agent's settings, sends the connect, and then rewrites `SYS_TO`/`SYS_FROM` on every
