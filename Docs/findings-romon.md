@@ -251,8 +251,10 @@ target then rolls back what the session held, Safe Mode included (`RomonRelayTes
 msg-proxy, nor any msg-proxy command 2000–2010 with the link id (all `0xFE0009`), nor a request still in flight at
 the close, nor WinBox's `user+r` login (`Probe_Romon_WinboxRelay_CloseVariants`,
 `Probe_Romon_WinboxRelay_ProxyCommandScan`). A `+r` session is restricted on the agent: `[127,2]` get-singleton
-answers `0xFE0009`, and WinBox checks RoMON with `[127,2]` command 9 instead. The WinBox CLI is not affected: it
-ends the target's terminal with `/quit`, which ends the session at once.
+answers `0xFE0009`, and WinBox checks RoMON with `[127,2]` command 9 instead. The WinBox CLI ends the target's
+terminal with `/quit`, which ends the terminal, and what it held, at once; the link's own WinBox session on the
+target stays until it is reaped, as a native one does (31 relays through the WinBox CLI left 23 more `by-romon`
+WinBox sessions on the target).
 
 **The WinBox session limit.** RouterOS holds at most **100 WinBox/Dude sessions**. The 101st WinBox connection is
 reset before the router sends a byte, and the router logs `too many winbox/dude sessions, drop connect from <client>`.
@@ -263,19 +265,26 @@ A refused connection is closed or reset before the router sends a byte; `WinboxT
 case as this limit rather than as a generic closure. (7.24, CHR `free` licence; the CHR licence levels limit nothing but
 throughput.)
 
-**RoMON relays hold the agent's WinBox slots.** On the agent, every RoMON session it holds to a target takes one of
-the 100 slots — a WinBox native relay link and a `/tool romon ssh` relay alike — and keeps it until the session ends on
-the target. The free slots (counted as how many direct WinBox logins still succeed) track the number of `by-romon`
-rows in the target's `/user active` to within one, at every sample of a 17-minute run: none with no relay, ~5 under
-relayed WinBox native churn, ~18 under relayed Telnet churn, 30–73 with both, and back to 0 within 40 s of the load
-stopping. Both relays together leave the target with far more unreaped sessions than either alone, which is what
-fills the 100 slots: the agent refused 98 relayed WinBox connections in 5.5 minutes of both relays, and one in 2
-minutes of WinBox relay alone. Nothing the client sends ends a WinBox relay link sooner (see *Closing* above), and
-RouterOS has no setting for the limit or for the reaping; a client that relays through one agent at that rate meets
-the limit. An earlier measurement saw the target's `/user active` climb to 80–100 relayed WinBox sessions under WinBox
-relay churn alone with no refusal; how that squares with one slot per session is open. The same load produces relayed
-WinBox replies that never complete their frame (2688–14548 bytes arrived, then nothing) and logins through the relay
-that time out. Measured with a 7.24 agent and a 6.49.13 target.
+**Dead WinBox relay links hold the agent's slots.** Every WinBox relay link — WinBox native or WinBox CLI — leaves
+its session on the target when the client closes, and on the agent that dead link keeps one of the 100 slots until
+it is reaped. The agent reaps them in two ways, all at once each time: about 150 s after the links died (43 dead links
+stood unchanged for 150 s after the load stopped, then all went within 10 s), and **as soon as the slots are full**:
+with 45 dead links on the target, direct WinBox logins held open on the agent went through 55 with the 45 still
+there, and between the 55th and the 60th all 45 were gone; the login that found the slots full was not refused. So
+back-to-back WinBox relays alone saw-tooth: the target's dead links climb by ~2.5 a second to 99, drop to 10–20, and
+climb again, with no refusal in 4 minutes (579 relays). The same with direct Telnet logins to the agent beside it: no
+refusal (537 relays, 192 logins).
+
+A relay through `/tool romon ssh` holds nothing afterwards: under back-to-back Telnet relays the target never has more
+than one `by-romon` `ssh` session, and each is gone within 40 ms of the client's close. But **with a `/tool romon ssh`
+relay running, the reap on full slots refuses first**: the same saw-tooth, and each time the dead links reach 99–100,
+the agent refuses every WinBox connection for a fraction of a second (34 refusals in 0.2 s, logged as `too many
+winbox/dude sessions`), then one connection's login times out (5 s), and then the dead links are gone and connections
+are accepted again (134 refusals among 578 relays in 4 minutes). The same load produces relayed WinBox replies that
+never complete their frame (2688–14548 bytes arrived, then nothing). Nothing the client sends ends a WinBox relay link
+sooner (see *Closing* above), and RouterOS has no setting for the limit or the reaping. The rate that fills the slots
+is 100 relayed WinBox opens within ~150 s through one agent, about 0.7 a second. Measured with a 7.24 agent and a
+6.49.13 target.
 
 **tik4net's implementation.** `WinboxRomonChannel` wraps the carrier session to the agent (TCP or MAC layer):
 it logs in, reads the agent's settings, sends the connect, and then rewrites `SYS_TO`/`SYS_FROM` on every
