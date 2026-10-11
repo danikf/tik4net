@@ -254,6 +254,17 @@ the close, nor WinBox's `user+r` login (`Probe_Romon_WinboxRelay_CloseVariants`,
 answers `0xFE0009`, and WinBox checks RoMON with `[127,2]` command 9 instead. The WinBox CLI is not affected: it
 ends the target's terminal with `/quit`, which ends the session at once.
 
+**Relays from two transports at once.** With relayed Telnet sessions (`/tool romon ssh` typed in a Telnet session on
+the agent) and relayed WinBox native sessions opened and closed back to back through the same agent, the agent
+refuses some WinBox connections from the client: they are reset at once, and the agent logs `too many winbox/dude
+sessions, drop connect from <client>` (`/ip service winbox max-sessions=20`). Neither relay does it alone, nor does a
+direct WinBox session: 4 minutes each of direct WinBox native (572 sessions), relayed WinBox native (562), relayed
+Telnet (127) and relayed WinBox native beside MAC-Telnet logins (515) gave no refusal; both relays together gave 3
+in 4 minutes, and with MAC-Telnet logins added, bursts of 20–100 refusals every 1.5–3 minutes. What the limit
+counts there is open: the service's dynamic connection rows stayed at 1 or fewer (polled every 500 ms through a
+burst), and `/user active` listed one WinBox session. The same load also produced a relayed WinBox reply that never
+completed its frame (2688 bytes arrived, then nothing). Measured with a 7.24 agent and a 6.49.13 target.
+
 **tik4net's implementation.** `WinboxRomonChannel` wraps the carrier session to the agent (TCP or MAC layer):
 it logs in, reads the agent's settings, sends the connect, and then rewrites `SYS_TO`/`SYS_FROM` on every
 message, so WinBox native and the WinBox CLI's mepty terminal run on it unchanged. The logout naming the link raises
