@@ -10,9 +10,10 @@ namespace tik4net.unittests.Winbox
     /// A WinBox connection the router closes before sending a single byte names the case RouterOS uses it for.
     /// </summary>
     /// <remarks>
-    /// RouterOS refuses a WinBox connection over its service's <c>max-sessions</c> by accepting it and resetting it at
-    /// once, and logs <c>too many winbox/dude sessions, drop connect from &lt;client&gt;</c>. The client saw only
-    /// "Connection closed unexpectedly", 20–100 times in a burst (7.24, RoMON relay churn). A local listener stands in.
+    /// RouterOS refuses a WinBox connection over its WinBox/Dude session limit (100 on 7.24, not <c>/ip service
+    /// max-sessions</c>) by accepting it and resetting it at once, and logs <c>too many winbox/dude sessions, drop connect
+    /// from &lt;client&gt;</c>. The client saw only "Connection closed unexpectedly", 20–100 times in a burst (RoMON relay
+    /// churn). A local listener stands in.
     /// </remarks>
     [TestClass]
     [DoNotParallelize]   // a local listener answers within a receive timeout
@@ -43,7 +44,7 @@ namespace tik4net.unittests.Winbox
         {
             var ex = ReadAfter(s => s.Shutdown(SocketShutdown.Both));
             StringAssert.Contains(ex.Message, "before sending anything");
-            StringAssert.Contains(ex.Message, "max-sessions");
+            StringAssert.Contains(ex.Message, "too many winbox/dude sessions");
         }
 
         [TestMethod]
@@ -51,14 +52,14 @@ namespace tik4net.unittests.Winbox
         {
             var ex = ReadAfter(s => s.LingerState = new LingerOption(true, 0));   // the close that follows is a reset
             StringAssert.Contains(ex.Message, "before sending anything");
-            StringAssert.Contains(ex.Message, "max-sessions");
+            StringAssert.Contains(ex.Message, "too many winbox/dude sessions");
         }
 
         [TestMethod]
         public void AConnectionClosedMidFrame_KeepsTheGenericMessage()
         {
             var ex = ReadAfter(s => { s.Send(new byte[] { 1, 2, 3 }); s.Shutdown(SocketShutdown.Both); });
-            Assert.IsFalse(ex.Message.Contains("max-sessions"), ex.Message);
+            Assert.IsFalse(ex.Message.Contains("winbox/dude"), ex.Message);
         }
     }
 }

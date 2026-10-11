@@ -301,13 +301,15 @@ namespace tik4net.Winbox
             return buf;
         }
 
-        // RouterOS refuses a WinBox connection over its service's max-sessions by accepting it and closing or resetting it
-        // at once, logging "too many winbox/dude sessions, drop connect from <client>" (7.24, Docs/findings-romon.md,
-        // "Relays from two transports at once"). A connection that ends before the router has sent one byte says so.
+        // RouterOS refuses a WinBox connection over its WinBox/Dude session limit — 100 on 7.24, a fixed limit that
+        // /ip service winbox max-sessions does not set — by accepting it and closing or resetting it at once, logging
+        // "too many winbox/dude sessions, drop connect from <client>" (Docs/findings-romon.md, "The WinBox session
+        // limit"). A connection that ends before the router has sent one byte says so.
         private static IOException ClosedBeforeAnyByte(Exception? inner)
             => new IOException("The router closed the WinBox connection before sending anything. RouterOS does this when "
-                + "its WinBox service has reached max-sessions (/ip service winbox; the router then logs 'too many "
-                + "winbox/dude sessions'); a new connection is accepted once sessions end.", inner);
+                + "it already holds its limit of WinBox/Dude sessions (100 on RouterOS 7.24; /ip service winbox "
+                + "max-sessions does not change it), and logs 'too many winbox/dude sessions'; a new connection is "
+                + "accepted once sessions end.", inner);
 
         public void SetReceiveTimeout(int ms) => _tcp.ReceiveTimeout = ms;
         public int  GetReceiveTimeout()       => _tcp.ReceiveTimeout;
