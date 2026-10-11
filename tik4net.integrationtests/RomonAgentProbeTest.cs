@@ -292,6 +292,75 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// The msg-proxy's commands around the connect, asked from a <c>user+r</c> session — WinBox's own login to an
+        /// agent — on a link it opened itself. A plain session is answered <c>0xFE0009</c> (not permitted) for all of
+        /// 2000–2010, which says the commands exist; does any of them end the link when the session may use it?
+        /// Each command gets a fresh link; the target's relayed WinBox sessions are counted after it.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_WinboxRelay_ProxyCommandScan_PlusR()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            string targetId = LabConfig.Get("romonTargetId");
+            byte[] rawId = targetId.Split(':').Select(h => Convert.ToByte(h, 16)).ToArray();
+            using (var target = new TikConnectionSetup(LabConfig.Get("romonTargetHost"), LabConfig.Get("romonTargetUser"),
+                       LabConfig.Get("romonTargetPass") ?? "").Create(TikConnectionType.Api))
+            {
+                int Relayed() => target.CreateCommand("/user/active/print").ExecuteList()
+                    .Count(r => r.GetResponseFieldOrDefault("via", "") == "winbox"
+                                && !string.IsNullOrEmpty(r.GetResponseFieldOrDefault("by-romon", "")));
+                byte[] Ask(WinboxM2Session a, byte[] m2, int ms)
+                {
+                    int? id = M2.ParseSysReqId(m2);
+                    var w = System.Diagnostics.Stopwatch.StartNew();
+                    byte[] r = a.SendReceive(m2, ms);
+                    while (r == null || M2.ParseSysReqId(r) != id)
+                    {
+                        if (w.ElapsedMilliseconds > ms) throw new TimeoutException("no answer");
+                        r = a.Receive(ms - (int)w.ElapsedMilliseconds);
+                    }
+                    return r;
+                }
+                foreach (int cmd in new[] { 0, 2000, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010 })
+                {
+                    int before = Relayed();
+                    var agent = new WinboxM2Session();
+                    agent.Open(LabConfig.Get("host"), 8291, LabConfig.Get("user") + "+r", LabConfig.Get("pass") ?? "", 5000, 5000);
+                    byte[] c = Ask(agent, M2.BuildM2(M2.SysToArr(2), M2.SysFrom(),
+                        M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), agent.NextReqIdField(),
+                        M2.U32Sys(WinboxM2Protocol.SysKey.Command, 2001), M2.BoolSys(6, true),
+                        M2.StringUser(8, LabConfig.Get("romonTargetPass") ?? ""), M2.StringUser(7, LabConfig.Get("romonTargetUser")),
+                        M2.RawUser(4, rawId)), 10000);
+                    if (M2.ParseSysStatus(c) != 0 || !M2.TryParseSessionId(c, out int link))
+                    {
+                        Log($"cmd {cmd}: connect as +r failed: {M2.Describe(c)}");
+                        agent.Dispose();
+                        continue;
+                    }
+                    int open = Relayed();
+                    string answer = "(connect only)";
+                    if (cmd != 0)
+                    {
+                        try
+                        {
+                            byte[] r = Ask(agent, M2.BuildM2(M2.SysToArr(2), M2.SysFrom(),
+                                M2.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), agent.NextReqIdField(),
+                                M2.U32Sys(WinboxM2Protocol.SysKey.Command, cmd), M2.SessionIdField(link)), 7000);
+                            answer = $"status=0x{M2.ParseSysStatus(r):X} {M2.Describe(r)}";
+                        }
+                        catch (Exception ex) { answer = ex.GetType().Name + ": " + ex.Message; }
+                    }
+                    System.Threading.Thread.Sleep(1500);
+                    int afterCmd = Relayed();
+                    agent.Dispose();
+                    System.Threading.Thread.Sleep(3000);
+                    Log($"cmd {cmd}: link {link}; before {before}, open {open}, after cmd {afterCmd}, 3 s after close {Relayed()}; {answer}");
+                }
+            }
+        }
+
+        /// <summary>
         /// The msg-proxy's commands around the connect (2001), each sent with the open link's id and a reply expected,
         /// with the target's relayed-session count after each — which one, if any, ends a link.
         /// </summary>

@@ -45,6 +45,7 @@ namespace tik4net.unittests.Winbox
             var ex = ReadAfter(s => s.Shutdown(SocketShutdown.Both));
             StringAssert.Contains(ex.Message, "before sending anything");
             StringAssert.Contains(ex.Message, "too many winbox/dude sessions");
+            Assert.IsInstanceOfType(ex, typeof(WinboxSessionLimitException));
         }
 
         [TestMethod]
@@ -60,6 +61,43 @@ namespace tik4net.unittests.Winbox
         {
             var ex = ReadAfter(s => { s.Send(new byte[] { 1, 2, 3 }); s.Shutdown(SocketShutdown.Both); });
             Assert.IsFalse(ex.Message.Contains("winbox/dude"), ex.Message);
+            Assert.IsNotInstanceOfType(ex, typeof(WinboxSessionLimitException));
+        }
+
+        // The refusal reaches RouterLoginRetry wrapped as the connection's login failure.
+        private static System.Exception Refused() => new TikConnectionLoginException(new WinboxSessionLimitException(null));
+
+        private static int RunCounting(System.Func<int, System.Exception> failure)
+        {
+            int saved = RouterLoginRetry.SessionLimitDelayMs, calls = 0;
+            RouterLoginRetry.SessionLimitDelayMs = 1;
+            try
+            {
+                RouterLoginRetry.Run(() => { var f = failure(++calls); if (f != null) throw f; });
+                return calls;
+            }
+            finally { RouterLoginRetry.SessionLimitDelayMs = saved; }
+        }
+
+        [TestMethod]
+        public void TheSessionLimitRefusal_IsRetried()
+            => Assert.AreEqual(2, RunCounting(call => call == 1 ? Refused() : null));
+
+        [TestMethod]
+        public void TheSessionLimitRefusal_GivesUpAfterTheLastAttempt()
+        {
+            int calls = 0;
+            Assert.ThrowsException<TikConnectionLoginException>(() => RunCounting(call => { calls = call; return Refused(); }));
+            Assert.AreEqual(RouterLoginRetry.MaxAttempts, calls);
+        }
+
+        [TestMethod]
+        public void AClosureMidFrame_IsNotRetried()
+        {
+            int calls = 0;
+            Assert.ThrowsException<TikConnectionLoginException>(() => RunCounting(call =>
+            { calls = call; return new TikConnectionLoginException(new IOException("Connection closed unexpectedly")); }));
+            Assert.AreEqual(1, calls);
         }
     }
 }

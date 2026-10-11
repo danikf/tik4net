@@ -177,7 +177,9 @@ namespace tik4net.Winbox
             int parityB  = challenge[32];
             byte[] salt  = challenge.Skip(33).Take(16).ToArray();
 
-            byte[] valPriv  = EcSrp5.GenPasswordValidatorPriv(user, pass, salt);
+            // RouterOS hashes only the account name into the validator: login options after '+' (WinBox's "user+r" to a
+            // RoMON agent) travel in the name sent above but not here (Docs/findings-romon.md, "Agent login").
+            byte[] valPriv  = EcSrp5.GenPasswordValidatorPriv(EcSrp5.AccountName(user), pass, salt);
             var (xGamma, _) = EcSrp5.GenPublicKey(valPriv);
             ECPoint v   = EcSrp5.Redp1(xGamma, 1);
             ECPoint wB  = EcSrp5.LiftX(EcSrp5.BEToBI(xWB), parityB);

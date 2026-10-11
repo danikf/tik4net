@@ -169,6 +169,17 @@ namespace tik4net.unittests
             return bytes;
         }
 
+        // A login name may carry RouterOS's login options after '+' (WinBox logs in to a RoMON agent as "user+r"); the
+        // router hashes only the account name into the validator, so "admin+r" must log in with admin's validator.
+        [TestMethod]
+        public void AccountName_DropsTheLoginOptions()
+        {
+            Assert.AreEqual("admin", EcSrp5.AccountName("admin+r"));
+            Assert.AreEqual("admin", EcSrp5.AccountName("admin+ct80w"));
+            Assert.AreEqual("admin", EcSrp5.AccountName("admin"));
+            Assert.AreEqual("", EcSrp5.AccountName(""));
+        }
+
         private static string Hex(byte[] bytes) => BitConverter.ToString(bytes).Replace("-", "");
     }
 }

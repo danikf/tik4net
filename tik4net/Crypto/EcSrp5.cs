@@ -219,6 +219,13 @@ namespace tik4net.Crypto
 
         // ── EC-SRP5 password validator ─────────────────────────────────────────
 
+        /// <summary>The account name of a login name: what precedes the first '+' (RouterOS's login options).</summary>
+        internal static string AccountName(string user)
+        {
+            int plus = user.IndexOf('+');
+            return plus < 0 ? user : user.Substring(0, plus);
+        }
+
         internal static byte[] GenPasswordValidatorPriv(string user, string pass, byte[] salt)
         {
             byte[] inner = Sha256(Encoding.UTF8.GetBytes(user + ":" + pass));

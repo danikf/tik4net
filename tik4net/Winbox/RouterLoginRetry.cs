@@ -31,6 +31,11 @@ namespace tik4net.Winbox
     /// <para>A MAC-Telnet login the router ends with nothing on screen
     /// (<see cref="MacTelnet.MacTelnetLoginClosedSilentlyException"/>) is a refusal whose single data packet was lost
     /// — RouterOS ends the session 1–4 ms after it and never resends it — and is retried as one.</para>
+    /// <para>A WinBox connection the router closes before sending a byte (<see cref="WinboxSessionLimitException"/>)
+    /// is RouterOS's limit of WinBox/Dude sessions. On a RoMON agent that limit fills with dead relay links, which the
+    /// agent reaps as soon as the slots are full, so the refusal lasts a fraction of a second; it is retried after
+    /// <see cref="SessionLimitDelayMs"/> × the attempt number, longer than the login pauses because it is the router
+    /// freeing slots, not a dropped packet.</para>
     /// <para>The caller supplies a delegate that performs a <b>complete</b> open, because a refused
     /// handshake leaves the channel unusable — the retry has to build a new one, not reuse the old.</para>
     /// </remarks>
@@ -41,6 +46,15 @@ namespace tik4net.Winbox
 
         /// <summary>Pause between attempts. Every observed rejection cleared within one 50 ms gap.</summary>
         internal const int DelayMs = 100;
+
+        /// <summary>
+        /// Pause before retrying a <see cref="WinboxSessionLimitException"/>, multiplied by the attempt number (so 1 s,
+        /// then 2 s). Measured refusal bursts lasted 0.2–2 s. Settable for tests.
+        /// </summary>
+        internal static int SessionLimitDelayMs = 1000;
+
+        private static int DelayFor(Exception ex, int attempt)
+            => SessionLimit(ex) != null ? SessionLimitDelayMs * attempt : DelayMs;
 
         /// <summary>Runs <paramref name="openOnce"/>, retrying only a transient router refusal.</summary>
         internal static void Run(Action openOnce)
@@ -55,7 +69,7 @@ namespace tik4net.Winbox
                 catch (Exception ex) when (attempt < MaxAttempts && IsTransientRefusal(ex))
                 {
                     NoteRetry(attempt, ex);
-                    Thread.Sleep(DelayMs);
+                    Thread.Sleep(DelayFor(ex, attempt));
                 }
             }
         }
@@ -73,7 +87,7 @@ namespace tik4net.Winbox
                 catch (Exception ex) when (attempt < MaxAttempts && IsTransientRefusal(ex))
                 {
                     NoteRetry(attempt, ex);
-                    await Task.Delay(DelayMs).ConfigureAwait(false);
+                    await Task.Delay(DelayFor(ex, attempt)).ConfigureAwait(false);
                 }
             }
         }
@@ -88,8 +102,10 @@ namespace tik4net.Winbox
                 return;
             var silence = NoAnswer(ex);
             string transport = Refusal(ex)?.Transport ?? silence?.Transport
-                ?? (SilentClosure(ex) != null ? "MAC-Telnet" : "router");
-            string what = silence != null
+                ?? (SilentClosure(ex) != null ? "MAC-Telnet" : SessionLimit(ex) != null ? "WinBox" : "router");
+            string what = SessionLimit(ex) != null
+                ? "connection closed by the router before any byte (its WinBox/Dude session limit)"
+                : silence != null
                 ? $"login unanswered by the router ({silence.WaitDescription})"
                 : SilentClosure(ex) != null
                     ? "login ended by the router with nothing on screen (a refusal whose text was lost)"
@@ -102,7 +118,24 @@ namespace tik4net.Winbox
         // layer, and an AggregateException as well when it came out of a task — so the whole chain is
         // searched rather than the outermost type tested.
         private static bool IsTransientRefusal(Exception ex)
-            => Refusal(ex) != null || NoAnswer(ex) != null || SilentClosure(ex) != null;
+            => Refusal(ex) != null || NoAnswer(ex) != null || SilentClosure(ex) != null || SessionLimit(ex) != null;
+
+        private static WinboxSessionLimitException? SessionLimit(Exception ex)
+        {
+            for (Exception? e = ex; e != null; e = e.InnerException)
+            {
+                if (e is WinboxSessionLimitException limit) return limit;
+                if (e is AggregateException aggregate)
+                {
+                    foreach (var inner in aggregate.InnerExceptions)
+                    {
+                        var found = SessionLimit(inner);
+                        if (found != null) return found;
+                    }
+                }
+            }
+            return null;
+        }
 
         // A MAC-Telnet login ended with nothing on screen: the refusal's one data packet was lost
         // (MacTelnetLoginClosedSilentlyException).
