@@ -28,7 +28,7 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
 * **[Ask the router what a menu takes](https://github.com/danikf/tik4net/wiki/RouterOS-versions#asking-the-router-what-a-menu-takes)** — `DescribeMenu` lists a
   menu's sub-menus and commands, the arguments each command takes, the fields it reads and can clear, the words an
   argument accepts and the router's description of each, from the router's own grammar
-* **[Connection string](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities#from-a-connection-string)** — `TikConnectionSetup.FromConnectionString`: the router, the
+* **[Connection string](https://github.com/danikf/tik4net/wiki/Connecting-to-a-router#from-a-connection-string)** — `TikConnectionSetup.FromConnectionString`: the router, the
   credentials and the transport come from config, not code
 * **[Negated matchers](https://github.com/danikf/tik4net/wiki/TikField#negated-matchers)** — `src-address=!10.0.0.0/8`
   reads as a negated `10.0.0.0/8`, not as a string starting with `!`
@@ -59,7 +59,7 @@ on RouterOS 7.21.5 and 6.49.13 ([RouterOS versions](https://github.com/danikf/ti
   nothing
 * **[Fail-closed capabilities and typed per-transport interfaces](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities)** — a
   transport's limits are compile errors or clear refusals, never quiet wrong behaviour
-* **[Streaming and async](https://github.com/danikf/tik4net/wiki/High-level-API-advanced#asynchronous-loading)** — `IAsyncEnumerable` reads and parallel
+* **[Streaming and async](https://github.com/danikf/tik4net/wiki/Monitors-and-streaming)** — `IAsyncEnumerable` reads and parallel
   commands such as torch, with in-flight cancellation
 * **`TikConnectionSetup`, one entry point** — for `netstandard2.0` and `net8.0`, with nullable annotations
 * **[Upgrade with an AI agent](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0-with-an-AI-agent)** — a ready-to-paste prompt that does
@@ -82,14 +82,14 @@ Every change, version by version: [History](https://github.com/danikf/tik4net/wi
 * [Low-level API](https://github.com/danikf/tik4net/wiki/Low-level-API) when you need to send the transport's own language unchanged
 * One connection contract over [every transport](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities), including the MAC-layer ones that reach a router with no IP address
 * Broad range of .NET runtimes supported (including .NET Framework, Xamarin and Unity)
-* Both API login handshakes, [old and v6.43+](https://github.com/danikf/tik4net/wiki/login-versions), negotiated automatically
+* Both API login handshakes, [old and v6.43+](https://github.com/danikf/tik4net/wiki/API-connection#login), negotiated automatically
 * [MNDP](https://github.com/danikf/tik4net/wiki/MNDP) discovery helper — find routers on the segment with no connection at all
 * [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect (lockout protection)
 * [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — `Save` sends only the fields you changed; no-op saves skip the API call
 * [Connection capability model](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — `connection.Supports(TikConnectionCapability.Listen)`; unsupported features fail closed
 * [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Unit-testing-without-a-router) via `tik4net.testing` (`TikFakeConnection`)
 * Uniform [exception tree](https://github.com/danikf/tik4net/wiki/Exception-handling) across all transports
-* [Entity scaffolding](https://github.com/danikf/tik4net/wiki/High-level-API-tools) from a live router, and an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) that lets an AI assistant drive a router over any tik4net transport
+* [Entity scaffolding](https://github.com/danikf/tik4net/wiki/High-level-API-custom-entities#scaffolding) from a live router, and an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) that lets an AI assistant drive a router over any tik4net transport
 * Easy to understand and well documented code
 
 ## Connection types
@@ -175,7 +175,7 @@ using (ITikConnection connection = setup.Create(TikConnectionType.Api))
 Project wiki:
 * [**Getting started**](https://github.com/danikf/tik4net/wiki/Getting-started) — step-by-step first project (NuGet → connect → CRUD)
 * [wiki root](https://github.com/danikf/tik4net/wiki)
-* [How to use tik4net](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library) — picking the right API level
+* [Library overview](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library) — how the library fits together, and which API level to use
 * [CRUD examples for all APIs](https://github.com/danikf/tik4net/wiki/CRUD-examples-for-all-APIs)
 * [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — pick a transport and see what it supports
 * [Exception handling](https://github.com/danikf/tik4net/wiki/Exception-handling) — the full exception tree
@@ -186,7 +186,7 @@ Project wiki:
 
 Examples and help:
 * [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs) — including asynchronous commands such as `/tool/torch`
-* [VisualBasic example](https://github.com/danikf/tik4net/wiki/VB-trivial-example)
+* [VisualBasic example](https://github.com/danikf/tik4net/wiki/Getting-started#using-from-vbnet)
 * [support forum](http://forum.mikrotik.com/viewtopic.php?t=99954)
 
 MikroTik's own protocol documentation:
