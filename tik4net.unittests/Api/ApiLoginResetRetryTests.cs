@@ -10,6 +10,7 @@ namespace tik4net.unittests.Api
     /// that hangs up in an orderly way is a protocol mismatch, as before, and is not retried.
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout
     public class ApiLoginResetRetryTests
     {
         private static TikConnectionSetup Setup(FakeRouterServer server)

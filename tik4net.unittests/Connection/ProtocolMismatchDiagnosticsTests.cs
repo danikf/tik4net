@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Connection;
 
@@ -34,7 +33,9 @@ namespace tik4net.unittests.Connection
         private const int PeerBudgetMs = 4000;
 
         /// <summary>
-        /// A listener on a free loopback port that runs <paramref name="serve"/> for the first client.
+        /// A listener on a free loopback port that runs <paramref name="serve"/> for every client, one after another,
+        /// on a thread of its own: an API open retries a login the peer resets, and a retry must meet the same peer
+        /// rather than a listener nobody accepts on.
         /// </summary>
         private sealed class FakePeer : IDisposable
         {
@@ -49,15 +50,16 @@ namespace tik4net.unittests.Connection
                 _listener.Start();
                 Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
 
-                Task.Run(() =>
+                new Thread(() =>
                 {
                     try
                     {
-                        using (TcpClient client = _listener.AcceptTcpClient())
-                            serve(client, _cts.Token);
+                        while (!_cts.IsCancellationRequested)
+                            using (TcpClient client = _listener.AcceptTcpClient())
+                                serve(client, _cts.Token);
                     }
-                    catch { /* the listener being torn down mid-accept is the normal end of this task */ }
-                });
+                    catch { /* the listener being torn down mid-accept is the normal end of this thread */ }
+                }) { IsBackground = true }.Start();
             }
 
             public void Dispose()
@@ -69,15 +71,22 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>Accepts, reads whatever arrives, and hangs up — what a wrong-protocol port does.</summary>
+        /// <remarks>
+        /// Reads until the client falls silent, not just once: the client sends its login word by word, and a socket
+        /// closed with bytes still unread goes out as a reset rather than an orderly close — which an API open treats
+        /// as the router dropping a busy login and opens again.
+        /// </remarks>
         private static void HangUp(TcpClient client, CancellationToken ct)
         {
             var buffer = new byte[512];
             try
             {
-                client.Client.ReceiveTimeout = 500;
-                client.GetStream().Read(buffer, 0, buffer.Length);
+                client.Client.ReceiveTimeout = 5000;      // the client always sends something first
+                var stream = client.GetStream();
+                while (stream.Read(buffer, 0, buffer.Length) > 0)
+                    client.Client.ReceiveTimeout = 200;     // the rest of the sentence follows at once
             }
-            catch { /* nothing arriving is fine too — the point is what happens next */ }
+            catch { /* nothing (more) arriving is fine too — the point is what happens next */ }
             client.Close();
         }
 
