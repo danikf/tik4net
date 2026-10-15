@@ -425,6 +425,8 @@ namespace tik4net.Telnet
 
                 if (closed || DateTime.UtcNow >= deadline)
                 {
+                    if (closed && sentCommand != null && _romonTarget != null)
+                        throw RouterOsCliLogin.RomonRelayEndedWithTheSession("Telnet", _romonTarget, sentCommand, stripped);
                     if (sentCommand != null)
                         throw CliReadTimeout.Create("Telnet", ReceiveTimeoutMs, sentCommand, stripped);
                     return stripped;

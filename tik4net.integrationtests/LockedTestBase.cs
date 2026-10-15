@@ -43,6 +43,14 @@ namespace tik4net.integrationtests
         /// <summary>The environment variable that serialises every test on the machine.</summary>
         public const string LockAllVariable = "TIK4NET_LOCK_ALL";
 
+        /// <summary>
+        /// What a <c>[Timeout]</c> adds for the lock wait: MSTest times TestInitialize with the test, so a timeout that
+        /// covers only the body runs out while the test still waits for a lock another leg holds (a Router lock on a
+        /// RoMON test is held for minutes). Write <c>[Timeout(LockWaitAllowanceMs + body)]</c>; a wait that really is
+        /// too long fails on its own, after <c>TIK4NET_LOCK_TIMEOUT_MINUTES</c> (default 20) minutes, naming the holder.
+        /// </summary>
+        public const int LockWaitAllowanceMs = 25 * 60 * 1000;
+
         private TestLockSet _locks;
 
         // The set the running test holds, per process (a leg runs one test at a time). When a derived class's
@@ -129,7 +137,7 @@ namespace tik4net.integrationtests
                         break;
                     case TestLockScope.Router:
                         if (lockHost != null)
-                            yield return LockSpec.Router(lockHost, true);
+                            yield return LockSpec.Router(lockHost, !attr.Shared);
                         break;
                     case TestLockScope.Leg:
                         yield return LockSpec.Leg(true);

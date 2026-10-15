@@ -81,7 +81,22 @@ namespace tik4net.Ssh
             // raw keystrokes, exactly like the Telnet byte stream. So disable echo, canonical mode,
             // signal generation, extended input and flow control, letting every byte pass through.
             _shell = _ssh.CreateShellStream("vt100", 0, 0, 4096, 25, 8192, RawTerminalModes);
+            _shell.Closed += (_, __) => _shellClosed = true;
         }
+
+        // Set when the server closes the channel. A closed ShellStream has no data available and no read to
+        // return 0 from, so without this a read would wait the whole receive deadline out on a session that is gone.
+        private volatile bool _shellClosed;
+
+        // DataAvailable of a stream whose channel has closed can throw rather than answer false.
+        private bool ShellHasData()
+        {
+            try { return _shell.DataAvailable; }
+            catch (ObjectDisposedException) { _shellClosed = true; return false; }
+        }
+
+        // The channel has closed and nothing it delivered is left to read.
+        private bool ShellClosedAndDrained => _shellClosed && !ShellHasData();
 
         // PTY modes that make the server pass bytes through untouched (see Connect). Value 0 = off.
         private static readonly IDictionary<TerminalModes, uint> RawTerminalModes = new Dictionary<TerminalModes, uint>
@@ -208,7 +223,7 @@ namespace tik4net.Ssh
             // repaint leaves the echoed command text behind, and the next command reads it as its answer).
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
 
-            if (_shell.DataAvailable)
+            if (ShellHasData())
             {
                 string residue = await DrainAsync(SettleMs, ct).ConfigureAwait(false);
                 // A relay that ended while the connection was idle: the agent's session is gone, and this
@@ -264,7 +279,7 @@ namespace tik4net.Ssh
 
                 bool gotData = false;
                 bool closed = false;
-                while (_shell.DataAvailable)
+                while (ShellHasData())
                 {
                     int n = _shell.Read(buffer, 0, buffer.Length);
                     if (n <= 0) { closed = true; break; }
@@ -272,6 +287,7 @@ namespace tik4net.Ssh
                     gotData = true;
                 }
 
+                closed |= ShellClosedAndDrained;
                 if (gotData)
                     lastData = DateTime.UtcNow;
 
@@ -338,12 +354,13 @@ namespace tik4net.Ssh
                 ct.ThrowIfCancellationRequested();
 
                 bool connectionClosed = false;
-                while (_shell.DataAvailable)
+                while (ShellHasData())
                 {
                     int available = _shell.Read(buffer, 0, buffer.Length);
                     if (available <= 0) { connectionClosed = true; break; }
                     accumulated.Append(await ProcessChunkAsync(buffer, available, ct).ConfigureAwait(false));
                 }
+                connectionClosed |= ShellClosedAndDrained;
 
                 string stripped = VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(_romonTarget, accumulated.ToString()));
                 if (predicate(stripped))
@@ -393,7 +410,7 @@ namespace tik4net.Ssh
 
                 bool gotData = false;
                 bool closed = false;
-                while (_shell.DataAvailable)
+                while (ShellHasData())
                 {
                     int n = _shell.Read(buffer, 0, buffer.Length);
                     if (n <= 0) { closed = true; break; }
@@ -401,6 +418,7 @@ namespace tik4net.Ssh
                     gotData = true;
                 }
 
+                closed |= ShellClosedAndDrained;
                 if (gotData)
                     settleUntil = null; // fresh data → the prompt (if any) is not yet stable
 
@@ -440,6 +458,8 @@ namespace tik4net.Ssh
                     TraceNote(closed
                         ? "shell closed before the prompt settled — response is truncated"
                         : "receive deadline (" + ReceiveTimeoutMs + " ms) hit before the prompt settled — response is truncated");
+                    if (closed && _romonTarget != null)
+                        throw RouterOsCliLogin.RomonRelayEndedWithTheSession("SSH", _romonTarget, sentCommand, stripped);
                     if (sentCommand != null)
                         throw CliReadTimeout.Create("SSH", ReceiveTimeoutMs, sentCommand, stripped);
                     return stripped;
@@ -463,7 +483,7 @@ namespace tik4net.Ssh
             {
                 ct.ThrowIfCancellationRequested();
 
-                if (_shell.DataAvailable)
+                if (ShellHasData())
                 {
                     int n = _shell.Read(buffer, 0, buffer.Length);
                     if (n <= 0) break; // connection closed

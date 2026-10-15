@@ -62,11 +62,19 @@ namespace tik4net.integrationtests
             Assert.IsTrue(rows[0].Time == null, "a timed-out ping has no time: " + rows[0].Time.State);
         }
 
+        /// <remarks>
+        /// Pings the lab's RoMON target when one is configured, holding that router shared: RomonRelayTest switches
+        /// RoMON off on it (holding it exclusive), and discover still lists a neighbour that has just left.
+        /// </remarks>
         [TestMethod]
+        [TestLock(TestLockScope.Router, RouterHostKey = "romonTargetHost", Shared = true)]
         public void RomonPingToNeighbourAnswers()
         {
             EnsureRomonRunning();
-            var neighbour = Connection.RomonDiscover(TimeSpan.FromSeconds(2)).FirstOrDefault();
+            string targetId = LabConfig.Get("romonTargetId");
+            var neighbours = Connection.RomonDiscover(TimeSpan.FromSeconds(2)).ToList();
+            var neighbour = neighbours.FirstOrDefault(n => string.Equals(n.Address.Value, targetId, StringComparison.OrdinalIgnoreCase))
+                            ?? neighbours.FirstOrDefault();
             if (neighbour == null)
                 Assert.Inconclusive("The test router has no RoMON neighbour — the lab needs a second RoMON-enabled router on its segment.");
 

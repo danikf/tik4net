@@ -520,8 +520,24 @@ namespace tik4net.Cli
         {
             if (relayedTo == null || !IsRomonRelayEnd(received))
                 return;
+            throw RomonRelayEnded(transport, relayedTo, command, received, commandSent);
+        }
+
+        /// <summary>
+        /// The agent's session ended under a read relayed to <paramref name="relayedTo"/>. The relay is typed as
+        /// <c>/tool romon ssh …; /quit</c>, so the agent's session ends only once the relay has: that is the relay's
+        /// end even when its <c>Welcome back!</c> line never arrived — a 6.49.13 agent closed an SSH channel without
+        /// it, and on the MAC layer the line is a datagram the router can drop.
+        /// </summary>
+        internal static TikRomonRelayEndedException RomonRelayEndedWithTheSession(string transport, string relayedTo,
+            string? command, string received)
+            => RomonRelayEnded(transport, relayedTo, command, received, commandSent: true);
+
+        private static TikRomonRelayEndedException RomonRelayEnded(string transport, string relayedTo, string? command,
+            string received, bool commandSent)
+        {
             string what = string.IsNullOrEmpty(command) ? "the last request" : "'" + command!.Trim() + "'";
-            throw new TikRomonRelayEndedException(
+            return new TikRomonRelayEndedException(
                 transport + ": the RoMON relay to " + relayedTo + " ended — the target logged the session out, rebooted, "
                 + "or dropped out of the agent's RoMON overlay — and the agent's session ended with it. "
                 + (commandSent

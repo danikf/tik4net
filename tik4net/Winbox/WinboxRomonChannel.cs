@@ -201,7 +201,7 @@ namespace tik4net.Winbox
         public void Send(byte[] m2)
         {
             if (_ended) throw RelayEnded(commandMayHaveRun: false);
-            _agent.Send(Route(m2));
+            _agent.Send(Outbound(m2));
         }
 
         public byte[] Receive(int timeoutMs) => Inbound(_agent.Receive(timeoutMs));
@@ -209,7 +209,7 @@ namespace tik4net.Winbox
         public byte[] SendReceive(byte[] m2, int timeoutMs)
         {
             if (_ended) throw RelayEnded(commandMayHaveRun: false);
-            return Inbound(_agent.SendReceive(Route(m2), timeoutMs));
+            return Inbound(_agent.SendReceive(Outbound(m2), timeoutMs));
         }
 
         public byte[] ReceiveNextFrame() => Inbound(_agent.ReceiveNextFrame());
@@ -222,6 +222,16 @@ namespace tik4net.Winbox
         // not even once the target is back, so every waiter would otherwise sit out its whole receive timeout.
         private volatile bool _ended;
         private string? _agentHost;
+
+        // Traced before routing, as the operation wrote it: with the replies traced in Inbound, a reply that looks
+        // wrong can be held against the request it answers.
+        private byte[] Outbound(byte[] m2)
+        {
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit("wbx.romon", Diagnostics.TikWireDir.Send,
+                    "link " + _link + ": " + M2Message.Describe(m2));
+            return Route(m2);
+        }
 
         private byte[] Inbound(byte[] m2)
         {

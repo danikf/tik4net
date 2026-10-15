@@ -2964,9 +2964,19 @@ namespace tik4net.Cli
                 string cliText = CliCommandBuilder.BuildTorchSnapshot(
                     descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds, withProplist: !plain);
 
+                int incompleteInARow = 0;
                 while (!handle.CancelRequested)
                 {
-                    string output = ExecuteCliCommand(cliText);
+                    string output;
+                    // A frame the transport refused as incomplete is skipped: the next one is a whole new frame
+                    // (PollingMonitorEngine.MaxIncompletePollsInARow).
+                    try { output = ExecuteCliCommand(cliText); }
+                    catch (TikConnectionResponseIncompleteException)
+                        when (++incompleteInARow < PollingMonitorEngine.MaxIncompletePollsInARow)
+                    {
+                        continue;
+                    }
+                    incompleteInARow = 0;
                     if (!plain && IsSyntaxErrorOnly(output))
                     {
                         // RouterOS 6's torch has no proplist= (6.49.13: "expected end of command (line 1 column 71)",

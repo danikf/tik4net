@@ -86,6 +86,14 @@ namespace tik4net.integrationtests
         /// is not configured) takes nothing.
         /// </summary>
         public string RouterHostKey { get; set; } = "host";
+
+        /// <summary>
+        /// With <see cref="TestLockScope.Router"/>: hold the router <b>shared</b> instead of exclusive — the test runs
+        /// beside every other test on it, but never beside one that holds it exclusive. For a test that only reads
+        /// another lab router (<see cref="RouterHostKey"/>) and must not see it while a test changes it: the run's own
+        /// router is held shared by every test anyway.
+        /// </summary>
+        public bool Shared { get; set; }
     }
 
     /// <summary>

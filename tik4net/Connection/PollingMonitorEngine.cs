@@ -91,6 +91,15 @@ namespace tik4net.Connection
         }
 
         /// <summary>
+        /// How many polls in a row a polled monitor or listen skips when the transport refuses their answer as
+        /// incomplete (<see cref="TikConnectionResponseIncompleteException"/>) before it reports the refusal. Over
+        /// MAC-Telnet a loaded router now and then drops part of its own output; the answer still ends at its prompt,
+        /// so the terminal is in step, and the next poll is a whole new snapshot. What one skipped poll loses is one
+        /// frame, not a row the caller will never see: a later poll reads the same state again.
+        /// </summary>
+        internal const int MaxIncompletePollsInARow = 3;
+
+        /// <summary>
         /// Repeating-snapshot monitor: re-read the same one-shot snapshot every <paramref name="intervalMs"/>
         /// and emit its rows, until the caller cancels. This is the async face of a monitor whose values are
         /// ordinary read-only fields of a record rather than a streaming window — RouterOS answers
@@ -105,9 +114,18 @@ namespace tik4net.Connection
         {
             try
             {
+                int incompleteInARow = 0;
                 while (!handle.CancelRequested && host.IsOpen)
                 {
-                    foreach (var row in host.PollSnapshot(descriptor))
+                    IList<TikRecordSentence> rows;
+                    try { rows = host.PollSnapshot(descriptor); }
+                    catch (TikConnectionResponseIncompleteException) when (++incompleteInARow < MaxIncompletePollsInARow)
+                    {
+                        SleepInterruptible(intervalMs, handle);
+                        continue;
+                    }
+                    incompleteInARow = 0;
+                    foreach (var row in rows)
                     {
                         if (handle.CancelRequested) break;
                         onRow?.Invoke(row);
@@ -174,11 +192,20 @@ namespace tik4net.Connection
         {
             try
             {
+                int incompleteInARow = 0;
                 while (true)
                 {
                     SleepInterruptible(pollIntervalMs, handle);
                     if (handle.CancelRequested) break;
-                    Diff(host.PollSnapshot(printDescriptor), volatileFields, lastSig, onRow);
+                    IList<TikRecordSentence> rows;
+                    // A skipped poll leaves lastSig as it was, so the next one is diffed against the last whole read.
+                    try { rows = host.PollSnapshot(printDescriptor); }
+                    catch (TikConnectionResponseIncompleteException) when (++incompleteInARow < MaxIncompletePollsInARow)
+                    {
+                        continue;
+                    }
+                    incompleteInARow = 0;
+                    Diff(rows, volatileFields, lastSig, onRow);
                 }
             }
             catch (Exception ex)

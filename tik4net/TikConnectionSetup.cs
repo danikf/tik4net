@@ -412,11 +412,47 @@ namespace tik4net
         /// <c>CreateWinboxNativeConnection</c> in <c>tik4net.WinboxNative</c> for the case that
         /// needs it).
         /// </param>
+        /// <remarks>
+        /// An API or API-SSL login the router resets mid-handshake is opened again, on a new connection, up to
+        /// <see cref="ApiLoginResetAttempts"/> times in all (<paramref name="configure"/> then runs once per attempt).
+        /// RouterOS resets a login now and then under load; a peer that is not the API at all hangs up or answers
+        /// with something else, never with a reset, so its diagnosis is unchanged.
+        /// </remarks>
         public ITikConnection Create(TikConnectionType connectionType, Action<ITikConnection>? configure)
         {
-            var conn = CreateUnopened(connectionType, configure);
-            OpenSync(conn);
-            return conn;
+            for (int attempt = 1; ; attempt++)
+            {
+                var conn = CreateUnopened(connectionType, configure);
+                try
+                {
+                    OpenSync(conn);
+                    return conn;
+                }
+                catch (Exception ex) when (attempt < ApiLoginResetAttempts && IsApiLoginReset(connectionType, ex))
+                {
+                    conn.Dispose();
+                    Thread.Sleep(ApiLoginResetDelayMs);
+                }
+            }
+        }
+
+        /// <summary>Total attempts at an API login the router resets, including the first.</summary>
+        internal const int ApiLoginResetAttempts = 3;
+
+        /// <summary>Pause between those attempts.</summary>
+        internal const int ApiLoginResetDelayMs = 100;
+
+        // The router reset the socket during an API login: the open reports a protocol mismatch, and what lies
+        // under it is a connection reset rather than the peer's orderly close or a reply in another protocol.
+        internal static bool IsApiLoginReset(TikConnectionType connectionType, Exception ex)
+        {
+            if ((connectionType != TikConnectionType.Api && connectionType != TikConnectionType.ApiSsl)
+                || !(ex is TikConnectionProtocolMismatchException))
+                return false;
+            for (Exception? e = ex; e != null; e = e.InnerException)
+                if (e is System.Net.Sockets.SocketException se && se.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionReset)
+                    return true;
+            return false;
         }
 
         /// <summary>Async version of <see cref="Create(TikConnectionType)"/>.</summary>
@@ -426,7 +462,26 @@ namespace tik4net
         /// <summary>Async version of <see cref="Create(TikConnectionType, Action{ITikConnection})"/>.</summary>
         public Task<ITikConnection> CreateAsync(TikConnectionType connectionType,
             Action<ITikConnection>? configure, CancellationToken ct = default)
-            => OpenCoreAsync(CreateUnopened(connectionType, configure), ct);
+            // Created here rather than in the loop, so that a setup missing a coordinate still throws at the call.
+            => CreateAsyncCore(CreateUnopened(connectionType, configure), connectionType, configure, ct);
+
+        private async Task<ITikConnection> CreateAsyncCore(ITikConnection first, TikConnectionType connectionType,
+            Action<ITikConnection>? configure, CancellationToken ct)
+        {
+            for (int attempt = 1; ; attempt++)
+            {
+                var conn = attempt == 1 ? first : CreateUnopened(connectionType, configure);
+                try
+                {
+                    return await OpenCoreAsync(conn, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (attempt < ApiLoginResetAttempts && IsApiLoginReset(connectionType, ex))
+                {
+                    conn.Dispose();
+                    await Task.Delay(ApiLoginResetDelayMs, ct).ConfigureAwait(false);
+                }
+            }
+        }
 
         /// <summary>
         /// Creates a connection of the given type with every option of this setup applied but <b>does not

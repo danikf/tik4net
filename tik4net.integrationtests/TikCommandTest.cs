@@ -262,13 +262,30 @@ namespace tik4net.integrationtests
             bool doneCalled = false;
             ITikTrapSentence error = null;
 
-            var profile = Connection.CreateCommand("/tool/profile");
-            profile.ExecuteWithCallback(
-                row => Interlocked.Increment(ref rowCount),
-                trap => error = trap,
-                () => doneCalled = true);
-            WaitUntil(() => Volatile.Read(ref rowCount) > 0 || doneCalled || error != null, TimeSpan.FromSeconds(3));
-            profile.CancelAndJoin();
+            // The lock keeps the suite's own profilers apart, but not one the router is still finishing: a cancelled
+            // profile can outlive its client by its duration (REST polls with duration=1, and a loaded router takes
+            // longer over it). The router then refuses the next start as "already running" — once seen in a full
+            // matrix and never reproduced alone — so that refusal is retried for a while.
+            var deadline = DateTime.UtcNow.AddSeconds(20);
+            for (int attempt = 1; ; attempt++)
+            {
+                rowCount = 0;
+                doneCalled = false;
+                error = null;
+                var profile = Connection.CreateCommand("/tool/profile");
+                profile.ExecuteWithCallback(
+                    row => Interlocked.Increment(ref rowCount),
+                    trap => error = trap,
+                    () => doneCalled = true);
+                WaitUntil(() => Volatile.Read(ref rowCount) > 0 || doneCalled || error != null, TimeSpan.FromSeconds(3));
+                profile.CancelAndJoin();
+
+                if (error == null || rowCount > 0 || DateTime.UtcNow > deadline
+                    || (error.Message ?? "").IndexOf("already running", StringComparison.OrdinalIgnoreCase) < 0)
+                    break;
+                Console.WriteLine($"[profile] attempt {attempt} refused: {error.Message}");
+                Thread.Sleep(2000);
+            }
 
             Assert.IsNull(error, $"monitor reported an error: {error?.Message}");
             Assert.IsTrue(doneCalled, "onDone callback was not invoked after cancel");

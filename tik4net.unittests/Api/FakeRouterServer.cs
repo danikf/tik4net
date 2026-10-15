@@ -182,6 +182,14 @@ namespace tik4net.unittests.Api
             _client?.Close();
         }
 
+        /// <summary>Resets the client's connection (RST, not FIN): what a busy router does to a login it drops.</summary>
+        public void ResetClientConnection()
+        {
+            // Linger 0 and a close of the socket itself: disposing the stream first would send a FIN.
+            _client.Client.LingerState = new LingerOption(true, 0);
+            _client.Client.Close();
+        }
+
         public void Dispose()
         {
             CloseClientConnection();

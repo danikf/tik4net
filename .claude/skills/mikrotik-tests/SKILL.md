@@ -177,6 +177,9 @@ The legs run against one router at the same time. What keeps them apart is in th
     state the whole router shares (the identity — it is in every CLI prompt —, safe mode, services, reboot), for a
     test comparing a whole table between two reads, and for timing probes. Expensive: every one drains the router.
   - `RouterHostKey = "romonTargetHost"` locks another lab router as well (RomonRelayTest writes to CHR2).
+  - `Shared = true` (with `TestLockScope.Router`) holds that router shared instead: for a test that only reads
+    another lab router and must not overlap a test that changes it (`ToolRomonTest` pings CHR2, which RomonRelayTest
+    takes off the RoMON overlay).
   - `TestLockScope.Global` — every run on the machine; `TestLockScope.Leg` — only this process's other tests.
   - In a test body, `using (LockResource("x"))` / `LockRouter()` escalate for part of the test. The set is
     released and taken again in order, so the escalation is not atomic.
@@ -202,7 +205,7 @@ there means two tests share something neither of them locks: lock it, or make th
 then abandons the thread, which goes on waiting; the set is closed by then (`TestLockSet.Close`, from the cleanup or
 the next test's TestInitialize), so the lock it gets later is given back at once instead of being held for the rest of
 the process. Such a failure reads "exceeded execution timeout period" with a `[lock] waited …` line in its output —
-a collision, not a slow router; give the test a timeout that covers the wait, or none.
+a collision, not a slow router; write the timeout as `[Timeout(LockWaitAllowanceMs + <body>)]`, which covers the wait, or give none.
 
 **Timing assertions stretch under load.** The router's throughput is shared by every connection
 (`Docs/findings-router-throughput-ceiling.md`), so a test that asserts how long something takes belongs under

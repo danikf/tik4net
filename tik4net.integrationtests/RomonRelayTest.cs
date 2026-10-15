@@ -278,7 +278,12 @@ namespace tik4net.integrationtests
                 try
                 {
                     var watch = Stopwatch.StartNew();
-                    Assert.ThrowsException<TikRomonRelayEndedException>(() => relay.LoadSingle<SystemIdentity>());
+                    Exception thrown = null;
+                    try { relay.LoadSingle<SystemIdentity>(); }
+                    catch (Exception ex) { thrown = ex; }
+                    // The whole exception, not just its type: a timeout's message carries what the read did receive.
+                    Assert.IsInstanceOfType(thrown, typeof(TikRomonRelayEndedException),
+                        $"after {watch.ElapsedMilliseconds} ms: " + (thrown?.ToString() ?? "the read answered"));
                     Assert.IsTrue(watch.ElapsedMilliseconds < 20000,
                         $"the end took {watch.ElapsedMilliseconds} ms to be noticed");
                     Assert.IsFalse(relay.IsOpened, "a relay that ended must close its connection");
@@ -344,11 +349,14 @@ namespace tik4net.integrationtests
                        || (int.Parse(match.Groups[1].Value) == 7 && int.Parse(match.Groups[2].Value) < 20));
         }
 
-        // Terminal sessions of this user on a router, over its own API connection (whose row is left out).
+        // Terminal sessions of this user on a router, over its own API connection (whose row is left out). Sessions
+        // that arrived over RoMON are left out too: the test reaches the agent directly, and a router that is the
+        // agent here is another run's RoMON target, whose WinBox relay links stay listed until their agent reaps them.
         private static string[] TerminalSessions(ITikConnection direct, string user)
             => direct.CreateCommand("/user/active/print").ExecuteList()
                 .Where(r => r.GetResponseFieldOrDefault("name", "") == user
-                            && r.GetResponseFieldOrDefault("via", "") != "api")
+                            && r.GetResponseFieldOrDefault("via", "") != "api"
+                            && string.IsNullOrEmpty(r.GetResponseFieldOrDefault("by-romon", "")))
                 .Select(r => r.GetResponseFieldOrDefault("via", "") + "@" + r.GetResponseFieldOrDefault("address", ""))
                 .OrderBy(v => v, StringComparer.Ordinal)
                 .ToArray();
@@ -613,8 +621,9 @@ namespace tik4net.integrationtests
                                 }
 
                                 log.Add($"{what}: {got.Length} rows in {watch.ElapsedMilliseconds} ms");
-                                CollectionAssert.AreEqual(expected, got, what + " differs from the target's own API: "
-                                    + string.Join(" | ", got.Except(expected).Take(3)));
+                                CollectionAssert.AreEqual(expected, got, what + $" differs from the target's own API: {got.Length} "
+                                    + $"of its {expected.Length} rows; extra: " + string.Join(" | ", got.Except(expected).Take(3))
+                                    + "; missing: " + string.Join(" | ", expected.Except(got).Take(3)));
                             }
 
                             // A read the router abandoned takes the connection with it: the unread tail cannot be
@@ -656,7 +665,7 @@ namespace tik4net.integrationtests
         [DataRow(TikConnectionType.WinboxCliMac, "192.0.2.107", "192.0.2.108")]
         [DataRow(TikConnectionType.WinboxNative, "192.0.2.109", "192.0.2.110")]
         [DataRow(TikConnectionType.WinboxNativeMac, "192.0.2.111", "192.0.2.112")]
-        [Timeout(120000)]
+        [Timeout(LockWaitAllowanceMs + 120000)]
         public void Relay_Listen_SeesTheTarget_NotTheAgent(TikConnectionType agentTransport,
             string targetAddress, string agentAddress)
         {
@@ -723,7 +732,7 @@ namespace tik4net.integrationtests
         [DataRow(TikConnectionType.WinboxCliMac)]
         [DataRow(TikConnectionType.WinboxNative)]
         [DataRow(TikConnectionType.WinboxNativeMac)]
-        [Timeout(60000)]
+        [Timeout(LockWaitAllowanceMs + 60000)]
         public void Relay_CallbackMonitor_DeliversRows_AndKeepsTheRelay(TikConnectionType agentTransport)
         {
             RequireTargetHost();
@@ -895,6 +904,102 @@ namespace tik4net.integrationtests
             return remaining;
         }
 
+        // At most this many WinBox sessions are opened on the agent to fill its slots; it holds 100.
+        private const int MostReapSlots = 150;
+
+        /// <summary>
+        /// The rows still on the target after the agent reaped the closed WinBox relay link (see <see cref="ForceAgentReap"/>).
+        /// </summary>
+        private int RowsAfterForcedReap(ITikConnection direct, string comment)
+        {
+            // A link WinBox itself would have reaped by now goes without the expense.
+            int remaining = RowsAfterRollback(direct, comment, 30);
+            if (remaining == 0)
+                return 0;
+
+            using (LockRouter())
+            {
+                ForceAgentReap(() => OurRows(direct, comment).Length == 0, "the rollback");
+                // The rollback follows the reap within seconds; failing a reap on full slots (an agent that does not
+                // do it), the locked agent is quiet, and the timed reap comes.
+                return RowsAfterRollback(direct, comment, 240);
+            }
+        }
+
+        /// <summary>
+        /// Makes the agent reap its dead WinBox relay links now. It reaps them on its own about 150 s after the last
+        /// WinBox activity, which a parallel run never gives it — other legs keep logging in, and a reap was seen held
+        /// off for 13 minutes — and at once when all of its 100 WinBox slots are taken (Docs/findings-romon.md, "Dead
+        /// WinBox relay links hold the agent's slots"). So the slots are taken, until <paramref name="done"/> or a
+        /// refusal. The caller holds the agent locked (<see cref="LockedTestBase.LockRouter"/>): every other WinBox
+        /// client of it is refused meanwhile.
+        /// </summary>
+        private static void ForceAgentReap(Func<bool> done, string doneName)
+        {
+            var held = new List<ITikConnection>();
+            try
+            {
+                var watch = Stopwatch.StartNew();
+                string stop = "the cap of " + MostReapSlots;
+                while (held.Count < MostReapSlots)
+                {
+                    try { held.Add(OpenAgentWinbox()); }
+                    catch (TikConnectionLoginException ex) { stop = "a refusal: " + ex.Message; break; }
+                    if (held.Count % 10 == 0 && done()) { stop = doneName; break; }
+                }
+                Console.WriteLine($"[romon] forced reap: {held.Count} WinBox session(s) opened on the agent in "
+                                  + $"{watch.ElapsedMilliseconds} ms, stopped by {stop}");
+            }
+            finally
+            {
+                foreach (var c in held)
+                    try { c.Dispose(); } catch { /* closing: nothing left to do */ }
+            }
+        }
+
+        /// <summary>
+        /// Makes sure Safe Mode on the target is free, before a test takes it and after a WinBox relay held it. A closed
+        /// WinBox relay link keeps its session on the target until the agent reaps it, and with the session the hold:
+        /// on a RouterOS 6 target the link's rows were seen rolled back ~30 s after the close while the session and the
+        /// hold stayed until the reap, and 6.x has no <c>/safe-mode</c> to read or release it with. So the hold is
+        /// probed by a take and release over a direct WinBox connection, which works on any RouterOS, and a refusal
+        /// is cleared by making the agent reap (see <see cref="ForceAgentReap"/>).
+        /// </summary>
+        private void EnsureTargetSafeModeFree()
+        {
+            string refusal = TryTakeAndReleaseOnTarget();
+            if (refusal == null)
+                return;
+            Console.WriteLine("[romon] Safe Mode held on the target: " + refusal);
+            using (LockRouter())
+            {
+                ForceAgentReap(() => TryTakeAndReleaseOnTarget() == null, "the hold's end");
+                var watch = Stopwatch.StartNew();
+                while ((refusal = TryTakeAndReleaseOnTarget()) != null && watch.ElapsedMilliseconds < 240000)
+                    Thread.Sleep(5000);
+            }
+            Assert.IsNull(refusal, "Safe Mode on the target stayed held after the agent reaped its relay links");
+        }
+
+        // null when Safe Mode on the target could be taken (and was released again); else the refusal.
+        private static string TryTakeAndReleaseOnTarget()
+        {
+            using (var target = new TikConnectionSetup(TargetHost, TargetUser, TargetPass).Create(TikConnectionType.WinboxNative))
+            {
+                var safeMode = (ITikSafeModeConnection)target;
+                try { safeMode.SafeModeTake(); }
+                catch (Exception ex) when (ex.Message.IndexOf("already held", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return ex.Message;
+                }
+                safeMode.SafeModeRelease();
+                return null;
+            }
+        }
+
+        private static ITikConnection OpenAgentWinbox()
+            => new TikConnectionSetup(AgentHost, AgentUser, AgentPass).Create(TikConnectionType.WinboxNative);
+
         // A hold left by an interrupted run blocks the next take; a release from any session clears it.
         private static void ReleaseStaleSafeMode(ITikConnection direct)
         {
@@ -925,6 +1030,7 @@ namespace tik4net.integrationtests
                 Sweep(direct);
                 ReleaseStaleSafeMode(direct);
                 ReleaseStaleSafeMode(agent);
+                EnsureTargetSafeModeFree();
                 try
                 {
                     using (var relay = OpenRelay(agentTransport))
@@ -962,7 +1068,7 @@ namespace tik4net.integrationtests
         [DataRow(TikConnectionType.MacTelnet, "192.0.2.69")]
         [DataRow(TikConnectionType.WinboxCli, "192.0.2.117")]
         [DataRow(TikConnectionType.WinboxCliMac, "192.0.2.118")]
-        [Timeout(120000)]
+        [Timeout(LockWaitAllowanceMs + 120000)]
         public void Relay_SafeMode_UnrollDiscardsOnTheTarget(TikConnectionType agentTransport, string address)
         {
             RequireTargetHost();
@@ -974,6 +1080,7 @@ namespace tik4net.integrationtests
                 Sweep(direct);
                 ReleaseStaleSafeMode(direct);
                 ReleaseStaleSafeMode(agent);
+                EnsureTargetSafeModeFree();
                 try
                 {
                     using (var relay = OpenRelay(agentTransport))
@@ -1022,7 +1129,7 @@ namespace tik4net.integrationtests
         [DataRow(TikConnectionType.WinboxCliMac, "192.0.2.122")]
         [DataRow(TikConnectionType.WinboxNative, "192.0.2.123")]
         [DataRow(TikConnectionType.WinboxNativeMac, "192.0.2.124")]
-        [Timeout(420000)]
+        [Timeout(LockWaitAllowanceMs + 420000)]
         public void Relay_SafeMode_CloseWithoutReleaseRollsBackOnTheTarget(TikConnectionType agentTransport, string address)
         {
             RequireTargetHost();
@@ -1034,6 +1141,7 @@ namespace tik4net.integrationtests
                 Sweep(direct);
                 ReleaseStaleSafeMode(direct);
                 ReleaseStaleSafeMode(agent);
+                EnsureTargetSafeModeFree();
                 try
                 {
                     using (var relay = OpenRelay(agentTransport))
@@ -1044,18 +1152,29 @@ namespace tik4net.integrationtests
                     }
 
                     // WinBox native has no terminal to /quit, and the agent ends a WinBox link's session on the target
-                    // only when it reaps dead links — measured 2 to 3 minutes after the close (WinBox's own: ~30 s).
-                    // The rollback comes then (Docs/findings-romon.md §5, "Closing").
+                    // only when it reaps dead links (Docs/findings-romon.md §5, "Closing"). The rollback comes then.
                     bool reapedLater = agentTransport == TikConnectionType.WinboxNative
                                        || agentTransport == TikConnectionType.WinboxNativeMac;
-                    Assert.AreEqual(0, RowsAfterRollback(direct, comment, reapedLater ? 300 : 30),
+                    int remaining = reapedLater ? RowsAfterForcedReap(direct, comment) : RowsAfterRollback(direct, comment);
+                    Assert.AreEqual(0, remaining,
                         "closing the relay with Safe Mode held did not roll back the change on the target");
+                    // The rows can roll back before the link's session ends; its hold must not reach the next test.
+                    if (reapedLater)
+                        EnsureTargetSafeModeFree();
                 }
                 finally
                 {
-                    Sweep(direct);
-                    ReleaseStaleSafeMode(direct);
-                    ReleaseStaleSafeMode(agent);
+                    // A failure above can leave a direct connection closed; its cleanup must not replace the failure.
+                    try
+                    {
+                        Sweep(direct);
+                        ReleaseStaleSafeMode(direct);
+                        ReleaseStaleSafeMode(agent);
+                    }
+                    catch (TikConnectionNotOpenException ex)
+                    {
+                        Console.WriteLine("[romon] cleanup on a closed connection: " + ex.Message);
+                    }
                 }
             }
         }

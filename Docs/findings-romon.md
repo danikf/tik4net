@@ -281,7 +281,7 @@ stood unchanged for 150 s after the load stopped, then all went within 10 s), an
 with 45 dead links on the target, direct WinBox logins held open on the agent went through 55 with the 45 still
 there, and between the 55th and the 60th all 45 were gone; the login that found the slots full was not refused. So
 back-to-back WinBox relays alone saw-tooth: the target's dead links climb by ~2.5 a second to 99, drop to 10–20, and
-climb again, with no refusal in 4 minutes (579 relays). The same with direct Telnet logins to the agent beside it: no
+climb again, with no refusal in 4 minutes (579 relays). The timed reap needs the agent quiet: in a full parallel test run, with other clients logging in to the agent over WinBox throughout, two dead WinBox-native links (one holding Safe Mode on the target) stood for 6 and 13 minutes and went only when a test filled the slots, together with 37 others. `RomonRelayTest` therefore fills the agent's slots itself, with the agent locked, rather than wait for it. On a 6.49.13 target the rows a dead WinBox-native link changed under Safe Mode were seen rolled back ~30 s after the close while the link's session — and its Safe Mode hold — stayed until the reap, so a rolled-back change does not mean the hold is free; a take over a direct WinBox connection is what tells (6.x has no `/safe-mode`). The same with direct Telnet logins to the agent beside it: no
 refusal (537 relays, 192 logins).
 
 A relay through `/tool romon ssh` holds nothing afterwards: under back-to-back Telnet relays the target never has more

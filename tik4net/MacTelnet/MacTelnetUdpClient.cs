@@ -475,6 +475,7 @@ namespace tik4net.MacTelnet
             int lastLength = -1;
             var streamer = new CliLineStreamer(onLine);
             bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
+            bool endedBefore = _routerEnded;   // only an end that arrives during this read is this read's
 
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
@@ -498,6 +499,10 @@ namespace tik4net.MacTelnet
 
                 // The relay ended mid-command: no prompt will follow, the agent's session is over.
                 RouterOsCliLogin.ThrowIfRomonRelayEnded("MAC-Telnet", _romonTarget, sentCommand, stripped, commandSent: true);
+                // The router ended the agent's session (PKT_END) without the relay's end line reaching us: the line
+                // is a datagram the router can drop, the end is not. Waiting would only run the deadline out.
+                if (_routerEnded && !endedBefore && _romonTarget != null)
+                    throw RouterOsCliLogin.RomonRelayEndedWithTheSession("MAC-Telnet", _romonTarget, sentCommand, stripped);
 
                 if (!echoSeen)
                     echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
