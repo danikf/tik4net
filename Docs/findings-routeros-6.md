@@ -420,7 +420,17 @@ Each is a statement of what is measured and what is not, to be settled one at a 
     only WinBox native still answers. `/system/resource` there shows `cpu-load=50` on 2 vCPUs, one core spinning.
     Sessions already open keep working. Only a reboot clears it, and a reboot asked for in that state can take
     minutes, or need asking twice. A change made in a safe-mode session that ended in the wedge is not rolled back,
-    and survives the reboot.
+    and survives the reboot. The measurement: an address-list row added in Safe Mode, the session dropped inside the
+    `/quit` question. Twenty seconds later the row is still there (read over WinBox native), and it is still there
+    after the reboot, 2 times in 2. 7.24.5 does not wedge on the same steps, and rolls the row back. Without the
+    wedge, 6.49.13 rolls a dropped session's change back in all of these cases:
+    - **A reboot while the session holds Safe Mode.** The router closes the session as it goes down, and the row is
+      gone after the boot.
+    - **A second session taking Safe Mode while the dropped one still holds it.** RouterOS frees the hold only once
+      the rollback has finished, about 0.71 s after the drop. A `Ctrl+X` sent before that is asked the hijack
+      question, and one sent after it is granted on a table where the row is already gone (0 of 100 takes at the
+      boundary saw the row). The second session's later release, unroll or drop then has nothing of the first
+      session's to keep (220 rounds, 0 survived).
     - **The trigger: a session that ends inside a console question.** Take Safe Mode (`Ctrl+X`), type `/quit`, and
       the console asks *"You are in Safe Mode. Quitting will unroll chages. Quit? [y/N]:"*. A connection that closes
       before the console has read the answer wedges it — unanswered, from a freshly booted router, first try; and
