@@ -80,7 +80,8 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(TikConnectionLoginException))]
+        // A wrong password is the router refusing the login: TikConnectionLoginRefusedException, a TikConnectionLoginException.
+        [ExpectedException(typeof(TikConnectionLoginException), AllowDerivedTypes = true)]
         public void OpenConnectionWithInvalidCredential_WillFailWithProperException()
         {
             using (var connection = CreateOpenedConnection(passwordOverride:"--InvalidPassword--"))
