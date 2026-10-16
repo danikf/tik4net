@@ -318,11 +318,11 @@ namespace tik4net.unittests.Objects
             foreach (var x in Properties().Where(x => x.Attribute.FieldName != TikSpecialProperties.Id))
             {
                 var type = x.Property.PropertyType;
-                if (!type.IsGenericType || type.GetGenericTypeDefinition() != typeof(TikField<>))
+                if (!type.IsGenericType || (type.GetGenericTypeDefinition() != typeof(TikField<>) && type.GetGenericTypeDefinition() != typeof(TikNegatableField<>)))
                     offenders.Add($"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') is {type.Name}");
             }
 
-            AssertNoOffenders(offenders, "mapped properties that are not TikField<T?>");
+            AssertNoOffenders(offenders, "mapped properties that are not TikField<T?> or TikNegatableField<T?>");
         }
 
         [TestMethod]

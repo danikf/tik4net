@@ -35,25 +35,25 @@ namespace tik4net.Objects.Ip.Proxy
         public TikField<string?> DstAddress { get; set; }
 
         /// <summary>dst-host — destination hostname or IP to match (e.g. *.example.com).</summary>
-        [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host", Negatable = true)]
-        public TikField<string?> DstHost { get; set; }
+        [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host")]
+        public TikNegatableField<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match (e.g. 80 or 80-90).</summary>
-        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
+        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port")]
+        public TikNegatableField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
         /// <summary>local-port — proxy listening port through which the request was received. 0 = not set.</summary>
-        [TikProperty("local-port", DefaultValue = "0", WinboxLabel = "Local Port", Negatable = true)]
-        public TikField<int?> LocalPort { get; set; }
+        [TikProperty("local-port", DefaultValue = "0", WinboxLabel = "Local Port")]
+        public TikNegatableField<int?> LocalPort { get; set; }
 
         /// <summary>method — HTTP request method to match.
         /// <seealso cref="ProxyHttpMethod"/></summary>
-        [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method", Negatable = true)]
-        public TikField<ProxyHttpMethod?> Method { get; set; }
+        [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method")]
+        public TikNegatableField<ProxyHttpMethod?> Method { get; set; }
 
         /// <summary>path — requested URL path (without server name) to match (e.g. /ads/*).</summary>
-        [TikProperty("path", DefaultValue = "", WinboxLabel = "Path", Negatable = true)]
-        public TikField<string?> Path { get; set; }
+        [TikProperty("path", DefaultValue = "", WinboxLabel = "Path")]
+        public TikNegatableField<string?> Path { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]

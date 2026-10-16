@@ -384,7 +384,8 @@ Entities are plain classes driven entirely by attributes:
 - `[TikProperty("src-address")]` — field mapping, with `IsReadOnly`, `DefaultValue`, `AlternateNames`,
   `WinboxLabel`, … (`IsMandatory` / `UnsetOnDefault` only on plain properties, see below).
 
-Every mapped property except `.id` is a **`TikField<T?>`** — the entity value model. It records whether the
+Every mapped property except `.id` is a **`TikField<T?>`** (a **`TikNegatableField<T?>`** for a matcher RouterOS
+negates with `!`) — the entity value model. It records whether the
 router printed the field: `Absent` (not printed — another version's field, a kind of row the field does not
 apply to), `Present`, or `Unparsed` (printed, but `T` cannot hold the word; `RawValue` keeps it and a save writes
 it back). Consequences the rest of the layer relies on:
@@ -517,15 +518,20 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
 8. **A field of several values is `TikField<TikValueList<T>?>`**, never a comma-joined string or a `[Flags]` enum
    (a `[Flags]` enum inside a `TikField` is refused at metadata build). `T` is the item: an enum, `string`,
    `TikPortRange` for ports, `TikNumberRange` for number ranges (`vlan-ids`). Each item is a `TikValue<T>` — a value
-   or the router's word, with its own `!`. Declare the `!`s the router takes: `Negatable` for the whole list,
-   `NegatableMembers` for each member (`hotspot`, `tcp-flags`, logging `topics`), and `SetKeepsUnnamedHalf` where a
-   text `set` replaces only the half it names (`tcp-flags`). The router's behaviour is in
+   or the router's word, with its own `!`. Declare the `!`s the router takes: `NegatableMembers` for each member
+   (`hotspot`, `tcp-flags`, logging `topics`), `SetKeepsUnnamedHalf` where a text `set` replaces only the half it
+   names (`tcp-flags`), and a whole-list `!` by the property type (rule 10). The router's behaviour is in
    [Docs/findings-value-lists.md](Docs/findings-value-lists.md); the catalog's VALUES section
    (`EntityJgCatalogProbe`) lists every multi-value or negatable field with its UI type.
 9. **A menu or field not in every lab release carries the measured bound** — `MinRouterOs` / `MaxRouterOs` on
    `[TikEntity]` / `[TikProperty]` (`"7"`: in 7.x, not in 6.49; `MaxRouterOs = "6"`: gone in 7). Measured on the three
    lab routers by `VersionPresenceProbe`, never guessed; documentation and test gating only
    (`TikRouterOsRange`, `EnsureRouterOsHas<T>` in the integration tests).
+10. **A matcher RouterOS negates with a leading `!` is `TikNegatableField<T?>`**, not `TikField<T?>` — the
+    firewall filter/NAT/mangle/raw matchers, bridge filter and NAT, hotspot walled garden, proxy access. The `!` reads
+    as `IsNegated`, and a `string?` assigned with a leading `!` is the negation (the router has no literal `!` there).
+    Negatability is in the type rather than an attribute so that a negation assigned to any other field does not
+    compile; both types share `TikFieldCore<T>` and the internal `ITikField` the mapper, tracker and merge use.
 
 Most of these conventions are **enforced in CI**, not just documented — they run over every `[TikEntity]` on
 every push, so a new entity that breaks one fails the build rather than the first person to load that menu:

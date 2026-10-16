@@ -401,8 +401,8 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// The entity end of the same thing: a negated matcher assigned with <c>TikField&lt;T&gt;.Not</c> reaches the
-        /// router with its <c>!</c> and reads back as <c>IsNegated</c> — an address, an interface, a port list and a
+        /// The entity end of the same thing: a negated matcher assigned with <c>TikNegatableField&lt;T&gt;.Not</c>, or a
+        /// string in the router's <c>"!x"</c> spelling, reaches the router with its <c>!</c> and reads back as <c>IsNegated</c> — an address, an interface, a port list and a
         /// <c>[Flags]</c> set, each of which a transport encodes differently (WinBox native: the <c>not</c> flag).
         /// </summary>
         [TestMethod]
@@ -417,10 +417,10 @@ namespace tik4net.integrationtests
                 Disabled = true,
                 Comment = comment,
                 Protocol = "tcp",
-                SrcAddress = TikValue<string>.Not("10.0.0.0/8"),
-                InInterface = TikValue<string>.Not("ether1"),
-                DstPort = TikValue<TikValueList<TikPortRange>>.Not(new TikValueList<TikPortRange>(22, 8291)),
-                ConnectionState = TikValue<TikValueList<FirewallConnectionState>>.Not(
+                SrcAddress = TikNegatableField<string>.Not("10.0.0.0/8"),
+                InInterface = "!ether1",          // the router's own spelling: Not("ether1")
+                DstPort = TikNegatableField<TikValueList<TikPortRange>>.Not(new TikValueList<TikPortRange>(22, 8291)),
+                ConnectionState = TikNegatableField<TikValueList<FirewallConnectionState>>.Not(
                     new TikValueList<FirewallConnectionState>(FirewallConnectionState.Established, FirewallConnectionState.Related)),
             };
             try
@@ -456,7 +456,7 @@ namespace tik4net.integrationtests
             const string comment = "t4n-bang-filter";
             const string chain = "t4n-bang-filter";
             RemoveFirewallFilterByComment(comment);
-            FirewallFilter Rule(TikField<string> srcAddress) => new FirewallFilter
+            FirewallFilter Rule(TikNegatableField<string> srcAddress) => new FirewallFilter
             {
                 Chain = chain,
                 Action = FirewallFilter.ActionType.Accept,
@@ -464,9 +464,9 @@ namespace tik4net.integrationtests
                 Comment = comment,
                 SrcAddress = srcAddress,
             };
-            var negated = Rule(TikValue<string>.Not("10.0.0.0/8"));
+            var negated = Rule(TikNegatableField<string>.Not("10.0.0.0/8"));
             var plain = Rule("10.0.0.0/8");
-            var none = Rule(default(TikField<string>));
+            var none = Rule(default(TikNegatableField<string>));
             try
             {
                 SaveTracked(negated);
@@ -513,9 +513,9 @@ namespace tik4net.integrationtests
                 Disabled = true,
                 Comment = comment,
                 Protocol = "tcp",
-                ConnectionRate = TikValue<string>.Not("1500-2000000"),
+                ConnectionRate = TikNegatableField<string>.Not("1500-2000000"),
                 ConnectionBytes = "2000000-0",
-                ConnectionLimit = TikValue<string>.Not("10,24"),
+                ConnectionLimit = TikNegatableField<string>.Not("10,24"),
             };
             try
             {
@@ -586,9 +586,9 @@ namespace tik4net.integrationtests
                 {
                     Chain = "prerouting", Action = FirewallMangle.ActionType.MarkConnection, Disabled = true, Comment = comment,
                     NewConnectionMark = "t4n-cm", Passthrough = true, Protocol = "tcp",
-                    ConnectionNatState = TikValue<TikValueList<FirewallConnectionNatState>>.Not(
+                    ConnectionNatState = TikNegatableField<TikValueList<FirewallConnectionNatState>>.Not(
                         new TikValueList<FirewallConnectionNatState>(FirewallConnectionNatState.Srcnat)),
-                    Realm = TikValue<string>.Not("5"),
+                    Realm = TikNegatableField<string>.Not("5"),
                     DstPort = new TikValueList<TikPortRange>(443),
                     InInterfaceList = "all",
                     Limit = "1000000,5:bit",
@@ -672,19 +672,19 @@ namespace tik4net.integrationtests
             {
                 Chain = "forward", Action = FirewallFilter.ActionType.Accept, Disabled = true, Comment = comment,
                 Protocol = "tcp",
-                ConnectionNatState = TikValue<TikValueList<FirewallConnectionNatState>>.Not(
+                ConnectionNatState = TikNegatableField<TikValueList<FirewallConnectionNatState>>.Not(
                     new TikValueList<FirewallConnectionNatState>(FirewallConnectionNatState.Srcnat, FirewallConnectionNatState.Dstnat)),
-                Realm = TikValue<string>.Not("5"),
-                InInterfaceList = TikValue<string>.Not("all"),
+                Realm = TikNegatableField<string>.Not("5"),
+                InInterfaceList = TikNegatableField<string>.Not("all"),
                 OutInterfaceList = "all",
-                InBridgePortList = TikValue<string>.Not("all"),
+                InBridgePortList = TikNegatableField<string>.Not("all"),
                 OutBridgePortList = "all",
-                Priority = TikValue<string>.Not("3"),
+                Priority = TikNegatableField<string>.Not("3"),
                 Tos = "0xA",
-                TlsHost = TikValue<string>.Not("t4n.example"),
+                TlsHost = TikNegatableField<string>.Not("t4n.example"),
                 IpsecPolicy = "in,ipsec",
                 Log = true,
-                Limit = TikValue<string>.Not("7/1h,3:packet"),
+                Limit = TikNegatableField<string>.Not("7/1h,3:packet"),
                 DstLimit = "30/1m,5,addresses-and-dst-port/10s",
             };
             try
@@ -725,15 +725,15 @@ namespace tik4net.integrationtests
             var raw = new FirewallRaw
             {
                 Chain = "prerouting", Action = FirewallRaw.ActionType.Passthrough, Disabled = true, Comment = comment,
-                InBridgePort = TikValue<string>.Not("ether1"),
-                OutBridgePort = TikValue<string>.Not("ether1"),
-                InBridgePortList = TikValue<string>.Not("all"),
-                OutBridgePortList = TikValue<string>.Not("all"),
-                Limit = TikValue<string>.Not("10,5:packet"),
-                PacketMark = TikValue<string>.Not("t4n-pm"),
+                InBridgePort = TikNegatableField<string>.Not("ether1"),
+                OutBridgePort = TikNegatableField<string>.Not("ether1"),
+                InBridgePortList = TikNegatableField<string>.Not("all"),
+                OutBridgePortList = TikNegatableField<string>.Not("all"),
+                Limit = TikNegatableField<string>.Not("10,5:packet"),
+                PacketMark = TikNegatableField<string>.Not("t4n-pm"),
                 IpsecPolicy = "out,none",
                 DstLimit = "1000,8,src-address/1m",
-                Tos = TikValue<string>.Not("0xBC/0xF0"),
+                Tos = TikNegatableField<string>.Not("0xBC/0xF0"),
             };
             try
             {
@@ -767,7 +767,7 @@ namespace tik4net.integrationtests
         public void TheGroupedMatchersRoundTripOnEveryVersion()
         {
             const string comment = "t4n-grouped-matchers";
-            var limit = TikValue<string>.Not("10,5:packet");
+            var limit = TikNegatableField<string>.Not("10,5:packet");
             const string dstLimit = "30/1m,5,addresses-and-dst-port/10s";
             const string ipsecPolicy = "in,ipsec";
             string on = " on " + ResolveConnectionType() + " / RouterOS " + GetMikrotikVersion();
@@ -802,7 +802,7 @@ namespace tik4net.integrationtests
                     Chain = "prerouting", Action = FirewallRaw.ActionType.Passthrough, Disabled = true, Comment = comment,
                     Limit = limit, DstLimit = dstLimit, IpsecPolicy = ipsecPolicy,
                     // keys raw's WinBox window does not declare (shipped for native)
-                    InBridgePort = TikValue<string>.Not("ether1"), PacketMark = TikValue<string>.Not("t4n-pm"),
+                    InBridgePort = TikNegatableField<string>.Not("ether1"), PacketMark = TikNegatableField<string>.Not("t4n-pm"),
                 };
                 SaveTracked(raw);
                 var readRaw = Connection.LoadById<FirewallRaw>(raw.Id);

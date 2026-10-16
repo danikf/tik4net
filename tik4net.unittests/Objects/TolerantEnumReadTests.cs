@@ -171,8 +171,7 @@ namespace tik4net.unittests.Objects
                 .Where(t => t.GetCustomAttribute<TikEntityAttribute>() != null)
                 .SelectMany(t => t.GetProperties())
                 .Where(p => p.GetCustomAttribute<TikPropertyAttribute>() != null)
-                .Select(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(TikField<>)
-                    ? p.PropertyType.GetGenericArguments()[0] : p.PropertyType)
+                .Select(p => MappedPropertyType.Of(p))
                 .Select(t => Nullable.GetUnderlyingType(t) ?? t)
                 .Where(t => t.IsEnum).Distinct().ToList();
 

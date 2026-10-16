@@ -119,8 +119,8 @@ namespace tik4net.integrationtests.Ip.Firewall
         {
             // The API spells it as a bare leading element (!,syn,!ack); WinBox native as the field's 'not' flag.
             var rule = TestRule(Connection);
-            rule.TcpFlags = TikValue<TikValueList<FirewallTcpFlag>>.Not(rule.TcpFlags.Value);
-            rule.SrcAddressType = TikValue<TikValueList<FirewallAddressType>>.Not(rule.SrcAddressType.Value);
+            rule.TcpFlags = TikNegatableField<TikValueList<FirewallTcpFlag>>.Not(rule.TcpFlags.Value);
+            rule.SrcAddressType = TikNegatableField<TikValueList<FirewallAddressType>>.Not(rule.SrcAddressType.Value);
             Connection.Save(rule);
 
             using (var api = OpenSideApi())

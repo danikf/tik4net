@@ -49,7 +49,7 @@ namespace tik4net.Analyzers
             context.EnableConcurrentExecution();
             context.RegisterCompilationStartAction(start =>
             {
-                var wrappers = new[] { TikFieldObjectEqualityAnalyzer.TikFieldMetadataName, TikFieldObjectEqualityAnalyzer.TikValueMetadataName }
+                var wrappers = new[] { TikFieldObjectEqualityAnalyzer.TikFieldMetadataName, TikFieldObjectEqualityAnalyzer.TikNegatableFieldMetadataName, TikFieldObjectEqualityAnalyzer.TikValueMetadataName }
                     .Select(start.Compilation.GetTypeByMetadataName)
                     .Where(t => t != null)
                     .Select(t => t!)

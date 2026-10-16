@@ -15,7 +15,7 @@ namespace tik4net.unittests.Objects
     {
         public class Dto
         {
-            public TikField<TikValueList<TikPortRange>?> Ports { get; set; }
+            public TikNegatableField<TikValueList<TikPortRange>?> Ports { get; set; }
             public TikField<TikValueList<TikValueListMapperTests.Hotspot>?> Hotspot { get; set; }
         }
 
@@ -24,7 +24,7 @@ namespace tik4net.unittests.Objects
         {
             var dto = new Dto
             {
-                Ports = TikValue<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(22, new TikPortRange(1000, 2000))),
+                Ports = TikNegatableField<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(22, new TikPortRange(1000, 2000))),
                 Hotspot = new TikValueList<TikValueListMapperTests.Hotspot>(
                     TikValue<TikValueListMapperTests.Hotspot>.Not(TikValueListMapperTests.Hotspot.FromClient),
                     TikValueListMapperTests.Hotspot.Http,

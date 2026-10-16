@@ -17,8 +17,8 @@ namespace tik4net.Objects
     /// Each item is a <see cref="TikValue{T}"/>, so an item can be a word <typeparamref name="T"/> cannot hold (a member
     /// a newer RouterOS added) without the rest of the list losing its type, and on a field whose members the router
     /// negates one by one (<c>tcp-flags</c>, <c>hotspot</c>, logging <c>topics</c>) an item carries its own <c>!</c>.
-    /// A <c>!</c> on the whole list (<c>dst-port=!22,8291</c>) is the negation of the <see cref="TikValue{T}"/> that holds
-    /// the list: <c>TikValue&lt;TikValueList&lt;TikPortRange&gt;&gt;.Not(list)</c>.
+    /// A <c>!</c> on the whole list (<c>dst-port=!22,8291</c>) is the negation of the <see cref="TikNegatableField{T}"/>
+    /// that holds the list: <c>TikNegatableField&lt;TikValueList&lt;TikPortRange&gt;?&gt;.Not(list)</c>.
     /// </para>
     /// <para>
     /// The list is immutable: <see cref="With(TikValue{T}[])"/> and <see cref="Without(TikValue{T}[])"/> return a new one,
@@ -103,7 +103,7 @@ namespace tik4net.Objects
         /// <remarks>
         /// A string does not convert to a list implicitly — C# applies one user-defined conversion per assignment, and the
         /// property's own conversion is the one from <see cref="TikValueList{T}"/>. A <c>!</c> on the whole list is not
-        /// part of the list: write it as <c>TikValue&lt;TikValueList&lt;T&gt;?&gt;.Not(TikValueList&lt;T&gt;.Parse("22,8291"))</c>.
+        /// part of the list: write it as <c>TikNegatableField&lt;TikValueList&lt;T&gt;?&gt;.Not(TikValueList&lt;T&gt;.Parse("22,8291"))</c>.
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="text"/> is <c>null</c>.</exception>
         /// <exception cref="FormatException">
@@ -128,7 +128,7 @@ namespace tik4net.Objects
                     word = word.Substring(1).TrimStart();
                 if (word.Length == 0)
                     throw new FormatException(negated
-                        ? "\"" + text + "\" has a bare '!': a '!' on the whole list is written TikValue<TikValueList<T>?>.Not(list)."
+                        ? "\"" + text + "\" has a bare '!': a '!' on the whole list is written TikNegatableField<TikValueList<T>?>.Not(list)."
                         : "\"" + text + "\" has an empty item.");
                 object? value;
                 string? unknownWord;

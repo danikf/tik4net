@@ -22,28 +22,28 @@ namespace tik4net.Objects.Ip.Hotspot
         public TikField<WalledGardenAction?> Action { get; set; }
 
         /// <summary>server — HotSpot server name this rule applies to; empty means all servers.</summary>
-        [TikProperty("server", DefaultValue = "", WinboxLabel = "Server", Negatable = true)]
-        public TikField<string?> Server { get; set; }
+        [TikProperty("server", DefaultValue = "", WinboxLabel = "Server")]
+        public TikNegatableField<string?> Server { get; set; }
 
         /// <summary>src-address — source IP address or range of the unauthenticated client.</summary>
-        [TikProperty("src-address", DefaultValue = "", WinboxLabel = "Src. Address", Negatable = true)]
-        public TikField<string?> SrcAddress { get; set; }
+        [TikProperty("src-address", DefaultValue = "", WinboxLabel = "Src. Address")]
+        public TikNegatableField<string?> SrcAddress { get; set; }
 
         /// <summary>dst-host — destination hostname or wildcard (e.g. *.example.com).</summary>
-        [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host", Negatable = true)]
-        public TikField<string?> DstHost { get; set; }
+        [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host")]
+        public TikNegatableField<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match.</summary>
-        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
+        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port")]
+        public TikNegatableField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
         /// <summary>method — HTTP method to match (any/connect/delete/get/head/options/post/put/trace). Default: any.</summary>
-        [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method", Negatable = true)]
-        public TikField<string?> Method { get; set; }
+        [TikProperty("method", DefaultValue = "any", WinboxLabel = "Method")]
+        public TikNegatableField<string?> Method { get; set; }
 
         /// <summary>path — URL path pattern to match (without hostname, e.g. /images/*).</summary>
-        [TikProperty("path", DefaultValue = "", WinboxLabel = "Path", Negatable = true)]
-        public TikField<string?> Path { get; set; }
+        [TikProperty("path", DefaultValue = "", WinboxLabel = "Path")]
+        public TikNegatableField<string?> Path { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]

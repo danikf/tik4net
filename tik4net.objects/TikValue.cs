@@ -10,19 +10,19 @@ namespace tik4net.Objects
     /// One value as the router spells it — a value of <typeparamref name="T"/>, or the router's own word when
     /// <typeparamref name="T"/> cannot hold it — with its own <c>!</c> (<see cref="IsNegated"/>).
     /// </summary>
-    /// <typeparam name="T">The value's type: <c>string?</c>, <c>int?</c>, an enum, … — the same <c>T</c> as the
-    /// <see cref="TikField{T}"/> that holds it.</typeparam>
+    /// <typeparam name="T">The value's type: <see cref="TikPortRange"/>, an enum, <c>string</c>, … — the item type of the
+    /// <see cref="TikValueList{T}"/> that holds it.</typeparam>
     /// <remarks>
     /// <para>
-    /// A <see cref="TikField{T}"/> is what an entity property holds: whether the router printed the field, and if so a
-    /// <see cref="TikValue{T}"/>. The value is what can be negated and what can be a word the type does not know, so
-    /// both live here — on a single value, and on each item of a list.
+    /// A <see cref="TikValueList{T}"/> is a list of these: each item can be a word the item type does not know (a member
+    /// a newer RouterOS added) without the rest of the list losing its type, and on a field whose members the router
+    /// negates one by one (<c>tcp-flags=syn,!ack</c>, <c>hotspot</c>, logging <c>topics</c>) each item carries its own
+    /// <c>!</c>: <c>new TikValueList&lt;FirewallTcpFlag&gt;(FirewallTcpFlag.Syn, TikValue&lt;FirewallTcpFlag&gt;.Not(FirewallTcpFlag.Ack))</c>.
     /// </para>
     /// <para>
-    /// A negated matcher is written <c>rule.SrcAddress = TikValue&lt;string?&gt;.Not("10.0.0.0/8")</c> (the router's
-    /// <c>!10.0.0.0/8</c>); a word from another RouterOS version that an enum has no member for is written
-    /// <c>TikValue&lt;PfsGroup?&gt;.FromWire("ec2n155")</c>. Both convert implicitly to the property's
-    /// <see cref="TikField{T}"/>.
+    /// A field holds its value in a <see cref="TikField{T}"/> or a <see cref="TikNegatableField{T}"/>, not in a
+    /// <see cref="TikValue{T}"/>: a negated matcher is <c>TikNegatableField&lt;string?&gt;.Not("10.0.0.0/8")</c>, a
+    /// field's own word <c>TikField&lt;PfsGroup?&gt;.FromWire("ec2n155")</c>.
     /// </para>
     /// </remarks>
     [DebuggerDisplay("{DebuggerText,nq}")]
@@ -56,8 +56,9 @@ namespace tik4net.Objects
         public string? RawValue => _word;
 
         /// <summary>
-        /// True when the value is negated — the router's <c>!</c> in front of it, which matches everything the value does
-        /// not. Only a field that takes a <c>!</c> (<see cref="TikPropertyAttribute.Negatable"/>) reads or writes one.
+        /// True when the item is negated — the router's <c>!</c> in front of it, which matches everything the item does
+        /// not. Only a list whose members the router negates one by one (<see cref="TikPropertyAttribute.NegatableMembers"/>)
+        /// reads or writes one.
         /// </summary>
         public bool IsNegated => _negated;
 
@@ -69,16 +70,19 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// A negated value — the router's <c>!value</c>: <c>rule.SrcAddress = TikValue&lt;string?&gt;.Not("10.0.0.0/8")</c>.
-        /// Writing it to a property that does not declare <see cref="TikPropertyAttribute.Negatable"/> throws.
+        /// A negated list item — the router's <c>!item</c>: <c>TikValue&lt;FirewallTcpFlag&gt;.Not(FirewallTcpFlag.Ack)</c>.
+        /// Saving it in a list whose members the router does not negate one by one (no
+        /// <see cref="TikPropertyAttribute.NegatableMembers"/>) throws. A negated field is
+        /// <see cref="TikNegatableField{T}.Not"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>: there is nothing to negate.</exception>
         public static TikValue<T> Not(T value)
             => new TikValue<T>(value ?? throw new ArgumentNullException(nameof(value), "Only a value can be negated."), null, negated: true);
 
         /// <summary>
-        /// The router's own word, sent as written — for a word <typeparamref name="T"/> has no member for (an enum's word
-        /// on another RouterOS version: <c>TikValue&lt;PfsGroup?&gt;.FromWire("ec2n155")</c>). It reads back the same way.
+        /// The router's own word, sent as written — for an item <typeparamref name="T"/> has no member for (an enum's word
+        /// on another RouterOS version). It reads back the same way. A field's own word is
+        /// <see cref="TikField{T}.FromWire"/>.
         /// </summary>
         public static TikValue<T> FromWire(string word)
             => new TikValue<T>(default!, word ?? throw new ArgumentNullException(nameof(word)), negated: false);
@@ -154,7 +158,7 @@ namespace tik4net.Objects
             => (_negated ? "!" : "") + (_word != null ? "word \"" + _word + "\"" : _value == null ? "null" : TikWireText.Format(_value));
     }
 
-    /// <summary>How a value is spelled on the wire, for display — shared by <see cref="TikValue{T}"/> and <see cref="TikField{T}"/>.</summary>
+    /// <summary>How a value is spelled on the wire, for display — shared by <see cref="TikValue{T}"/> and the field types.</summary>
     internal static class TikWireText
     {
         /// <summary>

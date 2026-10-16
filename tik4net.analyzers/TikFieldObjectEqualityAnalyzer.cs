@@ -30,6 +30,7 @@ namespace tik4net.Analyzers
         public const string DiagnosticId = "TIK001";
 
         internal const string TikFieldMetadataName = "tik4net.Objects.TikField`1";
+        internal const string TikNegatableFieldMetadataName = "tik4net.Objects.TikNegatableField`1";
         internal const string TikValueMetadataName = "tik4net.Objects.TikValue`1";
 
         private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
@@ -54,7 +55,7 @@ namespace tik4net.Analyzers
             context.EnableConcurrentExecution();
             context.RegisterCompilationStartAction(start =>
             {
-                var wrappers = new[] { TikFieldMetadataName, TikValueMetadataName }
+                var wrappers = new[] { TikFieldMetadataName, TikNegatableFieldMetadataName, TikValueMetadataName }
                     .Select(start.Compilation.GetTypeByMetadataName)
                     .Where(t => t != null)
                     .Select(t => t!)

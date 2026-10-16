@@ -190,19 +190,24 @@ namespace tik4net.Objects
             //From property code
             PropertyName = propertyInfo.Name;
             PropertyType = propertyInfo.PropertyType;
-            if (PropertyType.GetTypeInfo().IsGenericType && PropertyType.GetGenericTypeDefinition() == typeof(TikField<>))
+            Type? fieldType = PropertyType.GetTypeInfo().IsGenericType ? PropertyType.GetGenericTypeDefinition() : null;
+            if (fieldType == typeof(TikField<>) || fieldType == typeof(TikNegatableField<>))
             {
                 // TikField<T>: the value type is T's, and the property is nullable by construction - a field the row
-                // lacks is Absent, and "unset" is an assigned null.
+                // lacks is Absent, and "unset" is an assigned null. A TikNegatableField<T> is a matcher RouterOS negates
+                // with a leading '!', which it reads as IsNegated rather than as part of the value.
                 Type inner = PropertyType.GetTypeInfo().GenericTypeArguments[0];
                 if (inner.GetTypeInfo().IsValueType && Nullable.GetUnderlyingType(inner) == null)
                     throw new ArgumentException(string.Format(
-                        "{0}.{1}: TikField<{2}> must use the nullable form TikField<{2}?>, so that assigning null compiles.",
-                        propertyInfo.DeclaringType?.Name, propertyInfo.Name, inner.Name), nameof(propertyInfo));
+                        "{0}.{1}: {3}<{2}> must use the nullable form {3}<{2}?>, so that assigning null compiles.",
+                        propertyInfo.DeclaringType?.Name, propertyInfo.Name, inner.Name,
+                        fieldType == typeof(TikField<>) ? "TikField" : "TikNegatableField"), nameof(propertyInfo));
                 IsWrapped = true;
+                IsNegatable = fieldType == typeof(TikNegatableField<>);
                 ValueType = Nullable.GetUnderlyingType(inner) ?? inner;
                 IsNullable = true;
-                var factories = typeof(TikEntityPropertyAccessor).GetTypeInfo().GetDeclaredMethod(nameof(MakeWrappers))!
+                var factories = typeof(TikEntityPropertyAccessor).GetTypeInfo()
+                    .GetDeclaredMethod(IsNegatable ? nameof(MakeNegatableWrappers) : nameof(MakeWrappers))!
                     .MakeGenericMethod(inner);
                 var wrappers = ((Func<object?, bool, object>, Func<string, object>))factories.Invoke(null, null)!;
                 _wrapPresent = wrappers.Item1;
@@ -269,12 +274,6 @@ namespace tik4net.Objects
             WinboxLabel = string.IsNullOrWhiteSpace(propertyAttribute.WinboxLabel) ? null : propertyAttribute.WinboxLabel;
             ChangesOnItsOwn = propertyAttribute.ChangesOnItsOwn;
             IsSensitive = propertyAttribute.IsSensitive;
-            if (propertyAttribute.Negatable && !IsWrapped)
-                // The flag lives on TikField<T>; a plain property has nowhere to keep it and would drop the '!' on a save.
-                throw new ArgumentException(string.Format(
-                    "{0}.{1}: Negatable needs a TikField<T> property, which carries the negation.",
-                    propertyInfo.DeclaringType?.Name, propertyInfo.Name), nameof(propertyInfo));
-            IsNegatable = propertyAttribute.Negatable;
             IsNegatableMembers = propertyAttribute.NegatableMembers;
             SetKeepsUnnamedHalf = propertyAttribute.SetKeepsUnnamedHalf;
             if (SetKeepsUnnamedHalf && !IsNegatableMembers)
@@ -330,8 +329,8 @@ namespace tik4net.Objects
                 list => TikValueListWire.Format((TikValueList<TItem>)list, negatableMembers, item, propertyName, fieldName));
 
         /// <summary>
-        /// Whether the field is a matcher RouterOS negates with a leading <c>!</c> (<see cref="TikPropertyAttribute.Negatable"/>):
-        /// the <c>!</c> reads as <see cref="TikField{T}.IsNegated"/> rather than as part of the value.
+        /// Whether the field is a matcher RouterOS negates with a leading <c>!</c> — a <see cref="TikNegatableField{T}"/>
+        /// property: the <c>!</c> reads as <see cref="TikNegatableField{T}.IsNegated"/> rather than as part of the value.
         /// </summary>
         public bool IsNegatable { get; private set; }
 
@@ -435,7 +434,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// True when the property is a <see cref="TikField{T}"/>: it carries whether the field was printed and whether
+        /// True when the property is a <see cref="TikField{T}"/> or a <see cref="TikNegatableField{T}"/>: it carries whether the field was printed and whether
         /// it could be read, and <see cref="ValueType"/> is its <c>T</c>'s.
         /// </summary>
         public bool IsWrapped { get; private set; }
@@ -444,8 +443,12 @@ namespace tik4net.Objects
         private readonly Func<string, object>? _wrapUnparsed;
         private readonly object? _absent;
 
+        // Wrap passes negated=true only for a TikNegatableField<T> property; a TikField<T> has no negation to carry.
         private static (Func<object?, bool, object>, Func<string, object>) MakeWrappers<T>()
-            => ((value, negated) => TikField<T>.FromPresent((T)value!, negated), raw => TikField<T>.FromUnparsed(raw));
+            => ((value, _) => TikField<T>.FromPresent((T)value!), raw => TikField<T>.FromUnparsed(raw));
+
+        private static (Func<object?, bool, object>, Func<string, object>) MakeNegatableWrappers<T>()
+            => ((value, negated) => TikNegatableField<T>.FromPresent((T)value!, negated), raw => TikNegatableField<T>.FromUnparsed(raw));
 
 
         /// <summary>
@@ -474,11 +477,6 @@ namespace tik4net.Objects
                 return wrapped.RawValue;
             if (wrapped.BoxedValue == null)
                 return null;
-            if (wrapped.IsNegated && !IsNegatable)
-                // Dropping the '!' would write the opposite matcher; writing it to a field that takes none is refused by
-                // the router on some transports and read as a literal '!' on others.
-                throw new InvalidOperationException(string.Format(
-                    "Property '{0}({1})' holds a negated value, and the field is not marked Negatable.", PropertyName, FieldName));
             if (_formatList != null)
             {
                 string items = _formatList(wrapped.BoxedValue);

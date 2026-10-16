@@ -370,7 +370,12 @@ namespace tik4net.examples
             {
                 Chain = FirewallFilter.ChainType.Forward,
                 Action = FirewallFilter.ActionType.Accept,
+                // A negated matcher in the router's own spelling: "!192.168.88.0/24" is Not("192.168.88.0/24")
+                SrcAddress = "!192.168.88.0/24",
+                Protocol = "tcp",
+                DstPort = TikNegatableField<TikValueList<TikPortRange>>.Not(new TikValueList<TikPortRange>(22, 8291)),
             };
+            Console.WriteLine($"{firewallFilter.SrcAddress.IsNegated} {firewallFilter.SrcAddress.Value}"); // True 192.168.88.0/24
 
             connection.Save(firewallFilter);
 

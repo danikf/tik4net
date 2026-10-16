@@ -22,36 +22,36 @@ namespace tik4net.Objects.Ip.Hotspot
         public TikField<WalledGardenIpAction?> Action { get; set; }
 
         /// <summary>server — HotSpot server name this rule applies to; empty means all servers.</summary>
-        [TikProperty("server", DefaultValue = "", WinboxLabel = "Server", Negatable = true)]
-        public TikField<string?> Server { get; set; }
+        [TikProperty("server", DefaultValue = "", WinboxLabel = "Server")]
+        public TikNegatableField<string?> Server { get; set; }
 
         /// <summary>protocol — IP protocol to match (e.g. tcp, udp, icmp). Empty = any.</summary>
-        [TikProperty("protocol", DefaultValue = "", WinboxLabel = "Protocol", Negatable = true)]
-        public TikField<string?> Protocol { get; set; }
+        [TikProperty("protocol", DefaultValue = "", WinboxLabel = "Protocol")]
+        public TikNegatableField<string?> Protocol { get; set; }
 
         /// <summary>src-address — source IP address or range of the unauthenticated client.</summary>
-        [TikProperty("src-address", DefaultValue = "", WinboxLabel = "Src. Address", Negatable = true)]
-        public TikField<string?> SrcAddress { get; set; }
+        [TikProperty("src-address", DefaultValue = "", WinboxLabel = "Src. Address")]
+        public TikNegatableField<string?> SrcAddress { get; set; }
 
         /// <summary>src-address-list — source address list name to match.</summary>
-        [TikProperty("src-address-list", DefaultValue = "", WinboxLabel = "Src. Address List", Negatable = true)]
-        public TikField<string?> SrcAddressList { get; set; }
+        [TikProperty("src-address-list", DefaultValue = "", WinboxLabel = "Src. Address List")]
+        public TikNegatableField<string?> SrcAddressList { get; set; }
 
         /// <summary>dst-address — destination IP address or range.</summary>
-        [TikProperty("dst-address", DefaultValue = "", WinboxLabel = "Dst. Address", Negatable = true)]
-        public TikField<string?> DstAddress { get; set; }
+        [TikProperty("dst-address", DefaultValue = "", WinboxLabel = "Dst. Address")]
+        public TikNegatableField<string?> DstAddress { get; set; }
 
         /// <summary>dst-address-list — destination address list name to match.</summary>
-        [TikProperty("dst-address-list", DefaultValue = "", WinboxLabel = "Dst. Address List", Negatable = true)]
-        public TikField<string?> DstAddressList { get; set; }
+        [TikProperty("dst-address-list", DefaultValue = "", WinboxLabel = "Dst. Address List")]
+        public TikNegatableField<string?> DstAddressList { get; set; }
 
         /// <summary>dst-host — destination hostname to resolve and match (useful for dynamic IPs).</summary>
         [TikProperty("dst-host", DefaultValue = "", WinboxLabel = "Dst. Host")]
         public TikField<string?> DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match (e.g. 80 or 80-90).</summary>
-        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<string?> DstPort { get; set; }
+        [TikProperty("dst-port", DefaultValue = "", WinboxLabel = "Dst. Port")]
+        public TikNegatableField<string?> DstPort { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]

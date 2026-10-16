@@ -153,8 +153,8 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void InAField_AWholeListNot_IsTheFieldsNegation()
         {
-            TikField<TikValueList<TikPortRange>?> field =
-                TikValue<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(22, 8291));
+            TikNegatableField<TikValueList<TikPortRange>?> field =
+                TikNegatableField<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(22, 8291));
             Assert.IsTrue(field.IsNegated);
             Assert.AreEqual("!22,8291", field.ToString());
         }

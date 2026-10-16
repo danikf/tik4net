@@ -81,7 +81,7 @@ namespace tik4net.Objects
                 if (v.IsNegated && !negatableMembers)
                     throw new InvalidOperationException(string.Format(
                         "Property '{0}({1})' holds a negated item ({2}), and RouterOS does not negate this field's members one by one "
-                        + "(NegatableMembers). Negate the whole list instead, if the field takes that (Negatable).",
+                        + "(NegatableMembers). Negate the whole list instead, if the field takes that (a TikNegatableField).",
                         propertyName, fieldName, v));
                 string text = v.IsWord ? v.RawValue! : item.ConvertToString(v.Value) ?? "";
                 return v.IsNegated ? "!" + text : text;

@@ -205,23 +205,6 @@ namespace tik4net.Objects
         public bool IsSensitive { get; set; }
 
         /// <summary>
-        /// Marks a matcher RouterOS can <b>negate</b> with a leading <c>!</c> — <c>src-address=!10.0.0.0/8</c>,
-        /// <c>in-interface=!ether1</c>, <c>connection-state=!established,related</c>.
-        /// <para>
-        /// On a <see cref="TikField{T}"/> property the <c>!</c> is then not part of the value: a load reads it as
-        /// <see cref="TikField{T}.IsNegated"/> and parses the rest as <c>T</c>, and a negated value
-        /// (<see cref="TikValue{T}.Not"/>) is written with it. Every transport spells it the same way — the API, REST
-        /// and the CLI print the <c>!</c>, and WinBox native carries it as the field's <c>not</c> flag. Without the
-        /// marker a leading <c>!</c> is part of the value: a comment or a name may start with one.
-        /// </para>
-        /// <para>
-        /// The <c>!</c> negates the whole value, a list included (<c>dst-port=!22,8291</c>). A list whose members the
-        /// router negates one by one declares <see cref="NegatableMembers"/> as well or instead.
-        /// </para>
-        /// </summary>
-        public bool Negatable { get; set; }
-
-        /// <summary>
         /// Marks a <see cref="TikValueList{T}"/> field whose <b>members</b> RouterOS negates one by one —
         /// <c>hotspot=!from-client,http</c>, logging <c>topics=info,!debug</c>, <c>tcp-flags=syn,!ack</c>.
         /// <para>
@@ -231,8 +214,9 @@ namespace tik4net.Objects
         /// as part of a word.
         /// </para>
         /// <para>
-        /// A field that also takes a <c>!</c> on the whole list (<c>tcp-flags</c>) declares <see cref="Negatable"/> too;
-        /// the router spells that one as a bare leading element: <c>tcp-flags=!,syn,!ack</c>.
+        /// A field that also takes a <c>!</c> on the whole list (<c>tcp-flags</c>) is a <see cref="TikNegatableField{T}"/>
+        /// too; the router spells that one as a bare leading element: <c>tcp-flags=!,syn,!ack</c>. A <c>!</c> on a whole
+        /// matcher is the property's type, not an attribute: see <see cref="TikNegatableField{T}"/>.
         /// </para>
         /// </summary>
         public bool NegatableMembers { get; set; }

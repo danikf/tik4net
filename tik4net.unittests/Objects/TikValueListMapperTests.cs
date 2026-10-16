@@ -27,14 +27,14 @@ namespace tik4net.unittests.Objects
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
             public string? Id { get; private set; }
 
-            [TikProperty("dst-port", Negatable = true)]
-            public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
+            [TikProperty("dst-port")]
+            public TikNegatableField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
             [TikProperty("hotspot", NegatableMembers = true)]
             public TikField<TikValueList<Hotspot>?> Hotspot { get; set; }
 
-            [TikProperty("tcp-flags", Negatable = true, NegatableMembers = true, SetKeepsUnnamedHalf = true)]
-            public TikField<TikValueList<Flag>?> TcpFlags { get; set; }
+            [TikProperty("tcp-flags", NegatableMembers = true, SetKeepsUnnamedHalf = true)]
+            public TikNegatableField<TikValueList<Flag>?> TcpFlags { get; set; }
 
             [TikProperty("names")]
             public TikField<TikValueList<string>?> Names { get; set; }
@@ -84,7 +84,6 @@ namespace tik4net.unittests.Objects
         {
             var rule = Load(("hotspot", "from-client,http,!auth"));
 
-            Assert.IsFalse(rule.Hotspot.IsNegated);
             var auth = rule.Hotspot.Value!.Single(i => i.Value == Hotspot.Auth);
             Assert.IsTrue(auth.IsNegated);
             Assert.IsFalse(rule.Hotspot.Value!.First().IsNegated);
@@ -171,9 +170,9 @@ namespace tik4net.unittests.Objects
             var connection = Router();
             var rule = new Rule
             {
-                DstPort = TikValue<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(443, 53)),
+                DstPort = TikNegatableField<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(443, 53)),
                 Hotspot = new TikValueList<Hotspot>(TikValue<Hotspot>.Not(Hotspot.FromClient), Hotspot.Http),
-                TcpFlags = TikValue<TikValueList<Flag>?>.Not(new TikValueList<Flag>(TikValue<Flag>.Not(Flag.Syn), Flag.Ack)),
+                TcpFlags = TikNegatableField<TikValueList<Flag>?>.Not(new TikValueList<Flag>(TikValue<Flag>.Not(Flag.Syn), Flag.Ack)),
             };
 
             connection.Save(rule);
@@ -210,7 +209,7 @@ namespace tik4net.unittests.Objects
         public void ANegatedEmptyList_IsRefusedBeforeSending()
         {
             var connection = Router();
-            var rule = new Rule { DstPort = TikValue<TikValueList<TikPortRange>?>.Not(TikValueList<TikPortRange>.Empty) };
+            var rule = new Rule { DstPort = TikNegatableField<TikValueList<TikPortRange>?>.Not(TikValueList<TikPortRange>.Empty) };
 
             Assert.ThrowsException<InvalidOperationException>(() => connection.Save(rule));
             Assert.AreEqual(0, Sent(connection, "add").Length);

@@ -39,14 +39,14 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// src-address: identifies packets originating from specific internal IP addresses.
         /// </summary>
-        [TikProperty("src-address", WinboxLabel = "Src. Address", Negatable = true)]
-        public TikField<string?> SrcAddress { get; set; }
+        [TikProperty("src-address", WinboxLabel = "Src. Address")]
+        public TikNegatableField<string?> SrcAddress { get; set; }
 
         /// <summary>
         /// out-interface: outgoing network interface for packet transmission.
         /// </summary>
-        [TikProperty("out-interface", WinboxLabel = "Out. Interface", Negatable = true)]
-        public TikField<string?> OutInterface { get; set; }
+        [TikProperty("out-interface", WinboxLabel = "Out. Interface")]
+        public TikNegatableField<string?> OutInterface { get; set; }
 
         /// <summary>
         /// invalid
@@ -75,26 +75,26 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// src-address-list: identifies packets from predefined address lists.
         /// </summary>
-        [TikProperty("src-address-list", WinboxLabel = "Src. Address List", Negatable = true)]
-        public TikField<string?> SrcAddressList { get; set; }
+        [TikProperty("src-address-list", WinboxLabel = "Src. Address List")]
+        public TikNegatableField<string?> SrcAddressList { get; set; }
 
         /// <summary>
         /// dst-address: targets packets destined for particular IP addresses.
         /// </summary>
-        [TikProperty("dst-address", WinboxLabel = "Dst. Address", Negatable = true)]
-        public TikField<string?> DstAddress { get; set; }
+        [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
+        public TikNegatableField<string?> DstAddress { get; set; }
 
         /// <summary>
         /// in-interface: incoming network interface packets traverse.
         /// </summary>
-        [TikProperty("in-interface", WinboxLabel = "In. Interface", Negatable = true)]
-        public TikField<string?> InInterface { get; set; }
+        [TikProperty("in-interface", WinboxLabel = "In. Interface")]
+        public TikNegatableField<string?> InInterface { get; set; }
 
         /// <summary>
         /// protocol: specifies the protocol (TCP, UDP, etc.) the rule applies to.
         /// </summary>
-        [TikProperty("protocol", WinboxLabel = "Protocol", Negatable = true)]
-        public TikField<string?> Protocol { get; set; }
+        [TikProperty("protocol", WinboxLabel = "Protocol")]
+        public TikNegatableField<string?> Protocol { get; set; }
 
         /// <summary>
         /// to-ports: the replacement port, or port range (<c>8000-8010</c>), for modified packets: <c>rule.ToPorts = new TikPortRange(8000, 8010)</c>.
@@ -105,13 +105,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// dst-port (integer [ -integer]: 0..65535; Default: ) | List of destination port numbers or port number ranges
         /// </summary>
-        [TikProperty("dst-port", WinboxLabel = "Dst. Port", Negatable = true)]
-        public TikField<TikValueList<TikPortRange>?> DstPort { get; set; }
+        [TikProperty("dst-port", WinboxLabel = "Dst. Port")]
+        public TikNegatableField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
         /// <summary>
         /// src-port (integer [ -integer]: 0..65535; Default: ) | List of destination port numbers or port number ranges
         /// </summary>
-        [TikProperty("src-port", WinboxLabel = "Src. Port", Negatable = true)]
-        public TikField<TikValueList<TikPortRange>?> SrcPort { get; set; }
+        [TikProperty("src-port", WinboxLabel = "Src. Port")]
+        public TikNegatableField<TikValueList<TikPortRange>?> SrcPort { get; set; }
     }
 }

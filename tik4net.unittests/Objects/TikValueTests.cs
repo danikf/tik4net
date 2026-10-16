@@ -78,34 +78,15 @@ namespace tik4net.unittests.Objects
             Assert.IsTrue(((TikValue<int?>)5).CompareTo(TikValue<int?>.Not(5)) < 0);
         }
 
-        // ── Assigned to a field ──────────────────────────────────────────────
+        // ── A field's own word ──────────────────────────────────────────────
 
         [TestMethod]
-        public void AssignedToAField_ANegatedValue_IsAPresentNegatedField()
+        public void AFieldsWord_IsAnUnparsedField_EqualToTheOneTheMapperReads()
         {
-            TikField<string?> field = TikValue<string?>.Not("10.0.0.0/8");
-            Assert.AreEqual(TikFieldState.Present, field.State);
-            Assert.IsTrue(field.IsNegated);
-            Assert.AreEqual("10.0.0.0/8", field.Value);
-            Assert.AreEqual("!10.0.0.0/8", field.ToString());
-        }
-
-        [TestMethod]
-        public void AssignedToAField_AWord_IsAnUnparsedField_EqualToTheOneTheMapperReads()
-        {
-            TikField<TikFieldMapperTests.Mode?> field = TikValue<TikFieldMapperTests.Mode?>.FromWire("ec2n155");
+            TikField<TikFieldMapperTests.Mode?> field = TikField<TikFieldMapperTests.Mode?>.FromWire("ec2n155");
             Assert.AreEqual(TikFieldState.Unparsed, field.State);
             Assert.AreEqual("ec2n155", field.RawValue);
             Assert.AreEqual(TikField<TikFieldMapperTests.Mode?>.FromUnparsed("ec2n155"), field);
-        }
-
-        [TestMethod]
-        public void AssignedToAField_APlainValue_EqualsTheFieldOfTheSameValue()
-        {
-            TikField<int?> fromValue = (TikValue<int?>)8080;
-            TikField<int?> direct = 8080;
-            Assert.AreEqual(direct, fromValue);
-            Assert.AreEqual(direct.GetHashCode(), fromValue.GetHashCode());
         }
     }
 }
