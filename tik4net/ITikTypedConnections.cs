@@ -16,11 +16,10 @@ namespace tik4net
     /// lacks one does not compile rather than throwing.
     /// </para>
     /// <para>
-    /// <b>The type says what the transport implements; <see cref="TikConnectionCapabilityExtensions.Supports"/>
-    /// says what this router allows.</b> The two are not the same question, and the second one does not go
-    /// away: Safe Mode over native WinBox needs RouterOS 7.18+, and REST needs 7.1+ before anything works at
-    /// all. Keep checking <c>Supports</c> when the answer depends on the box you are talking to; the type
-    /// covers only what is decided by which transport you chose.
+    /// <b>The type and <see cref="TikConnectionCapabilityExtensions.Supports"/> both answer what the transport
+    /// implements, not what the router's version allows.</b> A version floor — Safe Mode over the API or native
+    /// WinBox needs RouterOS 7.18+, REST needs 7.1+ — surfaces as an exception from the call itself. Use
+    /// <c>Supports</c> when the transport comes from configuration and there is no static type to ask.
     /// </para>
     /// <para>
     /// <see cref="TikConnectionSetup.Create(TikConnectionType)"/> still returns a plain
@@ -106,8 +105,8 @@ namespace tik4net
     /// </summary>
     /// <remarks>
     /// No raw level: M2 addresses windows and fields numerically, so there is no command language for a
-    /// caller to write. Safe Mode is here because the M2 session can hold it (RouterOS 7.18+ — the version
-    /// part is what <c>Supports</c> is still for).
+    /// caller to write. Safe Mode is here because the M2 session can hold it (RouterOS 7.18+; an older router
+    /// refuses the call).
     /// <para>
     /// The two members below are the ones a caller reaches <b>after</b> the connection exists. The rest of
     /// the native transport's own surface — <c>PathAlias</c>, <c>FieldOverride</c>, <c>PathOverride</c> — has to be
