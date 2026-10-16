@@ -182,7 +182,7 @@ namespace tik4net.unittests.Connection
             {
                 var setup = new TikConnectionSetup("127.0.0.1", "admin", "wrong") { Port = peer.Port };
 
-                var ex = Assert.ThrowsException<TikConnectionLoginException>(
+                var ex = Assert.ThrowsException<TikConnectionLoginRefusedException>(
                     () => setup.Create(TikConnectionType.Api),
                     "a peer that answers !trap spoke the protocol correctly — it just said no");
 

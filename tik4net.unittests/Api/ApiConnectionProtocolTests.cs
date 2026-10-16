@@ -99,7 +99,7 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
-                Assert.ThrowsException<TikConnectionLoginException>(
+                Assert.ThrowsException<TikConnectionLoginRefusedException>(
                     () => connection.Open("127.0.0.1", server.Port, TestUser, "wrong-password"));
                 Assert.IsFalse(connection.IsOpened);
             }

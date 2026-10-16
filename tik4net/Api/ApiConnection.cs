@@ -390,12 +390,10 @@ namespace tik4net.Api
             }
             catch(TikCommandTrapException ex)
             {
-                if (ex.Message == "cannot log in")
-                    throw new TikConnectionLoginException(ex);
-                else if (ex.Message.StartsWith("invalid user name or password"))
-                    throw new TikConnectionLoginException(ex);
-                else
-                    throw;
+                // Any !trap answering /login is the router refusing the login in its own words: wrong
+                // credentials, or a group without the api policy ("std failure: not allowed (9)"). Reported as
+                // a refusal, like the WinBox login does; the router's text stays in RouterMessage.
+                throw new TikConnectionLoginRefusedException("API", ex.Message);
             }
         }
 
