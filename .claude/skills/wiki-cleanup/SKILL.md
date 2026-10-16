@@ -143,9 +143,8 @@ Reference pages describe **how it works now**. They do not narrate how it used t
   "(was `X`)", "no longer".
 * Keep: "since 4.0" and "in 4.0 this changed" **only where a reader on 3.x would otherwise write broken
   code** — that is a fact about the current version, not a story.
-* The only two pages that may narrate the past are **`History.md`** and
-  **`Upgrading-from-3.x-to-4.0.md`**. If a removed paragraph carries a fact those pages lack, move it
-  there rather than dropping it.
+* The only pages that may narrate the past are **`History.md`** and the **`Upgrading-*`** pages (and their
+  AI-agent prompts). If a removed paragraph carries a fact those pages lack, move it there rather than dropping it.
 
 ```bash
 grep -n -iE "(used to|previously|in earlier|was (changed|renamed|fixed)|no longer|we (fixed|found|discovered)|turned out)" *.md
@@ -262,7 +261,8 @@ as evidence in an example, not as a credential someone typed.
 
 ### 8. Is it in the right place?
 
-* Is the page reachable? `Home.md` is the only navigation this wiki has — there is no `_Sidebar.md`.
+* Is the page reachable? `_Sidebar.md` is the navigation tree and lists every page; `Home.md` is the landing page
+  with an "I want to…" table, not a full index.
 * Do inbound links point at it under the name a reader would look for?
 * Does its name match its siblings (`*-connection` for transports, `High-level-API-*` for the O/R mapper)?
 
@@ -408,34 +408,26 @@ linked = {u.split('#')[0] for urls in links.values() for u in urls
           if not u.startswith(('http', '#', 'mailto')) and u.split('#')[0]}
 print("broken:", bad)
 print("orphans:", sorted(p for p in heads if p not in linked and p != 'Home'))
-print("not on Home:", sorted(p for p in heads
-                             if not any(u.split('#')[0] == p for u in links['Home']) and p != 'Home'))
+print("not in _Sidebar:", sorted(p for p in heads
+                             if not any(u.split('#')[0] == p for u in links['_Sidebar']) and p not in ('Home', '_Sidebar')))
 EOF
 ```
 
-## State as of 2026-08-29
+## State as of 2026-10-16
 
-Verify rather than assume — this is a snapshot, and the point of the cleanup is to change it.
+Verify rather than assume — this is a snapshot.
 
-* 41 pages, ~630 KB. No broken internal links. A full pass over all 41 ran on 2026-08-29; the two
-  generations of pages have been levelled (every page now has an H1 and a what/when opening), the
-  maturity markers are consolidated, and the maintainer's lab coordinates — which had reached ten pages,
-  including a full router dump with MAC, link-local IPv6 and software ID — are scrubbed.
-* `One-task-on-every-transport-and-API-level` now holds **29 programs, not 33**: the low level does not
-  exist on `Rest`, `RestSsl`, `WinboxNative` or `WinboxNativeMac`, and those four tabs say so and point
-  at the levels that do work there. The other seven were each compiled and run against a live router,
-  and their `OUTPUT` blocks are what they actually printed. That page is the precedent for two rules
-  above — the receiver-type check, and grepping the whole wiki for a count before changing it.
-* **Open, from check 9** — the wiki still never gives a reader: a map of the entity families (169
-  entities in 15 folders, and the wiki names one), the entity helper surface (`ExecuteWol`,
-  `ToolPing.Execute`, `SystemPackage.Enable`, the `Log*` helpers, …), or a home for the typed value types
-  (`TikDuration`, `TikDataRate`, `TikRatePair`, `MacAddress`, documented only where you go to *write* an
-  entity). The entity map is the strongest available evidence for the premise's "the coverage is real".
-* Four pages are large enough that a newcomer landing on them needs a way out:
-  `One-task-on-every-transport-and-API-level` (~170 KB), `WinBox-Native-connection` (~48 KB),
-  `Command-translation-on-non-API-transports` (~38 KB), `Connection-types-and-capabilities` (~25 KB).
-* **The prerelease banners are gone** (2026-09, ahead of 4.0.0 stable). Eight pages whose subject is
-  new in 4.0 carry `> 🆕 **New in 4.0**` instead; the rest carry no banner, and the two native WinBox
-  pages keep only their own ⚠️ Experimental caveat, which is a property of the protocol rather than of
-  the release. Do not reintroduce a maturity marker unless a prerelease is actually published, and
-  treat hedging in body prose as a finding either way.
+* The wiki was restructured on 2026-10-15/16 to the tree in the maintainer's notes (`wiki-structure-proposal.md`):
+  one owner page per topic, everything else links to it. ~345 KB without History and the upgrade pages.
+* Owner pages to know: `Connecting-to-a-router` (setup, options, connection string), `Connection-types-and-capabilities`
+  (matrix, typed interfaces, services and policies), `Async-and-cancellation`, `Monitors-and-streaming`,
+  `CLI-transports` and `MAC-layer-transports` (shared transport behaviour), `WinBox-CLI-connection#the-winbox-channel`
+  (login retries, session limit), `Threading-and-concurrency`, `Describing-menus`. A per-transport page holds only
+  what is specific to it.
+* Seven pages are one-line "moved to" stubs kept for external links: `High-level-API-advanced`, `-async-CRUD`,
+  `-entities`, `-tools`, `VB-trivial-example`, `SSL-connection`, `login-versions`. Never link to them.
+* `One-task-on-every-transport-and-API-level` shows the four implementations and a difference table; the compiled
+  code is `tik4net.examples/OneTaskEveryTransportExamples.cs`.
+* Newness markers: `> 🆕 **New in 5.0.**` on 5.0 subjects (RoMON, TikField, Describing menus, connection string, SSH
+  key login). The 4.0 markers are gone. The two native WinBox pages keep their ⚠️ Experimental caveat.
+* The entity count is stated once, on `Entity-reference` (generated); elsewhere "170+".
