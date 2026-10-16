@@ -34,7 +34,7 @@ using tik4net;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
 
-var setup = new TikConnectionSetup(HOST, USER, PASS);
+var setup = new TikConnectionSetup("192.168.88.1", "admin", "");
 using (ITikConnection connection = setup.Create(TikConnectionType.Api))   // or Rest, Ssh, MacTelnet, WinboxCli, …
 {
     ITikCommand cmd = connection.CreateCommand("/system/identity/print");
