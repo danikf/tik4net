@@ -582,8 +582,7 @@ namespace tik4net.WinboxNative
                     var rows = await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
                     // M2 has no field projection: a getall returns every key. .proplist is the binary API's
                     // contract all the same, so the decoded rows are trimmed to it (see TikProplist).
-                    var proplist = TikProplist.Find(descriptor.Parameters);
-                    return proplist == null ? rows : TikProplist.Trim(rows, proplist.Value);
+                    return TikProplist.Apply(descriptor, rows);
                 }
             }
             catch (TikConnectionSessionClosedException) when (ReconnectAllowed)

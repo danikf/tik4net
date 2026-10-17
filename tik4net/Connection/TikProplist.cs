@@ -15,6 +15,16 @@ namespace tik4net.Connection
         internal static ITikCommandParameter? Find(IEnumerable<ITikCommandParameter> parameters)
             => parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.Proplist);
 
+        /// <summary>
+        /// The rows trimmed to the command's <c>.proplist</c>, or the same list when it has none — the binary API returns
+        /// exactly the listed fields, and that is the contract every transport keeps.
+        /// </summary>
+        internal static IList<TikRecordSentence> Apply(TikCommandDescriptor descriptor, IList<TikRecordSentence> rows)
+        {
+            var proplist = Find(descriptor.Parameters);
+            return proplist == null ? rows : Trim(rows, proplist.Value);
+        }
+
         /// <summary>Keeps only the fields <paramref name="proplist"/> names, in every row.</summary>
         internal static IList<TikRecordSentence> Trim(IList<TikRecordSentence> rows, string? proplist)
         {

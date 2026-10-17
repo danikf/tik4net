@@ -1310,7 +1310,7 @@ namespace tik4net.Cli
                         rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
                     }
                 }
-                return TrimToProplist(rows, proplist.Value);
+                return TikProplist.Trim(rows, proplist.Value);
             }
 
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
@@ -1804,10 +1804,6 @@ namespace tik4net.Cli
         /// </summary>
         private static bool IsDetailRefusal(string? response)
             => response != null && response.IndexOf("bad parameter detail", StringComparison.OrdinalIgnoreCase) >= 0;
-
-        /// <summary>See <see cref="TikProplist.Trim"/>.</summary>
-        private static IList<TikRecordSentence> TrimToProplist(IList<TikRecordSentence> rows, string? proplist)
-            => TikProplist.Trim(rows, proplist);
 
         /// <summary>
         /// Runs one monitor snapshot synchronously and returns its records — the read-method counterpart of
