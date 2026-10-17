@@ -103,7 +103,7 @@ namespace tik4net.Telnet
             // prompt a *second* time. LoginAsync returns on the first prompt; if we don't consume the
             // residual redraw it leaks into the first command's read and is mistaken for that command's
             // completion → empty output. Drain until the stream goes quiet. (See Docs/findings-winbox-terminal.md §3.)
-            await DrainAsync(250, ct).ConfigureAwait(false);
+            await DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace tik4net.Telnet
                 ct: ct).ConfigureAwait(false);
 
             // The target repaints its prompt after the login just as a direct login does (see LoginAsync).
-            await DrainAsync(250, ct).ConfigureAwait(false);
+            await DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
             _romonTarget = target.RomonId;
             return agentRomonId;
         }
@@ -259,16 +259,13 @@ namespace tik4net.Telnet
             // Ask RouterOS to exit cleanly before closing the socket. This releases the
             // interactive session on the router side immediately rather than waiting for
             // the TCP timeout to expire. Errors are silently ignored (e.g. already closed).
-            string quit = answerSafeModeQuestion ? "/quit\r\ny" : "/quit\r\n";
+            string quit = RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r\n");
             try { _stream?.Write(_encoding.GetBytes(quit), 0, _encoding.GetByteCount(quit)); } catch { /* ignore */ }
             if (answerSafeModeQuestion)
-                WaitForRouterToEndSession(SafeModeQuitWaitMs);
+                WaitForRouterToEndSession(RouterOsCliLogin.SafeModeQuitWaitMs);
             try { _stream?.Close(); } catch { /* ignore */ }
             try { _tcpClient?.Close(); } catch { /* ignore */ }
         }
-
-        /// <summary>How long a close in Safe Mode waits for RouterOS to end the session itself (ms).</summary>
-        internal const int SafeModeQuitWaitMs = 3000;
 
         /// <summary>
         /// Reads, discarding, until RouterOS closes the connection or <paramref name="maxMs"/> passes.

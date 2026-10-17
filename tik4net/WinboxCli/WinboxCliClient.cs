@@ -131,7 +131,7 @@ namespace tik4net.WinboxCli
                 SendTerminalReady(_sessionId);
 
                 WaitForPromptSync();
-                await DrainAsync(250).ConfigureAwait(false);
+                await DrainAsync(RouterOsCliLogin.PostLoginDrainMs).ConfigureAwait(false);
 
                 // From here the terminal is idle between commands, and a RouterOS terminal is written to
                 // unprompted. On a carrier that expects each write to be acknowledged, leaving it unread is
@@ -211,16 +211,13 @@ namespace tik4net.WinboxCli
         internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
             if (_sessionId < 0) return;
-            try { SendInput(_encoding.GetBytes(answerSafeModeQuestion ? "/quit\ry" : "/quit\r")); } catch { return; }
+            try { SendInput(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r"))); } catch { return; }
             if (!answerSafeModeQuestion) return;
-            try { ReadUntilQuietAsync(SafeModeQuitQuietMs).Wait(SafeModeQuitWaitMs); } catch { /* the session is gone: the wait is over */ }
+            try { ReadUntilQuietAsync(SafeModeQuitQuietMs).Wait(RouterOsCliLogin.SafeModeQuitWaitMs); } catch { /* the session is gone: the wait is over */ }
         }
 
         /// <summary>Quiet that ends the wait for the router's reaction to a Safe Mode <c>/quit</c> (ms).</summary>
         private const int SafeModeQuitQuietMs = 500;
-
-        /// <summary>The longest a close in Safe Mode waits for that reaction (ms).</summary>
-        private const int SafeModeQuitWaitMs = 3000;
 
         public void Dispose() => _session.Dispose();
 

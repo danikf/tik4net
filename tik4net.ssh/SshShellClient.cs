@@ -174,7 +174,7 @@ namespace tik4net.Ssh
 
             // RouterOS performs a VT100 cursor-probe / redraw right after the shell opens and may emit the
             // prompt a second time; consume the residual so it does not leak into the first command's read.
-            await DrainAsync(250, ct).ConfigureAwait(false);
+            await DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -193,7 +193,7 @@ namespace tik4net.Ssh
                 ct: ct).ConfigureAwait(false);
 
             // The target repaints its prompt after the login, as the agent's shell did (see SettleAfterConnectAsync).
-            await DrainAsync(250, ct).ConfigureAwait(false);
+            await DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
             _romonTarget = target.RomonId;
             return agentRomonId;
         }
@@ -316,7 +316,7 @@ namespace tik4net.Ssh
         {
             // Ask RouterOS to exit cleanly before tearing down, releasing the interactive session
             // on the router immediately. Errors are silently ignored (e.g. already closed).
-            try { _shell?.Write(answerSafeModeQuestion ? "/quit\r\ny" : "/quit\r\n"); _shell?.Flush(); } catch { /* ignore */ }
+            try { _shell?.Write(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r\n")); _shell?.Flush(); } catch { /* ignore */ }
             try { _shell?.Dispose(); } catch { /* ignore */ }
             try { if (_ssh?.IsConnected == true) _ssh.Disconnect(); } catch { /* ignore */ }
             SafeDispose(_ssh);

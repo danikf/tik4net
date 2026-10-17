@@ -117,7 +117,7 @@ namespace tik4net.MacTelnet
                 BaseConnect(host, CLIENT_TYPE);
                 Authenticate(user, pass);       // EC-SRP5 auth (sync, in base class)
                 WaitForPromptSync();
-                DrainSync(250);
+                DrainSync(RouterOsCliLogin.PostLoginDrainMs);
                 StartPump();                    // from here on nothing else may receive on this socket
             }, ct);
         }
@@ -143,7 +143,7 @@ namespace tik4net.MacTelnet
 
             // The target repaints its prompt after the login just as a direct login does; let it land before
             // the first command resets the buffer.
-            await ReadUntilQuietAsync(250, requireData: false, ct).ConfigureAwait(false);
+            await ReadUntilQuietAsync(RouterOsCliLogin.PostLoginDrainMs, requireData: false, ct).ConfigureAwait(false);
             _romonTarget = target.RomonId;
             return agentRomonId;
         }
@@ -284,25 +284,22 @@ namespace tik4net.MacTelnet
         /// the same instant, RouterOS 6.49.13 sometimes ended the session inside the question, and its console then
         /// stopped serving new Telnet, SSH and API logins until a reboot (once in 34 closes). The answer is therefore
         /// typed while the receive pump still acknowledges and retransmits, and the close waits for the router's own
-        /// <c>PKT_END</c> — at most <see cref="SafeModeQuitWaitMs"/> — before ending the session itself.</remarks>
+        /// <c>PKT_END</c> — at most <see cref="RouterOsCliLogin.SafeModeQuitWaitMs"/> — before ending the session itself.</remarks>
         internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
             if (answerSafeModeQuestion && _pump != null)
             {
-                try { SendTerminalBytes(_encoding.GetBytes("/quit\ry")); } catch { /* ignore */ }
-                WaitForRouterToEndSession(SafeModeQuitWaitMs);
+                try { SendTerminalBytes(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(true, "\r"))); } catch { /* ignore */ }
+                WaitForRouterToEndSession(RouterOsCliLogin.SafeModeQuitWaitMs);
                 StopPump();
             }
             else
             {
                 StopPump();
-                try { Send(PKT_DATA, _encoding.GetBytes(answerSafeModeQuestion ? "/quit\ry" : "/quit\r")); } catch { /* ignore */ }
+                try { Send(PKT_DATA, _encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r"))); } catch { /* ignore */ }
             }
             try { Send(PKT_END, null); } catch { /* ignore */ }
         }
-
-        /// <summary>The longest a close in Safe Mode waits for the router to end the session (ms).</summary>
-        internal const int SafeModeQuitWaitMs = 3000;
 
         private void WaitForRouterToEndSession(int maxMs)
         {

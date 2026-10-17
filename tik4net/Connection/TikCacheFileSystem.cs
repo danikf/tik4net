@@ -36,6 +36,14 @@ namespace tik4net.Connection
     {
         internal static readonly TikCacheFileSystem Default = new TikCacheFileSystem();
 
+        /// <summary>
+        /// A configured cache directory as an absolute path: environment variables expanded, and a relative path
+        /// resolved against the current directory, so <c>%VAR%</c> and paths like <c>.\.tik4net</c> work.
+        /// <c>null</c> or empty comes back as given.
+        /// </summary>
+        internal static string? ResolveDirectory(string? path)
+            => string.IsNullOrEmpty(path) ? path : Path.GetFullPath(Environment.ExpandEnvironmentVariables(path));
+
         public string? ReadAllText(string path)
             => File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : null;
 

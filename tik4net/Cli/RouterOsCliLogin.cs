@@ -29,6 +29,29 @@ namespace tik4net.Cli
         public const string PromptSuffix = "] >";
 
         /// <summary>
+        /// How long a terminal is drained after login (ms). RouterOS repaints its prompt right after the login (the
+        /// VT100 cursor probe); left unread, that second prompt reaches the first command's read and passes for its
+        /// completion.
+        /// </summary>
+        internal const int PostLoginDrainMs = 250;
+
+        /// <summary>
+        /// The longest a close in Safe Mode waits for RouterOS to end the session itself (ms). <c>/quit</c> in Safe Mode
+        /// asks a question; a client that types the answer and disconnects in the same instant can make RouterOS 6.49.13
+        /// end the session inside the question, and its console then stops serving new Telnet, SSH and API logins until
+        /// a reboot (measured over Telnet, MAC-Telnet and WinBox CLI). Every terminal therefore waits for the router's
+        /// reaction, at most this long.
+        /// </summary>
+        internal const int SafeModeQuitWaitMs = 3000;
+
+        /// <summary>
+        /// The keystrokes that leave the console: <c>/quit</c> and the terminal's line end, plus the <c>y</c> that
+        /// answers <c>/quit</c>'s question while the session holds Safe Mode.
+        /// </summary>
+        internal static string QuitKeys(bool answerSafeModeQuestion, string lineEnd)
+            => "/quit" + lineEnd + (answerSafeModeQuestion ? "y" : "");
+
+        /// <summary>
         /// Shell prompt suffix while RouterOS Safe Mode is active: the <c>&gt;</c> is <b>replaced</b> by a
         /// <c>&lt;SAFE&gt;</c> token, e.g. <c>[admin@MikroTik] &lt;SAFE&gt; </c>. Captured off the wire on
         /// 7.23.2 — see <see cref="SafePromptSuffixWithArrow"/> for why both forms are matched.

@@ -429,7 +429,7 @@ namespace tik4net.WinboxNative
             // A fresh, empty catalog first: on a reopen the previous router's would otherwise survive a failed load
             // and answer for this one.
             _catalog = new WinboxJgCatalog();
-            try { _catalog = WinboxJgCatalog.Load(_ops, ResolvePath(CatalogCachePath), routerKey); }
+            try { _catalog = WinboxJgCatalog.Load(_ops, TikCacheFileSystem.ResolveDirectory(CatalogCachePath), routerKey); }
             catch { /* catalog is best-effort; seeds + normalizer still work */ }
             // Never silently: a seeds-only catalog answers "no" to singleton/dynamic-field/monitor lookups,
             // which returns wrong values rather than errors (P2.23). CatalogHandlerCount makes it visible.
@@ -2047,14 +2047,6 @@ namespace tik4net.WinboxNative
         }
 
         // ── Helpers ─────────────────────────────────────────────────────────────
-
-        // Expand environment variables and resolve relative paths against the current directory.
-        // Called at open time so %VAR% and paths like ".\.tik4net" or "../cache" work transparently.
-        private static string? ResolvePath(string? path)
-        {
-            if (string.IsNullOrEmpty(path)) return path;
-            return Path.GetFullPath(Environment.ExpandEnvironmentVariables(path));
-        }
 
         private void EnsureNativeOpen()
         {

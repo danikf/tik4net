@@ -312,7 +312,7 @@ namespace tik4net.Cli
 
         private CliSchemaStore? AdoptSchemaStore(string? keyAnswer)
         {
-            string dir = System.IO.Path.GetFullPath(Environment.ExpandEnvironmentVariables(CatalogCachePath!));
+            string dir = TikCacheFileSystem.ResolveDirectory(CatalogCachePath)!;
             string? key = CliSchemaStore.KeyFromAnswer(keyAnswer);
             if (key == null)
                 TikWireTrace.Emit(CliSchemaStore.TraceChannel, TikWireDir.Note, "cache off for this connection: no build key in the answer");

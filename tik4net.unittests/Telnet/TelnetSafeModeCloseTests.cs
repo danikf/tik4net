@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Cli;
 using tik4net.Telnet;
 
 namespace tik4net.unittests.Telnet
@@ -87,7 +88,7 @@ namespace tik4net.unittests.Telnet
                 {
                     var sw = Stopwatch.StartNew();
                     client.Close(answerSafeModeQuestion: true);   // the router never closes
-                    Assert.IsTrue(sw.ElapsedMilliseconds < TelnetClient.SafeModeQuitWaitMs + 1500, sw.ElapsedMilliseconds + " ms");
+                    Assert.IsTrue(sw.ElapsedMilliseconds < RouterOsCliLogin.SafeModeQuitWaitMs + 1500, sw.ElapsedMilliseconds + " ms");
                 }
             }
             finally { listener.Stop(); }
