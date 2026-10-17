@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.WinboxNativeMac
 {
@@ -38,17 +39,15 @@ namespace tik4net.WinboxNativeMac
         /// </param>
         public static ITikWinboxNativeMacConnection CreateWinboxNativeMacConnection(this TikConnectionSetup setup,
             string? routerMac = null, Action<WinboxNativeMacConnection>? configure = null)
-            => (ITikWinboxNativeMacConnection)setup.Create(TikConnectionType.WinboxNativeMac,
+            => setup.CreateTyped<ITikWinboxNativeMacConnection>(TikConnectionType.WinboxNativeMac,
                 TikConnectionSetup.Then(TikConnectionSetup.OverrideRouterMac(routerMac),
                                         TikConnectionSetup.Typed(configure)));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeMacConnection"/>.</summary>
-        public static async Task<ITikWinboxNativeMacConnection> CreateWinboxNativeMacConnectionAsync(this TikConnectionSetup setup,
+        public static Task<ITikWinboxNativeMacConnection> CreateWinboxNativeMacConnectionAsync(this TikConnectionSetup setup,
             string? routerMac = null, Action<WinboxNativeMacConnection>? configure = null, CancellationToken ct = default)
-        {
-            return (ITikWinboxNativeMacConnection)await setup.CreateAsync(TikConnectionType.WinboxNativeMac,
+            => setup.CreateTypedAsync<ITikWinboxNativeMacConnection>(TikConnectionType.WinboxNativeMac,
                 TikConnectionSetup.Then(TikConnectionSetup.OverrideRouterMac(routerMac),
-                                        TikConnectionSetup.Typed(configure)), ct).ConfigureAwait(false);
-        }
+                                        TikConnectionSetup.Typed(configure)), ct);
     }
 }

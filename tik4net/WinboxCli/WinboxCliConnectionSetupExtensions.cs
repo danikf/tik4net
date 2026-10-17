@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.WinboxCli
 {
@@ -22,12 +23,10 @@ namespace tik4net.WinboxCli
         /// <c>winbox</c> service to be enabled on the router (enabled by default).
         /// </summary>
         public static ITikCliConnection CreateWinboxCliConnection(this TikConnectionSetup setup)
-            => (ITikCliConnection)setup.Create(TikConnectionType.WinboxCli);
+            => setup.CreateTyped<ITikCliConnection>(TikConnectionType.WinboxCli);
 
         /// <summary>Async version of <see cref="CreateWinboxCliConnection"/>.</summary>
-        public static async Task<ITikCliConnection> CreateWinboxCliConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
-        {
-            return (ITikCliConnection)await setup.CreateAsync(TikConnectionType.WinboxCli, ct).ConfigureAwait(false);
-        }
+        public static Task<ITikCliConnection> CreateWinboxCliConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
+            => setup.CreateTypedAsync<ITikCliConnection>(TikConnectionType.WinboxCli, null, ct);
     }
 }

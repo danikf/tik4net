@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.Telnet
 {
@@ -18,12 +19,10 @@ namespace tik4net.Telnet
     {
         /// <summary>Creates and opens a Telnet CLI connection (plain-text TCP port 23). Requires RouterOS telnet service enabled.</summary>
         public static ITikCliConnection CreateTelnetConnection(this TikConnectionSetup setup)
-            => (ITikCliConnection)setup.Create(TikConnectionType.Telnet);
+            => setup.CreateTyped<ITikCliConnection>(TikConnectionType.Telnet);
 
         /// <summary>Async version of <see cref="CreateTelnetConnection"/>.</summary>
-        public static async Task<ITikCliConnection> CreateTelnetConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
-        {
-            return (ITikCliConnection)await setup.CreateAsync(TikConnectionType.Telnet, ct).ConfigureAwait(false);
-        }
+        public static Task<ITikCliConnection> CreateTelnetConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
+            => setup.CreateTypedAsync<ITikCliConnection>(TikConnectionType.Telnet, null, ct);
     }
 }

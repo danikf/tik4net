@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.WinboxNative
 {
@@ -59,13 +60,11 @@ namespace tik4net.WinboxNative
         /// numeric <c>*Override</c> forms pin values that can move between versions.</para>
         /// </example>
         public static ITikWinboxNativeConnection CreateWinboxNativeConnection(this TikConnectionSetup setup, Action<WinboxNativeConnection>? configure = null)
-            => (ITikWinboxNativeConnection)setup.Create(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure));
+            => setup.CreateTyped<ITikWinboxNativeConnection>(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeConnection"/>.</summary>
-        public static async Task<ITikWinboxNativeConnection> CreateWinboxNativeConnectionAsync(this TikConnectionSetup setup, 
+        public static Task<ITikWinboxNativeConnection> CreateWinboxNativeConnectionAsync(this TikConnectionSetup setup, 
             Action<WinboxNativeConnection>? configure = null, CancellationToken ct = default)
-        {
-            return (ITikWinboxNativeConnection)await setup.CreateAsync(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure), ct).ConfigureAwait(false);
-        }
+            => setup.CreateTypedAsync<ITikWinboxNativeConnection>(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure), ct);
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.WinboxCliMac
 {
@@ -29,12 +30,10 @@ namespace tik4net.WinboxCliMac
         /// for this connection.
         /// </param>
         public static ITikMacCliConnection CreateWinboxCliMacConnection(this TikConnectionSetup setup, string? routerMac = null)
-            => (ITikMacCliConnection)setup.Create(TikConnectionType.WinboxCliMac, TikConnectionSetup.OverrideRouterMac(routerMac));
+            => setup.CreateTyped<ITikMacCliConnection>(TikConnectionType.WinboxCliMac, TikConnectionSetup.OverrideRouterMac(routerMac));
 
         /// <summary>Async version of <see cref="CreateWinboxCliMacConnection"/>.</summary>
-        public static async Task<ITikMacCliConnection> CreateWinboxCliMacConnectionAsync(this TikConnectionSetup setup, string? routerMac = null, CancellationToken ct = default)
-        {
-            return (ITikMacCliConnection)await setup.CreateAsync(TikConnectionType.WinboxCliMac, TikConnectionSetup.OverrideRouterMac(routerMac), ct).ConfigureAwait(false);
-        }
+        public static Task<ITikMacCliConnection> CreateWinboxCliMacConnectionAsync(this TikConnectionSetup setup, string? routerMac = null, CancellationToken ct = default)
+            => setup.CreateTypedAsync<ITikMacCliConnection>(TikConnectionType.WinboxCliMac, TikConnectionSetup.OverrideRouterMac(routerMac), ct);
     }
 }

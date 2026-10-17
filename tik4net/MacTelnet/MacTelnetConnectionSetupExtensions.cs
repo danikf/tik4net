@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.MacTelnet
 {
@@ -29,12 +30,10 @@ namespace tik4net.MacTelnet
         /// for this connection.
         /// </param>
         public static ITikMacCliConnection CreateMacTelnetConnection(this TikConnectionSetup setup, string? routerMac = null)
-            => (ITikMacCliConnection)setup.Create(TikConnectionType.MacTelnet, TikConnectionSetup.OverrideRouterMac(routerMac));
+            => setup.CreateTyped<ITikMacCliConnection>(TikConnectionType.MacTelnet, TikConnectionSetup.OverrideRouterMac(routerMac));
 
         /// <summary>Async version of <see cref="CreateMacTelnetConnection"/>.</summary>
-        public static async Task<ITikMacCliConnection> CreateMacTelnetConnectionAsync(this TikConnectionSetup setup, string? routerMac = null, CancellationToken ct = default)
-        {
-            return (ITikMacCliConnection)await setup.CreateAsync(TikConnectionType.MacTelnet, TikConnectionSetup.OverrideRouterMac(routerMac), ct).ConfigureAwait(false);
-        }
+        public static Task<ITikMacCliConnection> CreateMacTelnetConnectionAsync(this TikConnectionSetup setup, string? routerMac = null, CancellationToken ct = default)
+            => setup.CreateTypedAsync<ITikMacCliConnection>(TikConnectionType.MacTelnet, TikConnectionSetup.OverrideRouterMac(routerMac), ct);
     }
 }
