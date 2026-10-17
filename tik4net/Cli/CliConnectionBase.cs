@@ -175,7 +175,7 @@ namespace tik4net.Cli
             // vouch for (scripting, ':put [ … ]', chaining) falls back to phrase matching alone. "No
             // output" remains a perfectly good answer either way and must not be read as failure.
             CliErrorParser.ThrowIfError(output,
-                CreateDummyCommand(new TikCommandDescriptor(cliText, new List<ITikCommandParameter>())),
+                CommandFor(cliText),
                 silentOnSuccess: CliErrorParser.TryGetRawSilentVerb(cliText, out _));
 
             var result = new List<ITikSentence>();
@@ -467,7 +467,7 @@ namespace tik4net.Cli
             // No inspect, and no Tab to ask with either: the router cannot be asked, which a caller treats as a
             // refusal (the filter check then sends the read as before).
             if (_sendRawSettle == null)
-                throw new TikNoSuchCommandException(CreateDummyCommand(new TikCommandDescriptor(p, new List<ITikCommandParameter>())),
+                throw new TikNoSuchCommandException(CommandFor(p),
                     new TikTrapSentenceResult("no /console/inspect and no Tab completion on this connection"));
             return CliCompletionSchemaReader.Read(this, p);
         }
@@ -918,7 +918,7 @@ namespace tik4net.Cli
             string output = SendControlKey(CtrlX);
             if (CliSafeModeParser.IsTakeConflict(output))
                 SendControlKey(Enter);
-            CliSafeModeParser.ThrowIfTakeFailed(output, new TikGenericCommand(this, "/safe-mode/take"));
+            CliSafeModeParser.ThrowIfTakeFailed(output, CommandFor("/safe-mode/take"));
             SafeModeHeld = true;
         }
 
@@ -956,7 +956,7 @@ namespace tik4net.Cli
             try
             {
                 string output = ExecuteCliCommand("/safe-mode/unroll");
-                CliErrorParser.ThrowIfError(output, new TikGenericCommand(this, "/safe-mode/unroll"),
+                CliErrorParser.ThrowIfError(output, CommandFor("/safe-mode/unroll"),
                     silentOnSuccess: false); // prints "Unrolling Safe Mode... Success!"
                 SafeModeHeld = false;
                 return;
@@ -1204,7 +1204,7 @@ namespace tik4net.Cli
                 // A command that did not run must not come back as an empty table: 0 rows is
                 // indistinguishable from a table with nothing in it. Same check the low-level
                 // CallCommandSync applies, so the two halves of the raw promise agree about failure.
-                CliErrorParser.ThrowIfError(rawOutput, CreateDummyCommand(descriptor));
+                CliErrorParser.ThrowIfError(rawOutput, CommandFor(descriptor));
                 return CliOutputParser.ParseAsValue(rawOutput);
             }
 
@@ -1235,7 +1235,7 @@ namespace tik4net.Cli
                 // An empty-row action (wol) is silent when it succeeds and prints its complaint when it does
                 // not — e.g. "input does not match any value of interface", which no phrase list caught, so
                 // WolWithInvalidInterfaceWillFail saw a failed send reported as success (P2.12).
-                CliErrorParser.ThrowIfError(actionOutput, CreateDummyCommand(descriptor), silentOnSuccess: true);
+                CliErrorParser.ThrowIfError(actionOutput, CommandFor(descriptor), silentOnSuccess: true);
                 return new List<TikRecordSentence>();
             }
 
@@ -1329,7 +1329,7 @@ namespace tik4net.Cli
 
             if (_menuFacts.PrintWithoutAsValue.Contains(descriptor.CommandText))
                 return await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false)
-                    ?? throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                    ?? throw new TikCommandTrapException(CommandFor(descriptor),
                         new TikTrapSentenceResult("the plain print of " + descriptor.CommandText + " printed no table"));
 
             IList<TikRecordSentence> records;
@@ -1794,7 +1794,7 @@ namespace tik4net.Cli
                 return true;
             if (output.IndexOf(CliCommandBuilder.ProplistRefusal, StringComparison.OrdinalIgnoreCase) >= 0)
                 return false;
-            throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+            throw new TikCommandTrapException(CommandFor(descriptor),
                 new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
         }
 
@@ -1835,7 +1835,7 @@ namespace tik4net.Cli
                 string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
                 if (!IsSyntaxErrorOnly(output))
                 {
-                    CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                    CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
                     return ParseRecords(output, descriptor);
                 }
             }
@@ -1847,7 +1847,7 @@ namespace tik4net.Cli
             string plainText = CliCommandBuilder.BuildInteractiveMonitor(
                 descriptor.CommandText, descriptor.Parameters, modifier, includeFilters);
             string plain = await ExecuteCliCommandAsync(plainText, cancellationToken).ConfigureAwait(false) ?? string.Empty;
-            CliErrorParser.ThrowIfError(plain, CreateDummyCommand(descriptor));
+            CliErrorParser.ThrowIfError(plain, CommandFor(descriptor));
 
             var table = new CliTableParser();
             var rows = new List<TikRecordSentence>();
@@ -1860,7 +1860,7 @@ namespace tik4net.Cli
             // The header is the acceptance signal, as on the streaming path: text that never produced one is the
             // router's refusal.
             if (!table.HasHeader && !string.IsNullOrWhiteSpace(plain))
-                throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                throw new TikCommandTrapException(CommandFor(descriptor),
                     new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(plain)));
             LearnFact(_menuFacts.MonitorWithoutAsValue, FactMonitorWithoutAsValue, descriptor.CommandText);
             return rows;
@@ -1963,7 +1963,7 @@ namespace tik4net.Cli
         {
             IList<TikRecordSentence> rows = CliOutputParser.ParseAsValue(output);
             if (rows.Count == 0 && !string.IsNullOrWhiteSpace(output))
-                throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                throw new TikCommandTrapException(CommandFor(descriptor),
                     new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
             return rows;
         }
@@ -2017,7 +2017,7 @@ namespace tik4net.Cli
         {
             IList<TikRecordSentence> rows = CliDsvParser.Parse(output, CliFieldSeparator!);
             if (rows.Count == 0 && !string.IsNullOrWhiteSpace(output))
-                throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                throw new TikCommandTrapException(CommandFor(descriptor),
                     new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
             return rows;
         }
@@ -2043,7 +2043,7 @@ namespace tik4net.Cli
 
             string cliText = CliCommandBuilder.BuildGet(descriptor.CommandText, id, valueName);
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
 
             string value = (output ?? string.Empty).Trim();
             if (string.IsNullOrEmpty(value))
@@ -2335,7 +2335,7 @@ namespace tik4net.Cli
                 .Where(line => line.Length > 0)
                 .ToList();
             if (lines.Count == 1 && (SyntaxErrorLine.IsMatch(lines[0]) || RefusedArgumentLine.IsMatch(lines[0])))
-                throw new TikCommandTrapException(CreateDummyCommand(descriptor), new TikTrapSentenceResult(lines[0]));
+                throw new TikCommandTrapException(CommandFor(descriptor), new TikTrapSentenceResult(lines[0]));
         }
 
         private static readonly System.Text.RegularExpressions.Regex SyntaxErrorLine =
@@ -2403,7 +2403,7 @@ namespace tik4net.Cli
                     offset, pageSize, findClause);
 
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
 
             string body = SplitOffWindowMarker(output, out int windowSize);
             // A bad filter is the caller's error, not a menu that cannot be windowed — unless what the router
@@ -2489,7 +2489,7 @@ namespace tik4net.Cli
                 {
                     string jsonOutput = await ExecuteCliCommandAsync(
                         CliCommandBuilder.BuildCountedRead(expression, asJson: true), cancellationToken).ConfigureAwait(false);
-                    CliErrorParser.ThrowIfError(jsonOutput, CreateDummyCommand(descriptor));
+                    CliErrorParser.ThrowIfError(jsonOutput, CommandFor(descriptor));
                     string jsonBody = SplitOffCountMarker(jsonOutput, descriptor, out int expectedJson);
                     IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonBody);
                     _features.SerializeJson = true;
@@ -2509,14 +2509,14 @@ namespace tik4net.Cli
             {
                 string dsvOutput = await ExecuteCliCommandAsync(
                     CliCommandBuilder.BuildCountedDsvRead(expression, CliFieldSeparator!), cancellationToken).ConfigureAwait(false);
-                CliErrorParser.ThrowIfError(dsvOutput, CreateDummyCommand(descriptor));
+                CliErrorParser.ThrowIfError(dsvOutput, CommandFor(descriptor));
                 string dsvBody = SplitOffCountMarker(dsvOutput, descriptor, out int expectedDsv);
                 return EnsureCounted(ParseDsvRecords(dsvBody, descriptor), expectedDsv, descriptor, dsvBody);
             }
 
             string output = await ExecuteCliCommandAsync(
                 CliCommandBuilder.BuildCountedRead(expression, asJson: false), cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
             string body = SplitOffCountMarker(output, descriptor, out int expected);
 
             if (wantJson && _features.SerializeJson == null)
@@ -2591,7 +2591,7 @@ namespace tik4net.Cli
             EnsureOpened();
             string cliText = CliCommandBuilder.BuildAdd(descriptor.CommandText, descriptor.Parameters);
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
 
             string? id = ExtractAddId(output);
             if (id != null)
@@ -2618,7 +2618,7 @@ namespace tik4net.Cli
                 + "very likely been created anyway — look it up by a field the add set rather than repeating "
                 + "the add, which would make a second row. The router answered: "
                 + (said.Length == 0 ? "(nothing)" : "'" + said + "'"),
-                CreateDummyCommand(descriptor),
+                CommandFor(descriptor),
                 new TikDoneSentenceResult(said.Length == 0 ? null : said));
         }
 
@@ -2691,7 +2691,7 @@ namespace tik4net.Cli
             // set/remove/enable/disable/move/unset print nothing when they succeed, so anything left after
             // echo/prompt trimming is the router rejecting the command — catch it by position rather than
             // by phrase, or it is reported to the caller as success (P2.12).
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor),
+            CliErrorParser.ThrowIfError(output, CommandFor(descriptor),
                 silentOnSuccess: CliErrorParser.IsSilentOnSuccessVerb(verb));
         }
 
@@ -2721,7 +2721,7 @@ namespace tik4net.Cli
                 ? WrapRawAsValue(descriptor.CommandText)
                 : descriptor.CommandText;
             string output = (await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false) ?? string.Empty).Trim();
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
             ThrowIfSyntaxError(output, descriptor);
             return output;
         }
@@ -2767,7 +2767,7 @@ namespace tik4net.Cli
                 {
                     _countedReadDepth--;
                 }
-                CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
                 string body = SplitOffCountMarker(output, descriptor, out int expected);
                 return EnsureCounted(ParseDsvRecords(body, descriptor), expected, descriptor, body);
             }
@@ -2776,7 +2776,7 @@ namespace tik4net.Cli
             // per-character echo cost.
             string asValue = await ExecuteCliCommandAsync(CliCommandBuilder.BuildMonitorSnapshot(descriptor.CommandText,
                 descriptor.Parameters, string.Empty, includeFilters: true), cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(asValue, CreateDummyCommand(descriptor));
+            CliErrorParser.ThrowIfError(asValue, CommandFor(descriptor));
             return ParseRecords(asValue, descriptor);
         }
 
@@ -2919,20 +2919,20 @@ namespace tik4net.Cli
                         });
                     // Checked after the fact rather than per line: an error ends the command, so it is in the
                     // final output too, and a half-arrived line must never be classified as one.
-                    CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                    CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
                     // The table's own header is the acceptance signal: RouterOS prints it before the first
                     // reading, so text that never produced one is the refusal instead (P2.51). Keyed on the
                     // header rather than on the row count, because a monitor can legitimately be accepted and
                     // then print no reading.
                     if (!table.HasHeader && !string.IsNullOrWhiteSpace(output))
-                        throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                        throw new TikCommandTrapException(CommandFor(descriptor),
                             new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
                     return;
                 }
 
                 output = ExecuteCliCommand(CliCommandBuilder.BuildMonitorSnapshot(
                     descriptor.CommandText, descriptor.Parameters, snapshotModifier));
-                CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
                 foreach (var row in ParseRecords(output, descriptor))
                 {
                     if (handle.CancelRequested) break;
@@ -2981,16 +2981,16 @@ namespace tik4net.Cli
                         string plainText = CliCommandBuilder.BuildTorchSnapshot(
                             descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds, withProplist: false);
                         string plainOutput = ExecuteCliCommand(plainText);
-                        CliErrorParser.ThrowIfError(plainOutput, CreateDummyCommand(descriptor));
+                        CliErrorParser.ThrowIfError(plainOutput, CommandFor(descriptor));
                         if (plainOutput.IndexOf("-- [Q quit", StringComparison.Ordinal) < 0)
-                            throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                            throw new TikCommandTrapException(CommandFor(descriptor),
                                 new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
                         LearnFact(_menuFacts.TorchWithoutProplist, FactTorchWithoutProplist, descriptor.CommandText);
                         plain = true;
                         cliText = plainText;
                         output = plainOutput;
                     }
-                    CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                    CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
                     foreach (var row in plain ? CliOutputParser.ParseTorchTable(output) : CliOutputParser.ParseTorchFrame(output))
                     {
                         if (handle.CancelRequested) break;

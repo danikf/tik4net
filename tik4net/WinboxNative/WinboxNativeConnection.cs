@@ -1337,7 +1337,7 @@ namespace tik4net.WinboxNative
             WinboxMonitorSpec? spec = ResolveMonitorWindow(descriptor.CommandText, out string apiPath, out int[]? handler);
             if (spec == null)
             {
-                var cmd = new TikGenericCommand(this, descriptor.CommandText);
+                var cmd = CommandFor(descriptor.CommandText);
                 throw new TikPathNotMappedException(cmd, apiPath,
                     $"WinBox native: '{descriptor.CommandText}' is not a streaming-monitor window in the .jg catalog. " +
                     $"Add a PathOverride(\"{apiPath}\", new[]{{maj,min}}) to a monitor handler, or use a CLI transport.");
@@ -1624,7 +1624,7 @@ namespace tik4net.WinboxNative
         /// </summary>
         private TikPathNotMappedException PathNotMapped(string commandText, string apiPath)
         {
-            var cmd = new TikGenericCommand(this, commandText);
+            var cmd = CommandFor(commandText);
 
             // A path WinBox has no window for is a different answer from a path we failed to map, and the
             // advice is the opposite: there is no alias to add, because there is nothing to point one at.
@@ -1672,7 +1672,7 @@ namespace tik4net.WinboxNative
         // address"), so the error text is matched alongside the well-known codes.
         private TikCommandException TranslateM2Error(WinboxM2OperationException ex, string commandText)
         {
-            var cmd = new TikGenericCommand(this, commandText);
+            var cmd = CommandFor(commandText);
             var trap = new TikTrapSentenceResult(ex.Message, $"0x{ex.Code:X}", ex.ErrorText);
             string t = (ex.ErrorText ?? string.Empty).ToLowerInvariant();
 
@@ -1796,7 +1796,7 @@ namespace tik4net.WinboxNative
                 catch (WinboxFieldValueException ex)
                 {
                     throw new TikCommandTrapException(
-                        new TikGenericCommand(this, descriptor.CommandText),
+                        CommandFor(descriptor.CommandText),
                         new TikTrapSentenceResult(ex.Message));
                 }
             }
@@ -1861,7 +1861,7 @@ namespace tik4net.WinboxNative
                 if (int.TryParse(p.Value, System.Globalization.NumberStyles.Integer,
                         System.Globalization.CultureInfo.InvariantCulture, out int seconds))
                     return TimeSpan.FromSeconds(seconds);
-                throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                throw new TikCommandTrapException(CommandFor(descriptor),
                     new TikTrapSentenceResult($"invalid value for argument duration: {p.Value}"));
             }
             return null;
@@ -1894,7 +1894,7 @@ namespace tik4net.WinboxNative
                 catch (WinboxFieldValueException ex)
                 {
                     throw new TikCommandTrapException(
-                        new TikGenericCommand(this, descriptor.CommandText),
+                        CommandFor(descriptor.CommandText),
                         new TikTrapSentenceResult(ex.Message));
                 }
                 // A field the catalog cannot name has no id to list, so the request would carry the verb and
@@ -1907,14 +1907,14 @@ namespace tik4net.WinboxNative
 
             if (named == 0)
                 throw new TikCommandTrapException(
-                    new TikGenericCommand(this, descriptor.CommandText),
+                    CommandFor(descriptor.CommandText),
                     new TikTrapSentenceResult(
                         "unset requires at least one '" + TikSpecialProperties.UnsetValueName
                         + "=<field>' parameter naming the field to clear."));
 
             if (unknown.Count > 0)
                 throw new TikCommandTrapException(
-                    new TikGenericCommand(this, descriptor.CommandText),
+                    CommandFor(descriptor.CommandText),
                     new TikTrapSentenceResult(
                         "no M2 field id for " + string.Join(", ", unknown)
                         + " on this handler, so an unset naming it would clear nothing."));
@@ -1998,7 +1998,7 @@ namespace tik4net.WinboxNative
             {
                 // The set/remove/move target does not exist (unresolvable .id) — same outcome as the API/CLI
                 // transports' "no such item".
-                var cmd = new TikGenericCommand(this, descriptor.CommandText);
+                var cmd = CommandFor(descriptor.CommandText);
                 throw new TikNoSuchItemException(cmd, new TikTrapSentenceResult(
                     $"no such item: could not resolve record .id '{idParam}' on '{descriptor.CommandText}'."));
             }

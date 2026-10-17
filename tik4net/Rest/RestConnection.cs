@@ -620,7 +620,7 @@ namespace tik4net.Rest
             // only REST's own signal (a bare 404 with no matching message text) is handled here.
             string checkText = (detail ?? "") + " " + (message ?? "") + " " + fullMessage;
 
-            var fakeCmd = new TikGenericCommand(this, commandText, parameters.ToArray());
+            var fakeCmd = CommandFor(commandText, parameters);
             var trapSentence = new TikTrapSentenceResult(fullMessage);
 
             // A 404 whose body is an HTML error page, not JSON, is the web server answering — not the REST API

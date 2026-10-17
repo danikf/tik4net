@@ -248,15 +248,17 @@ namespace tik4net.Connection
         /// <remarks>Transports override it so the debug output names the right channel (CLI / REST / …).</remarks>
         protected override string DiagnosticPrefix => "CLI";
 
-        /// <summary>
-        /// Creates a minimal command object for use in exception constructors when the original
-        /// command is not available (e.g. in CallCommandSync / RunNonQuery paths).
-        /// </summary>
-        internal ITikCommand CreateDummyCommand(TikCommandDescriptor descriptor)
+        /// <summary>The command a caller sees in an exception raised on a path that has a descriptor, not a command object.</summary>
+        internal ITikCommand CommandFor(TikCommandDescriptor descriptor)
+            => CommandFor(descriptor.CommandText, descriptor.Parameters);
+
+        /// <summary>As <see cref="CommandFor(TikCommandDescriptor)"/>, for a bare command line.</summary>
+        internal ITikCommand CommandFor(string commandText, IEnumerable<ITikCommandParameter>? parameters = null)
         {
-            var cmd = new TikGenericCommand(this, descriptor.CommandText);
-            foreach (var p in descriptor.Parameters)
-                cmd.AddParameter(p.Name, p.Value, p.ParameterFormat);
+            var cmd = new TikGenericCommand(this, commandText);
+            if (parameters != null)
+                foreach (var p in parameters)
+                    cmd.AddParameter(p.Name, p.Value, p.ParameterFormat);
             return cmd;
         }
     }
