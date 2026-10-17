@@ -1204,7 +1204,7 @@ namespace tik4net.WinboxNative
             | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema
             | TikConnectionCapability.StructuredWrites;
 
-        bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
+        bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
         /// <summary>
         /// A menu from the <c>.jg</c> catalog: the fields of its window the resolver maps to API names, writable ones as

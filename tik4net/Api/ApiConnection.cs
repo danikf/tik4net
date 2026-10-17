@@ -61,7 +61,7 @@ namespace tik4net.Api
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight
             | TikConnectionCapability.MenuSchema;
 
-        bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
+        bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
 
         TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
@@ -1232,61 +1232,13 @@ namespace tik4net.Api
             return result;
         }
 
-        public override ITikCommand CreateCommand()
-        {
-            return new ApiCommand(this);
-        }
+        private protected override ITikCommand NewCommand(string? commandText, TikCommandParameterFormat format,
+            ITikCommandParameter[] parameters)
+            => commandText == null
+                ? new ApiCommand(this, format)
+                : new ApiCommand(this, commandText, format, parameters);
 
-        public override ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
-        {
-            var result = CreateCommand();
-            result.DefaultParameterFormat = defaultParameterFormat;
-
-            return result;
-        }
-
-
-        public override ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
-        {
-            return new ApiCommand(this, commandText, parameters);
-        }
-
-        public override ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
-        {
-            var result = CreateCommand(commandText, parameters);
-            result.DefaultParameterFormat = defaultParameterFormat;
-
-            return result;
-        }
-
-
-        public override ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
-        {
-            var result = new ApiCommand(this, commandText);
-            result.AddParameterAndValues(parameterNamesAndValues);
-
-            return result;
-        }
-
-        public override ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
-        {
-            var result = CreateCommandAndParameters(commandText, parameterNamesAndValues);
-            result.DefaultParameterFormat = defaultParameterFormat;
-
-            return result;
-        }
-
-        public override ITikCommandParameter CreateParameter(string name, string? value)
-        {
-            return new ApiCommandParameter(name, value);
-        }
-
-        public override ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
-        {
-            var result = CreateParameter(name, value);
-            result.ParameterFormat = parameterFormat;
-
-            return result;
-        }
+        private protected override ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format)
+            => new ApiCommandParameter(name, value, format);
     }
 }

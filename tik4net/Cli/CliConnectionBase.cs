@@ -222,7 +222,7 @@ namespace tik4net.Cli
              | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands
              | TikConnectionCapability.MenuSchema;
 
-        bool ITikMenuSchemaConnection.ValidateWrites { get; set; }
+        bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
         /// <summary>
         /// <c>/console/inspect</c> where the router has it (RouterOS 7), Tab completion where it does not (RouterOS 6):

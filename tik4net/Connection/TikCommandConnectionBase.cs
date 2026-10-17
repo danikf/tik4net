@@ -9,8 +9,8 @@ namespace tik4net.Connection
 {
     /// <summary>
     /// Transport-neutral base class for RouterOS command-style connections that expose CRUD through
-    /// the three CRUD <c>Run*</c> hooks, plus the optional raw and async ones (instead of the binary API sentence protocol). On top of the plumbing it shares
-    /// with the binary API (<see cref="TikConnectionBase"/>) it implements the command factory over
+    /// the three CRUD <c>Run*</c> hooks, plus the optional raw and async ones (instead of the binary API
+    /// sentence protocol). On top of the plumbing it shares with the binary API (<see cref="TikConnectionBase"/>) it supplies the command factory's primitives with
     /// <see cref="TikGenericCommand"/> and offers a <see cref="SemaphoreSlim"/> to serialise commands.
     ///
     /// It deliberately does <b>not</b> implement <see cref="ITikRawSentenceConnection"/>. That interface's
@@ -152,45 +152,14 @@ namespace tik4net.Connection
 
         // ── ITikConnection — Command factory ──────────────────────────────────
 
-        /// <inheritdoc/>
-        public sealed override ITikCommand CreateCommand()
-            => new TikGenericCommand(this);
+        private protected sealed override ITikCommand NewCommand(string? commandText, TikCommandParameterFormat format,
+            ITikCommandParameter[] parameters)
+            => commandText == null
+                ? new TikGenericCommand(this, format)
+                : new TikGenericCommand(this, commandText, format, parameters);
 
-        /// <inheritdoc/>
-        public sealed override ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
-            => new TikGenericCommand(this, defaultParameterFormat);
-
-        /// <inheritdoc/>
-        public sealed override ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
-            => new TikGenericCommand(this, commandText, parameters);
-
-        /// <inheritdoc/>
-        public sealed override ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
-            => new TikGenericCommand(this, commandText, defaultParameterFormat, parameters);
-
-        /// <inheritdoc/>
-        public sealed override ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
-        {
-            var cmd = new TikGenericCommand(this, commandText);
-            cmd.AddParameterAndValues(parameterNamesAndValues);
-            return cmd;
-        }
-
-        /// <inheritdoc/>
-        public sealed override ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
-        {
-            var cmd = new TikGenericCommand(this, commandText, defaultParameterFormat);
-            cmd.AddParameterAndValues(parameterNamesAndValues);
-            return cmd;
-        }
-
-        /// <inheritdoc/>
-        public sealed override ITikCommandParameter CreateParameter(string name, string? value)
-            => new TikCommandParameter(name, value);
-
-        /// <inheritdoc/>
-        public sealed override ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
-            => new TikCommandParameter(name, value, parameterFormat);
+        private protected sealed override ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format)
+            => new TikCommandParameter(name, value, format);
 
         // ── Internal dispatch ─────────────────────────────────────────────────
         //

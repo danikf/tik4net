@@ -265,11 +265,12 @@ not per-handler (`Docs/jg-catalog-format.md` has the `.jg` shapes):
 
 `TikConnectionBase` (`tik4net/Connection/`) is what every transport, the binary API included, shares: the open
 flag (volatile — the API's reader thread clears it), the timeouts, encoding, `OnReadRow`/`OnWriteRow` with
-`FireReadRow`/`FireWriteRow`, the safe-mode flag, the per-open menu-schema cache, `EnsureOpened` and `Dispose`. It
+`FireReadRow`/`FireWriteRow`, the safe-mode flag, the per-open menu-schema cache, `EnsureOpened` and `Dispose`, and
+the eight public command-factory overloads, over two primitives a transport supplies (`NewCommand`, `NewParameter`). It
 knows nothing about how a command travels, and its constructor is `private protected`, so it is derived only
 here: `ApiConnection` (its own tagged sentence protocol and `ApiCommand`) and `TikCommandConnectionBase`.
 
-Every non-API transport derives from `TikCommandConnectionBase`. It implements the command factory over
+Every non-API transport derives from `TikCommandConnectionBase`. It supplies the factory primitives with
 `TikGenericCommand` and factors real work down to three `protected abstract` hooks:
 
 - `RunPrint(TikCommandDescriptor)` → `IList<TikRecordSentence>`

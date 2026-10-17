@@ -95,31 +95,51 @@ namespace tik4net.Connection
 
         // ── Command factory ───────────────────────────────────────────────────
 
-        /// <inheritdoc/>
-        public abstract ITikCommand CreateCommand();
+        // The two things a transport decides; the eight factory overloads below are the same for every transport.
+        // A null commandText is a command whose text the caller sets later.
+        private protected abstract ITikCommand NewCommand(string? commandText, TikCommandParameterFormat format,
+            ITikCommandParameter[] parameters);
+        private protected abstract ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format);
 
         /// <inheritdoc/>
-        public abstract ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat);
+        public ITikCommand CreateCommand()
+            => NewCommand(null, TikCommandParameterFormat.Default, Array.Empty<ITikCommandParameter>());
 
         /// <inheritdoc/>
-        public abstract ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters);
+        public ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
+            => NewCommand(null, defaultParameterFormat, Array.Empty<ITikCommandParameter>());
 
         /// <inheritdoc/>
-        public abstract ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat,
-            params ITikCommandParameter[] parameters);
+        public ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
+            => NewCommand(commandText, TikCommandParameterFormat.Default, parameters);
 
         /// <inheritdoc/>
-        public abstract ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues);
+        public ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat,
+            params ITikCommandParameter[] parameters)
+            => NewCommand(commandText, defaultParameterFormat, parameters);
 
         /// <inheritdoc/>
-        public abstract ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat,
-            params string[] parameterNamesAndValues);
+        public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
+            => CreateCommandAndParameters(commandText, TikCommandParameterFormat.Default, parameterNamesAndValues);
 
         /// <inheritdoc/>
-        public abstract ITikCommandParameter CreateParameter(string name, string? value);
+        public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat,
+            params string[] parameterNamesAndValues)
+        {
+            // The parameters are created with TikCommandParameterFormat.Default and resolved at execution, so it
+            // does not matter that the command's default format is set before they are added.
+            var cmd = NewCommand(commandText, defaultParameterFormat, Array.Empty<ITikCommandParameter>());
+            cmd.AddParameterAndValues(parameterNamesAndValues);
+            return cmd;
+        }
 
         /// <inheritdoc/>
-        public abstract ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat);
+        public ITikCommandParameter CreateParameter(string name, string? value)
+            => NewParameter(name, value, TikCommandParameterFormat.Default);
+
+        /// <inheritdoc/>
+        public ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
+            => NewParameter(name, value, parameterFormat);
 
         // ── Open state ────────────────────────────────────────────────────────
 
@@ -131,6 +151,11 @@ namespace tik4net.Connection
         /// that only throw.
         /// </summary>
         protected bool SafeModeHeld { get; set; }
+
+        /// <summary>
+        /// Backs <see cref="ITikMenuSchemaConnection.ValidateWrites"/> on every transport that implements it.
+        /// </summary>
+        internal bool ValidateWrites { get; set; }
 
         /// <summary>
         /// Subclasses must call this after a successful login to mark the connection as open.
