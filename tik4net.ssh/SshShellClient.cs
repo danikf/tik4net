@@ -38,9 +38,6 @@ namespace tik4net.Ssh
         // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
         private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
 
-        internal SshShellClient(Encoding encoding, int receiveTimeoutMs)
-            : this(encoding, () => receiveTimeoutMs) { }
-
         internal SshShellClient(Encoding encoding, Func<int> receiveTimeoutMs)
         {
             _encoding = encoding ?? Encoding.UTF8;

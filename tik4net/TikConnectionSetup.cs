@@ -4,8 +4,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Connection;
-using tik4net.WinboxNative;
-using tik4net.WinboxNativeMac;
 
 namespace tik4net
 {
@@ -641,20 +639,12 @@ namespace tik4net
                     + "reach a router by MAC alone.");
         }
 
-        // A TimeSpan is the friendlier option type; the connections take milliseconds. Saturating rather
-        // than overflowing keeps "effectively no bound" (TimeSpan.MaxValue) from arriving as a negative
-        // millisecond count, which several transports would read as "no wait at all".
         // ── Per-transport factories live in the transport's own namespace ─────
         //
         // CreateApiConnection(), CreateTelnetConnection(), CreateWinboxNativeConnection(…) and the rest are
-        // extension methods on this class, each in the namespace of the transport it creates
-        // (tik4net.Api, tik4net.Telnet, …). They used to be members here, which meant this one class grew a
-        // method pair per transport — 22 of them for 11 transports, all forwarding to Create(type) — and a
-        // satellite package could not add its own without changing core.
-        //
-        // The SSH transport already worked that way (SshConnectionSetupExtensions.CreateSshConnection in
-        // tik4net.Ssh, a different assembly); the built-in ones were the inconsistent half. Note that this
-        // does mean a 'using tik4net.Api;' is needed to see them.
+        // extension methods on this class, each in the namespace of the transport it creates (tik4net.Api,
+        // tik4net.Telnet, …), so a satellite package such as tik4net.ssh adds its own the same way — at the
+        // cost of a 'using tik4net.<Transport>;' to see them.
 
         // ── Internals ─────────────────────────────────────────────────────────
 

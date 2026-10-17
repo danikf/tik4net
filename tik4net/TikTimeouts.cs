@@ -8,6 +8,8 @@ namespace tik4net
         /// <summary>
         /// <paramref name="value"/> in whole milliseconds, clamped to the <see cref="int"/> range: a longer span is
         /// the longest wait a socket takes, and <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> stays -1.
+        /// Saturating rather than overflowing keeps "effectively no bound" (<see cref="TimeSpan.MaxValue"/>) from
+        /// arriving as a negative count, which several transports would read as "no wait at all".
         /// </summary>
         internal static int ToMilliseconds(TimeSpan value)
         {

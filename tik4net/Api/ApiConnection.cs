@@ -9,49 +9,27 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using tik4net.Connection;
 
 namespace tik4net.Api
 {  
     internal sealed class ApiConnection : TikConnectionBase, ITikApiConnection, ITikMenuSchemaConnection
     {
-        ///// <summary>
-        ///// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login
-        ///// </summary>
-        //internal enum LoginProcessVersion
-        //{
-        //    /// <summary>
-        //    /// Prior RouterOS version 6.43
-        //    /// </summary>
-        //    Version1,
-        //    /// <summary>
-        //    /// RouterOS version 6.43 and newer
-        //    /// </summary>
-        //    Version2,
-        //}
-
-
-        //Inspiration:
-        // http://ayufan.eu/projects/rosapi/repository/entry/trunk/routeros.class.php
-        // http://forum.mikrotik.com/viewtopic.php?f=9&t=31555&start=0
-
         private const int API_DEFAULT_PORT = 8728;
         private const int APISSL_DEFAULT_PORT = 8729;
 
         // Serializes writes: sentences must not interleave on the wire. A SemaphoreSlim rather than a lock
         // because the async path holds it across an await, which C# does not allow for a monitor — and two
         // different mutexes for the two paths would serialize neither against the other.
-        private readonly System.Threading.SemaphoreSlim _writeLock = new System.Threading.SemaphoreSlim(1, 1);
-        private bool _isSsl = false;
-        // On since 4.0: the router echoes the tag back, and that is the only thing tying a reply to the
-        // caller that asked for it. Off, two threads on one connection cross-deliver rows rather than fail.
-        private bool _sendTagWithSyncCommand = true;
+        private readonly SemaphoreSlim _writeLock = new SemaphoreSlim(1, 1);
+        private readonly bool _isSsl;
         private TcpClient _tcpConnection = null!; // assigned by Open()/OpenAsync(), called right after construction
-        private /*NetworkStream*/System.IO.Stream _tcpConnectionStream = null!; // assigned by Open()/OpenAsync()
+        private Stream _tcpConnectionStream = null!; // assigned by Open()/OpenAsync()
 
         // One reader owns the socket for the connection's whole life; callers wait on their tag (P2.3).
         private readonly ApiSentenceDispatcher _dispatcher = new ApiSentenceDispatcher();
-        private System.Threading.Tasks.Task? _readerTask;
+        private Task? _readerTask;
         // The reader loop's own exception, kept because TerminateAll can only carry its text. Written on
         // the reader thread and read on the caller's, hence volatile.
         private volatile Exception? _readerFault;
@@ -89,16 +67,9 @@ namespace tik4net.Api
         TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
             => MenuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 
-        public bool SendTagWithSyncCommand
-        {
-            get { return _sendTagWithSyncCommand; }
-            set { _sendTagWithSyncCommand = value; }
-        }
-
-        public bool IsSsl
-        {
-            get { return _isSsl; }
-        }
+        // On since 4.0: the router echoes the tag back, and that is the only thing tying a reply to the
+        // caller that asked for it. Off, two threads on one connection cross-deliver rows rather than fail.
+        public bool SendTagWithSyncCommand { get; set; } = true;
 
         /// <inheritdoc/>
         /// <remarks>
@@ -239,13 +210,13 @@ namespace tik4net.Api
         public override void Open(string host, int port, string user, string password)
             => OpenAsync(host, port, user, password).GetAwaiter().GetResult();
 
-        public override System.Threading.Tasks.Task OpenAsync(string host, string user, string password,
-            System.Threading.CancellationToken cancellationToken = default)
+        public override Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default)
             => OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password,
                 cancellationToken);
 
-        public override async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
-            System.Threading.CancellationToken cancellationToken = default)
+        public override async Task OpenAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
@@ -263,13 +234,13 @@ namespace tik4net.Api
                 // The delay carries the token, so the same WhenAny races BOTH the deadline and the caller's
                 // cancellation. Which of the two ended the wait is then read off the token, because a
                 // cancelled open must not be reported as a router that timed out.
-                var timeoutTask = System.Threading.Tasks.Task.Delay(ConnectTimeoutMs, cancellationToken);
-                if (await System.Threading.Tasks.Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false) == timeoutTask)
+                var timeoutTask = Task.Delay(ConnectTimeoutMs, cancellationToken);
+                if (await Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false) == timeoutTask)
                 {
                     // Observe the abandoned connect so a later "connection refused" cannot surface as an
                     // unobserved task exception in an unrelated part of the process.
                     _ = connectTask.ContinueWith(t => { _ = t.Exception; },
-                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                        TaskContinuationOptions.OnlyOnFaulted);
                     cancellationToken.ThrowIfCancellationRequested();
                     throw new SocketException((int)SocketError.TimedOut);
                 }
@@ -298,11 +269,11 @@ namespace tik4net.Api
                         // port reads it as a word length and waits for the rest of a sentence that will
                         // never come), and Open would then hang for as long as the process lived.
                         var authTask = sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false);
-                        var authTimeout = System.Threading.Tasks.Task.Delay(ConnectTimeoutMs, cancellationToken);
-                        if (await System.Threading.Tasks.Task.WhenAny(authTask, authTimeout).ConfigureAwait(false) == authTimeout)
+                        var authTimeout = Task.Delay(ConnectTimeoutMs, cancellationToken);
+                        if (await Task.WhenAny(authTask, authTimeout).ConfigureAwait(false) == authTimeout)
                         {
                             _ = authTask.ContinueWith(tsk => { _ = tsk.Exception; },
-                                System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                                TaskContinuationOptions.OnlyOnFaulted);
                             cancellationToken.ThrowIfCancellationRequested();
                             throw new TikConnectionProtocolMismatchException(port, true,
                                 API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
@@ -368,7 +339,7 @@ namespace tik4net.Api
         /// running it synchronously on the caller's thread would leave <c>OpenAsync</c> asynchronous in name
         /// only.
         /// </summary>
-        private async System.Threading.Tasks.Task Login_v3Async(string user, string password)
+        private async Task Login_v3Async(string user, string password)
         {
             try
             {
@@ -813,8 +784,8 @@ namespace tik4net.Api
             try { _tcpConnectionStream.ReadTimeout = System.Threading.Timeout.Infinite; }
             catch (InvalidOperationException) { /* stream does not support timeouts — nothing to relax */ }
 
-            _readerTask = System.Threading.Tasks.Task.Factory.StartNew(
-                ReaderLoop, System.Threading.Tasks.TaskCreationOptions.LongRunning);
+            _readerTask = Task.Factory.StartNew(
+                ReaderLoop, TaskCreationOptions.LongRunning);
         }
 
         private void ReaderLoop()
@@ -861,8 +832,8 @@ namespace tik4net.Api
         // Async sibling of WriteCommand. Same framing, same trace hooks; the difference is that it awaits the
         // socket instead of blocking a thread on it, and holds the write lock across that await — which is
         // why the lock is a SemaphoreSlim.
-        private async System.Threading.Tasks.Task WriteCommandAsync(
-            IEnumerable<string> commandRows, System.Threading.CancellationToken cancellationToken)
+        private async Task WriteCommandAsync(
+            IEnumerable<string> commandRows, CancellationToken cancellationToken)
         {
             await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -1032,7 +1003,7 @@ namespace tik4net.Api
             //read .tag from commandRows - if present
             var tagOrEmptyString = FindTag(commandRows) ?? string.Empty;
 
-            if (_sendTagWithSyncCommand && string.IsNullOrEmpty(tagOrEmptyString))
+            if (SendTagWithSyncCommand && string.IsNullOrEmpty(tagOrEmptyString))
             {
                 tagOrEmptyString = TagSequence.NextTag();
                 commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tagOrEmptyString) }).ToArray();
@@ -1066,13 +1037,13 @@ namespace tik4net.Api
         }
 
         /// <inheritdoc/>
-        public System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandAsync(string[] commandRows,
-            System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public Task<IList<ITikSentence>> CallCommandAsync(string[] commandRows,
+            CancellationToken cancellationToken = default(CancellationToken))
             => CallCommandCoreAsync(commandRows, cancellationToken);
 
         /// <inheritdoc/>
-        public System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandAsync(IEnumerable<string> commandRows,
-            System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public Task<IList<ITikSentence>> CallCommandAsync(IEnumerable<string> commandRows,
+            CancellationToken cancellationToken = default(CancellationToken))
             => CallCommandCoreAsync(commandRows.ToArray(), cancellationToken);
 
         /// <summary>
@@ -1109,14 +1080,14 @@ namespace tik4net.Api
         /// be a wire change on the most sensitive exchange there is, including against pre-6.43 routers that
         /// no test here can reach.
         /// </param>
-        internal async System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandCoreAsync(
-            string[] commandRows, System.Threading.CancellationToken cancellationToken, bool forceTag = true)
+        internal async Task<IList<ITikSentence>> CallCommandCoreAsync(
+            string[] commandRows, CancellationToken cancellationToken, bool forceTag = true)
         {
             EnsureOpened();
             cancellationToken.ThrowIfCancellationRequested();   // level 0: nothing is written
 
             string tag = FindTag(commandRows) ?? string.Empty;
-            if (string.IsNullOrEmpty(tag) && (forceTag || _sendTagWithSyncCommand))
+            if (string.IsNullOrEmpty(tag) && (forceTag || SendTagWithSyncCommand))
             {
                 tag = TagSequence.NextTag();
                 commandRows = commandRows.Concat(new[] { $"{TikSpecialProperties.Tag}={tag}" }).ToArray();
@@ -1130,7 +1101,7 @@ namespace tik4net.Api
             // the read loop looks equivalent and is not: a command that has gone quiet — precisely the case
             // a caller cancels — leaves the loop parked in the wait, so the router is never asked to stop
             // and the cancel only takes effect at the receive timeout, if at all.
-            System.Threading.Tasks.Task? cancelTask = null;
+            Task? cancelTask = null;
             using (cancellationToken.Register(() => cancelTask = SendCancelAsync(tag)))
             {
                 while (true)
@@ -1142,7 +1113,7 @@ namespace tik4net.Api
                         // router still answering a tag nobody is reading. We ask the router to stop and keep
                         // reading until it says it has — that is what keeps the connection usable afterwards.
                         sentence = await _dispatcher.WaitAsync(tag, ReceiveTimeoutMs,
-                            System.Threading.CancellationToken.None).ConfigureAwait(false);
+                            CancellationToken.None).ConfigureAwait(false);
                     }
                     catch (TikConnectionReceiveTimeoutException ex)
                     {
@@ -1177,14 +1148,14 @@ namespace tik4net.Api
         // 7.23.2 (a cancelled 5-count ping returns in 684 ms either way, against ~5 s uncancelled), so the
         // router accepts both — this one is kept because it is the one with years of evidence behind it and
         // because two cancel paths spelling the same thing differently is how a difference becomes a bug.
-        private async System.Threading.Tasks.Task SendCancelAsync(string tag)
+        private async Task SendCancelAsync(string tag)
         {
             try
             {
                 await WriteCommandAsync(
                     new[] { "/cancel", $"=tag={tag}",
                             $"{TikSpecialProperties.Tag}={TagSequence.NextTag()}" },
-                    System.Threading.CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -1232,7 +1203,7 @@ namespace tik4net.Api
                         {
                             //Do not crash reading thread because of implementation error in called code
                         }
-                    } while (!(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
+                    } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence)); // read this tag's sentences via GetOne until !done or !fatal
                     //NOTE: Should be ended via !done or !trap+!done (called via Cancel() command for specific tag)
                     // The loop no longer tests IsOpened: a closed connection reaches the callback as the
                     // reader's synthetic !fatal, which ends it. Testing the flag instead ended the pump

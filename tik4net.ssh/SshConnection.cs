@@ -121,8 +121,5 @@ namespace tik4net.Ssh
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, () => client.Close(SafeModeHeld));
         }
-
-        // ── Safe Mode ───────────────────────────────────────────────────────────
-
     }
 }

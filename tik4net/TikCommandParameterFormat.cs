@@ -29,9 +29,5 @@ namespace tik4net
         /// Format .tag=value. <seealso cref="TikSpecialProperties.Tag"/>
         /// </summary>
         Tag,
-        ///// <summary>
-        ///// Format: =name (unset)
-        ///// </summary>
-        //NameOnly,
     }
 }

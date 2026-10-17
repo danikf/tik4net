@@ -85,9 +85,6 @@ namespace tik4net.MacTelnet
         // left idle past the router's window is gone, and that is the router's contract, not a defect we
         // can paper over from here - it has to be handled by reconnecting, not by inventing traffic.
 
-        internal MacTelnetUdpClient(Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs, string? routerMac)
-            : this(encoding, () => receiveTimeoutMs, loginTimeoutMs, routerMac) { }
-
         internal MacTelnetUdpClient(Encoding encoding, Func<int> receiveTimeoutMs, int loginTimeoutMs, string? routerMac)
         {
             _encoding         = encoding ?? Encoding.UTF8;

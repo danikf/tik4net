@@ -514,9 +514,6 @@ namespace tik4net.Rest
             return httpReq;
         }
 
-        // (SendHttpSync removed in P2.5 — the open probe was its last caller, and nothing on this transport
-        // needs a blocking HTTP send any more: the CRUD hooks and the open path all await SendHttpAsync.)
-        //
         // timeoutMs is passed in rather than read here because the open probe and the commands after it are
         // bounded by different settings (ConnectTimeout vs Send/ReceiveTimeout), and HttpClient.Timeout can
         // only express one of them. The timeout is therefore a CTS of our own, linked with the caller's token —
