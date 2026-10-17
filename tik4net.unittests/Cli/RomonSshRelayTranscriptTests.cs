@@ -263,7 +263,7 @@ namespace tik4net.unittests.Cli
         {
             public bool Closed;
 
-            protected override string TransportName => "RelayFailing";
+            private protected override string TransportName => "RelayFailing";
 
             public override void Open(string host, string user, string password)
                 => OpenWith(_ => throw new TikRomonRelayException(TikRomonRelayFailure.TargetUnreachable, "unreachable"),

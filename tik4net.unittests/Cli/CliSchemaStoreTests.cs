@@ -328,7 +328,7 @@ namespace tik4net.unittests.Cli
                 CatalogCachePath = cacheDir;
             }
 
-            protected override string TransportName => "Build";
+            private protected override string TransportName => "Build";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
@@ -370,7 +370,7 @@ namespace tik4net.unittests.Cli
                 CatalogCachePath = cacheDir;
             }
 
-            protected override string TransportName => "Dsv6";
+            private protected override string TransportName => "Dsv6";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });

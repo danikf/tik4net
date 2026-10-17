@@ -140,6 +140,27 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>
+        /// The CLI family is tik4net's own: a transport written elsewhere derives from TikCommandConnectionBase. Its
+        /// members are reachable from friend assemblies (tik4net.ssh, the tests) and from nothing else.
+        /// </summary>
+        [TestMethod]
+        public void TheCliBaseCannotBeDerivedOutsideThisAssembly()
+        {
+            var type = typeof(tik4net.Cli.CliConnectionBase);
+            foreach (var ctor in type.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+                Assert.IsTrue(ctor.IsFamilyAndAssembly, "CliConnectionBase's constructor must be 'private protected'");
+
+            // Overrides of TikCommandConnectionBase's hooks stay protected: that accessibility is the base's, not ours.
+            var leaked = type.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+                .Select(m => (m.Name, Method: m as MethodBase ?? (m as PropertyInfo)?.GetGetMethod(true)))
+                .Where(x => x.Method != null && (x.Method.IsFamily || x.Method.IsFamilyOrAssembly)
+                            && !(x.Method is MethodInfo mi && mi.GetBaseDefinition().DeclaringType != type))
+                .Select(x => x.Name)
+                .ToList();
+            Assert.AreEqual(0, leaked.Count, "protected on CliConnectionBase: " + string.Join(", ", leaked));
+        }
+
+        /// <summary>
         /// What a foreign transport calls from its <c>Open</c>, <c>Close</c> and hooks moved to
         /// <see cref="TikConnectionBase"/>; it must still reach a subclass in another assembly.
         /// </summary>

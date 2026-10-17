@@ -33,7 +33,7 @@ namespace tik4net.Telnet
         public const int DefaultPort = 23;
 
         /// <inheritdoc/>
-        protected override string TransportName => "Telnet";
+        private protected override string TransportName => "Telnet";
 
         RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
 

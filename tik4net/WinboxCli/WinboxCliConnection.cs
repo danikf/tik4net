@@ -50,7 +50,7 @@ namespace tik4net.WinboxCli
         public const int DefaultPort = 8291;
 
         /// <inheritdoc/>
-        protected override string TransportName => "WinBox CLI";
+        private protected override string TransportName => "WinBox CLI";
 
         RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
 

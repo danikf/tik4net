@@ -28,7 +28,7 @@ namespace tik4net.unittests.Cli
             public Exception? DrainFails;
             public string Reply = string.Empty;
 
-            protected override string TransportName => "Timing out";
+            private protected override string TransportName => "Timing out";
 
             public void OpenScripted()
             {

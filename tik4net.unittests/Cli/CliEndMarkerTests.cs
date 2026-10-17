@@ -77,7 +77,7 @@ namespace tik4net.unittests.Cli
 
             public WriteRouter() { }
 
-            protected override string TransportName => "Write";
+            private protected override string TransportName => "Write";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });

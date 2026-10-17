@@ -108,7 +108,7 @@ namespace tik4net.unittests.Cli
                 _more = more;
             }
 
-            protected override string TransportName => "Tab";
+            private protected override string TransportName => "Tab";
 
             public void OpenScripted()
             {

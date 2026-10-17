@@ -42,7 +42,7 @@ namespace tik4net.Ssh
         public string? SshPrivateKeyPassphrase { get; set; }
 
         /// <inheritdoc/>
-        protected override string TransportName => "SSH";
+        private protected override string TransportName => "SSH";
 
         RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
 

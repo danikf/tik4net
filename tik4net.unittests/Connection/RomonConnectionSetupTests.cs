@@ -261,7 +261,7 @@ namespace tik4net.unittests.Connection
             public string? OpenHost, OpenUser, OpenPassword;
             public int? OpenPort;
 
-            protected override string TransportName => "RecordingRomon";
+            private protected override string TransportName => "RecordingRomon";
 
             RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
             TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Telnet;
@@ -295,7 +295,7 @@ namespace tik4net.unittests.Connection
 
             public bool LoginRan;
 
-            protected override string TransportName => "Plain";
+            private protected override string TransportName => "Plain";
 
             private void OpenPlain()
                 => OpenWith(ct => { LoginRan = true; return Task.FromResult(0); },

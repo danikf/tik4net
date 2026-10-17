@@ -277,7 +277,8 @@ hooks, declare `Capabilities`, create it with `new` and configure it with `TikCo
 wiki's *Writing your own transport* page walks through one. `TikCommandDescriptor` and `TikRecordSentence`
 are public because they are the hooks' whole vocabulary, and `TransportExtensionPointTests` pins all of
 that accessibility, since the failure mode of losing it is a confusing compiler error for whoever tries
-next.
+next. `TikCommandConnectionBase` is the extension point; `CliConnectionBase` is not one — its constructor and
+subclass members are `private protected`, so it is derived only inside tik4net and its friend assemblies.
 
 `ConnectionFactory.RegisterConnectionFactory` is **not** how a new transport plugs in, though it reads that
 way. It is keyed by `TikConnectionType`, a closed enum whose every value but `Ssh` is built into

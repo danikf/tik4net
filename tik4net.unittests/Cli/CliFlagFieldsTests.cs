@@ -577,7 +577,7 @@ namespace tik4net.unittests.Cli
                 _hasProplist = hasProplist;
             }
 
-            protected override string TransportName => "Flags";
+            private protected override string TransportName => "Flags";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
@@ -702,7 +702,7 @@ namespace tik4net.unittests.Cli
                 ["active"] = "*1", ["connect"] = "*1", ["static"] = "*2",
             };
 
-            protected override string TransportName => "Route6";
+            private protected override string TransportName => "Route6";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });

@@ -18,14 +18,11 @@ namespace tik4net.Cli
     /// (<see cref="ITikConnection"/> surface, command factory, low-level dispatch, diagnostics) lives in
     /// <see cref="TikCommandConnectionBase"/>.
     ///
-    /// Concrete transport subclasses must:
-    /// <list type="bullet">
-    ///   <item>implement <see cref="TikConnectionBase.Open(string, string, string)"/> /
-    ///     <see cref="TikConnectionBase.Open(string, int, string, string)"/> and their async
-    ///     counterparts by building the concrete transport client and calling <see cref="OpenWith"/> /
-    ///     <see cref="OpenWithAsync"/> with delegates bound to it;</item>
-    ///   <item>implement <see cref="TransportName"/> (shown in the "not open" diagnostic).</item>
-    /// </list>
+    /// The class is derived only inside tik4net and its friend assemblies (<c>tik4net.ssh</c>, the tests): its
+    /// constructor and its subclass members are <c>private protected</c>. A transport written elsewhere derives
+    /// from <see cref="TikCommandConnectionBase"/>. Each CLI transport implements the <c>Open</c> overloads by
+    /// building its terminal client and calling <c>OpenWith</c> / <c>OpenWithAsync</c> with delegates bound to it,
+    /// and names itself through <c>TransportName</c> (shown in the "not open" diagnostic).
     /// <see cref="TikConnectionBase.Close"/> and the not-open guards are provided by this base (R6).
     ///
     /// The text returned by the send delegate must already have ANSI escape sequences stripped
@@ -486,16 +483,18 @@ namespace tik4net.Cli
         // ── Transport driver — subclass contract ──────────────────────────────
 
         // The active transport client is held as three delegates wired up by the leaf transport in its Open
-        // (R6): send a CLI command, send raw bytes, and close. Holding delegates rather than a typed client
-        // keeps the leaf's concrete client type (and any internal transport interface) out of this public
-        // base's signatures — no public-API leak (a protected member cannot expose an internal type, CS0057)
-        // — while still centralising the open/close/guard boilerplate the five CLI transports used to repeat.
+        // (R6): send a CLI command, send raw bytes, and close. They centralise the open/close/guard boilerplate
+        // the five CLI transports share. The subclass surface is private protected, so a typed terminal object
+        // could appear in these signatures as well; the delegates stay until the terminal is shared (C1).
+
+        /// <summary>Derived inside tik4net and its friend assemblies only; see the class remarks.</summary>
+        private protected CliConnectionBase() { }
         private Func<string, CancellationToken, Task<string>>? _send;
         private Func<byte[], CancellationToken, Task<string>>? _sendRaw;
         private Action? _close;
 
         /// <summary>Short transport name shown in the "connection is not open" diagnostic (e.g. "Telnet").</summary>
-        protected abstract string TransportName { get; }
+        private protected abstract string TransportName { get; }
 
         /// <summary>
         /// When set before <c>Open</c>, the host/user/password given to <c>Open</c> are the AGENT's, and the
@@ -542,13 +541,13 @@ namespace tik4net.Cli
         /// either way), then registers the driver delegates and marks the connection opened. Leaf transports
         /// build their concrete client and call this with delegates bound to it.
         /// </summary>
-        protected void OpenWith(Func<CancellationToken, Task> login,
+        private protected void OpenWith(Func<CancellationToken, Task> login,
             Func<string, CancellationToken, Task<string>> send,
             Func<byte[], CancellationToken, Task<string>> sendRaw, Action close)
             => OpenWithAsync(login, send, sendRaw, close).GetAwaiter().GetResult();
 
         /// <summary>Async counterpart of <see cref="OpenWith"/>.</summary>
-        protected async Task OpenWithAsync(Func<CancellationToken, Task> login,
+        private protected async Task OpenWithAsync(Func<CancellationToken, Task> login,
             Func<string, CancellationToken, Task<string>> send,
             Func<byte[], CancellationToken, Task<string>> sendRaw, Action close,
             CancellationToken cancellationToken = default)
@@ -634,7 +633,7 @@ namespace tik4net.Cli
         /// <see cref="TikCancellationMode"/>. Cancelling while queued for <c>_cmdLock</c> is free: the command
         /// has not been written, so nothing needs resynchronizing.
         /// </remarks>
-        protected Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
+        private protected Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
             => ExecuteCliCommandCoreAsync(cliText, ct, mayMarkEnd: true);
 
         private async Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct, bool mayMarkEnd)
@@ -801,7 +800,7 @@ namespace tik4net.Cli
         }
 
         /// <summary>Synchronous wrapper around <see cref="ExecuteCliCommandAsync"/>.</summary>
-        protected string ExecuteCliCommand(string cliText)
+        private protected string ExecuteCliCommand(string cliText)
             => ExecuteCliCommandAsync(cliText, CancellationToken.None).GetAwaiter().GetResult();
 
         // ── Streaming read (incremental line delivery) ─────────────────────────
@@ -822,18 +821,18 @@ namespace tik4net.Cli
         /// so that adding the capability neither breaks a transport built outside this assembly nor claims
         /// the capability on its behalf. Same pattern as <see cref="RegisterCompletionDriver"/>.
         /// </remarks>
-        protected void RegisterStreamingDriver(Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming)
+        private protected void RegisterStreamingDriver(Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming)
             => _sendStreaming = sendStreaming;
 
         /// <summary>True when this transport can deliver a command's output line by line as it arrives.</summary>
-        protected bool SupportsStreamingRead => _sendStreaming != null;
+        private protected bool SupportsStreamingRead => _sendStreaming != null;
 
         /// <summary>
         /// Runs a command, reporting each completed output line to <paramref name="onLine"/> as the router
         /// produces it, and returns the full cleaned output once the command ends. The lines are raw — echo,
         /// header and prompt included — because the caller parses them positionally.
         /// </summary>
-        protected string ExecuteCliCommandStreaming(string cliText, Action<string> onLine)
+        private protected string ExecuteCliCommandStreaming(string cliText, Action<string> onLine)
         {
             var send = _sendStreaming ?? throw new NotSupportedException(
                 $"{TransportName} does not support incremental reads.");
@@ -881,7 +880,7 @@ namespace tik4net.Cli
         /// the output is not echo/prompt-stripped — the caller inspects the raw terminal reaction
         /// (e.g. <c>[Safe Mode taken]</c>). Drives the leaf transport's send-raw delegate registered in Open.
         /// </summary>
-        protected Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        private protected Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
             => (_sendRaw ?? throw NotOpen())(raw, ct);
 
         private string SendControlKey(byte key)
@@ -911,7 +910,7 @@ namespace tik4net.Cli
         /// as its answer, and one that ends there wedges RouterOS 6.49.13's console until a reboot — every later
         /// Telnet, SSH and API login is accepted and never served.
         /// </remarks>
-        public virtual void SafeModeTake()
+        public void SafeModeTake()
         {
             EnsureOpened();
             if (SafeModeHeld) return;
@@ -926,7 +925,7 @@ namespace tik4net.Cli
         /// Commits the safe-mode changes and leaves Safe Mode by sending a second <c>Ctrl+X</c>; the prompt
         /// reverts to its normal form afterwards. No-op when safe mode is not held.
         /// </summary>
-        public virtual void SafeModeRelease()
+        public void SafeModeRelease()
         {
             EnsureOpened();
             if (!SafeModeHeld) return;
@@ -948,7 +947,7 @@ namespace tik4net.Cli
         /// looked open and swallowed every later command for its full receive timeout. Closing instead answers
         /// <c>/quit</c>'s "Quitting will unroll changes. Quit? [y/N]" with <c>y</c>: the same unroll, done at once.
         /// </remarks>
-        public virtual void SafeModeUnroll()
+        public void SafeModeUnroll()
         {
             EnsureOpened();
             if (!SafeModeHeld) return;
@@ -977,7 +976,7 @@ namespace tik4net.Cli
         /// <see cref="TikConnectionBase.Close"/> answers <c>/quit</c>'s Safe Mode question with <c>y</c>, which unrolls. See
         /// <see cref="SafeModeUnroll"/> for why no in-place key exists.
         /// </summary>
-        protected virtual void SafeModeUnrollByControlKey() => Close();
+        private protected virtual void SafeModeUnrollByControlKey() => Close();
 
         // ── Tab-completion probe (ITikCliCompletion) ───────────────────────────
 
@@ -1028,7 +1027,7 @@ namespace tik4net.Cli
         /// Leaf transports that can drive interactive Tab-completion call this from their Open after
         /// <see cref="OpenWith"/>; transports that don't leave it unregistered (completion then throws).
         /// </summary>
-        protected void RegisterCompletionDriver(Func<byte[], int, CancellationToken, Task<string>> sendRawSettle)
+        private protected void RegisterCompletionDriver(Func<byte[], int, CancellationToken, Task<string>> sendRawSettle)
             => _sendRawSettle = sendRawSettle;
 
         /// <inheritdoc/>
@@ -2155,7 +2154,7 @@ namespace tik4net.Cli
         /// heuristic stands down for these: the count is exact and the heuristic is not, and it condemns
         /// complete answers now and then. It still covers every other command.
         /// </summary>
-        protected bool IsCountedReadInFlight => _windowedReadDepth > 0 || _countedReadDepth > 0;
+        private protected bool IsCountedReadInFlight => _windowedReadDepth > 0 || _countedReadDepth > 0;
 
         private int _windowedReadDepth;
         private int _countedReadDepth;

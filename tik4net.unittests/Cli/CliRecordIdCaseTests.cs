@@ -78,7 +78,7 @@ namespace tik4net.unittests.Cli
                 CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
             }
 
-            protected override string TransportName => "Scripted";
+            private protected override string TransportName => "Scripted";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), (cliText, ct) => Task.FromResult(_reply),

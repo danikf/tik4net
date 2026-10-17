@@ -36,7 +36,7 @@ namespace tik4net.unittests.Cli
             internal readonly List<string> Sent = new List<string>();
             internal string Reply = string.Empty;
 
-            protected override string TransportName => "Recording";
+            private protected override string TransportName => "Recording";
 
             internal void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0),

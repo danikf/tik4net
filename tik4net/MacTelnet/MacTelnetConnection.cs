@@ -65,7 +65,7 @@ namespace tik4net.MacTelnet
         public string? RouterMac { get; set; }
 
         /// <inheritdoc/>
-        protected override string TransportName => "MAC-Telnet";
+        private protected override string TransportName => "MAC-Telnet";
 
         RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
 

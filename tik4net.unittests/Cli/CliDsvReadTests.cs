@@ -264,7 +264,7 @@ namespace tik4net.unittests.Cli
 
             public DsvRouter(bool refusesSerialize) => RefusesSerialize = refusesSerialize;
 
-            protected override string TransportName => "Dsv";
+            private protected override string TransportName => "Dsv";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });

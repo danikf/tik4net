@@ -52,7 +52,7 @@ namespace tik4net.WinboxCliMac
         public string? RouterMac { get; set; }
 
         /// <inheritdoc/>
-        protected override string TransportName => "WinBox CLI MAC";
+        private protected override string TransportName => "WinBox CLI MAC";
 
         RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
 

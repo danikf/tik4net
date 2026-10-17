@@ -38,7 +38,7 @@ namespace tik4net.unittests.Cli
                 _menuHasGet = menuHasGet;
             }
 
-            protected override string TransportName => "Inspect";
+            private protected override string TransportName => "Inspect";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });

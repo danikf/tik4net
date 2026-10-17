@@ -40,7 +40,7 @@ namespace tik4net.unittests.Connection
             /// <summary>True when the close delegate ran while <see cref="ITikConnection.IsOpened"/> was already false.</summary>
             public bool SawClosedFlagBeforeTeardown { get; private set; }
 
-            protected override string TransportName => "Blocking";
+            private protected override string TransportName => "Blocking";
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0), SendAsync,
