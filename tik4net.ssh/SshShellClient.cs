@@ -428,7 +428,7 @@ namespace tik4net.Ssh
                 if (!echoSeen)
                     echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
 
-                if (echoSeen && (RouterOsCliLogin.IsShellPrompt(stripped) || CliOutputHelper.EndsWithKeyQuestion(stripped, sentCommand)))
+                if (echoSeen && EndsResponse(stripped, sentCommand))
                 {
                     var verdict = CliOutputHelper.JudgePrompt(stripped, sentCommand);
                     if (verdict == CliOutputHelper.PromptVerdict.Complete)
@@ -455,7 +455,7 @@ namespace tik4net.Ssh
                     TraceNote(closed
                         ? "shell closed before the prompt settled — response is truncated"
                         : "receive deadline (" + ReceiveTimeoutMs + " ms) hit before the prompt settled — response is truncated");
-                    if (closed && _romonTarget != null)
+                    if (closed && sentCommand != null && _romonTarget != null)
                         throw RouterOsCliLogin.RomonRelayEndedWithTheSession("SSH", _romonTarget, sentCommand, stripped);
                     if (sentCommand != null)
                         throw CliReadTimeout.Create("SSH", ReceiveTimeoutMs, sentCommand, stripped);
@@ -465,6 +465,10 @@ namespace tik4net.Ssh
                 await Task.Delay(15, ct).ConfigureAwait(false);
             }
         }
+
+        /// <summary>True when <paramref name="stripped"/> ends the response to <paramref name="sentCommand"/>.</summary>
+        internal static bool EndsResponse(string stripped, string? sentCommand)
+            => CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand);
 
         /// <summary>
         /// Consumes and discards residual bytes (post-login VT100 redraw, a second prompt) until the
