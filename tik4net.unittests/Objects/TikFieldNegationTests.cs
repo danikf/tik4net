@@ -86,7 +86,6 @@ namespace tik4net.unittests.Objects
             Assert.IsTrue(rule.State.IsNegated);
             Assert.AreEqual(new TikValueList<TikFieldMapperTests.Conn>(TikFieldMapperTests.Conn.New, TikFieldMapperTests.Conn.Established),
                 rule.State.Value);
-            Assert.IsFalse(rule.State.Value!.HasNegatedItems, "the '!' is the list's, not the first member's");
         }
 
         [TestMethod]
@@ -260,7 +259,14 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual(TikNegatableField<string?>.Not("ether1"), TikNegatableField<string?>.Parse("!ether1"));
             Assert.ThrowsException<FormatException>(() => TikNegatableField<int?>.Parse("!http"));
             Assert.ThrowsException<FormatException>(() => TikNegatableField<int?>.Parse("!"));
-            Assert.ThrowsException<NotSupportedException>(() => TikNegatableField<TikValueList<TikPortRange>?>.Parse("!22,8291"));
+            // A list: the item type says which '!' is the whole list's.
+            Assert.AreEqual(TikValueList<TikPortRange>.Not(22, 8291), TikNegatableField<TikValueList<TikPortRange>?>.Parse("!22,8291"));
+            Assert.AreEqual(TikValueList<TikNegatableValue<TikValueListMapperTests.Flag>>.Not(TikValueListMapperTests.Flag.Syn,
+                    TikNegatableValue<TikValueListMapperTests.Flag>.Not(TikValueListMapperTests.Flag.Ack)),
+                TikNegatableField<TikValueList<TikNegatableValue<TikValueListMapperTests.Flag>>?>.Parse("!,syn,!ack"));
+            Assert.IsFalse(TikNegatableField<TikValueList<TikNegatableValue<TikValueListMapperTests.Flag>>?>.Parse("!syn").IsNegated,
+                "!syn is one negated member");
+            Assert.ThrowsException<FormatException>(() => TikNegatableField<TikValueList<TikNegatableValue<TikValueListMapperTests.Flag>>?>.Parse("!"));
         }
 
         [TestMethod]

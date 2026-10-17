@@ -598,7 +598,7 @@ namespace tik4net.integrationtests
                 {
                     Chain = "forward", Action = FirewallMangle.ActionType.ChangeMms, Disabled = true, Comment = comment,
                     Protocol = "tcp", NewMss = "clamp-to-pmtu",
-                    TcpFlags = new TikValueList<FirewallTcpFlag>(FirewallTcpFlag.Syn),
+                    TcpFlags = new TikValueList<TikNegatableValue<FirewallTcpFlag>>(FirewallTcpFlag.Syn),
                 },
                 new FirewallMangle
                 {

@@ -15,9 +15,11 @@ namespace tik4net.Analyzers
     /// <c>new TikValueList&lt;string&gt;("a", "b")</c>.
     /// </summary>
     /// <remarks>
-    /// Offered only for a string literal passed straight as an argument, and only when every part is a plain item: an empty
-    /// part (<c>"a,,b"</c>) or one starting with <c>!</c> (a negation, which a plain string item would not carry) is left
-    /// for the developer, as is an item inside <c>TikValue&lt;T&gt;.Not</c> or <c>FromWire</c>.
+    /// Offered only for a string literal passed straight as an argument. A part keeps its <c>!</c>, which the list's item
+    /// type reads as it does in the original text: a negated member on a list of <c>TikNegatableValue&lt;string&gt;</c>
+    /// (<c>"info,!debug"</c> becomes <c>"info", "!debug"</c>), part of the item on any other. An empty part
+    /// (<c>"a,,b"</c>) or a bare <c>!</c> (the router's whole-list negation) is left for the developer, as is an item inside
+    /// <c>TikNegatableValue&lt;T&gt;.Not</c> or <c>TikValue&lt;T&gt;.FromWire</c>.
     /// </remarks>
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(TikValueListCommaItemCodeFix)), Shared]
     public sealed class TikValueListCommaItemCodeFix : CodeFixProvider
@@ -44,7 +46,7 @@ namespace tik4net.Analyzers
                     || !(literal.Parent is ArgumentSyntax argument) || !(argument.Parent is ArgumentListSyntax list))
                     continue;
                 string[] parts = literal.Token.ValueText.Split(',').Select(p => p.Trim()).ToArray();
-                if (parts.Any(p => p.Length == 0 || p.StartsWith("!")))
+                if (parts.Any(p => p.Length == 0 || p == "!"))
                     continue;
 
                 var replacement = parts.Select(p => SyntaxFactory.Argument(

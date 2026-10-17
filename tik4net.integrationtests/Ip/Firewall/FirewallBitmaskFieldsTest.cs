@@ -44,7 +44,7 @@ namespace tik4net.integrationtests.Ip.Firewall
                     Chain = "forward",
                     Action = FirewallFilter.ActionType.Accept,
                     Protocol = "tcp",
-                    TcpFlags = new TikValueList<FirewallTcpFlag>(FirewallTcpFlag.Syn, TikValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Ack)),
+                    TcpFlags = new TikValueList<TikNegatableValue<FirewallTcpFlag>>(FirewallTcpFlag.Syn, TikNegatableValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Ack)),
                     SrcAddressType = new TikValueList<FirewallAddressType>(FirewallAddressType.Local),
                     Comment = RuleComment,
                     // Disabled: the lab router must not change how it forwards because a test ran.
@@ -78,7 +78,7 @@ namespace tik4net.integrationtests.Ip.Firewall
             Assert.AreEqual(FirewallAddressType.Local, rule.SrcAddressType.Value[0].Value);
             // The negated member is not decoration: "syn" alone matches a different set of packets.
             Assert.AreEqual("syn,!ack", rule.TcpFlags.ToString(), "a bitmask with a negated member");
-            Assert.IsTrue(rule.TcpFlags.Value.Single(f => f.Value == FirewallTcpFlag.Ack).IsNegated);
+            Assert.IsTrue(rule.TcpFlags.Value.Single(f => f.Value.Value == FirewallTcpFlag.Ack).Value.IsNegated);
         }
 
         [TestMethod]
@@ -87,8 +87,8 @@ namespace tik4net.integrationtests.Ip.Firewall
             // The router does not keep the order it was given: written "!fin,syn,!urg,ack", it prints the
             // plain members first and the negated ones after, each in bit order.
             var rule = TestRule(Connection);
-            rule.TcpFlags = new TikValueList<FirewallTcpFlag>(TikValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Fin),
-                FirewallTcpFlag.Syn, TikValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Urg), FirewallTcpFlag.Ack);
+            rule.TcpFlags = new TikValueList<TikNegatableValue<FirewallTcpFlag>>(TikNegatableValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Fin),
+                FirewallTcpFlag.Syn, TikNegatableValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Urg), FirewallTcpFlag.Ack);
             Connection.Save(rule);
 
             using (var api = OpenSideApi())
@@ -103,7 +103,7 @@ namespace tik4net.integrationtests.Ip.Firewall
         {
             var rule = TestRule(Connection);
             rule.SrcAddressType = new TikValueList<FirewallAddressType>(FirewallAddressType.Broadcast);
-            rule.TcpFlags = new TikValueList<FirewallTcpFlag>(FirewallTcpFlag.Fin, FirewallTcpFlag.Rst, TikValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Psh));
+            rule.TcpFlags = new TikValueList<TikNegatableValue<FirewallTcpFlag>>(FirewallTcpFlag.Fin, FirewallTcpFlag.Rst, TikNegatableValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Psh));
             Connection.Save(rule);
 
             using (var api = OpenSideApi())
@@ -119,8 +119,8 @@ namespace tik4net.integrationtests.Ip.Firewall
         {
             // The API spells it as a bare leading element (!,syn,!ack); WinBox native as the field's 'not' flag.
             var rule = TestRule(Connection);
-            rule.TcpFlags = TikNegatableField<TikValueList<FirewallTcpFlag>>.Not(rule.TcpFlags.Value);
-            rule.SrcAddressType = TikNegatableField<TikValueList<FirewallAddressType>>.Not(rule.SrcAddressType.Value);
+            rule.TcpFlags = TikValueList<TikNegatableValue<FirewallTcpFlag>>.Not(rule.TcpFlags.Value);
+            rule.SrcAddressType = TikValueList<FirewallAddressType>.Not(rule.SrcAddressType.Value);
             Connection.Save(rule);
 
             using (var api = OpenSideApi())
@@ -139,7 +139,7 @@ namespace tik4net.integrationtests.Ip.Firewall
         {
             // RouterOS's text set replaces only the half it names: syn,!ack + set rst → rst,!ack (API, REST, CLI).
             var rule = TestRule(Connection);
-            rule.TcpFlags = new TikValueList<FirewallTcpFlag>(FirewallTcpFlag.Rst);
+            rule.TcpFlags = new TikValueList<TikNegatableValue<FirewallTcpFlag>>(FirewallTcpFlag.Rst);
 
             if (Connection.Supports(TikConnectionCapability.StructuredWrites))
             {

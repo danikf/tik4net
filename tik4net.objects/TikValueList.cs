@@ -11,14 +11,17 @@ namespace tik4net.Objects
     /// <c>dst-port=22,8291,1000-2000</c>, <c>connection-state=established,related</c> or <c>hotspot=!from-client,http</c>.
     /// </summary>
     /// <typeparam name="T">The item type: <see cref="TikPortRange"/>, an enum, <c>string</c>, … — never a nullable form;
-    /// the property is <c>TikField&lt;TikValueList&lt;T&gt;?&gt;</c>, whose <c>null</c> is "unset the field".</typeparam>
+    /// the property is <c>TikField&lt;TikValueList&lt;T&gt;?&gt;</c>, whose <c>null</c> is "unset the field". On a field
+    /// whose members the router negates one by one, a <see cref="TikNegatableValue{T}"/>.</typeparam>
     /// <remarks>
     /// <para>
     /// Each item is a <see cref="TikValue{T}"/>, so an item can be a word <typeparamref name="T"/> cannot hold (a member
-    /// a newer RouterOS added) without the rest of the list losing its type, and on a field whose members the router
-    /// negates one by one (<c>tcp-flags</c>, <c>hotspot</c>, logging <c>topics</c>) an item carries its own <c>!</c>.
-    /// A <c>!</c> on the whole list (<c>dst-port=!22,8291</c>) is the negation of the <see cref="TikNegatableField{T}"/>
-    /// that holds the list: <c>TikNegatableField&lt;TikValueList&lt;TikPortRange&gt;?&gt;.Not(list)</c>.
+    /// a newer RouterOS added) without the rest of the list losing its type. Only a field whose members the router
+    /// negates one by one (<c>tcp-flags</c>, <c>hotspot</c>, logging <c>topics</c>) has items that carry their own
+    /// <c>!</c>: its item type is <see cref="TikNegatableValue{T}"/>
+    /// (<c>TikValueList&lt;TikNegatableValue&lt;FirewallTcpFlag&gt;&gt;</c>). On any other list a <c>!</c> is part of an
+    /// item. A <c>!</c> on the whole list (<c>dst-port=!22,8291</c>) is the negation of the
+    /// <see cref="TikNegatableField{T}"/> that holds the list: <see cref="Not(T[])"/>.
     /// </para>
     /// <para>
     /// The list is immutable: <see cref="With(TikValue{T}[])"/> and <see cref="Without(TikValue{T}[])"/> return a new one,
@@ -42,6 +45,9 @@ namespace tik4net.Objects
 #endif
     public sealed class TikValueList<T> : IReadOnlyList<TikValue<T>>, IEquatable<TikValueList<T>>, ITikValueList
     {
+        // Whether the items carry their own '!' — the item type says so, nothing else does.
+        private static readonly bool MembersNegatable = TikNegatableValue.IsNegatableValue(typeof(T));
+
         private readonly TikValue<T>[] _items;
 
         /// <summary>
@@ -57,8 +63,8 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// A list whose items may be negated or the router's words:
-        /// <c>new TikValueList&lt;HotspotMatch&gt;(TikValue&lt;HotspotMatch&gt;.Not(HotspotMatch.FromClient), HotspotMatch.Http)</c>.
+        /// A list whose items may be the router's words:
+        /// <c>new TikValueList&lt;FirewallTcpFlag&gt;(FirewallTcpFlag.Syn, TikValue&lt;FirewallTcpFlag&gt;.FromWire("newflag"))</c>.
         /// </summary>
         /// <exception cref="ArgumentNullException">An item holds a <c>null</c> value.</exception>
         /// <exception cref="ArgumentException">An item's value or word contains a <c>,</c>.</exception>
@@ -75,13 +81,18 @@ namespace tik4net.Objects
             _items = (items ?? throw new ArgumentNullException(nameof(items))).ToArray();
             foreach (var item in _items)
             {
-                if (!item.IsWord && item.Value == null)
+                object? member = item.IsWord ? null : item.Value is ITikNegatableValue negatable ? negatable.BoxedValue : item.Value;
+                if (!item.IsWord && member == null)
                     throw new ArgumentNullException(nameof(items), "A list item holds a value; null is not one.");
-                string? text = item.IsWord ? item.RawValue : item.Value as string;
+                string? text = item.IsWord ? item.RawValue : member as string;
                 if (text != null && text.IndexOf(',') >= 0)
                     throw new ArgumentException("The list item \"" + text + "\" contains ',', which separates the router's "
                         + "items: pass one argument per item, or TikValueList<" + typeof(T).Name + ">.Parse(\"" + text
                         + "\") for text in the router's spelling.", nameof(items));
+                if (MembersNegatable && !item.IsWord && text == "!")
+                    // On these lists a bare '!' is the router's whole-list negation, not a member.
+                    throw new ArgumentException("A bare '!' is not a member: a '!' on the whole list is written "
+                        + "TikValueList<T>.Not(list).", nameof(items));
             }
         }
 
@@ -96,19 +107,22 @@ namespace tik4net.Objects
         public static TikValueList<T> Empty { get; } = new TikValueList<T>(Enumerable.Empty<TikValue<T>>());
 
         /// <summary>
-        /// The list a text spells, the way the router writes it: <c>TikValueList&lt;FirewallTcpFlag&gt;.Parse("syn,!ack")</c>,
-        /// <c>TikValueList&lt;TikPortRange&gt;.Parse("22,8291,1000-2000")</c>. Items are separated by <c>,</c> (spaces around
-        /// an item are ignored), and a <c>!</c> in front of an item negates that item; the empty text is the empty list.
+        /// The list a text spells, the way the router writes it: <c>TikValueList&lt;TikPortRange&gt;.Parse("22,8291,1000-2000")</c>,
+        /// <c>TikValueList&lt;TikNegatableValue&lt;FirewallTcpFlag&gt;&gt;.Parse("syn,!ack")</c>. Items are separated by
+        /// <c>,</c> (spaces around an item are ignored); the empty text is the empty list. A <c>!</c> in front of an item
+        /// negates it on a list of <see cref="TikNegatableValue{T}"/>, and is part of the item on any other.
         /// </summary>
         /// <remarks>
         /// A string does not convert to a list implicitly — C# applies one user-defined conversion per assignment, and the
         /// property's own conversion is the one from <see cref="TikValueList{T}"/>. A <c>!</c> on the whole list is not
-        /// part of the list: write it as <c>TikNegatableField&lt;TikValueList&lt;T&gt;?&gt;.Not(TikValueList&lt;T&gt;.Parse("22,8291"))</c>.
+        /// part of the list: write it as <see cref="Not(T[])"/>, or parse the field's text with
+        /// <see cref="TikNegatableField{T}.Parse"/>.
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="text"/> is <c>null</c>.</exception>
         /// <exception cref="FormatException">
-        /// An item is empty, is a bare <c>!</c> (the router's whole-list <c>!</c>), or is not a value of
-        /// <typeparamref name="T"/> — a word an enum has no member for goes in as <see cref="TikValue{T}.FromWire"/>.
+        /// An item is empty, is a bare <c>!</c> on a list of <see cref="TikNegatableValue{T}"/> (the router's whole-list
+        /// <c>!</c>), or is not a value of <typeparamref name="T"/> — a word an enum has no member for goes in as
+        /// <see cref="TikValue{T}.FromWire"/>.
         /// </exception>
         [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
         [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
@@ -123,13 +137,10 @@ namespace tik4net.Objects
             foreach (string element in text.Split(','))
             {
                 string word = element.Trim();
-                bool negated = word.StartsWith("!", StringComparison.Ordinal);
-                if (negated)
-                    word = word.Substring(1).TrimStart();
                 if (word.Length == 0)
-                    throw new FormatException(negated
-                        ? "\"" + text + "\" has a bare '!': a '!' on the whole list is written TikNegatableField<TikValueList<T>?>.Not(list)."
-                        : "\"" + text + "\" has an empty item.");
+                    throw new FormatException("\"" + text + "\" has an empty item.");
+                if (MembersNegatable && word == "!")
+                    throw new FormatException("\"" + text + "\" has a bare '!': a '!' on the whole list is written TikValueList<T>.Not(list).");
                 object? value;
                 string? unknownWord;
                 try
@@ -142,15 +153,18 @@ namespace tik4net.Objects
                 }
                 if (unknownWord != null || value == null)
                     throw NotAnItem(word, null);
-                items.Add(((TikValue<T>)(T)value).AsNegated(negated));
+                items.Add((T)value);
             }
             return new TikValueList<T>(items);
         }
 
         private static FormatException NotAnItem(string word, Exception? inner)
-            => new FormatException("\"" + word + "\" is not a " + typeof(T).Name
-                + (typeof(T).IsEnum ? "; a word from another RouterOS version goes in as TikValue<" + typeof(T).Name + ">.FromWire(\"" + word + "\")." : "."),
+            => new FormatException("\"" + word + "\" is not a " + ItemTypeName
+                + (typeof(T).IsEnum || MembersNegatable ? "; a word from another RouterOS version goes in as TikValue<" + ItemTypeName + ">.FromWire(\"" + word + "\")." : "."),
                 inner);
+
+        private static string ItemTypeName
+            => MembersNegatable ? "TikNegatableValue<" + typeof(T).GenericTypeArguments[0].Name + ">" : typeof(T).Name;
 
         /// <inheritdoc/>
         public int Count => _items.Length;
@@ -158,8 +172,25 @@ namespace tik4net.Objects
         /// <inheritdoc/>
         public TikValue<T> this[int index] => _items[index];
 
-        /// <summary>True when some item is negated — a field whose members the router negates one by one.</summary>
-        public bool HasNegatedItems => _items.Any(i => i.IsNegated);
+        /// <summary>
+        /// The whole list negated — the router's <c>dst-port=!22,8291</c>, a <see cref="TikNegatableField{T}"/> to assign:
+        /// <c>rule.DstPort = TikValueList&lt;TikPortRange&gt;.Not(22, 8291)</c>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">An item is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">An item contains a <c>,</c>.</exception>
+        public static TikNegatableField<TikValueList<T>?> Not(params T[] items)
+            => TikNegatableField<TikValueList<T>?>.Not(new TikValueList<T>(items));
+
+        /// <summary>The whole list negated, its items possibly the router's words (<see cref="Not(T[])"/>).</summary>
+        /// <exception cref="ArgumentNullException">An item holds a <c>null</c> value.</exception>
+        /// <exception cref="ArgumentException">An item's value or word contains a <c>,</c>.</exception>
+        public static TikNegatableField<TikValueList<T>?> Not(params TikValue<T>[] items)
+            => TikNegatableField<TikValueList<T>?>.Not(new TikValueList<T>(items));
+
+        /// <summary>This list, negated as a whole (<see cref="Not(T[])"/>).</summary>
+        /// <exception cref="ArgumentNullException"><paramref name="list"/> is <c>null</c>.</exception>
+        public static TikNegatableField<TikValueList<T>?> Not(TikValueList<T> list)
+            => TikNegatableField<TikValueList<T>?>.Not(list ?? throw new ArgumentNullException(nameof(list)));
 
         /// <summary>This list with <paramref name="items"/> appended.</summary>
         /// <exception cref="ArgumentException">An item's value or word contains a <c>,</c>.</exception>
@@ -172,8 +203,8 @@ namespace tik4net.Objects
             => With(Checked(items).Select(i => (TikValue<T>)i).ToArray());
 
         /// <summary>
-        /// This list without the items equal to any of <paramref name="items"/> — a negated item matches only a negated
-        /// one (<c>flags.Without(TikValue&lt;TcpFlag&gt;.Not(TcpFlag.Ack))</c>).
+        /// This list without the items equal to any of <paramref name="items"/> — a negated member matches only a negated
+        /// one (<c>flags.Without(TikNegatableValue&lt;TcpFlag&gt;.Not(TcpFlag.Ack))</c>).
         /// </summary>
         public TikValueList<T> Without(params TikValue<T>[] items)
         {
@@ -185,7 +216,7 @@ namespace tik4net.Objects
         public TikValueList<T> Without(params T[] items)
             => Without(Checked(items).Select(i => (TikValue<T>)i).ToArray());
 
-        bool ITikValueList.HasNegatedItems => HasNegatedItems;
+        bool ITikValueList.MembersNegatable => MembersNegatable;
 
         string? ITikValueList.UnknownItems
         {
@@ -251,7 +282,7 @@ namespace tik4net.Objects
         /// <summary>The items the type cannot hold, comma-separated as the router printed them; else <c>null</c>.</summary>
         string? UnknownItems { get; }
 
-        /// <summary>Whether some item carries its own <c>!</c>.</summary>
-        bool HasNegatedItems { get; }
+        /// <summary>Whether the items carry their own <c>!</c> — a list of <see cref="TikNegatableValue{T}"/>.</summary>
+        bool MembersNegatable { get; }
     }
 }

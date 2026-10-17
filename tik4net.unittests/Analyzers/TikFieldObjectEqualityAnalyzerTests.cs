@@ -46,6 +46,15 @@ namespace tik4net.Objects
         public override bool Equals(object obj) => obj is TikValue<T>;
         public override int GetHashCode() => 0;
     }
+    public readonly struct TikNegatableValue<T>
+    {
+        public T Value => default(T);
+        public static implicit operator TikNegatableValue<T>(T value) => default(TikNegatableValue<T>);
+        public static bool operator ==(TikNegatableValue<T> a, T b) => true;
+        public static bool operator !=(TikNegatableValue<T> a, T b) => false;
+        public override bool Equals(object obj) => obj is TikNegatableValue<T>;
+        public override int GetHashCode() => 0;
+    }
 }
 static class Assert
 {
@@ -54,7 +63,7 @@ static class Assert
     public static void AreNotEqual(object notExpected, object actual) { }
 }
 class Row { public tik4net.Objects.TikField<string> Name; public tik4net.Objects.TikField<int?> Mtu; public object Any;
-            public tik4net.Objects.TikValue<string> Item; }
+            public tik4net.Objects.TikValue<string> Item; public tik4net.Objects.TikNegatableValue<string> Member; }
 ";
 
         private static string Body(string statements) => Stubs + @"
@@ -75,6 +84,7 @@ class Subject
         [DataRow("Assert.AreEqual<object>(\"x\", row.Name);", "row.Name", DisplayName = "generic with T = object")]
         [DataRow("object.Equals(\"x\", row.Item);", "row.Item", DisplayName = "a TikValue<T> the same way")]
         [DataRow("Assert.AreNotEqual(\"x\", row.Item);", "row.Item", DisplayName = "a TikValue<T> in AreNotEqual(object, object)")]
+        [DataRow("object.Equals(\"x\", row.Member);", "row.Member", DisplayName = "a TikNegatableValue<T> the same way")]
         public void AnObjectTypedComparisonOfAWrapperAndAValueIsReported(string statement, string wrapped)
         {
             var diagnostics = Analyze(Body(statement));

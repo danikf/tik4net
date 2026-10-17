@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 
 namespace tik4net.Objects
 {
@@ -28,8 +30,8 @@ namespace tik4net.Objects
     /// </para>
     /// <para>
     /// Only the properties RouterOS negates have this type, so a negation assigned anywhere else does not compile. A list
-    /// whose <b>members</b> the router negates one by one (<c>tcp-flags=syn,!ack</c>) keeps each member's <c>!</c> on the
-    /// item, <see cref="TikValue{T}.IsNegated"/> (<see cref="TikPropertyAttribute.NegatableMembers"/>).
+    /// whose <b>members</b> the router negates one by one (<c>tcp-flags=syn,!ack</c>) is a list of
+    /// <see cref="TikNegatableValue{T}"/>, each member with its own <see cref="TikNegatableValue{T}.IsNegated"/>.
     /// </para>
     /// </remarks>
     [DebuggerDisplay("{DebuggerText,nq}")]
@@ -40,9 +42,9 @@ namespace tik4net.Objects
     {
         private readonly TikFieldCore<T> _core;
 
-        private TikNegatableField(TikValue<T> content)
+        private TikNegatableField(TikValue<T> content, bool negated = false)
         {
-            _core = new TikFieldCore<T>(content);
+            _core = new TikFieldCore<T>(content, negated);
         }
 
         internal TikNegatableField(TikFieldCore<T> core)
@@ -75,12 +77,12 @@ namespace tik4net.Objects
         /// </summary>
         /// <remarks>
         /// The <c>!</c> negates the whole value, a list included. On a list whose members the router negates one by one
-        /// (<c>tcp-flags=syn,!ack</c>) each member's <c>!</c> is that item's <see cref="TikValue{T}.IsNegated"/>.
+        /// (<c>tcp-flags=syn,!ack</c>) each member's <c>!</c> is that item's <see cref="TikNegatableValue{T}.IsNegated"/>.
         /// </remarks>
         public bool IsNegated => _core.IsNegated;
 
         /// <summary>This value with <see cref="IsNegated"/> cleared — the matcher it negates.</summary>
-        public TikNegatableField<T> WithoutNegation() => _core.Printed ? new TikNegatableField<T>(_core.Content.WithoutNegation()) : this;
+        public TikNegatableField<T> WithoutNegation() => new TikNegatableField<T>(_core.WithoutNegation());
 
         /// <summary>
         /// A negated value — the router's <c>!value</c>: <c>rule.Port = TikNegatableField&lt;int?&gt;.Not(22)</c>,
@@ -88,7 +90,7 @@ namespace tik4net.Objects
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>: there is nothing to negate.</exception>
         public static TikNegatableField<T> Not(T value)
-            => new TikNegatableField<T>(((TikValue<T>)(value ?? throw new ArgumentNullException(nameof(value), "Only a value can be negated."))).AsNegated());
+            => new TikNegatableField<T>(value ?? throw new ArgumentNullException(nameof(value), "Only a value can be negated."), negated: true);
 
         /// <summary>
         /// The value a text spells, the way the router writes it: <c>TikNegatableField&lt;int?&gt;.Parse("!22")</c> is
@@ -96,15 +98,16 @@ namespace tik4net.Objects
         /// <typeparamref name="T"/>.
         /// </summary>
         /// <remarks>
-        /// Not for a list: whether <c>!a,b</c> negates the list or only its first member depends on the field. Write a list
-        /// as <c>Not(TikValueList&lt;T&gt;.Parse("a,b"))</c>.
+        /// A list is read the way the router writes it: on a list of <see cref="TikNegatableValue{T}"/> items, whose members
+        /// carry their own <c>!</c>, the whole-list <c>!</c> is a bare leading element (<c>Parse("!,syn,!ack")</c>); on any
+        /// other list a <c>!</c> in front of the first item (<c>Parse("!22,8291")</c>). The items are read as
+        /// <see cref="TikValueList{T}.Parse"/> reads them.
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="text"/> is <c>null</c>.</exception>
         /// <exception cref="FormatException">
         /// The text (after the <c>!</c>) is not a value of <typeparamref name="T"/> — a word an enum has no member for goes
         /// in as <see cref="FromWire"/> — or it is a bare <c>!</c>, which negates nothing.
         /// </exception>
-        /// <exception cref="NotSupportedException"><typeparamref name="T"/> is a <see cref="TikValueList{T}"/>.</exception>
         [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
         [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
         public static TikNegatableField<T> Parse(string text)
@@ -113,8 +116,7 @@ namespace tik4net.Objects
                 throw new ArgumentNullException(nameof(text));
             Type valueType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
             if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(TikValueList<>))
-                throw new NotSupportedException("Whether '!a,b' negates the list or its first member depends on the field: write "
-                    + "TikNegatableField<TikValueList<T>?>.Not(TikValueList<T>.Parse(\"a,b\")) for the whole list.");
+                return ParseList(text, valueType);
             bool negated = text.Length > 0 && text[0] == '!';
             string word = negated ? text.Substring(1) : text;
             if (negated && word.Length == 0)
@@ -136,8 +138,40 @@ namespace tik4net.Objects
             return FromPresent((T)value!, negated);
         }
 
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
+        private static TikNegatableField<T> ParseList(string text, Type listType)
+        {
+            bool membersNegatable = TikNegatableValue.IsNegatableValue(listType.GetGenericArguments()[0]);
+            bool negated;
+            string items;
+            if (membersNegatable)
+            {
+                negated = text == "!" || text.StartsWith("!,", StringComparison.Ordinal);
+                items = negated ? text.Substring(1).TrimStart(',') : text;
+            }
+            else
+            {
+                negated = text.Length > 0 && text[0] == '!';
+                items = negated ? text.Substring(1) : text;
+            }
+            if (negated && items.Trim().Length == 0)
+                throw new FormatException("\"" + text + "\" negates nothing.");
+            object list;
+            try
+            {
+                list = listType.GetMethod(nameof(TikValueList<int>.Parse), new[] { typeof(string) })!.Invoke(null, new object[] { items })!;
+            }
+            catch (TargetInvocationException e) when (e.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(e.InnerException).Throw();
+                throw;
+            }
+            return FromPresent((T)list, negated);
+        }
+
         internal static TikNegatableField<T> FromPresent(T value, bool negated)
-            => new TikNegatableField<T>(((TikValue<T>)value).AsNegated(negated && value != null));
+            => new TikNegatableField<T>(value, negated);
 
         /// <summary>True when the router printed the field (or the caller assigned it) and the value was read.</summary>
         public bool IsPresent => State == TikFieldState.Present;
@@ -188,10 +222,10 @@ namespace tik4net.Objects
 
         // A string's leading '!' is the router's negation: a negatable field has no literal '!' to send (the mapper reads a
         // loaded one the same way). A bare "!" stays text, as a load leaves it.
-        private static TikValue<T> Spelled(T value)
+        private static TikFieldCore<T> Spelled(T value)
             => value is string text && text.Length > 1 && text[0] == '!'
-                ? ((TikValue<T>)(T)(object)text.Substring(1)).AsNegated()
-                : value;
+                ? new TikFieldCore<T>((T)(object)text.Substring(1), negated: true)
+                : new TikFieldCore<T>(value);
 
         /// <summary>
         /// True when <paramref name="a"/> is present and holds the matcher <paramref name="b"/> spells — for a
@@ -199,7 +233,11 @@ namespace tik4net.Objects
         /// value. Compared with <c>null</c> it means "has no value": true when absent or present with <c>null</c>, never
         /// when unparsed.
         /// </summary>
-        public static bool operator ==(TikNegatableField<T> a, T b) => a._core.EqualsValue(Spelled(b));
+        public static bool operator ==(TikNegatableField<T> a, T b)
+        {
+            var spelled = Spelled(b);
+            return a._core.EqualsValue(spelled.Content, spelled.Negated);
+        }
 
         /// <summary>The negation of <c>a == b</c>.</summary>
         public static bool operator !=(TikNegatableField<T> a, T b) => !(a == b);
@@ -220,13 +258,19 @@ namespace tik4net.Objects
         /// True when both have a plain value and <paramref name="a"/>'s is smaller (like a lifted nullable comparison). A
         /// negated value is not ordered against a plain one: every comparison with it is false.
         /// </summary>
-        public static bool operator <(TikNegatableField<T> a, T b) => a._core.Lifted(Spelled(b), out int c) && c < 0;
+        public static bool operator <(TikNegatableField<T> a, T b) => Lifted(a, b, out int c) && c < 0;
         /// <summary>True when both have a plain value and <paramref name="a"/>'s is larger.</summary>
-        public static bool operator >(TikNegatableField<T> a, T b) => a._core.Lifted(Spelled(b), out int c) && c > 0;
+        public static bool operator >(TikNegatableField<T> a, T b) => Lifted(a, b, out int c) && c > 0;
         /// <summary>True when both have a plain value and <paramref name="a"/>'s is not larger.</summary>
-        public static bool operator <=(TikNegatableField<T> a, T b) => a._core.Lifted(Spelled(b), out int c) && c <= 0;
+        public static bool operator <=(TikNegatableField<T> a, T b) => Lifted(a, b, out int c) && c <= 0;
         /// <summary>True when both have a plain value and <paramref name="a"/>'s is not smaller.</summary>
-        public static bool operator >=(TikNegatableField<T> a, T b) => a._core.Lifted(Spelled(b), out int c) && c >= 0;
+        public static bool operator >=(TikNegatableField<T> a, T b) => Lifted(a, b, out int c) && c >= 0;
+
+        private static bool Lifted(TikNegatableField<T> a, T b, out int comparison)
+        {
+            var spelled = Spelled(b);
+            return a._core.Lifted(spelled.Content, spelled.Negated, out comparison);
+        }
 
         /// <summary>
         /// Sort order: Absent, then Unparsed (by word), then Present (by value, <c>null</c> first; a plain value before its

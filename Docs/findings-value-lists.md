@@ -3,8 +3,9 @@
 How RouterOS spells, stores and rewrites a field that holds several values (`dst-port=22,8291`,
 `connection-state=established,related`, `tcp-flags=syn,!ack`), and where a `!` may stand. Measured on
 RouterOS 7.24.5 and 6.49.13 over the API, REST, the CLI and WinBox native. The O/R mapper's side of it is
-`TikValueList<T>` (`tik4net.objects/TikValueList.cs`), `TikNegatableField<T>` for a whole-value `!`, and the
-`NegatableMembers` / `SetKeepsUnnamedHalf` attributes on `TikPropertyAttribute`.
+`TikValueList<T>` (`tik4net.objects/TikValueList.cs`), `TikNegatableField<T>` for a whole-value `!`,
+`TikNegatableValue<T>` as the item type of a list whose members take their own `!`, and the `SetKeepsUnnamedHalf`
+attribute on `TikPropertyAttribute`.
 
 ## 1. The text form
 

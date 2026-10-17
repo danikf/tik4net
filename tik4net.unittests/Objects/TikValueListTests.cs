@@ -17,6 +17,12 @@ namespace tik4net.unittests.Objects
         private static TikValueList<TikFieldMapperTests.Mode> Modes(params TikValue<TikFieldMapperTests.Mode>[] items)
             => new TikValueList<TikFieldMapperTests.Mode>(items);
 
+        private static TikValueList<TikNegatableValue<TikFieldMapperTests.Mode>> NegatableModes(params TikNegatableValue<TikFieldMapperTests.Mode>[] items)
+            => new TikValueList<TikNegatableValue<TikFieldMapperTests.Mode>>(items);
+
+        private static TikNegatableValue<TikFieldMapperTests.Mode> NotMode(TikFieldMapperTests.Mode mode)
+            => TikNegatableValue<TikFieldMapperTests.Mode>.Not(mode);
+
         // ── Construction ─────────────────────────────────────────────────────
 
         [TestMethod]
@@ -25,20 +31,41 @@ namespace tik4net.unittests.Objects
             var ports = new TikValueList<TikPortRange>(22, 8291, new TikPortRange(1000, 2000));
             Assert.AreEqual(3, ports.Count);
             Assert.AreEqual(new TikPortRange(1000, 2000), ports[2].Value);
-            Assert.IsFalse(ports.HasNegatedItems);
             Assert.AreEqual("22,8291,1000-2000", ports.ToString());
         }
 
         [TestMethod]
-        public void NegatedItemsAndWords_KeepTheirMarks()
+        public void NegatedMembersAndWords_KeepTheirMarks()
         {
-            var list = Modes(TikValue<TikFieldMapperTests.Mode>.Not(TikFieldMapperTests.Mode.Auto),
-                             TikFieldMapperTests.Mode.Yes,
-                             TikValue<TikFieldMapperTests.Mode>.FromWire("newer"));
-            Assert.IsTrue(list.HasNegatedItems);
+            var list = new TikValueList<TikNegatableValue<TikFieldMapperTests.Mode>>(NotMode(TikFieldMapperTests.Mode.Auto),
+                (TikNegatableValue<TikFieldMapperTests.Mode>)TikFieldMapperTests.Mode.Yes, TikValue<TikNegatableValue<TikFieldMapperTests.Mode>>.FromWire("!newer"));
+            Assert.IsTrue(list[0].Value.IsNegated);
+            Assert.IsFalse(list[1].Value.IsNegated);
             Assert.IsTrue(list[2].IsWord);
-            Assert.AreEqual("!auto,yes,newer", list.ToString());
+            Assert.AreEqual("!auto,yes,!newer", list.ToString());
         }
+
+        [TestMethod]
+        public void AStringMember_TakesTheRoutersSpelling()
+        {
+            var topics = new TikValueList<TikNegatableValue<string>>("info", "!debug");
+            Assert.IsTrue(topics[1].Value.IsNegated);
+            Assert.AreEqual("debug", topics[1].Value.Value);
+            Assert.AreEqual(new TikValueList<TikNegatableValue<string>>("info", TikNegatableValue<string>.Not("debug")), topics);
+            Assert.AreEqual("info,!debug", topics.ToString());
+        }
+
+        [TestMethod]
+        public void OnAPlainList_ABangIsPartOfTheItem()
+        {
+            var names = new TikValueList<string>("!important");
+            Assert.AreEqual("!important", names[0].Value);
+            Assert.AreEqual("!important", TikValueList<string>.Parse("!important")[0].Value);
+        }
+
+        [TestMethod]
+        public void ABareBang_IsNotAMember()
+            => Assert.ThrowsException<ArgumentException>(() => new TikValueList<TikNegatableValue<string>>("info", "!"));
 
         [TestMethod]
         public void ANullItem_IsRefused()
@@ -53,7 +80,8 @@ namespace tik4net.unittests.Objects
         public void AnItemContainingAComma_IsRefused_OnEveryWayIn()
         {
             Assert.ThrowsException<ArgumentException>(() => new TikValueList<string>("a,b"));
-            Assert.ThrowsException<ArgumentException>(() => new TikValueList<string>(TikValue<string>.Not("a,b")));
+            Assert.ThrowsException<ArgumentException>(() => new TikValueList<TikNegatableValue<string>>(TikNegatableValue<string>.Not("a,b")));
+            Assert.ThrowsException<ArgumentException>(() => new TikValueList<TikNegatableValue<string>>("!a,b"));
             Assert.ThrowsException<ArgumentException>(() => Modes(TikValue<TikFieldMapperTests.Mode>.FromWire("newer,older")));
             Assert.ThrowsException<ArgumentException>(() => new TikValueList<string>("a").With("b,c"));
 
@@ -73,8 +101,8 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void Parse_ReadsTheRoutersSpelling_WithEachItemsOwnNegation()
         {
-            var flags = TikValueList<FirewallTcpFlag>.Parse("syn, !ack");
-            Assert.AreEqual(new TikValueList<FirewallTcpFlag>(FirewallTcpFlag.Syn, TikValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Ack)), flags);
+            var flags = TikValueList<TikNegatableValue<FirewallTcpFlag>>.Parse("syn, !ack");
+            Assert.AreEqual(new TikValueList<TikNegatableValue<FirewallTcpFlag>>(FirewallTcpFlag.Syn, TikNegatableValue<FirewallTcpFlag>.Not(FirewallTcpFlag.Ack)), flags);
             Assert.AreEqual("syn,!ack", flags.ToString());
 
             var ports = TikValueList<TikPortRange>.Parse("22,8291,1000-2000");
@@ -86,14 +114,19 @@ namespace tik4net.unittests.Objects
         [DataRow("syn,,ack")]
         [DataRow("!,syn")]
         [DataRow("syn,typo")]
+        [DataRow("syn,!typo")]
         public void Parse_RefusesWhatIsNotAnItem(string text)
         {
-            var thrown = Assert.ThrowsException<FormatException>(() => TikValueList<FirewallTcpFlag>.Parse(text));
+            var thrown = Assert.ThrowsException<FormatException>(() => TikValueList<TikNegatableValue<FirewallTcpFlag>>.Parse(text));
             if (text.StartsWith("!,"))
                 StringAssert.Contains(thrown.Message, ".Not(");
             if (text.EndsWith("typo"))
                 StringAssert.Contains(thrown.Message, "FromWire");
         }
+
+        [TestMethod]
+        public void Parse_OnAPlainEnumList_RefusesABang()
+            => Assert.ThrowsException<FormatException>(() => TikValueList<FirewallTcpFlag>.Parse("syn,!ack"));
 
         [TestMethod]
         public void Parse_RefusesAPortItIsNot()
@@ -113,9 +146,9 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void Without_RemovesEqualItems_ANegatedOneOnlyByItsNegation()
         {
-            var list = Modes(TikValue<TikFieldMapperTests.Mode>.Not(TikFieldMapperTests.Mode.Auto), TikFieldMapperTests.Mode.Auto);
+            var list = NegatableModes(NotMode(TikFieldMapperTests.Mode.Auto), TikFieldMapperTests.Mode.Auto);
             Assert.AreEqual("!auto", list.Without(TikFieldMapperTests.Mode.Auto).ToString());
-            Assert.AreEqual("auto", list.Without(TikValue<TikFieldMapperTests.Mode>.Not(TikFieldMapperTests.Mode.Auto)).ToString());
+            Assert.AreEqual("auto", list.Without(NotMode(TikFieldMapperTests.Mode.Auto)).ToString());
         }
 
         // ── Equality ─────────────────────────────────────────────────────────
@@ -135,7 +168,7 @@ namespace tik4net.unittests.Objects
         {
             Assert.AreNotEqual(new TikValueList<TikPortRange>(22, 22, 80), new TikValueList<TikPortRange>(22, 80, 80));
             Assert.AreNotEqual(new TikValueList<TikPortRange>(22), new TikValueList<TikPortRange>(22, 22));
-            Assert.AreNotEqual(Modes(TikFieldMapperTests.Mode.Auto), Modes(TikValue<TikFieldMapperTests.Mode>.Not(TikFieldMapperTests.Mode.Auto)));
+            Assert.AreNotEqual(NegatableModes(TikFieldMapperTests.Mode.Auto), NegatableModes(NotMode(TikFieldMapperTests.Mode.Auto)));
         }
 
         [TestMethod]
@@ -153,10 +186,19 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void InAField_AWholeListNot_IsTheFieldsNegation()
         {
-            TikNegatableField<TikValueList<TikPortRange>?> field =
-                TikNegatableField<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(22, 8291));
+            TikNegatableField<TikValueList<TikPortRange>?> field = TikValueList<TikPortRange>.Not(22, 8291);
             Assert.IsTrue(field.IsNegated);
             Assert.AreEqual("!22,8291", field.ToString());
+            Assert.AreEqual(TikNegatableField<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(22, 8291)), field);
+        }
+
+        // The type, not the content, decides the whole-list spelling: tcp-flags=!syn would be one negated member.
+        [TestMethod]
+        public void InAField_AWholeListNot_OfNegatableMembers_IsABareLeadingElement()
+        {
+            TikNegatableField<TikValueList<TikNegatableValue<FirewallTcpFlag>>?> flags =
+                TikValueList<TikNegatableValue<FirewallTcpFlag>>.Not(FirewallTcpFlag.Syn);
+            Assert.AreEqual("!,syn", flags.ToString());
         }
 
         // ── TikPortRange ─────────────────────────────────────────────────────

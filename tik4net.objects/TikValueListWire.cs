@@ -7,9 +7,9 @@ namespace tik4net.Objects
 {
     /// <summary>
     /// The text form of a <see cref="TikValueList{T}"/> field — the same on the API, REST and the CLI (measured on
-    /// 6.49.13 and 7.24.5): items separated by <c>,</c>; on a field whose members the router negates one by one
-    /// (<see cref="TikPropertyAttribute.NegatableMembers"/>) an item's own <c>!</c> in front of it. The whole-list
-    /// <c>!</c> is handled by the property, not here.
+    /// 6.49.13 and 7.24.5): items separated by <c>,</c>; on a list of <see cref="TikNegatableValue{T}"/> an item's own
+    /// <c>!</c> in front of it, which the item's converter reads and writes. The whole-list <c>!</c> is handled by the
+    /// property, not here.
     /// </summary>
     [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
     [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
@@ -20,17 +20,13 @@ namespace tik4net.Objects
         /// hold — a member a newer RouterOS added — is kept as the router's word, with its <c>!</c>, and the rest of the
         /// list keeps its type.
         /// </summary>
-        internal static TikValueList<TItem> Parse<TItem>(string text, bool negatableMembers, TikWireConverter item)
+        internal static TikValueList<TItem> Parse<TItem>(string text, TikWireConverter item)
         {
             if (text.Length == 0)
                 return TikValueList<TItem>.Empty;
             var items = new List<TikValue<TItem>>();
             foreach (string element in text.Split(','))
-            {
-                bool negated = negatableMembers && element.Length > 1 && element[0] == '!';
-                string word = negated ? element.Substring(1) : element;
-                items.Add(ParseItem<TItem>(word, item).AsNegated(negated));
-            }
+                items.Add(ParseItem<TItem>(element, item));
             return new TikValueList<TItem>(items);
         }
 
@@ -71,20 +67,9 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// The items in the router's spelling, comma-separated, in the order the list holds them. A negated item on a field
-        /// that does not negate its members is refused: the router refuses it, or reads the <c>!</c> as part of a word.
+        /// The items in the router's spelling, comma-separated, in the order the list holds them.
         /// </summary>
-        internal static string Format<TItem>(TikValueList<TItem> list, bool negatableMembers, TikWireConverter item,
-            string propertyName, string fieldName)
-            => string.Join(",", list.Select(v =>
-            {
-                if (v.IsNegated && !negatableMembers)
-                    throw new InvalidOperationException(string.Format(
-                        "Property '{0}({1})' holds a negated item ({2}), and RouterOS does not negate this field's members one by one "
-                        + "(NegatableMembers). Negate the whole list instead, if the field takes that (a TikNegatableField).",
-                        propertyName, fieldName, v));
-                string text = v.IsWord ? v.RawValue! : item.ConvertToString(v.Value) ?? "";
-                return v.IsNegated ? "!" + text : text;
-            }));
+        internal static string Format<TItem>(TikValueList<TItem> list, TikWireConverter item)
+            => string.Join(",", list.Select(v => v.IsWord ? v.RawValue! : item.ConvertToString(v.Value) ?? ""));
     }
 }

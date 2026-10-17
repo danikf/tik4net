@@ -30,11 +30,11 @@ namespace tik4net.unittests.Objects
             [TikProperty("dst-port")]
             public TikNegatableField<TikValueList<TikPortRange>?> DstPort { get; set; }
 
-            [TikProperty("hotspot", NegatableMembers = true)]
-            public TikField<TikValueList<Hotspot>?> Hotspot { get; set; }
+            [TikProperty("hotspot")]
+            public TikField<TikValueList<TikNegatableValue<Hotspot>>?> Hotspot { get; set; }
 
-            [TikProperty("tcp-flags", NegatableMembers = true, SetKeepsUnnamedHalf = true)]
-            public TikNegatableField<TikValueList<Flag>?> TcpFlags { get; set; }
+            [TikProperty("tcp-flags", SetKeepsUnnamedHalf = true)]
+            public TikNegatableField<TikValueList<TikNegatableValue<Flag>>?> TcpFlags { get; set; }
 
             [TikProperty("names")]
             public TikField<TikValueList<string>?> Names { get; set; }
@@ -76,7 +76,6 @@ namespace tik4net.unittests.Objects
 
             Assert.IsTrue(rule.DstPort.IsNegated);
             Assert.AreEqual("443,53", rule.DstPort.Value!.ToString());
-            Assert.IsFalse(rule.DstPort.Value!.HasNegatedItems);
         }
 
         [TestMethod]
@@ -84,9 +83,10 @@ namespace tik4net.unittests.Objects
         {
             var rule = Load(("hotspot", "from-client,http,!auth"));
 
-            var auth = rule.Hotspot.Value!.Single(i => i.Value == Hotspot.Auth);
-            Assert.IsTrue(auth.IsNegated);
-            Assert.IsFalse(rule.Hotspot.Value!.First().IsNegated);
+            var auth = rule.Hotspot.Value!.Single(i => i.Value.Value == Hotspot.Auth);
+            Assert.IsTrue(auth.Value.IsNegated);
+            Assert.IsFalse(rule.Hotspot.Value!.First().Value.IsNegated);
+            Assert.IsTrue(rule.Hotspot.Value!.Contains(TikNegatableValue<Hotspot>.Not(Hotspot.Auth)));
         }
 
         [TestMethod]
@@ -115,10 +115,9 @@ namespace tik4net.unittests.Objects
             var rule = Load(("hotspot", "http,!newer-kind"));
 
             Assert.AreEqual(TikFieldState.Present, rule.Hotspot.State, "a list is never Unparsed as a whole");
-            Assert.AreEqual(Hotspot.Http, rule.Hotspot.Value![0].Value);
+            Assert.AreEqual(Hotspot.Http, rule.Hotspot.Value![0].Value.Value);
             Assert.IsTrue(rule.Hotspot.Value![1].IsWord);
-            Assert.IsTrue(rule.Hotspot.Value![1].IsNegated);
-            Assert.AreEqual("newer-kind", rule.Hotspot.Value![1].RawValue);
+            Assert.AreEqual("!newer-kind", rule.Hotspot.Value![1].RawValue, "the word as the router printed it, '!' included");
         }
 
         [TestMethod]
@@ -171,8 +170,8 @@ namespace tik4net.unittests.Objects
             var rule = new Rule
             {
                 DstPort = TikNegatableField<TikValueList<TikPortRange>?>.Not(new TikValueList<TikPortRange>(443, 53)),
-                Hotspot = new TikValueList<Hotspot>(TikValue<Hotspot>.Not(Hotspot.FromClient), Hotspot.Http),
-                TcpFlags = TikNegatableField<TikValueList<Flag>?>.Not(new TikValueList<Flag>(TikValue<Flag>.Not(Flag.Syn), Flag.Ack)),
+                Hotspot = new TikValueList<TikNegatableValue<Hotspot>>(TikNegatableValue<Hotspot>.Not(Hotspot.FromClient), Hotspot.Http),
+                TcpFlags = TikValueList<TikNegatableValue<Flag>>.Not(TikNegatableValue<Flag>.Not(Flag.Syn), Flag.Ack),
             };
 
             connection.Save(rule);
@@ -193,23 +192,23 @@ namespace tik4net.unittests.Objects
             CollectionAssert.Contains(Sent(connection, "set"), "=hotspot=http,!newer-kind,auth");
         }
 
-        [TestMethod]
-        public void ANegatedItem_OnAFieldThatDoesNotNegateMembers_IsRefusedBeforeSending()
-        {
-            var connection = Router(("dst-port", "22"));
-            var rule = connection.LoadAll<Rule>().Single();
+        // A negated member on a field the router does not negate member by member does not compile:
+        // new TikValueList<TikPortRange>(TikNegatableValue<TikPortRange>.Not(80)) is not a TikValueList<TikPortRange>.
 
-            rule.DstPort = new TikValueList<TikPortRange>(TikValue<TikPortRange>.Not(80));
-            var thrown = Assert.ThrowsException<InvalidOperationException>(() => connection.Save(rule));
-            StringAssert.Contains(thrown.Message, "NegatableMembers");
-            Assert.AreEqual(0, Sent(connection, "set").Length);
+        [TestMethod]
+        public void AWholeListNot_IsTheFieldsNegation()
+        {
+            var connection = Router();
+            connection.Save(new Rule { DstPort = TikValueList<TikPortRange>.Not(443, 53) });
+
+            CollectionAssert.Contains(Sent(connection, "add"), "=dst-port=!443,53");
         }
 
         [TestMethod]
         public void ANegatedEmptyList_IsRefusedBeforeSending()
         {
             var connection = Router();
-            var rule = new Rule { DstPort = TikNegatableField<TikValueList<TikPortRange>?>.Not(TikValueList<TikPortRange>.Empty) };
+            var rule = new Rule { DstPort = TikValueList<TikPortRange>.Not(TikValueList<TikPortRange>.Empty) };
 
             Assert.ThrowsException<InvalidOperationException>(() => connection.Save(rule));
             Assert.AreEqual(0, Sent(connection, "add").Length);
@@ -236,7 +235,7 @@ namespace tik4net.unittests.Objects
             var connection = Router(("tcp-flags", "!,syn,!ack"));
             var rule = connection.LoadAll<Rule>().Single();
 
-            rule.TcpFlags = new TikValueList<Flag>(Flag.Rst);
+            rule.TcpFlags = new TikValueList<TikNegatableValue<Flag>>(Flag.Rst);
             var thrown = Assert.ThrowsException<InvalidOperationException>(() => connection.Save(rule));
 
             StringAssert.Contains(thrown.Message, "negated members");
@@ -249,7 +248,7 @@ namespace tik4net.unittests.Objects
             var connection = Router(("tcp-flags", "fin,ack,!syn"));
             var rule = connection.LoadAll<Rule>().Single();
 
-            rule.TcpFlags = new TikValueList<Flag>(TikValue<Flag>.Not(Flag.Rst));
+            rule.TcpFlags = new TikValueList<TikNegatableValue<Flag>>(TikNegatableValue<Flag>.Not(Flag.Rst));
             var thrown = Assert.ThrowsException<InvalidOperationException>(() => connection.Save(rule));
 
             StringAssert.Contains(thrown.Message, "plain members");
@@ -261,7 +260,7 @@ namespace tik4net.unittests.Objects
             var connection = Router(("tcp-flags", "fin,ack,!syn"));
             var rule = connection.LoadAll<Rule>().Single();
 
-            rule.TcpFlags = new TikValueList<Flag>(Flag.Rst, TikValue<Flag>.Not(Flag.Fin));
+            rule.TcpFlags = new TikValueList<TikNegatableValue<Flag>>(Flag.Rst, TikNegatableValue<Flag>.Not(Flag.Fin));
             connection.Save(rule);
 
             CollectionAssert.Contains(Sent(connection, "set"), "=tcp-flags=rst,!fin");
@@ -273,7 +272,7 @@ namespace tik4net.unittests.Objects
             var connection = Router();
             var rule = connection.LoadAll<Rule>().Single();
 
-            rule.TcpFlags = new TikValueList<Flag>(Flag.Syn);
+            rule.TcpFlags = new TikValueList<TikNegatableValue<Flag>>(Flag.Syn);
             connection.Save(rule);
 
             CollectionAssert.Contains(Sent(connection, "set"), "=tcp-flags=syn");
@@ -286,7 +285,7 @@ namespace tik4net.unittests.Objects
             connection.Capabilities |= TikConnectionCapability.StructuredWrites;
             var rule = connection.LoadAll<Rule>().Single();
 
-            rule.TcpFlags = new TikValueList<Flag>(Flag.Rst);
+            rule.TcpFlags = new TikValueList<TikNegatableValue<Flag>>(Flag.Rst);
             connection.Save(rule);
 
             CollectionAssert.Contains(Sent(connection, "set"), "=tcp-flags=rst");
@@ -296,7 +295,7 @@ namespace tik4net.unittests.Objects
         public void AnAddIsAlwaysExact()
         {
             var connection = Router();
-            connection.Save(new Rule { TcpFlags = new TikValueList<Flag>(Flag.Syn) });
+            connection.Save(new Rule { TcpFlags = new TikValueList<TikNegatableValue<Flag>>(Flag.Syn) });
 
             CollectionAssert.Contains(Sent(connection, "add"), "=tcp-flags=syn");
         }
@@ -309,8 +308,8 @@ namespace tik4net.unittests.Objects
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
             public string? Id { get; private set; }
 
-            [TikProperty("x", NegatableMembers = true)]
-            public TikField<string?> X { get; set; }
+            [TikProperty("x")]
+            public TikField<TikNegatableValue<string>?> X { get; set; }
         }
 
         [TikEntity("/bad2")]
@@ -324,8 +323,8 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void NegatableMembers_OnAScalar_IsRefused()
-            => AssertRefused<MembersOnAScalar>("NegatableMembers needs a TikField<TikValueList<T>?>");
+        public void ANegatableValue_OutsideAList_IsRefused()
+            => AssertRefused<MembersOnAScalar>("a TikNegatableValue<T> is a list member");
 
         [TikEntity("/bad3")]
         public class HalvesWithoutMembers
@@ -339,7 +338,7 @@ namespace tik4net.unittests.Objects
 
         [TestMethod]
         public void SetKeepsUnnamedHalf_WithoutNegatableMembers_IsRefused()
-            => AssertRefused<HalvesWithoutMembers>("declare NegatableMembers");
+            => AssertRefused<HalvesWithoutMembers>("declare its items TikNegatableValue<T>");
 
         [TestMethod]
         public void NullableItems_AreRefused()

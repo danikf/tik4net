@@ -54,7 +54,7 @@ namespace tik4net.Objects
         public override TikField<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             var core = TikFieldJson<T>.Read(ref reader, options);
-            if (core.Content.IsNegated)
+            if (core.Negated)
                 throw new JsonException("\"" + TikFieldJson<T>.NotProperty + "\" is a negation, and a TikField<" + typeof(T).Name
                     + "> does not take one; a negatable field is a TikNegatableField<T>.");
             return !core.Printed ? default : core.Content.IsWord ? TikField<T>.FromUnparsed(core.Content.RawValue!) : TikField<T>.FromPresent(core.Content.Value);
@@ -74,7 +74,7 @@ namespace tik4net.Objects
         {
             var core = TikFieldJson<T>.Read(ref reader, options);
             // A plain value goes through the assignment conversion, so a hand-written "!x" reads as the negation it spells.
-            return core.State == TikFieldState.Present && !core.Content.IsNegated ? core.Content.Value : new TikNegatableField<T>(core);
+            return core.State == TikFieldState.Present && !core.Negated ? core.Content.Value : new TikNegatableField<T>(core);
         }
 
         public override void Write(Utf8JsonWriter writer, TikNegatableField<T> value, JsonSerializerOptions options)
@@ -109,7 +109,7 @@ namespace tik4net.Objects
                     {
                         var inner = Read(ref reader, options);
                         negated = inner.State == TikFieldState.Present && inner.Content.Value != null
-                            ? new TikFieldCore<T>(inner.Content.AsNegated())
+                            ? new TikFieldCore<T>(inner.Content, negated: true)
                             : inner;
                     }
                     else
@@ -148,7 +148,7 @@ namespace tik4net.Objects
             {
                 writer.WriteStartObject();
                 writer.WritePropertyName(NotProperty);
-                Write(writer, new TikFieldCore<T>(value.Content.WithoutNegation()), options);
+                Write(writer, value.WithoutNegation(), options);
                 writer.WriteEndObject();
                 return;
             }

@@ -21,6 +21,9 @@ namespace tik4net.Objects
         private readonly string _propertyName;
         private readonly string _fieldName;
         private ITikTypeConverter? _converter;
+        // A TikNegatableValue<X> item: its member's converter, and the factory that adds the '!'.
+        private readonly TikWireConverter? _member;
+        private readonly Func<object?, bool, object>? _negatable;
 
         /// <param name="type">The value type (an enum, int, string, TikPortRange, TikNumberRange, …), not its nullable form.</param>
         /// <param name="nullable">Whether a <c>null</c> string reads as <c>null</c> rather than failing to parse.</param>
@@ -34,7 +37,17 @@ namespace tik4net.Objects
             _fieldName = fieldName;
             if (type.GetTypeInfo().IsEnum)
                 _enum = TikEnumMetadata.Get(type);
+            if (TikNegatableValue.IsNegatableValue(type))
+            {
+                Type memberType = type.GetTypeInfo().GenericTypeArguments[0];
+                _member = new TikWireConverter(memberType, false, propertyName, fieldName);
+                _negatable = (Func<object?, bool, object>)typeof(TikWireConverter).GetTypeInfo()
+                    .GetDeclaredMethod(nameof(MakeNegatable))!.MakeGenericMethod(memberType).Invoke(null, null)!;
+            }
         }
+
+        private static Func<object?, bool, object> MakeNegatable<TMember>()
+            => (value, negated) => TikNegatableValue<TMember>.Create((TMember)value!, negated);
 
         /// <summary>A presence flag: an empty value reads <c>true</c> (the router sends <c>fib=</c> when it is set).</summary>
         internal bool IsPresenceFlag { get; set; }
@@ -69,6 +82,17 @@ namespace tik4net.Objects
                 // error the parse calls below already turn into a FormatException via the catch - the `!`
                 // just types that pre-existing behaviour instead of changing it.
                 string value = strValue!;
+
+                // A member the router negates on its own: a leading '!' is its negation, the rest the member. A member the
+                // type cannot hold reports the whole text, '!' included, so it is kept and written back as it came.
+                if (_member != null)
+                {
+                    bool negated = value.Length > 1 && value[0] == '!';
+                    object? member = _member.ConvertFromString(negated ? value.Substring(1) : value, out string? unknownMember);
+                    if (unknownMember != null)
+                        unknownWord = value;
+                    return _negatable!(member, negated);
+                }
 
                 //convert to property real type
                 if (_type == typeof(string))
@@ -187,6 +211,12 @@ namespace tik4net.Objects
 
             if (propValue is string)
                 return (string)propValue;
+
+            if (_member != null)
+            {
+                var negatable = (ITikNegatableValue)propValue;
+                return (negatable.IsNegated ? "!" : "") + _member.ConvertToString(negatable.BoxedValue);
+            }
 
             //convert to string used in mikrotik
             if (_type == typeof(string))

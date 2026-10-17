@@ -24,7 +24,7 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/system/logging");
             var entity = new SystemLogging
             {
-                Topics = new TikValueList<string>("info"),
+                Topics = new TikValueList<TikNegatableValue<string>>("info"),
                 Action = "memory",
                 Prefix = "t4n-test",
             };

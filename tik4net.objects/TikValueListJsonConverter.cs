@@ -11,9 +11,9 @@ namespace tik4net.Objects
     /// System.Text.Json support for <see cref="TikValueList{T}"/>, applied to the type itself — no registration needed.
     /// </summary>
     /// <remarks>
-    /// A JSON array of items, each in the router's spelling (<c>"22"</c>, <c>"1000-2000"</c>, <c>"from-client"</c>); a negated
-    /// item is <c>{"$not":item}</c>, a word the type cannot hold <c>{"$raw":"word"}</c> — the conventions of
-    /// <see cref="TikField{T}"/>'s converter, so a word that happens to start with <c>!</c> stays a word.
+    /// A JSON array of items, each in the router's spelling (<c>"22"</c>, <c>"1000-2000"</c>, <c>"from-client"</c>, and on a
+    /// list of <see cref="TikNegatableValue{T}"/> a negated member with its <c>!</c>: <c>"!ack"</c>); a word the type cannot
+    /// hold is <c>{"$raw":"word"}</c>, the convention of <see cref="TikField{T}"/>'s converter.
     /// </remarks>
     public sealed class TikValueListJsonConverterFactory : JsonConverterFactory
     {
@@ -36,7 +36,6 @@ namespace tik4net.Objects
     internal sealed class TikValueListJsonConverter<T> : JsonConverter<TikValueList<T>>
     {
         private const string RawProperty = "$raw";
-        private const string NotProperty = "$not";
         private static readonly TikWireConverter Item = new TikWireConverter(typeof(T), false, "TikValueList<" + typeof(T).Name + ">", "json");
 
         public override TikValueList<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -54,7 +53,7 @@ namespace tik4net.Objects
             if (reader.TokenType == JsonTokenType.String)
                 return (T)Item.ConvertFromString(reader.GetString()!, out _)!;
             if (reader.TokenType != JsonTokenType.StartObject)
-                throw new JsonException("A TikValueList item is a string, {\"" + NotProperty + "\":item} or {\"" + RawProperty + "\":\"word\"}.");
+                throw new JsonException("A TikValueList item is a string in the router's spelling or {\"" + RawProperty + "\":\"word\"}.");
 
             TikValue<T>? result = null;
             while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
@@ -63,12 +62,10 @@ namespace tik4net.Objects
                 reader.Read();
                 if (name == RawProperty)
                     result = TikValue<T>.FromWire(reader.GetString()!);
-                else if (name == NotProperty)
-                    result = ReadItem(ref reader).AsNegated();
                 else
                     reader.Skip();
             }
-            return result ?? throw new JsonException("A TikValueList item object must carry \"" + RawProperty + "\" or \"" + NotProperty + "\".");
+            return result ?? throw new JsonException("A TikValueList item object must carry \"" + RawProperty + "\".");
         }
 
         public override void Write(Utf8JsonWriter writer, TikValueList<T> value, JsonSerializerOptions options)
@@ -81,14 +78,7 @@ namespace tik4net.Objects
 
         private static void WriteItem(Utf8JsonWriter writer, TikValue<T> item)
         {
-            if (item.IsNegated)
-            {
-                writer.WriteStartObject();
-                writer.WritePropertyName(NotProperty);
-                WriteItem(writer, item.WithoutNegation());
-                writer.WriteEndObject();
-            }
-            else if (item.IsWord)
+            if (item.IsWord)
             {
                 writer.WriteStartObject();
                 writer.WriteString(RawProperty, item.RawValue);

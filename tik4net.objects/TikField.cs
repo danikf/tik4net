@@ -175,13 +175,13 @@ namespace tik4net.Objects
         // ── Ordering: nullable semantics against a value; Absent < Unparsed < Present for sorting ──
 
         /// <summary>True when both have a value and <paramref name="a"/>'s is smaller (like a lifted nullable comparison).</summary>
-        public static bool operator <(TikField<T> a, T b) => a._core.Lifted(b, out int c) && c < 0;
+        public static bool operator <(TikField<T> a, T b) => a._core.Lifted(b, false, out int c) && c < 0;
         /// <summary>True when both have a value and <paramref name="a"/>'s is larger.</summary>
-        public static bool operator >(TikField<T> a, T b) => a._core.Lifted(b, out int c) && c > 0;
+        public static bool operator >(TikField<T> a, T b) => a._core.Lifted(b, false, out int c) && c > 0;
         /// <summary>True when both have a value and <paramref name="a"/>'s is not larger.</summary>
-        public static bool operator <=(TikField<T> a, T b) => a._core.Lifted(b, out int c) && c <= 0;
+        public static bool operator <=(TikField<T> a, T b) => a._core.Lifted(b, false, out int c) && c <= 0;
         /// <summary>True when both have a value and <paramref name="a"/>'s is not smaller.</summary>
-        public static bool operator >=(TikField<T> a, T b) => a._core.Lifted(b, out int c) && c >= 0;
+        public static bool operator >=(TikField<T> a, T b) => a._core.Lifted(b, false, out int c) && c >= 0;
 
         /// <summary>Sort order: Absent, then Unparsed (by word), then Present (by value, <c>null</c> first).</summary>
         public int CompareTo(TikField<T> other) => _core.CompareTo(other._core);

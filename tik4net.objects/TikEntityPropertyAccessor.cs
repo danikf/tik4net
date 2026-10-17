@@ -274,12 +274,12 @@ namespace tik4net.Objects
             WinboxLabel = string.IsNullOrWhiteSpace(propertyAttribute.WinboxLabel) ? null : propertyAttribute.WinboxLabel;
             ChangesOnItsOwn = propertyAttribute.ChangesOnItsOwn;
             IsSensitive = propertyAttribute.IsSensitive;
-            IsNegatableMembers = propertyAttribute.NegatableMembers;
             SetKeepsUnnamedHalf = propertyAttribute.SetKeepsUnnamedHalf;
-            if (SetKeepsUnnamedHalf && !IsNegatableMembers)
-                // The halves are the plain and the negated members; a field without the second has only one.
+            if (TikNegatableValue.IsNegatableValue(ValueType))
+                // A member's '!' belongs to a list item; a field negated as a whole is a TikNegatableField<T>.
                 throw new ArgumentException(string.Format(
-                    "{0}.{1}: SetKeepsUnnamedHalf describes a list whose members are negated one by one; declare NegatableMembers.",
+                    "{0}.{1}: a TikNegatableValue<T> is a list member; declare TikField<TikValueList<TikNegatableValue<T>>?>, or a "
+                    + "TikNegatableField<T> for a field negated as a whole.",
                     propertyInfo.DeclaringType?.Name, propertyInfo.Name), nameof(propertyInfo));
 
             if (IsWrapped && ValueType.GetTypeInfo().IsGenericType && ValueType.GetGenericTypeDefinition() == typeof(TikValueList<>))
@@ -290,24 +290,24 @@ namespace tik4net.Objects
                     throw new ArgumentException(string.Format(
                         "{0}.{1}: a list's items are never null; use TikValueList<{2}>, not TikValueList<{2}?>.",
                         propertyInfo.DeclaringType?.Name, propertyInfo.Name, Nullable.GetUnderlyingType(ItemType)!.Name), nameof(propertyInfo));
+                IsNegatableMembers = TikNegatableValue.IsNegatableValue(ItemType);
                 var itemWire = new TikWireConverter(ItemType, false, PropertyName, FieldName);
                 var codec = ((Func<string, object>, Func<object, string>))typeof(TikEntityPropertyAccessor).GetTypeInfo()
                     .GetDeclaredMethod(nameof(MakeListCodec))!.MakeGenericMethod(ItemType)
-                    .Invoke(null, new object[] { itemWire, IsNegatableMembers, PropertyName, FieldName })!;
+                    .Invoke(null, new object[] { itemWire })!;
                 _parseList = codec.Item1;
                 _formatList = codec.Item2;
             }
-            else if (IsNegatableMembers)
-                // Only a list has members to negate; anywhere else the flag would be silently meaningless.
+            if (SetKeepsUnnamedHalf && !IsNegatableMembers)
+                // The halves are the plain and the negated members; a field without the second has only one.
                 throw new ArgumentException(string.Format(
-                    "{0}.{1}: NegatableMembers needs a TikField<TikValueList<T>?> property, whose items carry their own '!'.",
+                    "{0}.{1}: SetKeepsUnnamedHalf describes a list whose members are negated one by one; declare its items TikNegatableValue<T>.",
                     propertyInfo.DeclaringType?.Name, propertyInfo.Name), nameof(propertyInfo));
         }
 
         /// <summary>
-        /// Whether the field is a list whose members RouterOS negates one by one
-        /// (<see cref="TikPropertyAttribute.NegatableMembers"/>): each item's <c>!</c> reads as its
-        /// <see cref="TikValue{T}.IsNegated"/>.
+        /// Whether the field is a list whose members RouterOS negates one by one — a list of
+        /// <see cref="TikNegatableValue{T}"/>: each item's <c>!</c> reads as its <see cref="TikNegatableValue{T}.IsNegated"/>.
         /// </summary>
         public bool IsNegatableMembers { get; private set; }
 
@@ -323,10 +323,9 @@ namespace tik4net.Objects
         private readonly Func<string, object>? _parseList;
         private readonly Func<object, string>? _formatList;
 
-        private static (Func<string, object>, Func<object, string>) MakeListCodec<TItem>(
-            TikWireConverter item, bool negatableMembers, string propertyName, string fieldName)
-            => (text => TikValueListWire.Parse<TItem>(text, negatableMembers, item),
-                list => TikValueListWire.Format((TikValueList<TItem>)list, negatableMembers, item, propertyName, fieldName));
+        private static (Func<string, object>, Func<object, string>) MakeListCodec<TItem>(TikWireConverter item)
+            => (text => TikValueListWire.Parse<TItem>(text, item),
+                list => TikValueListWire.Format((TikValueList<TItem>)list, item));
 
         /// <summary>
         /// Whether the field is a matcher RouterOS negates with a leading <c>!</c> — a <see cref="TikNegatableField{T}"/>

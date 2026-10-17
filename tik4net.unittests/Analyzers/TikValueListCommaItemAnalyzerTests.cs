@@ -27,8 +27,12 @@ namespace tik4net.Objects
     public readonly struct TikValue<T>
     {
         public static implicit operator TikValue<T>(T value) => default(TikValue<T>);
-        public static TikValue<T> Not(T value) => default(TikValue<T>);
         public static TikValue<T> FromWire(string word) => default(TikValue<T>);
+    }
+    public readonly struct TikNegatableValue<T>
+    {
+        public static implicit operator TikNegatableValue<T>(T value) => default(TikNegatableValue<T>);
+        public static TikNegatableValue<T> Not(T value) => default(TikNegatableValue<T>);
     }
     public sealed class TikValueList<T>
     {
@@ -37,6 +41,8 @@ namespace tik4net.Objects
         public static TikValueList<T> Parse(string text) => null;
         public TikValueList<T> With(params T[] items) => this;
         public TikValueList<T> With(params TikValue<T>[] items) => this;
+        public static object Not(params T[] items) => null;
+        public static object Not(params TikValue<T>[] items) => null;
     }
     public enum Flag { Syn, Ack }
 }
@@ -57,7 +63,9 @@ class Subject
         [DataRow("var x = new tik4net.Objects.TikValueList<string>(\"x\", \"a,b\");", "\"a,b\"", DisplayName = "the second item")]
         [DataRow("var x = new tik4net.Objects.TikValueList<string>(Both);", "Both", DisplayName = "a const")]
         [DataRow("var x = list.With(\"c,d\");", "\"c,d\"", DisplayName = "With")]
-        [DataRow("var x = new tik4net.Objects.TikValueList<string>(tik4net.Objects.TikValue<string>.Not(\"a,b\"));", "\"a,b\"", DisplayName = "inside Not")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<tik4net.Objects.TikNegatableValue<string>>(tik4net.Objects.TikNegatableValue<string>.Not(\"a,b\"));", "\"a,b\"", DisplayName = "inside Not")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<tik4net.Objects.TikNegatableValue<string>>(\"info,!debug\");", "\"info,!debug\"", DisplayName = "a negatable member")]
+        [DataRow("var x = tik4net.Objects.TikValueList<string>.Not(\"a,b\");", "\"a,b\"", DisplayName = "the whole-list Not")]
         [DataRow("var x = new tik4net.Objects.TikValueList<tik4net.Objects.Flag>(tik4net.Objects.TikValue<tik4net.Objects.Flag>.FromWire(\"syn,ack\"));", "\"syn,ack\"", DisplayName = "inside FromWire")]
         public void AConstantItemWithACommaIsReported(string statement, string item)
         {
@@ -92,16 +100,21 @@ class Subject
         [DataRow("var x = new tik4net.Objects.TikValueList<string>(\"a,b\");", "var x = new tik4net.Objects.TikValueList<string>(\"a\", \"b\");")]
         [DataRow("var x = new tik4net.Objects.TikValueList<string>(\"x\", \"1.1.1.1, 8.8.8.8\");", "var x = new tik4net.Objects.TikValueList<string>(\"x\", \"1.1.1.1\", \"8.8.8.8\");")]
         [DataRow("var x = list.With(\"c,d\");", "var x = list.With(\"c\", \"d\");")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<tik4net.Objects.TikNegatableValue<string>>(\"info,!debug\");",
+            "var x = new tik4net.Objects.TikValueList<tik4net.Objects.TikNegatableValue<string>>(\"info\", \"!debug\");",
+            DisplayName = "a member keeps its '!', which the item type reads as before")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<string>(\"a,!b\");", "var x = new tik4net.Objects.TikValueList<string>(\"a\", \"!b\");",
+            DisplayName = "on a plain list the '!' stays text, as before")]
         public void TheFixPassesOneArgumentPerItem(string statement, string expected)
         {
             Assert.AreEqual(Body(expected), ApplyFix(Body(statement)));
         }
 
         [DataTestMethod]
-        [DataRow("var x = new tik4net.Objects.TikValueList<string>(\"a,!b\");", DisplayName = "a negation is not a plain item")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<tik4net.Objects.TikNegatableValue<string>>(\"!,a\");", DisplayName = "a bare '!' is the whole list's")]
         [DataRow("var x = new tik4net.Objects.TikValueList<string>(\"a,,b\");", DisplayName = "an empty part")]
         [DataRow("var x = new tik4net.Objects.TikValueList<string>(Both);", DisplayName = "a const is not rewritten")]
-        [DataRow("var x = new tik4net.Objects.TikValueList<string>(tik4net.Objects.TikValue<string>.Not(\"a,b\"));", DisplayName = "inside Not")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<string>(tik4net.Objects.TikValue<string>.FromWire(\"a,b\"));", DisplayName = "inside FromWire")]
         public void NoFixIsOfferedWhereSplittingWouldGuess(string statement)
         {
             Assert.AreEqual(0, FixActions(Body(statement)).Count);

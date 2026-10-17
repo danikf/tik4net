@@ -180,8 +180,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// hotspot: Matches packets in a HotSpot scenario by the specified attribute.
         /// </summary>
-        [TikProperty("hotspot", WinboxLabel = "Hotspot", NegatableMembers = true)]
-        public TikField<TikValueList<FirewallHotspotMatch>?> Hotspot { get; set; }
+        [TikProperty("hotspot", WinboxLabel = "Hotspot")]
+        public TikField<TikValueList<TikNegatableValue<FirewallHotspotMatch>>?> Hotspot { get; set; }
 
         /// <summary>
         /// icmp-options: Matches ICMP type:code fields.
@@ -367,8 +367,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// tcp-flags: Matches specified TCP flags (ack, cwr, ece, fin, psh, rst, syn, urg).
         /// </summary>
-        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags", NegatableMembers = true, SetKeepsUnnamedHalf = true)]
-        public TikNegatableField<TikValueList<FirewallTcpFlag>?> TcpFlags { get; set; }
+        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags", SetKeepsUnnamedHalf = true)]
+        public TikNegatableField<TikValueList<TikNegatableValue<FirewallTcpFlag>>?> TcpFlags { get; set; }
 
         /// <summary>
         /// tcp-mss: Matches TCP MSS value of an IP packet.

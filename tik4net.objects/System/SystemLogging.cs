@@ -21,13 +21,12 @@ namespace tik4net.Objects.System
         public string? Id { get; private set; }
 
         /// <summary>
-        /// topics — comma-separated list of log topics to match, e.g. <c>info</c>, <c>error</c>,
-        /// <c>warning,critical</c>. Special value <c>!</c> (exclamation mark) negates a topic.
-        /// Kept as a plain string because MikroTik accepts composite values and topic names
-        /// can vary by RouterOS version.
+        /// topics — the log topics to match, e.g. <c>info</c>, <c>error</c>, <c>warning,critical</c>; a <c>!</c> in front
+        /// of a topic excludes it: <c>new TikValueList&lt;TikNegatableValue&lt;string&gt;&gt;("info", "!debug")</c>. The
+        /// topics are strings because their names vary by RouterOS version.
         /// </summary>
-        [TikProperty("topics", WinboxLabel = "Topics", NegatableMembers = true)]
-        public TikField<TikValueList<string>?> Topics { get; set; }
+        [TikProperty("topics", WinboxLabel = "Topics")]
+        public TikField<TikValueList<TikNegatableValue<string>>?> Topics { get; set; }
 
         /// <summary>
         /// action — name of the logging action (from /system/logging/action) that receives

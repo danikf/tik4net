@@ -518,9 +518,13 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
 8. **A field of several values is `TikField<TikValueList<T>?>`**, never a comma-joined string or a `[Flags]` enum
    (a `[Flags]` enum inside a `TikField` is refused at metadata build). `T` is the item: an enum, `string`,
    `TikPortRange` for ports, `TikNumberRange` for number ranges (`vlan-ids`). Each item is a `TikValue<T>` — a value
-   or the router's word, with its own `!`. Declare the `!`s the router takes: `NegatableMembers` for each member
-   (`hotspot`, `tcp-flags`, logging `topics`), `SetKeepsUnnamedHalf` where a text `set` replaces only the half it
-   names (`tcp-flags`), and a whole-list `!` by the property type (rule 10). The router's behaviour is in
+   or the router's word, which keeps whatever the router printed (`!newflag` included). The `!`s the router takes are
+   the property's type, never an attribute: a list whose members carry their own `!` (`hotspot`, `tcp-flags`, logging
+   `topics`) has `TikNegatableValue<T>` items — `TikValueList<TikNegatableValue<FirewallTcpFlag>>` — and a whole-list
+   `!` is a `TikNegatableField<…>` (rule 10). A plain list's `!` is part of an item, so `TikWireConverter` reads and
+   writes a member's `!` only for a `TikNegatableValue<T>`, and the whole-list spelling (`!,syn` against `!22`) follows
+   the item type too. `SetKeepsUnnamedHalf` marks a member-negated list on which a text `set` replaces only the half
+   it names (`tcp-flags`). The router's behaviour is in
    [Docs/findings-value-lists.md](Docs/findings-value-lists.md); the catalog's VALUES section
    (`EntityJgCatalogProbe`) lists every multi-value or negatable field with its UI type.
 9. **A menu or field not in every lab release carries the measured bound** — `MinRouterOs` / `MaxRouterOs` on
@@ -531,7 +535,8 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
     firewall filter/NAT/mangle/raw matchers, bridge filter and NAT, hotspot walled garden, proxy access. The `!` reads
     as `IsNegated`, and a `string?` assigned with a leading `!` is the negation (the router has no literal `!` there).
     Negatability is in the type rather than an attribute so that a negation assigned to any other field does not
-    compile; both types share `TikFieldCore<T>` and the internal `ITikField` the mapper, tracker and merge use.
+    compile; both types share `TikFieldCore<T>`, which holds the field's `!` beside its `TikValue<T>`, and the internal
+    `ITikField` the mapper, tracker and merge use. `TikValueList<T>.Not(…)` builds a negated list field.
 
 Most of these conventions are **enforced in CI**, not just documented — they run over every `[TikEntity]` on
 every push, so a new entity that breaks one fails the build rather than the first person to load that menu:

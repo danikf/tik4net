@@ -11,9 +11,9 @@ Compile-time checks for code that uses tik4net. They ship **inside** the `tik4ne
 
 | Id | Severity | What it reports | Fix |
 |---|---|---|---|
-| `TIK001` | Warning | A `TikField<T>`, `TikNegatableField<T>` or `TikValue<T>` compared with a plain value through `object`: `object.Equals("x", rule.Comment)`, `Assert.AreEqual(object, object)`, a plain value's `Equals(object)`. The two are different types there and never equal | compare `.Value` (code fix) |
+| `TIK001` | Warning | A `TikField<T>`, `TikNegatableField<T>`, `TikValue<T>` or `TikNegatableValue<T>` compared with a plain value through `object`: `object.Equals("x", rule.Comment)`, `Assert.AreEqual(object, object)`, a plain value's `Equals(object)`. The two are different types there and never equal | compare `.Value` (code fix) |
 | `TIK002` | Warning | A `TikField<T>`, `TikNegatableField<T>` or `TikValue<T>` handed to a null check that takes `object` — `Assert.IsNull(rule.Comment)`, `IsNotNull`, xUnit's `Null`/`NotNull`. The struct is boxed and never null: `IsNull` always fails, `IsNotNull` always passes | check `.Value` (code fix) |
-| `TIK003` | Warning | A string constant containing `,` handed to a `TikValueList<T>` as one item — `new TikValueList<string>("a,b")`, `list.With("c,d")`, or inside `TikValue<T>.Not` / `FromWire`. The router separates items with `,`, and the constructor refuses such an item with `ArgumentException` at run time | one argument per item (code fix, for a plain literal), or `TikValueList<T>.Parse` |
+| `TIK003` | Warning | A string constant containing `,` handed to a `TikValueList<T>` as one item — `new TikValueList<string>("a,b")`, `list.With("c,d")`, `TikValueList<T>.Not("a,b")`, or inside `TikNegatableValue<T>.Not` / `TikValue<T>.FromWire`. The router separates items with `,`, and the constructor refuses such an item with `ArgumentException` at run time | one argument per item (code fix, for a plain literal; a part keeps its `!`, which a `TikNegatableValue<string>` item reads as the negation), or `TikValueList<T>.Parse` |
 
 The Roslyn version is the compiler's contract, not a preference: an analyzer built against a newer
 Roslyn than the consumer's compiler is skipped with warning CS8032, an error under `-warnaserror`. 3.8

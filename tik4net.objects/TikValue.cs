@@ -7,22 +7,22 @@ using System.Globalization;
 namespace tik4net.Objects
 {
     /// <summary>
-    /// One value as the router spells it — a value of <typeparamref name="T"/>, or the router's own word when
-    /// <typeparamref name="T"/> cannot hold it — with its own <c>!</c> (<see cref="IsNegated"/>).
+    /// One list item as the router spells it — a value of <typeparamref name="T"/>, or the router's own word when
+    /// <typeparamref name="T"/> cannot hold it.
     /// </summary>
-    /// <typeparam name="T">The value's type: <see cref="TikPortRange"/>, an enum, <c>string</c>, … — the item type of the
-    /// <see cref="TikValueList{T}"/> that holds it.</typeparam>
+    /// <typeparam name="T">The item type: <see cref="TikPortRange"/>, an enum, <c>string</c>, a
+    /// <see cref="TikNegatableValue{T}"/>, … — the item type of the <see cref="TikValueList{T}"/> that holds it.</typeparam>
     /// <remarks>
     /// <para>
     /// A <see cref="TikValueList{T}"/> is a list of these: each item can be a word the item type does not know (a member
-    /// a newer RouterOS added) without the rest of the list losing its type, and on a field whose members the router
-    /// negates one by one (<c>tcp-flags=syn,!ack</c>, <c>hotspot</c>, logging <c>topics</c>) each item carries its own
-    /// <c>!</c>: <c>new TikValueList&lt;FirewallTcpFlag&gt;(FirewallTcpFlag.Syn, TikValue&lt;FirewallTcpFlag&gt;.Not(FirewallTcpFlag.Ack))</c>.
+    /// a newer RouterOS added) without the rest of the list losing its type. A word keeps whatever the router printed,
+    /// a member's <c>!</c> included (<c>!newflag</c>), and is written back as it came.
     /// </para>
     /// <para>
-    /// A field holds its value in a <see cref="TikField{T}"/> or a <see cref="TikNegatableField{T}"/>, not in a
-    /// <see cref="TikValue{T}"/>: a negated matcher is <c>TikNegatableField&lt;string?&gt;.Not("10.0.0.0/8")</c>, a
-    /// field's own word <c>TikField&lt;PfsGroup?&gt;.FromWire("ec2n155")</c>.
+    /// A <see cref="TikValue{T}"/> takes no <c>!</c>. A member the router negates on its own (<c>tcp-flags=syn,!ack</c>) is
+    /// a <see cref="TikNegatableValue{T}"/> item; a negated field is a <see cref="TikNegatableField{T}"/>. A field holds its
+    /// value in a <see cref="TikField{T}"/>, not in a <see cref="TikValue{T}"/>: a field's own word is
+    /// <c>TikField&lt;PfsGroup?&gt;.FromWire("ec2n155")</c>.
     /// </para>
     /// </remarks>
     [DebuggerDisplay("{DebuggerText,nq}")]
@@ -30,13 +30,11 @@ namespace tik4net.Objects
     {
         private readonly T _value;
         private readonly string? _word;
-        private readonly bool _negated;
 
-        private TikValue(T value, string? word, bool negated)
+        private TikValue(T value, string? word)
         {
             _value = value;
             _word = word;
-            _negated = negated;
         }
 
         /// <summary>
@@ -55,13 +53,6 @@ namespace tik4net.Objects
         /// <summary>The router's word when <see cref="IsWord"/>; otherwise <c>null</c>.</summary>
         public string? RawValue => _word;
 
-        /// <summary>
-        /// True when the item is negated — the router's <c>!</c> in front of it, which matches everything the item does
-        /// not. Only a list whose members the router negates one by one (<see cref="TikPropertyAttribute.NegatableMembers"/>)
-        /// reads or writes one.
-        /// </summary>
-        public bool IsNegated => _negated;
-
         /// <summary>True, with the value, unless this is the router's word.</summary>
         public bool TryGetValue(out T value)
         {
@@ -70,45 +61,30 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// A negated list item — the router's <c>!item</c>: <c>TikValue&lt;FirewallTcpFlag&gt;.Not(FirewallTcpFlag.Ack)</c>.
-        /// Saving it in a list whose members the router does not negate one by one (no
-        /// <see cref="TikPropertyAttribute.NegatableMembers"/>) throws. A negated field is
-        /// <see cref="TikNegatableField{T}.Not"/>.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>: there is nothing to negate.</exception>
-        public static TikValue<T> Not(T value)
-            => new TikValue<T>(value ?? throw new ArgumentNullException(nameof(value), "Only a value can be negated."), null, negated: true);
-
-        /// <summary>
         /// The router's own word, sent as written — for an item <typeparamref name="T"/> has no member for (an enum's word
         /// on another RouterOS version). It reads back the same way. A field's own word is
         /// <see cref="TikField{T}.FromWire"/>.
         /// </summary>
         public static TikValue<T> FromWire(string word)
-            => new TikValue<T>(default!, word ?? throw new ArgumentNullException(nameof(word)), negated: false);
-
-        /// <summary>This value with <see cref="IsNegated"/> cleared — the matcher it negates.</summary>
-        public TikValue<T> WithoutNegation() => new TikValue<T>(_value, _word, negated: false);
-
-        internal TikValue<T> AsNegated(bool negated = true) => new TikValue<T>(_value, _word, negated);
+            => new TikValue<T>(default!, word ?? throw new ArgumentNullException(nameof(word)));
 
         /// <summary>A value — <c>rule.Port = 8080</c> converts through here.</summary>
-        public static implicit operator TikValue<T>(T value) => new TikValue<T>(value, null, negated: false);
+        public static implicit operator TikValue<T>(T value) => new TikValue<T>(value, null);
 
-        /// <summary>True when <paramref name="a"/> is a value, not negated, and equal to <paramref name="b"/>.</summary>
+        /// <summary>True when <paramref name="a"/> is a value equal to <paramref name="b"/>.</summary>
         public static bool operator ==(TikValue<T> a, T b)
-            => a._word == null && !a._negated && EqualityComparer<T>.Default.Equals(a._value, b);
+            => a._word == null && EqualityComparer<T>.Default.Equals(a._value, b);
 
         /// <summary>The negation of <c>a == b</c>.</summary>
         public static bool operator !=(TikValue<T> a, T b) => !(a == b);
 
-        /// <summary>True when <paramref name="b"/> is a value, not negated, and equal to <paramref name="a"/>.</summary>
+        /// <summary>True when <paramref name="b"/> is a value equal to <paramref name="a"/>.</summary>
         public static bool operator ==(T a, TikValue<T> b) => b == a;
 
         /// <summary>The negation of <c>a == b</c>.</summary>
         public static bool operator !=(T a, TikValue<T> b) => !(b == a);
 
-        /// <summary>Same value or word, same negation.</summary>
+        /// <summary>Same value or word.</summary>
         public static bool operator ==(TikValue<T> a, TikValue<T> b) => a.Equals(b);
 
         /// <summary>The negation of <c>a == b</c>.</summary>
@@ -116,8 +92,7 @@ namespace tik4net.Objects
 
         /// <inheritdoc/>
         public bool Equals(TikValue<T> other)
-            => _negated == other._negated
-               && string.Equals(_word, other._word, StringComparison.Ordinal)
+            => string.Equals(_word, other._word, StringComparison.Ordinal)
                && (_word != null || EqualityComparer<T>.Default.Equals(_value, other._value));
 
         /// <inheritdoc/>
@@ -125,22 +100,14 @@ namespace tik4net.Objects
 
         /// <inheritdoc/>
         public override int GetHashCode()
-        {
-            unchecked
-            {
-                int hash = _negated ? 16 : 0;
-                hash = hash * 397 ^ (_word == null ? (_value == null ? 0 : EqualityComparer<T>.Default.GetHashCode(_value)) : _word.GetHashCode());
-                return hash;
-            }
-        }
+            => _word == null ? (_value == null ? 0 : EqualityComparer<T>.Default.GetHashCode(_value)) : _word.GetHashCode();
 
-        /// <summary>Sort order: words (by word) before values (by value, <c>null</c> first); a plain value before its negation.</summary>
+        /// <summary>Sort order: words (by word) before values (by value, <c>null</c> first).</summary>
         public int CompareTo(TikValue<T> other)
         {
             if ((_word == null) != (other._word == null))
                 return _word == null ? 1 : -1;
-            int byValue = _word != null ? string.CompareOrdinal(_word, other._word) : Comparer<T>.Default.Compare(_value, other._value);
-            return byValue != 0 ? byValue : _negated.CompareTo(other._negated);
+            return _word != null ? string.CompareOrdinal(_word, other._word) : Comparer<T>.Default.Compare(_value, other._value);
         }
 
         int IComparable.CompareTo(object? obj)
@@ -150,23 +117,23 @@ namespace tik4net.Objects
 
         /// <summary>
         /// The value spelled the way the router prints it — an enum as its word, a bool as <c>true</c>/<c>false</c>, a
-        /// number invariantly, the router's word as it came, a negated value with its <c>!</c>.
+        /// number invariantly, a negated member with its <c>!</c>, the router's word as it came.
         /// </summary>
-        public override string ToString() => (_negated ? TikWireText.Negation(_value) : "") + (_word ?? TikWireText.Format(_value));
+        public override string ToString() => _word ?? TikWireText.Format(_value);
 
         private string DebuggerText
-            => (_negated ? "!" : "") + (_word != null ? "word \"" + _word + "\"" : _value == null ? "null" : TikWireText.Format(_value));
+            => _word != null ? "word \"" + _word + "\"" : _value == null ? "null" : TikWireText.Format(_value);
     }
 
     /// <summary>How a value is spelled on the wire, for display — shared by <see cref="TikValue{T}"/> and the field types.</summary>
     internal static class TikWireText
     {
         /// <summary>
-        /// The whole-value <c>!</c> as the router spells it: on a list whose items carry their own <c>!</c>, a bare leading
-        /// element (<c>tcp-flags=!,syn,!ack</c>) — <c>!syn,!ack</c> would read as two negated members; else a <c>!</c> in
-        /// front of the value (<c>!10.0.0.0/8</c>, <c>dst-port=!22,8291</c>).
+        /// The whole-value <c>!</c> as the router spells it: on a list of <see cref="TikNegatableValue{T}"/> items, which
+        /// carry their own <c>!</c>, a bare leading element (<c>tcp-flags=!,syn,!ack</c>) — <c>!syn</c> would read as one
+        /// negated member; else a <c>!</c> in front of the value (<c>!10.0.0.0/8</c>, <c>dst-port=!22,8291</c>).
         /// </summary>
-        internal static string Negation<T>(T value) => value is ITikValueList list && list.HasNegatedItems ? "!," : "!";
+        internal static string Negation<T>(T value) => value is ITikValueList list && list.MembersNegatable ? "!," : "!";
 
         [UnconditionalSuppressMessage("Trimming", "IL2026",
             Justification = "An enum TikValue<T> holds a value only through the O/R mapper, which carries the same warning.")]

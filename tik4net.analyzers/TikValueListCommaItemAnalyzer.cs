@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
@@ -12,9 +13,10 @@ namespace tik4net.Analyzers
     /// <remarks>
     /// The router separates a list's items with <c>,</c>, so <c>new TikValueList&lt;string&gt;("a,b")</c> is not the
     /// two-item list it looks like: the constructor refuses it with an <c>ArgumentException</c> at run time. This reports
-    /// the constant case at compile time — an item argument of the constructor or of <c>With</c>, given directly or
-    /// through <c>TikValue&lt;T&gt;.Not</c> / <c>FromWire</c>. A string only known at run time is the constructor's to
-    /// refuse; text that holds several items goes through <c>TikValueList&lt;T&gt;.Parse</c>.
+    /// the constant case at compile time — an item argument of the constructor, of <c>With</c> or of the whole-list
+    /// <c>TikValueList&lt;T&gt;.Not</c>, given directly or through <c>TikNegatableValue&lt;T&gt;.Not</c> /
+    /// <c>TikValue&lt;T&gt;.FromWire</c>. A string only known at run time is the constructor's to refuse; text that holds
+    /// several items goes through <c>TikValueList&lt;T&gt;.Parse</c>.
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class TikValueListCommaItemAnalyzer : DiagnosticAnalyzer
@@ -51,31 +53,35 @@ namespace tik4net.Analyzers
             context.RegisterCompilationStartAction(start =>
             {
                 var list = start.Compilation.GetTypeByMetadataName(TikValueListMetadataName);
-                var item = start.Compilation.GetTypeByMetadataName(TikFieldObjectEqualityAnalyzer.TikValueMetadataName);
+                var items = new[] { TikFieldObjectEqualityAnalyzer.TikValueMetadataName, TikFieldObjectEqualityAnalyzer.TikNegatableValueMetadataName }
+                    .Select(start.Compilation.GetTypeByMetadataName)
+                    .Where(t => t != null)
+                    .Select(t => t!)
+                    .ToImmutableArray();
                 if (list == null)
                     return; // tik4net.objects is not referenced.
                 start.RegisterOperationAction(ctx =>
                 {
                     var creation = (IObjectCreationOperation)ctx.Operation;
                     if (SymbolEqualityComparer.Default.Equals(creation.Type?.OriginalDefinition, list))
-                        AnalyzeArguments(ctx, creation.Arguments, item);
+                        AnalyzeArguments(ctx, creation.Arguments, items);
                 }, OperationKind.ObjectCreation);
                 start.RegisterOperationAction(ctx =>
                 {
                     var invocation = (IInvocationOperation)ctx.Operation;
-                    if (invocation.TargetMethod.Name == "With"
+                    if ((invocation.TargetMethod.Name == "With" || invocation.TargetMethod.Name == "Not")
                         && SymbolEqualityComparer.Default.Equals(invocation.TargetMethod.ContainingType?.OriginalDefinition, list))
-                        AnalyzeArguments(ctx, invocation.Arguments, item);
+                        AnalyzeArguments(ctx, invocation.Arguments, items);
                 }, OperationKind.Invocation);
             });
         }
 
         private static void AnalyzeArguments(OperationAnalysisContext context, ImmutableArray<IArgumentOperation> arguments,
-            INamedTypeSymbol? item)
+            ImmutableArray<INamedTypeSymbol> items)
         {
             foreach (var argument in arguments)
                 foreach (var element in Elements(argument))
-                    Check(context, TikFieldObjectEqualityAnalyzer.Unconvert(element), item);
+                    Check(context, TikFieldObjectEqualityAnalyzer.Unconvert(element), items);
         }
 
         // A params argument is an implicit array: its items are the initializer's elements.
@@ -87,7 +93,7 @@ namespace tik4net.Analyzers
             return new[] { argument.Value };
         }
 
-        private static void Check(OperationAnalysisContext context, IOperation value, INamedTypeSymbol? item)
+        private static void Check(OperationAnalysisContext context, IOperation value, ImmutableArray<INamedTypeSymbol> items)
         {
             if (IsCommaConstant(value))
             {
@@ -99,10 +105,10 @@ namespace tik4net.Analyzers
                 return;
             }
 
-            // TikValue<T>.Not("a,b") / FromWire("a,b"): the item is the call's string argument.
-            if (item != null && value is IInvocationOperation call
+            // TikNegatableValue<T>.Not("a,b") / TikValue<T>.FromWire("a,b"): the item is the call's string argument.
+            if (value is IInvocationOperation call
                 && (call.TargetMethod.Name == "Not" || call.TargetMethod.Name == "FromWire")
-                && SymbolEqualityComparer.Default.Equals(call.TargetMethod.ContainingType?.OriginalDefinition, item))
+                && items.Any(i => SymbolEqualityComparer.Default.Equals(call.TargetMethod.ContainingType?.OriginalDefinition, i)))
             {
                 foreach (var argument in call.Arguments)
                 {
