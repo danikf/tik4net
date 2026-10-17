@@ -28,12 +28,13 @@ namespace tik4net.Rest
     /// transports do it (<see cref="PollingMonitorEngine"/>) — see <c>RunMonitorAsync</c> for what the
     /// router does and does not offer here. There is no <see cref="TikConnectionCapability.Streaming"/> and no
     /// Safe Mode: each call is an independent HTTP request, so RouterOS cannot bind safe mode's
-    /// rollback-on-disconnect to "the connection"; the inherited <c>SafeMode*</c> methods throw.</para>
+    /// rollback-on-disconnect to "the connection". REST has no Safe Mode members at all (<see cref="ITikRestConnection"/>
+    /// carries none), so calling one on a REST connection is a compile error.</para>
     /// <para>
     /// The Task-based command surface (<see cref="ITikCommandAsync"/>, reached through the <c>Execute*Async</c>
     /// extension methods) is <b>native</b> here rather than emulated: <c>HttpClient</c> is async to the bottom, so
     /// the async hooks are the real implementation and the synchronous ones block on them. That independence of
-    /// each request is also what makes REST the cleanest cancellation story of all twelve transports — a cancelled
+    /// each request is also what makes REST the cleanest cancellation story of all eleven transports — a cancelled
     /// token aborts the HTTP request, and since nothing is shared between requests, nothing that follows can be
     /// desynchronized by it. <b>But an aborted request does not stop the command on the router</b>: RouterOS runs
     /// it to the end and keeps its REST session busy meanwhile (measured in <c>Docs/findings-rest-api.md</c> §12.1),
@@ -90,8 +91,8 @@ namespace tik4net.Rest
     public sealed class RestConnection : TikCommandConnectionBase, ITikRestConnection,
         ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection
     {
-        // How often a listen diff / a continuous monitor re-reads the router. Same cadence as the CLI and
-        // native transports, which poll the same way for the same reason.
+        // How often a listen diff / a continuous monitor re-reads the router. Listen polls at the same 1000 ms
+        // as the CLI and native transports; a CLI monitor polls every 500 ms (CliConnectionBase), REST's every 1000 ms.
         private const int ListenPollIntervalMs = 1000;
         private const int MonitorPollIntervalMs = 1000;
 

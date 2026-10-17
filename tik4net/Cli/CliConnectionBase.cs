@@ -498,10 +498,11 @@ namespace tik4net.Cli
 
         /// <summary>
         /// When set before <c>Open</c>, the host/user/password given to <c>Open</c> are the AGENT's, and the
-        /// transport continues from the agent's shell into this target over RoMON SSH before the connection
-        /// counts as open. Set by <see cref="TikConnectionSetup.ApplyTo"/> through <see cref="ITikRomonConnection"/>,
-        /// which only the transports that relay implement (Telnet, SSH, MAC-Telnet); every other CLI transport refuses a
-        /// target at open — ignoring one would open the AGENT and run every command there.
+        /// transport continues from the agent into this target over RoMON before the connection counts as open.
+        /// Set by <see cref="TikConnectionSetup.ApplyTo"/> through <see cref="ITikRomonConnection"/>, which all five CLI
+        /// transports implement: Telnet, SSH and MAC-Telnet relay through <c>/tool romon ssh</c>, the two WinBox CLI
+        /// transports through the WinBox relay. A CLI transport that does not implement it refuses a target at open —
+        /// ignoring one would open the AGENT and run every command there.
         /// </summary>
         internal RomonRelayTarget? RomonTarget { get; set; }
 

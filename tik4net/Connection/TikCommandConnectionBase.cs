@@ -9,7 +9,7 @@ namespace tik4net.Connection
 {
     /// <summary>
     /// Transport-neutral base class for RouterOS command-style connections that expose CRUD through
-    /// the four <c>Run*</c> hooks (instead of the binary API sentence protocol). On top of the plumbing it shares
+    /// the three CRUD <c>Run*</c> hooks, plus the optional raw and async ones (instead of the binary API sentence protocol). On top of the plumbing it shares
     /// with the binary API (<see cref="TikConnectionBase"/>) it implements the command factory over
     /// <see cref="TikGenericCommand"/> and offers a <see cref="SemaphoreSlim"/> to serialise commands.
     ///

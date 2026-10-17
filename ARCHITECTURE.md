@@ -165,7 +165,15 @@ Transports differ in what they can physically do, so features are gated by
 `TikConnectionCapability` flags (`tik4net/TikConnectionCapability.cs`):
 
 `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
-`CancelInFlight`.
+`CancelInFlight`, and three that describe how a transport handles fields rather than what it can run:
+
+- `FieldLabels` — the transport resolves entity fields through their WinBox labels, which the O/R mapper sends
+  only to a connection declaring it (WinBox native only).
+- `MenuSchema` — the transport can describe a menu from the router's own grammar (`DescribeMenu`):
+  `/console/inspect` on the API, REST and the CLI family, Tab completion on the CLI family on RouterOS 6, the
+  `.jg` catalog on WinBox native.
+- `StructuredWrites` — the transport writes every part of a field's value in one structured write rather than as
+  the router's text `set`, which matters where a text `set` is not exact (`tcp-flags`).
 
 The per-transport matrix — which transport declares which flag, and what the emulated and
 protocol-native variants of a flag mean — is in [README.md](README.md#connection-types). Read it there
@@ -268,7 +276,7 @@ Every non-API transport derives from `TikCommandConnectionBase`. It implements t
 - `RunAdd(...)` → new `.id`
 - `RunNonQuery(...)`
 
-plus four optional `protected virtual` ones — `RunRawText` and the four `Run*Async` siblings — whose
+plus five optional `protected virtual` ones — `RunRawText` and the four `Run*Async` siblings — whose
 defaults throw rather than wrapping the synchronous hook in a `Task.Run` façade, so a transport that
 cannot genuinely await its I/O declines `AsyncCommands` instead of pretending to have it.
 
