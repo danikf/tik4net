@@ -1164,7 +1164,7 @@ namespace tik4net.WinboxNative
         }
 
 
-        // ── Streaming monitor (ExecuteWithCallback / LoadAsync) ─────────────────────────
+        // ── Capabilities and menu schema ─────────────────────────────────────────
 
         /// <summary>
         /// Native WinBox M2 supports streaming monitors (<c>.jg</c> <c>type:'query'</c> / poll-action windows),
@@ -1277,6 +1277,8 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         public bool SafeModeGet() => SafeModeHeld;
+
+        // ── Streaming monitor (ExecuteWithCallback / LoadWithCallback) ──────────
 
         /// <summary>
         /// Runs a streaming-monitor command (e.g. <c>/tool/torch</c>, <c>/tool/profile</c>) on a background
