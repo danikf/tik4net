@@ -146,6 +146,30 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // ── VT100 replies and the change-password prompt ─────────────────────
+
+        [TestMethod]
+        public void ACursorProbeWhileTheChangePasswordPromptIsUp_IsNotAnswered()
+        {
+            // A probe answer is keystrokes: typed into 'new password>' it would become password input.
+            var stream = new ScriptedByteStream(new[] { "\r\nnew password> ", "\x1b[6n" }, preloaded: true);
+
+            Session(stream).DrainAsync(50, CancellationToken.None).GetAwaiter().GetResult();
+
+            Assert.AreEqual(0, stream.Writes.Count, "a reply was typed into the password prompt");
+        }
+
+        [TestMethod]
+        public void ACursorProbeAtTheShellPrompt_IsAnswered()
+        {
+            var stream = new ScriptedByteStream(new[] { "\r\n" + Prompt, "\x1b[6n" }, preloaded: true);
+
+            Session(stream).DrainAsync(50, CancellationToken.None).GetAwaiter().GetResult();
+
+            Assert.AreEqual(1, stream.Writes.Count);
+            StringAssert.EndsWith(Encoding.ASCII.GetString(stream.Writes[0]), "R", "a cursor position report");
+        }
+
         // ── Ending the session ────────────────────────────────────────────────
 
         [TestMethod]

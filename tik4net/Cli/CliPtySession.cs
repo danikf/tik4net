@@ -34,6 +34,7 @@ namespace tik4net.Cli
         private readonly string _enter;
         private readonly CliInboundFilter? _inboundFilter;
         private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
+        private readonly CliPasswordPromptGuard _passwordPrompt = new CliPasswordPromptGuard();
 
         /// <param name="stream">The carrier.</param>
         /// <param name="encoding">The console's text encoding.</param>
@@ -351,8 +352,9 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Decodes a freshly-read chunk: strips carrier negotiation (answering it) when there is a filter, feeds the
-        /// remaining bytes to the VT100 state machine (answering cursor probes), and returns the decoded text to
-        /// append to the caller's accumulator.
+        /// remaining bytes to the VT100 state machine (answering cursor probes, except while a change-password prompt
+        /// is on screen: <see cref="CliPasswordPromptGuard"/>), and returns the decoded text to append to the caller's
+        /// accumulator.
         /// </summary>
         private async Task<string> ProcessChunkAsync(byte[] buffer, int count, CancellationToken ct)
         {
@@ -371,8 +373,11 @@ namespace tik4net.Cli
 
             string text = _encoding.GetString(chunk);
 
-            foreach (string vtReply in _vt100.Process(text))
-                await SendBytesAsync(_encoding.GetBytes(vtReply), ct).ConfigureAwait(false);
+            // The cursor model is fed every chunk; its replies are keystrokes, never sent into a change-password prompt.
+            var vtReplies = _vt100.Process(text);
+            if (_passwordPrompt.MayAnswer(text))
+                foreach (string vtReply in vtReplies)
+                    await SendBytesAsync(_encoding.GetBytes(vtReply), ct).ConfigureAwait(false);
 
             return text;
         }

@@ -752,7 +752,10 @@ machine for every PTY transport; each transport supplies only the raw byte I/O.
   `repeat new password>`), detected by the substring `password>` (`IsChangePasswordNag`, deliberately
   **not** matched by `IsPasswordPrompt`, which requires a trailing colon). Answered with **Ctrl-C
   (0x03)**, up to three rounds, then a loud failure. RouterOS repaints the nag, so a single read can
-  carry `new password>` twice.
+  carry `new password>` twice. No VT100 reply is sent while the nag is the line under the cursor
+  (`CliPasswordPromptGuard`, on Telnet, SSH, MAC-Telnet's login and WinBox CLI's login): a probe answer is
+  keystrokes and would become password input. The VT100 exchange finishes before RouterOS draws the nag on every
+  terminal and version measured, so the guard withholds nothing in a normal login.
 
 ### A refusal is detected positionally, not by wording
 

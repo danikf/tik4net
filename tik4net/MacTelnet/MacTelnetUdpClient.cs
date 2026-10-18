@@ -46,6 +46,9 @@ namespace tik4net.MacTelnet
         // and the API and REST honour that per command.
         private int ReceiveTimeoutMs => _receiveTimeout();
         private readonly int            _loginTimeoutMs;
+        // The login and its drain send no VT100 reply into a change-password prompt. The pump, which runs after the
+        // login, does not consult it.
+        private readonly CliPasswordPromptGuard _passwordPrompt = new CliPasswordPromptGuard();
 
         // ── Receive pump state ───────────────────────────────────────────────
         private readonly object                _rxLock   = new object();
@@ -622,9 +625,12 @@ namespace tik4net.MacTelnet
                     string text = _encoding.GetString(payload);
                     sb.Append(text);
 
-                    // See the pump loop for why the cursor-probe reply must not be delayed.
-                    foreach (string reply in _vt100.Process(text))
-                        SendTerminalBytes(_encoding.GetBytes(reply));
+                    // See the pump loop for why the cursor-probe reply must not be delayed. Never sent into a
+                    // change-password prompt (CliPasswordPromptGuard); the nag check below then skips the prompt.
+                    var replies = _vt100.Process(text);
+                    if (_passwordPrompt.MayAnswer(text))
+                        foreach (string reply in replies)
+                            SendTerminalBytes(_encoding.GetBytes(reply));
 
                     string stripped = VtStripper.StripAnsi(sb.ToString());
 
@@ -713,8 +719,10 @@ namespace tik4net.MacTelnet
                         if (fresh && !IsControlPacket(payload))
                         {
                             string text = _encoding.GetString(payload);
-                            foreach (string reply in _vt100.Process(text))
-                                SendTerminalBytes(_encoding.GetBytes(reply));
+                            var replies = _vt100.Process(text);
+                            if (_passwordPrompt.MayAnswer(text))
+                                foreach (string reply in replies)
+                                    SendTerminalBytes(_encoding.GetBytes(reply));
                         }
                     }
                     else if (type == PKT_PING) { SendPong(counter); }

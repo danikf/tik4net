@@ -54,6 +54,7 @@ namespace tik4net.WinboxCli
         // shared state advertises is what keeps RouterOS from wrapping long ':put' as-value records
         // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
         private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
+        private readonly CliPasswordPromptGuard _passwordPrompt = new CliPasswordPromptGuard();
         private readonly IWinboxM2Channel _session;
         private readonly Encoding _encoding;
         private readonly Func<int> _receiveTimeout;
@@ -417,20 +418,17 @@ namespace tik4net.WinboxCli
                 string stripped = VtStripper.StripAnsi(sb.ToString());
 
                 // The cursor model is fed unconditionally (Process is eager; only sending the replies is
-                // I/O), but the replies are held back while the change-password prompt is on screen. A VT100
-                // probe answer is a keystroke like any other, and typed into 'new password>' /
-                // 'repeat new password>' it becomes password input — two matching entries (the same cursor
-                // report answered twice, say) would silently change the router's admin password. While that
-                // prompt is up the ONLY byte we ever send is the Ctrl-C that skips it. Self-clearing: the
-                // buffer is reset with the nag, so replies resume as soon as the prompt is gone.
-                bool atPasswordPrompt = RouterOsCliLogin.IsChangePasswordNag(stripped);
+                // I/O), but the replies are held back while the change-password prompt is on screen
+                // (CliPasswordPromptGuard): while that prompt is up the ONLY byte we ever send is the Ctrl-C that
+                // skips it. Self-clearing: the buffer is reset with the nag, so the check below resumes as soon as
+                // the prompt is gone.
                 var replies = _vt100.Process(text);
-                if (!atPasswordPrompt)
+                if (_passwordPrompt.MayAnswer(text))
                 {
                     foreach (string reply in replies)
                         SendInput(_encoding.GetBytes(reply));
                 }
-                else
+                if (RouterOsCliLogin.IsChangePasswordNag(stripped))
                 {
                     if (nagRounds++ >= MaxNagRounds)
                         throw new TimeoutException(
@@ -654,8 +652,10 @@ namespace tik4net.WinboxCli
                     if (chunk != null)
                     {
                         string text = _encoding.GetString(chunk);
-                        foreach (string reply in _vt100.Process(text))
-                            SendInput(_encoding.GetBytes(reply));
+                        var replies = _vt100.Process(text);
+                        if (_passwordPrompt.MayAnswer(text))   // the login's drain, like MAC-Telnet's
+                            foreach (string reply in replies)
+                                SendInput(_encoding.GetBytes(reply));
                     }
                 }
                 catch (IOException) { break; }
