@@ -317,7 +317,9 @@ namespace tik4net.Ssh
         internal void Close(bool answerSafeModeQuestion = false)
         {
             // Ask RouterOS to exit cleanly before tearing down, releasing the interactive session
-            // on the router immediately. Errors are silently ignored (e.g. already closed).
+            // on the router immediately. Errors are silently ignored (e.g. already closed). The "\r\n" is two Enters
+            // over the PTY, unlike SendLineAsync's one: in Safe Mode the second answers "Quit? [y/N]" with the default
+            // N, so the session is not torn down inside that question, which wedged RouterOS 6.49.13's console (X20).
             try { _shell?.Write(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r\n")); _shell?.Flush(); } catch { /* ignore */ }
             try { _shell?.Dispose(); } catch { /* ignore */ }
             try { if (_ssh?.IsConnected == true) _ssh.Disconnect(); } catch { /* ignore */ }
@@ -522,8 +524,10 @@ namespace tik4net.Ssh
                 tik4net.Diagnostics.TikWireTrace.Emit("ssh.pty", tik4net.Diagnostics.TikWireDir.Note, note);
         }
 
+        // One Enter is a bare CR. Over a PTY a CR LF is two Enters (Telnet's NVT reads it as one), and the second, on
+        // an empty line, makes RouterOS 6.49 repaint the prompt in place after the real end of every response.
         private Task SendLineAsync(string text, CancellationToken ct)
-            => SendBytesAsync(_encoding.GetBytes(text + "\r\n"), ct);
+            => SendBytesAsync(_encoding.GetBytes(text + "\r"), ct);
 
         private Task SendBytesAsync(byte[] bytes, CancellationToken ct)
         {
