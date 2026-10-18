@@ -31,11 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The router-free unit tests pin the read loop's prompt rule (SshShellClient.EndsResponse). -->
-    <InternalsVisibleTo Include="tik4net.unittests" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
 
