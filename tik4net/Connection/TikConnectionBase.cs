@@ -182,8 +182,14 @@ namespace tik4net.Connection
         protected virtual void EnsureOpened()
         {
             if (!_isOpened)
-                throw new TikConnectionNotOpenException("Connection is not open.");
+                throw NotOpen();
         }
+
+        /// <summary>The transport's name in diagnostics such as "API connection is not open." — the type's name unless a transport names itself.</summary>
+        private protected virtual string TransportName => GetType().Name;
+
+        /// <summary>The one "connection is not open" exception every transport throws.</summary>
+        private protected TikConnectionNotOpenException NotOpen() => new TikConnectionNotOpenException(TransportName + " connection is not open.");
 
         // ── IDisposable ────────────────────────────────────────────────────────
 

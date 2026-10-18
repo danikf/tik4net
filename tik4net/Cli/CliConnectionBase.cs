@@ -492,7 +492,7 @@ namespace tik4net.Cli
         private Action? _close;
 
         /// <summary>Short transport name shown in the "connection is not open" diagnostic (e.g. "Telnet").</summary>
-        private protected abstract string TransportName { get; }
+        private protected abstract override string TransportName { get; }
 
         /// <summary>The timeouts a leaf hands its terminal client; the receive one is read per use.</summary>
         private protected CliClientTimeouts ClientTimeouts => new CliClientTimeouts(() => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
@@ -598,9 +598,6 @@ namespace tik4net.Cli
             _sendRaw = null;
             _close = null;
         }
-
-        private TikConnectionNotOpenException NotOpen()
-            => new TikConnectionNotOpenException($"{TransportName} connection is not open.");
 
         // ── Semaphore-serialised execution ────────────────────────────────────
 

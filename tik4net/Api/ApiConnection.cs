@@ -90,6 +90,8 @@ namespace tik4net.Api
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "API";
 
+        private protected override string TransportName => "API";
+
         // Open is not enough: a session that stopped answering is refused here too, rather than costing the
         // caller a full ReceiveTimeout to find out.
         protected override void EnsureOpened()

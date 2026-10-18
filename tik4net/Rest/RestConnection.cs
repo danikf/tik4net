@@ -113,6 +113,8 @@ namespace tik4net.Rest
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "REST";
 
+        private protected override string TransportName => "REST";
+
         /// <summary>
         /// CRUD, <see cref="TikConnectionCapability.Listen"/> (polled — see <c>RunMonitorAsync</c>),
         /// <see cref="TikConnectionCapability.AsyncCommands"/> and <see cref="TikConnectionCapability.CancelInFlight"/>.

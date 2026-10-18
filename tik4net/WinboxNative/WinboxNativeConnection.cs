@@ -1198,6 +1198,8 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "WBX";
 
+        private protected override string TransportName => "WinBox native";
+
         bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
         /// <summary>
@@ -2033,7 +2035,7 @@ namespace tik4net.WinboxNative
         private void EnsureNativeOpen()
         {
             if (!IsOpened || _ops == null)
-                throw new TikConnectionNotOpenException("WinBox native connection is not open.");
+                throw NotOpen();
         }
 
         private IReadOnlyDictionary<string, int> OverridesFor(string apiPath)

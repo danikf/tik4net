@@ -53,5 +53,7 @@ namespace tik4net.WinboxNativeMac
 
         /// <inheritdoc/>
         private protected override TikConnectionType RomonAgentConnectionType => TikConnectionType.WinboxNativeMac;
+
+        private protected override string TransportName => "WinBox native MAC";
     }
 }
