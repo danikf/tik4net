@@ -51,6 +51,13 @@ namespace tik4net.unittests.Connection
                         _release.TrySetResult(true);
                     });
 
+            /// <summary>As <see cref="OpenScripted"/>, with a streaming driver that blocks and fails the same way.</summary>
+            public void OpenScriptedStreaming()
+            {
+                OpenScripted();
+                RegisterStreamingDriver((cliText, onLine, ct) => SendAsync(cliText, ct));
+            }
+
             private async Task<string> SendAsync(string cliText, CancellationToken ct)
             {
                 _inFlight.TrySetResult(true);
@@ -67,6 +74,8 @@ namespace tik4net.unittests.Connection
                 CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
 
             public Task<string> RunAsync(string text) => ExecuteCliCommandAsync(text, CancellationToken.None);
+
+            public Task<string> RunStreaming(string text) => Task.Run(() => ExecuteCliCommandStreaming(text, line => { }));
         }
 
         /// <summary>
@@ -107,6 +116,23 @@ namespace tik4net.unittests.Connection
             StringAssert.Contains(ex.Message, "not known",
                 "the message must not claim the command did not run: the bytes may have reached the router "
                 + "before the socket went, and saying otherwise is how somebody duplicates a write");
+        }
+
+        // The streaming read (a ping's lines as they arrive) is held to the same bar as the plain one.
+        [TestMethod]
+        public async Task AStreamingCommandLosingItsSocketToCloseGetsATikConnectionException()
+        {
+            var conn = new BlockingCliConnection();
+            conn.OpenScriptedStreaming();
+
+            Task<string> running = conn.RunStreaming("/ping 192.0.2.1 count=3");
+            await conn.InFlight.ConfigureAwait(false);
+
+            conn.Close();
+
+            var ex = await Assert.ThrowsExceptionAsync<TikConnectionNotOpenException>(() => running);
+
+            Assert.IsInstanceOfType(ex.InnerException, typeof(ObjectDisposedException));
         }
     }
 }

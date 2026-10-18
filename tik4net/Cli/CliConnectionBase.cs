@@ -650,41 +650,7 @@ namespace tik4net.Cli
             {
                 ct.ThrowIfCancellationRequested();   // level 0 — nothing written yet
                 FireWriteRow(cliText);
-                string result;
-                try
-                {
-                    result = await terminal.SendCommandAndReadAsync(cliText, null, TransportToken(ct)).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    // Only reachable in AbandonAndClose: the read was cut mid-response, so whatever the router
-                    // is still writing would be read by the next command. Close instead of pretending we are
-                    // in step again.
-                    CloseAfterAbandonedRead();
-                    throw;
-                }
-                catch (TikConnectionReceiveTimeoutException)
-                {
-                    // The response never reached a prompt, so its tail is still on its way and the NEXT command
-                    // would read it as its own answer. Bring the session back in step (TryResynchronizeAsync),
-                    // and only when that fails stop pretending it is usable.
-                    if (!await TryResynchronizeAsync().ConfigureAwait(false))
-                        CloseAfterAbandonedRead();
-                    throw;
-                }
-                catch (TikRomonRelayEndedException)
-                {
-                    // The agent's session ended with the relay; there is nothing left to send commands into.
-                    CloseAfterAbandonedRead();
-                    throw;
-                }
-                catch (Exception ex) when (!IsOpened && !(ex is TikConnectionException))
-                {
-                    // Close() ran on another thread while this command held the socket. IsOpened is already
-                    // false because Close sets it first, which is what makes this distinguishable from a
-                    // transport that simply broke.
-                    throw ClosedWhileRunning(ex);
-                }
+                string result = await SendGuardedAsync(terminal, cliText, null, TransportToken(ct), ct).ConfigureAwait(false);
                 if (endLine != null)
                     result = CliOutputHelper.WithoutEndMarker(result, endLine);
                 FireReadRow(result);
@@ -696,6 +662,47 @@ namespace tik4net.Cli
             finally
             {
                 _cmdLock.Release();
+            }
+        }
+
+        // Sends one command through the terminal under the caller's command lock: the receive-timeout resync, the end of a
+        // RoMON relay, and a Close() on another thread are handled here once, for the plain and the streaming read alike.
+        private async Task<string> SendGuardedAsync(ICliTerminal terminal, string cliText, Action<string>? onLine,
+            CancellationToken transportToken, CancellationToken callerToken)
+        {
+            try
+            {
+                return await terminal.SendCommandAndReadAsync(cliText, onLine, transportToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (callerToken.IsCancellationRequested)
+            {
+                // Only reachable in AbandonAndClose: the read was cut mid-response, so whatever the router
+                // is still writing would be read by the next command. Close instead of pretending we are
+                // in step again.
+                CloseAfterAbandonedRead();
+                throw;
+            }
+            catch (TikConnectionReceiveTimeoutException)
+            {
+                // The response never reached a prompt, so its tail is still on its way and the NEXT command
+                // would read it as its own answer. Bring the session back in step (TryResynchronizeAsync),
+                // and only when that fails stop pretending it is usable.
+                if (!await TryResynchronizeAsync().ConfigureAwait(false))
+                    CloseAfterAbandonedRead();
+                throw;
+            }
+            catch (TikRomonRelayEndedException)
+            {
+                // The agent's session ended with the relay; there is nothing left to send commands into.
+                CloseAfterAbandonedRead();
+                throw;
+            }
+            catch (Exception ex) when (!IsOpened && !(ex is TikConnectionException))
+            {
+                // Close() ran on another thread while this command held the socket. IsOpened is already
+                // false because Close sets it first, which is what makes this distinguishable from a
+                // transport that simply broke.
+                throw ClosedWhileRunning(ex);
             }
         }
 
@@ -839,23 +846,8 @@ namespace tik4net.Cli
             try
             {
                 FireWriteRow(cliText);
-                string result;
-                try
-                {
-                    result = terminal.SendCommandAndReadAsync(cliText, onLine, CancellationToken.None).GetAwaiter().GetResult();
-                }
-                catch (TikConnectionReceiveTimeoutException)
-                {
-                    // See ExecuteCliCommandAsync — the tail is still coming.
-                    if (!TryResynchronizeAsync().GetAwaiter().GetResult())
-                        CloseAfterAbandonedRead();
-                    throw;
-                }
-                catch (TikRomonRelayEndedException)
-                {
-                    CloseAfterAbandonedRead();   // see ExecuteCliCommandAsync — the agent's session is gone
-                    throw;
-                }
+                string result = SendGuardedAsync(terminal, cliText, onLine, CancellationToken.None, CancellationToken.None)
+                    .GetAwaiter().GetResult();
                 FireReadRow(result);
                 return result;
             }
