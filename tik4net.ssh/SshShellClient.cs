@@ -16,7 +16,7 @@ namespace tik4net.Ssh
     /// ANSI stripping and echo/prompt removal. Unlike Telnet there is no IAC negotiation (SSH has none)
     /// and no <c>Login:</c>/<c>Password:</c> exchange (SSH.NET authenticates before the shell starts).
     /// </summary>
-    internal sealed class SshShellClient : IDisposable
+    internal sealed class SshShellClient : ICliTerminal
     {
         /// <summary>Silence required after a prompt before a command's response is considered complete (ms).</summary>
         private const int SettleMs = 120;
@@ -215,7 +215,7 @@ namespace tik4net.Ssh
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
         /// streaming driver registered by <see cref="SshConnection"/>.
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
+        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             // Discard anything still buffered from the PREVIOUS command — see the same guard in
             // TelnetClient for the mechanism (a read returning on the prompt inside the line editor's echo
@@ -239,7 +239,7 @@ namespace tik4net.Ssh
         /// Sends raw bytes (a control key such as Ctrl+X — no line terminator, no paging injection) and
         /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
         /// </summary>
-        internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
             // sentCommand: null → tolerant; a control key need not be answered with a prompt.
@@ -254,7 +254,7 @@ namespace tik4net.Ssh
         /// an inline completion is written in cursor moves, which the completion parser replays
         /// (<see cref="tik4net.Cli.CliCompletionParser"/>). Bounded by the receive deadline.
         /// </summary>
-        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
             return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
@@ -329,6 +329,14 @@ namespace tik4net.Ssh
         }
 
         public void Dispose() => Close();
+
+        // ── ICliTerminal ──────────────────────────────────────────────────────
+
+        public bool SupportsQuietRead => true;
+
+        public bool SupportsLineStreaming => true;
+
+        public void End(bool answerSafeModeQuestion) => Close(answerSafeModeQuestion);
 
         private static void SafeDispose(SshClient? client)
         {

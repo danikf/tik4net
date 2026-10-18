@@ -34,7 +34,7 @@ namespace tik4net.WinboxCli
     /// claim about.
     /// </para>
     /// </remarks>
-    internal sealed class WinboxCliClient : IDisposable
+    internal sealed class WinboxCliClient : ICliTerminal
     {
         // mepty (terminal PTY) handler + commands — see WinboxM2Protocol.Mepty.
         private const int SettleMs       = 150;
@@ -146,7 +146,7 @@ namespace tik4net.WinboxCli
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
         /// streaming driver registered by the WinBox-CLI connections.
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
+        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -169,7 +169,7 @@ namespace tik4net.WinboxCli
         /// Sends raw bytes (a control key such as Ctrl+X — no carriage return, no paging injection) and
         /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
         /// </summary>
-        internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             SendInput(raw);
@@ -184,7 +184,7 @@ namespace tik4net.WinboxCli
         /// window rather than a prompt match. Returned with its escape sequences: an inline completion is
         /// written in cursor moves, which the completion parser replays.
         /// </summary>
-        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             SendInput(raw);
@@ -215,6 +215,18 @@ namespace tik4net.WinboxCli
         private const int SafeModeQuitQuietMs = 500;
 
         public void Dispose() => _session.Dispose();
+
+        // ── ICliTerminal ──────────────────────────────────────────────────────
+
+        public bool SupportsQuietRead => true;
+
+        public bool SupportsLineStreaming => true;
+
+        public void End(bool answerSafeModeQuestion)
+        {
+            TryCloseSession(answerSafeModeQuestion);
+            Dispose();
+        }
 
         // ── mepty message building (handler [76]) ─────────────────────────────
 

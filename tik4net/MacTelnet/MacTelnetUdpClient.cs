@@ -20,7 +20,7 @@ namespace tik4net.MacTelnet
     /// close — see <see cref="StartPump"/> — and the command reads consume what the pump has accumulated
     /// rather than receiving from the socket themselves.
     /// </remarks>
-    internal sealed class MacTelnetUdpClient : MacLayerTransport
+    internal sealed class MacTelnetUdpClient : MacLayerTransport, ICliTerminal
     {
         private const ushort CLIENT_TYPE = 0x0015;
         private const int    SettleMs    = 150;
@@ -189,7 +189,7 @@ namespace tik4net.MacTelnet
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
         /// streaming driver registered by <see cref="MacTelnetConnection"/>.
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
+        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             // No Task.Run: the pump owns the socket, so nothing here blocks. The send is a UDP datagram plus
             // its retransmit bookkeeping (MacLayerTransport.Send) and the read only waits for the pump to
@@ -243,7 +243,7 @@ namespace tik4net.MacTelnet
         /// Sends raw bytes (a control key such as Ctrl+X — no carriage return, no paging injection) and
         /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
         /// </summary>
-        internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             ResetReadBuffer();
@@ -259,7 +259,7 @@ namespace tik4net.MacTelnet
         /// window rather than a prompt match. Returned with its escape sequences: an inline completion is
         /// written in cursor moves, which the completion parser replays.
         /// </summary>
-        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             ResetReadBuffer();
@@ -299,6 +299,18 @@ namespace tik4net.MacTelnet
                 try { Send(PKT_DATA, _encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r"))); } catch { /* ignore */ }
             }
             try { Send(PKT_END, null); } catch { /* ignore */ }
+        }
+
+        // ── ICliTerminal ──────────────────────────────────────────────────────
+
+        public bool SupportsQuietRead => true;
+
+        public bool SupportsLineStreaming => true;
+
+        public void End(bool answerSafeModeQuestion)
+        {
+            TryCloseSession(answerSafeModeQuestion);
+            Dispose();
         }
 
         private void WaitForRouterToEndSession(int maxMs)

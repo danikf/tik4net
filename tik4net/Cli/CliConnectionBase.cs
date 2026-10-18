@@ -463,8 +463,10 @@ namespace tik4net.Cli
                 }
             }
             // No inspect, and no Tab to ask with either: the router cannot be asked, which a caller treats as a
-            // refusal (the filter check then sends the read as before).
-            if (_sendRawSettle == null)
+            // refusal (the filter check then sends the read as before). A closed connection says that instead, as the
+            // Tab read would.
+            EnsureOpened();
+            if (_terminal?.SupportsQuietRead != true)
                 throw new TikNoSuchCommandException(CommandFor(p),
                     new TikTrapSentenceResult("no /console/inspect and no Tab completion on this connection"));
             return CliCompletionSchemaReader.Read(this, p);
@@ -480,16 +482,17 @@ namespace tik4net.Cli
 
         // ── Transport driver — subclass contract ──────────────────────────────
 
-        // The active transport client is held as three delegates wired up by the leaf transport in its Open
-        // (R6): send a CLI command, send raw bytes, and close. They centralise the open/close/guard boilerplate
-        // the five CLI transports share. The subclass surface is private protected, so a typed terminal object
-        // could appear in these signatures as well; the delegates stay until the terminal is shared (C1).
+        // The open console (ICliTerminal), set by a successful open and taken away by Close. The leaves still hand
+        // it over as delegates (OpenWith and the two Register*Driver calls), which DelegateCliTerminal wraps; every
+        // reader below goes through the terminal.
 
         /// <summary>Derived inside tik4net and its friend assemblies only; see the class remarks.</summary>
         private protected CliConnectionBase() { }
-        private Func<string, CancellationToken, Task<string>>? _send;
-        private Func<byte[], CancellationToken, Task<string>>? _sendRaw;
-        private Action? _close;
+        private ICliTerminal? _terminal;
+
+        // The adapter of the open in progress, which RegisterCompletionDriver / RegisterStreamingDriver complete. Not
+        // _terminal: SshConnection.OpenAsync registers before its open has finished (X1).
+        private DelegateCliTerminal? _opening;
 
         /// <summary>Short transport name shown in the "connection is not open" diagnostic (e.g. "Telnet").</summary>
         private protected abstract override string TransportName { get; }
@@ -547,6 +550,9 @@ namespace tik4net.Cli
             Func<byte[], CancellationToken, Task<string>> sendRaw, Action close,
             CancellationToken cancellationToken = default)
         {
+            // First, so the Register*Driver calls after this one find it even when the checks below refuse the open.
+            var terminal = new DelegateCliTerminal { Send = send, SendRaw = sendRaw, Close = close };
+            _opening = terminal;
             // Before the delegate, not inside it: the delegate opens the socket synchronously and only then
             // awaits the login, so an already-cancelled token would otherwise still cost a TCP connect.
             cancellationToken.ThrowIfCancellationRequested();
@@ -577,10 +583,29 @@ namespace tik4net.Cli
                 close();
                 throw new TikConnectionLoginException(ex);
             }
-            _send = send;
-            _sendRaw = sendRaw;
-            _close = close;
+            _terminal = terminal;
             SetOpened();
+        }
+
+        // Behind OpenWith / RegisterCompletionDriver / RegisterStreamingDriver until the leaves build an ICliTerminal.
+        private sealed class DelegateCliTerminal : ICliTerminal
+        {
+            internal Func<string, CancellationToken, Task<string>> Send = null!;
+            internal Func<byte[], CancellationToken, Task<string>> SendRaw = null!;
+            internal Action Close = null!;
+            internal Func<byte[], int, CancellationToken, Task<string>>? Settle;
+            internal Func<string, Action<string>, CancellationToken, Task<string>>? Streaming;
+
+            public Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
+                => onLine == null ? Send(command, ct)
+                 : (Streaming ?? throw new NotSupportedException("no streaming driver"))(command, onLine, ct);
+            public Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct) => SendRaw(raw, ct);
+            public Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+                => (Settle ?? throw new NotSupportedException("no settle driver"))(raw, quietMs, ct);
+            public bool SupportsQuietRead => Settle != null;
+            public bool SupportsLineStreaming => Streaming != null;
+            public void End(bool answerSafeModeQuestion) => Close();   // the leaf's close already reads SafeModeHeld
+            public void Dispose() => Close();
         }
 
         /// <inheritdoc/>
@@ -592,11 +617,9 @@ namespace tik4net.Cli
             // arrived while the connection still looked open, and it was reported as a transport error.
             SetClosed();
             _schemaStore?.Flush();   // never throws, bounded by the store's lock timeout
-            _close?.Invoke();   // reads SafeModeHeld: a session holding it answers the /quit question (see the clients)
+            // A session holding Safe Mode answers the /quit question (see the clients).
+            Interlocked.Exchange(ref _terminal, null)?.End(SafeModeHeld);
             SafeModeHeld = false;
-            _send = null;
-            _sendRaw = null;
-            _close = null;
         }
 
         // ── Semaphore-serialised execution ────────────────────────────────────
@@ -615,7 +638,7 @@ namespace tik4net.Cli
 
         private async Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct, bool mayMarkEnd)
         {
-            var send = _send ?? throw NotOpen();
+            var terminal = _terminal ?? throw NotOpen();
             string? endLine = null;
             if (mayMarkEnd && TakesEndMarker(cliText))
             {
@@ -630,7 +653,7 @@ namespace tik4net.Cli
                 string result;
                 try
                 {
-                    result = await send(cliText, TransportToken(ct)).ConfigureAwait(false);
+                    result = await terminal.SendCommandAndReadAsync(cliText, null, TransportToken(ct)).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -730,17 +753,17 @@ namespace tik4net.Cli
         /// </remarks>
         private async Task<bool> TryResynchronizeAsync()
         {
-            var settle = _sendRawSettle;
-            var send = _send;
-            if (settle == null || send == null)
+            if (!(_terminal is { SupportsQuietRead: true } terminal))
                 return false;
             try
             {
-                await settle(new byte[] { 0x03 }, ResyncQuietMs, CancellationToken.None).ConfigureAwait(false);
+                await terminal.SendRawAndReadUntilQuietAsync(new byte[] { 0x03 }, ResyncQuietMs, CancellationToken.None)
+                    .ConfigureAwait(false);
                 for (int attempt = 1; attempt <= ResyncFenceAttempts; attempt++)
                 {
                     string guid = Guid.NewGuid().ToString("N");
-                    string answer = await send(":put (\"t4n-sync-\" . \"" + guid + "\")", CancellationToken.None)
+                    string answer = await terminal.SendCommandAndReadAsync(":put (\"t4n-sync-\" . \"" + guid + "\")", null,
+                            CancellationToken.None)
                         .ConfigureAwait(false);
                     if (answer.IndexOf("t4n-sync-" + guid, StringComparison.Ordinal) >= 0)
                     {
@@ -786,7 +809,6 @@ namespace tik4net.Cli
         // running", returning the same cleaned output the normal driver returns when it finally ends. A leaf
         // transport registers this in Open if its read loop can hand out lines mid-command; a transport that
         // does not is not broken, it just falls back to the one-shot as-value monitor (see SnapshotOnce).
-        private Func<string, Action<string>, CancellationToken, Task<string>>? _sendStreaming;
 
         /// <summary>
         /// Registers the driver that enables incremental (line-at-a-time) reads on this transport. Leaf
@@ -799,10 +821,10 @@ namespace tik4net.Cli
         /// the capability on its behalf. Same pattern as <see cref="RegisterCompletionDriver"/>.
         /// </remarks>
         private protected void RegisterStreamingDriver(Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming)
-            => _sendStreaming = sendStreaming;
+            => (_opening ?? throw new InvalidOperationException("RegisterStreamingDriver runs after OpenWith.")).Streaming = sendStreaming;
 
         /// <summary>True when this transport can deliver a command's output line by line as it arrives.</summary>
-        private protected bool SupportsStreamingRead => _sendStreaming != null;
+        private protected bool SupportsStreamingRead => _terminal?.SupportsLineStreaming == true;
 
         /// <summary>
         /// Runs a command, reporting each completed output line to <paramref name="onLine"/> as the router
@@ -811,7 +833,7 @@ namespace tik4net.Cli
         /// </summary>
         private protected string ExecuteCliCommandStreaming(string cliText, Action<string> onLine)
         {
-            var send = _sendStreaming ?? throw new NotSupportedException(
+            var terminal = _terminal is { SupportsLineStreaming: true } t ? t : throw new NotSupportedException(
                 $"{TransportName} does not support incremental reads.");
             _cmdLock.Wait();
             try
@@ -820,7 +842,7 @@ namespace tik4net.Cli
                 string result;
                 try
                 {
-                    result = send(cliText, onLine, CancellationToken.None).GetAwaiter().GetResult();
+                    result = terminal.SendCommandAndReadAsync(cliText, onLine, CancellationToken.None).GetAwaiter().GetResult();
                 }
                 catch (TikConnectionReceiveTimeoutException)
                 {
@@ -858,7 +880,7 @@ namespace tik4net.Cli
         /// (e.g. <c>[Safe Mode taken]</c>). Drives the leaf transport's send-raw delegate registered in Open.
         /// </summary>
         private protected Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-            => (_sendRaw ?? throw NotOpen())(raw, ct);
+            => (_terminal ?? throw NotOpen()).SendRawAndReadAsync(raw, ct);
 
         private string SendControlKey(byte key)
         {
@@ -977,11 +999,11 @@ namespace tik4net.Cli
 
         // One settle read, timed: a reaction that came is the link's response time, the settle window after its last byte
         // taken off. A Tab left unanswered teaches nothing.
-        private string SettleTab(Func<byte[], int, CancellationToken, Task<string>> settle, byte[] bytes)
+        private string SettleTab(ICliTerminal terminal, byte[] bytes)
         {
             int quietMs = CompletionQuietMs;
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            string reaction = settle(bytes, quietMs, CancellationToken.None).GetAwaiter().GetResult();
+            string reaction = terminal.SendRawAndReadUntilQuietAsync(bytes, quietMs, CancellationToken.None).GetAwaiter().GetResult();
             if (reaction.Length > 0)
             {
                 double response = Math.Max(0, sw.ElapsedMilliseconds - quietMs);
@@ -996,8 +1018,8 @@ namespace tik4net.Cli
         // (which read up to the next shell prompt), the Tab listing does NOT end in a bare prompt — RouterOS
         // redraws the prompt with the echoed stem — so it must be read on a settle window, not a prompt match.
         // A leaf transport registers this in Open only if it supports completion (all CLI transports do);
-        // when it is null, CompleteCli reports the transport does not support completion (fail-closed).
-        private Func<byte[], int, CancellationToken, Task<string>>? _sendRawSettle;
+        // when there is none (ICliTerminal.SupportsQuietRead), CompleteCli reports the transport does not support
+        // completion (fail-closed).
 
         /// <summary>
         /// Registers the settle-read driver that enables <see cref="ITikCliCompletion"/> on this transport.
@@ -1005,7 +1027,7 @@ namespace tik4net.Cli
         /// <see cref="OpenWith"/>; transports that don't leave it unregistered (completion then throws).
         /// </summary>
         private protected void RegisterCompletionDriver(Func<byte[], int, CancellationToken, Task<string>> sendRawSettle)
-            => _sendRawSettle = sendRawSettle;
+            => (_opening ?? throw new InvalidOperationException("RegisterCompletionDriver runs after OpenWith.")).Settle = sendRawSettle;
 
         /// <inheritdoc/>
         public IReadOnlyList<string> CompleteCli(string partialInput)
@@ -1022,8 +1044,8 @@ namespace tik4net.Cli
         string ICliHelpKey.HelpCli(string partialInput)
         {
             EnsureOpened();
-            var settle = _sendRawSettle
-                ?? throw new NotSupportedException($"The {TransportName} transport cannot press the help key.");
+            var terminal = _terminal is { SupportsQuietRead: true } t ? t
+                : throw new NotSupportedException($"The {TransportName} transport cannot press the help key.");
             byte[] stem = Encoding.GetBytes(partialInput);
             byte[] keys = new byte[stem.Length + F1.Length];
             Array.Copy(stem, keys, stem.Length);
@@ -1033,7 +1055,7 @@ namespace tik4net.Cli
             try
             {
                 FireWriteRow("<help-key> " + partialInput);
-                string answer = VtStripper.StripAnsi(SettleTab(settle, keys));
+                string answer = VtStripper.StripAnsi(SettleTab(terminal, keys));
                 FireReadRow(answer);
                 try { SendRawAndReadAsync(new[] { CtrlC }, CancellationToken.None).GetAwaiter().GetResult(); }
                 catch { /* best-effort cleanup — the answer is already captured */ }
@@ -1073,8 +1095,8 @@ namespace tik4net.Cli
             EnsureOpened();
             if (partialInput == null)
                 throw new ArgumentNullException(nameof(partialInput));
-            var settle = _sendRawSettle
-                ?? throw new NotSupportedException(
+            var terminal = _terminal is { SupportsQuietRead: true } t ? t
+                : throw new NotSupportedException(
                     $"The {TransportName} transport does not support interactive Tab-completion. "
                     + "Use the Telnet transport for CompleteCli / the mikrotik_cli_complete MCP tool.");
 
@@ -1087,7 +1109,7 @@ namespace tik4net.Cli
             try
             {
                 FireWriteRow("<tab-complete> " + partialInput);
-                string reaction = SettleTab(settle, tab);
+                string reaction = SettleTab(terminal, tab);
                 FireReadRow(VtStripper.StripAnsi(reaction));
 
                 // RouterOS 6 lists only on a SECOND Tab when the typed stem already is the candidates' common
@@ -1096,7 +1118,7 @@ namespace tik4net.Cli
                 if (CliCompletionParser.Clean(reaction, partialInput).Length == 0)
                 {
                     FireWriteRow("<tab-complete> <second tab>");
-                    string again = SettleTab(settle, new[] { Tab });
+                    string again = SettleTab(terminal, new[] { Tab });
                     FireReadRow(VtStripper.StripAnsi(again));
                     if (CliCompletionParser.Clean(again, partialInput).Length > 0)
                         reaction = again;
@@ -1107,7 +1129,7 @@ namespace tik4net.Cli
                 if (listed.Count > 0)
                 {
                     FireWriteRow("<tab-complete> <more>");
-                    string next = SettleTab(settle, new[] { Tab });
+                    string next = SettleTab(terminal, new[] { Tab });
                     FireReadRow(VtStripper.StripAnsi(next));
                     var extra = CliCompletionParser.Tokens(next, partialInput);
                     if (extra.Count > 0 && !extra.All(listed.Contains))

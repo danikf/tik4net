@@ -14,7 +14,7 @@ namespace tik4net.Telnet
     /// Handles: IAC option negotiation, login prompt detection, command execution,
     /// ANSI stripping, echo/prompt removal, and paging prevention.
     /// </summary>
-    internal sealed class TelnetClient : IDisposable
+    internal sealed class TelnetClient : ICliTerminal
     {
         /// <summary>Silence required after a prompt before a command's response is considered complete (ms).</summary>
         private const int SettleMs = 120;
@@ -134,7 +134,7 @@ namespace tik4net.Telnet
         /// streaming driver registered by <see cref="TelnetConnection"/>. The streamed lines are the
         /// raw ANSI-stripped ones (echo and prompt included); the return value is cleaned as usual.
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
+        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             // Discard anything still buffered from the PREVIOUS command before issuing this one.
             // RouterOS's line editor repaints the echo as "<prompt> <command>", and the read that returns on
@@ -167,7 +167,7 @@ namespace tik4net.Telnet
         /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode
         /// toggling, where RouterOS reacts to the control key rather than a typed command.
         /// </summary>
-        internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
             // sentCommand: null → tolerant. A control key is not a command and RouterOS does not always
@@ -184,7 +184,7 @@ namespace tik4net.Telnet
         /// an inline completion is written in cursor moves, which the completion parser replays
         /// (<see cref="tik4net.Cli.CliCompletionParser"/>). Bounded by the receive deadline.
         /// </summary>
-        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
             return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
@@ -287,6 +287,14 @@ namespace tik4net.Telnet
         }
 
         public void Dispose() => Close();
+
+        // ── ICliTerminal ──────────────────────────────────────────────────────
+
+        public bool SupportsQuietRead => true;
+
+        public bool SupportsLineStreaming => true;
+
+        public void End(bool answerSafeModeQuestion) => Close(answerSafeModeQuestion);
 
         // ── Private helpers ───────────────────────────────────────────────────
 
