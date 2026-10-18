@@ -60,17 +60,7 @@ namespace tik4net.WinboxCliMac
 
         TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
-        /// <summary>
-        /// Whether a command may be re-issued on a fresh session after the router stopped acknowledging the
-        /// old one. Safe Mode is the one case where it must not be: dropping the session is what rolls Safe
-        /// Mode's changes back, so silently opening a new one would hide exactly the event the caller asked
-        /// to be protected by — and the new session would not hold Safe Mode either. There the caller gets
-        /// <see cref="TikConnectionSessionClosedException"/> instead. Mirrors
-        /// <c>MacTelnetConnection.ReconnectAllowed</c>, which faces the same carrier.
-        /// </summary>
-        private bool ReconnectAllowed => !SafeModeHeld;
-
-        // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
+        // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -78,22 +68,7 @@ namespace tik4net.WinboxCliMac
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-        {
-            // BuildTransport is inside the retry, not outside it: a refused handshake leaves the client
-            // and its channel unusable, so a retry needs new ones (see Winbox.RouterLoginRetry).
-            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
-            tik4net.Winbox.RouterLoginRetry.Run(() =>
-            {
-                var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
-                OpenWith(login, send, sendRaw, close);
-                sendRawSettle = settle;
-                sendStreaming = streaming;
-            });
-            // Run() either assigns both delegates above or throws, so they are always set here.
-            RegisterCompletionDriver(sendRawSettle!);
-            RegisterStreamingDriver(sendStreaming!);
-        }
+            => OpenTerminal(() => Attempt(host, port, user, password), retryRefusedLogin: true);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, string user, string password,
@@ -101,105 +76,26 @@ namespace tik4net.WinboxCliMac
             => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password,
+        public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
+            => OpenTerminalAsync(() => Attempt(host, port, user, password), retryRefusedLogin: true, cancellationToken);
+
+        // One open attempt: a console that rebuilds its session when the router stops acknowledging the old one. A
+        // refused handshake leaves the client and its channel unusable, so each attempt builds new ones
+        // (Winbox.RouterLoginRetry).
+        private CliTerminalOpen Attempt(string host, int port, string user, string password)
         {
-            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
-            await tik4net.Winbox.RouterLoginRetry.RunAsync(async () =>
-            {
-                // Inside the retry loop on purpose: a cancelled attempt must end the whole open rather than
-                // be retried as if the router had refused. OpenWithAsync rethrows OperationCanceledException
-                // unwrapped, and RouterLoginRetry only retries a refusal, so cancelling stops here.
-                cancellationToken.ThrowIfCancellationRequested();
-                var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
-                await OpenWithAsync(login, send, sendRaw, close, cancellationToken).ConfigureAwait(false);
-                sendRawSettle = settle;
-                sendStreaming = streaming;
-            }).ConfigureAwait(false);
-            // RunAsync() either assigns both delegates above or throws, so they are always set here.
-            RegisterCompletionDriver(sendRawSettle!);
-            RegisterStreamingDriver(sendStreaming!);
+            var terminal = new ReconnectingCliTerminal(Session(host, port, user, password),
+                () => Session(host, port, user, password), () => SessionRebuildAllowed, "wbxclimac.session");
+            return new CliTerminalOpen(terminal, terminal.Login);
         }
 
-        // Build the WinBox-CLI client over the MAC-layer M2 channel and the delegates that drive it.
-        private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
-            Func<string, Action<string>?, CancellationToken, Task<string>>, Action)
-            BuildTransport(string host, int port, string user, string password)
-        {
-            // The client is held in a variable rather than captured once, because a session the router has
-            // dropped cannot be revived — reconnecting means a whole new client, socket and EC-SRP5 login,
-            // and every delegate below must then be talking to the new one.
-            // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of
-            // scope here), but null is its documented meaning: discover the router via MNDP.
-            // Through a RoMON agent the MAC-layer session goes to the agent and the relay channel routes it on to the
-            // target, whose password opens the terminal there. A reopen builds a new relay, and a new link, with it.
-            var target = RomonTarget;
-            WinboxRomonChannel? relay = null;
-            IWinboxM2Channel NewChannel()
-            {
-                var carrier = new WinboxMacM2Session(RouterMac!);
-                relay = target == null ? null : new WinboxRomonChannel(carrier, target);
-                return relay ?? (IWinboxM2Channel)carrier;
-            }
-            var client = new WinboxCliClient(NewChannel(), Encoding, ClientTimeouts);
-            Func<CancellationToken, Task> login = async ct =>
-            {
-                await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
-                if (relay != null)
-                    RomonEntered(TikConnectionType.WinboxCliMac, host, user, relay.AgentRomonId!, TikRomonRelay.Winbox);
-            };
-            Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
-
-            // The re-login goes through RouterLoginRetry for the same reason the initial one does: RouterOS
-            // refuses roughly 1 % of WinBox logins that use correct credentials (P2.41), and a recovery path
-            // that inherits that failure rate is worse than no recovery path at all.
-            Func<CancellationToken, Task> reopen = async ct =>
-            {
-                // Marked in the trace because the retry is otherwise invisible: it turns a failure into a
-                // slow success, and the question P2.55 has to answer — how often does the router drop a
-                // session, and always in the same places? — cannot be read off the test results any more.
-                if (tik4net.Diagnostics.TikWireTrace.Enabled)
-                    tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
-                        "SESSION DROPPED BY ROUTER — reopening");
-
-                try { client.Dispose(); } catch { /* the old session is gone anyway */ }
-                await RouterLoginRetry.RunAsync(async () =>
-                {
-                    // See the comment on the first WinboxMacM2Session construction above.
-                    client = new WinboxCliClient(NewChannel(), Encoding, ClientTimeouts);
-                    await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
-                }).ConfigureAwait(false);
-            };
-
-            // A retry re-runs the command from the start, so it is only safe while NOTHING has been handed to
-            // the caller yet. Once a row has been emitted, re-running would deliver the same rows twice — a
-            // silently wrong stream — so the close is reported instead. Same rule as MacTelnetConnection.
-            Func<string, Action<string>?, CancellationToken, Task<string>> send = async (cmd, onLine, ct) =>
-            {
-                bool anyLineDelivered = false;
-                Action<string>? track = onLine == null ? null : new Action<string>(line => { anyLineDelivered = true; onLine(line); });
-                try
-                {
-                    return await client.SendCommandAndReadAsync(cmd, track, ct).ConfigureAwait(false);
-                }
-                catch (TikConnectionSessionClosedException) when (ReconnectAllowed && !anyLineDelivered)
-                {
-                    await reopen(ct).ConfigureAwait(false);
-                    return await client.SendCommandAndReadAsync(cmd, track, ct).ConfigureAwait(false);
-                }
-            };
-
-            // Raw sends are control keys (Safe Mode, Tab completion). They are not retried: a control key is a
-            // keystroke against a specific terminal state, and replaying it on a fresh session would be
-            // sending it to a console that never saw what came before.
-            return (login,
-                (cmd, ct) => send(cmd, null, ct),
-                (raw, ct) => client.SendRawAndReadAsync(raw, ct),
-                (raw, quietMs, ct) => client.SendRawAndReadUntilQuietAsync(raw, quietMs, ct),
-                send,
-                close);
-        }
+        // One WinBox CLI session over the MAC-layer M2 channel, and its login; through a RoMON agent a rebuilt session
+        // builds a new relay, and a new link, with it. WinboxMacM2Session's routerMac parameter isn't annotated nullable
+        // (it lives in Winbox/), but null is its documented meaning: discover the router via MNDP.
+        private CliTerminalOpen Session(string host, int port, string user, string password)
+            => WinboxCliSession.Open(() => new WinboxMacM2Session(RouterMac!), RomonTarget, Encoding, ClientTimeouts,
+                host, port, user, password,
+                agentRomonId => RomonEntered(TikConnectionType.WinboxCliMac, host, user, agentRomonId, TikRomonRelay.Winbox));
     }
 }

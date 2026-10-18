@@ -81,19 +81,8 @@ namespace tik4net.WinboxCli
         // One open attempt: the WinBox-CLI client (mepty terminal over the TCP M2 channel) and its login. A refused
         // handshake leaves the client and its channel unusable, so each attempt builds new ones (Winbox.RouterLoginRetry).
         private CliTerminalOpen Attempt(string host, int port, string user, string password)
-        {
-            // Through a RoMON agent the session goes to the agent and the relay channel routes it on to the target,
-            // whose password opens the terminal there.
-            var target = RomonTarget;
-            var carrier = new tik4net.Winbox.WinboxM2Session();
-            var relay = target == null ? null : new tik4net.Winbox.WinboxRomonChannel(carrier, target);
-            var client = new WinboxCliClient(relay ?? (tik4net.Winbox.IWinboxM2Channel)carrier, Encoding, ClientTimeouts);
-            return new CliTerminalOpen(client, async ct =>
-            {
-                await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
-                if (relay != null)
-                    RomonEntered(TikConnectionType.WinboxCli, host, user, relay.AgentRomonId!, TikRomonRelay.Winbox);
-            });
-        }
+            => WinboxCliSession.Open(() => new tik4net.Winbox.WinboxM2Session(), RomonTarget, Encoding, ClientTimeouts,
+                host, port, user, password,
+                agentRomonId => RomonEntered(TikConnectionType.WinboxCli, host, user, agentRomonId, TikRomonRelay.Winbox));
     }
 }

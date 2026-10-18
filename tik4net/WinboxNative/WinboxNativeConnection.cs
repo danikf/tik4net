@@ -576,7 +576,7 @@ namespace tik4net.WinboxNative
                     return TikProplist.Apply(descriptor, rows);
                 }
             }
-            catch (TikConnectionSessionClosedException) when (ReconnectAllowed)
+            catch (TikConnectionSessionClosedException) when (SessionRebuildAllowed)
             {
                 // G1. The router dropped an idle session and said nothing; the carrier established that it
                 // never took our bytes, so nothing ran and re-running is not a second execution. Only reads
@@ -588,14 +588,6 @@ namespace tik4net.WinboxNative
                     return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
             }
         }
-
-        /// <summary>
-        /// Whether a dropped session may be rebuilt underneath the caller. Safe Mode is the one case where it
-        /// must not be: dropping the session is precisely what rolls Safe Mode's changes back, so opening a
-        /// new one would hide the event the caller asked to be protected by — and the new session would not
-        /// hold Safe Mode either. Mirrors <c>MacTelnetConnection.ReconnectAllowed</c>.
-        /// </summary>
-        private bool ReconnectAllowed => !SafeModeHeld;
 
         /// <summary>
         /// Rebuilds the M2 channel after the router dropped the session (G1), unless another caller has

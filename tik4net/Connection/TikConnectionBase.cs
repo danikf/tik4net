@@ -153,6 +153,15 @@ namespace tik4net.Connection
         protected bool SafeModeHeld { get; set; }
 
         /// <summary>
+        /// Whether a session the router dropped may be rebuilt underneath the caller (the MAC-layer terminals, WinBox
+        /// native). Safe Mode is the one case where it must not be: dropping the session is what rolls Safe Mode's
+        /// changes back, so silently opening a new one would hide exactly the event the caller asked to be protected
+        /// by, and the new session would not hold Safe Mode either. The caller gets
+        /// <see cref="TikConnectionSessionClosedException"/> instead.
+        /// </summary>
+        private protected bool SessionRebuildAllowed => !SafeModeHeld;
+
+        /// <summary>
         /// Backs <see cref="ITikMenuSchemaConnection.ValidateWrites"/> on every transport that implements it.
         /// </summary>
         internal bool ValidateWrites { get; set; }

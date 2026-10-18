@@ -76,16 +76,7 @@ namespace tik4net.MacTelnet
         // The agent as a message names it: a MAC-layer agent may have been given by MAC alone.
         private string AgentName(string host) => !string.IsNullOrEmpty(host) ? host : RouterMac ?? "(unnamed)";
 
-        /// <summary>
-        /// Whether a command may be re-issued on a fresh session after RouterOS logged the idle console
-        /// out. Safe Mode is the one case where it must not be: the whole point of Safe Mode is that
-        /// dropping the session rolls the changes back, so silently opening a new one would hide exactly
-        /// the event the caller asked to be protected by — and the new session would not hold Safe Mode
-        /// either. There the caller gets <see cref="TikConnectionSessionClosedException"/> instead.
-        /// </summary>
-        private bool ReconnectAllowed => !SafeModeHeld;
-
-        // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
+        // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -93,23 +84,7 @@ namespace tik4net.MacTelnet
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-        {
-            // BuildTransport is inside the retry, not outside it: a refused login ends with the router
-            // tearing the session down, so a retry needs a new client and a new session key — see
-            // Winbox.RouterLoginRetry for why a login refusal is retried at all.
-            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
-            Winbox.RouterLoginRetry.Run(() =>
-            {
-                var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
-                OpenWith(login, send, sendRaw, close);
-                sendRawSettle = settle;
-                sendStreaming = streaming;
-            });
-            // Run() either assigns both delegates above or throws, so they are always set here.
-            RegisterCompletionDriver(sendRawSettle!);
-            RegisterStreamingDriver(sendStreaming!);
-        }
+            => OpenTerminal(() => Attempt(host, user, password), retryRefusedLogin: true);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, string user, string password,
@@ -117,121 +92,40 @@ namespace tik4net.MacTelnet
             => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password,
+        public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
+            => OpenTerminalAsync(() => Attempt(host, user, password), retryRefusedLogin: true, cancellationToken);
+
+        // One open attempt: a console that rebuilds its session when RouterOS logs the idle console out. A refused login
+        // ends with the router tearing the session down, so each attempt needs a new client and session key (see
+        // Winbox.RouterLoginRetry for why a refusal is retried at all). The port is not used: MAC-Telnet always uses UDP
+        // 20561, and the router is addressed by MAC, discovered via MNDP or RouterMac.
+        private CliTerminalOpen Attempt(string host, string user, string password)
         {
-            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
-            await Winbox.RouterLoginRetry.RunAsync(async () =>
-            {
-                // Inside the retry loop on purpose: a cancelled attempt must end the whole open rather than
-                // be retried as if the router had refused. OpenWithAsync rethrows OperationCanceledException
-                // unwrapped, and RouterLoginRetry only retries a refusal, so cancelling stops here.
-                cancellationToken.ThrowIfCancellationRequested();
-                var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
-                await OpenWithAsync(login, send, sendRaw, close, cancellationToken).ConfigureAwait(false);
-                sendRawSettle = settle;
-                sendStreaming = streaming;
-            }).ConfigureAwait(false);
-            // RunAsync() either assigns both delegates above or throws, so they are always set here.
-            RegisterCompletionDriver(sendRawSettle!);
-            RegisterStreamingDriver(sendStreaming!);
+            var terminal = new ReconnectingCliTerminal(Session(host, user, password), () => Session(host, user, password),
+                () => SessionRebuildAllowed, "mactelnet.session", Vetted);
+            return new CliTerminalOpen(terminal, terminal.Login);
         }
 
-        // Build the MAC-Telnet client and the delegates that drive it. The port parameter is ignored —
-        // MAC-Telnet always uses UDP 20561; login is by router MAC, discovered via MNDP or RouterMac.
-        private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
-            Func<string, Action<string>, CancellationToken, Task<string>>, Action)
-            BuildTransport(string host, int port, string user, string password)
+        // One MAC-Telnet session: a new client, and its login. Through a RoMON agent host/user/password are the agent's
+        // and the session continues into the target; a rebuilt session goes through here too, because it is the agent's
+        // until it has been relayed again, and a command sent before that would run on the agent.
+        private CliTerminalOpen Session(string host, string user, string password)
         {
-            // The client is held in a variable rather than captured once, because a session that RouterOS
-            // has logged out cannot be revived — reconnecting means a whole new client, socket and
-            // EC-SRP5 login, and every delegate below must then be talking to the new one.
             var client = new MacTelnetUdpClient(Encoding, ClientTimeouts, RouterMac);
+            return new CliTerminalOpen(client, ct => LoginOrRelayAsync(TikConnectionType.MacTelnet, host, AgentName(host),
+                user, c => client.LoginAsync(host, user, password, c), client.EnterRomonAsync, ct));
+        }
 
-            // Through a RoMON agent: host/user/password are the agent's, and the session continues into the
-            // target. The reconnect below goes through here too — a fresh session is the agent's until it has
-            // been relayed again, and a command sent before that would run on the agent. Each call reads the
-            // client variable, so a reconnect logs the new client in.
-            Func<CancellationToken, Task> login = ct => LoginOrRelayAsync(TikConnectionType.MacTelnet, host, AgentName(host),
-                user, c => client.LoginAsync(host, user, password, c), (target, c) => client.EnterRomonAsync(target, c), ct);
-            Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
-
-            // The re-login goes through RouterLoginRetry for the same reason the initial one does: RouterOS
-            // refuses roughly 1 % of EC-SRP5 logins that use correct credentials, and a recovery path that
-            // inherits that failure rate is worse than no recovery path at all.
-            Func<CancellationToken, Task> reopen = async ct =>
-            {
-                // Marked in the trace because the rebuild is otherwise invisible: it turns a dropped session
-                // into a slow success.
-                if (tik4net.Diagnostics.TikWireTrace.Enabled)
-                    tik4net.Diagnostics.TikWireTrace.Emit("mactelnet.session", tik4net.Diagnostics.TikWireDir.Note,
-                        "SESSION DROPPED BY ROUTER — reopening");
-
-                // As the open: a refused login ends with the router tearing the session down, so each attempt
-                // needs a new client. Disposing at the top of the attempt closes the dropped session on the
-                // first one and a refused one on the next.
-                await Winbox.RouterLoginRetry.RunAsync(async () =>
-                {
-                    try { client.Dispose(); } catch { /* the old session is gone anyway */ }
-                    client = new MacTelnetUdpClient(Encoding, ClientTimeouts, RouterMac);
-                    await login(ct).ConfigureAwait(false);
-                }).ConfigureAwait(false);
-            };
-
-            Func<string, CancellationToken, Task<string>> send = async (cmd, ct) =>
-            {
-                try
-                {
-                    return Vetted(cmd, await client.SendCommandAndReadAsync(cmd, ct).ConfigureAwait(false));
-                }
-                catch (TikConnectionSessionClosedException) when (ReconnectAllowed)
-                {
-                    await reopen(ct).ConfigureAwait(false);
-                    return Vetted(cmd, await client.SendCommandAndReadAsync(cmd, ct).ConfigureAwait(false));
-                }
-            };
-
-            // The datagram-loss check belongs here rather than in the client, because only this layer knows
-            // whether THIS command was a counted read. Every print — a window or a whole table — carries the
-            // router's own count of its records and is checked against it exactly, so the heuristic, which
-            // condemns complete answers now and then, stands down for them. It still vets everything else.
-            string Vetted(string cmd, string response)
-            {
-                if (!IsCountedReadInFlight)
-                    client.ThrowIfResponseLostDatagrams(cmd, response);
-                return response;
-            }
-
-            // Streaming send (incremental monitor reads, P2.50). Same reconnect-on-logout treatment as
-            // `send`, with one restriction: a retry re-runs the command from the start, so it is only safe
-            // while NOTHING has been handed to the caller yet. Once a row has been emitted, re-running would
-            // deliver the same sequence numbers twice — a silently wrong stream — so the close is reported
-            // instead. A monitor that dies mid-stream is an error the caller must see.
-            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = async (cmd, onLine, ct) =>
-            {
-                bool anyLineDelivered = false;
-                Action<string> track = line => { anyLineDelivered = true; onLine?.Invoke(line); };
-                try
-                {
-                    return await client.SendCommandAndReadAsync(cmd, track, ct).ConfigureAwait(false);
-                }
-                catch (TikConnectionSessionClosedException) when (ReconnectAllowed && !anyLineDelivered)
-                {
-                    await reopen(ct).ConfigureAwait(false);
-                    return await client.SendCommandAndReadAsync(cmd, track, ct).ConfigureAwait(false);
-                }
-            };
-
-            // Raw sends are control keys (Safe Mode, Tab completion). They are not retried: a control key
-            // is a keystroke against a specific terminal state, and replaying it on a fresh session would
-            // be sending it to a console that never saw what came before.
-            return (login, send,
-                (raw, ct) => client.SendRawAndReadAsync(raw, ct),
-                (raw, quietMs, ct) => client.SendRawAndReadUntilQuietAsync(raw, quietMs, ct),
-                sendStreaming,
-                close);
+        // The datagram-loss check belongs here rather than in the client, because only this layer knows whether THIS
+        // command was a counted read. Every print — a window or a whole table — carries the router's own count of its
+        // records and is checked against it exactly, so the heuristic, which condemns complete answers now and then,
+        // stands down for them. It still vets everything else. A streamed read is not vetted.
+        private string Vetted(ICliTerminal session, string command, string answer)
+        {
+            if (!IsCountedReadInFlight)
+                ((MacTelnetUdpClient)session).ThrowIfResponseLostDatagrams(command, answer);
+            return answer;
         }
     }
 }
