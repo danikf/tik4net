@@ -287,7 +287,10 @@ wiki's *Writing your own transport* page walks through one. `TikCommandDescripto
 are public because they are the hooks' whole vocabulary, and `TransportExtensionPointTests` pins all of
 that accessibility, since the failure mode of losing it is a confusing compiler error for whoever tries
 next. `TikCommandConnectionBase` is the extension point; `CliConnectionBase` is not one — its constructor and
-subclass members are `private protected`, so it is derived only inside tik4net and its friend assemblies.
+subclass members are `private protected`, so it is derived only inside tik4net and its friend assemblies. A CLI
+leaf builds, per open attempt, a `CliTerminalOpen`: a fresh `ICliTerminal` (one of the four terminal clients, or
+the MAC-layer leaves' `ReconnectingCliTerminal` around one, which rebuilds a dropped session) and the login that
+makes it usable, and opens through `OpenTerminal`, which keeps the terminal until `Close`.
 
 `ConnectionFactory.RegisterConnectionFactory` is **not** how a new transport plugs in, though it reads that
 way. It is keyed by `TikConnectionType`, a closed enum whose every value but `Ssh` is built into

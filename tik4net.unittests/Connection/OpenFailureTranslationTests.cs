@@ -13,7 +13,7 @@ namespace tik4net.unittests.Connection
 {
     /// <summary>
     /// What a failed open lets out as itself and what it reports as a failed login, for the CLI transports
-    /// (<c>CliConnectionBase.OpenWith</c>) and WinBox native (its carrier's <c>Open</c>); and that the half-open
+    /// (<c>CliConnectionBase.OpenTerminal</c>) and WinBox native (its carrier's <c>Open</c>); and that the half-open
     /// client is closed either way.
     /// </summary>
     [TestClass]

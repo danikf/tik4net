@@ -21,11 +21,12 @@ namespace tik4net.Cli
     /// The class is derived only inside tik4net and its friend assemblies (<c>tik4net.ssh</c>, the tests): its
     /// constructor and its subclass members are <c>private protected</c>. A transport written elsewhere derives
     /// from <see cref="TikCommandConnectionBase"/>. Each CLI transport implements the <c>Open</c> overloads by
-    /// building its terminal client and calling <c>OpenWith</c> / <c>OpenWithAsync</c> with delegates bound to it,
-    /// and names itself through <c>TransportName</c> (shown in the "not open" diagnostic).
+    /// building, per open attempt, a terminal (<c>ICliTerminal</c>: one of the four terminal clients, or a
+    /// <c>ReconnectingCliTerminal</c> around one) with its login, and calling <c>OpenTerminal</c> /
+    /// <c>OpenTerminalAsync</c>; it names itself through <c>TransportName</c> (shown in the "not open" diagnostic).
     /// <see cref="TikConnectionBase.Close"/> and the not-open guards are provided by this base (R6).
     ///
-    /// The text returned by the send delegate must already have ANSI escape sequences stripped
+    /// The text a terminal returns for a command must already have ANSI escape sequences stripped
     /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
     /// core layer only sees data lines.
     /// </summary>
@@ -482,17 +483,13 @@ namespace tik4net.Cli
 
         // ── Transport driver — subclass contract ──────────────────────────────
 
-        // The open console (ICliTerminal), set by a successful open and taken away by Close. The leaves still hand
-        // it over as delegates (OpenWith and the two Register*Driver calls), which DelegateCliTerminal wraps; every
-        // reader below goes through the terminal.
+        // The open console (ICliTerminal), set by a successful open and taken away by Close; every reader below goes
+        // through it. A leaf builds a new terminal and its login per open attempt (CliTerminalOpen) and opens through
+        // OpenTerminal.
 
         /// <summary>Derived inside tik4net and its friend assemblies only; see the class remarks.</summary>
         private protected CliConnectionBase() { }
         private ICliTerminal? _terminal;
-
-        // The adapter of the open in progress, which RegisterCompletionDriver / RegisterStreamingDriver complete. Not
-        // _terminal: SshConnection.OpenAsync registers before its open has finished (X1).
-        private DelegateCliTerminal? _opening;
 
         /// <summary>Short transport name shown in the "connection is not open" diagnostic (e.g. "Telnet").</summary>
         private protected abstract override string TransportName { get; }
@@ -626,48 +623,6 @@ namespace tik4net.Cli
             }
             _terminal = open.Terminal;
             SetOpened();
-        }
-
-        /// <summary>
-        /// The open of a leaf that hands over delegates: <see cref="OpenTerminal"/> over a
-        /// <see cref="DelegateCliTerminal"/> wrapping them.
-        /// </summary>
-        private protected void OpenWith(Func<CancellationToken, Task> login,
-            Func<string, CancellationToken, Task<string>> send,
-            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close)
-            => OpenWithAsync(login, send, sendRaw, close).GetAwaiter().GetResult();
-
-        /// <summary>Async counterpart of <see cref="OpenWith"/>.</summary>
-        private protected Task OpenWithAsync(Func<CancellationToken, Task> login,
-            Func<string, CancellationToken, Task<string>> send,
-            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close,
-            CancellationToken cancellationToken = default)
-        {
-            // First, so the Register*Driver calls after this one find it even when the open is refused.
-            var terminal = new DelegateCliTerminal { Send = send, SendRaw = sendRaw, Close = close };
-            _opening = terminal;
-            return OpenOnceAsync(() => new CliTerminalOpen(terminal, login), cancellationToken);
-        }
-
-        // Behind OpenWith / RegisterCompletionDriver / RegisterStreamingDriver until the leaves build an ICliTerminal.
-        private sealed class DelegateCliTerminal : ICliTerminal
-        {
-            internal Func<string, CancellationToken, Task<string>> Send = null!;
-            internal Func<byte[], CancellationToken, Task<string>> SendRaw = null!;
-            internal Action Close = null!;
-            internal Func<byte[], int, CancellationToken, Task<string>>? Settle;
-            internal Func<string, Action<string>, CancellationToken, Task<string>>? Streaming;
-
-            public Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
-                => onLine == null ? Send(command, ct)
-                 : (Streaming ?? throw new NotSupportedException("no streaming driver"))(command, onLine, ct);
-            public Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct) => SendRaw(raw, ct);
-            public Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
-                => (Settle ?? throw new NotSupportedException("no settle driver"))(raw, quietMs, ct);
-            public bool SupportsQuietRead => Settle != null;
-            public bool SupportsLineStreaming => Streaming != null;
-            public void End(bool answerSafeModeQuestion) => Close();   // the leaf's close already reads SafeModeHeld
-            public void Dispose() => Close();
         }
 
         /// <inheritdoc/>
@@ -874,23 +829,10 @@ namespace tik4net.Cli
 
         // ── Streaming read (incremental line delivery) ─────────────────────────
 
-        // Optional driver: "send a command and report each COMPLETED output line while the command is still
-        // running", returning the same cleaned output the normal driver returns when it finally ends. A leaf
-        // transport registers this in Open if its read loop can hand out lines mid-command; a transport that
-        // does not is not broken, it just falls back to the one-shot as-value monitor (see SnapshotOnce).
-
-        /// <summary>
-        /// Registers the driver that enables incremental (line-at-a-time) reads on this transport. Leaf
-        /// transports whose read loop can report completed lines before the command returns to the prompt
-        /// call this from their Open, right after <see cref="OpenWith"/>.
-        /// </summary>
-        /// <remarks>
-        /// Registered separately from <see cref="OpenWith"/> — rather than by widening its delegate set —
-        /// so that adding the capability neither breaks a transport built outside this assembly nor claims
-        /// the capability on its behalf. Same pattern as <see cref="RegisterCompletionDriver"/>.
-        /// </remarks>
-        private protected void RegisterStreamingDriver(Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming)
-            => (_opening ?? throw new InvalidOperationException("RegisterStreamingDriver runs after OpenWith.")).Streaming = sendStreaming;
+        // The optional streaming read (ICliTerminal.SupportsLineStreaming): "send a command and report each COMPLETED
+        // output line while the command is still running", returning the same cleaned output the plain read returns
+        // when it finally ends. All four terminal clients have it; a terminal without it is not broken, it just falls
+        // back to the one-shot as-value monitor (see SnapshotOnce).
 
         /// <summary>True when this transport can deliver a command's output line by line as it arrives.</summary>
         private protected bool SupportsStreamingRead => _terminal?.SupportsLineStreaming == true;
@@ -931,7 +873,7 @@ namespace tik4net.Cli
         /// Sends raw bytes (a control key such as Ctrl+X, with no line terminator) to the terminal and returns
         /// the ANSI-stripped response read up to the next stable shell prompt. The bytes are sent verbatim and
         /// the output is not echo/prompt-stripped — the caller inspects the raw terminal reaction
-        /// (e.g. <c>[Safe Mode taken]</c>). Drives the leaf transport's send-raw delegate registered in Open.
+        /// (e.g. <c>[Safe Mode taken]</c>). Drives the terminal's <see cref="ICliTerminal.SendRawAndReadAsync"/>.
         /// </summary>
         private protected Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
             => (_terminal ?? throw NotOpen()).SendRawAndReadAsync(raw, ct);
@@ -1066,22 +1008,13 @@ namespace tik4net.Cli
             return reaction;
         }
 
-        // Optional driver for the completion probe: "send raw bytes, then read until the output goes quiet
-        // for N ms" (settle), returning the reaction with its escape sequences — an inline completion is written
-        // in cursor moves, which CliCompletionParser replays. Unlike the command/control-key drivers
-        // (which read up to the next shell prompt), the Tab listing does NOT end in a bare prompt — RouterOS
-        // redraws the prompt with the echoed stem — so it must be read on a settle window, not a prompt match.
-        // A leaf transport registers this in Open only if it supports completion (all CLI transports do);
-        // when there is none (ICliTerminal.SupportsQuietRead), CompleteCli reports the transport does not support
-        // completion (fail-closed).
-
-        /// <summary>
-        /// Registers the settle-read driver that enables <see cref="ITikCliCompletion"/> on this transport.
-        /// Leaf transports that can drive interactive Tab-completion call this from their Open after
-        /// <see cref="OpenWith"/>; transports that don't leave it unregistered (completion then throws).
-        /// </summary>
-        private protected void RegisterCompletionDriver(Func<byte[], int, CancellationToken, Task<string>> sendRawSettle)
-            => (_opening ?? throw new InvalidOperationException("RegisterCompletionDriver runs after OpenWith.")).Settle = sendRawSettle;
+        // The optional settle read for the completion probe (ICliTerminal.SendRawAndReadUntilQuietAsync): "send raw
+        // bytes, then read until the output goes quiet for N ms", returning the reaction with its escape sequences — an
+        // inline completion is written in cursor moves, which CliCompletionParser replays. Unlike the command and
+        // control-key reads (which read up to the next shell prompt), the Tab listing does NOT end in a bare prompt —
+        // RouterOS redraws the prompt with the echoed stem — so it must be read on a settle window, not a prompt match.
+        // All four terminal clients have it; a terminal without it (SupportsQuietRead) makes CompleteCli report that
+        // the transport does not support completion (fail-closed).
 
         /// <inheritdoc/>
         public IReadOnlyList<string> CompleteCli(string partialInput)
