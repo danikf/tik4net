@@ -494,6 +494,9 @@ namespace tik4net.Cli
         /// <summary>Short transport name shown in the "connection is not open" diagnostic (e.g. "Telnet").</summary>
         private protected abstract string TransportName { get; }
 
+        /// <summary>The timeouts a leaf hands its terminal client; the receive one is read per use.</summary>
+        private protected CliClientTimeouts ClientTimeouts => new CliClientTimeouts(() => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
+
         /// <summary>
         /// When set before <c>Open</c>, the host/user/password given to <c>Open</c> are the AGENT's, and the
         /// transport continues from the agent into this target over RoMON before the connection counts as open.

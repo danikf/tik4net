@@ -85,11 +85,11 @@ namespace tik4net.MacTelnet
         // left idle past the router's window is gone, and that is the router's contract, not a defect we
         // can paper over from here - it has to be handled by reconnecting, not by inventing traffic.
 
-        internal MacTelnetUdpClient(Encoding encoding, Func<int> receiveTimeoutMs, int loginTimeoutMs, string? routerMac)
+        internal MacTelnetUdpClient(Encoding encoding, CliClientTimeouts timeouts, string? routerMac)
         {
             _encoding         = encoding ?? Encoding.UTF8;
-            _receiveTimeout = receiveTimeoutMs;
-            _loginTimeoutMs   = loginTimeoutMs > 0 ? loginTimeoutMs : receiveTimeoutMs();
+            _receiveTimeout = timeouts.ReceiveMs;
+            _loginTimeoutMs   = timeouts.ConnectMs > 0 ? timeouts.ConnectMs : timeouts.ReceiveMs();
             // Opening the session is part of opening the connection, so it gets the connect budget.
             SessionStartBudgetMs = _loginTimeoutMs;
             RouterMacOverride = routerMac;

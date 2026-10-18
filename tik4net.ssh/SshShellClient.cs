@@ -38,11 +38,14 @@ namespace tik4net.Ssh
         // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
         private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
 
-        internal SshShellClient(Encoding encoding, Func<int> receiveTimeoutMs)
+        internal SshShellClient(Encoding encoding, CliClientTimeouts timeouts)
         {
             _encoding = encoding ?? Encoding.UTF8;
-            _receiveTimeout = receiveTimeoutMs;
+            _receiveTimeout = timeouts.ReceiveMs;
+            _connectTimeoutMs = timeouts.ConnectMs;
         }
+
+        private readonly int _connectTimeoutMs;
 
         // ── Connect ───────────────────────────────────────────────────────────
 
@@ -54,19 +57,18 @@ namespace tik4net.Ssh
         /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the port refused the connection,
         /// the host was unreachable, or the connection was not established within the timeout.</exception>
         /// <exception cref="SshAuthenticationException">The router answered and refused the credentials.</exception>
-        internal void Connect(string host, int port, string user, string password, int connectTimeoutMs,
-            IPrivateKeySource? key = null)
+        internal void Connect(string host, int port, string user, string password, IPrivateKeySource? key = null)
         {
             try
             {
-                _ssh = CreateClient(host, port, user + RouterOsCliLogin.TerminalLoginFlags, password, connectTimeoutMs, key);
+                _ssh = CreateClient(host, port, user + RouterOsCliLogin.TerminalLoginFlags, password, _connectTimeoutMs, key);
                 ConnectOrTimeOut(_ssh);
             }
             catch (SshAuthenticationException)
             {
                 // Router rejected the '+c' terminal-flag suffix on the user name — retry plain.
                 SafeDispose(_ssh);
-                _ssh = CreateClient(host, port, user, password, connectTimeoutMs, key);
+                _ssh = CreateClient(host, port, user, password, _connectTimeoutMs, key);
                 ConnectOrTimeOut(_ssh);
             }
 

@@ -25,8 +25,8 @@ namespace tik4net.unittests.Telnet
     {
         private static TelnetClient Connect(TcpListener listener)
         {
-            var client = new TelnetClient(Encoding.ASCII, 5000, 5000);
-            client.Connect(IPAddress.Loopback.ToString(), ((IPEndPoint)listener.LocalEndpoint).Port, 2000);
+            var client = new TelnetClient(Encoding.ASCII, CliClientTimeouts.Fixed(5000, connectMs: 2000, sendMs: 5000));
+            client.Connect(IPAddress.Loopback.ToString(), ((IPEndPoint)listener.LocalEndpoint).Port);
             return client;
         }
 

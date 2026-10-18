@@ -121,7 +121,7 @@ namespace tik4net.WinboxCli
             var target = RomonTarget;
             var carrier = new tik4net.Winbox.WinboxM2Session();
             var relay = target == null ? null : new tik4net.Winbox.WinboxRomonChannel(carrier, target);
-            var client = new WinboxCliClient(relay ?? (tik4net.Winbox.IWinboxM2Channel)carrier, Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
+            var client = new WinboxCliClient(relay ?? (tik4net.Winbox.IWinboxM2Channel)carrier, Encoding, ClientTimeouts);
             Func<CancellationToken, Task> login = async ct =>
             {
                 await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);

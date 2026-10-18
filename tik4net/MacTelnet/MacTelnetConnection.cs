@@ -148,7 +148,7 @@ namespace tik4net.MacTelnet
             // The client is held in a variable rather than captured once, because a session that RouterOS
             // has logged out cannot be revived — reconnecting means a whole new client, socket and
             // EC-SRP5 login, and every delegate below must then be talking to the new one.
-            var client = new MacTelnetUdpClient(Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, RouterMac);
+            var client = new MacTelnetUdpClient(Encoding, ClientTimeouts, RouterMac);
             var romonTarget = RomonTarget;
 
             // Through a RoMON agent: host/user/password are the agent's, and the session continues into the
@@ -186,7 +186,7 @@ namespace tik4net.MacTelnet
                 await Winbox.RouterLoginRetry.RunAsync(async () =>
                 {
                     try { client.Dispose(); } catch { /* the old session is gone anyway */ }
-                    client = new MacTelnetUdpClient(Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, RouterMac);
+                    client = new MacTelnetUdpClient(Encoding, ClientTimeouts, RouterMac);
                     await login(ct).ConfigureAwait(false);
                 }).ConfigureAwait(false);
             };

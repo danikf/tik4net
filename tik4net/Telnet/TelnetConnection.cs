@@ -78,11 +78,11 @@ namespace tik4net.Telnet
             Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
-            var client = new TelnetClient(Encoding, () => ReceiveTimeoutMs, SendTimeoutMs);
+            var client = new TelnetClient(Encoding, ClientTimeouts);
             var romonTarget = RomonTarget;
             Func<CancellationToken, Task> login = async ct =>
             {
-                client.Connect(host, port, ConnectTimeoutMs);
+                client.Connect(host, port);
                 if (romonTarget == null)
                 {
                     await client.LoginAsync(user, password, ct).ConfigureAwait(false);

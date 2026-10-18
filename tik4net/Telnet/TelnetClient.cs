@@ -36,15 +36,15 @@ namespace tik4net.Telnet
         // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
         private readonly Cli.Vt100State _vt100 = Cli.Vt100State.ForRouterOs();
 
-        internal TelnetClient(Encoding encoding, int receiveTimeoutMs, int sendTimeoutMs)
-            : this(encoding, () => receiveTimeoutMs, sendTimeoutMs) { }
-
-        internal TelnetClient(Encoding encoding, Func<int> receiveTimeoutMs, int sendTimeoutMs)
+        internal TelnetClient(Encoding encoding, CliClientTimeouts timeouts)
         {
             _encoding = encoding ?? Encoding.UTF8;
-            _receiveTimeout = receiveTimeoutMs;
-            _sendTimeoutMs = sendTimeoutMs;
+            _receiveTimeout = timeouts.ReceiveMs;
+            _connectTimeoutMs = timeouts.ConnectMs;
+            _sendTimeoutMs = timeouts.SendMs;
         }
+
+        private readonly int _connectTimeoutMs;
 
         // Separate from ReceiveTimeoutMs, which is what the write side used to be given. They are two
         // different questions - how long the router may take to answer, and how long a write may block -
@@ -54,12 +54,12 @@ namespace tik4net.Telnet
 
         // ── Connect ───────────────────────────────────────────────────────────
 
-        internal void Connect(string host, int port, int connectTimeoutMs)
+        internal void Connect(string host, int port)
         {
             _tcpClient = new TcpClient { NoDelay = true };
             try
             {
-                TikTcp.Connect(_tcpClient, host, port, connectTimeoutMs);
+                TikTcp.Connect(_tcpClient, host, port, _connectTimeoutMs);
             }
             catch
             {

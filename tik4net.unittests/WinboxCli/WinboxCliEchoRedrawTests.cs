@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Cli;
 using tik4net.Winbox;
 using tik4net.WinboxCli;
 
@@ -102,7 +103,7 @@ namespace tik4net.unittests.WinboxCli
             string second = echo.Substring(cut)
                 + "\r\nuptime=01:00:00\r\n#n=1/nil\r\n\r\r\r" + Esc + "[9999B" + Prompt;
 
-            using (var client = new WinboxCliClient(new PullDrivenChannel(command, new[] { first, second }), Encoding.UTF8, 3000, 3000))
+            using (var client = new WinboxCliClient(new PullDrivenChannel(command, new[] { first, second }), Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000)))
             {
                 string answer = client.SendCommandAndReadAsync(command, CancellationToken.None).GetAwaiter().GetResult();
 

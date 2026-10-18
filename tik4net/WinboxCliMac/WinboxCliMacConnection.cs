@@ -143,7 +143,7 @@ namespace tik4net.WinboxCliMac
                 relay = target == null ? null : new WinboxRomonChannel(carrier, target);
                 return relay ?? (IWinboxM2Channel)carrier;
             }
-            var client = new WinboxCliClient(NewChannel(), Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
+            var client = new WinboxCliClient(NewChannel(), Encoding, ClientTimeouts);
             Func<CancellationToken, Task> login = async ct =>
             {
                 await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
@@ -168,7 +168,7 @@ namespace tik4net.WinboxCliMac
                 await RouterLoginRetry.RunAsync(async () =>
                 {
                     // See the comment on the first WinboxMacM2Session construction above.
-                    client = new WinboxCliClient(NewChannel(), Encoding, () => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
+                    client = new WinboxCliClient(NewChannel(), Encoding, ClientTimeouts);
                     await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
                 }).ConfigureAwait(false);
             };

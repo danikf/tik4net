@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Cli;
 using tik4net.Winbox;
 using tik4net.WinboxCli;
 
@@ -98,7 +99,7 @@ namespace tik4net.unittests.WinboxCli
         }
 
         private static WinboxCliClient ClientOver(SilentChannel channel)
-            => new WinboxCliClient(channel, Encoding.UTF8, ReceiveTimeoutMs, ReceiveTimeoutMs);
+            => new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(ReceiveTimeoutMs, ReceiveTimeoutMs));
 
         private static Exception RunCommand(WinboxCliClient client)
         {
