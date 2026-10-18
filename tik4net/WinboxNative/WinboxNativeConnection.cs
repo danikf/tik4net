@@ -346,15 +346,8 @@ namespace tik4net.WinboxNative
                 {
                     session.Open(host, port, user, password, ConnectTimeoutMs, ReceiveTimeoutMs, SendTimeoutMs);
                 }
-                catch (Exception ex) when (ex is TikConnectionLoginException || ex is TikRomonRelayException)
+                catch (Exception ex) when (TikOpenGuard.PassesThrough(ex))
                 {
-                    session.Dispose();
-                    throw;
-                }
-                catch (System.Net.Sockets.SocketException)
-                {
-                    // Nothing answered — refused, unreachable, or the connect timed out. Not a login failure,
-                    // and the same SocketException the binary API throws for it.
                     session.Dispose();
                     throw;
                 }

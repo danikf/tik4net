@@ -530,10 +530,9 @@ namespace tik4net.Cli
                 (ex is TikConnectionLoginException ? ex.InnerException?.Message ?? ex.Message : ex.Message), ex));
 
         /// <summary>
-        /// Shared open: runs <paramref name="login"/> under the standard guard (a
-        /// <see cref="TikConnectionLoginException"/>, a <see cref="SocketException"/> and a cancellation are
-        /// rethrown as-is; any other exception is wrapped in a login exception; the half-open client is closed
-        /// either way), then registers the driver delegates and marks the connection opened. Leaf transports
+        /// Shared open: runs <paramref name="login"/> under the standard guard (what
+        /// <see cref="TikOpenGuard.PassesThrough"/> names is rethrown as-is; any other exception is wrapped in a login
+        /// exception; the half-open client is closed either way), then registers the driver delegates and marks the connection opened. Leaf transports
         /// build their concrete client and call this with delegates bound to it.
         /// </summary>
         private protected void OpenWith(Func<CancellationToken, Task> login,
@@ -567,23 +566,8 @@ namespace tik4net.Cli
                 // The socket connect inside the delegate is synchronous and stays bounded by ConnectTimeout.
                 await login(cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (TikOpenGuard.PassesThrough(ex))
             {
-                // Not a login failure: the caller asked to stop. Wrapping it would break every
-                // catch (OperationCanceledException) written against the async surface.
-                close();
-                throw;
-            }
-            catch (Exception ex) when (ex is TikConnectionLoginException || ex is TikRomonRelayException)
-            {
-                close();
-                throw;
-            }
-            catch (SocketException)
-            {
-                // Not a login failure: nothing answered (refused, unreachable, the connect timed out). It
-                // leaves as itself, which is what the binary API throws for the same port — a caller told to
-                // check credentials when the service is simply off is sent the wrong way.
                 close();
                 throw;
             }
