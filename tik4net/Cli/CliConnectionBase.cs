@@ -516,13 +516,7 @@ namespace tik4net.Cli
         /// </summary>
         internal void RomonEntered(TikConnectionType agentConnectionType, string host, string user, string agentRomonId,
             TikRomonRelay relay = TikRomonRelay.Ssh)
-        {
-            var target = RomonTarget!;
-            TikRouterAddress agentAddress = target.Agent?.Address ?? TikRouterAddress.FromHost(host);
-            RomonConnectionInfo = new TikRomonConnectionInfo(relay,
-                new TikRomonAgentInfo(agentAddress, agentConnectionType, user, agentRomonId),
-                new TikRomonTargetInfo(target.RomonId, target.User));
-        }
+            => RomonConnectionInfo = TikRomonConnectionInfo.Relayed(RomonTarget!, host, agentConnectionType, user, agentRomonId, relay);
 
         /// <summary>
         /// A failed login to the RoMON agent, said to be the agent's: otherwise the message reads as if the

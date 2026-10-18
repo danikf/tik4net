@@ -368,13 +368,11 @@ namespace tik4net.WinboxNative
             string routerKey = host;
             if (session is WinboxRomonChannel relay)
             {
-                RomonConnectionInfo = new TikRomonConnectionInfo(TikRomonRelay.Winbox,
-                    new TikRomonAgentInfo(RomonTarget!.Agent?.Address ?? TikRouterAddress.FromHost(host),
-                        RomonAgentConnectionType, user, relay.AgentRomonId!),
-                    new TikRomonTargetInfo(RomonTarget.RomonId, RomonTarget.User));
+                RomonConnectionInfo = TikRomonConnectionInfo.Relayed(RomonTarget!, host, RomonAgentConnectionType, user,
+                    relay.AgentRomonId!, TikRomonRelay.Winbox);
                 // The remembered plugin list is the TARGET's: keyed by the agent's host it would answer for every
                 // router reached through that agent.
-                routerKey = "romon-" + RomonTarget.RomonId + "-via-" + host;
+                routerKey = "romon-" + RomonTarget!.RomonId + "-via-" + host;
             }
             InitAfterAuth(session!, routerKey);
         }

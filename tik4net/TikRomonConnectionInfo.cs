@@ -34,6 +34,16 @@ namespace tik4net
             Target = target;
         }
 
+        /// <summary>
+        /// The record for a relay that reached <paramref name="target"/>: the agent is the target's named agent,
+        /// else the host the connection logged in to.
+        /// </summary>
+        internal static TikRomonConnectionInfo Relayed(Cli.RomonRelayTarget target, string host, TikConnectionType agentType,
+            string user, string agentRomonId, TikRomonRelay relay)
+            => new TikRomonConnectionInfo(relay,
+                new TikRomonAgentInfo(target.Agent?.Address ?? TikRouterAddress.FromHost(host), agentType, user, agentRomonId),
+                new TikRomonTargetInfo(target.RomonId, target.User));
+
         /// <summary>How the agent carries the connection to the target.</summary>
         public TikRomonRelay Relay { get; }
 
