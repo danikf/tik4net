@@ -12,7 +12,8 @@ namespace tik4net.Connection
     internal static class TikTcp
     {
         /// <summary>
-        /// Connects within <paramref name="timeoutMs"/>. A timeout is a SocketException with SocketError.TimedOut; a
+        /// Connects within <paramref name="timeoutMs"/>, or within the OS's own bound when it is ≤ 0
+        /// (<see cref="TikTimeouts.ConnectBoundMs"/>). A timeout is a SocketException with SocketError.TimedOut; a
         /// refusal is the SocketException the connect itself raised, unwrapped.
         /// </summary>
         /// <remarks>
@@ -25,7 +26,7 @@ namespace tik4net.Connection
             var connect = tcp.ConnectAsync(host, port);
             try
             {
-                if (!connect.Wait(timeoutMs))
+                if (!connect.Wait(TikTimeouts.ConnectBoundMs(timeoutMs)))
                 {
                     Observe(connect);
                     throw new SocketException((int)SocketError.TimedOut);
@@ -45,7 +46,7 @@ namespace tik4net.Connection
         internal static async Task ConnectAsync(TcpClient tcp, string host, int port, int timeoutMs, CancellationToken ct)
         {
             var connect = tcp.ConnectAsync(host, port);
-            var timeout = Task.Delay(timeoutMs, ct);
+            var timeout = Task.Delay(TikTimeouts.ConnectBoundMs(timeoutMs), ct);
             if (await Task.WhenAny(connect, timeout).ConfigureAwait(false) == timeout)
             {
                 Observe(connect);

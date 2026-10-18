@@ -58,7 +58,8 @@ namespace tik4net.Connection
         }
 
         // The transports' sockets and read loops count in milliseconds; these are the public timeouts in that unit.
-        // Zero means "leave the socket's own timeout alone", for a caller who asks for it deliberately.
+        // Zero or less means no bound of our own: the socket's own timeout, and for a connect TikTimeouts.ConnectBoundMs /
+        // HandshakeBoundMs (ITikConnection.ConnectTimeout).
         internal int SendTimeoutMs { get; set; } = 30000;
         internal int ReceiveTimeoutMs { get; set; } = 30000;
         internal int ConnectTimeoutMs { get; set; } = 15000;

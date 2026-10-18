@@ -27,11 +27,11 @@ namespace tik4net.Ssh
 
         internal SshShellClient(Encoding encoding, CliClientTimeouts timeouts)
         {
-            _connectTimeoutMs = timeouts.ConnectMs;
+            _timeouts = timeouts;
             _pty = new CliPtySession(this, encoding ?? Encoding.UTF8, timeouts.ReceiveMs, "SSH", "ssh.pty", "\r");
         }
 
-        private readonly int _connectTimeoutMs;
+        private readonly CliClientTimeouts _timeouts;
 
         // ── Connect ───────────────────────────────────────────────────────────
 
@@ -48,14 +48,14 @@ namespace tik4net.Ssh
         {
             try
             {
-                _ssh = CreateClient(host, port, user + RouterOsCliLogin.TerminalLoginFlags, password, _connectTimeoutMs, key);
+                _ssh = CreateClient(host, port, user + RouterOsCliLogin.TerminalLoginFlags, password, key);
                 ConnectOrTimeOut(_ssh);
             }
             catch (SshAuthenticationException)
             {
                 // Router rejected the '+c' terminal-flag suffix on the user name — retry plain.
                 SafeDispose(_ssh);
-                _ssh = CreateClient(host, port, user, password, _connectTimeoutMs, key);
+                _ssh = CreateClient(host, port, user, password, key);
                 try { ConnectOrTimeOut(_ssh); }
                 catch (SshAuthenticationException ex) { throw new TikConnectionLoginException(ex); }
             }
@@ -135,8 +135,7 @@ namespace tik4net.Ssh
             }
         }
 
-        private SshClient CreateClient(string host, int port, string user, string password, int connectTimeoutMs,
-            IPrivateKeySource? key)
+        private SshClient CreateClient(string host, int port, string user, string password, IPrivateKeySource? key)
         {
             // With a key: the key first, and the password second only when one was given — an empty password would be
             // one more refused attempt in the router's log.
@@ -145,9 +144,11 @@ namespace tik4net.Ssh
                 methods.Add(new PrivateKeyAuthenticationMethod(user, key));
             if (key == null || !string.IsNullOrEmpty(password))
                 methods.Add(new PasswordAuthenticationMethod(user, password ?? string.Empty));
+            // SSH.NET bounds its TCP connect and its handshake with the one value, so ConnectTimeout <= 0 gives both the
+            // receive timeout (TikTimeouts.HandshakeBoundMs) rather than an immediate failure.
             var info = new ConnectionInfo(host, port, user, methods.ToArray())
             {
-                Timeout = TimeSpan.FromMilliseconds(connectTimeoutMs),
+                Timeout = TimeSpan.FromMilliseconds(TikTimeouts.HandshakeBoundMs(_timeouts.ConnectMs, _timeouts.ReceiveMs())),
             };
             return new SshClient(info);
         }

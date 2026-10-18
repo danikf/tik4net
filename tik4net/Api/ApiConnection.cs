@@ -255,7 +255,8 @@ namespace tik4net.Api
                         // port reads it as a word length and waits for the rest of a sentence that will
                         // never come), and Open would then hang for as long as the process lived.
                         var authTask = sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false);
-                        var authTimeout = Task.Delay(ConnectTimeoutMs, cancellationToken);
+                        int handshakeMs = TikTimeouts.HandshakeBoundMs(ConnectTimeoutMs, ReceiveTimeoutMs);
+                        var authTimeout = Task.Delay(handshakeMs, cancellationToken);
                         if (await Task.WhenAny(authTask, authTimeout).ConfigureAwait(false) == authTimeout)
                         {
                             _ = authTask.ContinueWith(tsk => { _ = tsk.Exception; },
@@ -265,8 +266,8 @@ namespace tik4net.Api
                                 API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
                                 "The peer on port " + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
                                 + " never answered the TLS handshake within "
-                                + (ConnectTimeoutMs / 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
-                                + " s, so it is not serving API-SSL.", null);
+                                + handshakeMs.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                + " ms, so it is not serving API-SSL.", null);
                         }
                         await authTask.ConfigureAwait(false);   // observe/rethrow the handshake's own failure
                         cancellationToken.ThrowIfCancellationRequested();

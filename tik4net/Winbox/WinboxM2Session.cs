@@ -96,7 +96,7 @@ namespace tik4net.Winbox
         {
             try
             {
-                EcSrp5Auth(user, pass, Math.Max(MinEcSrp5ProbeMs, connectTimeoutMs));
+                EcSrp5Auth(user, pass, Math.Max(MinEcSrp5ProbeMs, TikTimeouts.HandshakeBoundMs(connectTimeoutMs, ioTimeoutMs)));
                 _encrypted = true;
             }
             catch (WinboxEcSrp5UnsupportedException unsupported)

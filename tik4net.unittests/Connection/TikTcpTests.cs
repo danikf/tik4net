@@ -70,6 +70,36 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
+        public async Task ATimeoutOfZeroOrLess_LeavesTheConnectToTheOs()
+        {
+            // ConnectTimeout <= 0 means "no bound of its own": the OS bounds the connect. Before, Wait(0) and Delay(0) gave
+            // up at once, before a connect could finish.
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            try
+            {
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                foreach (int timeoutMs in new[] { 0, -5, Timeout.Infinite })
+                {
+                    using (var tcp = new TcpClient())
+                    {
+                        TikTcp.Connect(tcp, IPAddress.Loopback.ToString(), port, timeoutMs);
+                        Assert.IsTrue(tcp.Connected, "Connect, " + timeoutMs);
+                    }
+                    using (var tcp = new TcpClient())
+                    {
+                        await TikTcp.ConnectAsync(tcp, IPAddress.Loopback.ToString(), port, timeoutMs, CancellationToken.None);
+                        Assert.IsTrue(tcp.Connected, "ConnectAsync, " + timeoutMs);
+                    }
+                }
+            }
+            finally
+            {
+                listener.Stop();
+            }
+        }
+
+        [TestMethod]
         public async Task ACancelledConnectAsync_IsACancel_NotATimeout()
         {
             using (var cts = new CancellationTokenSource())

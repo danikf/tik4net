@@ -89,7 +89,7 @@ namespace tik4net.MacTelnet
         {
             _encoding         = encoding ?? Encoding.UTF8;
             _receiveTimeout = timeouts.ReceiveMs;
-            _loginTimeoutMs   = timeouts.ConnectMs > 0 ? timeouts.ConnectMs : timeouts.ReceiveMs();
+            _loginTimeoutMs   = TikTimeouts.HandshakeBoundMs(timeouts.ConnectMs, timeouts.ReceiveMs());
             // Opening the session is part of opening the connection, so it gets the connect budget.
             SessionStartBudgetMs = _loginTimeoutMs;
             RouterMacOverride = routerMac;

@@ -86,7 +86,7 @@ namespace tik4net.WinboxCli
             _session          = channel ?? throw new ArgumentNullException(nameof(channel));
             _encoding         = encoding ?? Encoding.UTF8;
             _receiveTimeout = timeouts.ReceiveMs;
-            _loginTimeoutMs   = timeouts.ConnectMs > 0 ? timeouts.ConnectMs : timeouts.ReceiveMs();
+            _loginTimeoutMs   = TikTimeouts.HandshakeBoundMs(timeouts.ConnectMs, timeouts.ReceiveMs());
             _sendTimeoutMs    = timeouts.SendMs;
         }
 

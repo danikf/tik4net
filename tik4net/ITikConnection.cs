@@ -201,6 +201,13 @@ namespace tik4net
         /// TCP handshake alone, the handshake plus authentication, or one whole probe request on REST);
         /// each transport's own documentation says which.
         /// </para>
+        /// <para>
+        /// Zero or less means <b>no bound of its own</b>, on every transport: the TCP connect is left to the operating
+        /// system (Windows gives up after about 21 s), and every later step of the open that nothing else bounds — a
+        /// TLS handshake, the login exchange, the MAC-layer login, REST's probe — waits for <see cref="ReceiveTimeout"/>
+        /// instead. So an open never waits forever unless both are zero or less. (<c>TimeSpan.Zero</c> does not mean
+        /// "fail at once".)
+        /// </para>
         /// </remarks>
         TimeSpan ConnectTimeout { get; set; }
 

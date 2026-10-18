@@ -53,6 +53,31 @@ namespace tik4net.unittests.Rest
             }
         }
 
+        [TestMethod]
+        public void AConnectTimeoutOfZero_LeavesTheProbeBoundedByReceiveTimeout()
+        {
+            // ConnectTimeout <= 0 is "no bound of its own", never "wait forever": the probe waits ReceiveTimeout.
+            using (var server = new ScriptedHttpServer()) // no scripted reply: the probe stalls
+            using (var conn = new RestConnection(useSsl: false))
+            {
+                conn.ConnectTimeout = TimeSpan.Zero;
+                conn.ReceiveTimeout = TimeSpan.FromMilliseconds(ShortTimeoutMs);
+
+                Exception caught = null;
+                var open = Task.Run(() =>
+                {
+                    try { conn.Open("127.0.0.1", server.Port, "admin", ""); }
+                    catch (Exception ex) { caught = ex; }
+                });
+
+                Assert.IsTrue(open.Wait(GenerousLimitMs), "the open did not end: with ConnectTimeout 0 nothing bounded the probe");
+                Assert.IsNotNull(caught, "the open succeeded against a peer that never answers");
+                var timeout = caught as TikConnectionReceiveTimeoutException ?? caught.InnerException as TikConnectionReceiveTimeoutException;
+                Assert.IsNotNull(timeout, "the failure names the timeout that elapsed: " + caught);
+                Assert.AreEqual(TimeSpan.FromMilliseconds(ShortTimeoutMs), timeout.Timeout);
+            }
+        }
+
         /// <summary>
         /// A cancelled <c>OpenAsync</c> must surface <see cref="OperationCanceledException"/> as itself.
         /// </summary>

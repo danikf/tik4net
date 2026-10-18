@@ -49,7 +49,8 @@ namespace tik4net.Rest
     /// than a slightly tighter one on half the builds. The probe is a single small
     /// <c>GET /rest/system/resource</c>, so bounding it whole is the same guarantee in practice: an
     /// unreachable or black-holed router cannot hold <c>Open</c> for the OS connect default.
-    /// A value of 0 or less means "no bound".
+    /// A value of 0 or less means no bound of its own: the probe is then bounded by
+    /// <see cref="ITikConnection.ReceiveTimeout"/>, as every transport's handshake is.
     /// </para>
     /// <para>
     /// <b>Known RouterOS defect — REST logins are never released.</b> Using REST at all can leave rows in
@@ -221,11 +222,12 @@ namespace tik4net.Rest
             _httpClient.DefaultRequestHeaders.Authorization =
                 AuthenticationHeaderValue.Parse(_authHeader);
 
-            // Probe: verify connectivity and credentials.
+            // Probe: verify connectivity and credentials. Bounded even with ConnectTimeout <= 0 (TikTimeouts.HandshakeBoundMs).
+            int probeMs = TikTimeouts.HandshakeBoundMs(ConnectTimeoutMs, ReceiveTimeoutMs);
             try
             {
                 await SendHttpAsync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"),
-                    ConnectTimeoutMs, cancellationToken).ConfigureAwait(false);
+                    probeMs, cancellationToken).ConfigureAwait(false);
                 // 401 = wrong credentials, already handled by SendHttpAsync → TikConnectionLoginException
                 SetOpened();
             }
@@ -244,7 +246,7 @@ namespace tik4net.Rest
                 _httpClient = null;
                 throw new System.IO.IOException(
                     $"REST connection to {host}:{port} timed out: the router did not answer the open probe " +
-                    $"within ConnectTimeout ({ConnectTimeoutMs} ms).", ex);
+                    $"within {probeMs} ms (ConnectTimeout, or ReceiveTimeout when ConnectTimeout is not positive).", ex);
             }
             catch (OperationCanceledException)
             {
