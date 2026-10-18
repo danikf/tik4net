@@ -320,5 +320,27 @@ namespace tik4net.unittests.Cli
                 "CSI, OSC and ESC+char are dropped; a trailing lone ESC is kept");
             Assert.AreEqual("", VtStripper.StripAnsi(null!));
         }
+
+        [TestMethod]
+        public void StripAnsi_RemovesEightBitCsiLikeEscBracket()
+        {
+            // U+009B is the one-character form of ESC [. RouterOS switches to it when a client answers its UTF-8 cursor
+            // test as Latin-1, where the byte 0x9B decodes to exactly this character.
+            Assert.AreEqual("ok", VtStripper.StripAnsi("\u009B32mok\u009B0m"));
+            Assert.AreEqual("x!y", VtStripper.StripAnsi("x\u009B!y"), "an unterminated 8-bit CSI is a control character: dropped alone");
+        }
+
+        [TestMethod]
+        public void StripAnsi_AppliesTheColourRepaintInEightBitCsi()
+        {
+            const string sent = "/interface prnt";
+            string raw = "/interface prnt\x1b[15D\x1b[m\x1b[36m/interface\x1b[m \x1b[m\x1b[31mprnt\x1b[m\r\n"
+                       + "\rbad command name prnt (line 1 column 12)\r\n"
+                       + "\r\r\r\x1b[9999B\x1b[K[\x1b[m\x1b[36madmin\x1b[m@\x1b[m\x1b[32mCHR\x1b[m] > ";
+
+            Assert.AreEqual("bad command name prnt (line 1 column 12)",
+                CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw.Replace("\x1b[", "\u009B")), sent),
+                "the cursor-back and erase are applied the same in their 8-bit form");
+        }
     }
 }

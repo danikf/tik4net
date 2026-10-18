@@ -13,12 +13,17 @@ namespace tik4net.Cli
     // already; this one was the odd one out rather than a deliberate public service.
     internal static class VtStripper
     {
+        // The 8-bit CSI (the C1 control 0x9B), one character for ESC [. RouterOS switches to it for a client that answers
+        // its UTF-8 cursor test as Latin-1, where the byte 0x9B decodes to exactly this character.
+        private const char Csi8Bit = '\u009B';
+
         /// <summary>
         /// Removes all ANSI/VT100 escape sequences from <paramref name="input"/>.
         /// Returns an empty string if <paramref name="input"/> is null.
         /// </summary>
         /// <remarks>
-        /// Covers CSI sequences (<c>ESC [ {params} {final}</c>, e.g. <c>ESC[32m</c>, <c>ESC[?25h</c>), OSC
+        /// Covers CSI sequences (<c>ESC [ {params} {final}</c>, e.g. <c>ESC[32m</c>, <c>ESC[?25h</c>, and the same with
+        /// the 8-bit CSI <c>U+009B</c> in place of <c>ESC [</c>; a lone <c>U+009B</c> is dropped), OSC
         /// sequences (<c>ESC ] {text} BEL</c>) and any other <c>ESC</c> + one character.
         /// <para>
         /// Two of them are applied rather than dropped, within the current line only: cursor back
@@ -42,10 +47,13 @@ namespace tik4net.Cli
             for (int i = 0; i < input.Length; i++)
             {
                 char c = input[i];
-                if (c == '\x1b' && i + 1 < input.Length && input[i + 1] != '\n')
+                bool escape = c == '\x1b' && i + 1 < input.Length && input[i + 1] != '\n';
+                if (escape || c == Csi8Bit)
                 {
-                    int last = SequenceEnd(input, i, out char final, out string parameters);
-                    if (final == 'D' && last > i + 1)
+                    int last = escape
+                        ? SequenceEnd(input, i, out char final, out string parameters)
+                        : CsiEnd(input, i + 1, i, out final, out parameters);
+                    if (final == 'D')
                     {
                         int n = int.TryParse(parameters, out int parsed) && parsed > 0 ? parsed : 1;
                         cursor = Math.Max(lineStart, cursor - n);
@@ -85,24 +93,31 @@ namespace tik4net.Cli
             parameters = string.Empty;
             char kind = input[start + 1];
             if (kind == '[')
-            {
-                int i = start + 2;
-                while (i < input.Length && (char.IsDigit(input[i]) && input[i] < 128 || input[i] == ';' || input[i] == '?'))
-                    i++;
-                if (i < input.Length && IsAsciiLetter(input[i]))
-                {
-                    final = input[i];
-                    parameters = input.Substring(start + 2, i - start - 2);
-                    return i;
-                }
-                return start + 1;
-            }
+                return CsiEnd(input, start + 2, start + 1, out final, out parameters);
             if (kind == ']')
             {
                 int bel = input.IndexOf('\x07', start + 2);
                 return bel < 0 ? start + 1 : bel;
             }
             return start + 1;
+        }
+
+        // The final letter and parameters of a CSI whose parameters start at input[paramStart]. Returns the index of the
+        // final letter, or unterminated (with final '\0') when there is none.
+        private static int CsiEnd(string input, int paramStart, int unterminated, out char final, out string parameters)
+        {
+            final = '\0';
+            parameters = string.Empty;
+            int i = paramStart;
+            while (i < input.Length && (char.IsDigit(input[i]) && input[i] < 128 || input[i] == ';' || input[i] == '?'))
+                i++;
+            if (i < input.Length && IsAsciiLetter(input[i]))
+            {
+                final = input[i];
+                parameters = input.Substring(paramStart, i - paramStart);
+                return i;
+            }
+            return unterminated;
         }
 
         private static bool IsAsciiLetter(char c) => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
