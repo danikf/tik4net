@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 
 namespace tik4net.Connection
@@ -37,6 +38,53 @@ namespace tik4net.Connection
     /// </summary>
     internal static class PollingMonitorEngine
     {
+        /// <summary>How often a polled listen re-reads its table (ms) — the same on every polling transport.</summary>
+        internal const int ListenPollIntervalMs = 1000;
+
+        /// <summary>listen, print and getall: served the same way by every polled transport; null for a monitor verb.</summary>
+        /// <param name="namePrefix">The worker thread's name prefix: <c>cli</c>, <c>rest</c>, <c>winbox-native</c>.</param>
+        /// <param name="host">The polling transport.</param>
+        /// <param name="descriptor">The caller's command.</param>
+        /// <param name="verb">The command's verb.</param>
+        /// <param name="volatileFieldsOf">For a listen, the fields of the listed path its diff ignores; null compares all.</param>
+        /// <param name="onRow">Receives each row.</param>
+        /// <param name="onError">Receives the one error, if any.</param>
+        /// <param name="onDone">Fires once when the worker ends.</param>
+        public static TikMonitorHandle? TryStartTableShape(string namePrefix, IPollingMonitorHost host,
+            TikCommandDescriptor descriptor, string verb, Func<string, ICollection<string>?>? volatileFieldsOf,
+            Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
+        {
+            if (verb == "listen")
+            {
+                string listPath = TikPath.Parent(descriptor.CommandText);
+                return StartListen(namePrefix + "-listen", host, new TikCommandDescriptor(listPath + "/print", descriptor.Parameters),
+                    volatileFieldsOf?.Invoke(listPath), ListenPollIntervalMs, onRow, onError, onDone);
+            }
+            if (verb == "print" || verb == "getall")
+                return StartWorker(namePrefix + "-asynclist", h => AsyncListOnce(host, descriptor, h, onRow, onError, onDone));
+            return null;
+        }
+
+        /// <summary>Runs a worker body: an error is reported once, unless the caller stopped it; onDone fires exactly once.</summary>
+        /// <remarks>The error goes through <see cref="IPollingMonitorHost.ToTrap"/>, so every polled transport words it the same way.</remarks>
+        public static void Run(IPollingMonitorHost host, TikMonitorHandle handle,
+            Action<TikTrapSentenceResult> onError, Action onDone, Action body)
+        {
+            try { body(); }
+            catch (Exception ex) { if (!Stopping(host, handle)) onError?.Invoke(host.ToTrap(ex)); }
+            finally { onDone?.Invoke(); }
+        }
+
+        /// <summary>Hands rows to the caller until it cancels.</summary>
+        public static void Emit(IEnumerable<TikRecordSentence> rows, TikMonitorHandle handle, Action<TikRecordSentence> onRow)
+        {
+            foreach (var row in rows)
+            {
+                if (handle.CancelRequested) break;
+                onRow?.Invoke(row);
+            }
+        }
+
         /// <summary>Spins up a background worker bound to a fresh <see cref="TikMonitorHandle"/> and returns the handle.</summary>
         public static TikMonitorHandle StartWorker(string name, Action<TikMonitorHandle> body)
         {
@@ -67,8 +115,7 @@ namespace tik4net.Connection
         /// </summary>
         public static void AsyncListOnce(IPollingMonitorHost host, TikCommandDescriptor descriptor,
             TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
+            => Run(host, handle, onError, onDone, () =>
             {
                 var filters = descriptor.Parameters
                     .Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter).ToList();
@@ -76,19 +123,9 @@ namespace tik4net.Connection
                     .Where(p => p.ParameterFormat != TikCommandParameterFormat.Filter).ToList();
                 var printDescriptor = new TikCommandDescriptor(descriptor.CommandText, nonFilter);
 
-                foreach (var row in host.PollSnapshot(printDescriptor))
-                {
-                    if (handle.CancelRequested) break;
-                    if (filters.Count == 0 || TikQueryStack.Matches(row, filters))
-                        onRow?.Invoke(row);
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!Stopping(host, handle)) onError?.Invoke(host.ToTrap(ex));
-            }
-            finally { onDone?.Invoke(); }
-        }
+                Emit(host.PollSnapshot(printDescriptor).Where(row => filters.Count == 0 || TikQueryStack.Matches(row, filters)),
+                    handle, onRow);
+            });
 
         /// <summary>
         /// How many polls in a row a polled monitor or listen skips when the transport refuses their answer as
@@ -111,8 +148,7 @@ namespace tik4net.Connection
         /// </remarks>
         public static void SnapshotLoop(IPollingMonitorHost host, TikCommandDescriptor descriptor, int intervalMs,
             TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
+            => Run(host, handle, onError, onDone, () =>
             {
                 int incompleteInARow = 0;
                 while (!handle.CancelRequested && host.IsOpen)
@@ -125,20 +161,10 @@ namespace tik4net.Connection
                         continue;
                     }
                     incompleteInARow = 0;
-                    foreach (var row in rows)
-                    {
-                        if (handle.CancelRequested) break;
-                        onRow?.Invoke(row);
-                    }
+                    Emit(rows, handle, onRow);
                     SleepInterruptible(intervalMs, handle);
                 }
-            }
-            catch (Exception ex)
-            {
-                if (!Stopping(host, handle)) onError?.Invoke(host.ToTrap(ex));
-            }
-            finally { onDone?.Invoke(); }
-        }
+            });
 
         /// <summary>
         /// <c>/listen</c> emulation: poll the table and diff snapshots by <c>.id</c>. The baseline snapshot is read
@@ -177,8 +203,7 @@ namespace tik4net.Connection
             {
                 if (baselineError != null)
                 {
-                    try { if (!Stopping(host, handle)) onError?.Invoke(host.ToTrap(baselineError)); }
-                    finally { onDone?.Invoke(); }
+                    Run(host, handle, onError, onDone, () => ExceptionDispatchInfo.Capture(baselineError).Throw());
                     return;
                 }
                 ListenLoop(host, printDescriptor, volatileFields, pollIntervalMs, baseline!, handle, onRow, onError, onDone);
@@ -189,8 +214,7 @@ namespace tik4net.Connection
         private static void ListenLoop(IPollingMonitorHost host, TikCommandDescriptor printDescriptor,
             ICollection<string>? volatileFields, int pollIntervalMs, Dictionary<string, string> lastSig,
             TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
+            => Run(host, handle, onError, onDone, () =>
             {
                 int incompleteInARow = 0;
                 while (true)
@@ -207,13 +231,7 @@ namespace tik4net.Connection
                     incompleteInARow = 0;
                     Diff(rows, volatileFields, lastSig, onRow);
                 }
-            }
-            catch (Exception ex)
-            {
-                if (!Stopping(host, handle)) onError?.Invoke(host.ToTrap(ex));
-            }
-            finally { onDone?.Invoke(); }
-        }
+            });
 
         // Updates lastSig (.id → row signature) to the rows read, reporting each added/changed row and each
         // vanished .id to onRow. With onRow null it only records the baseline.

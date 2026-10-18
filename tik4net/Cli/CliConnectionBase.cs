@@ -92,8 +92,6 @@ namespace tik4net.Cli
         /// <summary>Interval between monitor-snapshot polls (ms). Sub-second so callers see a fresh reading
         /// promptly; RouterOS GUI/webfig refresh ~1 s but a terminal snapshot is cheap.</summary>
         private const int MonitorPollIntervalMs = 500;
-        /// <summary>Interval between /listen config-table polls (ms).</summary>
-        private const int ListenPollIntervalMs = 1000;
         /// <summary>torch's <c>freeze-frame-interval</c> (seconds). Each poll blocks for
         /// <c>2×</c> this (see <see cref="CliCommandBuilder.BuildTorchSnapshot"/>) — confirmed live as the
         /// minimum that reliably flushes one frame — so no separate inter-poll sleep is needed.</summary>
@@ -2790,17 +2788,8 @@ namespace tik4net.Cli
             EnsureOpened();
             string verb = TikPath.Verb(descriptor.CommandText);
 
-            if (verb == "listen")
-            {
-                string listPath = TikPath.Parent(descriptor.CommandText);
-                var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
-                return PollingMonitorEngine.StartListen("cli-listen", this, printDescriptor, null, ListenPollIntervalMs,
-                    onRow, onError, onDone);
-            }
-
-            if (verb == "print" || verb == "getall")
-                return PollingMonitorEngine.StartWorker("cli-asynclist",
-                    h => PollingMonitorEngine.AsyncListOnce(this, descriptor, h, onRow, onError, onDone));
+            var table = PollingMonitorEngine.TryStartTableShape("cli", this, descriptor, verb, null, onRow, onError, onDone);
+            if (table != null) return table;
 
             string modifier = CliMonitorVerbs.SnapshotModifier(verb);
             switch (CliMonitorVerbs.Classify(verb))
@@ -2838,8 +2827,7 @@ namespace tik4net.Cli
         // Monitor poll loop: re-issue the one-shot snapshot, emit each record, sleep, honour cancel.
         private void MonitorPollLoop(TikCommandDescriptor descriptor, string snapshotModifier, TikMonitorHandle handle,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
+            => PollingMonitorEngine.Run(this, handle, onError, onDone, () =>
             {
                 while (!handle.CancelRequested)
                 {
@@ -2849,20 +2837,10 @@ namespace tik4net.Cli
                     // instead of spinning with nothing to deliver (P2.51).
                     var rows = RunMonitorSnapshotAsync(descriptor, snapshotModifier, includeFilters: false,
                         CancellationToken.None).GetAwaiter().GetResult();
-                    foreach (var row in rows)
-                    {
-                        if (handle.CancelRequested) break;
-                        onRow?.Invoke(row);
-                    }
+                    PollingMonitorEngine.Emit(rows, handle, onRow);
                     PollingMonitorEngine.SleepInterruptible(MonitorPollIntervalMs, handle);
                 }
-            }
-            catch (Exception ex)
-            {
-                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
-            }
-            finally { onDone?.Invoke(); }
-        }
+            });
 
         /// <summary>
         /// Self-terminating monitor (ping/traceroute): one execution → N rows → done, matching the binary
@@ -2879,8 +2857,7 @@ namespace tik4net.Cli
         /// </remarks>
         private void SnapshotOnce(TikCommandDescriptor descriptor, string snapshotModifier, TikMonitorHandle handle,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
+            => PollingMonitorEngine.Run(this, handle, onError, onDone, () =>
             {
                 string output;
                 if (SupportsStreamingRead)
@@ -2911,18 +2888,8 @@ namespace tik4net.Cli
                 output = ExecuteCliCommand(CliCommandBuilder.BuildMonitorSnapshot(
                     descriptor.CommandText, descriptor.Parameters, snapshotModifier));
                 CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
-                foreach (var row in ParseRecords(output, descriptor))
-                {
-                    if (handle.CancelRequested) break;
-                    onRow?.Invoke(row);
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
-            }
-            finally { onDone?.Invoke(); }
-        }
+                PollingMonitorEngine.Emit(ParseRecords(output, descriptor), handle, onRow);
+            });
 
         // torch: driven by freeze-frame-interval + an explicit proplist (see CliMonitorVerbs/
         // CliCommandBuilder.BuildTorchSnapshot) instead of once/as-value. Each execution blocks for
@@ -2930,8 +2897,7 @@ namespace tik4net.Cli
         // separate SleepInterruptible is needed between iterations.
         private void TorchFreezeFrameLoop(TikCommandDescriptor descriptor, TikMonitorHandle handle,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
+            => PollingMonitorEngine.Run(this, handle, onError, onDone, () =>
             {
                 SchemaStore();
                 bool plain = _menuFacts.TorchWithoutProplist.Contains(descriptor.CommandText);
@@ -2969,18 +2935,9 @@ namespace tik4net.Cli
                         output = plainOutput;
                     }
                     CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
-                    foreach (var row in plain ? CliOutputParser.ParseTorchTable(output) : CliOutputParser.ParseTorchFrame(output))
-                    {
-                        if (handle.CancelRequested) break;
-                        onRow?.Invoke(row);
-                    }
+                    PollingMonitorEngine.Emit(
+                        plain ? CliOutputParser.ParseTorchTable(output) : CliOutputParser.ParseTorchFrame(output), handle, onRow);
                 }
-            }
-            catch (Exception ex)
-            {
-                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
-            }
-            finally { onDone?.Invoke(); }
-        }
+            });
     }
 }

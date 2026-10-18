@@ -91,9 +91,8 @@ namespace tik4net.Rest
     public sealed class RestConnection : TikCommandConnectionBase, ITikRestConnection,
         ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection
     {
-        // How often a listen diff / a continuous monitor re-reads the router. Listen polls at the same 1000 ms
-        // as the CLI and native transports; a CLI monitor polls every 500 ms (CliConnectionBase), REST's every 1000 ms.
-        private const int ListenPollIntervalMs = 1000;
+        // How often a continuous monitor re-reads the router: every 1000 ms here, every 500 ms on the CLI
+        // (CliConnectionBase). A listen polls at PollingMonitorEngine.ListenPollIntervalMs on every transport.
         private const int MonitorPollIntervalMs = 1000;
 
         private readonly bool _useSsl;
@@ -357,17 +356,8 @@ namespace tik4net.Rest
             EnsureOpened();
             string verb = TikPath.Verb(descriptor.CommandText);
 
-            if (verb == "listen")
-            {
-                string listPath = TikPath.Parent(descriptor.CommandText);
-                var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
-                return PollingMonitorEngine.StartListen("rest-listen", this, printDescriptor, null, ListenPollIntervalMs,
-                    onRow, onError, onDone);
-            }
-
-            if (verb == "print" || verb == "getall")
-                return PollingMonitorEngine.StartWorker("rest-asynclist",
-                    h => PollingMonitorEngine.AsyncListOnce(this, descriptor, h, onRow, onError, onDone));
+            var table = PollingMonitorEngine.TryStartTableShape("rest", this, descriptor, verb, null, onRow, onError, onDone);
+            if (table != null) return table;
 
             var bounded = ApplySnapshotBound(descriptor, verb);
 
@@ -401,21 +391,7 @@ namespace tik4net.Rest
         /// </summary>
         private void MonitorOnce(TikCommandDescriptor descriptor, TikMonitorHandle handle,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
-            {
-                foreach (var row in RunPrint(descriptor))
-                {
-                    if (handle.CancelRequested) break;
-                    onRow?.Invoke(row);
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
-            }
-            finally { onDone?.Invoke(); }
-        }
+            => PollingMonitorEngine.Run(this, handle, onError, onDone, () => PollingMonitorEngine.Emit(RunPrint(descriptor), handle, onRow));
 
         // Appends the verb's snapshot bound (once / count=1 / duration=N) unless the caller already supplied a
         // parameter of that name — without it RouterOS runs the monitor forever and, because it buffers the

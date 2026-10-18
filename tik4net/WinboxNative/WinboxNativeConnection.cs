@@ -1296,25 +1296,14 @@ namespace tik4net.WinboxNative
             // /path/listen — RouterOS pushes add/change/delete deltas over the API. WinBox M2 has no server
             // push, so webfig (and we) emulate it the way it polls live config tables: getall on a timer and
             // diff snapshots by .id (see Docs/winbox-native-m2-protocol.md §20). Deleted rows are surfaced as a
-            // synthetic ".dead=true" record so the O/R LoadListenAsync handler routes them to onDeleted.
-            if (verb == "listen")
-            {
-                string listPath = TikPath.Parent(descriptor.CommandText);
-                var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
-                // Diff config fields only — runtime counters (ro:1: rx-byte, link-downs, …) tick every poll and
-                // would otherwise make every row look "changed", whereas RouterOS listen emits on real changes.
-                var volatileFields = ReadOnlyFieldNames(listPath);
-                return PollingMonitorEngine.StartListen("winbox-native-listen", this, printDescriptor, volatileFields, 1000,
-                    onRow, onError, onDone);
-            }
-
+            // synthetic ".dead=true" record so the O/R LoadListenAsync handler routes them to onDeleted. The diff
+            // compares config fields only — runtime counters (ro:1: rx-byte, link-downs, …) tick every poll and
+            // would otherwise make every row look "changed", whereas RouterOS listen emits on real changes.
             // /path/print (LoadAsync) — a one-shot async list, not a streaming window: run the print off the
             // calling thread, emit each row, then complete. No monitor cycle is involved.
-            if (verb == "print" || verb == "getall")
-            {
-                return PollingMonitorEngine.StartWorker("winbox-native-asynclist",
-                    handle => PollingMonitorEngine.AsyncListOnce(this, descriptor, handle, onRow, onError, onDone));
-            }
+            var table = PollingMonitorEngine.TryStartTableShape("winbox-native", this, descriptor, verb, ReadOnlyFieldNames,
+                onRow, onError, onDone);
+            if (table != null) return table;
 
             // A snapshot monitor with no window of its own (/interface/monitor-traffic,
             // /interface/ethernet/monitor): its values are read-only fields of the PARENT record, which the
@@ -1325,7 +1314,7 @@ namespace tik4net.WinboxNative
             // records per second that its row count read as success (P2.52).
             if (IsSnapshotMonitorPath(descriptor.CommandText))
                 return PollingMonitorEngine.StartWorker("winbox-native-monitor-snapshot",
-                    handle => PollingMonitorEngine.SnapshotLoop(this, descriptor, 1000, handle, onRow, onError, onDone));
+                    handle => PollingMonitorEngine.SnapshotLoop(this, descriptor, SnapshotMonitorIntervalMs, handle, onRow, onError, onDone));
 
             // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, …).
             WinboxMonitorSpec? spec = ResolveMonitorWindow(descriptor.CommandText, out string apiPath, out int[]? handler);
@@ -1508,88 +1497,83 @@ namespace tik4net.WinboxNative
                 ? new TikTrapSentenceResult(m.Message, $"0x{m.Code:X}", m.ErrorText)
                 : TikTrapSentenceResult.FromException(ex);
 
+        // How often a snapshot monitor with no window of its own (/interface/monitor-traffic) re-reads its parent record.
+        private const int SnapshotMonitorIntervalMs = 1000;
+
         // The monitor worker: encode request fields → start → poll loop (emit decoded rows, sleep autorefresh,
         // honour cancel/finished) → cancel. Request-field encoding runs here (not on the caller) so a runtime
         // resolution failure (e.g. interface not found) surfaces async via onError, matching the API transport,
-        // instead of throwing synchronously out of ExecuteWithCallback. onDone always fires exactly once.
+        // instead of throwing synchronously out of ExecuteWithCallback. An M2 error reaches onError through
+        // IPollingMonitorHost.ToTrap. The window is cancelled before onDone, which fires exactly once.
         private void MonitorLoop(WinboxMonitorSpec spec, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
             IReadOnlyDictionary<int, string> keyToName, IReadOnlyDictionary<int, WinboxJgField> keyToField,
             TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            uint? id = null;
-            bool started = false;
-            var numFlags = resolver.BuildNumFlags();
-            try
+            => PollingMonitorEngine.Run(this, handle, onError, onDone, () =>
             {
-                using (EnterCommand())
+                uint? id = null;
+                bool started = false;
+                var numFlags = resolver.BuildNumFlags();
+                try
                 {
-                    // Encode the caller's NameValue parameters as the monitor's request fields (interface, cpu, …).
-                    // allowReadOnly: a window's input fields are often .jg-marked ro (display) yet are the
-                    // monitor's legitimate request inputs and must be sent (e.g. ping 'address').
-                    var requestFields = EncodeNameValueFields(
-                        spec.Handler, descriptor, resolver, skipId: true, _idResolver.ResolveReference,
-                        allowReadOnly: true);
-                    id = _ops.StartMonitor(spec.Handler, spec.StartCmd, requestFields);
-                    started = true;
-                }
-
-                // The pass is driven here rather than inside the operations layer, because this is where the
-                // cancel handle and the row callback live — and because a pass is unbounded in time (see
-                // PollMonitorRound). `continuation != null` means the router is still mid-pass, so the next
-                // round goes out immediately; the autorefresh sleep applies only BETWEEN passes.
-                WinboxM2Continuation? continuation = null;
-                while (!handle.CancelRequested)
-                {
-                    bool done;
-                    List<Dictionary<int, Tuple<string, object>>> records;
-                    // Gated per ROUND, not per pass: on a multiplexed connection this is a no-op, but a
-                    // 30-second ping must not hold the lockstep gate for its whole duration (design §2).
-                    // contToken's parameter type isn't annotated nullable (PollMonitorRound is out of scope
-                    // here), but null is its documented first-round value.
                     using (EnterCommand())
-                        (records, done, continuation) =
-                            _ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation!);
-
-                    // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
-                    // as the router produces it instead of in a lump when the pass ends.
-                    foreach (var rec in records)
-                        onRow?.Invoke(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
-                            resolver.ExtraSpellings)));
-
-                    if (done) break;              // router set Finished: the operation is over for good
-                    if (continuation != null) continue;   // same pass, next record — no sleep
-
-                    // The pass ended without Finished: an autorefresh snapshot window (Torch, Scan, …) whose
-                    // getall lists what exists right now. Wait the interval, then start a fresh pass.
-                    // Sleep in short slices so Cancel stays responsive.
-                    int slept = 0, interval = Math.Max(100, spec.AutorefreshMs);
-                    while (slept < interval && !handle.CancelRequested) { Thread.Sleep(50); slept += 50; }
-                }
-            }
-            catch (WinboxM2OperationException ex)
-            {
-                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message, $"0x{ex.Code:X}", ex.ErrorText));
-            }
-            catch (Exception ex)
-            {
-                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
-            }
-            finally
-            {
-                if (started && IsOpened)
-                {
-                    // (The gate is entered inside the try: the previous shape released a semaphore it had
-                    // not necessarily acquired when the Wait itself threw during teardown.)
-                    try
                     {
-                        using (EnterCommand())
-                            _ops.CancelMonitor(spec.Handler, spec.CancelCmd, id);
+                        // Encode the caller's NameValue parameters as the monitor's request fields (interface, cpu, …).
+                        // allowReadOnly: a window's input fields are often .jg-marked ro (display) yet are the
+                        // monitor's legitimate request inputs and must be sent (e.g. ping 'address').
+                        var requestFields = EncodeNameValueFields(
+                            spec.Handler, descriptor, resolver, skipId: true, _idResolver.ResolveReference,
+                            allowReadOnly: true);
+                        id = _ops.StartMonitor(spec.Handler, spec.StartCmd, requestFields);
+                        started = true;
                     }
-                    catch { /* best-effort */ }
+
+                    // The pass is driven here rather than inside the operations layer, because this is where the
+                    // cancel handle and the row callback live — and because a pass is unbounded in time (see
+                    // PollMonitorRound). `continuation != null` means the router is still mid-pass, so the next
+                    // round goes out immediately; the autorefresh sleep applies only BETWEEN passes.
+                    WinboxM2Continuation? continuation = null;
+                    while (!handle.CancelRequested)
+                    {
+                        bool done;
+                        List<Dictionary<int, Tuple<string, object>>> records;
+                        // Gated per ROUND, not per pass: on a multiplexed connection this is a no-op, but a
+                        // 30-second ping must not hold the lockstep gate for its whole duration (design §2).
+                        // contToken's parameter type isn't annotated nullable (PollMonitorRound is out of scope
+                        // here), but null is its documented first-round value.
+                        using (EnterCommand())
+                            (records, done, continuation) =
+                                _ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation!);
+
+                        // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
+                        // as the router produces it instead of in a lump when the pass ends.
+                        foreach (var rec in records)
+                            onRow?.Invoke(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
+                                resolver.ExtraSpellings)));
+
+                        if (done) break;              // router set Finished: the operation is over for good
+                        if (continuation != null) continue;   // same pass, next record — no sleep
+
+                        // The pass ended without Finished: an autorefresh snapshot window (Torch, Scan, …) whose
+                        // getall lists what exists right now. Wait the interval, then start a fresh pass.
+                        // Sleep in short slices so Cancel stays responsive.
+                        PollingMonitorEngine.SleepInterruptible(Math.Max(100, spec.AutorefreshMs), handle);
+                    }
                 }
-                onDone?.Invoke();
-            }
-        }
+                finally
+                {
+                    if (started && IsOpened)
+                    {
+                        // (The gate is entered inside the try: the previous shape released a semaphore it had
+                        // not necessarily acquired when the Wait itself threw during teardown.)
+                        try
+                        {
+                            using (EnterCommand())
+                                _ops.CancelMonitor(spec.Handler, spec.CancelCmd, id);
+                        }
+                        catch { /* best-effort */ }
+                    }
+                }
+            });
 
         // The set of read-only (ro:1) field names for a table's handler — the volatile runtime fields a listen
         // diff must ignore. Empty when the path has no handler/catalog entry (then all fields are compared).
