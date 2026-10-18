@@ -63,7 +63,7 @@ protected bool AckData(uint counter, int payloadLen)
   The protocol requires it: the client ignores packets with counter ≤ incounter
   ([mactelnet-protocol.md](mactelnet-protocol.md)).
 - `AckData` is used in **every** receive loop: `Authenticate`/`FinishAuth`, `WaitForPromptSync`,
-  `ReadCommandResponseSync`, `DrainSync`.
+  `ReadCommandResponseAsync`, `DrainSync`.
 
 **Acknowledging the bare counter has a far-reaching failure mode**, which is why this is stated first.
 RouterOS treats the packet as undelivered and retransmits it indefinitely *while coalescing*

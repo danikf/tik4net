@@ -494,7 +494,7 @@ starting offset).
 `IWinboxM2Channel.SendAbandoned` surfaces `MacLayerTransport.LastSendAbandoned` — "the head of the
 unacknowledged queue was never taken by the router" — up into the CLI engine. Over TCP it is always
 `false` (TCP has nothing to leave unacknowledged; a dead connection there shows up as FIN/RST).
-`WinboxCliClient.ReadCommandResponseSync` throws `TikConnectionSessionClosedException` instead of
+`WinboxCliClient.ReadCommandResponseAsync` throws `TikConnectionSessionClosedException` instead of
 riding out the full 30 s when nothing has arrived **and** the router never took the bytes; it only does
 this while the console has produced **no** output at all (`sb.Length == 0`) — once any output exists the
 command provably arrived and could have run, so claiming otherwise would be a lie the caller has no way
