@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Renci.SshNet.Common;
 using tik4net.Cli;
 using tik4net.Connection;
 
@@ -90,34 +89,20 @@ namespace tik4net.Ssh
             BuildTransport(string host, int port, string user, string password)
         {
             var client = new SshShellClient(Encoding, ClientTimeouts);
-            var romonTarget = RomonTarget;
             var key = SshPrivateKey == null ? null : SshShellClient.ReadPrivateKey(SshPrivateKey, SshPrivateKeyPassphrase);
-            Func<CancellationToken, Task> login = async ct =>
-            {
-                // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and
-                // reusing the send budget for it was how this transport ignored the option entirely (D1).
-                if (romonTarget == null)
+            // Through a RoMON agent the SSH login is the agent's, with its password (the setup refuses a key there).
+            var loginKey = RomonTarget == null ? key : null;
+            Func<CancellationToken, Task> login = ct => LoginOrRelayAsync(TikConnectionType.Ssh, host, host, user,
+                async c =>
                 {
-                    client.Connect(host, port, user, password, key);
-                    await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
-                    return;
-                }
-
-                // Through a RoMON agent: host/user/password are the agent's, the target comes after.
-                try
-                {
-                    client.Connect(host, port, user, password);
-                    await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
-                }
-                // Only the agent answering and saying no is its login failing; a port that refuses or never
-                // answers is a SocketException and leaves as one, exactly as on a direct connection.
-                catch (Exception ex) when (ex is SshAuthenticationException || ex is TikConnectionLoginException)
-                {
-                    throw AgentLoginFailed(host, ex);
-                }
-                string agentRomonId = await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
-                RomonEntered(TikConnectionType.Ssh, host, user, agentRomonId);
-            };
+                    // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and
+                    // reusing the send budget for it was how this transport ignored the option entirely (D1).
+                    // A refusal is a TikConnectionLoginException; a port that refuses or never answers is a
+                    // SocketException and leaves as one, through a RoMON agent as on a direct connection.
+                    client.Connect(host, port, user, password, loginKey);
+                    await client.SettleAfterConnectAsync(c).ConfigureAwait(false);
+                },
+                client.EnterRomonAsync, ct);
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, () => client.Close(SafeModeHeld));
         }

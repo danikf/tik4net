@@ -56,7 +56,8 @@ namespace tik4net.Ssh
         /// </summary>
         /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the port refused the connection,
         /// the host was unreachable, or the connection was not established within the timeout.</exception>
-        /// <exception cref="SshAuthenticationException">The router answered and refused the credentials.</exception>
+        /// <exception cref="TikConnectionLoginException">The router answered and refused the credentials (the
+        /// <see cref="SshAuthenticationException"/> inside).</exception>
         internal void Connect(string host, int port, string user, string password, IPrivateKeySource? key = null)
         {
             try
@@ -69,7 +70,8 @@ namespace tik4net.Ssh
                 // Router rejected the '+c' terminal-flag suffix on the user name — retry plain.
                 SafeDispose(_ssh);
                 _ssh = CreateClient(host, port, user, password, _connectTimeoutMs, key);
-                ConnectOrTimeOut(_ssh);
+                try { ConnectOrTimeOut(_ssh); }
+                catch (SshAuthenticationException ex) { throw new TikConnectionLoginException(ex); }
             }
 
             // cols/rows 0 → RouterOS uses the cursor-probe negotiation (Vt100State) to size the terminal.

@@ -149,24 +149,13 @@ namespace tik4net.MacTelnet
             // has logged out cannot be revived — reconnecting means a whole new client, socket and
             // EC-SRP5 login, and every delegate below must then be talking to the new one.
             var client = new MacTelnetUdpClient(Encoding, ClientTimeouts, RouterMac);
-            var romonTarget = RomonTarget;
 
             // Through a RoMON agent: host/user/password are the agent's, and the session continues into the
             // target. The reconnect below goes through here too — a fresh session is the agent's until it has
-            // been relayed again, and a command sent before that would run on the agent.
-            Func<CancellationToken, Task> login = async ct =>
-            {
-                if (romonTarget == null)
-                {
-                    await client.LoginAsync(host, user, password, ct).ConfigureAwait(false);
-                    return;
-                }
-
-                try { await client.LoginAsync(host, user, password, ct).ConfigureAwait(false); }
-                catch (TikConnectionLoginException ex) { throw AgentLoginFailed(AgentName(host), ex); }
-                string agentRomonId = await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
-                RomonEntered(TikConnectionType.MacTelnet, host, user, agentRomonId);
-            };
+            // been relayed again, and a command sent before that would run on the agent. Each call reads the
+            // client variable, so a reconnect logs the new client in.
+            Func<CancellationToken, Task> login = ct => LoginOrRelayAsync(TikConnectionType.MacTelnet, host, AgentName(host),
+                user, c => client.LoginAsync(host, user, password, c), (target, c) => client.EnterRomonAsync(target, c), ct);
             Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
 
             // The re-login goes through RouterLoginRetry for the same reason the initial one does: RouterOS

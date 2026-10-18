@@ -1,6 +1,9 @@
 #nullable enable
 using System;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -249,6 +252,61 @@ namespace tik4net.unittests.Connection
         {
             using (var conn = new TikConnectionSetup("192.0.2.9", "u", "p").CreateUnopened(TikConnectionType.Api))
                 Assert.IsNull(conn.GetRomonConnectionInfo());
+        }
+
+        // ── an agent that refuses the login ───────────────────────────────────
+
+        [TestMethod]
+        public void AnAgentRefusingTheLogin_IsReportedAsTheAgents_WithTheRoutersText()
+        {
+            // A Telnet "agent" on loopback that asks for the login and refuses it with RouterOS 7's wording.
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            var agent = Task.Run(async () =>
+            {
+                using (var client = await listener.AcceptTcpClientAsync().ConfigureAwait(false))
+                {
+                    var stream = client.GetStream();
+                    await WriteAsync(stream, "Login: ").ConfigureAwait(false);
+                    await ReadLineAsync(stream).ConfigureAwait(false);
+                    await WriteAsync(stream, "Password: ").ConfigureAwait(false);
+                    await ReadLineAsync(stream).ConfigureAwait(false);
+                    await WriteAsync(stream, "\r\nLogin failed, incorrect username or password\r\n\r\nLogin: ").ConfigureAwait(false);
+                    await Task.Delay(2000).ConfigureAwait(false);
+                }
+            });
+            try
+            {
+                var setup = RomonSetup(new TikRomonAgentSetup("127.0.0.1", "agent-user", "agent-pw") { Port = port });
+
+                var ex = Assert.ThrowsException<TikConnectionLoginException>(() => setup.Create(TikConnectionType.Telnet));
+
+                StringAssert.Contains(ex.Message, "RoMON agent 127.0.0.1 refused the login");
+                StringAssert.Contains(ex.Message, "incorrect username or password");
+            }
+            finally
+            {
+                listener.Stop();
+            }
+        }
+
+        private static Task WriteAsync(NetworkStream stream, string text)
+        {
+            byte[] bytes = Encoding.ASCII.GetBytes(text);
+            return stream.WriteAsync(bytes, 0, bytes.Length);
+        }
+
+        // Reads one typed line: printable text, then CR or LF. Telnet negotiation and a stray line end are skipped.
+        private static async Task ReadLineAsync(NetworkStream stream)
+        {
+            var one = new byte[1];
+            bool text = false;
+            while (await stream.ReadAsync(one, 0, 1).ConfigureAwait(false) == 1)
+            {
+                if (one[0] >= 0x20 && one[0] < 0x7F) text = true;
+                else if (text && (one[0] == '\r' || one[0] == '\n')) return;
+            }
         }
 
         // ── fakes ─────────────────────────────────────────────────────────────

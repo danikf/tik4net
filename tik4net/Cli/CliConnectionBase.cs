@@ -533,6 +533,24 @@ namespace tik4net.Cli
                 "RoMON agent " + host + " refused the login — " +
                 (ex is TikConnectionLoginException ? ex.InnerException?.Message ?? ex.Message : ex.Message), ex));
 
+        // Direct: just log in. Through a RoMON agent the login is the agent's — a refusal is reported as the agent's —
+        // and the terminal is then continued into the target from the agent's shell.
+        private protected async Task LoginOrRelayAsync(TikConnectionType self, string host, string agentName, string user,
+            Func<CancellationToken, Task> login, Func<RomonRelayTarget, CancellationToken, Task<string>> enterRomon,
+            CancellationToken ct)
+        {
+            var target = RomonTarget;
+            if (target == null)
+            {
+                await login(ct).ConfigureAwait(false);
+                return;
+            }
+            try { await login(ct).ConfigureAwait(false); }
+            catch (TikConnectionLoginException ex) { throw AgentLoginFailed(agentName, ex); }
+            string agentRomonId = await enterRomon(target, ct).ConfigureAwait(false);
+            RomonEntered(self, host, user, agentRomonId);
+        }
+
         /// <summary>
         /// Shared open: runs <paramref name="login"/> under the standard guard (what
         /// <see cref="TikOpenGuard.PassesThrough"/> names is rethrown as-is; any other exception is wrapped in a login

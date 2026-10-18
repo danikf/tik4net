@@ -79,21 +79,11 @@ namespace tik4net.Telnet
             BuildTransport(string host, int port, string user, string password)
         {
             var client = new TelnetClient(Encoding, ClientTimeouts);
-            var romonTarget = RomonTarget;
             Func<CancellationToken, Task> login = async ct =>
             {
                 client.Connect(host, port);
-                if (romonTarget == null)
-                {
-                    await client.LoginAsync(user, password, ct).ConfigureAwait(false);
-                    return;
-                }
-
-                // Through a RoMON agent: host/user/password are the agent's, the target comes after.
-                try { await client.LoginAsync(user, password, ct).ConfigureAwait(false); }
-                catch (TikConnectionLoginException ex) { throw AgentLoginFailed(host, ex); }
-                string agentRomonId = await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
-                RomonEntered(TikConnectionType.Telnet, host, user, agentRomonId);
+                await LoginOrRelayAsync(TikConnectionType.Telnet, host, host, user,
+                    c => client.LoginAsync(user, password, c), client.EnterRomonAsync, ct).ConfigureAwait(false);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, () => client.Close(SafeModeHeld));
