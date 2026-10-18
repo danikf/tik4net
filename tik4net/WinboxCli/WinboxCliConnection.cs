@@ -58,7 +58,7 @@ namespace tik4net.WinboxCli
 
         TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
-        // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
+        // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -66,22 +66,7 @@ namespace tik4net.WinboxCli
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-        {
-            // BuildTransport is inside the retry, not outside it: a refused handshake leaves the client
-            // and its channel unusable, so a retry needs new ones (see Winbox.RouterLoginRetry).
-            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
-            tik4net.Winbox.RouterLoginRetry.Run(() =>
-            {
-                var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
-                OpenWith(login, send, sendRaw, close);
-                sendRawSettle = settle;
-                sendStreaming = streaming;
-            });
-            // Run() either assigns both delegates above or throws, so they are always set here.
-            RegisterCompletionDriver(sendRawSettle!);
-            RegisterStreamingDriver(sendStreaming!);
-        }
+            => OpenTerminal(() => Attempt(host, port, user, password), retryRefusedLogin: true);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, string user, string password,
@@ -89,32 +74,13 @@ namespace tik4net.WinboxCli
             => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password,
+        public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
-        {
-            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
-            await tik4net.Winbox.RouterLoginRetry.RunAsync(async () =>
-            {
-                // Inside the retry loop on purpose: a cancelled attempt must end the whole open rather than
-                // be retried as if the router had refused. OpenWithAsync rethrows OperationCanceledException
-                // unwrapped, and RouterLoginRetry only retries a refusal, so cancelling stops here.
-                cancellationToken.ThrowIfCancellationRequested();
-                var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
-                await OpenWithAsync(login, send, sendRaw, close, cancellationToken).ConfigureAwait(false);
-                sendRawSettle = settle;
-                sendStreaming = streaming;
-            }).ConfigureAwait(false);
-            // RunAsync() either assigns both delegates above or throws, so they are always set here.
-            RegisterCompletionDriver(sendRawSettle!);
-            RegisterStreamingDriver(sendStreaming!);
-        }
+            => OpenTerminalAsync(() => Attempt(host, port, user, password), retryRefusedLogin: true, cancellationToken);
 
-        // Build the WinBox-CLI client (mepty terminal over the TCP M2 channel) and the delegates that drive it.
-        private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
-            Func<string, Action<string>, CancellationToken, Task<string>>, Action)
-            BuildTransport(string host, int port, string user, string password)
+        // One open attempt: the WinBox-CLI client (mepty terminal over the TCP M2 channel) and its login. A refused
+        // handshake leaves the client and its channel unusable, so each attempt builds new ones (Winbox.RouterLoginRetry).
+        private CliTerminalOpen Attempt(string host, int port, string user, string password)
         {
             // Through a RoMON agent the session goes to the agent and the relay channel routes it on to the target,
             // whose password opens the terminal there.
@@ -122,15 +88,12 @@ namespace tik4net.WinboxCli
             var carrier = new tik4net.Winbox.WinboxM2Session();
             var relay = target == null ? null : new tik4net.Winbox.WinboxRomonChannel(carrier, target);
             var client = new WinboxCliClient(relay ?? (tik4net.Winbox.IWinboxM2Channel)carrier, Encoding, ClientTimeouts);
-            Func<CancellationToken, Task> login = async ct =>
+            return new CliTerminalOpen(client, async ct =>
             {
                 await client.LoginAsync(host, port, user, password, ct, target?.Password).ConfigureAwait(false);
                 if (relay != null)
                     RomonEntered(TikConnectionType.WinboxCli, host, user, relay.AgentRomonId!, TikRomonRelay.Winbox);
-            };
-            Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
-            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, close);
+            });
         }
     }
 }

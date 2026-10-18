@@ -177,6 +177,18 @@ namespace tik4net.unittests.Connection
             Assert.IsFalse(conn.LoginRan, "nothing may reach the agent");
         }
 
+        [TestMethod]
+        public void ARelayingTransportWhoseLoginNeverEnteredTheTarget_IsRefused_AndItsSessionEnded()
+        {
+            var conn = new NonEnteringRomonConnection { RomonTarget = new RomonRelayTarget(TargetId, "u", "p") };
+
+            var ex = Assert.ThrowsException<NotSupportedException>(() => conn.Open("192.0.2.1", "u", "p"));
+
+            StringAssert.Contains(ex.Message, "agent", "every command would have run on the agent");
+            Assert.IsFalse(conn.IsOpened);
+            Assert.IsTrue(conn.Ended, "the agent's session is not left behind");
+        }
+
         // ── what travels where ────────────────────────────────────────────────
 
         [TestMethod]
@@ -344,6 +356,31 @@ namespace tik4net.unittests.Connection
             { OpenRecorded(host, null, user, password); return Task.FromResult(0); }
             public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default)
             { OpenRecorded(host, port, user, password); return Task.FromResult(0); }
+        }
+
+        /// <summary>A relaying CLI connection whose login logs in to the agent and never enters the target.</summary>
+        private sealed class NonEnteringRomonConnection : CliConnectionBase, ITikRomonConnection
+        {
+            public bool Ended;
+
+            private protected override string TransportName => "NonEntering";
+
+            RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+            TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Telnet;
+            TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
+
+            private void OpenAgentOnly()
+                => OpenWith(ct => Task.FromResult(0),
+                    (cmd, ct) => Task.FromResult(string.Empty),
+                    (raw, ct) => Task.FromResult(string.Empty),
+                    () => Ended = true);
+
+            public override void Open(string host, string user, string password) => OpenAgentOnly();
+            public override void Open(string host, int port, string user, string password) => OpenAgentOnly();
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default)
+            { OpenAgentOnly(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default)
+            { OpenAgentOnly(); return Task.FromResult(0); }
         }
 
         /// <summary>A CLI connection that does not relay (no <see cref="ITikRomonConnection"/>).</summary>

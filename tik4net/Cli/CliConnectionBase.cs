@@ -551,28 +551,44 @@ namespace tik4net.Cli
             RomonEntered(self, host, user, agentRomonId);
         }
 
-        /// <summary>
-        /// Shared open: runs <paramref name="login"/> under the standard guard (what
-        /// <see cref="TikOpenGuard.PassesThrough"/> names is rethrown as-is; any other exception is wrapped in a login
-        /// exception; the half-open client is closed either way), then registers the driver delegates and marks the connection opened. Leaf transports
-        /// build their concrete client and call this with delegates bound to it.
-        /// </summary>
-        private protected void OpenWith(Func<CancellationToken, Task> login,
-            Func<string, CancellationToken, Task<string>> send,
-            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close)
-            => OpenWithAsync(login, send, sendRaw, close).GetAwaiter().GetResult();
-
-        /// <summary>Async counterpart of <see cref="OpenWith"/>.</summary>
-        private protected async Task OpenWithAsync(Func<CancellationToken, Task> login,
-            Func<string, CancellationToken, Task<string>> send,
-            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close,
-            CancellationToken cancellationToken = default)
+        /// <summary>What a leaf builds per open attempt: a fresh terminal and the login that makes it usable.</summary>
+        internal readonly struct CliTerminalOpen
         {
-            // First, so the Register*Driver calls after this one find it even when the checks below refuse the open.
-            var terminal = new DelegateCliTerminal { Send = send, SendRaw = sendRaw, Close = close };
-            _opening = terminal;
-            // Before the delegate, not inside it: the delegate opens the socket synchronously and only then
-            // awaits the login, so an already-cancelled token would otherwise still cost a TCP connect.
+            internal CliTerminalOpen(ICliTerminal terminal, Func<CancellationToken, Task> login)
+            {
+                Terminal = terminal;
+                Login = login;
+            }
+
+            internal ICliTerminal Terminal { get; }
+            internal Func<CancellationToken, Task> Login { get; }
+        }
+
+        /// <summary>
+        /// Shared open: builds a terminal through <paramref name="attempt"/>, runs its login under the standard guard
+        /// (what <see cref="TikOpenGuard.PassesThrough"/> names is rethrown as-is; any other exception is wrapped in a
+        /// login exception; the half-open terminal is ended either way), then keeps the terminal and marks the
+        /// connection opened.
+        /// </summary>
+        /// <param name="attempt">Builds a new terminal and its login; called once per attempt.</param>
+        /// <param name="retryRefusedLogin">Retry a transient refusal (<see cref="Winbox.RouterLoginRetry"/>): the
+        /// EC-SRP5 logins of MAC-Telnet and WinBox.</param>
+        private protected void OpenTerminal(Func<CliTerminalOpen> attempt, bool retryRefusedLogin)
+            => OpenTerminalAsync(attempt, retryRefusedLogin, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <summary>Async counterpart of <see cref="OpenTerminal"/>.</summary>
+        private protected Task OpenTerminalAsync(Func<CliTerminalOpen> attempt, bool retryRefusedLogin, CancellationToken ct)
+            // A refused handshake leaves the carrier unusable, so every attempt builds a new terminal (RouterLoginRetry).
+            // The cancel check in OpenOnceAsync is also what ends the retry loop on a cancel: RouterLoginRetry retries
+            // only a refusal.
+            => retryRefusedLogin
+                ? Winbox.RouterLoginRetry.RunAsync(() => OpenOnceAsync(attempt, ct))
+                : OpenOnceAsync(attempt, ct);
+
+        private async Task OpenOnceAsync(Func<CliTerminalOpen> attempt, CancellationToken cancellationToken)
+        {
+            // Before the login, not inside it: the login opens the socket synchronously and only then awaits, so an
+            // already-cancelled token would otherwise still cost a TCP connect.
             cancellationToken.ThrowIfCancellationRequested();
             if (RomonTarget != null && !(this is ITikRomonConnection))
                 throw new NotSupportedException(TransportName + " cannot relay to a RoMON target (" + RomonTarget +
@@ -583,26 +599,54 @@ namespace tik4net.Cli
             _schemaStore = null;
             _schemaStoreAsked = false;
             _completionResponseMs = 0;
+            var open = attempt();
             try
             {
-                // The login delegate has always taken a token; it used to be handed CancellationToken.None,
-                // so a caller's token stopped at the door. It reaches the router-facing waits now — the
-                // prompt reads of RouterOsCliLogin — which is the part of an open that actually blocks.
-                // The socket connect inside the delegate is synchronous and stays bounded by ConnectTimeout.
-                await login(cancellationToken).ConfigureAwait(false);
+                // The login reaches the router-facing waits with the caller's token — the prompt reads of
+                // RouterOsCliLogin — which is the part of an open that actually blocks. The socket connect inside it
+                // is synchronous and stays bounded by ConnectTimeout.
+                await open.Login(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (TikOpenGuard.PassesThrough(ex))
             {
-                close();
+                open.Terminal.End(SafeModeHeld);
                 throw;
             }
             catch (Exception ex)
             {
-                close();
+                open.Terminal.End(SafeModeHeld);
                 throw new TikConnectionLoginException(ex);
             }
-            _terminal = terminal;
+            // A login that never entered the target leaves the terminal on the agent, where every command would run.
+            if (RomonTarget != null && RomonConnectionInfo == null)
+            {
+                open.Terminal.End(SafeModeHeld);
+                throw new NotSupportedException(TransportName + " logged in to the RoMON agent without entering the target ("
+                    + RomonTarget + "): every command would have run on the agent.");
+            }
+            _terminal = open.Terminal;
             SetOpened();
+        }
+
+        /// <summary>
+        /// The open of a leaf that hands over delegates: <see cref="OpenTerminal"/> over a
+        /// <see cref="DelegateCliTerminal"/> wrapping them.
+        /// </summary>
+        private protected void OpenWith(Func<CancellationToken, Task> login,
+            Func<string, CancellationToken, Task<string>> send,
+            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close)
+            => OpenWithAsync(login, send, sendRaw, close).GetAwaiter().GetResult();
+
+        /// <summary>Async counterpart of <see cref="OpenWith"/>.</summary>
+        private protected Task OpenWithAsync(Func<CancellationToken, Task> login,
+            Func<string, CancellationToken, Task<string>> send,
+            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close,
+            CancellationToken cancellationToken = default)
+        {
+            // First, so the Register*Driver calls after this one find it even when the open is refused.
+            var terminal = new DelegateCliTerminal { Send = send, SendRaw = sendRaw, Close = close };
+            _opening = terminal;
+            return OpenOnceAsync(() => new CliTerminalOpen(terminal, login), cancellationToken);
         }
 
         // Behind OpenWith / RegisterCompletionDriver / RegisterStreamingDriver until the leaves build an ICliTerminal.

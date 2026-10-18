@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Renci.SshNet;
 using tik4net.Cli;
 using tik4net.Connection;
 
@@ -49,7 +50,7 @@ namespace tik4net.Ssh
 
         TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
-        // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
+        // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -58,10 +59,8 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
-            OpenWith(login, send, sendRaw, close);
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
+            var key = ReadKey();
+            OpenTerminal(() => Attempt(host, port, user, password, key), retryRefusedLogin: false);
         }
 
         /// <inheritdoc/>
@@ -73,26 +72,22 @@ namespace tik4net.Ssh
         public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
         {
-            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
-            var opened = OpenWithAsync(login, send, sendRaw, close, cancellationToken);
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
-            return opened;
+            var key = ReadKey();
+            return OpenTerminalAsync(() => Attempt(host, port, user, password, key), retryRefusedLogin: false, cancellationToken);
         }
 
-        // Build the SSH PTY-shell client (Renci.SshNet) and the delegates that drive it (connect+settle,
-        // send, send-raw, send-raw-settle for Tab-completion, send-streaming for incremental monitor reads,
-        // close).
-        private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
-            Func<string, Action<string>, CancellationToken, Task<string>>, Action)
-            BuildTransport(string host, int port, string user, string password)
+        // Read before the open starts, so a key that cannot be read is an ArgumentException out of Open itself.
+        private IPrivateKeySource? ReadKey()
+            => SshPrivateKey == null ? null : SshShellClient.ReadPrivateKey(SshPrivateKey, SshPrivateKeyPassphrase);
+
+        // One open attempt: a new SSH PTY-shell client (Renci.SshNet), and its connect plus settle (through a RoMON
+        // agent, the relay too).
+        private CliTerminalOpen Attempt(string host, int port, string user, string password, IPrivateKeySource? key)
         {
             var client = new SshShellClient(Encoding, ClientTimeouts);
-            var key = SshPrivateKey == null ? null : SshShellClient.ReadPrivateKey(SshPrivateKey, SshPrivateKeyPassphrase);
             // Through a RoMON agent the SSH login is the agent's, with its password (the setup refuses a key there).
             var loginKey = RomonTarget == null ? key : null;
-            Func<CancellationToken, Task> login = ct => LoginOrRelayAsync(TikConnectionType.Ssh, host, host, user,
+            return new CliTerminalOpen(client, ct => LoginOrRelayAsync(TikConnectionType.Ssh, host, host, user,
                 async c =>
                 {
                     // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and
@@ -102,9 +97,7 @@ namespace tik4net.Ssh
                     client.Connect(host, port, user, password, loginKey);
                     await client.SettleAfterConnectAsync(c).ConfigureAwait(false);
                 },
-                client.EnterRomonAsync, ct);
-            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, () => client.Close(SafeModeHeld));
+                client.EnterRomonAsync, ct));
         }
     }
 }

@@ -41,7 +41,7 @@ namespace tik4net.Telnet
 
         TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
-        // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
+        // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -49,12 +49,7 @@ namespace tik4net.Telnet
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-        {
-            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
-            OpenWith(login, send, sendRaw, close);
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
-        }
+            => OpenTerminal(() => Attempt(host, port, user, password), retryRefusedLogin: false);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, string user, string password,
@@ -62,31 +57,20 @@ namespace tik4net.Telnet
             => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password,
+        public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
-        {
-            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
-            await OpenWithAsync(login, send, sendRaw, close, cancellationToken).ConfigureAwait(false);
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
-        }
+            => OpenTerminalAsync(() => Attempt(host, port, user, password), retryRefusedLogin: false, cancellationToken);
 
-        // Build the Telnet client and the delegates that drive it (connect+login, send, send-raw,
-        // send-raw-settle for Tab-completion, send-streaming for incremental monitor reads, close).
-        private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
-            Func<string, Action<string>, CancellationToken, Task<string>>, Action)
-            BuildTransport(string host, int port, string user, string password)
+        // One open attempt: a new Telnet client, and its connect plus login (through a RoMON agent, the relay too).
+        private CliTerminalOpen Attempt(string host, int port, string user, string password)
         {
             var client = new TelnetClient(Encoding, ClientTimeouts);
-            Func<CancellationToken, Task> login = async ct =>
+            return new CliTerminalOpen(client, async ct =>
             {
                 client.Connect(host, port);
                 await LoginOrRelayAsync(TikConnectionType.Telnet, host, host, user,
                     c => client.LoginAsync(user, password, c), client.EnterRomonAsync, ct).ConfigureAwait(false);
-            };
-            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, () => client.Close(SafeModeHeld));
+            });
         }
     }
 }
