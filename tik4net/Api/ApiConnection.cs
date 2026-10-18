@@ -316,12 +316,19 @@ namespace tik4net.Api
                         + " without answering.", ex);
                 }
             }
-            catch
+            catch (Exception ex) when (TikOpenGuard.PassesThrough(ex))
             {
                 // Do not leak a half-opened socket when Open fails at any stage (connect, SSL auth, login) —
                 // the caller never gets a connection object back to Dispose.
                 DisposeConnectionResources();
                 throw;
+            }
+            catch (Exception ex)
+            {
+                // Anything else (a receive timeout or a reset during the login, say) is a failed login, as on every
+                // transport (TikOpenGuard).
+                DisposeConnectionResources();
+                throw TikOpenGuard.Translate(ex);
             }
         }
 

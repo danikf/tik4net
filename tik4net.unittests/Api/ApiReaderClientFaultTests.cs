@@ -44,14 +44,17 @@ namespace tik4net.unittests.Api
                 connection.OnReadRow += (s, e) =>
                     throw new FileLoadException("Could not load file or assembly 'Simulated.Assembly'.");
 
-                Exception ex = Assert.ThrowsException<TikCommandFatalException>(
+                // A failure the open cannot name otherwise is a failed login wrapping it, as on every transport (D5); the
+                // client's own diagnosis is what it wraps.
+                Exception ex = Assert.ThrowsException<TikConnectionLoginException>(
                     () => connection.Open("127.0.0.1", server.Port, "admin", "secret"));
+                Assert.IsInstanceOfType(ex.InnerException, typeof(TikCommandFatalException));
 
                 Assert.IsNotInstanceOfType(ex, typeof(TikConnectionProtocolMismatchException));
                 StringAssert.Contains(ex.Message, "on this machine");
                 StringAssert.Contains(ex.Message, "FileLoadException");
                 Assert.IsFalse(ex.Message.Contains("/ip/service"), ex.Message);
-                Assert.IsInstanceOfType(ex.InnerException, typeof(FileLoadException),
+                Assert.IsInstanceOfType(ex.InnerException.InnerException, typeof(FileLoadException),
                     "the original exception is what carries the binding details — it must not be flattened away");
             }
 

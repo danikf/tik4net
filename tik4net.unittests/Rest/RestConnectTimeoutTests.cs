@@ -40,7 +40,7 @@ namespace tik4net.unittests.Rest
                 Assert.AreEqual(TimeSpan.FromMilliseconds(30000), conn.ReceiveTimeout, "precondition: the receive timeout is the longer one");
 
                 var sw = Stopwatch.StartNew();
-                var ex = Assert.ThrowsException<IOException>(
+                var ex = Assert.ThrowsException<TikConnectionLoginNoAnswerException>(
                     () => conn.Open("127.0.0.1", server.Port, "admin", ""));
                 sw.Stop();
 
@@ -82,17 +82,16 @@ namespace tik4net.unittests.Rest
         /// A cancelled <c>OpenAsync</c> must surface <see cref="OperationCanceledException"/> as itself.
         /// </summary>
         /// <remarks>
-        /// The open probe's generic <c>catch (Exception)</c> wrapped everything it saw into
-        /// <see cref="IOException"/>, and a caller's cancellation went through it like any other failure —
-        /// so every <c>catch (OperationCanceledException)</c> written against this transport missed, and
-        /// the caller learned about their OWN cancel as an I/O error. <c>SendHttpAsync</c> already tells a
+        /// The open probe's generic <c>catch (Exception)</c> wraps what it sees, and a caller's cancellation
+        /// went through it like any other failure — so every <c>catch (OperationCanceledException)</c> written
+        /// against this transport missed, and the caller learned about their OWN cancel as an open failure. <c>SendHttpAsync</c> already tells a
         /// cancel from a timeout correctly (the timeout becomes
         /// <see cref="TikConnectionReceiveTimeoutException"/>); only the open path undid that.
         /// <para>The timeout here is deliberately long: if it were short, the wait could end for the wrong
         /// reason and the test would pass without the cancel ever being honoured.</para>
         /// </remarks>
         [TestMethod]
-        public async Task CancellingOpenAsyncSurfacesOperationCanceledRatherThanIOException()
+        public async Task CancellingOpenAsyncSurfacesOperationCanceledUnwrapped()
         {
             using (var server = new ScriptedHttpServer()) // accepts the probe, answers nothing
             using (var conn = new RestConnection(useSsl: false))
@@ -133,7 +132,7 @@ namespace tik4net.unittests.Rest
                 };
 
                 var sw = Stopwatch.StartNew();
-                var ex = Assert.ThrowsException<IOException>(() => setup.CreateRestConnection());
+                var ex = Assert.ThrowsException<TikConnectionLoginNoAnswerException>(() => setup.CreateRestConnection());
                 sw.Stop();
 
                 Assert.IsTrue(sw.ElapsedMilliseconds < GenerousLimitMs,

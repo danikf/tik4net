@@ -239,20 +239,20 @@ namespace tik4net.Rest
             }
             catch (TikConnectionReceiveTimeoutException ex)
             {
-                // Reported as a connect failure: what ran out is ConnectTimeout, and the generic wrapper below
-                // would pass on the inner exception's "no response received" wording — which describes a read
+                // The router took the connection and answered the probe with silence: a login with no answer, as on
+                // every transport (TikOpenGuard). The inner exception's "no response received" wording describes a read
                 // on an established connection, not an open that never got that far.
                 _httpClient.Dispose();
                 _httpClient = null;
-                throw new System.IO.IOException(
-                    $"REST connection to {host}:{port} timed out: the router did not answer the open probe " +
-                    $"within {probeMs} ms (ConnectTimeout, or ReceiveTimeout when ConnectTimeout is not positive).", ex);
+                throw new TikConnectionLoginNoAnswerException("REST",
+                    $"the open probe GET /rest/system/resource to {host}:{port}, nothing within {probeMs} ms "
+                    + "(ConnectTimeout, or ReceiveTimeout when ConnectTimeout is not positive)", ex);
             }
             catch (OperationCanceledException)
             {
-                // The caller's own cancel, and it leaves as itself. Wrapping it into the IOException below
+                // The caller's own cancel, and it leaves as itself. Wrapping it like the failures below
                 // would break every catch (OperationCanceledException) written against this transport and
-                // report a caller's deliberate act as an I/O failure. SendHttpAsync has already separated
+                // report a caller's deliberate act as a failed open. SendHttpAsync has already separated
                 // this from a timeout — a cancellation nobody asked for becomes
                 // TikConnectionReceiveTimeoutException there — so anything reaching here was asked for.
                 _httpClient.Dispose();
@@ -263,7 +263,12 @@ namespace tik4net.Rest
             {
                 _httpClient.Dispose();
                 _httpClient = null;
-                throw new System.IO.IOException("REST connection failed: " + ex.Message, ex);
+                // Nothing answered (refused, unreachable, the connect timed out): the SocketException under HttpClient's
+                // own exception, as the API and the terminals throw it. Anything else is what TikOpenGuard makes of it.
+                for (Exception? inner = ex; inner != null; inner = inner.InnerException)
+                    if (inner is System.Net.Sockets.SocketException socket)
+                        throw socket;
+                throw TikOpenGuard.Translate(ex);
             }
         }
 

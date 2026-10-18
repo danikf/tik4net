@@ -239,7 +239,9 @@ namespace tik4net.integrationtests
                     Console.WriteLine($"opened with a {timeouts[attempt]} ms receive timeout (attempt {attempt + 1})");
                     return;
                 }
-                catch (TikConnectionReceiveTimeoutException ex) when (attempt < timeouts.Length - 1)
+                // A login the router did not answer in time is a failed login wrapping the receive timeout (D5).
+                catch (TikConnectionLoginException ex) when (ex.InnerException is TikConnectionReceiveTimeoutException
+                                                             && attempt < timeouts.Length - 1)
                 {
                     Console.WriteLine($"no login reply within {timeouts[attempt]} ms, retrying: {ex.Message}");
                 }

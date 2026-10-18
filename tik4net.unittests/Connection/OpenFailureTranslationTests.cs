@@ -28,6 +28,8 @@ namespace tik4net.unittests.Connection
                 case "refused": return new TikConnectionLoginRefusedException("Test", "invalid user name or password");
                 case "romon": return new TikRomonRelayException(TikRomonRelayFailure.RomonNotEnabledOnAgent, "romon is off");
                 case "socket": return new SocketException((int)SocketError.ConnectionRefused);
+                case "mismatch": return new TikConnectionProtocolMismatchException(8291, false, 8728, 8729, "not this protocol", null);
+                case "ssl": return new TikConnectionSSLErrorException(new System.Security.Authentication.AuthenticationException("no common protocol"));
                 case "io": return new IOException("reset");
                 case "invalid": return new InvalidOperationException("odd state");
                 default: throw new ArgumentOutOfRangeException(nameof(kind));
@@ -77,6 +79,8 @@ namespace tik4net.unittests.Connection
         [DataRow("refused", true)]
         [DataRow("romon", true)]
         [DataRow("socket", true)]
+        [DataRow("mismatch", true)]
+        [DataRow("ssl", true)]
         [DataRow("io", false)]
         [DataRow("invalid", false)]
         public void Cli_AFailedLogin_LeavesAsItselfOrAsALoginFailure_AndClosesTheClient(string kind, bool passesThrough)
@@ -148,6 +152,8 @@ namespace tik4net.unittests.Connection
         [DataRow("refused", true, RouterLoginRetry.MaxAttempts)]   // a transient refusal is retried on a new carrier
         [DataRow("romon", true, 1)]
         [DataRow("socket", true, 1)]
+        [DataRow("mismatch", true, 1)]
+        [DataRow("ssl", true, 1)]
         [DataRow("io", false, 1)]
         [DataRow("invalid", false, 1)]
         public void Native_AFailedCarrierOpen_LeavesAsItselfOrAsALoginFailure_AndDisposesTheCarrier(string kind,
