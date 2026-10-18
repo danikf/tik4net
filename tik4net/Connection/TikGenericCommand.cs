@@ -181,7 +181,9 @@ namespace tik4net.Connection
                 string verb = TikPath.Verb(normalCmd);
 
                 if (verb == "add")
-                    return ScalarFromAddedId(_connection.InvokeRunAdd(BuildCommand(normalCmd, normalParams)), throwIfMissing, defaultValue);
+                    // The new .id, or TikAddIdNotReadException from the connection: never a default, which would hide
+                    // a row that is on the router.
+                    return _connection.InvokeRunAdd(BuildCommand(normalCmd, normalParams));
 
                 var cmd = BuildCommand(normalCmd, ResolveParamsForRead(normalParams));
                 IList<TikRecordSentence> rows;
@@ -229,23 +231,6 @@ namespace tik4net.Connection
                     "Raw command returned no output, so there is no scalar value to return. "
                     + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
                     + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
-            return defaultValue;
-        }
-
-        /// <summary>Scalar of an <c>add</c>: the new record's <c>.id</c> (<c>:put [/path add k=v …]</c>).</summary>
-        private string? ScalarFromAddedId(string newId, bool throwIfMissing, string? defaultValue)
-        {
-            if (newId != null)
-                return newId;
-
-            // The add itself did not fail — a failing add raises a trap in RunAdd. Getting here means the
-            // router accepted the row but answered without the new .id, so saying "no such item" pointed the
-            // caller at a nonexistent record instead of at the missing return value (and the row is on the
-            // router either way).
-            if (throwIfMissing)
-                throw new TikCommandEmptyResponseException(this,
-                    "The router accepted the add but did not return the new .id. "
-                    + "The record was most probably created — re-read the table to obtain its id.");
             return defaultValue;
         }
 
@@ -483,8 +468,7 @@ namespace tik4net.Connection
 
                 if (verb == "add")
                 {
-                    string newId = await _connection.InvokeRunAddAsync(BuildCommand(normalCmd, normalParams), cancellationToken).ConfigureAwait(false);
-                    return ScalarFromAddedId(newId, throwIfMissing, defaultValue)!;
+                    return await _connection.InvokeRunAddAsync(BuildCommand(normalCmd, normalParams), cancellationToken).ConfigureAwait(false);
                 }
 
                 var readCmd = BuildCommand(normalCmd, ResolveParamsForRead(normalParams));

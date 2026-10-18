@@ -76,22 +76,35 @@ namespace tik4net.unittests.Rest
             }
         }
 
-        // Reads up to the blank line ending the request head. The body (if any) is deliberately not read:
-        // nothing here depends on it, and the tests only need to know a request arrived.
+        // Reads the request head up to its blank line, then the body its Content-Length announces. Nothing here
+        // depends on the body, but closing the socket with it unread makes the client's send fail with a reset (an
+        // add is a PUT with a body).
         private static async Task<bool> ReadRequestHeadAsync(NetworkStream stream)
         {
             var buffer = new byte[1];
+            var head = new StringBuilder();
             int matched = 0;
             const string terminator = "\r\n\r\n";
-            while (true)
+            while (matched < terminator.Length)
             {
                 int n = await stream.ReadAsync(buffer, 0, 1).ConfigureAwait(false);
                 if (n == 0)
                     return false;
+                head.Append((char)buffer[0]);
                 matched = buffer[0] == terminator[matched] ? matched + 1 : (buffer[0] == '\r' ? 1 : 0);
-                if (matched == terminator.Length)
-                    return true;
             }
+
+            var length = System.Text.RegularExpressions.Regex.Match(head.ToString(), @"(?im)^Content-Length:\s*(\d+)");
+            int remaining = length.Success ? int.Parse(length.Groups[1].Value) : 0;
+            var body = new byte[4096];
+            while (remaining > 0)
+            {
+                int n = await stream.ReadAsync(body, 0, Math.Min(body.Length, remaining)).ConfigureAwait(false);
+                if (n == 0)
+                    return false;
+                remaining -= n;
+            }
+            return true;
         }
 
         public void Dispose()

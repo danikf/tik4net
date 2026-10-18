@@ -266,22 +266,24 @@ namespace tik4net.unittests
         }
 
         [TestMethod]
-        public async Task AnAddWithoutAnId_IsAnEmptyResponse_NotAMissingRecord()
+        public async Task AnAddWithoutAnId_IsAddIdNotRead_NotAMissingRecordOrADefault()
         {
             var connection = OpenedConnection();
             connection.AddedId = null;
 
-            try
+            foreach (bool orDefault in new[] { false, true })
             {
-                await connection.CreateCommand("/ip/address/add").ExecuteScalarAsync();
-                Assert.Fail("expected TikCommandEmptyResponseException.");
+                try
+                {
+                    var cmd = connection.CreateCommand("/ip/address/add");
+                    await (orDefault ? cmd.ExecuteScalarOrDefaultAsync() : cmd.ExecuteScalarAsync());
+                    Assert.Fail("expected TikAddIdNotReadException, orDefault " + orDefault);
+                }
+                catch (TikAddIdNotReadException)
+                {
+                    // expected: the row is on the router either way, and a default would hide it
+                }
             }
-            catch (TikCommandEmptyResponseException)
-            {
-                // expected
-            }
-
-            Assert.IsNull(await connection.CreateCommand("/ip/address/add").ExecuteScalarOrDefaultAsync());
         }
 
         [TestMethod]

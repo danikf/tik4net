@@ -311,9 +311,10 @@ namespace tik4net.Rest
             var single = await ExecuteRequestSingleAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken).ConfigureAwait(false);
             string? id = null;
             single?.TryGetResponseField(TikSpecialProperties.Id, out id);
-            // RunAddAsync's declared return type is non-nullable, matching RunAdd's contract across every
-            // transport, but a response with no .id field genuinely yields null here (see the report).
-            return id!;
+            if (id == null || id.Length == 0)
+                throw TikAddIdNotRead.Create(CommandFor(descriptor),
+                    single == null ? null : string.Join(";", single.Words.Select(w => w.Key + "=" + w.Value)));
+            return id;
         }
 
         /// <inheritdoc/>

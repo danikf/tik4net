@@ -276,8 +276,9 @@ namespace tik4net
     /// <remarks>
     /// <para>
     /// <b>The row has very likely been created.</b> That is what separates this from an add that failed: the
-    /// router did not refuse anything — it answered, and the answer did not contain an id. On the CLI
-    /// transports the response is an unframed byte stream terminated by a stable prompt, so a reply that
+    /// router did not refuse anything — it answered, and the answer did not contain an id. Every transport throws
+    /// it for that answer, from <c>ExecuteScalar</c> and <c>ExecuteScalarOrDefault</c> alike. It is seen on the CLI
+    /// transports, where the response is an unframed byte stream terminated by a stable prompt, so a reply that
     /// arrives after the read has settled is lost rather than delayed, and the row it describes stays on the
     /// router with nothing referring to it.
     /// </para>

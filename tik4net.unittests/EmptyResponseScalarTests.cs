@@ -91,28 +91,57 @@ namespace tik4net.unittests
         // ── add that answers without the new .id ───────────────────────────────
 
         [TestMethod]
-        public void AddScalar_WhenTheRouterDoesNotReturnTheId_SaysSoInsteadOfNoSuchItem()
+        public void AddScalar_WhenTheRouterDoesNotReturnTheId_ThrowsAddIdNotRead()
         {
             // A failing add raises a trap inside RunAdd; reaching this branch means the row was accepted
-            // and only the .id is missing from the answer — the opposite of "no such item".
+            // and only the .id is missing from the answer — the opposite of "no such item". The base checks it
+            // for every transport, one written outside tik4net included.
             var conn = new SilentConnection { AddIdToReturn = null };
             var cmd = conn.CreateCommand("/ip/firewall/filter/add");
             cmd.AddParameterAndValues("chain", "forward");
 
-            var ex = Assert.ThrowsException<TikCommandEmptyResponseException>(() => cmd.ExecuteScalar());
+            var ex = Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalar());
 
-            Assert.IsNotInstanceOfType(ex, typeof(TikNoSuchItemException));
             StringAssert.Contains(ex.Message, ".id");
+            StringAssert.Contains(ex.Message, "(nothing)");
+            Assert.AreEqual("/ip/firewall/filter/add", ex.Command?.CommandText);
         }
 
         [TestMethod]
-        public void AddScalarOrDefault_WhenTheRouterDoesNotReturnTheId_ReturnsTheDefault()
+        public void AddScalar_WhenTheRouterAnswersAnEmptyId_ThrowsAddIdNotRead()
         {
+            var conn = new SilentConnection { AddIdToReturn = "" };
+            var cmd = conn.CreateCommand("/ip/firewall/filter/add");
+            cmd.AddParameterAndValues("chain", "forward");
+
+            Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalar());
+        }
+
+        [TestMethod]
+        public void AddScalarOrDefault_WhenTheRouterDoesNotReturnTheId_ThrowsToo()
+        {
+            // The row is on the router either way: a default would hide the orphan.
             var conn = new SilentConnection { AddIdToReturn = null };
             var cmd = conn.CreateCommand("/ip/firewall/filter/add");
             cmd.AddParameterAndValues("chain", "forward");
 
-            Assert.IsNull(cmd.ExecuteScalarOrDefault());
+            Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalarOrDefault());
+            Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalarOrDefault("fallback"));
+        }
+
+        [TestMethod]
+        public void RestAdd_AnsweredWithoutAnId_ThrowsAddIdNotRead()
+        {
+            using (var server = new tik4net.unittests.Rest.ScriptedHttpServer("{}", "{}"))   // the probe, then the add
+            using (var conn = new tik4net.Rest.RestConnection(useSsl: false))
+            {
+                conn.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+                var cmd = conn.CreateCommand("/ip/firewall/filter/add");
+                cmd.AddParameterAndValues("chain", "forward");
+
+                var ex = Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalar());
+                StringAssert.Contains(ex.Message, "(nothing)", "an empty JSON object said nothing");
+            }
         }
 
         // ── A read that matches nothing is unchanged: that IS 'no such item' ────
@@ -207,6 +236,41 @@ namespace tik4net.unittests
 
                 Assert.AreEqual("fallback",
                     connection.CreateCommand("/ip/firewall/filter/set").ExecuteScalarOrDefault("fallback"));
+
+                connection.Close();
+            }
+
+            Assert.IsTrue(serverTask.Wait(5000));
+        }
+
+        [TestMethod]
+        public void ApiAddScalar_OnBareDoneWithoutRet_ThrowsAddIdNotRead()
+        {
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                server.AcceptClient();
+                server.ReadSentence();              // login
+                server.WriteSentence("!done");
+
+                server.ReadSentence();              // /ip/address/add
+                server.WriteSentence("!done");      // accepted, but no =ret=
+
+                server.ReadSentence();              // /ip/address/add, OrDefault
+                server.WriteSentence("!done");
+
+                server.ReadSentence();              // /quit
+                server.WriteSentence("!fatal", "=message=session terminated on request");
+            });
+
+            using (var connection = new ApiConnection(false))
+            {
+                connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                var cmd = connection.CreateCommandAndParameters("/ip/address/add", "address", "192.0.2.1/32", "interface", "ether1");
+                var ex = Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalar());
+                Assert.AreSame(cmd, ex.Command);
+                Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalarOrDefault("fallback"));
 
                 connection.Close();
             }

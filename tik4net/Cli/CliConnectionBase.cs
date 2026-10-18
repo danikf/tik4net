@@ -2582,29 +2582,11 @@ namespace tik4net.Cli
             if (id != null)
                 return id;
 
-            // No id in the answer, and the router did not complain — so the row is very probably ON the
-            // router with nothing referring to it. This is reported rather than returned because both ways
-            // of returning it were silently wrong: `null!` handed the caller a null through a non-nullable
-            // contract, and the text-shaped fallback handed back whatever the last line happened to be,
-            // which then travelled into the `[find where .id=…]` of the next set or remove and matched
-            // nothing there.
-            //
-            // Either way the caller's own cleanup had no id to delete with, so the row outlived the process
-            // that made it — the orphan the integration suite keeps finding, and the reason a later run on a
-            // different transport fails with a name collision instead of with the original error.
-            //
-            // The cause is a read that settled too early: a terminal answers with an unframed byte stream,
-            // so a reply arriving after the prompt has gone quiet is lost rather than late. That is not
-            // repairable from here, but it is reportable — and what the router said is carried with it,
-            // because "nothing arrived" and "something arrived that was not an id" are different diagnoses.
-            string said = (output ?? string.Empty).Trim();
-            throw new TikAddIdNotReadException(
-                "the add reached the router but no .id came back, so the new row cannot be tracked and has "
-                + "very likely been created anyway — look it up by a field the add set rather than repeating "
-                + "the add, which would make a second row. The router answered: "
-                + (said.Length == 0 ? "(nothing)" : "'" + said + "'"),
-                CommandFor(descriptor),
-                new TikDoneSentenceResult(said.Length == 0 ? null : said));
+            // No id in the answer, and the router did not complain: the row is very probably on the router with
+            // nothing referring to it (TikAddIdNotRead says why that is thrown, not returned). On a terminal the
+            // cause is a read that settled too early: the answer is an unframed byte stream, so a reply arriving
+            // after the prompt has gone quiet is lost rather than late.
+            throw TikAddIdNotRead.Create(CommandFor(descriptor), output);
         }
 
         /// <summary>

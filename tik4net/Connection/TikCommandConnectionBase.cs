@@ -102,7 +102,9 @@ namespace tik4net.Connection
         protected abstract IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor);
 
         /// <summary>
-        /// Executes an <c>add</c> command and returns the new record's <c>.id</c>.
+        /// Executes an <c>add</c> command and returns the new record's <c>.id</c>. When the router's answer has none,
+        /// throw <see cref="TikAddIdNotReadException"/>: the row has very likely been created, and a caller left without
+        /// its id cannot clean it up. A null or empty id returned here is reported the same way.
         /// </summary>
         protected abstract string RunAdd(TikCommandDescriptor descriptor);
 
@@ -183,7 +185,11 @@ namespace tik4net.Connection
                 descriptor.Parameters.Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter).Select(p => p.Name),
                 descriptor.Parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.WinboxLabels)?.Value);
 
-        internal string InvokeRunAdd(TikCommandDescriptor descriptor) => RunAdd(Canonical(descriptor));
+        internal string InvokeRunAdd(TikCommandDescriptor descriptor)
+        {
+            descriptor = Canonical(descriptor);
+            return AddedId(RunAdd(descriptor), descriptor);
+        }
 
         internal void InvokeRunNonQuery(TikCommandDescriptor descriptor) => RunNonQuery(Canonical(descriptor));
 
@@ -196,8 +202,16 @@ namespace tik4net.Connection
             return RunPrintAsync(descriptor, cancellationToken);
         }
 
-        internal Task<string> InvokeRunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => RunAddAsync(Canonical(descriptor), cancellationToken);
+        internal async Task<string> InvokeRunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
+            descriptor = Canonical(descriptor);
+            return AddedId(await RunAddAsync(descriptor, cancellationToken).ConfigureAwait(false), descriptor);
+        }
+
+        // The new .id RunAdd promises. A transport written outside tik4net that hands back null or "" gets the exception
+        // every built-in transport throws for an add the router answered without one.
+        private string AddedId(string? id, TikCommandDescriptor descriptor)
+            => id == null || id.Length == 0 ? throw TikAddIdNotRead.Create(CommandFor(descriptor), null) : id;
 
         internal Task InvokeRunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => RunNonQueryAsync(Canonical(descriptor), cancellationToken);

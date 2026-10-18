@@ -407,6 +407,10 @@ namespace tik4net.Api
                     ApiDoneSentence doneSentence = EnsureDoneResponse(response.Single());
                     if (doneSentence.Words.ContainsKey(TikSpecialProperties.Ret))
                         return doneSentence.GetResponseWord();
+                    else if (tik4net.Connection.TikPath.Verb(_commandText) == "add")
+                        // The router took the add and named no row: it is very likely there anyway, and a default
+                        // would hide it, so OrDefault throws too (TikAddIdNotRead).
+                        throw TikAddIdNotRead.Create(this, null);
                     else if (allowReturnDefault)
                         return defaultValue;
                     else if (IsReadVerb())

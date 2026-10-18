@@ -1031,9 +1031,9 @@ namespace tik4net.WinboxNative
                     int? newId = await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
                     // A new row is a name the reference cache has never seen (see ForgetReferenceNames).
                     _codec.ForgetReferenceNames();
-                    // RunAddAsync's declared return type is non-nullable, matching RunAdd's contract across
-                    // every transport, but an add whose reply carries no id genuinely yields null here (see the report).
-                    return (newId.HasValue ? "*" + unchecked((uint)newId.Value).ToString("X") : null)!;
+                    if (!newId.HasValue)
+                        throw TikAddIdNotRead.Create(CommandFor(descriptor), null);
+                    return "*" + unchecked((uint)newId.Value).ToString("X");
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
