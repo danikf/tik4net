@@ -16,33 +16,19 @@ namespace tik4net.Ssh
     /// ANSI stripping and echo/prompt removal. Unlike Telnet there is no IAC negotiation (SSH has none)
     /// and no <c>Login:</c>/<c>Password:</c> exchange (SSH.NET authenticates before the shell starts).
     /// </summary>
-    internal sealed class SshShellClient : ICliTerminal
+    internal sealed class SshShellClient : ICliTerminal, ICliByteStream
     {
-        /// <summary>Silence required after a prompt before a command's response is considered complete (ms).</summary>
-        private const int SettleMs = 120;
-
         private SshClient _ssh = null!; // assigned in Connect, not the constructor; read only afterwards
         private ShellStream _shell = null!; // assigned in Connect, not the constructor; read only afterwards
-        private readonly Encoding _encoding;
-        private readonly Func<int> _receiveTimeout;
-        // Read at each use rather than taken once: ITikConnection.ReceiveTimeout may change on an open connection,
-        // and the API and REST honour that per command.
-        private int ReceiveTimeoutMs => _receiveTimeout();
 
-        // The target's RoMON id once EnterRomonAsync has relayed this terminal; null for a direct session.
-        private string? _romonTarget;
-
-        // Answers RouterOS VT100 cursor-probe negotiation (shared PTY logic). Without truthful
-        // cursor replies RouterOS assumes a 1x1 terminal and emits no command output; the width the
-        // shared state advertises is what keeps RouterOS from wrapping long ':put' as-value records
-        // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
-        private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
+        // Every read and write after the shell opens: the console over this channel. One Enter is a bare CR: over a
+        // PTY a CR LF is two Enters (Telnet's NVT reads it as one).
+        private readonly CliPtySession _pty;
 
         internal SshShellClient(Encoding encoding, CliClientTimeouts timeouts)
         {
-            _encoding = encoding ?? Encoding.UTF8;
-            _receiveTimeout = timeouts.ReceiveMs;
             _connectTimeoutMs = timeouts.ConnectMs;
+            _pty = new CliPtySession(this, encoding ?? Encoding.UTF8, timeouts.ReceiveMs, "SSH", "ssh.pty", "\r");
         }
 
         private readonly int _connectTimeoutMs;
@@ -174,139 +160,20 @@ namespace tik4net.Ssh
         /// </summary>
         internal async Task SettleAfterConnectAsync(CancellationToken ct)
         {
-            await RouterOsCliLogin.ResolveToPromptAsync(ReadUntilAsync, SendBytesAsync, ct).ConfigureAwait(false);
+            await RouterOsCliLogin.ResolveToPromptAsync(_pty.ReadUntilAsync, _pty.SendBytesAsync, ct).ConfigureAwait(false);
 
             // RouterOS performs a VT100 cursor-probe / redraw right after the shell opens and may emit the
             // prompt a second time; consume the residual so it does not leak into the first command's read.
-            await DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
+            await _pty.DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
         }
 
         /// <summary>
         /// From the agent's shell, continues this terminal into a RoMON target through <c>/tool romon ssh</c>
-        /// (<see cref="RouterOsCliLogin.RomonSshLoginAsync"/>). Every command after it runs on the target.
+        /// (<see cref="CliPtySession.EnterRomonAsync"/>). Every command after it runs on the target.
         /// </summary>
         /// <returns>The agent's own RoMON id.</returns>
-        internal async Task<string> EnterRomonAsync(RomonRelayTarget target, CancellationToken ct)
-        {
-            string agentRomonId = await RouterOsCliLogin.RomonSshLoginAsync(
-                target.RomonId, target.User, target.Password,
-                useTerminalFlags: true,
-                readUntil: ReadUntilAsync,
-                sendLine: SendLineAsync,
-                sendBytes: SendBytesAsync,
-                ct: ct).ConfigureAwait(false);
-
-            // The target repaints its prompt after the login, as the agent's shell did (see SettleAfterConnectAsync).
-            await DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
-            _romonTarget = target.RomonId;
-            return agentRomonId;
-        }
-
-        // ── SendCommandAndReadAsync ───────────────────────────────────────────
-
-        /// <summary>
-        /// Sends a CLI command and returns the cleaned output: ANSI stripped, echo line (first line)
-        /// removed, trailing prompt (last line) removed. If the command contains "print" but not
-        /// "without-paging", the modifier is injected to prevent paging from blocking the read.
-        /// </summary>
-        internal Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
-            => SendCommandAndReadAsync(command, null, ct);
-
-        /// <summary>
-        /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
-        /// completed output line to <paramref name="onLine"/> while the command is still running — the
-        /// streaming driver registered by <see cref="SshConnection"/>.
-        /// </summary>
-        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
-        {
-            // Discard anything still buffered from the PREVIOUS command — see the same guard in
-            // TelnetClient for the mechanism (a read returning on the prompt inside the line editor's echo
-            // repaint leaves the echoed command text behind, and the next command reads it as its answer).
-            string cmd = CliOutputHelper.InjectWithoutPaging(command);
-
-            if (ShellHasData())
-            {
-                string residue = await DrainAsync(SettleMs, ct).ConfigureAwait(false);
-                // A relay that ended while the connection was idle: the agent's session is gone, and this
-                // command must not be sent into what is left of it.
-                RouterOsCliLogin.ThrowIfRomonRelayEnded("SSH", _romonTarget, cmd, residue, commandSent: false);
-            }
-
-            await SendLineAsync(cmd, ct).ConfigureAwait(false);
-            string raw = await ReadCommandResponseAsync(ct, cmd, onLine).ConfigureAwait(false);
-            return CliOutputHelper.CleanOutput(raw, cmd);
-        }
-
-        /// <summary>
-        /// Sends raw bytes (a control key such as Ctrl+X — no line terminator, no paging injection) and
-        /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
-        /// </summary>
-        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-        {
-            await SendBytesAsync(raw, ct).ConfigureAwait(false);
-            // sentCommand: null → tolerant; a control key need not be answered with a prompt.
-            return await ReadCommandResponseAsync(ct, null).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for completion) and reads the reaction until the
-        /// stream goes <b>quiet</b> for <paramref name="quietMs"/> — used for Tab-completion, whose listing
-        /// does not end in a shell prompt (RouterOS redraws the prompt with the echoed stem), so a
-        /// prompt-terminated read would block until the receive deadline. Returned with its escape sequences:
-        /// an inline completion is written in cursor moves, which the completion parser replays
-        /// (<see cref="tik4net.Cli.CliCompletionParser"/>). Bounded by the receive deadline.
-        /// </summary>
-        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
-        {
-            await SendBytesAsync(raw, ct).ConfigureAwait(false);
-            return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Reads (answering VT100 probes) until no new bytes arrive for <paramref name="quietMs"/> after at
-        /// least some data, the shell closes, or the receive deadline expires. Returns the accumulated text,
-        /// escape sequences included. Unlike <see cref="DrainAsync"/> the text is kept, not discarded.
-        /// </summary>
-        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
-        {
-            var buffer = new byte[4096];
-            var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
-            DateTime lastData = DateTime.UtcNow;
-
-            while (true)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                bool gotData = false;
-                bool closed = false;
-                while (ShellHasData())
-                {
-                    int n = _shell.Read(buffer, 0, buffer.Length);
-                    if (n <= 0) { closed = true; break; }
-                    accumulated.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
-                    gotData = true;
-                }
-
-                closed |= ShellClosedAndDrained;
-                if (gotData)
-                    lastData = DateTime.UtcNow;
-
-                // Settled: some data arrived and the shell has been silent for the quiet window.
-                if (!gotData && accumulated.Length > 0
-                    && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
-                    return accumulated.ToString();
-                // A Tab the router leaves unanswered: not the receive deadline.
-                if (accumulated.Length == 0
-                    && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs * tik4net.Cli.CliCompletionParser.NoReactionQuietFactor)
-                    return string.Empty;
-
-                if (closed || DateTime.UtcNow >= deadline)
-                    return accumulated.ToString();
-
-                await Task.Delay(15, ct).ConfigureAwait(false);
-            }
-        }
+        internal Task<string> EnterRomonAsync(RomonRelayTarget target, CancellationToken ct)
+            => _pty.EnterRomonAsync(target, ct);
 
         // ── Close / Dispose ───────────────────────────────────────────────────
 
@@ -334,6 +201,15 @@ namespace tik4net.Ssh
 
         // ── ICliTerminal ──────────────────────────────────────────────────────
 
+        public Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
+            => _pty.SendCommandAndReadAsync(command, onLine, ct);
+
+        public Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+            => _pty.SendRawAndReadAsync(raw, ct);
+
+        public Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+            => _pty.SendRawAndReadUntilQuietAsync(raw, quietMs, ct);
+
         public bool SupportsQuietRead => true;
 
         public bool SupportsLineStreaming => true;
@@ -345,209 +221,18 @@ namespace tik4net.Ssh
             try { client?.Dispose(); } catch { /* ignore */ }
         }
 
-        // ── Private read/write helpers (mirror TelnetClient, minus IAC) ────────
+        // ── ICliByteStream ────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Reads from the shell until the accumulated text (ANSI-stripped) satisfies
-        /// <paramref name="predicate"/>, or until the receive deadline expires.
-        /// </summary>
-        private async Task<string> ReadUntilAsync(Func<string, bool> predicate, CancellationToken ct)
+        bool ICliByteStream.HasData => ShellHasData();
+
+        // SSH.NET's Read returns what is buffered; it is only called while data is available, so it does not block.
+        Task<int> ICliByteStream.ReadAsync(byte[] buffer, CancellationToken ct)
+            => Task.FromResult(_shell.Read(buffer, 0, buffer.Length));
+
+        bool ICliByteStream.ClosedAndDrained => ShellClosedAndDrained;
+
+        Task ICliByteStream.WriteAsync(byte[] bytes, CancellationToken ct)
         {
-            var buffer = new byte[4096];
-            var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
-
-            // Poll DataAvailable (non-blocking) and only Read when bytes are buffered, enforcing the
-            // deadline ourselves between polls — a pending blocking Read could otherwise hang if the
-            // router sends nothing.
-            while (true)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                bool connectionClosed = false;
-                while (ShellHasData())
-                {
-                    int available = _shell.Read(buffer, 0, buffer.Length);
-                    if (available <= 0) { connectionClosed = true; break; }
-                    accumulated.Append(await ProcessChunkAsync(buffer, available, ct).ConfigureAwait(false));
-                }
-                connectionClosed |= ShellClosedAndDrained;
-
-                string stripped = VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(_romonTarget, accumulated.ToString()));
-                if (predicate(stripped))
-                    return stripped;
-
-                if (connectionClosed || DateTime.UtcNow >= deadline)
-                    return stripped; // timeout / closed — callers handle incomplete responses
-
-                await Task.Delay(20, ct).ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
-        /// Reads a command's response. RouterOS in a PTY redraws the prompt line BEFORE printing the
-        /// command output, so a naive "ends with prompt" check matches the redrawn prompt and returns
-        /// empty. Instead we require the prompt to be at the end AND the stream to fall silent for
-        /// <see cref="SettleMs"/> afterwards — any output following a redraw prompt resets the settle
-        /// window, so only the final, stable prompt terminates the read. Bounded by the receive deadline.
-        /// <para>And the prompt only counts once the command's own echo is on screen
-        /// (<see cref="CliOutputHelper.ContainsEcho"/>) — otherwise a prompt left behind by the PREVIOUS
-        /// response ends this read before the router has said anything.</para>
-        /// </summary>
-        /// <param name="ct">Cancellation token.</param>
-        /// <param name="sentCommand">
-        /// The command being answered. When non-null, reaching the deadline without a prompt throws rather
-        /// than returning the partial text (see <see cref="CliReadTimeout"/>). <c>null</c> for control keys,
-        /// which RouterOS need not answer with a prompt.
-        /// </param>
-        /// <param name="onLine">
-        /// Optional: called with each completed line as it arrives, so a long-running command can be
-        /// consumed while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the read
-        /// returns — the stable prompt is still the only terminator.
-        /// </param>
-        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string? sentCommand,
-            Action<string>? onLine = null)
-        {
-            var buffer = new byte[4096];
-            var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
-            DateTime? settleUntil = null;
-            var streamer = new CliLineStreamer(onLine);
-            bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
-
-            while (true)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                bool gotData = false;
-                bool closed = false;
-                while (ShellHasData())
-                {
-                    int n = _shell.Read(buffer, 0, buffer.Length);
-                    if (n <= 0) { closed = true; break; }
-                    accumulated.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
-                    gotData = true;
-                }
-
-                closed |= ShellClosedAndDrained;
-                if (gotData)
-                    settleUntil = null; // fresh data → the prompt (if any) is not yet stable
-
-                string stripped = VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(_romonTarget, accumulated.ToString()));
-                streamer.Feed(stripped);
-
-                // The relay ended mid-command: no prompt will follow, the agent's session is over.
-                RouterOsCliLogin.ThrowIfRomonRelayEnded("SSH", _romonTarget, sentCommand, stripped, commandSent: true);
-
-                if (!echoSeen)
-                    echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
-
-                if (echoSeen && EndsResponse(stripped, sentCommand))
-                {
-                    var verdict = CliOutputHelper.JudgePrompt(stripped, sentCommand);
-                    if (verdict == CliOutputHelper.PromptVerdict.Complete)
-                    {
-                        TraceNote("the count line and the prompt → response complete");
-                        return stripped; // a counted read's own last line and the prompt → done, no settle
-                    }
-                    if (verdict == CliOutputHelper.PromptVerdict.NotYet)
-                        settleUntil = null; // a repaint before the answer, not its end
-                    else if (settleUntil == null)
-                        settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
-                    else if (DateTime.UtcNow >= settleUntil.Value)
-                    {
-                        TraceNote("prompt stable after " + SettleMs + " ms of silence → response complete");
-                        return stripped; // prompt stable (no further output) → done
-                    }
-                }
-
-                if (closed || DateTime.UtcNow >= deadline)
-                {
-                    // Reached WITHOUT a stable prompt: the response is whatever arrived so far and may end
-                    // mid-record. Silent truncation here is how a partial read reaches the parser looking
-                    // like data (P2.25's failure class), so it is always traced.
-                    TraceNote(closed
-                        ? "shell closed before the prompt settled — response is truncated"
-                        : "receive deadline (" + ReceiveTimeoutMs + " ms) hit before the prompt settled — response is truncated");
-                    if (closed && sentCommand != null && _romonTarget != null)
-                        throw RouterOsCliLogin.RomonRelayEndedWithTheSession("SSH", _romonTarget, sentCommand, stripped);
-                    if (sentCommand != null)
-                        throw CliReadTimeout.Create("SSH", ReceiveTimeoutMs, sentCommand, stripped);
-                    return stripped;
-                }
-
-                await Task.Delay(15, ct).ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>True when <paramref name="stripped"/> ends the response to <paramref name="sentCommand"/>.</summary>
-        internal static bool EndsResponse(string stripped, string? sentCommand)
-            => CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand);
-
-        /// <summary>
-        /// Consumes and discards residual bytes (post-login VT100 redraw, a second prompt) until the
-        /// stream stays silent for <paramref name="quietMs"/>. VT100 probes are still answered.
-        /// </summary>
-        private async Task<string> DrainAsync(int quietMs, CancellationToken ct)
-        {
-            var buffer = new byte[4096];
-            var drained = new StringBuilder();
-            var quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
-
-            while (DateTime.UtcNow < quietDeadline)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                if (ShellHasData())
-                {
-                    int n = _shell.Read(buffer, 0, buffer.Length);
-                    if (n <= 0) break; // connection closed
-                    drained.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
-                    quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs); // keep draining while data arrives
-                }
-                else
-                {
-                    await Task.Delay(15, ct).ConfigureAwait(false);
-                }
-            }
-
-            return VtStripper.StripAnsi(drained.ToString());
-        }
-
-        /// <summary>
-        /// Decodes a freshly-read chunk: feeds the bytes to the VT100 state machine (answering cursor
-        /// probes) and returns the decoded text to append to the caller's accumulator. No IAC handling —
-        /// SSH carries no Telnet negotiation.
-        /// </summary>
-        private async Task<string> ProcessChunkAsync(byte[] buffer, int count, CancellationToken ct)
-        {
-            if (tik4net.Diagnostics.TikWireTrace.Enabled)
-                tik4net.Diagnostics.TikWireTrace.Emit("ssh.pty", tik4net.Diagnostics.TikWireDir.Recv, buffer, 0, count);
-
-            string text = _encoding.GetString(buffer, 0, count);
-
-            foreach (string vtReply in _vt100.Process(text))
-                await SendBytesAsync(_encoding.GetBytes(vtReply), ct).ConfigureAwait(false);
-
-            return text;
-        }
-
-        private static void TraceNote(string note)
-        {
-            if (tik4net.Diagnostics.TikWireTrace.Enabled)
-                tik4net.Diagnostics.TikWireTrace.Emit("ssh.pty", tik4net.Diagnostics.TikWireDir.Note, note);
-        }
-
-        // One Enter is a bare CR. Over a PTY a CR LF is two Enters (Telnet's NVT reads it as one), and the second, on
-        // an empty line, makes RouterOS 6.49 repaint the prompt in place after the real end of every response.
-        private Task SendLineAsync(string text, CancellationToken ct)
-            => SendBytesAsync(_encoding.GetBytes(text + "\r"), ct);
-
-        private Task SendBytesAsync(byte[] bytes, CancellationToken ct)
-        {
-            if (tik4net.Diagnostics.TikWireTrace.Enabled)
-                tik4net.Diagnostics.TikWireTrace.Emit("ssh.pty", tik4net.Diagnostics.TikWireDir.Send, bytes, 0, bytes.Length);
-
             ct.ThrowIfCancellationRequested();
             _shell.Write(bytes, 0, bytes.Length);
             _shell.Flush();
