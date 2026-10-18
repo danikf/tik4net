@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
+using tik4net.unittests.Cli;
 using tik4net.Ssh;
 
 namespace tik4net.unittests.Connection
@@ -324,7 +325,7 @@ namespace tik4net.unittests.Connection
         // ── fakes ─────────────────────────────────────────────────────────────
 
         /// <summary>A relaying CLI connection that records what it is opened with and simulates a relay that succeeds.</summary>
-        private sealed class RecordingRomonConnection : CliConnectionBase, ITikRomonConnection
+        private sealed class RecordingRomonConnection : ScriptedCliConnectionBase, ITikRomonConnection
         {
             public RecordingRomonConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -340,7 +341,7 @@ namespace tik4net.unittests.Connection
             private void OpenRecorded(string host, int? port, string user, string password)
             {
                 OpenHost = host; OpenPort = port; OpenUser = user; OpenPassword = password;
-                OpenWith(ct =>
+                OpenScripted(ct =>
                     {
                         if (RomonTarget != null) RomonEntered(TikConnectionType.Telnet, host, user, AgentRomonId);
                         return Task.FromResult(0);
@@ -359,7 +360,7 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>A relaying CLI connection whose login logs in to the agent and never enters the target.</summary>
-        private sealed class NonEnteringRomonConnection : CliConnectionBase, ITikRomonConnection
+        private sealed class NonEnteringRomonConnection : ScriptedCliConnectionBase, ITikRomonConnection
         {
             public bool Ended;
 
@@ -370,7 +371,7 @@ namespace tik4net.unittests.Connection
             TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
             private void OpenAgentOnly()
-                => OpenWith(ct => Task.FromResult(0),
+                => OpenScripted(ct => Task.FromResult(0),
                     (cmd, ct) => Task.FromResult(string.Empty),
                     (raw, ct) => Task.FromResult(string.Empty),
                     () => Ended = true);
@@ -384,7 +385,7 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>A CLI connection that does not relay (no <see cref="ITikRomonConnection"/>).</summary>
-        private sealed class PlainCli : CliConnectionBase
+        private sealed class PlainCli : ScriptedCliConnectionBase
         {
             public PlainCli() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -393,7 +394,7 @@ namespace tik4net.unittests.Connection
             private protected override string TransportName => "Plain";
 
             private void OpenPlain()
-                => OpenWith(ct => { LoginRan = true; return Task.FromResult(0); },
+                => OpenScripted(ct => { LoginRan = true; return Task.FromResult(0); },
                     (cmd, ct) => Task.FromResult(string.Empty),
                     (raw, ct) => Task.FromResult(string.Empty),
                     () => { });

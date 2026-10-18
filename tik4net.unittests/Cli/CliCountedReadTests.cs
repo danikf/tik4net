@@ -164,7 +164,7 @@ namespace tik4net.unittests.Cli
         }
 
         /// <summary>Answers every command with one fixed reply, marker and all, exactly as given.</summary>
-        private sealed class ReplyingCliConnection : CliConnectionBase
+        private sealed class ReplyingCliConnection : ScriptedCliConnectionBase
         {
             private readonly string _reply;
             public readonly List<string> Sent = new List<string>();
@@ -178,7 +178,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Replying";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0),
+                => OpenScripted(_ => Task.FromResult(0),
                     (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(_reply); },
                     (raw, ct) => Task.FromResult(string.Empty), () => { });
 

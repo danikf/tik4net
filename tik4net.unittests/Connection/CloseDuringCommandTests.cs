@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
+using tik4net.unittests.Cli;
 
 namespace tik4net.unittests.Connection
 {
@@ -27,7 +28,7 @@ namespace tik4net.unittests.Connection
     public class CloseDuringCommandTests
     {
         /// <summary>A terminal whose send blocks until the test lets it through, then fails as a dead socket would.</summary>
-        private sealed class BlockingCliConnection : CliConnectionBase
+        private sealed class BlockingCliConnection : ScriptedCliConnectionBase
         {
             public BlockingCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -42,21 +43,20 @@ namespace tik4net.unittests.Connection
 
             private protected override string TransportName => "Blocking";
 
-            public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync,
+            public void OpenScripted() => OpenBlocking(streaming: false);
+
+            /// <summary>As <see cref="OpenScripted()"/>, with a streaming driver that blocks and fails the same way.</summary>
+            public void OpenScriptedStreaming() => OpenBlocking(streaming: true);
+
+            private void OpenBlocking(bool streaming)
+                => OpenScripted(_ => Task.FromResult(0), SendAsync,
                     (raw, ct) => Task.FromResult(string.Empty),
                     () =>
                     {
                         SawClosedFlagBeforeTeardown = !IsOpened;
                         _release.TrySetResult(true);
-                    });
-
-            /// <summary>As <see cref="OpenScripted"/>, with a streaming driver that blocks and fails the same way.</summary>
-            public void OpenScriptedStreaming()
-            {
-                OpenScripted();
-                RegisterStreamingDriver((cliText, onLine, ct) => SendAsync(cliText, ct));
-            }
+                    },
+                    streaming: streaming ? (cliText, onLine, ct) => SendAsync(cliText, ct) : null);
 
             private async Task<string> SendAsync(string cliText, CancellationToken ct)
             {

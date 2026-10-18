@@ -54,7 +54,7 @@ namespace tik4net.unittests.Cli
         /// A router before 7.13: <c>:serialize</c> is a bad command name — wherever it is actually run. A window
         /// with no ids never runs its print, so it answers just its size.
         /// </summary>
-        private sealed class Pre713Connection : CliConnectionBase
+        private sealed class Pre713Connection : ScriptedCliConnectionBase
         {
             private const string Refusal = "bad command name serialize (line 1 column 63)";
             private readonly Dictionary<string, int> _rows;
@@ -69,7 +69,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Pre713";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

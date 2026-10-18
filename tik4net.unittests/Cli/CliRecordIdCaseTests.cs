@@ -68,7 +68,7 @@ namespace tik4net.unittests.Cli
         }
 
         /// <summary>A terminal that answers every command with the same text.</summary>
-        private sealed class AddAnsweringConnection : CliConnectionBase
+        private sealed class AddAnsweringConnection : ScriptedCliConnectionBase
         {
             private readonly string _reply;
 
@@ -81,7 +81,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Scripted";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), (cliText, ct) => Task.FromResult(_reply),
+                => OpenScripted(_ => Task.FromResult(0), (cliText, ct) => Task.FromResult(_reply),
                     (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             public override void Open(string host, string user, string password) => OpenScripted();

@@ -81,7 +81,7 @@ namespace tik4net.unittests.Cli
             }
         }
 
-        private sealed class SixPingRouter : CliConnectionBase
+        private sealed class SixPingRouter : ScriptedCliConnectionBase
         {
             public SixPingRouter() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -91,7 +91,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Six";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

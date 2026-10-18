@@ -29,7 +29,7 @@ namespace tik4net.unittests.Cli
     public class CliVerbTranslationTests
     {
         /// <summary>A CLI connection that records the command text instead of sending it.</summary>
-        private sealed class RecordingCliConnection : CliConnectionBase
+        private sealed class RecordingCliConnection : ScriptedCliConnectionBase
         {
             public RecordingCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -39,7 +39,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Recording";
 
             internal void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0),
+                => OpenScripted(_ => Task.FromResult(0),
                     (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(CountedReadFake.Answer(cliText, Reply)); },
                     (rawBytes, ct) => Task.FromResult(string.Empty),
                     () => { });

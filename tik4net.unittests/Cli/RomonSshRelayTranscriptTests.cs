@@ -259,14 +259,14 @@ namespace tik4net.unittests.Cli
             }
         }
 
-        private sealed class RelayFailingConnection : CliConnectionBase
+        private sealed class RelayFailingConnection : ScriptedCliConnectionBase
         {
             public bool Closed;
 
             private protected override string TransportName => "RelayFailing";
 
             public override void Open(string host, string user, string password)
-                => OpenWith(_ => throw new TikRomonRelayException(TikRomonRelayFailure.TargetUnreachable, "unreachable"),
+                => OpenScripted(_ => throw new TikRomonRelayException(TikRomonRelayFailure.TargetUnreachable, "unreachable"),
                     (text, ct) => Task.FromResult(string.Empty), (raw, ct) => Task.FromResult(string.Empty),
                     () => Closed = true);
 

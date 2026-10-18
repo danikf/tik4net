@@ -16,7 +16,7 @@ namespace tik4net.unittests.Cli
     [TestClass]
     public class CliResyncTests
     {
-        private sealed class TimingOutTerminal : CliConnectionBase
+        private sealed class TimingOutTerminal : ScriptedCliConnectionBase
         {
             public TimingOutTerminal() { CliFieldSeparator = null; }
 
@@ -32,13 +32,13 @@ namespace tik4net.unittests.Cli
 
             public void OpenScripted()
             {
-                OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => Closed = true);
-                RegisterCompletionDriver((raw, quietMs, ct) =>
-                {
-                    Raw.Add(raw);
-                    if (DrainFails != null) throw DrainFails;
-                    return Task.FromResult("t4n-late\r\n[admin@MikroTik] > ");
-                });
+                OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => Closed = true,
+                    settle: (raw, quietMs, ct) =>
+                    {
+                        Raw.Add(raw);
+                        if (DrainFails != null) throw DrainFails;
+                        return Task.FromResult("t4n-late\r\n[admin@MikroTik] > ");
+                    });
             }
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)

@@ -548,7 +548,7 @@ namespace tik4net.unittests.Cli
         /// <c>disabled</c> and <c>running</c> in every as-value answer, earlier versions only when asked by
         /// name. Either way the menu has no <c>slave</c> field, and a proplist naming one is refused.
         /// </summary>
-        private sealed class FlagRouter : CliConnectionBase
+        private sealed class FlagRouter : ScriptedCliConnectionBase
         {
             private static readonly string[] Names = { "e0", "e1", "e2" };
             private static readonly bool[] RunningValues = { true, false, true };
@@ -580,7 +580,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Flags";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {
@@ -691,7 +691,7 @@ namespace tik4net.unittests.Cli
         /// <c>find (&lt;flag&gt;=yes)</c> per flag. Route <c>*1</c> is connected and active, <c>*2</c> static and
         /// inactive.
         /// </summary>
-        private sealed class RouteRouter6 : CliConnectionBase
+        private sealed class RouteRouter6 : ScriptedCliConnectionBase
         {
             public RouteRouter6() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -705,7 +705,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Route6";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

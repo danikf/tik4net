@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
+using tik4net.unittests.Cli;
 
 namespace tik4net.unittests.Connection
 {
@@ -37,7 +38,7 @@ namespace tik4net.unittests.Connection
         /// A <see cref="CliConnectionBase"/> whose transport is a recording delegate, so a test can read the
         /// exact CLI text the connection put on the wire.
         /// </summary>
-        private sealed class RecordingCliConnection : CliConnectionBase
+        private sealed class RecordingCliConnection : ScriptedCliConnectionBase
         {
             public RecordingCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -47,7 +48,7 @@ namespace tik4net.unittests.Connection
             private protected override string TransportName => "Recording";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0),
+                => OpenScripted(_ => Task.FromResult(0),
                     (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(Reply); },
                     (rawBytes, ct) => Task.FromResult(string.Empty),
                     () => { });

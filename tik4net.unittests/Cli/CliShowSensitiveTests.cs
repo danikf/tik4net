@@ -128,7 +128,7 @@ namespace tik4net.unittests.Cli
         /// version: RouterOS 7 hides the secret unless asked with <c>show-sensitive</c>; RouterOS 6 refuses the
         /// word and prints the secret anyway.
         /// </summary>
-        private sealed class SecretRouter : CliConnectionBase
+        private sealed class SecretRouter : ScriptedCliConnectionBase
         {
             private const string SyntaxError = "expected end of command (line 1 column 40)";
             private readonly bool _knowsShowSensitive;
@@ -145,7 +145,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Secrets";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

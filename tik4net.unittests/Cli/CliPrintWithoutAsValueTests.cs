@@ -109,7 +109,7 @@ namespace tik4net.unittests.Cli
             StringAssert.Contains(ex.Message, Refusal);
         }
 
-        private sealed class AdvertisementsRouter : CliConnectionBase
+        private sealed class AdvertisementsRouter : ScriptedCliConnectionBase
         {
             private readonly string _ids;
             private readonly string _plain;
@@ -126,7 +126,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Six";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

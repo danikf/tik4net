@@ -101,7 +101,7 @@ namespace tik4net.unittests.Cli
         /// Answers each command with whatever <c>answer</c> makes of its text — except the once-per-connection flags
         /// probe, answered as 7.24 does (flags in as-value), since that is the version these tests were measured on.
         /// </summary>
-        private sealed class AnsweringCliConnection : CliConnectionBase
+        private sealed class AnsweringCliConnection : ScriptedCliConnectionBase
         {
             private readonly Func<string, string> _answer;
             public readonly List<string> Sent = new List<string>();
@@ -115,7 +115,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Answering";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0),
+                => OpenScripted(_ => Task.FromResult(0),
                     (cliText, ct) =>
                     {
                         Sent.Add(cliText);

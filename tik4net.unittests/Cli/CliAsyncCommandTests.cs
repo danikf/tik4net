@@ -30,7 +30,7 @@ namespace tik4net.unittests.Cli
         /// A <see cref="CliConnectionBase"/> whose transport is a scripted delegate: it records the command
         /// text and the token it was handed, and answers from <see cref="Reply"/>.
         /// </summary>
-        private sealed class ScriptedCliConnection : CliConnectionBase
+        private sealed class ScriptedCliConnection : ScriptedCliConnectionBase
         {
             public ScriptedCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -45,7 +45,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Scripted";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync,
+                => OpenScripted(_ => Task.FromResult(0), SendAsync,
                     (raw, ct) => Task.FromResult(string.Empty),
                     () => Closed = true);
 

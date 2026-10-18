@@ -316,7 +316,7 @@ namespace tik4net.unittests.Cli
             "name=route;node-type=dir;type=self;name=get;node-type=cmd;type=child;name=print;node-type=cmd;type=child";
 
         /// <summary>A 7.24 router for /ip/route: answers the build question, /console/inspect, and every print.</summary>
-        private sealed class BuildRouter : CliConnectionBase
+        private sealed class BuildRouter : ScriptedCliConnectionBase
         {
             public readonly List<string> Sent = new List<string>();
             public string Readable = "dst-address,routing-table";
@@ -331,7 +331,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Build";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {
@@ -360,7 +360,7 @@ namespace tik4net.unittests.Cli
         /// <summary>
         /// A RouterOS 6 build for /ip/route: refuses the DSV probe ("bad command name serialize") and reads as-value.
         /// </summary>
-        private sealed class Dsv6Router : CliConnectionBase
+        private sealed class Dsv6Router : ScriptedCliConnectionBase
         {
             public readonly List<string> Sent = new List<string>();
 
@@ -373,7 +373,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Dsv6";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

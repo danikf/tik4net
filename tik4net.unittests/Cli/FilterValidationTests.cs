@@ -26,7 +26,7 @@ namespace tik4net.unittests.Cli
             + "completion=*;show=false;type=completion";
 
         /// <summary>Answers /console/inspect for /ip/route (or refuses it, as 6.49.13) and every print with two rows.</summary>
-        private sealed class InspectRouter : CliConnectionBase
+        private sealed class InspectRouter : ScriptedCliConnectionBase
         {
             private readonly bool _hasInspect, _menuHasGet;
             public readonly List<string> Sent = new List<string>();
@@ -41,7 +41,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Inspect";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
+using tik4net.unittests.Cli;
 using tik4net.Connection;
 
 namespace tik4net.unittests.Connection
@@ -78,14 +79,14 @@ namespace tik4net.unittests.Connection
 
         // ── a CLI monitor whose snapshot fails ──────────────────────────────
 
-        private sealed class ResetCli : CliConnectionBase
+        private sealed class ResetCli : ScriptedCliConnectionBase
         {
             public ResetCli() { CliFieldSeparator = null; }
 
             private protected override string TransportName => "Reset";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), (cmd, ct) => throw new IOException("reset"),
+                => OpenScripted(_ => Task.FromResult(0), (cmd, ct) => throw new IOException("reset"),
                     (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             public override void Open(string host, string user, string password) => OpenScripted();

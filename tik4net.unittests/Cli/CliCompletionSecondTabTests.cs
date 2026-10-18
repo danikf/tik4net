@@ -90,7 +90,7 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual("", router.CompleteCliRaw(Typed));
         }
 
-        private sealed class TabRouter : CliConnectionBase
+        private sealed class TabRouter : ScriptedCliConnectionBase
         {
             private readonly bool _listsOnFirstTab;
             private readonly bool _nothing;
@@ -112,9 +112,8 @@ namespace tik4net.unittests.Cli
 
             public void OpenScripted()
             {
-                OpenWith(_ => Task.FromResult(0), (cli, ct) => Task.FromResult(string.Empty),
-                         (raw, ct) => Task.FromResult("\r\n" + Prompt), () => { });
-                RegisterCompletionDriver(Settle);
+                OpenScripted(_ => Task.FromResult(0), (cli, ct) => Task.FromResult(string.Empty),
+                         (raw, ct) => Task.FromResult("\r\n" + Prompt), () => { }, settle: Settle);
             }
 
             private Task<string> Settle(byte[] bytes, int quietMs, CancellationToken ct)

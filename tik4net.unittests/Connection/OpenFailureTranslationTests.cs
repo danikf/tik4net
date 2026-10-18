@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
+using tik4net.unittests.Cli;
 using tik4net.Winbox;
 using tik4net.WinboxNative;
 
@@ -46,7 +47,7 @@ namespace tik4net.unittests.Connection
 
         // ── CLI ─────────────────────────────────────────────────────────────
 
-        private sealed class FailingCliConnection : CliConnectionBase
+        private sealed class FailingCliConnection : ScriptedCliConnectionBase
         {
             private readonly Exception _loginFailure;
 
@@ -57,7 +58,7 @@ namespace tik4net.unittests.Connection
             private protected override string TransportName => "Failing";
 
             private void OpenFailing()
-                => OpenWith(_ => { throw _loginFailure; },
+                => OpenScripted(_ => { throw _loginFailure; },
                     (cmd, ct) => Task.FromResult(string.Empty),
                     (raw, ct) => Task.FromResult(string.Empty),
                     () => Closed++);

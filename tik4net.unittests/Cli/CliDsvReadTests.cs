@@ -257,7 +257,7 @@ namespace tik4net.unittests.Cli
         /// Two rows of /box, the first with a comment holding ';'. Answers the DSV form as RouterOS 7 does, or refuses
         /// it as 6.49.13 does; the as-value form is answered either way.
         /// </summary>
-        private sealed class DsvRouter : CliConnectionBase
+        private sealed class DsvRouter : ScriptedCliConnectionBase
         {
             public bool RefusesSerialize;
             public readonly List<string> Sent = new List<string>();
@@ -267,7 +267,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Dsv";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

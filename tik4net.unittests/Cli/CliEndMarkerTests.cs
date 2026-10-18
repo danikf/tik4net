@@ -69,7 +69,7 @@ namespace tik4net.unittests.Cli
         // ── Through a CLI connection ───────────────────────────────────────────
 
         /// <summary>A router that runs a marked write and prints the marker, unless the write is refused.</summary>
-        private sealed class WriteRouter : CliConnectionBase
+        private sealed class WriteRouter : ScriptedCliConnectionBase
         {
             public readonly List<string> Sent = new List<string>();
             public bool RefusesSerialize;   // RouterOS 6
@@ -80,7 +80,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Write";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
+                => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {

@@ -25,7 +25,7 @@ namespace tik4net.unittests.Cli
     [TestClass]
     public class RawCommandErrorTests
     {
-        private sealed class RecordingCliConnection : CliConnectionBase
+        private sealed class RecordingCliConnection : ScriptedCliConnectionBase
         {
             public RecordingCliConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
@@ -35,7 +35,7 @@ namespace tik4net.unittests.Cli
             private protected override string TransportName => "Recording";
 
             public void OpenScripted()
-                => OpenWith(_ => Task.FromResult(0),
+                => OpenScripted(_ => Task.FromResult(0),
                     (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(Reply); },
                     (rawBytes, ct) => Task.FromResult(string.Empty),
                     () => { });
