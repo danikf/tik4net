@@ -516,6 +516,9 @@ namespace tik4net.WinboxNative
             // where the monitor thread saw the failure while the connection still looked open and reported it
             // as an error (intermittent PingLocalhostAsyncWithCloseWillNotFail).
             SetClosed();
+            // A session that ends in Safe Mode is rolled back by the router: nothing is held any more.
+            SafeModeHeld = false;
+            _safeModeId = 0;
 
             // Then the multiplexer: it fails every outstanding request with a clear reason instead of letting
             // callers block until their deadline on a socket that is about to vanish. Disposing the channel
@@ -1236,8 +1239,8 @@ namespace tik4net.WinboxNative
 
         // ── Safe Mode (system handler [17]) ──────────────────────────────────────
         // Take/release map to the webfig toggleSafeMode() M2 commands. WebFig exposes no in-place
-        // unroll/get, so SafeModeUnroll throws (drop the connection to roll back) and SafeModeGet
-        // reports the client-side held flag.
+        // unroll/get, so SafeModeUnroll closes the connection, which rolls back (as a terminal does before
+        // 7.18), and SafeModeGet reports the client-side held flag.
 
         private uint _safeModeId;
 
@@ -1261,11 +1264,17 @@ namespace tik4net.WinboxNative
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// WinBox has no in-place unroll, so this closes the connection: the router rolls back a session that ends
+        /// in Safe Mode, within about 100 ms of the close (measured on 7.24.5, TCP and MAC). <see cref="ITikConnection.IsOpened"/>
+        /// is <c>false</c> afterwards; open a new connection to continue.
+        /// </remarks>
         public void SafeModeUnroll()
-            => throw new NotSupportedException(
-                "Native WinBox exposes only take/release for Safe Mode (no in-place unroll). " +
-                "To roll back, close the connection without calling SafeModeRelease — RouterOS reverts " +
-                "the changes automatically. For an explicit unroll use the binary API or a CLI transport.");
+        {
+            EnsureOpened();
+            if (!SafeModeHeld) return;
+            Close();
+        }
 
         /// <inheritdoc/>
         public bool SafeModeGet() => SafeModeHeld;

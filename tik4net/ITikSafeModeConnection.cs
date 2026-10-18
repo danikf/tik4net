@@ -1,5 +1,3 @@
-using System;
-
 namespace tik4net
 {
     /// <summary>
@@ -25,8 +23,8 @@ namespace tik4net
         /// <summary>
         /// Enters Safe Mode on this connection (mirrors <c>/safe-mode/take</c>, the WebFig "Safe Mode"
         /// button, or the terminal <c>Ctrl+X</c>). Call <see cref="SafeModeRelease"/> to keep the changes,
-        /// or <see cref="SafeModeUnroll"/> to discard them immediately while staying connected. Losing the
-        /// connection in between rolls them back — that is what safe mode is for.
+        /// or <see cref="SafeModeUnroll"/> to discard them immediately. Losing the connection in between rolls them
+        /// back — that is what safe mode is for. No-op when this connection already holds safe mode.
         /// </summary>
         /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
         /// <exception cref="TikCommandException">RouterOS refused to take safe mode (e.g. already held by another session).</exception>
@@ -44,14 +42,12 @@ namespace tik4net
         /// <summary>
         /// Discards every change made since <see cref="SafeModeTake"/> <b>now</b> and leaves Safe Mode (mirrors
         /// <c>/safe-mode/unroll</c>). No-op when safe mode is not held.
-        /// <para>The connection stays open where the router has the scriptable <c>/safe-mode/unroll</c> (RouterOS
-        /// 7.18+). On an older router a terminal transport cannot unroll in place — the terminal's own discard key
-        /// ends the session too — so it closes the connection, which unrolls the changes: check
-        /// <see cref="ITikConnection.IsOpened"/> and open a new connection to continue.</para>
-        /// <para>Not available on the native WinBox transport (WebFig exposes only take/release); there,
-        /// drop the connection without releasing to roll back.</para>
+        /// <para>The connection stays open where the transport can unroll in place: the binary API, and a terminal on
+        /// a router with the scriptable <c>/safe-mode/unroll</c> (RouterOS 7.18+). A transport that cannot — a terminal
+        /// on an older router, whose own discard key ends the session too, and WinBox native, which has only take and
+        /// release — closes the connection instead, which unrolls the changes: check <see cref="ITikConnection.IsOpened"/>
+        /// and open a new connection to continue.</para>
         /// </summary>
-        /// <exception cref="NotSupportedException">The transport cannot roll back safe mode in place.</exception>
         /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
         /// <exception cref="TikCommandException">RouterOS reported an error rolling back safe mode.</exception>
         void SafeModeUnroll();

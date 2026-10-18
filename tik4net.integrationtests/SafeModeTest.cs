@@ -98,10 +98,8 @@ namespace tik4net.integrationtests
         public void SafeMode_Unroll_DiscardsChangeWithoutDisconnect()
         {
             EnsureCapability(TikConnectionCapability.SafeMode, "SafeModeUnroll");
-            // Native WinBox (TCP or over MAC) has no in-place unroll — skip it there (rollback is disconnect-only).
-            var transport = ResolveConnectionType();
-            if (transport == TikConnectionType.WinboxNative || transport == TikConnectionType.WinboxNativeMac)
-                Assert.Inconclusive("Native WinBox does not support in-place SafeModeUnroll (rollback is disconnect-only).");
+            if (IsWinboxNative())
+                Assert.Inconclusive("WinBox native has no in-place unroll: Unroll_OnATransportWithoutInPlaceUnroll_ClosesAndRollsBack covers it.");
             // In place only where the router has the scriptable /safe-mode/unroll (RouterOS 7.18+). Before that a
             // terminal transport unrolls by ending the session (the discard key ends it too): the connection is
             // closed, and the change must be gone from the next one.
@@ -114,23 +112,13 @@ namespace tik4net.integrationtests
                 Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
                 Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
 
-                SafeModeConnection.SafeModeUnroll();
-                Assert.IsFalse(SafeModeConnection.SafeModeGet(), "SafeModeGet should report not-held after unroll.");
                 if (!inPlace)
                 {
-                    Assert.IsFalse(Connection.IsOpened, "without /safe-mode/unroll the unroll ends the session, and says so");
-                    RecreateConnection();
-                    // The router finishes the unroll once the session is gone, not before the close returns: about
-                    // half a second over MAC-Telnet (6.49.13), so the next connection can still see the row.
-                    int remaining = CountItems(Connection, name);
-                    for (int i = 0; i < 20 && remaining > 0; i++)
-                    {
-                        Thread.Sleep(500);
-                        remaining = CountItems(Connection, name);
-                    }
-                    Assert.AreEqual(0, remaining, "Ending the session to unroll must discard the change.");
+                    UnrollAndExpectTheClose(name);
                     return;
                 }
+                SafeModeConnection.SafeModeUnroll();
+                Assert.IsFalse(SafeModeConnection.SafeModeGet(), "SafeModeGet should report not-held after unroll.");
 
                 // Same connection, no reconnect — the change must be gone.
                 Assert.AreEqual(0, CountItems(Connection, name), "Unroll must discard the change in place.");
@@ -139,6 +127,53 @@ namespace tik4net.integrationtests
             {
                 try { DeleteAllItems(PATH); } catch { /* best-effort cleanup */ }
             }
+        }
+
+        /// <summary>
+        /// Where the unroll cannot be done in place, it closes the connection, which rolls back: WinBox native always
+        /// (WebFig has only take and release), and a terminal before 7.18.
+        /// </summary>
+        [TestMethod]
+        public void Unroll_OnATransportWithoutInPlaceUnroll_ClosesAndRollsBack()
+        {
+            EnsureCapability(TikConnectionCapability.SafeMode, "SafeModeUnroll");
+            if (!IsWinboxNative() && (ResolveConnectionType() == TikConnectionType.Api || ResolveConnectionType() == TikConnectionType.ApiSsl
+                                      || GetMikrotikVersion() >= new Version(7, 18)))
+                Assert.Inconclusive(ResolveConnectionType() + " unrolls in place here: SafeMode_Unroll_DiscardsChangeWithoutDisconnect covers it.");
+
+            string name = "safemode-unroll-close-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            try
+            {
+                TakeSafeModeOrSkip();
+                Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
+                Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
+                UnrollAndExpectTheClose(name);
+            }
+            finally
+            {
+                try { DeleteAllItems(PATH); } catch { /* best-effort cleanup */ }
+            }
+        }
+
+        private bool IsWinboxNative()
+            => ResolveConnectionType() == TikConnectionType.WinboxNative || ResolveConnectionType() == TikConnectionType.WinboxNativeMac;
+
+        // The unroll of a transport that cannot do it in place: the connection closes, and the change is gone from the next one.
+        private void UnrollAndExpectTheClose(string name)
+        {
+            SafeModeConnection.SafeModeUnroll();
+            Assert.IsFalse(SafeModeConnection.SafeModeGet(), "SafeModeGet should report not-held after unroll.");
+            Assert.IsFalse(Connection.IsOpened, "an unroll that cannot be done in place ends the session, and says so");
+            RecreateConnection();
+            // The router finishes the unroll once the session is gone, not before the close returns: about
+            // half a second over MAC-Telnet (6.49.13), so the next connection can still see the row.
+            int remaining = CountItems(Connection, name);
+            for (int i = 0; i < 20 && remaining > 0; i++)
+            {
+                Thread.Sleep(500);
+                remaining = CountItems(Connection, name);
+            }
+            Assert.AreEqual(0, remaining, "Ending the session to unroll must discard the change.");
         }
 
         [TestMethod]
