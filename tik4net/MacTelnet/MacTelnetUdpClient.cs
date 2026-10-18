@@ -454,10 +454,8 @@ namespace tik4net.MacTelnet
             => Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note, note);
 
         /// <summary>
-        /// Reads a command response, requiring the prompt to be stable for
-        /// <see cref="SettleMs"/> before returning — and to have been preceded by the command's own echo
-        /// (<see cref="CliOutputHelper.ContainsEcho"/>), so that a prompt left behind by the PREVIOUS
-        /// response cannot end this read before the router has said anything.
+        /// Reads a command response until <see cref="CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
+        /// looking at the pump's receive buffer each time the pump signals new data or the poll interval passes.
         /// </summary>
         /// <param name="sentCommand">
         /// The command being answered. When non-null, reaching the deadline without a prompt throws

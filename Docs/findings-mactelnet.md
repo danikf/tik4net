@@ -134,13 +134,13 @@ DrainSync(250)                          // drain leftover redraw so it can't lea
 ```
 cmd = CliOutputHelper.InjectWithoutPaging(command)   // "without-paging" after "print"
 Send(PKT_DATA, cmd + "\r")
-raw = ReadCommandResponseSync()                      // prompt + 150 ms silence (settle), as Telnet
+raw = ReadCommandResponseAsync()                     // prompt + 150 ms silence (settle), as Telnet
 return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd)  // strip echo + trailing prompt
 ```
 
-The settle logic matches `TelnetClient.ReadCommandResponseAsync`: prompt at the end plus `SettleMs` of
-silence, with a prompt redraw before the output resetting the settle window. See
-[findings-cli.md](findings-cli.md) §7.
+The read ends by the rule every terminal client shares (`CliPromptSettle`): prompt at the end plus `SettleMs` of
+silence, with a prompt redraw before the output resetting the settle window. See [findings-cli.md](findings-cli.md)
+§4 and §7.
 
 ## 6. MAC-Telnet echoes a command twice
 

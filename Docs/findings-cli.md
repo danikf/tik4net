@@ -33,6 +33,8 @@ tik4net/Cli/                 shared by every PTY transport
 ├── CliErrorParser.cs          CLI output text → Tik*Exception
 ├── CliTableParser.cs          interactive (non as-value) table output, by column offset
 ├── CliLineStreamer.cs         carves completed lines out of a growing read buffer
+├── CliPromptSettle.cs         when a command's read is over, on all four terminal clients (§4)
+├── CliPtySession.cs           the console over a PTY byte stream (ICliByteStream.cs): Telnet's and SSH's reads and writes
 ├── CliMonitorVerbs.cs         per-verb snapshot modifiers for monitor commands
 ├── CliSafeModeParser.cs       Safe Mode prompt/response parsing
 ├── RouterOsCliLogin.cs        shared login sequence and prompt detection

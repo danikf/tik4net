@@ -460,11 +460,9 @@ namespace tik4net.WinboxCli
                 + "reporting anything.");
 
         /// <summary>
-        /// Reads a command response, requiring the prompt to be stable for <see cref="SettleMs"/>
-        /// before returning (the line-editor repaints the prompt, so a single prompt sighting is not
-        /// proof the output is complete) — and to have been preceded by the command's own echo
-        /// (<see cref="Cli.CliOutputHelper.ContainsEcho"/>), so that a prompt left behind by the PREVIOUS
-        /// response cannot end this read before the router has said anything.
+        /// Reads a command response until <see cref="Cli.CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
+        /// pulling mepty output while the text does not end at a completion prompt and receiving a frame only once
+        /// one is arriving.
         /// </summary>
         /// <param name="sentCommand">
         /// The command being answered. When non-null, reaching the deadline without a prompt throws

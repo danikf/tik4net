@@ -240,14 +240,9 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Reads a command's response. RouterOS in a PTY redraws the prompt line (e.g. <c>\r\r\r\r] &gt; </c>)
-        /// BEFORE printing the command output, so a naive "ends with prompt" check matches the redrawn
-        /// prompt and returns empty. Instead we require the prompt to be at the end AND the stream to fall
-        /// silent for <see cref="SettleMs"/> afterwards — any output that follows a redraw prompt resets the
-        /// settle window, so only the final, stable prompt terminates the read. Bounded by the receive deadline.
-        /// <para>And the prompt only counts once the command's own echo is on screen
-        /// (<see cref="CliOutputHelper.ContainsEcho"/>) — otherwise a prompt left behind by the PREVIOUS
-        /// response ends this read before the router has said anything.</para>
+        /// Reads a command's response until <see cref="CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
+        /// reading whatever the stream has buffered between polls. Bounded by the receive deadline; a carrier that
+        /// closes first ends the read too, as the relay ending when a RoMON target is set.
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
         /// <param name="sentCommand">

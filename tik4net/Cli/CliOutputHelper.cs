@@ -351,8 +351,8 @@ namespace tik4net.Cli
 
         /// <summary>
         /// True once <paramref name="strippedSoFar"/> carries the echo of <paramref name="sentCommand"/> —
-        /// i.e. the router has started answering the command we actually sent. Every PTY read loop requires
-        /// this before it lets a settled prompt terminate the read.
+        /// i.e. the router has started answering the command we actually sent. <see cref="CliPromptSettle"/>, which
+        /// ends every terminal client's command read, requires this before it lets a settled prompt terminate the read.
         /// </summary>
         /// <remarks>
         /// The prompt on its own is not proof: a prompt left over from the PREVIOUS command's response —
