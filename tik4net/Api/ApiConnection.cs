@@ -354,13 +354,7 @@ namespace tik4net.Api
         }
 
         internal bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
-        {
-            if (CertificateValidationCallback != null)
-                return CertificateValidationCallback(sender, certificate, chain, sslPolicyErrors);
-            if (AllowInvalidCertificate)
-                return true;
-            return sslPolicyErrors == SslPolicyErrors.None;
-        }
+            => (TikTlsValidation.For(this) ?? ((s, c, ch, e) => e == SslPolicyErrors.None))(sender, certificate, chain, sslPolicyErrors);
 
         public override void Dispose()
         {

@@ -206,12 +206,10 @@ namespace tik4net.Rest
             var handler = new HttpClientHandler();
             if (_useSsl)
             {
-                var validate = CertificateValidationCallback;
+                var validate = TikTlsValidation.For(this);
                 if (validate != null)
                     handler.ServerCertificateCustomValidationCallback =
                         (request, cert, chain, errors) => validate(request, cert, chain, errors);
-                else if (AllowInvalidCertificate)
-                    handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
                 // else: leave unset — HttpClientHandler performs standard OS chain/hostname validation
             }
 
