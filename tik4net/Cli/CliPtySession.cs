@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -265,10 +266,9 @@ namespace tik4net.Cli
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
-            DateTime? settleUntil = null;
+            var sw = Stopwatch.StartNew();
+            var settle = new CliPromptSettle(sentCommand, SettleMs, TikWireTrace.Enabled ? TraceNote : (Action<string>?)null);
             var streamer = new CliLineStreamer(onLine);
-            bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
 
             while (true)
             {
@@ -286,8 +286,6 @@ namespace tik4net.Cli
                 }
 
                 closed |= _stream.ClosedAndDrained;
-                if (gotData)
-                    settleUntil = null; // fresh data → the prompt (if any) is not yet stable
 
                 string stripped = VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(RomonTarget, accumulated.ToString()));
                 streamer.Feed(stripped);
@@ -295,36 +293,19 @@ namespace tik4net.Cli
                 // The relay ended mid-command: no prompt will follow, the agent's session is over.
                 RouterOsCliLogin.ThrowIfRomonRelayEnded(_transportName, RomonTarget, sentCommand, stripped, commandSent: true);
 
-                if (!echoSeen)
-                    echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
-
-                if (echoSeen && CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand))
+                switch (settle.Observe(stripped, gotData, sw.ElapsedMilliseconds, accumulated.Length))
                 {
-                    var verdict = CliOutputHelper.JudgePrompt(stripped, sentCommand);
-                    if (verdict == CliOutputHelper.PromptVerdict.Complete)
-                    {
-                        TraceNote("the count line and the prompt → response complete");
-                        return stripped; // a counted read's own last line and the prompt → done, no settle
-                    }
-                    if (verdict == CliOutputHelper.PromptVerdict.NotYet)
-                        settleUntil = null; // a repaint before the answer, not its end
-                    else if (settleUntil == null)
-                        settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
-                    else if (DateTime.UtcNow >= settleUntil.Value)
-                    {
-                        TraceNote("prompt stable after " + SettleMs + " ms of silence → response complete");
-                        return stripped; // prompt has been stable (no further output) → done
-                    }
+                    case CliPromptSettle.Outcome.Complete:
+                    case CliPromptSettle.Outcome.Settled:
+                        return stripped;
                 }
 
-                if (closed || DateTime.UtcNow >= deadline)
+                if (closed || sw.ElapsedMilliseconds >= ReceiveTimeoutMs)
                 {
-                    // Reached WITHOUT a stable prompt: the response is whatever arrived so far and may end
+                    // Reached WITHOUT a settled prompt: the response is whatever arrived so far and may end
                     // mid-record. Silent truncation here is how a partial read reaches the parser looking
                     // like data (P2.25's failure class), so it is always traced.
-                    TraceNote(closed
-                        ? "carrier closed before the prompt settled — response is truncated"
-                        : "receive deadline (" + ReceiveTimeoutMs + " ms) hit before the prompt settled — response is truncated");
+                    settle.NoteEnd(closed ? "CLOSED" : "TIMEOUT", sw.ElapsedMilliseconds, accumulated.Length);
                     if (closed && sentCommand != null && RomonTarget != null)
                         throw RouterOsCliLogin.RomonRelayEndedWithTheSession(_transportName, RomonTarget, sentCommand, stripped);
                     if (sentCommand != null)

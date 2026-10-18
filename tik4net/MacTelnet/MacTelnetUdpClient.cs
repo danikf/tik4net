@@ -450,6 +450,9 @@ namespace tik4net.MacTelnet
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(fault).Throw();
         }
 
+        private void TraceNote(string note)
+            => Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note, note);
+
         /// <summary>
         /// Reads a command response, requiring the prompt to be stable for
         /// <see cref="SettleMs"/> before returning — and to have been preceded by the command's own echo
@@ -477,10 +480,9 @@ namespace tik4net.MacTelnet
             Action<string>? onLine = null)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            DateTime? settleUntil = null;
+            var settle = new CliPromptSettle(sentCommand, SettleMs, Diagnostics.TikWireTrace.Enabled ? TraceNote : (Action<string>?)null);
             int lastLength = -1;
             var streamer = new CliLineStreamer(onLine);
-            bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
             bool endedBefore = _routerEnded;   // only an end that arrives during this read is this read's
 
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
@@ -491,11 +493,8 @@ namespace tik4net.MacTelnet
 
                 string stripped = Snapshot(out int length);
                 streamer.Feed(stripped);
-                if (length != lastLength)
-                {
-                    lastLength  = length;
-                    settleUntil = null;
-                }
+                bool newData = length != lastLength;
+                lastLength = length;
 
                 // Nothing has come back AND the router never took the bytes, even after the pump ran the
                 // retransmits out. Waiting the rest of the deadline would only turn a known answer into a
@@ -510,26 +509,18 @@ namespace tik4net.MacTelnet
                 if (_routerEnded && !endedBefore && _romonTarget != null)
                     throw RouterOsCliLogin.RomonRelayEndedWithTheSession("MAC-Telnet", _romonTarget, sentCommand, stripped);
 
-                if (!echoSeen)
-                    echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
-
-                if (echoSeen && CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand))
+                switch (settle.Observe(stripped, newData, sw.ElapsedMilliseconds, length))
                 {
-                    var verdict = CliOutputHelper.JudgePrompt(stripped, sentCommand);
-                    if (verdict == CliOutputHelper.PromptVerdict.Complete)
-                        return stripped; // a counted read's own last line and the prompt → done, no settle
-                    if (verdict == CliOutputHelper.PromptVerdict.NotYet)
-                        settleUntil = null; // a repaint before the answer, not its end
-                    else if (settleUntil == null)
-                        settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
-                    else if (DateTime.UtcNow >= settleUntil.Value)
+                    case CliPromptSettle.Outcome.Complete:
+                    case CliPromptSettle.Outcome.Settled:
                         return stripped;
                 }
 
                 await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
             }
 
-            string strippedSoFar = Snapshot(out _);
+            string strippedSoFar = Snapshot(out int lengthSoFar);
+            settle.NoteEnd("TIMEOUT", sw.ElapsedMilliseconds, lengthSoFar);
             if (sentCommand != null)
                 throw CliReadTimeout.Create("MAC-Telnet", ReceiveTimeoutMs, sentCommand, strippedSoFar);
             return strippedSoFar;
