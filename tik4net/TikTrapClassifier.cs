@@ -22,8 +22,8 @@ namespace tik4net
     /// (<see cref="TikNoSuchCommandException"/>, <see cref="TikNoSuchItemException"/>,
     /// <see cref="TikAlreadyHaveSuchItemException"/>, <see cref="TikCommandTrapException"/>) stay in sync
     /// instead of drifting per transport. Each transport is responsible for extracting its own message text
-    /// (and any transport-specific signal, e.g. REST's HTTP 404) and constructing the concrete exception —
-    /// this only decides which kind applies.
+    /// (and any transport-specific signal, e.g. REST's HTTP 404 or WinBox native's M2 error code) and settling
+    /// the kind; <see cref="ToException"/> then builds the one exception every transport throws for it.
     /// </summary>
     internal static class TikTrapClassifier
     {
@@ -57,5 +57,21 @@ namespace tik4net
 
             return TikTrapKind.Generic;
         }
+
+        /// <summary>The specific exception for a classified trap; <c>null</c> for <see cref="TikTrapKind.Generic"/>.</summary>
+        internal static TikCommandTrapException? Specific(TikTrapKind kind, ITikCommand command, ITikTrapSentence trap)
+        {
+            switch (kind)
+            {
+                case TikTrapKind.NoSuchCommand: return new TikNoSuchCommandException(command, trap);
+                case TikTrapKind.NoSuchItem: return new TikNoSuchItemException(command, trap);
+                case TikTrapKind.AlreadyHaveSuchItem: return new TikAlreadyHaveSuchItemException(command, trap);
+                default: return null;
+            }
+        }
+
+        /// <summary>As <see cref="Specific"/>, falling back to the plain trap.</summary>
+        internal static TikCommandTrapException ToException(TikTrapKind kind, ITikCommand command, ITikTrapSentence trap)
+            => Specific(kind, command, trap) ?? new TikCommandTrapException(command, trap);
     }
 }

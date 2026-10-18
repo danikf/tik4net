@@ -637,17 +637,7 @@ namespace tik4net.Rest
             if (kind == TikTrapKind.Generic && statusCode == 404)
                 kind = TikTrapKind.NoSuchItem;
 
-            switch (kind)
-            {
-                case TikTrapKind.NoSuchCommand:
-                    throw new TikNoSuchCommandException(fakeCmd, trapSentence);
-                case TikTrapKind.NoSuchItem:
-                    throw new TikNoSuchItemException(fakeCmd, trapSentence);
-                case TikTrapKind.AlreadyHaveSuchItem:
-                    throw new TikAlreadyHaveSuchItemException(fakeCmd, trapSentence);
-                default:
-                    throw new TikCommandTrapException(fakeCmd, trapSentence);
-            }
+            throw TikTrapClassifier.ToException(kind, fakeCmd, trapSentence);
         }
 
         private static IList<TikRecordSentence> ParseResponseList(string body)

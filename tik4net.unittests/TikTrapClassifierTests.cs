@@ -97,5 +97,27 @@ namespace tik4net.unittests
         {
             Assert.AreEqual(TikTrapKind.NoSuchItem, TikTrapClassifier.Classify("NO SUCH ITEM"));
         }
+
+        // ── kind → exception ────────────────────────────────────────────────
+
+        [DataTestMethod]
+        [DataRow((int)TikTrapKind.NoSuchCommand, typeof(TikNoSuchCommandException))]
+        [DataRow((int)TikTrapKind.NoSuchItem, typeof(TikNoSuchItemException))]
+        [DataRow((int)TikTrapKind.AlreadyHaveSuchItem, typeof(TikAlreadyHaveSuchItemException))]
+        [DataRow((int)TikTrapKind.Generic, typeof(TikCommandTrapException))]
+        public void ToExceptionMapsEveryKind(int kind, System.Type expected)
+        {
+            using (var connection = new tik4net.Testing.TikFakeConnection())
+            {
+                var command = connection.CreateCommand("/ip/address/print");
+                var trap = new tik4net.Connection.TikTrapSentenceResult("router says no");
+
+                var ex = TikTrapClassifier.ToException((TikTrapKind)kind, command, trap);
+
+                Assert.AreEqual(expected, ex.GetType());
+                Assert.AreSame(command, ex.Command);
+                StringAssert.Contains(ex.Message, "router says no");
+            }
+        }
     }
 }

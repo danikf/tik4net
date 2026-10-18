@@ -279,17 +279,7 @@ namespace tik4net.Api
                 ApiTrapSentence? trapSentence = responseSentence as ApiTrapSentence;
                 if (trapSentence != null)
                 { //detect well known error responses and convert them to special exceptions
-                    switch (TikTrapClassifier.Classify(trapSentence.Message))
-                    {
-                        case TikTrapKind.NoSuchCommand:
-                            throw new TikNoSuchCommandException(this, trapSentence);
-                        case TikTrapKind.NoSuchItem:
-                            throw new TikNoSuchItemException(this, trapSentence);
-                        case TikTrapKind.AlreadyHaveSuchItem:
-                            throw new TikAlreadyHaveSuchItemException(this, trapSentence);
-                        default:
-                            throw new TikCommandTrapException(this, trapSentence);
-                    }
+                    throw TikTrapClassifier.ToException(TikTrapClassifier.Classify(trapSentence.Message), this, trapSentence);
                 }
                 ApiFatalSentence? fatalSentence = responseSentence as ApiFatalSentence;
                 if (fatalSentence != null)

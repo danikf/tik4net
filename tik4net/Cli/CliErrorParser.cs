@@ -37,15 +37,9 @@ namespace tik4net.Cli
             // is shared with the API and REST transports via TikTrapClassifier.
             string lower = output.ToLowerInvariant();
 
-            switch (TikTrapClassifier.Classify(output))
-            {
-                case TikTrapKind.NoSuchItem:
-                    throw new TikNoSuchItemException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
-                case TikTrapKind.NoSuchCommand:
-                    throw new TikNoSuchCommandException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
-                case TikTrapKind.AlreadyHaveSuchItem:
-                    throw new TikAlreadyHaveSuchItemException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
-            }
+            var kind = TikTrapClassifier.Classify(output);
+            if (kind != TikTrapKind.Generic)
+                throw TikTrapClassifier.ToException(kind, cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
 
             // Generic "failure:" or "error:" prefix
             if (lower.Contains("failure:") || lower.Contains("error:"))

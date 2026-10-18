@@ -1675,30 +1675,34 @@ namespace tik4net.WinboxNative
         // address"), so the error text is matched alongside the well-known codes.
         private TikCommandException TranslateM2Error(WinboxM2OperationException ex, string commandText)
         {
-            var cmd = CommandFor(commandText);
             var trap = new TikTrapSentenceResult(ex.Message, $"0x{ex.Code:X}", ex.ErrorText);
+            return TikTrapClassifier.ToException(KindOf(ex, commandText), CommandFor(commandText), trap);
+        }
+
+        private static TikTrapKind KindOf(WinboxM2OperationException ex, string commandText)
+        {
             string t = (ex.ErrorText ?? string.Empty).ToLowerInvariant();
 
             if (ex.Code == WinboxM2Protocol.Error.AlreadyExists
                 || t.Contains("already have") || t.Contains("already exists"))
-                return new TikAlreadyHaveSuchItemException(cmd, trap);
+                return TikTrapKind.AlreadyHaveSuchItem;
 
             if (ex.Code == WinboxM2Protocol.Error.ObjectNonexistent || ex.Code == 0xFE0011
                 || t.Contains("no such") || t.Contains("not found")
                 || t.Contains("does not exist") || t.Contains("doesn't exist"))
-                return new TikNoSuchItemException(cmd, trap);
+                return TikTrapKind.NoSuchItem;
 
             // 'Not implemented' on a verb that creates, removes or reorders rows is the menu lacking that verb — a
             // single-item menu answering 'add' (RouterOS 6's /interface/ovpn-server/server) — which the API reports as
             // "no such command". Never on a read: there it means we sent the wrong command for the window kind.
             if ((ex.Code == WinboxM2Protocol.Error.NotImplemented || ex.Code == WinboxM2Protocol.Error.NotImplemented2)
                 && IsRowSetVerb(TikPath.Verb(commandText)))
-                return new TikNoSuchCommandException(cmd, trap);
+                return TikTrapKind.NoSuchCommand;
 
             // A non-zero M2 status with code + error text is a genuine router-reported error (a trap),
             // not a protocol-shape violation. Surface it as TikCommandTrapException to match the
             // generic-error fallback of the API/CLI/REST transports.
-            return new TikCommandTrapException(cmd, trap);
+            return TikTrapKind.Generic;
         }
 
         private static bool IsRowSetVerb(string verb) => verb == "add" || verb == "remove" || verb == "move";
