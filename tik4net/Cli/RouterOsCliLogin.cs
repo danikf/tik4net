@@ -128,8 +128,8 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Login name suffix appended to the user name on PTY transports. <c>+c</c> disables ANSI
-        /// colour, which drastically reduces escape sequences in the output. We deliberately do NOT
+        /// Login name suffix appended to the user name on every terminal login (Telnet, SSH, MAC-Telnet, a direct
+        /// WinBox CLI). <c>+c</c> disables ANSI colour, which drastically reduces escape sequences in the output. We deliberately do NOT
         /// pin a fixed terminal width here — the transport answers RouterOS's cursor-probe negotiation
         /// (see <see cref="Vt100State"/>) advertising a wide terminal so long <c>:put</c> as-value
         /// records are not wrapped. See findings-cli.md §4.

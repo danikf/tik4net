@@ -167,6 +167,17 @@ if (!sentCtrlC && (stripped.Contains("new password>") || stripped.Contains("pass
 }
 ```
 
+### Login options: `+c` turns the colours off
+
+The WinBox login name takes the same options as a terminal login: `admin+c` is accepted by the EC-SRP5 login over
+TCP and over the MAC layer (RouterOS 6.49.13 and 7.24.5), because RouterOS checks the password against the account
+name only (`EcSrp5.AccountName`). With `+c` the mepty console sends no SGR sequence at all. Without it, every prompt
+repaint and every echoed keystroke is coloured (`[<ESC>[m<ESC>[36madmin<ESC>[m@<ESC>[m<ESC>[32mCHR2<ESC>[m] > `):
+measured over the same three commands on a fresh session, 42 523 SGR sequences and 406 k of mepty text on 6.49.13
+against none and 71 k with `+c` (7.24.5: 789 and 10.4 k against none and 3.1 k). A direct WinBox CLI login therefore
+sends `user+c` (`WinboxCliSession`), as Telnet, SSH and MAC-Telnet do. The legacy MD5 login (before 6.43) is sent the
+bare account name, since nothing older than 6.49 was measured; through a RoMON agent the agent's login is left as it is.
+
 ---
 
 ## 4. Parity of the MikroTik M2 protocol across TCP and MAC transports

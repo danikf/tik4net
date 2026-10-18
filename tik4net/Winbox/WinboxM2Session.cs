@@ -107,7 +107,8 @@ namespace tik4net.Winbox
                 _transport.Connect(host, port, connectTimeoutMs, ioTimeoutMs);
                 try
                 {
-                    LegacyMd5Auth(user, pass);
+                    // The account name alone: login options ("+c") are measured on EC-SRP5 routers only.
+                    LegacyMd5Auth(EcSrp5.AccountName(user), pass);
                 }
                 catch (UnauthorizedAccessException ex)
                 {
