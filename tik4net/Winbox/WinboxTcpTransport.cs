@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
+using tik4net.Connection;
 using tik4net.Diagnostics;
 
 namespace tik4net.Winbox
@@ -31,21 +32,8 @@ namespace tik4net.Winbox
             int sendTimeoutMs = 0)
         {
             _tcp = new TcpClient();
-
-            // ConnectAsync with manual timeout so we work on netstandard2.0 (no CancellationToken overload there).
-            // NOTE: Task.Wait(timeout) throws AggregateException (not the original exception) when the
-            // task completes faulted within the timeout window (e.g. an immediate "connection refused") —
-            // unwrap it so callers see the same SocketException they would from a direct ConnectAsync await.
-            var connectTask = _tcp.ConnectAsync(host, port);
-            try
-            {
-                if (!connectTask.Wait(connectTimeoutMs))
-                    throw new SocketException((int)SocketError.TimedOut);
-            }
-            catch (AggregateException aex)
-            {
-                throw aex.InnerException ?? aex;
-            }
+            // No close on failure here: the session's Dispose does that.
+            TikTcp.Connect(_tcp, host, port, connectTimeoutMs);
 
             _tcp.ReceiveTimeout = ioTimeoutMs;
             // Falls back to ioTimeoutMs when the caller has no separate send bound, which is what this

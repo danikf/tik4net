@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Cli;
+using tik4net.Connection;
 
 namespace tik4net.Telnet
 {
@@ -55,26 +56,15 @@ namespace tik4net.Telnet
 
         internal void Connect(string host, int port, int connectTimeoutMs)
         {
-            _tcpClient = new TcpClient();
-            _tcpClient.NoDelay = true;
-
-            // ConnectAsync with manual timeout so we work on netstandard2.0.
-            // NOTE: Task.Wait(timeout) throws AggregateException (not the original exception) when the task
-            // completes faulted within the timeout window (e.g. an immediate "connection refused") — unwrap
-            // it so callers see the same SocketException they would from a direct ConnectAsync await.
-            var connectTask = _tcpClient.ConnectAsync(host, port);
+            _tcpClient = new TcpClient { NoDelay = true };
             try
             {
-                if (!connectTask.Wait(connectTimeoutMs))
-                {
-                    _tcpClient.Close();
-                    throw new SocketException((int)SocketError.TimedOut);
-                }
+                TikTcp.Connect(_tcpClient, host, port, connectTimeoutMs);
             }
-            catch (AggregateException aex)
+            catch
             {
                 _tcpClient.Close();
-                throw aex.InnerException ?? aex;
+                throw;
             }
 
             _stream = _tcpClient.GetStream();

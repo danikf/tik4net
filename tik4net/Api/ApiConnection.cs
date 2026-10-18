@@ -229,22 +229,7 @@ namespace tik4net.Api
                 if (ReceiveTimeoutMs > 0)
                     _tcpConnection.ReceiveTimeout = ReceiveTimeoutMs;
 
-                // Task.WhenAny + Task.Delay so we work on netstandard2.0 (no ConnectAsync(CancellationToken) overload there).
-                var connectTask = _tcpConnection.ConnectAsync(host, port);
-                // The delay carries the token, so the same WhenAny races BOTH the deadline and the caller's
-                // cancellation. Which of the two ended the wait is then read off the token, because a
-                // cancelled open must not be reported as a router that timed out.
-                var timeoutTask = Task.Delay(ConnectTimeoutMs, cancellationToken);
-                if (await Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false) == timeoutTask)
-                {
-                    // Observe the abandoned connect so a later "connection refused" cannot surface as an
-                    // unobserved task exception in an unrelated part of the process.
-                    _ = connectTask.ContinueWith(t => { _ = t.Exception; },
-                        TaskContinuationOptions.OnlyOnFaulted);
-                    cancellationToken.ThrowIfCancellationRequested();
-                    throw new SocketException((int)SocketError.TimedOut);
-                }
-                await connectTask.ConfigureAwait(false); // observe/rethrow any connect exception
+                await TikTcp.ConnectAsync(_tcpConnection, host, port, ConnectTimeoutMs, cancellationToken).ConfigureAwait(false);
 
                 var tcpStream = _tcpConnection.GetStream();
                 if (ReceiveTimeoutMs > 0)
