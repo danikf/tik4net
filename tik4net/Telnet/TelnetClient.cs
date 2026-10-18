@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -101,51 +100,17 @@ namespace tik4net.Telnet
         // ── Close / Dispose ───────────────────────────────────────────────────
 
         /// <summary>Asks RouterOS to leave the console (<c>/quit</c>), then closes the socket.</summary>
-        /// <param name="answerSafeModeQuestion">The session holds Safe Mode. RouterOS then answers <c>/quit</c> with
-        /// "You are in Safe Mode. Quitting will unroll changes. Quit? [y/N]" (7.24.4) instead of quitting, so <c>y</c> is
-        /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
-        /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
-        /// reboot.</param>
+        /// <param name="answerSafeModeQuestion">The session holds Safe Mode: <c>/quit</c>'s question is answered with
+        /// <c>y</c>, and the socket is closed only once the router has ended the session
+        /// (<see cref="CliPtySession.EndSessionAsync"/>).</param>
         internal void Close(bool answerSafeModeQuestion = false)
         {
-            // Ask RouterOS to exit cleanly before closing the socket. This releases the
-            // interactive session on the router side immediately rather than waiting for
-            // the TCP timeout to expire. Errors are silently ignored (e.g. already closed).
-            string quit = RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r\n");
-            try { _stream?.Write(_encoding.GetBytes(quit), 0, _encoding.GetByteCount(quit)); } catch { /* ignore */ }
-            if (answerSafeModeQuestion)
-                WaitForRouterToEndSession(RouterOsCliLogin.SafeModeQuitWaitMs);
+            // Asking RouterOS to exit releases the interactive session on the router at once rather than when the TCP
+            // connection times out.
+            if (_stream != null)
+                _pty.EndSession(answerSafeModeQuestion);
             try { _stream?.Close(); } catch { /* ignore */ }
             try { _tcpClient?.Close(); } catch { /* ignore */ }
-        }
-
-        /// <summary>
-        /// Reads, discarding, until RouterOS closes the connection or <paramref name="maxMs"/> passes.
-        /// </summary>
-        /// <remarks>
-        /// The <c>y</c> that answers <c>/quit</c>'s Safe Mode question must be read by the console before the connection
-        /// goes: a close that races it leaves the session ending inside the question, and on RouterOS 6.49.13 that stops
-        /// the console from serving any new Telnet, SSH or API login until a reboot (2 in 36 racing closes; 0 in 60 that
-        /// waited for the router to close first, which it does in well under a second).
-        /// </remarks>
-        private void WaitForRouterToEndSession(int maxMs)
-        {
-            var buffer = new byte[4096];
-            var deadline = System.Diagnostics.Stopwatch.StartNew();
-            try
-            {
-                _stream.ReadTimeout = 200;
-                while (deadline.ElapsedMilliseconds < maxMs)
-                {
-                    try
-                    {
-                        if (_stream.Read(buffer, 0, buffer.Length) == 0)
-                            return;
-                    }
-                    catch (IOException ex) when (ex.InnerException is SocketException se && se.SocketErrorCode == SocketError.TimedOut) { }
-                }
-            }
-            catch { /* the connection is gone or going: either way the wait is over */ }
         }
 
         public void Dispose() => Close();
@@ -174,8 +139,21 @@ namespace tik4net.Telnet
         Task<int> ICliByteStream.ReadAsync(byte[] buffer, CancellationToken ct)
             => _stream.ReadAsync(buffer, 0, buffer.Length, ct);
 
-        // A closed socket arrives as a 0 read.
-        bool ICliByteStream.ClosedAndDrained => false;
+        // DataAvailable stays false once the router has closed, so a close never arrives as a 0 read here: the socket is
+        // readable with nothing to read instead.
+        bool ICliByteStream.ClosedAndDrained
+        {
+            get
+            {
+                try
+                {
+                    Socket socket = _tcpClient.Client;
+                    return socket.Poll(0, SelectMode.SelectRead) && socket.Available == 0;
+                }
+                catch (ObjectDisposedException) { return true; }
+                catch (SocketException) { return true; }
+            }
+        }
 
         Task ICliByteStream.WriteAsync(byte[] bytes, CancellationToken ct)
             => _stream.WriteAsync(bytes, 0, bytes.Length, ct);

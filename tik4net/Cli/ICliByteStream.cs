@@ -12,7 +12,8 @@ namespace tik4net.Cli
         /// <summary>Reads what is buffered. Called only while <see cref="HasData"/>; 0 means the carrier closed.</summary>
         Task<int> ReadAsync(byte[] buffer, CancellationToken ct);
 
-        /// <summary>The carrier has closed and nothing it delivered is left (SSH). False where a close arrives as a 0 read (Telnet).</summary>
+        /// <summary>The carrier has closed and nothing it delivered is left: how a close shows while <see cref="HasData"/>
+        /// polls, since neither the Telnet socket nor the SSH channel reports one as data.</summary>
         bool ClosedAndDrained { get; }
 
         /// <summary>Writes <paramref name="bytes"/> to the carrier.</summary>

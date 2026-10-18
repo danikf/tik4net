@@ -178,18 +178,14 @@ namespace tik4net.Ssh
         // ── Close / Dispose ───────────────────────────────────────────────────
 
         /// <summary>Asks RouterOS to leave the console (<c>/quit</c>), then tears the shell down.</summary>
-        /// <param name="answerSafeModeQuestion">The session holds Safe Mode. RouterOS then answers <c>/quit</c> with
-        /// "You are in Safe Mode. Quitting will unroll changes. Quit? [y/N]" (7.24.4) instead of quitting, so <c>y</c> is
-        /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
-        /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
-        /// reboot.</param>
+        /// <param name="answerSafeModeQuestion">The session holds Safe Mode: <c>/quit</c>'s question is answered with
+        /// <c>y</c> after one Enter, and the shell is torn down only once the router has ended the session
+        /// (<see cref="CliPtySession.EndSessionAsync"/>).</param>
         internal void Close(bool answerSafeModeQuestion = false)
         {
-            // Ask RouterOS to exit cleanly before tearing down, releasing the interactive session
-            // on the router immediately. Errors are silently ignored (e.g. already closed). The "\r\n" is two Enters
-            // over the PTY, unlike SendLineAsync's one: in Safe Mode the second answers "Quit? [y/N]" with the default
-            // N, so the session is not torn down inside that question, which wedged RouterOS 6.49.13's console (X20).
-            try { _shell?.Write(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r\n")); _shell?.Flush(); } catch { /* ignore */ }
+            // Asking RouterOS to exit releases the interactive session on the router at once.
+            if (_shell != null)
+                _pty.EndSession(answerSafeModeQuestion);
             try { _shell?.Dispose(); } catch { /* ignore */ }
             try { if (_ssh?.IsConnected == true) _ssh.Disconnect(); } catch { /* ignore */ }
             SafeDispose(_ssh);

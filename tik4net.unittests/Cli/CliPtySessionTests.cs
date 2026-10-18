@@ -145,5 +145,47 @@ namespace tik4net.unittests.Cli
                 Assert.AreEqual(Command + enter, Encoding.ASCII.GetString(stream.Writes[0]));
             }
         }
+
+        // ── Ending the session ────────────────────────────────────────────────
+
+        [TestMethod]
+        public void ACloseInSafeMode_AnswersWithOneEnterAndWaitsForTheRouterToEndTheSession()
+        {
+            // SSH: one Enter is "\r", so the y answers "Quit? [y/N]" (a "\r\n" would be a second Enter, answering N).
+            var stream = new ScriptedByteStream(new[] { "/quit\r\n", "You are in Safe Mode. Quit? [y/N] ", "y\r\n" }, closeWhenEmpty: true);
+            var sw = Stopwatch.StartNew();
+
+            Session(stream, "\r").EndSessionAsync(answerSafeModeQuestion: true, CancellationToken.None).GetAwaiter().GetResult();
+
+            Assert.AreEqual("/quit\ry", Encoding.ASCII.GetString(stream.Writes.SelectMany(w => w).ToArray()));
+            Assert.IsTrue(stream.ClosedAndDrained, "returned before the router had ended the session");
+            Assert.IsTrue(sw.ElapsedMilliseconds < RouterOsCliLogin.SafeModeQuitWaitMs, sw.ElapsedMilliseconds + " ms: waited past the close");
+        }
+
+        [TestMethod]
+        public void ACloseInSafeMode_GivesUpWaitingAfterItsBound()
+        {
+            var stream = new ScriptedByteStream(new[] { "/quit\r\n" });   // the router never ends the session
+            var sw = Stopwatch.StartNew();
+
+            Session(stream, "\r\n").EndSessionAsync(answerSafeModeQuestion: true, CancellationToken.None).GetAwaiter().GetResult();
+
+            Assert.AreEqual("/quit\r\ny", Encoding.ASCII.GetString(stream.Writes.SelectMany(w => w).ToArray()), "Telnet's Enter");
+            Assert.IsTrue(sw.ElapsedMilliseconds >= RouterOsCliLogin.SafeModeQuitWaitMs - 50, sw.ElapsedMilliseconds + " ms");
+            Assert.IsTrue(sw.ElapsedMilliseconds < RouterOsCliLogin.SafeModeQuitWaitMs + 1500, sw.ElapsedMilliseconds + " ms");
+        }
+
+        [TestMethod]
+        public void APlainClose_WritesQuitAndOneEnterAndDoesNotWait()
+        {
+            var stream = new ScriptedByteStream(new[] { "/quit\r\n" });
+            var sw = Stopwatch.StartNew();
+
+            Session(stream, "\r").EndSessionAsync(answerSafeModeQuestion: false, CancellationToken.None).GetAwaiter().GetResult();
+
+            Assert.AreEqual("/quit\r", Encoding.ASCII.GetString(stream.Writes.SelectMany(w => w).ToArray()));
+            Assert.IsTrue(stream.HasData, "a plain close read what the router sent");
+            Assert.IsTrue(sw.ElapsedMilliseconds < 1000, sw.ElapsedMilliseconds + " ms");
+        }
     }
 }

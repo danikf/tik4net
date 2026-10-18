@@ -383,6 +383,70 @@ namespace tik4net.Cli
                 TikWireTrace.Emit(_traceChannel, TikWireDir.Note, note);
         }
 
+        // ── Ending the session ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Asks RouterOS to leave the console: <c>/quit</c> and one Enter, then <c>y</c> when the session holds Safe Mode
+        /// (<see cref="RouterOsCliLogin.QuitKeys"/>). When answering, reads, discarding, until the router ends the session
+        /// (a 0 read, or <see cref="ICliByteStream.ClosedAndDrained"/>) or <see cref="RouterOsCliLogin.SafeModeQuitWaitMs"/>
+        /// passes. Never throws: a carrier that is already gone has nothing left to end.
+        /// </summary>
+        /// <param name="answerSafeModeQuestion">The session holds Safe Mode. RouterOS then answers <c>/quit</c> with "You
+        /// are in Safe Mode. Quitting will unroll changes. Quit? [y/N]" instead of quitting, and the <c>y</c> answers it:
+        /// the unroll a session ending without a release is owed anyway, done now.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <remarks>
+        /// The Enter is this session's own, one keystroke: over a PTY a CR LF is two Enters, and the second would answer the
+        /// question with its default, N. The <c>y</c> must then be read by the console before the carrier goes: a close that
+        /// races it leaves the session ending inside the question, and on RouterOS 6.49.13 that stops the console from
+        /// serving any new Telnet, SSH or API login until a reboot (2 in 36 racing Telnet closes; 0 in 60 that waited for
+        /// the router to close first, which it does in well under a second).
+        /// </remarks>
+        internal async Task EndSessionAsync(bool answerSafeModeQuestion, CancellationToken ct)
+        {
+            try
+            {
+                await SendBytesAsync(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, _enter)), ct).ConfigureAwait(false);
+                if (answerSafeModeQuestion)
+                    await WaitForRouterToEndSessionAsync(RouterOsCliLogin.SafeModeQuitWaitMs, ct).ConfigureAwait(false);
+            }
+            catch { /* the connection is gone or going: either way there is nothing left to end */ }
+        }
+
+        /// <summary>
+        /// <see cref="EndSessionAsync"/> for a synchronous close (<see cref="ICliTerminal.End"/>), bounded by
+        /// <see cref="RouterOsCliLogin.SafeModeQuitWaitMs"/> and a second for the write.
+        /// </summary>
+        internal void EndSession(bool answerSafeModeQuestion)
+        {
+            try
+            {
+                Task.Run(() => EndSessionAsync(answerSafeModeQuestion, CancellationToken.None))
+                    .Wait(RouterOsCliLogin.SafeModeQuitWaitMs + 1000);
+            }
+            catch { /* EndSessionAsync does not throw; a faulted wait has nothing to report either */ }
+        }
+
+        private async Task WaitForRouterToEndSessionAsync(int maxMs, CancellationToken ct)
+        {
+            var buffer = new byte[4096];
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < maxMs)
+            {
+                while (_stream.HasData)
+                {
+                    int n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
+                    if (n <= 0)
+                        return;
+                    if (TikWireTrace.Enabled)
+                        TikWireTrace.Emit(_traceChannel, TikWireDir.Recv, buffer, 0, n);
+                }
+                if (_stream.ClosedAndDrained)
+                    return;
+                await Task.Delay(15, ct).ConfigureAwait(false);
+            }
+        }
+
         // ── Writes ────────────────────────────────────────────────────────────
 
         /// <summary>Types <paramref name="text"/> and one Enter.</summary>
