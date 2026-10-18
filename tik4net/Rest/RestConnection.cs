@@ -148,7 +148,6 @@ namespace tik4net.Rest
         internal RestConnection(bool useSsl = false)
         {
             _useSsl = useSsl;
-            DebugEnabled = System.Diagnostics.Debugger.IsAttached;
         }
 
         // ── Open / Close ──────────────────────────────────────────────────────

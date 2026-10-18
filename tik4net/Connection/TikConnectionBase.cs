@@ -28,7 +28,7 @@ namespace tik4net.Connection
         // ── ITikConnection properties ─────────────────────────────────────────
 
         /// <inheritdoc/>
-        public bool DebugEnabled { get; set; }
+        public bool DebugEnabled { get; set; } = System.Diagnostics.Debugger.IsAttached;
 
         /// <inheritdoc/>
         public bool IsOpened => _isOpened;

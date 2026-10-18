@@ -84,7 +84,6 @@ namespace tik4net.Api
         public ApiConnection(bool isSsl)
         {
             _isSsl = isSsl;
-            DebugEnabled = System.Diagnostics.Debugger.IsAttached;
         }
 
         /// <inheritdoc/>
