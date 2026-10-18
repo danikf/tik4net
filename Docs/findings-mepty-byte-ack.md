@@ -33,10 +33,13 @@ Implemented in [`../tik4net/WinboxCli/WinboxCliClient.cs`](../tik4net/WinboxCli/
 2. **Drop frames belonging to another mepty session**, via `M2Message.TryParseSessionId` (the
    non-throwing sibling of `ParseSessionId`). Their bytes must not enter the buffer **and must not be
    acknowledged** — the acknowledgement is per-session.
-3. **Settle on quiet, not on "the prompt is still last."** In `ReadCommandResponseSync`, once the
-   completion prompt has been seen the read returns after `SettleMs` of silence. Keying on the buffer
-   still *ending* at a prompt fails whenever a trailer arrives afterwards — a repaint, or the
-   asynchronous output of `/system/script/run` — and the read then runs to the full receive timeout.
+3. **Pull until the text ends at a completion prompt, then wait out the settle window.** In
+   `ReadCommandResponseAsync` the read ends by the rule every terminal client shares (`CliPromptSettle`,
+   [findings-cli.md](findings-cli.md) §4): the prompt is still last after `SettleMs`. No pull is sent while the
+   text ends at a completion prompt; if more text arrives, pulling resumes and the read waits for the prompt that
+   ends it. RouterOS writes nothing after a command's completion prompt over mepty (`/system script run` holds
+   its prompt until the script ends), and the status line a Safe Mode key pushes after its prompt ends at a
+   prompt again, so it only restarts the window.
 4. **Never type into the change-password nag.** While `new password>` or `repeat new password>` is on
    screen, the only byte ever sent is the Ctrl-C that dismisses it. VT100 cursor-probe answers are
    suppressed there, because they are keystrokes like any other and two matching entries **set a

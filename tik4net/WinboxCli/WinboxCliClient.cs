@@ -448,6 +448,8 @@ namespace tik4net.WinboxCli
             throw new TimeoutException("WinBox: timed out waiting for shell prompt.");
         }
 
+        private static void TraceNote(string note) => TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, note);
+
         private static TikConnectionSessionClosedException SessionClosed(string? sentCommand)
             => new TikConnectionSessionClosedException(
                 "WinBox CLI: the router stopped acknowledging this session — it did not take the bytes of "
@@ -486,9 +488,7 @@ namespace tik4net.WinboxCli
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
-            DateTime? settleUntil = null;
-            bool prompted = false;
-            bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
+            var settle = new Cli.CliPromptSettle(sentCommand, SettleMs, TikWireTrace.Enabled ? TraceNote : (Action<string>?)null);
             var streamer = new Cli.CliLineStreamer(onLine);
             long lastPullMs = -1;   // -1 = a pull is due now (fire immediately)
 
@@ -527,11 +527,12 @@ namespace tik4net.WinboxCli
                 else
                 {
                     // mepty delivers output one batch per Data frame and will not push the remainder of a
-                    // large response on its own — so, until the completion prompt has appeared, keep pulling
-                    // (empty Data) whenever nothing is buffered. RouterOS does NOT answer every pull (a pull
-                    // sent while nothing is pending simply yields no frame), so we cannot block waiting for a
-                    // pull to be acknowledged before sending the next — we must keep firing on idle. The pull
-                    // also carries the byte acknowledgement that reopens RouterOS's send window (see
+                    // large response on its own — so, while the text does not end at a completion prompt, keep
+                    // pulling (empty Data) whenever nothing is buffered. While it does (the settle window is
+                    // running), nothing is pulled; if the text moves on, pulling resumes. RouterOS does NOT
+                    // answer every pull (a pull sent while nothing is pending simply yields no frame), so we
+                    // cannot block waiting for a pull to be acknowledged before sending the next — we must keep
+                    // firing on idle. The pull also carries the byte acknowledgement that reopens RouterOS's send window (see
                     // _ackBytes), which is what makes arbitrarily large output flow rather than stopping dead
                     // after ~8 KB. Receiving any batch clears lastPullMs so the next pull fires immediately —
                     // multi-batch output streams at full speed (one pull per delivered batch) and only a true
@@ -543,7 +544,7 @@ namespace tik4net.WinboxCli
                     // and buries the one packet that has to get through. Suppression ends the moment the ACK
                     // arrives, and no pull is lost: lastPullMs is not advanced, so the next one fires at
                     // once. False on carriers that cannot tell (P2.56).
-                    if (!prompted && !_session.SendStalled
+                    if (!settle.AtPrompt && !_session.SendStalled
                         && (lastPullMs < 0 || sw.ElapsedMilliseconds - lastPullMs >= PullIntervalMs))
                     {
                         SendPull();
@@ -553,10 +554,7 @@ namespace tik4net.WinboxCli
                 }
 
                 if (gotData)
-                {
-                    settleUntil = null;
-                    lastPullMs  = -1;   // output is flowing — allow the next batch-pull immediately
-                }
+                    lastPullMs = -1;   // output is flowing — allow the next batch-pull immediately
 
                 // Nothing has come back AND the carrier says the router never took the bytes, even after the
                 // retransmits ran out. Spending the rest of ReceiveTimeoutMs would only turn an answer we
@@ -569,54 +567,19 @@ namespace tik4net.WinboxCli
 
                 string stripped = VtStripper.StripAnsi(sb.ToString());
                 streamer.Feed(stripped);
-                if (!echoSeen)
-                    echoSeen = Cli.CliOutputHelper.ContainsEcho(stripped, sentCommand);
 
-                if (!prompted && echoSeen && Cli.CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand))
+                // The read ends when the prompt is still last after the settle window (CliPromptSettle). RouterOS
+                // writes nothing after a command's completion prompt over mepty (Docs/findings-cli.md §4); a Safe
+                // Mode key's pushed status line ends at a prompt again, so it only restarts the window.
+                switch (settle.Observe(stripped, gotData, sw.ElapsedMilliseconds, sb.Length))
                 {
-                    var verdict = Cli.CliOutputHelper.JudgePrompt(stripped, sentCommand);
-                    if (verdict == Cli.CliOutputHelper.PromptVerdict.Complete)
-                    {
-                        // A counted read's own last line and the prompt: done, no settle window to wait out.
-                        if (TikWireTrace.Enabled)
-                            TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
-                                "count line + prompt -> return @" + sw.ElapsedMilliseconds + "ms (bytes=" + sb.Length + ")");
+                    case Cli.CliPromptSettle.Outcome.Complete:
+                    case Cli.CliPromptSettle.Outcome.Settled:
                         return stripped;
-                    }
-                    // NotYet: a repaint before the answer (after a console log line) is not its end.
-                    if (verdict == Cli.CliOutputHelper.PromptVerdict.Settle)
-                    {
-                        if (TikWireTrace.Enabled)
-                            TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
-                                "prompt seen @" + sw.ElapsedMilliseconds + "ms (bytes=" + sb.Length + ")");
-                        prompted = true;
-                    }
-                }
-
-                // Once the completion prompt has been seen, the command is done and we return as soon as the
-                // terminal has been quiet for SettleMs (any arriving batch resets the window above). We
-                // deliberately do NOT re-require the buffer to still *end* at a prompt: RouterOS may append
-                // something afterwards — a repaint, or the asynchronous output of an action verb such as
-                // /system/script/run that surfaces after the command returned — and requiring the prompt to
-                // remain the last thing on screen turns any such trailer into a full receive-timeout hang
-                // (P2.13c).
-                if (prompted)
-                {
-                    if (settleUntil == null)
-                        settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
-                    else if (DateTime.UtcNow >= settleUntil.Value)
-                    {
-                        if (TikWireTrace.Enabled)
-                            TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
-                                "settled -> return @" + sw.ElapsedMilliseconds + "ms");
-                        return stripped;
-                    }
                 }
             }
 
-            if (TikWireTrace.Enabled)
-                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
-                    "TIMEOUT @" + sw.ElapsedMilliseconds + "ms (prompted=" + prompted + ", bytes=" + sb.Length + ")");
+            settle.NoteEnd("TIMEOUT", sw.ElapsedMilliseconds, sb.Length);
 
             string strippedSoFar = VtStripper.StripAnsi(sb.ToString());
             if (sentCommand != null)

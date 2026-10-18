@@ -116,6 +116,23 @@ namespace tik4net.unittests.WinboxCli
         }
 
         [TestMethod]
+        public void OutputThatResumesAfterAPrompt_IsReadToThePromptThatEndsIt()
+        {
+            var channel = new PushingChannel(Encoding.UTF8.GetBytes(Command), new[]
+            {
+                new Frame(Command + "\r\nCHR2\r\n\r\r\r" + Prompt),
+                new Frame("late\r\n", pushed: true),   // the text no longer ends at a prompt
+                new Frame("more\r\n" + Prompt),        // released only by the next pull
+            });
+            using (var client = Client(channel))
+            {
+                string answer = client.SendCommandAndReadAsync(Command, CancellationToken.None).GetAwaiter().GetResult();
+
+                StringAssert.Contains(answer, "more", "the read stopped pulling at a prompt the text had moved past");
+            }
+        }
+
+        [TestMethod]
         public void ACountedRead_ReturnsAtItsCountLine()
         {
             string command = CliCommandBuilder.BuildCountedRead("/system identity print as-value", false);

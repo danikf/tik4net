@@ -109,6 +109,23 @@ winboxclimac 20/20, winboxnative 19/20 (1 skip), winboxnativemac 19/20 (1 skip),
 telnet 20/20 — the native transports mattered because `M2Message.ParseSessionId` was refactored
 underneath them.
 
+## The latched prompt — settle on quiet, and why it went
+
+The p213c4 variant above ("settle-on-quiet") made the WinBox CLI read **latch** the first completion prompt: after
+it, the read stopped pulling and returned after `SettleMs` of quiet, even if the text no longer ended at a prompt.
+The reason given (P2.13c) was that RouterOS writes after the prompt — a repaint, or the late output of
+`/system/script/run` — and that requiring the prompt to stay last turned such a trailer into a full receive-timeout
+hang. The hangs it was fixing were later traced to the ~8 KB byte-ACK window above, not to a trailer. Telnet, SSH and
+MAC-Telnet kept requiring the prompt to be last.
+
+Measured 2026-10-18 (master `072fb02`, CHR 7.24.5 and CHR2 6.49.13, TCP and MAC): 24 runs of a delayed script
+(`:put "early"; :delay 2s; :put "late"`) over WinBox CLI returned after ~2.2 s with `late` in the answer, with 0 bytes
+between the prompt and the settle and 0 bytes in 3 s of idle after it. Full legs with the wire trace: 744 latched reads,
+and no command's read got a byte after its prompt; the only post-prompt bytes were 7 Safe Mode key answers
+(`[Safe Mode taken]` / `[Safe Mode released]`, `ESC[c`), pushed within 35 ms and each ending at a prompt again.
+Decision D14 then dropped the latch: WinBox CLI ends a read by the shared rule (`CliPromptSettle`), and a pull is
+held back only while the text ends at a completion prompt.
+
 ## A related wrong diagnosis, in the same direction
 
 `Winbox_FetchJgGz_ViaMproxy_Works` was recorded here as "the mproxy `.jg.gz` fetch times out on

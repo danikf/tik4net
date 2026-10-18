@@ -796,7 +796,10 @@ RouterOS repaints the prompt (`\r\r\r\r] > `) even **before** a command's own ou
 "ends with the prompt" check can match prematurely. A read is only complete once the prompt is present
 **and** the stream has been silent for a settle window afterwards (`SettleMs` — 120 ms on Telnet, 150 ms
 on MAC-Telnet and the WinBox terminal); any further output resets the window. See §7 for the additional
-requirement that the settled prompt also follow this command's own echo.
+requirement that the settled prompt also follow this command's own echo. The rule is the same on all four terminal
+clients (`CliPromptSettle`), and it holds because RouterOS writes nothing after a command's completion prompt,
+`/system script run` included: it holds the prompt back until the script ends (measured on 6.49.13 and 7.24.5, over
+Telnet and the WinBox terminal).
 
 For a typed command the prompt must also **start a line of its own** (`CliOutputHelper.EndsWithCompletionPrompt`):
 only carriage returns between the output's last line break and the prompt. RouterOS 6 echoes typed input by
