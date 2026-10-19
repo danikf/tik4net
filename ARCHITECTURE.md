@@ -335,6 +335,13 @@ the write path. Each other concern is an internal collaborator in `Cli/` that re
 - `CliMonitorDriver` — the monitor loops: a snapshot polled on a timer, a self-terminating monitor streamed once,
   torch frame by frame. The connection stays `PollingMonitorEngine`'s host for the table shapes.
 
+`WinboxNativeConnection` keeps the session (open, the idle-drop reopen, the command gate), the read dispatch and the
+menu schema. Its collaborators in `WinboxNative/` reach it through `IWinboxNativeHost`, implemented explicitly the
+same way:
+
+- `WinboxNativeMonitor` — the monitors: streaming windows started, polled and cancelled over M2, the synchronous
+  read of a monitor window, the snapshot monitors read from the parent record, and the polled table shapes.
+
 `Mndp/` does neighbor discovery (used to resolve router MACs for the MAC-layer transports).
 `Crypto/` holds `EcSrp5` and `WinboxStreamCrypto` — reverse-engineered, high-risk, treat as
 load-bearing.
