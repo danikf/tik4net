@@ -167,25 +167,14 @@ namespace tik4net.Api
 
         /// <inheritdoc/>
         public void SafeModeTake()
-        {
-            EnsureOpened();
-            // A call that would change nothing sends nothing, as on every transport. The router would answer it with a
-            // bare !done (no =ret=) and do nothing either.
-            if (SafeModeHeld) return;
-            // RouterOS 7.18+ scriptable safe-mode. Bound to this API session: an unexpected
-            // disconnect (without a SafeModeRelease) rolls back everything changed since.
-            CreateCommand("/safe-mode/take").ExecuteNonQuery();
-            SafeModeHeld = true;
-        }
+            // RouterOS 7.18+ scriptable safe-mode. Bound to this API session: an unexpected disconnect (without a
+            // SafeModeRelease) rolls back everything changed since. A take while held is not sent: the router would
+            // answer it with a bare !done (no =ret=) and do nothing either.
+            => SafeModeTransition(true, () => CreateCommand("/safe-mode/take").ExecuteNonQuery());
 
         /// <inheritdoc/>
         public void SafeModeRelease()
-        {
-            EnsureOpened();
-            if (!SafeModeHeld) return;
-            CreateCommand("/safe-mode/release").ExecuteNonQuery();
-            SafeModeHeld = false;
-        }
+            => SafeModeTransition(false, () => CreateCommand("/safe-mode/release").ExecuteNonQuery());
 
         /// <inheritdoc/>
         public void SafeModeUnroll()

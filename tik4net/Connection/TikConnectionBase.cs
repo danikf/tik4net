@@ -163,6 +163,20 @@ namespace tik4net.Connection
         private protected bool SessionRebuildAllowed => !SafeModeHeld;
 
         /// <summary>
+        /// The take and release of Safe Mode on every transport that has it: runs <paramref name="act"/> only when Safe
+        /// Mode is not already in the wanted state, then records it. A call that would change nothing sends nothing.
+        /// </summary>
+        /// <param name="take"><c>true</c> to take Safe Mode, <c>false</c> to release it.</param>
+        /// <param name="act">What the transport sends; when it throws, the held state is left as it was.</param>
+        private protected void SafeModeTransition(bool take, Action act)
+        {
+            EnsureOpened();
+            if (SafeModeHeld == take) return;
+            act();
+            SafeModeHeld = take;
+        }
+
+        /// <summary>
         /// Backs <see cref="ITikMenuSchemaConnection.ValidateWrites"/> on every transport that implements it.
         /// </summary>
         internal bool ValidateWrites { get; set; }

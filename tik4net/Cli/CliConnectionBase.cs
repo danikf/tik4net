@@ -906,27 +906,20 @@ namespace tik4net.Cli
         /// Telnet, SSH and API login is accepted and never served.
         /// </remarks>
         public void SafeModeTake()
-        {
-            EnsureOpened();
-            if (SafeModeHeld) return;
-            string output = SendControlKey(CtrlX);
-            if (CliSafeModeParser.IsTakeConflict(output))
-                SendControlKey(Enter);
-            CliSafeModeParser.ThrowIfTakeFailed(output, CommandFor("/safe-mode/take"));
-            SafeModeHeld = true;
-        }
+            => SafeModeTransition(true, () =>
+            {
+                string output = SendControlKey(CtrlX);
+                if (CliSafeModeParser.IsTakeConflict(output))
+                    SendControlKey(Enter);
+                CliSafeModeParser.ThrowIfTakeFailed(output, CommandFor("/safe-mode/take"));
+            });
 
         /// <summary>
         /// Commits the safe-mode changes and leaves Safe Mode by sending a second <c>Ctrl+X</c>; the prompt
         /// reverts to its normal form afterwards. No-op when safe mode is not held.
         /// </summary>
         public void SafeModeRelease()
-        {
-            EnsureOpened();
-            if (!SafeModeHeld) return;
-            SendControlKey(CtrlX);
-            SafeModeHeld = false;
-        }
+            => SafeModeTransition(false, () => SendControlKey(CtrlX));
 
         /// <summary>
         /// Discards the safe-mode changes immediately and leaves Safe Mode. On RouterOS 7.18+ this uses the

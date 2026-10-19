@@ -1246,22 +1246,15 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         public void SafeModeTake()
-        {
-            EnsureOpened();
-            if (SafeModeHeld) return;
-            _safeModeId = _ops.SafeModeTake();
-            SafeModeHeld = true;
-        }
+            => SafeModeTransition(true, () => _safeModeId = _ops.SafeModeTake());
 
         /// <inheritdoc/>
         public void SafeModeRelease()
-        {
-            EnsureOpened();
-            if (!SafeModeHeld) return;
-            _ops.SafeModeRelease(_safeModeId);
-            SafeModeHeld = false;
-            _safeModeId = 0;
-        }
+            => SafeModeTransition(false, () =>
+            {
+                _ops.SafeModeRelease(_safeModeId);
+                _safeModeId = 0;
+            });
 
         /// <inheritdoc/>
         /// <remarks>
