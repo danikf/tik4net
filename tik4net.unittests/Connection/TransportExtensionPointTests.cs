@@ -179,6 +179,26 @@ namespace tik4net.unittests.Connection
             }
         }
 
+        /// <summary>
+        /// A transport returns rows and the base keeps only the fields the command's <c>.proplist</c> lists, so a foreign
+        /// transport that cannot project (or ignores <c>.proplist</c>) hands a caller what the binary API would.
+        /// </summary>
+        [TestMethod]
+        public void TheBaseTrimsAForeignTransportsRowsToTheProplist()
+        {
+            using (var foreign = new PortlessTransport())
+            {
+                foreign.Open("192.0.2.1", 0, "u", "p");
+                var rows = foreign.CreateCommand("/ip/address/print").ExecuteList("address").ToList();
+                Assert.AreEqual(1, rows.Count);
+                CollectionAssert.AreEquivalent(new[] { "address" }, rows[0].Words.Keys.ToArray(),
+                    "the transport returned .id, address and comment; only address was asked for");
+
+                var all = foreign.CreateCommand("/ip/address/print").ExecuteList().Single();
+                Assert.AreEqual(3, all.Words.Count, "without .proplist every field stays");
+            }
+        }
+
         // A foreign transport that writes only what is abstract: no parameterless Open.
         private sealed class PortlessTransport : TikCommandConnectionBase
         {
@@ -190,7 +210,15 @@ namespace tik4net.unittests.Connection
                 return System.Threading.Tasks.Task.CompletedTask;
             }
             public override void Close() => SetClosed();
-            protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor) => new List<TikRecordSentence>();
+            // Ignores .proplist: every row carries every field.
+            protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+                => new List<TikRecordSentence>
+                {
+                    new TikRecordSentence(new Dictionary<string, string>
+                    {
+                        [".id"] = "*1", ["address"] = "192.0.2.1/24", ["comment"] = "lab",
+                    }),
+                };
             protected override string RunAdd(TikCommandDescriptor descriptor) => "*1";
             protected override void RunNonQuery(TikCommandDescriptor descriptor) { }
         }

@@ -98,7 +98,9 @@ namespace tik4net.Connection
         // ── CRUD hooks — subclass contract ────────────────────────────────────
 
         /// <summary>
-        /// Executes a read (<c>print</c>) command and returns the matching records.
+        /// Executes a read (<c>print</c>) command and returns the matching records. When the command carries
+        /// <c>.proplist</c>, the base keeps only the listed fields of what this returns, as the binary API does, so
+        /// returning more is harmless.
         /// </summary>
         protected abstract IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor);
 
@@ -176,11 +178,12 @@ namespace tik4net.Connection
         {
             descriptor = Canonical(descriptor);
             CheckFilters(descriptor);
-            return RunPrint(descriptor);
+            return TikProplist.Apply(descriptor, RunPrint(descriptor));
         }
 
         // Every read over this base goes through the two InvokeRunPrint*: the one place a filter on a field the menu
-        // does not have is refused (TikFilterValidation).
+        // does not have is refused (TikFilterValidation), and the one place the rows are trimmed to the command's
+        // .proplist (TikProplist), so a transport may return more fields than were asked for.
         private void CheckFilters(TikCommandDescriptor descriptor)
             => TikFilterValidation.Check(this, null, descriptor.CommandText,
                 descriptor.Parameters.Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter).Select(p => p.Name),
@@ -196,11 +199,11 @@ namespace tik4net.Connection
 
         internal string InvokeRunRawText(TikCommandDescriptor descriptor) => RunRawText(descriptor);
 
-        internal Task<IList<TikRecordSentence>> InvokeRunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        internal async Task<IList<TikRecordSentence>> InvokeRunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             descriptor = Canonical(descriptor);
             CheckFilters(descriptor);
-            return RunPrintAsync(descriptor, cancellationToken);
+            return TikProplist.Apply(descriptor, await RunPrintAsync(descriptor, cancellationToken).ConfigureAwait(false));
         }
 
         internal async Task<string> InvokeRunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)

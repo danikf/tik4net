@@ -289,10 +289,9 @@ namespace tik4net.Rest
         {
             var records = await ExecuteRequestListAsync(descriptor.CommandText, descriptor.Parameters,
                 cancellationToken).ConfigureAwait(false);
-            var shaped = TikGetResult.Shape(descriptor, records);
-            // The router honours ?.proplist= but adds .id to every row whether listed or not (7.24.2); the binary
-            // API returns exactly the listed fields, and that is the contract (see TikProplist).
-            return TikProplist.Apply(descriptor, shaped);
+            // The router honours ?.proplist= but adds .id to every row whether listed or not (7.24.2); the base trims
+            // the rows to .proplist (TikProplist), as the binary API returns them.
+            return TikGetResult.Shape(descriptor, records);
         }
 
         /// <inheritdoc/>
@@ -372,7 +371,7 @@ namespace tik4net.Rest
 
         /// <inheritdoc/>
         IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)
-            => RunPrint(printDescriptor);
+            => TikProplist.Apply(printDescriptor, RunPrint(printDescriptor));   // not through InvokeRunPrint
 
         /// <inheritdoc/>
         TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => TikTrapSentenceResult.FromException(ex);
@@ -385,7 +384,7 @@ namespace tik4net.Rest
         /// </summary>
         private void MonitorOnce(TikCommandDescriptor descriptor, TikMonitorHandle handle,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-            => PollingMonitorEngine.Run(this, handle, onError, onDone, () => PollingMonitorEngine.Emit(RunPrint(descriptor), handle, onRow));
+            => PollingMonitorEngine.Run(this, handle, onError, onDone, () => PollingMonitorEngine.Emit(TikProplist.Apply(descriptor, RunPrint(descriptor)), handle, onRow));
 
         // Appends the verb's snapshot bound (once / count=1 / duration=N) unless the caller already supplied a
         // parameter of that name — without it RouterOS runs the monitor forever and, because it buffers the

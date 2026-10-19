@@ -1247,7 +1247,7 @@ namespace tik4net.Cli
             // .proplist: the fields the caller asked for, and only those — the binary API's contract. It never
             // reaches the wire: the CLI's own proplist= refuses the whole read when one name is unknown
             // ("input does not match any value of value-name", 7.24) where the API ignores the name. So the
-            // read asks for the full field set and the rows are trimmed here. A plain print is the SUMMARY
+            // read asks for the full field set and the base trims the rows. A plain print is the SUMMARY
             // columns only (/interface/ethernet omits disable-running-check), which is why 'detail' is added;
             // a singleton menu refuses it ("bad parameter detail") and prints every field without it.
             var proplist = descriptor.Parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.Proplist);
@@ -1289,7 +1289,7 @@ namespace tik4net.Cli
                         rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
                     }
                 }
-                return TikProplist.Trim(rows, proplist.Value);
+                return rows;   // the base trims them to .proplist (TikProplist)
             }
 
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
@@ -2804,7 +2804,8 @@ namespace tik4net.Cli
 
         /// <inheritdoc/>
         IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)
-            => RunPrint(printDescriptor);   // RunPrint serialises via ExecuteCliCommand's CommandLock
+            // RunPrint serialises via ExecuteCliCommand's CommandLock. Not through InvokeRunPrint, so it trims itself.
+            => TikProplist.Apply(printDescriptor, RunPrint(printDescriptor));
 
         /// <inheritdoc/>
         TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => TikTrapSentenceResult.FromException(ex);

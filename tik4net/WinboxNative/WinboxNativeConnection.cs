@@ -535,10 +535,9 @@ namespace tik4net.WinboxNative
                 // Background workers enter the gate themselves and call RunPrintCore directly (not reentrant).
                 using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var rows = await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
-                    // M2 has no field projection: a getall returns every key. .proplist is the binary API's
-                    // contract all the same, so the decoded rows are trimmed to it (see TikProplist).
-                    return TikProplist.Apply(descriptor, rows);
+                    // M2 has no field projection: a getall returns every key, and the base trims the rows to
+                    // .proplist (TikProplist).
+                    return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (TikConnectionSessionClosedException) when (SessionRebuildAllowed)
