@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.Cli
 {
@@ -56,5 +59,18 @@ namespace tik4net.Cli
 
         /// <summary>Sends keystrokes with no line end and reads to the next prompt.</summary>
         Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct);
+
+        /// <summary>What the connection has learnt about its router in this open.</summary>
+        CliRouterKnowledge Knowledge { get; }
+
+        /// <summary>The command an exception carries for <paramref name="descriptor"/>.</summary>
+        ITikCommand CommandFor(TikCommandDescriptor descriptor);
+
+        /// <summary>
+        /// Runs one print query — windowed where the read may be, otherwise counted — and returns its records. See
+        /// <c>CliConnectionBase.RunPrintQueryAsync</c>.
+        /// </summary>
+        Task<IList<TikRecordSentence>> RunPrintQueryAsync(TikCommandDescriptor descriptor, bool wantJson,
+            Func<IList<ITikCommandParameter>, string?, string> buildExpression, CancellationToken cancellationToken);
     }
 }

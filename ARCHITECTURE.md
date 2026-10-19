@@ -328,6 +328,8 @@ the write path. Each other concern is an internal collaborator in `Cli/` that re
   and the per-build `CliSchemaStore` that keeps it across connections; replaced on every open.
 - `CliCompletion` — Tab completion and the help key (`ITikCliCompletion`, which the connection forwards to it),
   with the settle window it learns from the link.
+- `CliFlagSupplier` — the flag fields on RouterOS before 7.20, whose `print as-value` leaves them out: a second
+  print by name where `proplist=` exists, the id list of each flag (`find`) on RouterOS 6.
 
 `Mndp/` does neighbor discovery (used to resolve router MACs for the MAC-layer transports).
 `Crypto/` holds `EcSrp5` and `WinboxStreamCrypto` — reverse-engineered, high-risk, treat as

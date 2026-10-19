@@ -13,11 +13,11 @@ namespace tik4net.Cli
     {
         /// <summary>
         /// Whether <c>print as-value</c> leaves the flag fields out (RouterOS before 7.20). See
-        /// <c>CliConnectionBase.AsValueOmitsFlagsAsync</c>.
+        /// <c>CliFlagSupplier.AsValueOmitsFlagsAsync</c>.
         /// </summary>
         internal bool? AsValueOmitsFlags;
 
-        /// <summary>Whether <c>print</c> takes <c>proplist=</c>. See <c>CliConnectionBase.SupportsProplistAsync</c>.</summary>
+        /// <summary>Whether <c>print</c> takes <c>proplist=</c>. See <c>CliFlagSupplier.SupportsProplistAsync</c>.</summary>
         internal bool? PrintProplist;
 
         /// <summary>
