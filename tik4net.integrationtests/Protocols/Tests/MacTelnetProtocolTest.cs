@@ -25,8 +25,6 @@ namespace tik4net.integrationtests
             var macAddr = LabConfig.Get("routerMac");
 
             var conn = new MacTelnetConnection { RouterMac = macAddr };
-            // Capture transport-level diagnostics to test output.
-            conn.TransportDiagnostic = msg => Console.Write(msg);
             // No host: these transports are for a router that has no IP address, so the suite must open
             // them the way such a router is reached — by MAC alone. Passing the host would work and would
             // be marginally faster, and would leave the case this transport exists for untested.
@@ -39,7 +37,6 @@ namespace tik4net.integrationtests
         {
             using (var conn = OpenMacTelnetConnection())
             {
-                Console.WriteLine();  // newline after diagnostic dots
                 var ifaces = conn.LoadAll<Interface>().ToList();
 
                 Console.WriteLine($"=== MACTELNET INTERFACES ({ifaces.Count} found) ===");
@@ -69,7 +66,6 @@ namespace tik4net.integrationtests
 
             using (var conn = OpenMacTelnetConnection())
             {
-                Console.WriteLine();
                 var e1 = conn.LoadAll<Interface>().First(i => i.DefaultName == "ether1");
                 e1.Comment = testComment;
                 conn.Save(e1);

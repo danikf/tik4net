@@ -87,14 +87,6 @@ namespace tik4net.Connection
                 + "and executed it is not known — Close does not wait for a running command. Close from the "
                 + "thread that owns the connection, or let the command finish first.", inner);
 
-        /// <summary>
-        /// Optional callback for low-level transport diagnostics (raw packets, protocol events).
-        /// Intended for test instrumentation and debugging — not for production use.
-        /// The string format is transport-specific (e.g. "[pkt] type=1 paylen=42").
-        /// Set to <c>null</c> (default) to disable.
-        /// </summary>
-        public Action<string>? TransportDiagnostic { get; set; }
-
         // ── Capabilities ──────────────────────────────────────────────────────
 
         /// <inheritdoc/>

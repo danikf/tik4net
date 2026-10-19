@@ -24,7 +24,6 @@ namespace tik4net.integrationtests
             var pass = LabConfig.Get("pass") ?? "";
 
             var conn = new WinboxCliConnection();
-            conn.TransportDiagnostic = msg => Console.Write(msg);
             conn.Open(host, user, pass);
             return conn;
         }

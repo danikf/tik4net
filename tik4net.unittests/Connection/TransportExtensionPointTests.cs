@@ -196,6 +196,16 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>
+        /// The extension point has one diagnostics channel, the row events and <c>DebugEnabled</c>, beside the
+        /// process-wide <c>TikWireTrace</c>. The <c>TransportDiagnostic</c> callback it also offered was never
+        /// invoked by anything, so it is gone rather than promising output that never came.
+        /// </summary>
+        [TestMethod]
+        public void TheExtensionPointOffersNoUnusedDiagnosticCallback()
+            => Assert.IsNull(typeof(TikCommandConnectionBase).GetProperty("TransportDiagnostic"),
+                "TransportDiagnostic was never invoked; TikWireTrace is the transport-level trace");
+
+        /// <summary>
         /// What a foreign transport calls from its <c>Open</c>, <c>Close</c> and hooks moved to
         /// <see cref="TikConnectionBase"/>; it must still reach a subclass in another assembly.
         /// </summary>

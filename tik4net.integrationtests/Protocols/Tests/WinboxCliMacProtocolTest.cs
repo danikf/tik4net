@@ -47,7 +47,6 @@ namespace tik4net.integrationtests
             var macAddr = LabConfig.Get("routerMac");
 
             var conn = new WinboxCliMacConnection { RouterMac = macAddr };
-            conn.TransportDiagnostic = msg => Console.Write(msg);
             // No host: these transports are for a router that has no IP address, so the suite must open
             // them the way such a router is reached — by MAC alone. Passing the host would work and would
             // be marginally faster, and would leave the case this transport exists for untested.
