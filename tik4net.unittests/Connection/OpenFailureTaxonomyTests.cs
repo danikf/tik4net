@@ -92,7 +92,14 @@ namespace tik4net.unittests.Connection
                     using (var socket = listener.AcceptSocket())
                     {
                         socket.Receive(new byte[1]);
-                        socket.Close();
+                        // A hang-up is a FIN. Closed with the rest of the login still unread, the socket would send a
+                        // reset instead, which is the transient refusal the API's open retries (TikOpenRetry.IsApiLoginReset)
+                        // — and the retry would wait on a listener that serves no second connection. So the peer ends
+                        // its side first and reads until the client has given up.
+                        socket.Shutdown(SocketShutdown.Send);
+                        var drain = new byte[256];
+                        try { while (socket.Receive(drain) > 0) { } }
+                        catch (SocketException) { /* the client is gone either way */ }
                     }
                 });
                 using (var conn = new ApiConnection(false))
