@@ -27,8 +27,9 @@ namespace tik4net.Api
         private TcpClient _tcpConnection = null!; // assigned by Open()/OpenAsync(), called right after construction
         private Stream _tcpConnectionStream = null!; // assigned by Open()/OpenAsync()
 
-        // One reader owns the socket for the connection's whole life; callers wait on their tag (P2.3).
-        private readonly ApiSentenceDispatcher _dispatcher = new ApiSentenceDispatcher();
+        // One reader owns the socket for the session's whole life; callers wait on their tag (P2.3). A
+        // dispatcher per session: a close terminates it for good, so each open replaces it (ResetSessionState).
+        private volatile ApiSentenceDispatcher _dispatcher = new ApiSentenceDispatcher();
         private Task? _readerTask;
         // The reader loop's own exception, kept because TerminateAll can only carry its text. Written on
         // the reader thread and read on the caller's, hence volatile.
@@ -200,7 +201,7 @@ namespace tik4net.Api
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                _readerFault = null;    // a previous session's fault must not diagnose this one
+                ResetSessionState();
                 //open connection
                 _tcpConnection = new TcpClient();
                 if (SendTimeoutMs > 0)
@@ -303,6 +304,20 @@ namespace tik4net.Api
                 DisposeConnectionResources();
                 throw TikOpenGuard.Translate(ex);
             }
+        }
+
+        /// <summary>
+        /// Gives the session about to be opened a state of its own, so a closed connection can be opened
+        /// again. A close terminates the dispatcher for good — every later wait on it answers "connection
+        /// closed by the client" at once — and a session presumed dead refuses every command, the next
+        /// session's login included. Neither is this session's business.
+        /// </summary>
+        private void ResetSessionState()
+        {
+            _readerFault = null;    // a previous session's fault must not diagnose this one
+            _dispatcher = new ApiSentenceDispatcher();
+            System.Threading.Volatile.Write(ref _silentTimeouts, 0);
+            _sessionPresumedDead = false;
         }
 
         /// <summary>
@@ -750,11 +765,14 @@ namespace tik4net.Api
             try { _tcpConnectionStream.ReadTimeout = System.Threading.Timeout.Infinite; }
             catch (InvalidOperationException) { /* stream does not support timeouts — nothing to relax */ }
 
+            // The loop keeps the dispatcher it was started with: a reader outliving its session's bounded
+            // join must not terminate the next session's.
+            var dispatcher = _dispatcher;
             _readerTask = Task.Factory.StartNew(
-                ReaderLoop, TaskCreationOptions.LongRunning);
+                () => ReaderLoop(dispatcher), TaskCreationOptions.LongRunning);
         }
 
-        private void ReaderLoop()
+        private void ReaderLoop(ApiSentenceDispatcher dispatcher)
         {
             try
             {
@@ -762,7 +780,7 @@ namespace tik4net.Api
                 {
                     ITikSentence sentence = ReadSentence();
                     NoteSentenceReceived();     // before the Push, so a caller woken by it sees the note
-                    _dispatcher.Push(sentence);
+                    dispatcher.Push(sentence);
                 }
             }
             catch (Exception ex)
@@ -775,7 +793,7 @@ namespace tik4net.Api
                 // that needs its TYPE (Open's protocol-mismatch check) does not have to parse the message.
                 bool ours = _readerStopRequested || _closeInitiated;
                 _readerFault = ours ? null : ex;
-                _dispatcher.TerminateAll(
+                dispatcher.TerminateAll(
                     ours ? new ApiFatalSentence(new[] { "connection closed by the client" }, clientInitiated: true)
                     // Worded so it cannot be read as the router's doing: nothing about this connection
                     // failed, and the socket may still be perfectly healthy. The original rides along as the
@@ -791,7 +809,7 @@ namespace tik4net.Api
             }
 
             SetClosed();
-            _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" },
+            dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" },
                                                           clientInitiated: true));
         }
 
