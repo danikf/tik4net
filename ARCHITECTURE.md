@@ -341,6 +341,8 @@ same way:
 
 - `WinboxNativeMonitor` — the monitors: streaming windows started, polled and cancelled over M2, the synchronous
   read of a monitor window, the snapshot monitors read from the parent record, and the polled table shapes.
+- `WinboxNativeWriter` — the writes (`add`, `set`, `remove`, `move`, `unset`, …) and the field encoding the action
+  and monitor paths share: name=value parameters to M2 fields, the record id, `place-before`, the singleton write.
 
 `Mndp/` does neighbor discovery (used to resolve router MACs for the MAC-layer transports).
 `Crypto/` holds `EcSrp5` and `WinboxStreamCrypto` — reverse-engineered, high-risk, treat as

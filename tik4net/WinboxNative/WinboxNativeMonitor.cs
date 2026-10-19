@@ -400,7 +400,7 @@ namespace tik4net.WinboxNative
         {
             foreach (var p in descriptor.Parameters)
             {
-                if (!string.Equals(p.Name.TrimStart('?', '='), WinboxNativeConnection.MonitorDurationParam, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(p.Name.TrimStart('?', '='), WinboxNativeWriter.MonitorDurationParam, StringComparison.OrdinalIgnoreCase))
                     continue;
                 if (TikDuration.TryParseTimeSpan(p.Value, out TimeSpan span)) return span;
                 if (int.TryParse(p.Value, System.Globalization.NumberStyles.Integer,
