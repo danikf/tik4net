@@ -72,5 +72,17 @@ namespace tik4net.Cli
         /// </summary>
         Task<IList<TikRecordSentence>> RunPrintQueryAsync(TikCommandDescriptor descriptor, bool wantJson,
             Func<IList<ITikCommandParameter>, string?, string> buildExpression, CancellationToken cancellationToken);
+
+        /// <summary>Rows per window of a paged read; 0 reads a table in one command.</summary>
+        int CliReadPageSize { get; }
+
+        /// <summary>How many windows of a paged read are on the wire (<c>IsCountedReadInFlight</c>).</summary>
+        int WindowedReadDepth { get; set; }
+
+        /// <summary>Parses <c>as-value</c> output; text that yields no record is the router's refusal.</summary>
+        IList<TikRecordSentence> ParseRecords(string output, TikCommandDescriptor descriptor);
+
+        /// <summary>Throws the router's complaint when a read's whole answer is one parse error.</summary>
+        void ThrowIfSyntaxError(string? output, TikCommandDescriptor descriptor);
     }
 }

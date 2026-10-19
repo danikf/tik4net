@@ -330,6 +330,8 @@ the write path. Each other concern is an internal collaborator in `Cli/` that re
   with the settle window it learns from the link.
 - `CliFlagSupplier` — the flag fields on RouterOS before 7.20, whose `print as-value` leaves them out: a second
   print by name where `proplist=` exists, the id list of each flag (`find`) on RouterOS 6.
+- `CliPagedReader` — the counted and windowed print reads: a window of rows at a time where the read may be
+  windowed, else one counted command, each answer held to the router's own count; `RunPrintQueryAsync` picks.
 
 `Mndp/` does neighbor discovery (used to resolve router MACs for the MAC-layer transports).
 `Crypto/` holds `EcSrp5` and `WinboxStreamCrypto` — reverse-engineered, high-risk, treat as
