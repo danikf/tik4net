@@ -64,7 +64,7 @@ namespace tik4net.WinboxCliMac
 
         // One open attempt: a console that rebuilds its session when the router stops acknowledging the old one. A
         // refused handshake leaves the client and its channel unusable, so each attempt builds new ones
-        // (Winbox.RouterLoginRetry).
+        // (TikOpenRetry).
         private CliTerminalOpen Attempt(string host, int port, string user, string password)
         {
             var terminal = new ReconnectingCliTerminal(Session(host, port, user, password),

@@ -1,5 +1,6 @@
 using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.MacTelnet;
 using tik4net.Winbox;
 
@@ -24,12 +25,12 @@ namespace tik4net.unittests.MacTelnet
         public void AClosureWithNothingOnScreen_IsRetried()
         {
             int attempts = 0;
-            RouterLoginRetry.Run(() =>
+            TikOpenRetry.Run(() =>
             {
                 attempts++;
                 if (attempts < 2)
                     throw MacTelnetUdpClient.RefusalOrClosure(string.Empty);
-            });
+            }, TikOpenRetry.IsTransientRefusal);
             Assert.AreEqual(2, attempts);
         }
 
@@ -38,10 +39,10 @@ namespace tik4net.unittests.MacTelnet
         {
             int attempts = 0;
             Exception thrown = null;
-            try { RouterLoginRetry.Run(() => { attempts++; throw MacTelnetUdpClient.RefusalOrClosure("\r\n"); }); }
+            try { TikOpenRetry.Run(() => { attempts++; throw MacTelnetUdpClient.RefusalOrClosure("\r\n"); }, TikOpenRetry.IsTransientRefusal); }
             catch (Exception ex) { thrown = ex; }
             Assert.IsInstanceOfType(thrown, typeof(TikConnectionSessionClosedException), "what a caller catches today");
-            Assert.AreEqual(RouterLoginRetry.MaxAttempts, attempts);
+            Assert.AreEqual(TikOpenRetry.MaxAttempts, attempts);
             StringAssert.Contains(thrown.Message, "closed the session during login");
         }
 
@@ -50,7 +51,7 @@ namespace tik4net.unittests.MacTelnet
         {
             int attempts = 0;
             var thrown = Assert.ThrowsException<TikConnectionSessionClosedException>(() =>
-                RouterLoginRetry.Run(() => { attempts++; throw MacTelnetUdpClient.RefusalOrClosure("some other reason\r\n"); }));
+                TikOpenRetry.Run(() => { attempts++; throw MacTelnetUdpClient.RefusalOrClosure("some other reason\r\n"); }, TikOpenRetry.IsTransientRefusal));
             Assert.AreEqual(1, attempts);
             StringAssert.Contains(thrown.Message, "some other reason");
         }

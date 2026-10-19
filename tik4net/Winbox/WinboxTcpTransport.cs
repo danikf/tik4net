@@ -291,7 +291,7 @@ namespace tik4net.Winbox
 
         // RouterOS refuses a WinBox connection over its WinBox/Dude session limit by accepting it and closing or
         // resetting it at once, logging "too many winbox/dude sessions, drop connect from <client>". A connection that
-        // ends before the router has sent one byte says so, and RouterLoginRetry retries it.
+        // ends before the router has sent one byte says so, and TikOpenRetry retries it.
         private static IOException ClosedBeforeAnyByte(Exception? inner) => new WinboxSessionLimitException(inner);
 
         public void SetReceiveTimeout(int ms) => _tcp.ReceiveTimeout = ms;

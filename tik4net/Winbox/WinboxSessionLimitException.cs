@@ -10,7 +10,7 @@ namespace tik4net.Winbox
     /// <remarks>
     /// The limit is 100 sessions on RouterOS 7.24 and <c>/ip service winbox max-sessions</c> does not set it. On a
     /// RoMON agent the slots fill with dead WinBox relay links, which the agent reaps as soon as they are full; the
-    /// refusal lasts a fraction of a second, so <see cref="RouterLoginRetry"/> retries it after a pause
+    /// refusal lasts a fraction of a second, so <see cref="Connection.TikOpenRetry"/> retries it after a pause
     /// (Docs/findings-romon.md, "The WinBox session limit").
     /// </remarks>
     internal sealed class WinboxSessionLimitException : IOException

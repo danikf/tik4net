@@ -165,7 +165,7 @@ namespace tik4net
     /// A MAC-layer login reaches this only once the router has ACKNOWLEDGED the session start, so the
     /// router is demonstrably answering us and the silence is about the handshake rather than about
     /// reachability. Seen on RouterOS 7.24 roughly once per few hundred logins, and it clears on the next
-    /// attempt — see <c>Winbox.RouterLoginRetry</c>, which treats it the same way it treats a refusal.
+    /// attempt — see <c>TikOpenRetry</c>, which treats it the same way it treats a refusal.
     /// <para><see cref="WaitDescription"/> carries what the session had done by then — whether our
     /// handshake packet was ever taken, how many resends were spent on it, what did arrive — because
     /// "timed out" on its own cannot tell a router that never took our bytes from one that took them and

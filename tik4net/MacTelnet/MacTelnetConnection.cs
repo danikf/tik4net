@@ -80,7 +80,7 @@ namespace tik4net.MacTelnet
 
         // One open attempt: a console that rebuilds its session when RouterOS logs the idle console out. A refused login
         // ends with the router tearing the session down, so each attempt needs a new client and session key (see
-        // Winbox.RouterLoginRetry for why a refusal is retried at all). The port is not used: MAC-Telnet always uses UDP
+        // TikOpenRetry for why a refusal is retried at all). The port is not used: MAC-Telnet always uses UDP
         // 20561, and the router is addressed by MAC, discovered via MNDP or RouterMac.
         private CliTerminalOpen Attempt(string host, string user, string password)
         {

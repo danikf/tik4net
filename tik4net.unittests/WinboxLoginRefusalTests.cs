@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.Winbox;
 
 namespace tik4net.unittests
@@ -93,11 +94,11 @@ namespace tik4net.unittests
         public void Run_RetriesUntilTheRefusalClears()
         {
             int attempts = 0;
-            RouterLoginRetry.Run(() =>
+            TikOpenRetry.Run(() =>
             {
                 attempts++;
                 if (attempts < 2) throw new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)");
-            });
+            }, TikOpenRetry.IsTransientRefusal);
 
             Assert.AreEqual(2, attempts);
         }
@@ -110,13 +111,13 @@ namespace tik4net.unittests
         public void Run_GivesUpAfterMaxAttempts_AndRethrowsTheRefusal()
         {
             int attempts = 0;
-            Assert.ThrowsException<TikConnectionLoginRefusedException>(() => RouterLoginRetry.Run(() =>
+            Assert.ThrowsException<TikConnectionLoginRefusedException>(() => TikOpenRetry.Run(() =>
             {
                 attempts++;
                 throw new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)");
-            }));
+            }, TikOpenRetry.IsTransientRefusal));
 
-            Assert.AreEqual(RouterLoginRetry.MaxAttempts, attempts);
+            Assert.AreEqual(TikOpenRetry.MaxAttempts, attempts);
         }
 
         /// <summary>
@@ -135,12 +136,12 @@ namespace tik4net.unittests
             })
             {
                 int attempts = 0;
-                RouterLoginRetry.Run(() =>
+                TikOpenRetry.Run(() =>
                 {
                     attempts++;
                     if (attempts < 2)
                         throw wrap(new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)"));
-                });
+                }, TikOpenRetry.IsTransientRefusal);
                 Assert.AreEqual(2, attempts, "unwrapping failed for " + wrap(new Exception("x")).GetType().Name);
             }
         }
@@ -154,13 +155,13 @@ namespace tik4net.unittests
         public void Run_RetriesAnUnansweredLoginToo()
         {
             int attempts = 0;
-            RouterLoginRetry.Run(() =>
+            TikOpenRetry.Run(() =>
             {
                 attempts++;
                 if (attempts < 2)
                     throw new TikConnectionLoginNoAnswerException("MAC-Telnet",
                         "waited 10000 ms; session acknowledged up to 4", new TimeoutException("x"));
-            });
+            }, TikOpenRetry.IsTransientRefusal);
 
             Assert.AreEqual(2, attempts);
         }
@@ -172,14 +173,14 @@ namespace tik4net.unittests
         public void Run_GivesUpOnAnUnansweredLoginAfterMaxAttempts()
         {
             int attempts = 0;
-            Assert.ThrowsException<TikConnectionLoginNoAnswerException>(() => RouterLoginRetry.Run(() =>
+            Assert.ThrowsException<TikConnectionLoginNoAnswerException>(() => TikOpenRetry.Run(() =>
             {
                 attempts++;
                 throw new TikConnectionLoginNoAnswerException("MAC-Telnet", "waited 10000 ms",
                     new TimeoutException("x"));
-            }));
+            }, TikOpenRetry.IsTransientRefusal));
 
-            Assert.AreEqual(RouterLoginRetry.MaxAttempts, attempts);
+            Assert.AreEqual(TikOpenRetry.MaxAttempts, attempts);
         }
 
         /// <summary>
@@ -204,7 +205,7 @@ namespace tik4net.unittests
                 Exception thrown = null;
                 try
                 {
-                    RouterLoginRetry.Run(() => { attempts++; throw other; });
+                    TikOpenRetry.Run(() => { attempts++; throw other; }, TikOpenRetry.IsTransientRefusal);
                 }
                 catch (Exception ex) { thrown = ex; }
 
@@ -223,13 +224,13 @@ namespace tik4net.unittests
         public void Run_RetriesARefusalFromAnyTransport_NotJustWinbox()
         {
             int attempts = 0;
-            RouterLoginRetry.Run(() =>
+            TikOpenRetry.Run(() =>
             {
                 attempts++;
                 if (attempts < 2)
                     throw new TikConnectionLoginRefusedException(
                         "MAC-Telnet", "Login failed, incorrect username or password");
-            });
+            }, TikOpenRetry.IsTransientRefusal);
 
             Assert.AreEqual(2, attempts);
         }
@@ -238,22 +239,22 @@ namespace tik4net.unittests
         public async Task RunAsync_BehavesLikeRun()
         {
             int attempts = 0;
-            await RouterLoginRetry.RunAsync(() =>
+            await TikOpenRetry.RunAsync(() =>
             {
                 attempts++;
                 if (attempts < 2) throw new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)");
                 return Task.CompletedTask;
-            });
+            }, TikOpenRetry.IsTransientRefusal);
             Assert.AreEqual(2, attempts);
 
             int failing = 0;
             await Assert.ThrowsExceptionAsync<TikConnectionLoginRefusedException>(
-                () => RouterLoginRetry.RunAsync(() =>
+                () => TikOpenRetry.RunAsync(() =>
                 {
                     failing++;
                     throw new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)");
-                }));
-            Assert.AreEqual(RouterLoginRetry.MaxAttempts, failing);
+                }, TikOpenRetry.IsTransientRefusal));
+            Assert.AreEqual(TikOpenRetry.MaxAttempts, failing);
         }
     }
 }

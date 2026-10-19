@@ -572,18 +572,18 @@ namespace tik4net.Cli
         /// connection opened.
         /// </summary>
         /// <param name="attempt">Builds a new terminal and its login; called once per attempt.</param>
-        /// <param name="retryRefusedLogin">Retry a transient refusal (<see cref="Winbox.RouterLoginRetry"/>): the
+        /// <param name="retryRefusedLogin">Retry a transient refusal (<see cref="TikOpenRetry"/>): the
         /// EC-SRP5 logins of MAC-Telnet and WinBox.</param>
         private protected void OpenTerminal(Func<CliTerminalOpen> attempt, bool retryRefusedLogin)
             => OpenTerminalAsync(attempt, retryRefusedLogin, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <summary>Async counterpart of <see cref="OpenTerminal"/>.</summary>
         private protected Task OpenTerminalAsync(Func<CliTerminalOpen> attempt, bool retryRefusedLogin, CancellationToken ct)
-            // A refused handshake leaves the carrier unusable, so every attempt builds a new terminal (RouterLoginRetry).
-            // The cancel check in OpenOnceAsync is also what ends the retry loop on a cancel: RouterLoginRetry retries
+            // A refused handshake leaves the carrier unusable, so every attempt builds a new terminal (TikOpenRetry).
+            // The cancel check in OpenOnceAsync is also what ends the retry loop on a cancel: TikOpenRetry retries
             // only a refusal.
             => retryRefusedLogin
-                ? Winbox.RouterLoginRetry.RunAsync(() => OpenOnceAsync(attempt, ct))
+                ? TikOpenRetry.RunAsync(() => OpenOnceAsync(attempt, ct), TikOpenRetry.IsTransientRefusal)
                 : OpenOnceAsync(attempt, ct);
 
         private async Task OpenOnceAsync(Func<CliTerminalOpen> attempt, CancellationToken cancellationToken)

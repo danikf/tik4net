@@ -270,7 +270,7 @@ reset before the router sends a byte, and the router logs `too many winbox/dude 
 concurrent WinBox logins succeed and the service lists five connection rows. Nor does `/user active` show what it
 counts: rows of closed WinBox sessions linger there (70–90 of them after a burst of logins) while all 100 slots are free.
 A refused connection is closed or reset before the router sends a byte; `WinboxTcpTransport.ReadExact` reports that
-case as this limit (`WinboxSessionLimitException`) rather than as a generic closure, and `RouterLoginRetry` opens again
+case as this limit (`WinboxSessionLimitException`) rather than as a generic closure, and `TikOpenRetry` opens again
 after 1, 2 and 4 s (`WinboxSessionLimitTest`). (7.24, CHR `free` licence; the CHR licence levels limit nothing but
 throughput.)
 
@@ -298,7 +298,7 @@ the 30 s after, while the agent's other frames (the logouts of ending Telnet rel
 arriving on the same TCP connection. The agent's login just before it is slow (~1 s for the server confirmation
 against ~0.1 s). 1–6 such links in every run of a few minutes with Telnet relays starting and ending, none in ~1970
 relays without. The open sends one system-info request (`[2,<link>,13,4]` cmd 7) through a new link and, when nothing
-answers within 5 s, opens again on a new link (`WinboxRomonLinkSilentException`, retried by `RouterLoginRetry`);
+answers within 5 s, opens again on a new link (`WinboxRomonLinkSilentException`, retried by `TikOpenRetry`);
 with that, 467 relays under the load opened with no failure (two silent links, one refusal, all retried). Nothing the client sends ends a WinBox relay link
 sooner (see *Closing* above), and RouterOS has no setting for the limit or the reaping. The rate that fills the slots
 is 100 relayed WinBox opens within ~150 s through one agent, about 0.7 a second. Measured with a 7.24 agent and a

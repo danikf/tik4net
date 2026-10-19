@@ -63,19 +63,63 @@ namespace tik4net.unittests.Api
             Assert.IsTrue(serverTask.Wait(5000), "the second login never came");
         }
 
+        /// <summary>
+        /// The connection retries a reset login itself, so a direct <c>Open</c> rides it out as <c>setup.Create</c> does:
+        /// two resets, then a login that succeeds, is one open.
+        /// </summary>
+        [TestMethod]
+        public void ADirectOpen_RidesOutTwoResetLogins()
+        {
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                ServeLogin(server, reset: true);
+                ServeLogin(server, reset: true);
+                ServeLogin(server, reset: false);
+            });
+
+            using (var connection = tik4net.Connection.TikConnectionRegistry.Create(TikConnectionType.Api))
+            {
+                connection.Open("127.0.0.1", server.Port, "admin", "secret");
+                Assert.IsTrue(connection.IsOpened);
+            }
+
+            Assert.IsTrue(serverTask.Wait(5000), "the third login never came");
+        }
+
+        [TestMethod]
+        public async Task ADirectOpenAsync_RidesOutTwoResetLogins()
+        {
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                ServeLogin(server, reset: true);
+                ServeLogin(server, reset: true);
+                ServeLogin(server, reset: false);
+            });
+
+            using (var connection = tik4net.Connection.TikConnectionRegistry.Create(TikConnectionType.Api))
+            {
+                await connection.OpenAsync("127.0.0.1", server.Port, "admin", "secret");
+                Assert.IsTrue(connection.IsOpened);
+            }
+
+            Assert.IsTrue(serverTask.Wait(5000), "the third login never came");
+        }
+
         [TestMethod]
         public void ARouterThatResetsEveryLoginIsReportedAfterTheLastAttempt()
         {
             using var server = new FakeRouterServer();
             var serverTask = Task.Run(() =>
             {
-                for (int i = 0; i < TikConnectionSetup.ApiLoginResetAttempts; i++)
+                for (int i = 0; i < tik4net.Connection.TikOpenRetry.MaxAttempts; i++)
                     ServeLogin(server, reset: true);
             });
 
             Assert.ThrowsException<TikConnectionProtocolMismatchException>(
                 () => Setup(server).Create(TikConnectionType.Api).Dispose());
-            Assert.IsTrue(serverTask.Wait(5000), "fewer attempts than ApiLoginResetAttempts were made");
+            Assert.IsTrue(serverTask.Wait(5000), "fewer attempts than TikOpenRetry.MaxAttempts were made");
         }
 
         [TestMethod]

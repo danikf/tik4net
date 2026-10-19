@@ -276,6 +276,13 @@ namespace tik4net
         /// <param name="port">TCPIP port.</param>
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
+        /// <remarks>
+        /// <para>A transient open failure is retried by the transport itself, on a new socket, up to three attempts in
+        /// all, whichever overload or <see cref="TikConnectionSetup"/> method opens it: on <c>Api</c> and <c>ApiSsl</c> a
+        /// login the router resets mid-handshake, on the WinBox and MAC-Telnet transports the EC-SRP5 logins RouterOS
+        /// refuses now and then. Any other failure is reported at once.</para>
+        /// <para>A closed connection can be opened again; each open starts a session of its own.</para>
+        /// </remarks>
         /// <seealso cref="Close"/>
         /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
         /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>

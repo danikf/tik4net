@@ -679,7 +679,7 @@ namespace tik4net.MacTelnet
         // Whatever the router said before it hung up: a refusal if it said one, otherwise the plain fact
         // that the session was closed during login. With nothing on screen it is a refusal whose one data
         // packet was lost: RouterOS sends the refusal and its PKT_END 1-4 ms apart and never resends the text
-        // (7.24, measured by dropping it), so RouterLoginRetry retries that case as it retries a refusal.
+        // (7.24, measured by dropping it), so TikOpenRetry retries that case as it retries a refusal.
         internal static Exception RefusalOrClosure(string stripped)
         {
             if (IsLoginRefusal(stripped))

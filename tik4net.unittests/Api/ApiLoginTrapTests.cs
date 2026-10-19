@@ -59,8 +59,8 @@ namespace tik4net.unittests.Api
         public void ALoginRefusal_IsNotAnApiLoginReset()
         {
             var ex = OpenAgainstTrap("std failure: not allowed (9)");
-            Assert.IsFalse(TikConnectionSetup.IsApiLoginReset(TikConnectionType.Api, ex),
-                "a refusal must not be retried by TikConnectionSetup.Create");
+            Assert.IsFalse(tik4net.Connection.TikOpenRetry.IsApiLoginReset(ex),
+                "a refusal must not be retried by the API's open");
         }
     }
 }

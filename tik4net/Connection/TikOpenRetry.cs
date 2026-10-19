@@ -1,11 +1,14 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Winbox;
 
-namespace tik4net.Winbox
+namespace tik4net.Connection
 {
     /// <summary>
-    /// Rides out a <see cref="TikConnectionLoginRefusedException"/> by opening again from scratch.
+    /// Rides out a transient open failure by opening again from scratch. Each transport runs its own open through it
+    /// with the predicate that says which failures are transient for it: <see cref="IsTransientRefusal"/> for the
+    /// EC-SRP5 logins (WinBox, MAC-Telnet), <see cref="IsApiLoginReset"/> for the binary API.
     /// </summary>
     /// <remarks>
     /// Measured on RouterOS 7.23.2: roughly one WinBox login in one to two hundred is refused
@@ -15,7 +18,7 @@ namespace tik4net.Winbox
     /// spurious failure per ~400 test methods, which is what made whole suite runs look red.
     /// <para>Only that refusal is retried. A network error, a malformed frame or a mismatching
     /// confirmation digest all mean something else and are left to propagate untouched.</para>
-    /// <para>It is not a WinBox mechanism despite living here: MAC-Telnet carries the same EC-SRP5
+    /// <para>The refusal is not WinBox's alone: MAC-Telnet carries the same EC-SRP5
     /// handshake and is refused the same way, only reporting it as terminal text rather than as an M2
     /// error. One router behaviour, one retry.</para>
     /// <para>A router that opens the session and then answers NOTHING to the handshake
@@ -39,10 +42,13 @@ namespace tik4net.Winbox
     /// <para>A RoMON link that the agent opened but nothing answers through (<see cref="WinboxRomonLinkSilentException"/>)
     /// is retried on the same pause: it happens while <c>/tool romon ssh</c> relays start and end on the agent, and a
     /// new link opened a moment later answers.</para>
+    /// <para>An API login the router resets mid-handshake (<see cref="IsApiLoginReset"/>) is retried on the same
+    /// pause: RouterOS resets a login now and then under load, while a peer that is not the API at all hangs up or
+    /// answers with something else, never with a reset.</para>
     /// <para>The caller supplies a delegate that performs a <b>complete</b> open, because a refused
     /// handshake leaves the channel unusable — the retry has to build a new one, not reuse the old.</para>
     /// </remarks>
-    internal static class RouterLoginRetry
+    internal static class TikOpenRetry
     {
         /// <summary>Total attempts, including the first. Three leaves a ~1-in-8-million residual failure rate.</summary>
         internal const int MaxAttempts = 3;
@@ -65,11 +71,11 @@ namespace tik4net.Winbox
         private static int DelayFor(Exception ex, int attempt)
             => IsAgentBusy(ex) ? SessionLimitDelayMs << (attempt - 1) : DelayMs;
 
-        private static bool MayRetry(Exception ex, int attempt)
-            => IsTransientRefusal(ex) && attempt < (IsAgentBusy(ex) ? SessionLimitAttempts : MaxAttempts);
+        private static bool MayRetry(Exception ex, int attempt, Func<Exception, bool> isTransient)
+            => isTransient(ex) && attempt < (IsAgentBusy(ex) ? SessionLimitAttempts : MaxAttempts);
 
-        /// <summary>Runs <paramref name="openOnce"/>, retrying only a transient router refusal.</summary>
-        internal static void Run(Action openOnce)
+        /// <summary>Runs <paramref name="openOnce"/>, retrying a failure <paramref name="isTransient"/> calls transient.</summary>
+        internal static void Run(Action openOnce, Func<Exception, bool> isTransient)
         {
             for (int attempt = 1; ; attempt++)
             {
@@ -78,7 +84,7 @@ namespace tik4net.Winbox
                     openOnce();
                     return;
                 }
-                catch (Exception ex) when (MayRetry(ex, attempt))
+                catch (Exception ex) when (MayRetry(ex, attempt, isTransient))
                 {
                     NoteRetry(attempt, ex);
                     Thread.Sleep(DelayFor(ex, attempt));
@@ -86,8 +92,9 @@ namespace tik4net.Winbox
             }
         }
 
-        /// <summary>Async counterpart of <see cref="Run"/>.</summary>
-        internal static async Task RunAsync(Func<Task> openOnce)
+        /// <summary>Async counterpart of <see cref="Run"/>; <paramref name="ct"/> cancels the pause between attempts.</summary>
+        internal static async Task RunAsync(Func<Task> openOnce, Func<Exception, bool> isTransient,
+            CancellationToken ct = default)
         {
             for (int attempt = 1; ; attempt++)
             {
@@ -96,12 +103,26 @@ namespace tik4net.Winbox
                     await openOnce().ConfigureAwait(false);
                     return;
                 }
-                catch (Exception ex) when (MayRetry(ex, attempt))
+                catch (Exception ex) when (MayRetry(ex, attempt, isTransient))
                 {
                     NoteRetry(attempt, ex);
-                    await Task.Delay(DelayFor(ex, attempt)).ConfigureAwait(false);
+                    await Task.Delay(DelayFor(ex, attempt), ct).ConfigureAwait(false);
                 }
             }
+        }
+
+        /// <summary>
+        /// The router reset the socket during an API login: the open reports a protocol mismatch, and what lies under it
+        /// is a connection reset rather than the peer's orderly close or a reply in another protocol.
+        /// </summary>
+        internal static bool IsApiLoginReset(Exception ex)
+        {
+            if (!(ex is TikConnectionProtocolMismatchException))
+                return false;
+            for (Exception? e = ex; e != null; e = e.InnerException)
+                if (e is System.Net.Sockets.SocketException se && se.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionReset)
+                    return true;
+            return false;
         }
 
         // A retry that works is silent by construction — the caller's Open() simply succeeds — so
@@ -115,7 +136,11 @@ namespace tik4net.Winbox
             var silence = NoAnswer(ex);
             string transport = Refusal(ex)?.Transport ?? silence?.Transport
                 ?? (SilentClosure(ex) != null ? "MAC-Telnet" : SessionLimit(ex) != null || LinkSilent(ex) != null ? "WinBox" : "router");
-            string what = LinkSilent(ex) != null
+            if (IsApiLoginReset(ex))
+                transport = "API";
+            string what = IsApiLoginReset(ex)
+                ? "login reset by the router"
+                : LinkSilent(ex) != null
                 ? "RoMON link opened but silent"
                 : SessionLimit(ex) != null
                 ? "connection closed by the router before any byte (its WinBox/Dude session limit)"
@@ -131,7 +156,7 @@ namespace tik4net.Winbox
         // The refusal is wrapped by the time it gets here — TikConnectionLoginException at the connection
         // layer, and an AggregateException as well when it came out of a task — so the whole chain is
         // searched rather than the outermost type tested.
-        private static bool IsTransientRefusal(Exception ex)
+        internal static bool IsTransientRefusal(Exception ex)
             => Refusal(ex) != null || NoAnswer(ex) != null || SilentClosure(ex) != null || SessionLimit(ex) != null
                || LinkSilent(ex) != null;
 

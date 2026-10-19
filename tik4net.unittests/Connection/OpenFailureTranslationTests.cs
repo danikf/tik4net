@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.Cli;
 using tik4net.unittests.Cli;
 using tik4net.Winbox;
@@ -147,7 +148,7 @@ namespace tik4net.unittests.Connection
         // out of it.
         [DataTestMethod]
         [DataRow("login", true, 1)]
-        [DataRow("refused", true, RouterLoginRetry.MaxAttempts)]   // a transient refusal is retried on a new carrier
+        [DataRow("refused", true, TikOpenRetry.MaxAttempts)]   // a transient refusal is retried on a new carrier
         [DataRow("romon", true, 1)]
         [DataRow("socket", true, 1)]
         [DataRow("mismatch", true, 1)]

@@ -210,7 +210,7 @@ Four consequences for the code:
    screen is not retried.
 
 `TikConnectionLoginRefusedException` is thrown as soon as the line appears or the router hangs up, and
-`MacTelnetConnection.Open`/`OpenAsync` are wrapped in `Winbox.RouterLoginRetry`, as the three WinBox
+`MacTelnetConnection.Open`/`OpenAsync` are wrapped in `TikOpenRetry`, as the three WinBox
 connections are. A refused login fails in about 1 s rather than 15, and is retried up to three times
 before being reported.
 
@@ -245,7 +245,7 @@ types did arrive — because "timed out waiting for expected MAC-layer packet" c
 never took our bytes from one that took them and said nothing, and those are different faults.
 
 **Raised only once the session has been acknowledged.** Before that the silence is about reachability and
-the bare `TimeoutException` is the truer answer — and it keeps `RouterLoginRetry` from turning one clear
+the bare `TimeoutException` is the truer answer — and it keeps `TikOpenRetry` from turning one clear
 10 s failure against an unreachable router into three.
 
 ## 9. Reliability of the MAC layer

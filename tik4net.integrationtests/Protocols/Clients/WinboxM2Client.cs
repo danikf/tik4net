@@ -35,7 +35,7 @@ namespace tik4net.integrationtests
         public void Connect(string host, int port)
             => _transport.Connect(host, port);
 
-        // Mirrors tik4net.Winbox.RouterLoginRetry, which the production connections use. It cannot be reused
+        // Mirrors tik4net.Connection.TikOpenRetry, which the production connections use. It cannot be reused
         // directly here: that helper retries a whole Open(), whereas these tests hold the client and only the
         // handshake needs redoing. The measurement behind both is the same (P2.41).
         private const int LoginAttempts = 3;

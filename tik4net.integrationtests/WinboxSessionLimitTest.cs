@@ -2,7 +2,7 @@
 //
 // RouterOS holds at most 100 WinBox/Dude sessions (7.24; /ip service winbox max-sessions does not set it) and refuses
 // the next connection by closing it before sending a byte. A RoMON agent reaches it with dead relay links and frees it
-// within a fraction of a second, so Open() retries that refusal (RouterLoginRetry, Docs/findings-romon.md "The WinBox
+// within a fraction of a second, so Open() retries that refusal (TikOpenRetry, Docs/findings-romon.md "The WinBox
 // session limit"). Here the slots are filled with live sessions, which nothing reaps, so the refusal holds until the
 // test frees one.
 

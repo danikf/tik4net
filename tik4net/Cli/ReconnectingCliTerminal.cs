@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 using tik4net.Diagnostics;
 
 namespace tik4net.Cli
@@ -62,7 +63,7 @@ namespace tik4net.Cli
         private string Vetted(string command, Action<string>? onLine, string answer)
             => onLine == null && _vet != null ? _vet(_current, command, answer) : answer;
 
-        // The re-login goes through RouterLoginRetry for the same reason the open does: RouterOS refuses about 1 % of
+        // The re-login goes through TikOpenRetry for the same reason the open does: RouterOS refuses about 1 % of
         // logins with correct credentials, and a recovery path that inherits that failure rate is worse than none. A
         // refused login leaves its carrier unusable, so each attempt builds a new session, and disposing the current one
         // at the top of an attempt closes the dropped session on the first and a refused one on the next.
@@ -73,13 +74,13 @@ namespace tik4net.Cli
             if (TikWireTrace.Enabled)
                 TikWireTrace.Emit(_traceChannel, TikWireDir.Note, "SESSION DROPPED BY ROUTER — reopening");
 
-            await Winbox.RouterLoginRetry.RunAsync(async () =>
+            await TikOpenRetry.RunAsync(async () =>
             {
                 try { _current.Dispose(); } catch { /* the old session is gone anyway */ }
                 var next = _attempt();
                 _current = next.Terminal;
                 await next.Login(ct).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+            }, TikOpenRetry.IsTransientRefusal).ConfigureAwait(false);
         }
 
         // Keystrokes (Safe Mode, Tab completion) are never re-sent: a key acts on a console state, and a fresh session

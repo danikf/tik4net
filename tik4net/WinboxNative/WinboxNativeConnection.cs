@@ -305,8 +305,8 @@ namespace tik4net.WinboxNative
             IWinboxM2Channel? session = null;
             RomonConnectionInfo = null;
             // A refused handshake leaves the channel unusable, so the retry builds a fresh one rather
-            // than reopening this one — see RouterLoginRetry for why a WinBox login is retried at all.
-            Winbox.RouterLoginRetry.Run(() =>
+            // than reopening this one — see TikOpenRetry for why a WinBox login is retried at all.
+            TikOpenRetry.Run(() =>
             {
                 session = CreateChannel();
                 try
@@ -323,7 +323,7 @@ namespace tik4net.WinboxNative
                     session.Dispose();
                     throw new TikConnectionLoginException(ex);
                 }
-            });
+            }, TikOpenRetry.IsTransientRefusal);
             // Run() either assigns session above or throws, so it is always set here.
             string routerKey = host;
             if (session is WinboxRomonChannel relay)

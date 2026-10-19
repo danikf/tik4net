@@ -35,8 +35,9 @@ tik4net/Winbox/                shared session/crypto layer + native M2 protocol 
 ├── WinboxM2Continuation.cs        getall/monitor pagination cursor (§12.7.1)
 ├── WinboxJgCatalog.cs / WinboxJgField.cs   the `.jg` catalog model
 ├── WinboxFieldResolver.cs         field name/type resolution between the API and `.jg` labels
-├── WinboxRecordCodec.cs           record encode/decode
-└── RouterLoginRetry.cs            bounded retry over a transient login refusal (§13)
+└── WinboxRecordCodec.cs           record encode/decode
+
+tik4net/Connection/TikOpenRetry.cs   bounded retry over a transient login refusal (§13), shared by every transport
 
 tik4net/WinboxCli/       mepty terminal over TCP — WinboxCliClient, WinboxCliConnection
 tik4net/WinboxCliMac/    mepty terminal over the MAC layer — WinboxCliMacConnection
@@ -366,8 +367,8 @@ below for the elimination evidence.
 
 A genuinely wrong password produces the **same** message — the router's normal path for a refusal — so
 only persistence (a transient refusal disappears, a real one doesn't) can tell them apart.
-`RouterLoginRetry` (`tik4net/Winbox/RouterLoginRetry.cs`) retries **exclusively** on
-`TikConnectionLoginRefusedException`: 3 attempts, 100 ms apart, each attempt opening a **new channel**
+`TikOpenRetry` (`tik4net/Connection/TikOpenRetry.cs`), with WinBox's predicate, retries **exclusively** on
+`TikConnectionLoginRefusedException` (and the transient kin listed on the class): 3 attempts, 100 ms apart, each attempt opening a **new channel**
 (a refused handshake leaves the old one unusable). The cost is deliberate: a truly wrong password now
 fails a couple hundred ms later than before, and leaves 3 `login failure` lines in the router's log
 instead of one.
@@ -379,7 +380,7 @@ reported differently, and later: WinBox refuses **inside** the handshake with th
 MAC-Telnet completes the handshake, sends `CTRL_END_AUTH`, and only up to a second later writes `Login
 failed, incorrect username or password` to the terminal and tears the session down with `PKT_END`. Both
 log the same router-side line (`login failure for user … via winbox` / `via mac-telnet`), and both clear
-on retry — which is why the retry is named `RouterLoginRetry` and keyed on the public
+on retry — which is why the retry is shared (`TikOpenRetry`) and keyed on the public
 `TikConnectionLoginRefusedException` rather than a WinBox-only type. See
 [findings-mactelnet.md](findings-mactelnet.md) §8 for the MAC-Telnet side.
 
@@ -498,7 +499,7 @@ unacknowledged queue was never taken by the router" — up into the CLI engine. 
 riding out the full 30 s when nothing has arrived **and** the router never took the bytes; it only does
 this while the console has produced **no** output at all (`sb.Length == 0`) — once any output exists the
 command provably arrived and could have run, so claiming otherwise would be a lie the caller has no way
-to verify. `WinboxCliMacConnection` hangs a reopen plus `RouterLoginRetry` login off this exception,
+to verify. `WinboxCliMacConnection` hangs a reopen plus `TikOpenRetry` login off this exception,
 mirroring `MacTelnetConnection`, except it does not reconnect inside Safe Mode (that is exactly what
 Safe Mode protects against) or once any line has already been delivered to the caller (a restart would
 duplicate it).

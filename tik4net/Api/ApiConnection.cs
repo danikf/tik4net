@@ -195,8 +195,15 @@ namespace tik4net.Api
         public override void Open(string host, int port, string user, string password)
             => OpenAsync(host, port, user, password).GetAwaiter().GetResult();
 
-        public override async Task OpenAsync(string host, int port, string user, string password,
+        // A login the router resets mid-handshake is opened again, on a new socket, up to TikOpenRetry.MaxAttempts
+        // times in all (TikOpenRetry.IsApiLoginReset); every failed attempt has already disposed its resources.
+        public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
+            => TikOpenRetry.RunAsync(() => OpenOnceAsync(host, port, user, password, cancellationToken),
+                TikOpenRetry.IsApiLoginReset, cancellationToken);
+
+        private async Task OpenOnceAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try

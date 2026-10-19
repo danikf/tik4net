@@ -2,6 +2,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.Winbox;
 
 namespace tik4net.unittests.Winbox
@@ -64,19 +65,19 @@ namespace tik4net.unittests.Winbox
             Assert.IsNotInstanceOfType(ex, typeof(WinboxSessionLimitException));
         }
 
-        // The refusal reaches RouterLoginRetry wrapped as the connection's login failure.
+        // The refusal reaches TikOpenRetry wrapped as the connection's login failure.
         private static System.Exception Refused() => new TikConnectionLoginException(new WinboxSessionLimitException(null));
 
         private static int RunCounting(System.Func<int, System.Exception> failure)
         {
-            int saved = RouterLoginRetry.SessionLimitDelayMs, calls = 0;
-            RouterLoginRetry.SessionLimitDelayMs = 1;
+            int saved = TikOpenRetry.SessionLimitDelayMs, calls = 0;
+            TikOpenRetry.SessionLimitDelayMs = 1;
             try
             {
-                RouterLoginRetry.Run(() => { var f = failure(++calls); if (f != null) throw f; });
+                TikOpenRetry.Run(() => { var f = failure(++calls); if (f != null) throw f; }, TikOpenRetry.IsTransientRefusal);
                 return calls;
             }
-            finally { RouterLoginRetry.SessionLimitDelayMs = saved; }
+            finally { TikOpenRetry.SessionLimitDelayMs = saved; }
         }
 
         [TestMethod]
@@ -88,7 +89,7 @@ namespace tik4net.unittests.Winbox
         {
             int calls = 0;
             Assert.ThrowsException<TikConnectionLoginException>(() => RunCounting(call => { calls = call; return Refused(); }));
-            Assert.AreEqual(RouterLoginRetry.SessionLimitAttempts, calls);
+            Assert.AreEqual(TikOpenRetry.SessionLimitAttempts, calls);
         }
 
         // A RoMON link the agent opened but nothing answers through is retried on a new link; callers would see it as
