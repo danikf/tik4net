@@ -43,6 +43,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void AReadAfterTheIdleLogout_WithSafeModeHeld_ThrowsSessionClosed()
         {
+            EnsureMinRouterOsVersion(7, "the idle logout of a Safe Mode MAC console (RouterOS 6.49 keeps one "
+                + "alive: it sends ESC[c about every 0.77 s, which tik4net leaves unanswered on purpose, so the "
+                + "session never idles)");
             ReadIdentity();
             SafeModeConnection.SafeModeTake();
             try

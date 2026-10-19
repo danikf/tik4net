@@ -84,6 +84,8 @@ namespace tik4net.Cli
 
                     case St.Esc:
                         if      (c == '[')  { _st = St.Csi; _param = ""; }
+                        // DECID. The same question as CSI c (Primary Device Attributes), which stays unanswered on
+                        // purpose: answering it changes the router's idle logout (Docs/findings-cli.md §6).
                         else if (c == 'Z')  { replies.Add("\x1B[?1;0c"); _st = St.Normal; }  // DECID
                         else if (c == 'D')  { Row = Math.Min(Row + 1, Height); _st = St.Normal; } // IND
                         else if (c == 'M')  { Row = Math.Max(Row - 1, 1);      _st = St.Normal; } // RI

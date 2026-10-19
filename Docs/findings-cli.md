@@ -877,6 +877,11 @@ Without responses to RouterOS's cursor probe (`ESC[6n` → cursor report `ESC[ro
 treats the terminal as 1×1 and renders no command output — typically just `…\r\n\r\r\r\r] > ` with
 nothing else. `Vt100State` tracks cursor position and answers every probe.
 
+`ESC Z` (DECID) is answered with `ESC[?1;0c`; the Primary Device Attributes query `CSI c` (`ESC[c`), which asks the
+same thing, stays unanswered on purpose, because answering it changes the router's idle logout: 6.49.13 then logs an
+idle Safe Mode Telnet console out about 12 s after the take, and 7.24.5 no longer logs an idle MAC-Telnet console out
+at ~30 s. Unanswered, 6.49's `ESC[c` (about every 0.77 s on a Safe Mode MAC console) keeps that console from idling.
+
 ### The advertised width must be a column the probe can reach
 
 RouterOS does not just measure the width, it asks whether the terminal wraps at it. The probe, captured
