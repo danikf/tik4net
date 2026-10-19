@@ -94,6 +94,82 @@ namespace tik4net.integrationtests
         /// router is held shared by every test anyway.
         /// </summary>
         public bool Shared { get; set; }
+
+        /// <summary>
+        /// Takes the lock only for a data row that has one of these transports among its arguments; <c>null</c> (the
+        /// default) takes it for every row. For a class whose rows open different transports: the MAC-layer lock is
+        /// needed only by the rows that open a MAC-layer connection, and declaring it per row takes it up front, with
+        /// the rest of the set, instead of by an escalation in the body (which is not atomic).
+        /// </summary>
+        public TikConnectionType[] WhenTransport { get; set; }
+
+        /// <summary>The transports that talk to the router on the MAC layer, and so need <see cref="MacLayer"/>.</summary>
+        public static bool IsMacLayer(TikConnectionType transport)
+            => transport == TikConnectionType.MacTelnet || transport == TikConnectionType.WinboxCliMac
+               || transport == TikConnectionType.WinboxNativeMac;
+
+        internal bool AppliesTo(object[] testData)
+            => WhenTransport == null
+               || (testData != null && testData.OfType<TikConnectionType>().Any(t => WhenTransport.Contains(t)));
+    }
+
+    /// <summary>
+    /// The locks one test takes in TestInitialize, from what it declares — the whole set, before the test body runs.
+    /// Kept apart from <see cref="LockedTestBase"/> so that what two tests hold can be compared without a router.
+    /// </summary>
+    internal static class TestLockPlan
+    {
+        /// <param name="testId">The test's full name; the default exclusive lock is on it.</param>
+        /// <param name="routerHost">The router a <see cref="LabConfig"/> key names, or <c>null</c> when it names none.</param>
+        /// <param name="lockAll">Every test takes the global lock exclusive (<c>TIK4NET_LOCK_ALL</c>).</param>
+        /// <param name="safeInParallelLegs">The test carries <see cref="SafeInParallelLegsAttribute"/>.</param>
+        /// <param name="macLayerLeg">The leg itself runs over a MAC-layer transport.</param>
+        /// <param name="attributes">The test's <see cref="TestLockAttribute"/>s, from its class and its method.</param>
+        /// <param name="testData">The arguments of the data row being run, or <c>null</c>.</param>
+        /// <returns>The set in acquisition order: by rank, then by key, the one order every test of the suite uses.</returns>
+        public static List<LockSpec> For(string testId, Func<string, string> routerHost, bool lockAll,
+                                         bool safeInParallelLegs, bool macLayerLeg,
+                                         IEnumerable<TestLockAttribute> attributes, object[] testData)
+        {
+            var specs = new List<LockSpec>();
+            string host = routerHost("host");
+
+            specs.Add(LockSpec.Global(lockAll));
+            if (host != null)
+            {
+                specs.Add(LockSpec.Router(host, false));
+                if (!safeInParallelLegs)
+                    specs.Add(LockSpec.Resource(host, "test:" + testId));
+                if (macLayerLeg)
+                    specs.Add(LockSpec.Resource(host, TestLockAttribute.MacLayer));
+            }
+            specs.Add(LockSpec.Leg(false));
+
+            foreach (var attr in attributes.Where(a => a.AppliesTo(testData)))
+            {
+                string lockHost = routerHost(attr.RouterHostKey);
+                if (attr.Resource != null)
+                {
+                    if (lockHost != null)
+                        specs.Add(LockSpec.Resource(lockHost, attr.Resource));
+                    continue;
+                }
+                switch (attr.Scope.Value)
+                {
+                    case TestLockScope.Global:
+                        specs.Add(LockSpec.Global(true));
+                        break;
+                    case TestLockScope.Router:
+                        if (lockHost != null)
+                            specs.Add(LockSpec.Router(lockHost, !attr.Shared));
+                        break;
+                    case TestLockScope.Leg:
+                        specs.Add(LockSpec.Leg(true));
+                        break;
+                }
+            }
+            return LockSpec.Normalize(specs);
+        }
     }
 
     /// <summary>
@@ -166,6 +242,13 @@ namespace tik4net.integrationtests
             return waited;
         }
 
+        /// <summary>The set as taken, in acquisition order.</summary>
+        public IReadOnlyList<LockSpec> Specs => _specs;
+
+        /// <summary>True when the set holds <paramref name="spec"/>'s key, exclusive if <paramref name="spec"/> is.</summary>
+        public bool Holds(LockSpec spec)
+            => _specs.Any(s => s.Key == spec.Key && (s.Exclusive || !spec.Exclusive));
+
         public void Acquire(IEnumerable<LockSpec> specs)
         {
             _specs = LockSpec.Normalize(specs);
@@ -205,6 +288,7 @@ namespace tik4net.integrationtests
             var original = _specs;
             Release();
             _specs = LockSpec.Normalize(original.Concat(new[] { extra }));
+            Console.WriteLine("[lock] escalation to " + extra + ": released the set and takes it again");
             AcquireCurrent();
             ReportWait();
             return new Restore(this, original);

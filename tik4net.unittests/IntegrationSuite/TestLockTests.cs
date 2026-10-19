@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -135,6 +136,59 @@ namespace tik4net.unittests.IntegrationSuite
                                       specs.Take(3).Select(s => s.Key).ToArray());
             Assert.AreEqual(LockSpec.LegRank, specs.Last().Rank);
             Assert.IsTrue(specs.Single(s => s.Key == "router@h").Exclusive, "a shared and an exclusive request for one lock must merge to exclusive");
+        }
+
+        // RomonRelayTest's class-level declaration, as the plan reads it.
+        private static readonly TestLockAttribute[] RelayClassLocks =
+        {
+            new TestLockAttribute(TestLockScope.Router) { RouterHostKey = "romonTargetHost" },
+            new TestLockAttribute(TestLockAttribute.MacLayer)
+            {
+                WhenTransport = new[] { TikConnectionType.MacTelnet, TikConnectionType.WinboxCliMac, TikConnectionType.WinboxNativeMac },
+            },
+        };
+
+        // The lab's two RoMON pairs: the default run relays A -> B, the chr2 run B -> C.
+        private static List<LockSpec> RelayLocks(string agent, string target, TikConnectionType transport)
+            => TestLockPlan.For("RomonRelayTest.Relay_LargeRead", key => key == "host" ? agent : key == "romonTargetHost" ? target : null,
+                                lockAll: false, safeInParallelLegs: false, macLayerLeg: false, RelayClassLocks,
+                                new object[] { transport });
+
+        /// <summary>
+        /// The router that is one run's RoMON target and the other run's agent is held exclusive by the first and shared
+        /// by the second, from TestInitialize on, so the two runs' relay tests never overlap there (X24).
+        /// </summary>
+        [TestMethod]
+        public void TwoRunsRelayTestsExcludeEachOtherOnTheRouterTheyShare()
+        {
+            var first = RelayLocks("A", "B", TikConnectionType.WinboxNativeMac);
+            var second = RelayLocks("B", "C", TikConnectionType.Telnet);
+
+            var conflicts = first.Join(second, a => a.Key, b => b.Key, (a, b) => (a.Key, Either: a.Exclusive || b.Exclusive))
+                                 .Where(k => k.Either).Select(k => k.Key).ToArray();
+            CollectionAssert.Contains(conflicts, "router@B");
+        }
+
+        [TestMethod]
+        public void ALockDeclaredForSomeTransportsIsTakenOnlyForTheirRows()
+        {
+            Assert.IsTrue(RelayLocks("A", "B", TikConnectionType.WinboxCliMac).Any(s => s.Key == "res@A@" + TestLockAttribute.MacLayer));
+            Assert.IsFalse(RelayLocks("A", "B", TikConnectionType.WinboxCli).Any(s => s.Key == "res@A@" + TestLockAttribute.MacLayer));
+        }
+
+        /// <summary>
+        /// Every test's set is in one order — rank, then key — so two tests that share keys take them in the same
+        /// order, and neither can hold one the other waits for while waiting for one the other holds.
+        /// </summary>
+        [TestMethod]
+        public void TwoTestsTakeTheKeysTheyShareInTheSameOrder()
+        {
+            var first = RelayLocks("A", "B", TikConnectionType.MacTelnet).Select(s => s.Key).ToList();
+            var second = RelayLocks("B", "A", TikConnectionType.MacTelnet).Select(s => s.Key).ToList();
+            var shared = first.Intersect(second).ToList();
+
+            Assert.IsTrue(shared.Count >= 3, "the two sets should share the global, both routers and the leg");
+            CollectionAssert.AreEqual(shared, second.Where(shared.Contains).ToList());
         }
 
         [TestMethod]

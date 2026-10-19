@@ -82,6 +82,7 @@ namespace tik4net.integrationtests
             try
             {
                 _locks.Acquire(LocksForThisTest());
+                Console.WriteLine("[lock] holds " + string.Join(", ", _locks.Specs));
             }
             finally
             {
@@ -106,44 +107,10 @@ namespace tik4net.integrationtests
 
         private IEnumerable<LockSpec> LocksForThisTest()
         {
-            string host = RouterHost("host");
             bool lockAll = Environment.GetEnvironmentVariable(LockAllVariable) == "1"
                            || (TestContext?.Properties != null && "1".Equals(TestContext.Properties["tik.lockAll"] as string));
-
-            yield return LockSpec.Global(lockAll);
-            if (host != null)
-            {
-                yield return LockSpec.Router(host, false);
-                if (!IsSafeInParallelLegs())
-                    yield return LockSpec.Resource(host, "test:" + TestId);
-                if (IsMacLayerLeg())
-                    yield return LockSpec.Resource(host, TestLockAttribute.MacLayer);
-            }
-            yield return LockSpec.Leg(false);
-
-            foreach (var attr in Attributes())
-            {
-                string lockHost = RouterHost(attr.RouterHostKey);
-                if (attr.Resource != null)
-                {
-                    if (lockHost != null)
-                        yield return LockSpec.Resource(lockHost, attr.Resource);
-                    continue;
-                }
-                switch (attr.Scope.Value)
-                {
-                    case TestLockScope.Global:
-                        yield return LockSpec.Global(true);
-                        break;
-                    case TestLockScope.Router:
-                        if (lockHost != null)
-                            yield return LockSpec.Router(lockHost, !attr.Shared);
-                        break;
-                    case TestLockScope.Leg:
-                        yield return LockSpec.Leg(true);
-                        break;
-                }
-            }
+            return TestLockPlan.For(TestId, RouterHost, lockAll, IsSafeInParallelLegs(), IsMacLayerLeg(), Attributes(),
+                                    TestContext?.TestData);
         }
 
         private IEnumerable<TestLockAttribute> Attributes()
@@ -158,12 +125,8 @@ namespace tik4net.integrationtests
                || (TestMethod()?.IsDefined(typeof(SafeInParallelLegsAttribute), inherit: true) ?? false);
 
         private bool IsMacLayerLeg()
-        {
-            string leg = TestContext?.Properties?["tik.connectionType"] as string;
-            return "MacTelnet".Equals(leg, StringComparison.OrdinalIgnoreCase)
-                   || "WinboxCliMac".Equals(leg, StringComparison.OrdinalIgnoreCase)
-                   || "WinboxNativeMac".Equals(leg, StringComparison.OrdinalIgnoreCase);
-        }
+            => Enum.TryParse(TestContext?.Properties?["tik.connectionType"] as string, true, out TikConnectionType leg)
+               && TestLockAttribute.IsMacLayer(leg);
 
         private MethodInfo TestMethod()
             => TestContext?.TestName == null
@@ -192,6 +155,18 @@ namespace tik4net.integrationtests
 
         /// <summary>Takes an exclusive lock on a named router resource until the handle is disposed; see <see cref="LockRouter"/>.</summary>
         protected IDisposable LockResource(string resource) => Escalate(LockSpec.Resource(RouterHost("host") ?? "unknown", resource));
+
+        /// <summary>
+        /// True when the test holds <paramref name="resource"/> of its router, taken up front from a
+        /// <see cref="TestLockAttribute"/> (or by the leg). A helper that needs a lock checks it with this rather than
+        /// escalating, when the gap an escalation leaves would let another test change what it works on.
+        /// </summary>
+        protected bool HoldsResource(string resource)
+            => _locks != null && _locks.Holds(LockSpec.Resource(RouterHost("host") ?? "unknown", resource));
+
+        /// <summary>True when the test holds its router exclusive, taken up front (<c>[TestLock(TestLockScope.Router)]</c>).</summary>
+        protected bool HoldsRouterExclusive()
+            => _locks != null && _locks.Holds(LockSpec.Router(RouterHost("host") ?? "unknown", true));
 
         private IDisposable Escalate(LockSpec spec)
         {

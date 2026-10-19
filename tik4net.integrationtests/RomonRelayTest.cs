@@ -31,9 +31,21 @@ namespace tik4net.integrationtests
     [TestCategory(TestCategories.LegIndependent)]
     // The chr2 profile relays from CHR2 (RouterOS 6) to CHR3 (7.x); the default one from CHR to CHR2.
     [TestCategory(TestCategories.AnyRouter)]
-    // The relay writes to the RoMON target, takes Safe Mode there and counts the terminal sessions on it — a run
-    // against that router (-Router chr2 / chr3) at the same time would move those counts and see these rows.
+    // Every lock a test here needs is taken up front, in TestInitialize, with the rest of its set: an escalation in the
+    // body releases the set and takes it again, and another leg's test runs in that gap (X24). The set is:
+    // - the RoMON target, exclusive. The relay writes to it, takes Safe Mode there and counts the terminal sessions on
+    //   it; a run against that router (-Router chr2) would move those counts and see these rows. A run with that
+    //   router as ITS agent holds it shared, so the two legs' relay tests exclude each other on it.
+    // - the agent, the run's own router: shared, as every test holds it; exclusive for the tests that count its
+    //   terminal sessions or fill its WinBox slots (method-level [TestLock(TestLockScope.Router)]).
+    // - the agent's MAC-layer lock, for the rows that open a MAC-layer relay: a MAC leg must not talk to the agent on
+    //   the MAC layer at the same time.
+    // LockSpec's one order (rank, then key) takes them, so no two classes deadlock; RomonRelayLockSetTest checks the set.
     [TestLock(TestLockScope.Router, RouterHostKey = "romonTargetHost")]
+    [TestLock(TestLockAttribute.MacLayer, WhenTransport = new[]
+    {
+        TikConnectionType.MacTelnet, TikConnectionType.WinboxCliMac, TikConnectionType.WinboxNativeMac,
+    })]
     public class RomonRelayTest : LockedTestBase
     {
         // Rows this class creates carry this list name, so a sweep can find what an interrupted run left.
@@ -63,19 +75,15 @@ namespace tik4net.integrationtests
                 Assert.Inconclusive("No romonTargetHost in App.config — nothing to check a relayed write against.");
         }
 
-        // Held from the first MAC-layer relay of a test to its end (LockedTestBase releases it): the agent is the
-        // suite's router, and a MAC leg must not talk to it on the MAC layer at the same time.
-        private IDisposable _macLayer;
-
-        private static bool IsMacLayer(TikConnectionType transport)
-            => transport == TikConnectionType.MacTelnet || transport == TikConnectionType.WinboxCliMac
-               || transport == TikConnectionType.WinboxNativeMac;
+        private static bool IsMacLayer(TikConnectionType transport) => TestLockAttribute.IsMacLayer(transport);
 
         // The agent over the MAC layer is named by its MAC as well, so no MNDP lookup is needed.
         private TikConnectionSetup RelaySetup(TikConnectionType agentTransport)
         {
-            if (IsMacLayer(agentTransport) && _macLayer == null)
-                _macLayer = LockResource(TestLockAttribute.MacLayer);
+            if (IsMacLayer(agentTransport) && !HoldsResource(TestLockAttribute.MacLayer))
+                throw new InvalidOperationException(
+                    $"{TestContext?.TestName} opens a {agentTransport} relay without the agent's MAC-layer lock: declare it "
+                    + "up front (the class's WhenTransport list, or the method's own [TestLock(TestLockAttribute.MacLayer)]).");
             var agentAddress = IsMacLayer(agentTransport) && !string.IsNullOrEmpty(AgentMac)
                 ? TikRouterAddress.FromHostAndMac(AgentHost, AgentMac)
                 : TikRouterAddress.FromHost(AgentHost);
@@ -490,6 +498,7 @@ namespace tik4net.integrationtests
         /// answer as if nothing had happened. The three idle at once, so the test costs one idle period.
         /// </summary>
         [TestMethod]
+        [TestLock(TestLockAttribute.MacLayer)]   // its relays include the three MAC-layer ones
         public void Relay_AfterIdle_StillAnswersFromTheTarget()
         {
             RequireTarget();
@@ -917,13 +926,11 @@ namespace tik4net.integrationtests
             if (remaining == 0)
                 return 0;
 
-            using (LockRouter())
-            {
-                ForceAgentReap(() => OurRows(direct, comment).Length == 0, "the rollback");
-                // The rollback follows the reap within seconds; failing a reap on full slots (an agent that does not
-                // do it), the locked agent is quiet, and the timed reap comes.
-                return RowsAfterRollback(direct, comment, 240);
-            }
+            RequireAgentHeldExclusive("a forced reap");
+            ForceAgentReap(() => OurRows(direct, comment).Length == 0, "the rollback");
+            // The rollback follows the reap within seconds; failing a reap on full slots (an agent that does not do
+            // it), the locked agent is quiet, and the timed reap comes.
+            return RowsAfterRollback(direct, comment, 240);
         }
 
         /// <summary>
@@ -931,9 +938,18 @@ namespace tik4net.integrationtests
         /// WinBox activity, which a parallel run never gives it — other legs keep logging in, and a reap was seen held
         /// off for 13 minutes — and at once when all of its 100 WinBox slots are taken (Docs/findings-romon.md, "Dead
         /// WinBox relay links hold the agent's slots"). So the slots are taken, until <paramref name="done"/> or a
-        /// refusal. The caller holds the agent locked (<see cref="LockedTestBase.LockRouter"/>): every other WinBox
+        /// refusal. The caller holds the agent exclusive from its start (<see cref="RequireAgentHeldExclusive"/>): every other WinBox
         /// client of it is refused meanwhile.
         /// </summary>
+        // A forced reap refuses every other WinBox client of the agent, and a lock taken for it mid-test would let
+        // another test run in the gap, so the test declares the agent exclusive up front.
+        private void RequireAgentHeldExclusive(string what)
+        {
+            if (!HoldsRouterExclusive())
+                throw new InvalidOperationException($"{TestContext?.TestName} needs {what} on the agent without holding it "
+                    + "exclusive: give the method [TestLock(TestLockScope.Router)].");
+        }
+
         private static void ForceAgentReap(Func<bool> done, string doneName)
         {
             var held = new List<ITikConnection>();
@@ -971,13 +987,11 @@ namespace tik4net.integrationtests
             if (refusal == null)
                 return;
             Console.WriteLine("[romon] Safe Mode held on the target: " + refusal);
-            using (LockRouter())
-            {
-                ForceAgentReap(() => TryTakeAndReleaseOnTarget() == null, "the hold's end");
-                var watch = Stopwatch.StartNew();
-                while ((refusal = TryTakeAndReleaseOnTarget()) != null && watch.ElapsedMilliseconds < 240000)
-                    Thread.Sleep(5000);
-            }
+            RequireAgentHeldExclusive("a forced reap");
+            ForceAgentReap(() => TryTakeAndReleaseOnTarget() == null, "the hold's end");
+            var watch = Stopwatch.StartNew();
+            while ((refusal = TryTakeAndReleaseOnTarget()) != null && watch.ElapsedMilliseconds < 240000)
+                Thread.Sleep(5000);
             Assert.IsNull(refusal, "Safe Mode on the target stayed held after the agent reaped its relay links");
         }
 
@@ -1011,6 +1025,9 @@ namespace tik4net.integrationtests
         /// Safe Mode taken through the relay is held on the target, never on the agent; a change made under it and
         /// released stays on the target.
         /// </summary>
+        // The agent exclusive: clearing a Safe Mode hold a WinBox relay link left on the target forces the agent to
+        // reap its links, which fills its WinBox slots (EnsureTargetSafeModeFree, RowsAfterForcedReap).
+        [TestLock(TestLockScope.Router)]
         [DataTestMethod]
         [DataRow(TikConnectionType.Telnet, "192.0.2.64")]
         [DataRow(TikConnectionType.Ssh, "192.0.2.65")]
@@ -1062,6 +1079,9 @@ namespace tik4net.integrationtests
         /// Unroll through the relay discards the change on the target and leaves the relay open on the target.
         /// WinBox native has no unroll (it refuses <c>SafeModeUnroll</c> on a direct connection too), so it has no row.
         /// </summary>
+        // The agent exclusive: clearing a Safe Mode hold a WinBox relay link left on the target forces the agent to
+        // reap its links, which fills its WinBox slots (EnsureTargetSafeModeFree, RowsAfterForcedReap).
+        [TestLock(TestLockScope.Router)]
         [DataTestMethod]
         [DataRow(TikConnectionType.Telnet, "192.0.2.67")]
         [DataRow(TikConnectionType.Ssh, "192.0.2.68")]
@@ -1121,6 +1141,9 @@ namespace tik4net.integrationtests
         /// Closing the relay while Safe Mode is held rolls the change back on the target — the session that held
         /// it is the relayed one, and it ends with the connection.
         /// </summary>
+        // The agent exclusive: clearing a Safe Mode hold a WinBox relay link left on the target forces the agent to
+        // reap its links, which fills its WinBox slots (EnsureTargetSafeModeFree, RowsAfterForcedReap).
+        [TestLock(TestLockScope.Router)]
         [DataTestMethod]
         [DataRow(TikConnectionType.Telnet, "192.0.2.70")]
         [DataRow(TikConnectionType.Ssh, "192.0.2.71")]
