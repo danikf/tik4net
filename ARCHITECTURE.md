@@ -320,6 +320,12 @@ CLI specifics live in `Cli/`: `CliCommandBuilder`, `CliOutputParser`, `CliErrorP
 `CliMonitorVerbs`, `CliSafeModeParser`, `VtStripper`/`Vt100State` (terminal emulation),
 `RouterOsCliLogin`, `ITikCliCompletion`.
 
+Under the base, every console is one `ICliTerminal`: Telnet and SSH run theirs on `CliPtySession` over an
+`ICliByteStream` (the socket, the shell channel), MAC-Telnet and WinBox CLI drive their own carriers, and the two
+MAC-layer leaves wrap theirs in `ReconnectingCliTerminal`. All four clients end a command's read by one rule,
+`CliPromptSettle`: the command's echo seen, a completion prompt last, then either a counted read's own count line or
+the settle window with the prompt still last.
+
 `CliConnectionBase` keeps the driver (the terminal, the guarded execute path, Safe Mode), the CRUD dispatch and
 the write path. Each other concern is an internal collaborator in `Cli/` that reaches the connection through
 `ICliCommandHost`, which the connection implements explicitly, so none of it shows on the connection:
