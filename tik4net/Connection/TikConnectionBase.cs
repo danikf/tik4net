@@ -86,14 +86,20 @@ namespace tik4net.Connection
         // ── Transport ─────────────────────────────────────────────────────────
 
         /// <inheritdoc/>
-        public abstract void Open(string host, string user, string password);
+        /// <remarks>Opens on the transport's default port. A transport written outside tik4net has none: override this
+        /// and <see cref="OpenAsync(string, string, string, CancellationToken)"/>, or the default throws
+        /// <see cref="NotSupportedException"/>.</remarks>
+        public virtual void Open(string host, string user, string password)
+            => Open(host, DefaultPortOrThrow(), user, password);
 
         /// <inheritdoc/>
         public abstract void Open(string host, int port, string user, string password);
 
         /// <inheritdoc/>
-        public abstract Task OpenAsync(string host, string user, string password,
-            CancellationToken cancellationToken = default);
+        /// <remarks>Opens on the transport's default port; see <see cref="Open(string, string, string)"/>.</remarks>
+        public virtual Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default)
+            => OpenAsync(host, DefaultPortOrThrow(), user, password, cancellationToken);
 
         /// <inheritdoc/>
         public abstract Task OpenAsync(string host, int port, string user, string password,
@@ -101,6 +107,13 @@ namespace tik4net.Connection
 
         /// <inheritdoc/>
         public abstract void Close();
+
+        /// <summary>The port the parameterless <c>Open</c> dials: the transport table's, for a built-in transport.</summary>
+        private int DefaultPortOrThrow()
+            => ConnectionType is TikConnectionType type
+                ? TikTransportInfo.Of(type).DefaultPort
+                : throw new NotSupportedException(GetType().Name + " has no default port: override Open(host, user, "
+                    + "password) and OpenAsync(host, user, password, cancellationToken), or call the overload that takes a port.");
 
         // ── Command factory ───────────────────────────────────────────────────
 

@@ -182,11 +182,6 @@ namespace tik4net.Api
         /// <inheritdoc/>
         public bool SafeModeGet() => SafeModeHeld;
 
-        public override void Open(string host, string user, string password)
-        {
-            Open(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
-        }
-
         // Open and OpenAsync are ONE implementation, the async one, with the synchronous entry point
         // blocking on it (P2.5; the same D5 inversion the CLI, REST and WinBox-native CRUD paths use).
         // They used to be two near-identical copies, and they had already drifted where it mattered: the
@@ -198,11 +193,6 @@ namespace tik4net.Api
         // safe under a UI / ASP.NET-classic SynchronizationContext.
         public override void Open(string host, int port, string user, string password)
             => OpenAsync(host, port, user, password).GetAwaiter().GetResult();
-
-        public override Task OpenAsync(string host, string user, string password,
-            CancellationToken cancellationToken = default)
-            => OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password,
-                cancellationToken);
 
         public override async Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)

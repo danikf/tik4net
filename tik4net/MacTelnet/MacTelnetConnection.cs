@@ -36,7 +36,7 @@ namespace tik4net.MacTelnet
     /// <see cref="RouterMac"/> to skip discovery entirely when the open has to be bounded exactly.
     /// </para>
     /// <para>
-    /// <see cref="OpenAsync(string, string, string, CancellationToken)"/> takes its token into every wait after
+    /// <see cref="Connection.TikConnectionBase.OpenAsync(string, string, string, CancellationToken)"/> takes its token into every wait after
     /// the shell prompt — the relay to a RoMON target included. The EC-SRP5 login before it is synchronous and
     /// runs to the end first, so a cancel landing there takes effect as it finishes (under a second on a LAN).
     /// A cancelled open closes the session it started.
@@ -70,17 +70,8 @@ namespace tik4net.MacTelnet
         // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
         /// <inheritdoc/>
-        public override void Open(string host, string user, string password)
-            => Open(host, DefaultPort, user, password);
-
-        /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
             => OpenTerminal(() => Attempt(host, user, password), retryRefusedLogin: true);
-
-        /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password,
-            CancellationToken cancellationToken = default)
-            => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password,

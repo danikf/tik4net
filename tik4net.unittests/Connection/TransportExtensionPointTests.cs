@@ -161,6 +161,41 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>
+        /// The parameterless <c>Open</c> pair is optional for a foreign transport: it has no default port, so the base's
+        /// default throws and names the override to write. (It was abstract: every transport had to write it.)
+        /// </summary>
+        [TestMethod]
+        public void TheParameterlessOpenIsOptional_AndWithoutAPortItSaysWhatToOverride()
+        {
+            foreach (var open in typeof(TikConnectionBase).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+                         .Where(m => (m.Name == "Open" || m.Name == "OpenAsync") && m.GetParameters().All(p => p.ParameterType != typeof(int))))
+                Assert.IsTrue(open.IsVirtual && !open.IsAbstract, open + " should be virtual with a default, not abstract");
+
+            using (var foreign = new PortlessTransport())
+            {
+                var ex = Assert.ThrowsException<NotSupportedException>(() => foreign.Open("192.0.2.1", "u", "p"));
+                StringAssert.Contains(ex.Message, "Open(host, user, password)");
+                Assert.ThrowsException<NotSupportedException>(() => foreign.OpenAsync("192.0.2.1", "u", "p").GetAwaiter().GetResult());
+            }
+        }
+
+        // A foreign transport that writes only what is abstract: no parameterless Open.
+        private sealed class PortlessTransport : TikCommandConnectionBase
+        {
+            public override void Open(string host, int port, string user, string password) => SetOpened();
+            public override System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
+                System.Threading.CancellationToken cancellationToken = default)
+            {
+                SetOpened();
+                return System.Threading.Tasks.Task.CompletedTask;
+            }
+            public override void Close() => SetClosed();
+            protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor) => new List<TikRecordSentence>();
+            protected override string RunAdd(TikCommandDescriptor descriptor) => "*1";
+            protected override void RunNonQuery(TikCommandDescriptor descriptor) { }
+        }
+
+        /// <summary>
         /// What a foreign transport calls from its <c>Open</c>, <c>Close</c> and hooks moved to
         /// <see cref="TikConnectionBase"/>; it must still reach a subclass in another assembly.
         /// </summary>

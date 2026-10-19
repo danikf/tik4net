@@ -5,6 +5,7 @@ using tik4net.Telnet;
 using tik4net.WinboxCli;
 using tik4net.WinboxCliMac;
 using tik4net.WinboxNative;
+using tik4net.WinboxNativeMac;
 
 namespace tik4net.Connection
 {
@@ -57,7 +58,7 @@ namespace tik4net.Connection
             new TikTransportInfo(TikConnectionType.WinboxCli, "WinBox CLI", WinboxCliConnection.DefaultPort, macLayer: false, relaysRomon: true),
             new TikTransportInfo(TikConnectionType.WinboxCliMac, "WinBox CLI MAC", WinboxCliMacConnection.DefaultPort, macLayer: true, relaysRomon: true),
             new TikTransportInfo(TikConnectionType.WinboxNative, "WinBox native", WinboxNativeConnection.DefaultPort, macLayer: false, relaysRomon: true),
-            new TikTransportInfo(TikConnectionType.WinboxNativeMac, "WinBox native MAC", 20561, macLayer: true, relaysRomon: true));
+            new TikTransportInfo(TikConnectionType.WinboxNativeMac, "WinBox native MAC", WinboxNativeMacConnection.DefaultPort, macLayer: true, relaysRomon: true));
 
         private static Dictionary<TikConnectionType, TikTransportInfo> Rows(params TikTransportInfo[] rows)
         {

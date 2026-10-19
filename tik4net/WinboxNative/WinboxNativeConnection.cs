@@ -71,13 +71,6 @@ namespace tik4net.WinboxNative
         public const int DefaultPort = 8291;
 
         /// <summary>
-        /// The port the parameterless-port <see cref="Open(string,string,string)"/> overloads forward to the
-        /// channel. Defaults to <see cref="DefaultPort"/> (8291); the MAC-layer subclass overrides this instead
-        /// of <c>new</c>-shadowing the const (which would resolve on the static reference type — see F12/R11).
-        /// </summary>
-        private protected virtual int DefaultPortValue => DefaultPort;
-
-        /// <summary>
         /// Directory under which the router's <c>.jg</c> menu catalogs are cached, as
         /// <c>&lt;CatalogCachePath&gt;/plugins/&lt;unique&gt;.jg</c>.
         /// Defaults to <see cref="TikConnectionSetup.DefaultCatalogCachePath"/>; <c>null</c> or empty keeps nothing on
@@ -96,7 +89,7 @@ namespace tik4net.WinboxNative
 
         /// <summary>
         /// Number of M2 handlers the <c>.jg</c> catalog supplied for this connection; <c>0</c> until
-        /// <see cref="Open(string, string, string)"/> completes.
+        /// <see cref="Connection.TikConnectionBase.Open(string, int, string, string)"/> completes.
         /// </summary>
         /// <remarks>
         /// A catalog load is best-effort, and a connection whose catalog did not load still opens and still
@@ -316,10 +309,6 @@ namespace tik4net.WinboxNative
         TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         /// <inheritdoc/>
-        public override void Open(string host, string user, string password)
-            => Open(host, DefaultPortValue, user, password);
-
-        /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
             _host = host;
@@ -369,11 +358,6 @@ namespace tik4net.WinboxNative
             }
             InitAfterAuth(session!, routerKey);
         }
-
-        /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password,
-            CancellationToken cancellationToken = default)
-            => OpenAsync(host, DefaultPortValue, user, password, cancellationToken);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password,

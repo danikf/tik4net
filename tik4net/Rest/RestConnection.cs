@@ -155,19 +155,9 @@ namespace tik4net.Rest
         // on the open path made the flag mean less than it says (P2.5).
 
         /// <inheritdoc/>
-        public override void Open(string host, string user, string password)
-            => OpenInternalAsync(host, _useSsl ? 443 : 80, user, password, CancellationToken.None)
-                .GetAwaiter().GetResult();
-
-        /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
             => OpenInternalAsync(host, port, user, password, CancellationToken.None)
                 .GetAwaiter().GetResult();
-
-        /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password,
-            CancellationToken cancellationToken = default)
-            => OpenInternalAsync(host, _useSsl ? 443 : 80, user, password, cancellationToken);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password,

@@ -54,17 +54,8 @@ namespace tik4net.WinboxCliMac
         // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
         /// <inheritdoc/>
-        public override void Open(string host, string user, string password)
-            => Open(host, DefaultPort, user, password);
-
-        /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
             => OpenTerminal(() => Attempt(host, port, user, password), retryRefusedLogin: true);
-
-        /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password,
-            CancellationToken cancellationToken = default)
-            => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password,

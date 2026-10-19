@@ -42,9 +42,9 @@ namespace tik4net.WinboxNativeMac
 
         /// <summary>
         /// MAC-layer WinBox UDP port (informational — <see cref="WinboxMacM2Session"/> ignores the forwarded
-        /// port and always uses UDP 20561). Overrides the base seam instead of <c>new</c>-shadowing the const.
+        /// port and always uses UDP 20561). It hides <see cref="WinboxNativeConnection.DefaultPort"/>, the TCP port.
         /// </summary>
-        private protected override int DefaultPortValue => 20561;
+        public new const int DefaultPort = 20561;
 
         /// <inheritdoc/>
         // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of
