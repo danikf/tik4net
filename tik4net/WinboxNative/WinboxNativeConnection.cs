@@ -196,13 +196,7 @@ namespace tik4net.WinboxNative
 
         // ── Session configuration (set before/after open) ──────────────────────
 
-        /// <summary>
-        /// Adds a session field override <c>apiName → key</c> for the given API path. Takes priority over
-        /// the <c>.jg</c> catalog and the normalizer when resolving fields on that path.
-        /// </summary>
-        /// <param name="apiPath">API path, e.g. <c>/interface</c>.</param>
-        /// <param name="apiName">RouterOS API field name, e.g. <c>mtu</c>.</param>
-        /// <param name="key">M2 numeric field key.</param>
+        /// <inheritdoc/>
         public void FieldOverride(string apiPath, string apiName, int key)
         {
             string norm = WinboxHandlerMap.Normalize(apiPath);
@@ -214,29 +208,13 @@ namespace tik4net.WinboxNative
             map[apiName] = key;
         }
 
-        /// <summary>
-        /// Maps an API path to the path of <b>labels shown in the WinBox GUI menu tree</b> — the window's
-        /// breadcrumb plus its record label, lower-cased with spaces as dashes (e.g. <c>/ppp/secret</c> →
-        /// <c>PPP ▸ PPP Secret</c> = <c>/ppp/ppp-secret</c>; <i>Secrets</i> is the tab the list is on, not a
-        /// level of the path). The numeric handler behind that
-        /// window is still read live from the router's version-matched <c>.jg</c> catalog, so this mapping keeps
-        /// working across RouterOS upgrades. <b>Prefer this over <see cref="PathOverride"/></b>, which pins a
-        /// handler number that may move.
-        /// </summary>
-        /// <param name="apiPath">RouterOS API path, e.g. <c>/ppp/secret</c>.</param>
-        /// <param name="winboxMenuPath">WinBox menu-label path, e.g. <c>/ppp/ppp-secret</c>.</param>
+        /// <inheritdoc/>
         public void PathAlias(string apiPath, string winboxMenuPath)
         {
             _handlerMap.AddAlias(apiPath, winboxMenuPath);
         }
 
-        /// <summary>
-        /// Adds a session override mapping an API path directly to a WinBox M2 handler array
-        /// (e.g. <c>/ppp/secret</c> → <c>[20, 12]</c>). Highest priority — it wins over the catalog, over
-        /// <see cref="PathAlias"/> and over subtype filtering, and is taken at face value. Use it only when the
-        /// GUI label is not usable (no window in the menu tree, or a wrong/ambiguous label); the numbers are
-        /// version-specific, so re-verify them after a RouterOS upgrade.
-        /// </summary>
+        /// <inheritdoc/>
         public void PathOverride(string apiPath, int[] handler)
         {
             _handlerMap.AddOverride(apiPath, handler);

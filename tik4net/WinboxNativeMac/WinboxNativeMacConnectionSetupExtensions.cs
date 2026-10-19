@@ -38,14 +38,14 @@ namespace tik4net.WinboxNativeMac
         /// <paramref name="routerMac"/> is applied.
         /// </param>
         public static ITikWinboxNativeMacConnection CreateWinboxNativeMacConnection(this TikConnectionSetup setup,
-            string? routerMac = null, Action<WinboxNativeMacConnection>? configure = null)
+            string? routerMac = null, Action<ITikWinboxNativeMacConnection>? configure = null)
             => setup.CreateTyped<ITikWinboxNativeMacConnection>(TikConnectionType.WinboxNativeMac,
                 TikConnectionSetup.Then(TikConnectionSetup.OverrideRouterMac(routerMac),
                                         TikConnectionSetup.Typed(configure)));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeMacConnection"/>.</summary>
         public static Task<ITikWinboxNativeMacConnection> CreateWinboxNativeMacConnectionAsync(this TikConnectionSetup setup,
-            string? routerMac = null, Action<WinboxNativeMacConnection>? configure = null, CancellationToken ct = default)
+            string? routerMac = null, Action<ITikWinboxNativeMacConnection>? configure = null, CancellationToken ct = default)
             => setup.CreateTypedAsync<ITikWinboxNativeMacConnection>(TikConnectionType.WinboxNativeMac,
                 TikConnectionSetup.Then(TikConnectionSetup.OverrideRouterMac(routerMac),
                                         TikConnectionSetup.Typed(configure)), ct);

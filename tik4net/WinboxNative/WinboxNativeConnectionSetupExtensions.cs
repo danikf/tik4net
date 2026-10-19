@@ -33,9 +33,9 @@ namespace tik4net.WinboxNative
         /// <param name="setup">The configured connection setup.</param>
         /// <param name="configure">
         /// Optional hook to configure the connection <b>before it opens</b> — the place to register
-        /// <see cref="WinboxNativeConnection.PathAlias"/> / <see cref="WinboxNativeConnection.FieldOverride"/>
-        /// mappings or set <see cref="WinboxNativeConnection.CatalogCachePath"/>. These must be set before
-        /// <c>Open</c>, which is why this factory exposes a callback rather than only returning the connection.
+        /// <see cref="ITikWinboxNativeConnection.PathAlias"/> / <see cref="ITikWinboxNativeConnection.FieldOverride"/>
+        /// mappings. These must be set before <c>Open</c>, which is why this factory exposes a callback rather than only
+        /// returning the connection. (The <c>.jg</c> cache directory is <see cref="TikConnectionSetup.CatalogCachePath"/>.)
         /// </param>
         /// <example>
         /// <para>The mappings are written in the <b>labels WinBox shows you</b>, not in raw handler numbers.
@@ -55,16 +55,16 @@ namespace tik4net.WinboxNative
         ///     c.PathOverride("/tool/sniffer", new[] { 27, 101 });        // pin a whole path to its handler
         /// });
         /// </code>
-        /// <para><see cref="WinboxNativeConnection.PathAlias"/> keeps working after a RouterOS upgrade (only the
+        /// <para><see cref="ITikWinboxNativeConnection.PathAlias"/> keeps working after a RouterOS upgrade (only the
         /// text is pinned; the handler number is read live from the router's <c>.jg</c> catalog), whereas the
         /// numeric <c>*Override</c> forms pin values that can move between versions.</para>
         /// </example>
-        public static ITikWinboxNativeConnection CreateWinboxNativeConnection(this TikConnectionSetup setup, Action<WinboxNativeConnection>? configure = null)
+        public static ITikWinboxNativeConnection CreateWinboxNativeConnection(this TikConnectionSetup setup, Action<ITikWinboxNativeConnection>? configure = null)
             => setup.CreateTyped<ITikWinboxNativeConnection>(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeConnection"/>.</summary>
         public static Task<ITikWinboxNativeConnection> CreateWinboxNativeConnectionAsync(this TikConnectionSetup setup, 
-            Action<WinboxNativeConnection>? configure = null, CancellationToken ct = default)
+            Action<ITikWinboxNativeConnection>? configure = null, CancellationToken ct = default)
             => setup.CreateTypedAsync<ITikWinboxNativeConnection>(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure), ct);
     }
 }

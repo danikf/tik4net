@@ -525,5 +525,23 @@ namespace tik4net.Testing
         /// degradation to a seed table, so a test asserting on that path can script it here.
         /// </summary>
         public int CatalogHandlerCount { get; set; }
+
+        /// <summary>The WinBox-native path aliases set on this fake (<c>apiPath → winboxMenuPath</c>); the fake maps nothing with them.</summary>
+        public IDictionary<string, string> PathAliases { get; } = new Dictionary<string, string>();
+
+        /// <summary>The WinBox-native path overrides set on this fake (<c>apiPath → handler</c>); the fake maps nothing with them.</summary>
+        public IDictionary<string, int[]> PathOverrides { get; } = new Dictionary<string, int[]>();
+
+        /// <summary>The WinBox-native field overrides set on this fake (<c>(apiPath, apiName) → key</c>); the fake maps nothing with them.</summary>
+        public IDictionary<(string ApiPath, string ApiName), int> FieldOverrides { get; } = new Dictionary<(string, string), int>();
+
+        /// <summary>Records the alias in <see cref="PathAliases"/>, so a test can assert what code under test configured.</summary>
+        public void PathAlias(string apiPath, string winboxMenuPath) => PathAliases[apiPath] = winboxMenuPath;
+
+        /// <summary>Records the override in <see cref="PathOverrides"/>.</summary>
+        public void PathOverride(string apiPath, int[] handler) => PathOverrides[apiPath] = handler;
+
+        /// <summary>Records the override in <see cref="FieldOverrides"/>.</summary>
+        public void FieldOverride(string apiPath, string apiName, int key) => FieldOverrides[(apiPath, apiName)] = key;
     }
 }

@@ -29,6 +29,42 @@ namespace tik4net.unittests
             return map;
         }
 
+        /// <summary>The session mappings are on <see cref="ITikWinboxNativeConnection"/>, not only on the concrete class.</summary>
+        [TestMethod]
+        public void SessionMappings_ReachTheMapThroughTheInterface()
+        {
+            using (var connection = (ITikWinboxNativeConnection)tik4net.Connection.TikConnectionRegistry.Create(TikConnectionType.WinboxNative))
+            {
+                connection.PathOverride("/tool/sniffer", new[] { 27, 101 });
+                connection.PathAlias("/ppp/secret", "/ppp/ppp-secret");
+                connection.FieldOverride("/interface", "mtu", 0x1);
+
+                var map = (WinboxHandlerMap)typeof(tik4net.WinboxNative.WinboxNativeConnection)
+                    .GetField("_handlerMap", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .GetValue(connection)!;
+                CollectionAssert.AreEqual(new[] { 27, 101 }, map.Resolve("/tool/sniffer"));
+            }
+        }
+
+        /// <summary>
+        /// <c>configure</c> of the native factories takes the interface, so a hook written against what the factory
+        /// returns compiles; a lambda compiles either way.
+        /// </summary>
+        [TestMethod]
+        public void TheNativeFactoriesConfigureTheInterface()
+        {
+            var expected = new Dictionary<Type, Type>
+            {
+                [typeof(tik4net.WinboxNative.WinboxNativeConnectionSetupExtensions)] = typeof(Action<ITikWinboxNativeConnection>),
+                [typeof(tik4net.WinboxNativeMac.WinboxNativeMacConnectionSetupExtensions)] = typeof(Action<ITikWinboxNativeMacConnection>),
+            };
+            foreach (var pair in expected)
+                foreach (var method in pair.Key.GetMethods())
+                    foreach (var parameter in method.GetParameters())
+                        if (parameter.Name == "configure")
+                            Assert.AreEqual(pair.Value, parameter.ParameterType, method.Name);
+        }
+
         [TestMethod]
         public void PathAlias_MapsApiPathToMenuLabelPath()
         {
