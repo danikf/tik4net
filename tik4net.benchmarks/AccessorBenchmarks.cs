@@ -9,10 +9,10 @@ namespace tik4net.Benchmarks
     /// column here is directly comparable with one row of <see cref="MapperBenchmarks"/>.
     /// <para>
     /// This exists because the whole-load number cannot say <i>which</i> half is slow, and the two halves
-    /// want different fixes: B1 is the accessor call (<c>PropertyInfo</c> vs a bound delegate) and B2 is the
+    /// want different fixes: one is the accessor call (<c>PropertyInfo</c> vs a bound delegate) and the other is the
     /// conversion (<c>Enum.GetNames</c> + <c>GetCustomAttribute</c> on every single enum value). A shape that
     /// costs the same as a string is paying for the accessor; one that costs 20× more is paying for the
-    /// conversion, and no amount of B1 will touch it.
+    /// conversion, and no faster accessor will touch it.
     /// </para>
     /// </summary>
     [MemoryDiagnoser]
@@ -104,7 +104,7 @@ namespace tik4net.Benchmarks
                 _flag.SetEntityValue(_entity, "yes");
         }
 
-        /// <summary>enum — accessor call plus the reflection scan B2 is about.</summary>
+        /// <summary>enum — accessor call plus the per-value reflection scan.</summary>
         [Benchmark(Description = "set enum ×1000")]
         public void SetEnum()
         {

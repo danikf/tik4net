@@ -11,7 +11,7 @@ namespace tik4net.unittests.Api
 {
     /// <summary>
     /// The two bounded streaming reads on the binary API — <c>ExecuteListWithDuration</c> and
-    /// <c>ExecuteListUntilDone</c> — against a scripted router (P2.4, F7).
+    /// <c>ExecuteListUntilDone</c> — against a scripted router.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -128,7 +128,7 @@ namespace tik4net.unittests.Api
 
         /// <summary>
         /// A connection that dies mid-stream ends the read through the reader loop's <c>!fatal</c>, and the
-        /// reason it carries (P2.14) is what the caller is told — not a generic "connection has been closed".
+        /// reason it carries is what the caller is told — not a generic "connection has been closed".
         /// </summary>
         [TestMethod]
         public void ExecuteListWithDuration_ConnectionLost_AbortReasonCarriesTheCause()

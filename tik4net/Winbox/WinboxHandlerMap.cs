@@ -39,7 +39,7 @@ namespace tik4net.Winbox
         /// These are NOT gaps in the map, and the difference matters to whoever reads the error: an
         /// unmapped path invites a <c>PathAlias</c> naming the window, and here there is no window to name.
         /// Pointing an alias at some other window would answer with the wrong table, which is the failure
-        /// the path-map audit exists to catch (G3.4 and G3.5 were both exactly that).
+        /// the path-map audit exists to catch (<c>/ip/route</c> and the wireless sniffer were both exactly that).
         /// <para>The audit test reads this same table, so the runtime error and the test's expectations
         /// cannot drift apart.</para>
         /// </remarks>

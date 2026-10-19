@@ -684,8 +684,8 @@ namespace tik4net.Winbox
                 // and most paths still resolve, so nothing looks wrong — but IsSingletonHandler,
                 // HasDynamicFields (the getall stats bit behind firewall bytes/packets), monitor specs and
                 // reference resolution all quietly answer "no", and the caller gets plausible wrong data
-                // instead of an error (P2.23; this is what made P2.21 look like a timing problem).
-                // A `list` can fail because the channel it rode on has stopped answering (P2.20), which is
+                // instead of an error (which once made a read failure look like a timing problem).
+                // A `list` can fail because the channel it rode on has stopped answering, which is
                 // rare per connection but certain to happen across a long run, so this path must work.
                 // The bodies are already cached content-addressed, so reusing the last known set costs no
                 // mproxy traffic at all — and cross-version safety is intact: `unique` names are
@@ -719,7 +719,7 @@ namespace tik4net.Winbox
             // / 6.8 MB with no trouble, and the failures that do occur land at no consistent offset (0 B,
             // 0.5 MB, 1.5 MB, 2.7 MB). What a failure does mean is that THIS channel is finished — it never
             // answers again, not even a 26-byte `list`, while a new connection to the same router works
-            // immediately. Hence the stop in Assemble (P2.20).
+            // immediately. Hence the stop in Assemble.
             var catalog = Assemble(
                 plugins.OrderByDescending(p => string.Equals(p.Name, "roteros.jg", StringComparison.OrdinalIgnoreCase)),
                 plugin => ReadCached(plugin, cacheDir),
@@ -843,7 +843,7 @@ namespace tik4net.Winbox
         // Tolerant by design — one plugin we cannot parse must not cost the whole catalog. But a silently
         // dropped plugin is a catalog that is quietly missing handlers, which surfaces later as wrong values
         // rather than as an error, so the drop is always traced. Expect this to fire first on a RouterOS
-        // version whose .jg syntax has moved (P2.24).
+        // version whose .jg syntax has moved.
         internal bool TryParseInto(string text)
         {
             try
@@ -953,7 +953,7 @@ namespace tik4net.Winbox
         // `uniqueName` must be the version-stamped name from the mproxy "list" catalog
         // ("roteros-33a7039ff432.jg"), never the stable plugin name. The stable name is a trap: mproxy
         // *opens* "roteros.jg.gz" and even reports the right size, but the subsequent read never answers
-        // and takes the whole M2 channel down with it, so every later plugin fails too (P2.18).
+        // and takes the whole M2 channel down with it, so every later plugin fails too.
         private static string? FetchJg(WinboxNativeM2Operations ops, string uniqueName)
         {
             // The on-disk file in /home/web/webfig/ is "<unique>.gz" (gzip), served by the mproxy static
@@ -1970,7 +1970,7 @@ namespace tik4net.Winbox
                     int[]? refHandler = ExtractRefHandler(cur);
                     // 'range' must be read here as well as on the unwrapped path: EVERY firewall address field
                     // is an opt→not→network with range:1, so dropping it here made the range-END sibling decode
-                    // as a netmask (see P2.33 / Docs/winbox-native-m2-protocol.md §24).
+                    // as a netmask (see Docs/winbox-native-m2-protocol.md §24).
                     bool isRange = cur.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                     string? allow = cur.TryGetValue("allow", out var alv) ? alv as string : null;
                     // The wrapper's own opt flag wins; a leaf 'optid' fills in when there is no wrapper flag.

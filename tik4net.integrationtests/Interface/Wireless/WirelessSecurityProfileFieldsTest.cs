@@ -7,7 +7,7 @@ using tik4net.Objects.Interface.Wireless;
 namespace tik4net.integrationtests
 {
     /// <summary>
-    /// G8: the RADIUS tab and the Static Keys tab of <c>/interface/wireless/security-profiles</c>.
+    /// The RADIUS tab and the Static Keys tab of <c>/interface/wireless/security-profiles</c>.
     /// </summary>
     /// <remarks>
     /// This path was the path-map audit's one standing MISMATCH — 19 of 39 fields shared. Two causes, and
@@ -23,7 +23,7 @@ namespace tik4net.integrationtests
     /// </list>
     /// <para>Everything is asserted through the binary API rather than by reading back over the transport
     /// under test: a write that lands on the wrong key is one the router accepts, answers and ignores, and
-    /// reading it back through the same wrong key would agree with itself (G4).</para>
+    /// reading it back through the same wrong key would agree with itself.</para>
     /// </remarks>
     [TestClass]
     public class WirelessSecurityProfileFieldsTest : TestBase

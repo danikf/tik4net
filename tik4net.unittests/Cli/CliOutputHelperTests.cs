@@ -4,7 +4,7 @@ using tik4net.Cli;
 namespace tik4net.unittests.Cli
 {
     /// <summary>
-    /// Covers the two CLI output-cleaning defects that surfaced while enabling P2.12's positional error
+    /// Covers the two CLI output-cleaning defects that surfaced while enabling the positional error
     /// detection. Both were invisible for as long as nothing read meaning into leftover text.
     /// </summary>
     [TestClass]
@@ -116,7 +116,7 @@ namespace tik4net.unittests.Cli
         // The log line is written when the router emits it, which can be BEFORE the command echo has been
         // painted. That order defeated the leading-noise loop: the log line is not blank, not a prompt and
         // not a fragment of the command, so the loop stopped on it and the echo behind it was returned as
-        // data. Measured live — one such line appeared in a full telnet suite run (P2.47).
+        // data. Measured live — one such line appeared in a full telnet suite run.
         [TestMethod]
         public void CleanOutput_DropsARouterLogLineThatArrivesAheadOfTheEcho()
         {
@@ -154,7 +154,7 @@ namespace tik4net.unittests.Cli
                 "otherwise P2.12's positional rule reports a successful write as failed");
         }
 
-        // P2.29. The exact bytes captured off the wire (channel ssh.pty) for the read-back that
+        // The exact bytes captured off the wire (channel ssh.pty) for the read-back that
         // AddInterfaceListMemberWillNotFail failed on: RouterOS repaints the prompt line, so the response
         // ends with the prompt TWICE, separated by bare CRs. Removing only the last one left the first
         // inside the data, where CliOutputParser turned it into a multi-value continuation of the final
@@ -184,7 +184,7 @@ namespace tik4net.unittests.Cli
                 "the repeat must stop at the first line that is not a prompt repaint");
         }
 
-        // P2.47. The previous command's tail arrives after its read has already returned on a settled
+        // The previous command's tail arrives after its read has already returned on a settled
         // prompt and after the next command's pre-send drain has looked at the socket, so it becomes the
         // HEAD of the next response. Nothing used to notice: foreign output is not blank, not a prompt and
         // not a fragment of the sent command, so the head-trim loop treats it as the first data line and

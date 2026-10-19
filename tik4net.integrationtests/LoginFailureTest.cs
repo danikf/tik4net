@@ -5,7 +5,7 @@ using System.Diagnostics;
 namespace tik4net.integrationtests
 {
     /// <summary>
-    /// Rejected credentials, over <b>the transport under test</b> (P2.24).
+    /// Rejected credentials, over <b>the transport under test</b>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -71,7 +71,7 @@ namespace tik4net.integrationtests
 
         /// <summary>
         /// A port the router does not listen on is the <see cref="System.Net.Sockets.SocketException"/> itself, on every
-        /// transport with a port: nothing answered, so it is not a login failure (the open-failure taxonomy, D5).
+        /// transport with a port: nothing answered, so it is not a login failure (the open-failure taxonomy).
         /// </summary>
         [TestMethod]
         public void AClosedPort_IsTheSocketException()
@@ -91,7 +91,7 @@ namespace tik4net.integrationtests
 
         /// <summary>
         /// The plain API or REST pointed at the TLS port, and the reverse: the peer answers in another protocol, which is
-        /// reported as such or as a failed login — never as a raw I/O exception (the open-failure taxonomy, D5).
+        /// reported as such or as a failed login — never as a raw I/O exception (the open-failure taxonomy).
         /// </summary>
         [TestMethod]
         public void TheOtherTlsPort_FailsAsAProtocolOrLoginFailure()

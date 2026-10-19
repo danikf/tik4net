@@ -275,7 +275,7 @@ namespace tik4net.integrationtests
 
             try
             {
-                // P2.21: this used to be "read once, sleep 1 s, read again and assert", and that is a race
+                // This used to be "read once, sleep 1 s, read again and assert", and that is a race
                 // the test lost whenever it ran in the full suite. RouterOS does not start matching a rule
                 // against traffic the instant `add` returns (the record's ready flag flips a moment later),
                 // and the traffic in the window is only whatever this test itself sends. Standalone that is

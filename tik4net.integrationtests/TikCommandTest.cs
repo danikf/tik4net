@@ -329,7 +329,7 @@ namespace tik4net.integrationtests
                     // Non-binary-API transports (CLI terminals and native WinBox M2) run the script
                     // fire-and-forget — no per-line !re rows are produced (unlike the binary API). An action
                     // command has no result set on these transports, so reading it (ExecuteList) now throws;
-                    // the supported entry point is ExecuteNonQuery (R7).
+                    // the supported entry point is ExecuteNonQuery.
                     Assert.ThrowsException<NotSupportedException>(() => scriptRunCmd.ExecuteList(),
                         "ExecuteList on an action command must throw on non-API transports.");
                     scriptRunCmd.ExecuteNonQuery();

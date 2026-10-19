@@ -83,7 +83,7 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// G3.4: <c>/ip/route</c> is the IPv4 routes, with the fields the API reports.
+        /// <c>/ip/route</c> is the IPv4 routes, with the fields the API reports.
         /// </summary>
         /// <remarks>
         /// WinBox keeps one routes table ([44,21]) for both families and tells them apart by its own

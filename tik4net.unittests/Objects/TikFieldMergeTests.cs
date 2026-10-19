@@ -1,5 +1,5 @@
 #nullable enable
-// TikFieldMergeTests.cs — CreateMerge / SaveListDifferences over TikField<T> fields (design review H3). The merge
+// TikFieldMergeTests.cs — CreateMerge / SaveListDifferences over TikField<T> fields. The merge
 // compared fields through Convert.ToString, which renders Absent, Present("") and Present(null) alike.
 
 using System.Collections.Generic;

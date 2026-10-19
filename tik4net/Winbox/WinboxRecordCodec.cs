@@ -741,8 +741,8 @@ namespace tik4net.Winbox
                         if (!WinboxFieldResolver.TryToInt64(value, out long bits))
                         {
                             // Falls through to the raw wire text, which is visibly not a label list — but a
-                            // silent fall-through is how a .jg/router mismatch goes unnoticed for a release
-                            // (P2.25), so say so on the trace channel.
+                            // silent fall-through is how a .jg/router mismatch goes unnoticed for a release,
+                            // so say so on the trace channel.
                             TraceNonNumeric("set", value);
                             break;
                         }
@@ -850,7 +850,7 @@ namespace tik4net.Winbox
                         // field never reaches here (IsUnsetField drops it); here it means the .jg and the
                         // router disagree about the domain, which webfig itself calls 'unknown'. Fall through
                         // to the raw text as before, but say so — a silent fall-through is how exactly this
-                        // class of mismatch survived a release (P2.25).
+                        // class of mismatch survived a release.
                         TraceUnmappedEnum(jf, ev);
                     }
                     else TraceNonNumeric("enum", value);   // falls through to the raw text, see above
@@ -2221,7 +2221,7 @@ namespace tik4net.Winbox
 
         // One place for "the router sent something this decode step cannot read as a number". None of the
         // callers fabricate a value — they fall back to the raw wire text — but a fall-back nobody can see is
-        // how a .jg/router mismatch survives a release (P2.25).
+        // how a .jg/router mismatch survives a release.
         private static void TraceNonNumeric(string what, object value)
         {
             if (!TikWireTrace.Enabled) return;
@@ -2325,7 +2325,7 @@ namespace tik4net.Winbox
         // Render a webfig 'multinumber' value (a u32[] parsed by M2Message to the text "[a,b,…]") as the
         // comma-joined API form: each element through the element's static enum map when it has one, else the
         // number itself. An element the map does not name stays numeric rather than being dropped — a shorter
-        // list would read as "the router has fewer of these", which is the P2.25 defect class.
+        // list would read as "the router has fewer of these", a wrong answer that looks like data.
         private static string FormatNumberList(object? value, IReadOnlyDictionary<int, string>? enumMap,
             int elementScale = 1)
         {

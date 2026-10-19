@@ -12,7 +12,7 @@ namespace tik4net.unittests.MacTelnet
     /// what a cumulative ACK retires, and when a send counts as abandoned.
     /// </summary>
     /// <remarks>
-    /// These are the rules P2.42 had to change before the MAC channel could carry more than one request at
+    /// These are the rules that had to change before the MAC channel could carry more than one request at
     /// a time, and they are exactly the rules a live run cannot pin down — the lab router does not drop
     /// packets on demand, so the interesting cases (a hole in the stream, a partial ACK, a budget spent to
     /// exhaustion) simply never occur there. The transport runs over a loopback UDP pair, so nothing here
@@ -41,7 +41,7 @@ namespace tik4net.unittests.MacTelnet
         }
 
         /// <summary>
-        /// The P2.42 regression in one test. The MAC counter is a cumulative byte offset, so when the first
+        /// The multi-request regression in one test. The MAC counter is a cumulative byte offset, so when the first
         /// of two packets is lost the router can acknowledge neither — and the packet that has to go again
         /// is the first one. Holding only the most recent send (as the transport did while every caller was
         /// lockstep) resends the wrong one and the stream never recovers.
@@ -118,7 +118,7 @@ namespace tik4net.unittests.MacTelnet
 
         /// <summary>
         /// Nothing is abandoned until the budget is actually spent — the signal exists to tell "the router
-        /// did not take our bytes" from "the router is slow", and a premature true makes a retry unsafe (P2.39).
+        /// did not take our bytes" from "the router is slow", and a premature true makes a retry unsafe.
         /// </summary>
         [TestMethod]
         public void Abandoned_OnlyAfterTheBudgetIsSpent()
@@ -162,7 +162,7 @@ namespace tik4net.unittests.MacTelnet
             Assert.IsFalse(_client.Abandoned);
         }
 
-        // ── The stall signal (P2.56) ──────────────────────────────────────────
+        // ── The stall signal ──────────────────────────────────────────
 
         /// <summary>
         /// The layer has retransmission but no send window, so the only thing that can stop a caller from
@@ -207,10 +207,10 @@ namespace tik4net.unittests.MacTelnet
             Assert.IsFalse(_client.Stalled, "nothing is outstanding — the caller must be free to send again");
         }
 
-        // ── Polling vs. waiting (P2.43) ───────────────────────────────────────
+        // ── Polling vs. waiting ───────────────────────────────────────
 
         /// <summary>
-        /// The P2.43 defect in one assertion. Nearly everything on this socket is control traffic, so a
+        /// The polling defect in one assertion. Nearly everything on this socket is control traffic, so a
         /// caller that only wants to know whether a payload has arrived must not be made to wait for one.
         /// The blocking read is the right tool for a caller that is waiting and the wrong one for a caller
         /// that is polling — and the whole 5 s per command and per open came from using the former as the
@@ -327,7 +327,7 @@ namespace tik4net.unittests.MacTelnet
             Assert.AreEqual(0xAA, resent.payload[0]);
         }
 
-        // ── What counts as "unanswered" (P2.49) ───────────────────────────────
+        // ── What counts as "unanswered" ───────────────────────────────
 
         /// <summary>
         /// A packet still in normal flight must not be resent, however discouraging the ACK that arrives

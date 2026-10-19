@@ -1,4 +1,4 @@
-// WinboxRelativeDateAndTimeTests.cs — G12: a `dateandtime` whose declaration says `relative:1` is a moment
+// WinboxRelativeDateAndTimeTests.cs — a `dateandtime` whose declaration says `relative:1` is a moment
 // on the router's UPTIME clock, not seconds since 1970.
 //
 // The numbers here are the live 7.24 measurement that opened the item: /interface's last-link-up-time and

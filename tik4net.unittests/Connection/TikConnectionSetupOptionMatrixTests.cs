@@ -9,7 +9,7 @@ using tik4net.Ssh;
 namespace tik4net.unittests.Connection
 {
     /// <summary>
-    /// The matrix D1 exists for: <b>every option of <see cref="TikConnectionSetup"/> reaches every transport
+    /// The matrix that exists for: <b>every option of <see cref="TikConnectionSetup"/> reaches every transport
     /// it can mean anything on</b>, checked by creating each transport and reading the values back off it —
     /// not by the property names lining up.
     /// </summary>

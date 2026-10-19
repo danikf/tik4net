@@ -83,12 +83,12 @@ namespace tik4net.integrationtests
         /// (<see cref="TikConnectionType.WinboxNativeMac"/>) used to be excluded, on the theory that the lossy
         /// UDP MAC layer's cumulative-byte ACK/retransmit state could not survive an arbitrary sequence of
         /// unrelated exchanges on one channel — a prior multi-frame test leaving the next test's first
-        /// <c>getall</c> unanswered. That exclusion was retired in P2.42 (2026-07-30) after the symptom failed
+        /// <c>getall</c> unanswered. That exclusion was retired on 2026-07-30 after the symptom failed
         /// to reproduce: five full <c>winboxnativemac</c> runs with reuse on (two on 2026-07-29 plus three
         /// confirming runs) came back green on every test using the shared connection. The cause it was written
-        /// for had already been removed by the MAC-layer cumulative-ACK correction (P2.19) and the broadcast-NIC
-        /// binding fix (P2.36); the exclusion outlived it and merely cost one fresh MAC session per test, which
-        /// is the session churn P2.35 measured on <c>/user/active</c>.
+        /// for had already been removed by the MAC-layer cumulative-ACK correction and the broadcast-NIC
+        /// binding fix; the exclusion outlived it and merely cost one fresh MAC session per test, which
+        /// is the session churn measured on <c>/user/active</c>.
         /// </para>
         /// </summary>
         protected virtual bool ReuseConnectionAcrossTests => true;
@@ -365,7 +365,7 @@ namespace tik4net.integrationtests
         /// worker owns the channel for as long as it runs — issuing CRUD on the same connection meanwhile
         /// is explicitly not supported (<c>CliConnectionBase.RunMonitorAsync</c>). The binary API
         /// multiplexes by tag and tolerates it, which is exactly why a one-connection listen test passes
-        /// there and is a lottery over Telnet and WinBox CLI (P2.14).
+        /// there and is a lottery over Telnet and WinBox CLI.
         /// </remarks>
         protected ITikConnection OpenSecondaryConnection() => OpenNewConnection();
 
@@ -556,8 +556,8 @@ namespace tik4net.integrationtests
         /// Prefer this over a fixed <see cref="Thread.Sleep(int)"/> whenever a test waits on the router.
         /// A constant budget that is generous over the binary API is not generous over Telnet or a WinBox
         /// terminal, nor over an API connection on a router that has already served a few hundred tests —
-        /// and that mismatch is what produces a test which passes alone and fails in the suite (P2.14,
-        /// P2.21). This only waits *longer*; the assertion after it is unchanged, so a router that never
+        /// and that mismatch is what produces a test which passes alone and fails in the suite.
+        /// This only waits *longer*; the assertion after it is unchanged, so a router that never
         /// satisfies the condition still fails the test.
         /// </remarks>
         protected static bool WaitUntil(Func<bool> condition, int timeoutSeconds = 20, int pollMs = 250)
@@ -668,7 +668,8 @@ namespace tik4net.integrationtests
         /// transport. It attempts the command on all of them and skips only on the transport that actually
         /// refused, so a mapping added later turns the test green with no test edit — whereas a capability
         /// gate keyed on <c>Streaming</c> skipped the sync monitor tests on ten of eleven transports and hid
-        /// the defect P2.51 fixed. <paramref name="feature"/> names the path in the skip message.
+        /// sync monitors dropping their inputs on the CLI and REST transports. <paramref name="feature"/> names the
+        /// path in the skip message.
         /// </remarks>
         protected void SkipIfWinboxNativeCannot(string feature, Action body)
         {
@@ -694,7 +695,7 @@ namespace tik4net.integrationtests
         /// terminal and therefore serialize commands by design.
         /// </summary>
         /// <remarks>
-        /// The expectation this encodes (P2.42): <b>only</b> Telnet, SSH, WinBox-CLI and WinBox-CLI-MAC have
+        /// The expectation this encodes: <b>only</b> Telnet, SSH, WinBox-CLI and WinBox-CLI-MAC have
         /// a real reason to be single-command. Everything else — API, API-SSL, REST and both native WinBox
         /// transports — must be able to run commands concurrently on one connection, because the router
         /// plainly can. A transport moving out of that list is a regression, not a limitation to accept, so
@@ -712,7 +713,7 @@ namespace tik4net.integrationtests
         /// <summary>
         /// The same list as <see cref="SkipOnSingleCommandTransport"/>, for the test that covers the
         /// serialized transports rather than skipping them: they are permitted to queue, and still have to
-        /// be safe to call from several threads (A8's concurrency contract).
+        /// be safe to call from several threads (the concurrency contract).
         /// </summary>
         protected bool IsSingleCommandTransport()
         {
@@ -727,11 +728,11 @@ namespace tik4net.integrationtests
         /// at once when the command ends. False only on REST.
         /// </summary>
         /// <remarks>
-        /// Not a client-side property and not a limitation to accept quietly — measured on 7.23.2 (P2.26):
+        /// Not a client-side property and not a limitation to accept quietly — measured on 7.23.2:
         /// RouterOS buffers a REST response until the command completes, so <c>POST /rest/ping
         /// {"address":…}</c> with no <c>count</c> receives <b>0 bytes in 8 s</b>, and <c>/rest/log/listen</c>
         /// receives 0 bytes across 30 s while 60 log lines are written. Everything else streams: the binary
-        /// API natively, the CLI family via the bare interactive command form (P2.50), native WinBox via the
+        /// API natively, the CLI family via the bare interactive command form, native WinBox via the
         /// M2 monitor window. A test asserting <i>when</i> rows arrive has to branch on this; one asserting
         /// <i>that</i> they all arrive does not, and should not.
         /// <para>
@@ -772,7 +773,7 @@ namespace tik4net.integrationtests
         /// The probe is an <b>unfiltered</b> print, so do not call it on a large table. On <c>/log</c> it
         /// pulls the router's whole memory log (~1000 rows, 139 358 characters measured on 7.23.2) and blows
         /// the 30 s read budget of a MAC transport outright — the same trap that made
-        /// <c>RunScript_Issue53_WillNotFail</c> look like a transport defect (P2.43). For a path every
+        /// <c>RunScript_Issue53_WillNotFail</c> look like a transport defect. For a path every
         /// RouterOS has, skip the check.
         /// </remarks>
         /// <summary>

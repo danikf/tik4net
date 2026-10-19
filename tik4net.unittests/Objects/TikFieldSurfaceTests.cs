@@ -1,6 +1,6 @@
 #nullable enable
-// TikFieldSurfaceTests.cs — the caller-facing semantics of TikField<T>, settled after the design review
-// (_notes/5.0/features/entity-value-model-review.md, C3, H1, H4, M-a, M-d).
+// TikFieldSurfaceTests.cs — the caller-facing semantics of TikField<T>, settled after the design review of the entity
+// value model.
 
 using System;
 using System.Collections.Generic;
@@ -20,7 +20,7 @@ namespace tik4net.unittests.Objects
         private static TikField<string?> PresentNull => (string?)null;
         private static TikField<string?> Unparsed => TikField<string?>.FromWire("word");
 
-        // ── == null means "has no value" (C3) ────────────────────────────────
+        // ── == null means "has no value" ────────────────────────────────
 
         [TestMethod]
         public void EqualsNull_IsTrueForAbsentAndPresentNull_FalseForUnparsedAndAValue()
@@ -40,7 +40,7 @@ namespace tik4net.unittests.Objects
             Assert.IsTrue((TikField<int?>)5 == (TikField<int?>)5);
         }
 
-        // ── .Value throws on Unparsed (H1) ───────────────────────────────────
+        // ── .Value throws on Unparsed ────────────────────────────────────────
 
         [TestMethod]
         public void Value_OnUnparsed_Throws_WithTheRouterWord()
@@ -79,7 +79,7 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual(7, ((TikField<int?>)7).GetValueOrDefault());
         }
 
-        // ── FromWire writes a word the enum lacks (H4) ───────────────────────
+        // ── FromWire writes a word the enum lacks ────────────────────────────
 
         [TestMethod]
         public void FromWire_IsSentAsWritten()

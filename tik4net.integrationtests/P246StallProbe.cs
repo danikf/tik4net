@@ -17,8 +17,8 @@ namespace tik4net.integrationtests
     /// <summary>
     /// A measuring harness, not a test: it drives sustained request/response load over whichever
     /// transport is under test and writes a merged trace of the reader thread and the calling threads.
-    /// Built for P2.46 and kept because it is the tool that answers "is this stall ours or the
-    /// router's" — see <c>Docs/findings-router-throughput-ceiling.md</c> for what it established and
+    /// Built for a throughput-stall investigation and kept because it is the tool that answers "is this stall ours or
+    /// the router's" — see <c>Docs/findings-router-throughput-ceiling.md</c> for what it established and
     /// for the knobs.
     /// </summary>
     /// <remarks>

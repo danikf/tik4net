@@ -60,7 +60,7 @@ namespace tik4net.WinboxNative
             // snapshot on a timer instead of resolving a monitor window, because the parent-handler fallback
             // below lands on the generic [20,0] interface window — a real monitor window, but the wrong one:
             // it started a monitor cycle whose records decoded to EMPTY rows, and the caller got two blank
-            // records per second that its row count read as success (P2.52).
+            // records per second that its row count read as success.
             if (IsSnapshotMonitorPath(descriptor.CommandText))
                 return PollingMonitorEngine.StartWorker("winbox-native-monitor-snapshot",
                     handle => PollingMonitorEngine.SnapshotLoop(_host, descriptor, SnapshotMonitorIntervalMs, handle, onRow, onError, onDone));

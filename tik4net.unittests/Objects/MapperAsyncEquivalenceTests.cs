@@ -11,7 +11,7 @@ using tik4net.Testing;
 namespace tik4net.unittests.Objects
 {
     /// <summary>
-    /// Covers the Task-based mapper surface (A7) by the only property that matters for it: <b>a
+    /// Covers the Task-based mapper surface by the only property that matters for it: <b>a
     /// <c>*Async</c> method and its synchronous twin send the router exactly the same thing.</b>
     /// </summary>
     /// <remarks>

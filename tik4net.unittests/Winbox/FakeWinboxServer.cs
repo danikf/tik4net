@@ -10,7 +10,7 @@ namespace tik4net.unittests.Winbox
 {
     /// <summary>
     /// Minimal scripted WinBox M2 peer for loopback protocol tests — the WinBox counterpart of
-    /// <c>FakeRouterServer</c> (P1.7). It mirrors <see cref="WinboxTcpTransport"/>'s chunked framing from the
+    /// <c>FakeRouterServer</c>. It mirrors <see cref="WinboxTcpTransport"/>'s chunked framing from the
     /// server side and scripts the <b>legacy MD5</b> auth fallback, so tests can drive the real
     /// <see cref="WinboxM2Session.Open"/> with no production test seam and no EC-SRP5 crypto.
     /// </summary>

@@ -110,19 +110,19 @@ namespace tik4net.MacTelnet
         /// retransmitted duplicate be recognised as one.</summary>
         protected uint       _inCounter;          // cumulative DATA payload bytes received (for ACK + dedup)
 
-        // Outbound reliability (P2.19). The MAC layer is UDP with no delivery guarantee, and RouterOS
+        // Outbound reliability. The MAC layer is UDP with no delivery guarantee, and RouterOS
         // answers a DATA packet with an ACK whose counter is the offset PAST it (send 148+7 -> ack 155).
         // We used to discard every ACK and never resend, so a lost outbound datagram was unrecoverable:
         // the router waits for bytes that never arrive, we wait for a reply that cannot come.
         //
-        // NOTE, so this is not mis-read as a cure: retransmission does NOT fix the P2.19 suite wedge.
+        // NOTE, so this is not mis-read as a cure: retransmission does NOT fix the MAC-layer suite wedge.
         // Measured - at the wedge the router re-ACKs the offset BEFORE our command and then ignores 8
         // byte-identical resends, and the failure is deterministic across runs (same test, same point),
         // which loss is not. Whatever stops the router consuming our stream there is still unidentified.
         // This stays because the ACK is a real signal we were throwing away and a genuinely lost packet
         // must be recoverable; it is not the answer to the wedge.
         //
-        // A QUEUE, not one slot (P2.42). While every caller was lockstep, one outstanding DATA packet at a
+        // A QUEUE, not one slot. While every caller was lockstep, one outstanding DATA packet at a
         // time was all there could be, so holding only the most recent one was enough. A multiplexed channel
         // has several requests in flight, and the counter is a CUMULATIVE byte offset: if the first packet is
         // lost and the second arrives, the router can acknowledge neither — the stream has a hole — and the
@@ -573,7 +573,7 @@ namespace tik4net.MacTelnet
             // The session's whole identity in one line, so a trace of a full suite run can be asked which
             // sessions were alive at once and whether any two shared a key. The router distinguishes
             // concurrent sessions from one host by this 16-bit key alone, and it is drawn at random per
-            // open — with hundreds of sessions in a suite run a birthday collision is not exotic (P2.55).
+            // open — with hundreds of sessions in a suite run a birthday collision is not exotic.
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
                     "SESSION OPEN key=0x" + _sessionKey.ToString("x4")
@@ -629,7 +629,7 @@ namespace tik4net.MacTelnet
                 // Traced because this is the inbound half of a stall and it is otherwise invisible: we drop
                 // the packet, hold the ACK where it was, and depend entirely on the ROUTER resending the
                 // missing bytes. If it does not, every read from here on times out with nothing to show for
-                // it, and the trace looks merely quiet rather than blocked (P2.49).
+                // it, and the trace looks merely quiet rather than blocked.
                 if (Diagnostics.TikWireTrace.Enabled)
                     Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
                         "HOLE counter=" + counter + " expected=" + _inCounter
@@ -647,7 +647,7 @@ namespace tik4net.MacTelnet
 
             // A duplicate/retransmit: re-ACK the HIGH-WATER MARK, never the duplicate's own end offset.
             // The latter regresses the ACK below what we already hold, and the router answers a
-            // regressed ACK by retransmitting - the 7-in-a-row burst the P2.19 trace caught sitting on
+            // regressed ACK by retransmitting - the 7-in-a-row burst a suite-wedge trace caught sitting on
             // top of one of the two wedges.
             if (counter < _inCounter)
             {
@@ -1173,7 +1173,7 @@ namespace tik4net.MacTelnet
 
             // The counter belongs in the note: it is the stream offset this packet claims, and the
             // router's ACK counter is what it must be compared against. Without it the trace cannot
-            // answer "did the router acknowledge everything we sent" (P2.19).
+            // answer "did the router acknowledge everything we sent".
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
                     payload, 0, payload?.Length ?? 0,
@@ -1182,8 +1182,8 @@ namespace tik4net.MacTelnet
             if (type == PKT_DATA && payload != null && payload.Length > 0)
             {
                 _outCounter += (uint)payload.Length;
-                // Hold it for retransmission until the router's ACK reaches past it (P2.19). Appended, not
-                // replaced, so a concurrent sender cannot drop someone else's still-unacked packet (P2.42).
+                // Hold it for retransmission until the router's ACK reaches past it. Appended, not
+                // replaced, so a concurrent sender cannot drop someone else's still-unacked packet.
                 if (_unacked.Count == 0)
                     _retransmits = 0;   // fresh head; earlier entries keep the budget already spent on them
                 if (_unacked.Count < MaxUnackedTracked)
@@ -1219,7 +1219,7 @@ namespace tik4net.MacTelnet
 
             // Traced because a regressing ACK cannot be seen from the receive side alone - the router's
             // reaction (a retransmit burst) reads as router misbehaviour until you can see what we told
-            // it (P2.19).
+            // it.
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
                     "type=0x02 ack=" + ackCounter + TraceTag);
@@ -1266,8 +1266,8 @@ namespace tik4net.MacTelnet
                     // Sleeping rather than waiting on the socket costs up to 20 ms per received frame,
                     // which is a real drag on terminal traffic — but replacing it with
                     // Socket.Poll(20 ms, SelectRead) only recovered ~15% of a WinboxCliMac run, so the
-                    // bulk of the cost is elsewhere. Measured while diagnosing P2.41; left alone
-                    // deliberately, see P2.43.
+                    // bulk of the cost is elsewhere. Measured while diagnosing the WinBox handshake failures;
+                    // left alone deliberately.
                     Thread.Sleep(20);
                 }
             }
@@ -1373,7 +1373,7 @@ namespace tik4net.MacTelnet
             // Counterpart of the Send emit above. Without it the trace shows only our half of
             // the conversation, so an exchange that goes wrong (a missing reply, a packet type
             // arriving where another was expected) is indistinguishable from one that never
-            // happened — which is precisely what made the WinBox handshake failures of P2.41
+            // happened — which is precisely what made the WinBox handshake failures
             // undiagnosable.
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,

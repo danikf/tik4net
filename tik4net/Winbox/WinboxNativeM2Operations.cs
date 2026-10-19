@@ -159,7 +159,7 @@ namespace tik4net.Winbox
 
         // Pre-multiplexing path: used during connect/auth/init on every transport, and for the whole lifetime
         // of any channel that cannot run a reader loop (IWinboxM2Channel.SupportsReaderLoop). Both native
-        // transports multiplex after init — the MAC one since P2.42.
+        // transports multiplex after init, the MAC one included.
         private byte[] LockstepSendReceive(byte[] request)
         {
             // Discard any frame already buffered on the shared channel before issuing a synchronous
@@ -284,7 +284,7 @@ namespace tik4net.Winbox
                 }
                 catch (TikConnectionReceiveTimeoutException ex)
                 {
-                    // A13. The multiplexer can only name the request id and what the CHANNEL has been doing;
+                    // The multiplexer can only name the request id and what the CHANNEL has been doing;
                     // how much of the TABLE had already arrived lives here, in the cursor loop, and it is
                     // what separates the two explanations. Pages already read means the read was working and
                     // this table is simply bigger than the deadline (the fix is a longer one, or filtering

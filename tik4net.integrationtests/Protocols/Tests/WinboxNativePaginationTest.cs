@@ -1,7 +1,7 @@
-﻿// WinboxNativePaginationTest.cs — P2.9: live proof that a MULTI-PAGE getall over WinBox native
+﻿// WinboxNativePaginationTest.cs — live proof that a MULTI-PAGE getall over WinBox native
 // returns every page, and a report of which continuation key the router actually used.
 //
-// The deterministic side of P2.9 lives in tik4net.unittests (WinboxM2PaginationTests, scripted peer).
+// The deterministic side lives in tik4net.unittests (WinboxM2PaginationTests, scripted peer).
 // This is the other half: the unit tests prove we follow a cursor a peer hands us, this proves the
 // live router's own paging still comes back whole through the same code.
 //
@@ -31,8 +31,8 @@ namespace tik4net.integrationtests
         /// <summary>
         /// Reads <c>/log</c> over WinBox native and over the binary API and compares the counts. The API is
         /// the reference implementation and does not page at all, so a native read that stops at its first
-        /// page shows up as a count far below it — which is exactly the failure P2.9 describes and which a
-        /// "did it throw?" test cannot see.
+        /// page shows up as a count far below it — which is exactly the failure a read that stops at one page has and
+        /// which a "did it throw?" test cannot see.
         /// </summary>
         [TestMethod]
         public void Native_PagedRead_ReturnsEveryPage()

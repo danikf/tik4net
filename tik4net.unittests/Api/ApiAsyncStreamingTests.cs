@@ -10,8 +10,7 @@ using tik4net.Api;
 namespace tik4net.unittests.Api
 {
     /// <summary>
-    /// The <see cref="IAsyncEnumerable{T}"/> form of the two bounded streaming reads (D4, carrying P2.4's
-    /// deferred half), against a scripted router.
+    /// The <see cref="IAsyncEnumerable{T}"/> form of the two bounded streaming reads, against a scripted router.
     /// </summary>
     /// <remarks>
     /// The synchronous siblings collect every row into a list and hand it over when the read ends, so a

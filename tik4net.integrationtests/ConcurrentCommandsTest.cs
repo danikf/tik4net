@@ -55,7 +55,7 @@ namespace tik4net.integrationtests
             // connection usage"). Without it concurrent sync commands on one API connection genuinely
             // cross-deliver rows — measured here as '.id' and 'address' words turning up in the wrong
             // caller's sentence. It is not a transport defect, it is the default this suite has to opt out
-            // of; P4.5 plans to flip it. The other transports correlate by their own means and do not
+            // of. The other transports correlate by their own means and do not
             // implement ITikTaggedConnection at all, which is why this is a test rather than an assignment.
             if (Connection is ITikTaggedConnection tagged)
                 tagged.SendTagWithSyncCommand = true;
@@ -99,7 +99,7 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// The other half of the concurrency contract (A8): the transports that are <b>allowed</b> to
+        /// The other half of the concurrency contract: the transports that are <b>allowed</b> to
         /// serialize must still be <b>safe</b> to call from several threads.
         /// </summary>
         /// <remarks>

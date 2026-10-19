@@ -406,8 +406,8 @@ namespace tik4net.Cli
             if (wantJson && _host.Knowledge.Features.SerializeJson == null)
             {
                 // The plain form worked where the wrapped one did not: RouterOS < 7.13. Say so — a
-                // connection reading free-text fields through as-value can silently shred them (P2.17),
-                // and a degradation nobody can observe is the P2.23/P2.25 failure mode.
+                // connection reading free-text fields through as-value can silently shred them,
+                // and a degradation nobody can observe returns wrong data instead of an error.
                 _host.Knowledge.Features.SerializeJson = false;
                 TikWireTrace.Emit("cli.json", TikWireDir.Note,
                     "router does not support ':serialize' (pre-7.13) — falling back to as-value for the "

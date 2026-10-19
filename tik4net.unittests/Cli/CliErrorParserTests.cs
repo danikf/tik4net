@@ -5,7 +5,7 @@ using tik4net.Testing;
 namespace tik4net.unittests.Cli
 {
     /// <summary>
-    /// Covers the CLI error detection that P2.12 was about: RouterOS has no structural error channel over a
+    /// Covers the CLI error detection by position: RouterOS has no structural error channel over a
     /// terminal — output and errors are the same text — so a phrase list can never be complete, and every
     /// phrase it misses used to be reported to the caller as <b>success</b>.
     ///

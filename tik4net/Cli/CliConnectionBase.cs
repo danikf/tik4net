@@ -24,7 +24,7 @@ namespace tik4net.Cli
     /// building, per open attempt, a terminal (<c>ICliTerminal</c>: one of the four terminal clients, or a
     /// <c>ReconnectingCliTerminal</c> around one) with its login, and calling <c>OpenTerminal</c> /
     /// <c>OpenTerminalAsync</c>; it names itself through <c>TransportName</c> (shown in the "not open" diagnostic).
-    /// <see cref="TikConnectionBase.Close"/> and the not-open guards are provided by this base (R6).
+    /// <see cref="TikConnectionBase.Close"/> and the not-open guards are provided by this base.
     ///
     /// The text a terminal returns for a command must already have ANSI escape sequences stripped
     /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
@@ -834,7 +834,7 @@ namespace tik4net.Cli
         // ── CRUD hooks — CLI text build + parse ────────────────────────────────
         //
         // The terminal clients are async to the socket, so the Task-based hooks are the real implementation
-        // here and the synchronous ones block on them (D5: async is the primitive; nothing is pushed onto a
+        // here and the synchronous ones block on them (async is the primitive; nothing is pushed onto a
         // thread-pool thread to look asynchronous). Every await below carries ConfigureAwait(false), which is
         // also what keeps the blocking wrappers safe to call from a UI / ASP.NET-classic SynchronizationContext.
 
@@ -895,7 +895,7 @@ namespace tik4net.Cli
             // Action verbs (e.g. /system/script/run) perform an action and produce no result set over a
             // terminal (no per-record !re output, unlike the binary API) — they belong on the non-query
             // path. Reject them on the read path so the misuse is explicit instead of silently returning an
-            // empty list (R7); invoke them via ExecuteNonQuery (RunNonQuery handles the 'run' verb).
+            // empty list; invoke them via ExecuteNonQuery (RunNonQuery handles the 'run' verb).
             string printVerb = TikPath.Verb(descriptor.CommandText);
             if (IsActionVerb(printVerb))
                 throw ActionVerbOnReadPath(descriptor.CommandText);
@@ -918,7 +918,7 @@ namespace tik4net.Cli
                 string actionOutput = await ExecuteCliCommandAsync(actionText, cancellationToken).ConfigureAwait(false);
                 // An empty-row action (wol) is silent when it succeeds and prints its complaint when it does
                 // not — e.g. "input does not match any value of interface", which no phrase list caught, so
-                // WolWithInvalidInterfaceWillFail saw a failed send reported as success (P2.12).
+                // WolWithInvalidInterfaceWillFail saw a failed send reported as success.
                 CliErrorParser.ThrowIfError(actionOutput, CommandFor(descriptor), silentOnSuccess: true);
                 return new List<TikRecordSentence>();
             }
@@ -926,7 +926,7 @@ namespace tik4net.Cli
             // Monitor commands (/ping, /tool/traceroute, /interface/monitor-traffic, …) reached through a READ
             // method. Their parameters are the command's own INPUTS, but BuildPrint only understands print
             // modifiers and a 'where' clause, so it dropped every one of them: '/ping =address=127.0.0.1
-            // =count=2' went out as ':put [/ping as-value]' → "failure: resolve failed" (P2.51). The async path
+            // =count=2' went out as ':put [/ping as-value]' → "failure: resolve failed". The async path
             // never had the bug — it has always used BuildMonitorSnapshot, which is what is used here too.
             if (CliMonitorVerbs.IsSyncMonitorVerb(printVerb))
                 return await RunMonitorSnapshotAsync(descriptor, printVerb, cancellationToken).ConfigureAwait(false);
@@ -1588,7 +1588,7 @@ namespace tik4net.Cli
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             // set/remove/enable/disable/move/unset print nothing when they succeed, so anything left after
             // echo/prompt trimming is the router rejecting the command — catch it by position rather than
-            // by phrase, or it is reported to the caller as success (P2.12).
+            // by phrase, or it is reported to the caller as success.
             CliErrorParser.ThrowIfError(output, CommandFor(descriptor),
                 silentOnSuccess: CliErrorParser.IsSilentOnSuccessVerb(verb));
         }

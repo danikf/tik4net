@@ -1624,7 +1624,7 @@ without resolving it the field read as `2` where the API prints `ether1`.
 
 **A wrapper is not a value.** `{type:'not',id:'b1',c:[…]}` carries an id of its own, so a rule that reads
 "the element has an id, that is where the value goes" writes the caller's number into the NEGATION FLAG
-and drops the value — which is the shape of P2.33, a firewall address that reached the router as a rule
+and drops the value — the shape of a firewall address that reached the router as a rule
 matching everything. The wrapper is therefore UNWRAPPED — the inner node is the element, and the wrapper's
 id is remembered as a flag key — and a single leaf is only taken as the value when its type is on a
 **whitelist** of value types.

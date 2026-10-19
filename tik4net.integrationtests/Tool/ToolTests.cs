@@ -21,7 +21,7 @@ namespace tik4net.integrationtests
         /// <remarks>
         /// This used to gate on <c>Streaming</c>, which only the binary API reports — so it was Inconclusive on
         /// ten of eleven transports, and the whole synchronous monitor path had no coverage at all. What that
-        /// hid (P2.51): the CLI family sent <c>:put [/ping as-value]</c> with every parameter dropped, REST
+        /// hid: the CLI family sent <c>:put [/ping as-value]</c> with every parameter dropped, REST
         /// posted <c>/ping/print</c> ("no such command"), and native WinBox ran a getall on a monitor window
         /// and returned zero rows while reporting success. <c>ToolPing.Execute</c> never needed
         /// <c>Streaming</c>: it does not stream, it asks for a bounded count and waits.
@@ -65,14 +65,14 @@ namespace tik4net.integrationtests
         /// </summary>
         /// <remarks>
         /// <para>
-        /// P2.45: over both native WinBox transports this delivered exactly 5 rows at ~4 s and then went
+        /// Over both native WinBox transports this delivered exactly 5 rows at ~4 s and then went
         /// silent for good — no exception, no completion. A <c>type:'query'</c> monitor is ONE getall pass in
         /// which the router blocks each continuation until the next record exists, and the poll had a
         /// 4-second budget: it abandoned the pass mid-stream, lost the continuation cursor, and every
         /// subsequent poll started a fresh getall that the router answered "no more rows".
         /// </para>
         /// <para>
-        /// P2.50: the same assertion then failed on all five CLI transports, for an unrelated reason — the
+        /// The same assertion then failed on all five CLI transports, for an unrelated reason — the
         /// monitor was issued as <c>:put [/ping … as-value]</c>, which hands <c>:put</c> a completed array,
         /// so RouterOS printed nothing until the whole ping had finished (0 rows for 20 s, then all 20).
         /// They now send the bare interactive form, which the router streams a row at a time.
@@ -91,7 +91,7 @@ namespace tik4net.integrationtests
             EnsureCapability(TikConnectionCapability.Listen, "async ping");
             const string HOST = "127.0.0.1";
             const int COUNT = 12;      // must outlast the observation window, so a short ping cannot pass by ending
-            // The defect stopped the stream at 5 rows, ~4 s in (P2.45). Seven rows are past that cut-off; the old
+            // The defect stopped the stream at 5 rows, ~4 s in. Seven rows are past that cut-off; the old
             // fixed windows (5 s + 5 s) are the budget, so a stream that stops still fails the same assertions.
             const int PastTheCutOff = 7;
 
@@ -229,7 +229,7 @@ namespace tik4net.integrationtests
         /// <remarks>
         /// No <c>Streaming</c> gate: on a transport without it <c>ExecuteListUntilDone</c> falls back to
         /// <c>ExecuteList()</c>, which is exactly what this asserts. See <see cref="PingLocalhostWillNotFail"/>
-        /// for what the gate was hiding (P2.51).
+        /// for what the gate was hiding.
         /// </remarks>
         [TestMethod]
         public void ExecuteListUntilDone_Traceroute_ReturnsResults()
@@ -319,7 +319,7 @@ namespace tik4net.integrationtests
             var result = ToolTraceroute.Execute(Connection, IP);
             Assert.IsTrue(result.Count() > 0);
             // The hop ADDRESS, not just the row count: over WinBox native the hop rode in a nested field the
-            // M2 parser could not read, so the rows arrived complete but with a blank address (P2.52).
+            // M2 parser could not read, so the rows arrived complete but with a blank address.
             Assert.AreEqual(IP, result.First().Address, "a hop must name the host that answered");
         }
 
@@ -357,7 +357,8 @@ namespace tik4net.integrationtests
         /// a terminal that is past the 30 s default <c>ReceiveTimeout</c> — which a CLI transport fixes at
         /// Open, so a test cannot raise it afterwards. Bounding the walk keeps what the test is actually
         /// about (an unreachable target answers with rows, not a trap) and costs ~5 s on every transport.
-        /// It only ever ran on the binary API before P2.51, which is why the duration never showed up.
+        /// It only ever ran on the binary API before the sync monitors were fixed, which is why the duration never
+        /// showed up.
         /// </remarks>
         [TestMethod]
         public void TracerouteUnreachableAddressWillNotFail()

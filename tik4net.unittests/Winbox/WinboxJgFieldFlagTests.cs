@@ -5,7 +5,7 @@ namespace tik4net.unittests.Winbox
 {
     /// <summary>
     /// Field flags read out of a <c>.jg</c> window, in particular that a flag on a WRAPPED field is not lost
-    /// when the <c>opt</c>/<c>not</c> layers are flattened away (P2.33).
+    /// when the <c>opt</c>/<c>not</c> layers are flattened away.
     /// </summary>
     /// <remarks>
     /// The catalog has two places that build a field: the plain path, and <c>AddOptionField</c>, which drills

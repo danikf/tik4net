@@ -1,4 +1,4 @@
-// WinboxWindowScopeAndListWriteTests.cs — router-free tests for the two A4 defects.
+// WinboxWindowScopeAndListWriteTests.cs — router-free tests for two defects.
 //
 // (1) Two unrelated windows share one M2 handler and number their fields from scratch, so the merged
 //     per-handler map answers the FIRST window's name for a key the second one also owns. Live symptom:

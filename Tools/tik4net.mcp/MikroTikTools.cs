@@ -820,7 +820,7 @@ public sealed class MikroTikTools
     // ── Router-log correlation (includeRouterLog) ────────────────────────────────
     // The window is captured over a dedicated binary-API connection (TCP 8728), deliberately NOT the
     // transport under test: reading /log over a wedged mepty session would just hang, and injecting print
-    // commands into the very stream being traced would corrupt it (the P2.13 contamination lesson). The
+    // commands into the very stream being traced would corrupt it. The
     // window is an .id-diff — the newest log .id before the command, everything after it — which is exact
     // and independent of the router's log time format (which varies with /system/logging settings).
 

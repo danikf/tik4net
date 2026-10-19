@@ -50,7 +50,7 @@ namespace tik4net.Cli
             int start = 0;
             int end   = lines.Length - 1;
 
-            // Anchor the response on OUR OWN echo, and throw away anything that precedes it (P2.47).
+            // Anchor the response on OUR OWN echo, and throw away anything that precedes it.
             //
             // Every read here is terminated by a prompt that has been silent for a settle window, and the
             // pre-send drain that clears the leftovers is gated on DataAvailable at one instant — so a tail
@@ -94,7 +94,7 @@ namespace tik4net.Cli
                 // every command that starts with a slash (i.e. all of set/remove/enable/disable/move) the
                 // two never matched and the echo survived into the "output". That was invisible for as
                 // long as nothing read meaning into leftover text; it becomes a false error the moment a
-                // silent-on-success verb treats residue as a failure (P2.12).
+                // silent-on-success verb treats residue as a failure.
                 string lineCore = line.TrimStart('/');
                 bool isEcho =
                     IsPromptPrefixed(line)
@@ -102,7 +102,7 @@ namespace tik4net.Cli
                     // ahead of the echo — the router writes it whenever it is emitted, not where it fits.
                     // Without this it is the first line that looks like data, so the loop stopped here and
                     // the command echo behind it survived into the output: a read got the echo prepended to
-                    // its first record, and a silent-on-success write got a non-empty "output" that P2.12's
+                    // its first record, and a silent-on-success write got a non-empty "output" that the
                     // positional rule reads as the router rejecting it. The join below already discards log
                     // lines, so skipping them here loses nothing it did not already lose.
                     || IsRouterLogLine(line)
@@ -121,7 +121,7 @@ namespace tik4net.Cli
             // Removing only the last one left the FIRST prompt inside the data: CliOutputParser turns
             // newlines into ';' field separators, "[admin@CHR] >" carries no '=', and it was appended to the
             // preceding field as a multi-value continuation — the read-back of an interface-list member came
-            // out as "t4n-test-926b98b7,[admin@CHR] >" (P2.29). Silent-on-success verbs were never affected,
+            // out as "t4n-test-926b98b7,[admin@CHR] >". Silent-on-success verbs were never affected,
             // which is why this hid: with no data line the echo loop above (which treats any prompt-bearing
             // line as noise) consumes the whole response, so the residue only survives when there IS output.
             while (end >= start)
@@ -151,7 +151,7 @@ namespace tik4net.Cli
                 // `critical` topics to the console, so this happens on a stock router, not just a lab one.
                 // Such a line is unrelated to the command that happens to be running, and leaving it in
                 // corrupts whatever consumes the output: it shredded an as-value parse into
-                // "Missing field '.id'", and under P2.12 it would be read as the router rejecting a write.
+                // "Missing field '.id'", and the positional rule would read it as the router rejecting a write.
                 // Recognised by the leading wall-clock stamp, which no as-value record and no RouterOS
                 // diagnostic ever starts with.
                 if (IsRouterLogLine(lines[i])) continue;

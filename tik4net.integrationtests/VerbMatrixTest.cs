@@ -361,7 +361,7 @@ namespace tik4net.integrationtests
             Assert.IsNull(ReadByComment(comment), "remove reported success but the rule is still on the router");
         }
 
-        // ── asking a silent write for a value (P2.34) ─────────────────────────
+        // ── asking a silent write for a value ─────────────────────────
 
         /// <summary>
         /// Every verb above answers with nothing when it succeeds. Asking such a command for a scalar used to
@@ -433,7 +433,7 @@ namespace tik4net.integrationtests
         /// FIELD VALUES — not merely the same rows.
         /// </summary>
         /// <remarks>
-        /// P2.33: WinBox native rendered <c>src-address=192.0.2.74</c> as <c>192.0.2.74/6</c>, because the
+        /// WinBox native rendered <c>src-address=192.0.2.74</c> as <c>192.0.2.74/6</c>, because the
         /// range-END sibling of a <c>range:1</c> network field was being bit-counted as a netmask. Nothing in
         /// the suite compared a value ACROSS transports, so eleven green runs said nothing about the eleven
         /// answers agreeing. The three forms below are the three the router renders (host / CIDR block /

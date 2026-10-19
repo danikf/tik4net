@@ -11,7 +11,7 @@ namespace tik4net.unittests.Cli
     /// <c>/ping</c>, <c>/tool/traceroute</c>, <c>/interface/monitor-traffic</c>) is turned into CLI text.
     /// </summary>
     /// <remarks>
-    /// P2.51: it used to go to <c>BuildPrint</c>, which understands print modifiers and a <c>where</c> clause
+    /// It used to go to <c>BuildPrint</c>, which understands print modifiers and a <c>where</c> clause
     /// and nothing else — so every input was dropped. Measured on 7.23.2 over Telnet, <c>/ping</c> with
     /// <c>=address=127.0.0.1 =count=2</c> went out as <c>:put [/ping as-value]</c> and the router answered
     /// <c>failure: resolve failed</c>; <c>/interface/monitor-traffic</c> with <c>=interface=ether1</c> went out

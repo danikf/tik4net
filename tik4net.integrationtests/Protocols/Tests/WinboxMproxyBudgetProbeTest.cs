@@ -1,11 +1,11 @@
 ﻿// WinboxMproxyBudgetProbeTest.cs — does mproxy really degrade under load, or were we reading the
-// channel out of step? (P2.20, re-opened by P2.40)
+// channel out of step?
 //
-// P2.20 is written as ROUTER-side behaviour: "mproxy degrades under back-to-back M2 sessions and stays
+// The earlier finding is written as ROUTER-side behaviour: "mproxy degrades under back-to-back M2 sessions and stays
 // degraded", concluded from probes that observed 56 opens / 1.54 MB on one channel before it stopped
 // answering, with the degradation outliving the TCP connection. Every one of those observations was made
 // through WinboxM2Client, whose SendRecvEncrypted was a bare `send; recv` with no request-id correlation
-// — precisely the construct P2.22 proved wrong once already, where "the MAC transport is lossy" turned
+// — precisely the construct already proved wrong once, where "the MAC transport is lossy" turned
 // out to be our own uncorrelated read shifting every reply by one. The correlation now exists in this
 // client, so these probes re-measure the same ground with an instrument that can tell its own reply from
 // somebody else's.
@@ -15,7 +15,7 @@
 // pre-correlation client WAS returning the wrong frame to its caller, and every conclusion drawn from it
 // about the router has to be re-derived.
 //
-// Measured 2026-07-28, RouterOS 7.23.2 CHR, correlation on — both of P2.20's claims came out false, and
+// Measured 2026-07-28, RouterOS 7.23.2 CHR, correlation on — both of its claims came out false, and
 // the correlation was not why:
 //   • not a budget — one channel took 74 opens / 6 838 567 B in 55 s and answered `list` afterwards; the
 //     failures that do happen land at no consistent offset (0 B, 542 KB, 1.48 MB, 2.68 MB)
@@ -24,7 +24,7 @@
 //   • what DOES die is the one channel, permanently: after a failure the same socket will not return a
 //     26-byte `list` at +0 s or +15 s
 //   • drained=0 / skipped=0 in every run, failures included — the uncorrelated client was never reading
-//     off by one here, so P2.22's mechanism does not apply to the mproxy path
+//     off by one here, so that mechanism does not apply to the mproxy path
 //   • the failure is `timeout with 0/2 B in hand` — not one byte of the chunk header arrives, so it is not
 //     our framing desyncing after a partial read
 //   • slow is not dead: roteros.jg normally reads in 7.7 s but took 23.2 s once and still completed; a
@@ -61,7 +61,7 @@ namespace tik4net.integrationtests
             return client;
         }
 
-        // Only the resolved '<unique>.gz' name is openable (P2.18), so the probe reads what the router
+        // Only the resolved '<unique>.gz' name is openable, so the probe reads what the router
         // itself advertises rather than a guessed filename — a refusal must mean load, not a bad request.
         private static List<CatalogEntry> JgEntries(WinboxM2Client client) =>
             WinboxM2Client.ParseCatalog(client.ReadListCatalog())
@@ -69,14 +69,14 @@ namespace tik4net.integrationtests
                 .ToList();
 
         /// <summary>
-        /// Probe A — how far one channel goes. P2.20's headline observation was that a single channel does
+        /// Probe A — how far one channel goes. The earlier headline observation was that a single channel does
         /// not survive unbounded file reads (56 opens / 1.54 MB). Repeat that with correlation on, reading
         /// the whole advertised plugin set round and round until the router refuses or a cap is hit.
         /// </summary>
         [TestMethod]
         public void Probe_MproxyByteBudget_OnOneChannel()
         {
-            const int MaxOpens = 120;      // ~2x the 56 opens P2.20 recorded before it wedged
+            const int MaxOpens = 120;      // ~2x the 56 opens recorded before it wedged
             const long MaxBytes = 6L << 20; // ~4x the 1.54 MB
             long bytes = 0;
             int opens = 0, rounds = 0;
@@ -126,7 +126,7 @@ namespace tik4net.integrationtests
                 Console.WriteLine($"stale frames: drained={client.StaleFramesDrained} skipped={client.StaleFramesSkipped}");
 
                 // Whatever happened above, is the channel still usable, and does it come back if left alone?
-                // P2.20 says a wedged channel stays wedged; recovery after a pause is a different animal
+                // The earlier finding says a wedged channel stays wedged; recovery after a pause is a different animal
                 // from a channel that is simply gone.
                 for (int wait = 0; wait <= 15; wait += 15)
                 {
@@ -220,7 +220,7 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// Probe B — back-to-back M2 sessions, the trigger P2.40 says the faster suite now hits. Each
+        /// Probe B — back-to-back M2 sessions, the trigger the faster suite was suspected of hitting. Each
         /// iteration is a full connect / list / fetch-everything / disconnect, with no pause, so any
         /// degradation that outlives the TCP connection shows up as a later iteration resolving fewer
         /// plugins or none.

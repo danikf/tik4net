@@ -8,7 +8,7 @@ using tik4net.Winbox;
 namespace tik4net.unittests.Winbox
 {
     /// <summary>
-    /// G1: a WinBox-MAC M2 session that RouterOS logged out during an idle stretch is <b>silent</b>, not
+    /// A WinBox-MAC M2 session that RouterOS logged out during an idle stretch is <b>silent</b>, not
     /// closed — the UDP socket stays open and nothing answers. The carrier knows
     /// (<see cref="IWinboxM2Channel.SendAbandoned"/>: it retransmitted the request to exhaustion and was
     /// never acknowledged), and the multiplexer must ask rather than wait out the full

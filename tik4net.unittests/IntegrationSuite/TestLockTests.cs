@@ -156,7 +156,7 @@ namespace tik4net.unittests.IntegrationSuite
 
         /// <summary>
         /// The router that is one run's RoMON target and the other run's agent is held exclusive by the first and shared
-        /// by the second, from TestInitialize on, so the two runs' relay tests never overlap there (X24).
+        /// by the second, from TestInitialize on, so the two runs' relay tests never overlap there.
         /// </summary>
         [TestMethod]
         public void TwoRunsRelayTestsExcludeEachOtherOnTheRouterTheyShare()

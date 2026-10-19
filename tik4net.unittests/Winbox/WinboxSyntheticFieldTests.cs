@@ -1,4 +1,4 @@
-// WinboxSyntheticFieldTests.cs — G10: fields the ROUTER sends that no .jg window names.
+// WinboxSyntheticFieldTests.cs — fields the ROUTER sends that no .jg window names.
 //
 // The path-map audit recorded /system/health's `state` and `state-after-reboot` as "API-only fields with no
 // WinBox equivalent". They are not. A getall on [24,14] answers `0x8=bool:False 0x9=bool:True` against the
@@ -88,7 +88,7 @@ namespace tik4net.unittests.Winbox
         /// <summary>
         /// The write must go out as a BOOL. The static-enum encoder emitted a u32 for every mapped value,
         /// and a u32 written to a bool key is a request the router accepts, answers, and ignores — the same
-        /// silent shape as G4's interval write.
+        /// silent shape as an interval written as a bare number.
         /// </summary>
         [TestMethod]
         public void AMappedValueOverABoolKeyIsWrittenAsABool()
@@ -114,7 +114,7 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>
-        /// G8(c), the write side: an EXACT match wins over a case-insensitive one.
+        /// The write side of the enum label case: an EXACT match wins over a case-insensitive one.
         /// </summary>
         /// <remarks>
         /// Matching case-insensitively in one pass returns whichever member comes FIRST, so on a map that

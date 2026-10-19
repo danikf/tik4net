@@ -1,4 +1,4 @@
-// WinboxKeyCollisionAndCompoundDecodeTests.cs — router-free tests for the last A11 decode classes: a key
+// WinboxKeyCollisionAndCompoundDecodeTests.cs — router-free tests for the last decode classes: a key
 // two fields share, a list element that is a union or a tuple, a `multibits` bitmask, an `enm` carrying a
 // unit postfix, an address the API prints joined to its port, and a name two windows on one handler claim.
 //

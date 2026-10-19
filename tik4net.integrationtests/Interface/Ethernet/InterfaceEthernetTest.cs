@@ -43,7 +43,7 @@ namespace tik4net.integrationtests
 
 
         /// <summary>
-        /// G3.3: <c>auto-negotiation</c> must be the SETTING on every transport.
+        /// <c>auto-negotiation</c> must be the SETTING on every transport.
         /// </summary>
         /// <remarks>
         /// The WinBox ethernet window carries two fields the .jg labels 'Auto Negotiation': the writable
@@ -82,9 +82,9 @@ namespace tik4net.integrationtests
 
 
         /// <summary>
-        /// The other half of G3.3: the name must resolve to the WRITABLE field, not just decode from the
-        /// right one. Toggled and verified through the binary API, because a write that lands on the
-        /// read-only status field is one the router accepts, answers, and ignores (see G4).
+        /// The other half of the auto-negotiation read: the name must resolve to the WRITABLE field, not just decode
+        /// from the right one. Toggled and verified through the binary API, because a write that lands on the
+        /// read-only status field is one the router accepts, answers, and ignores.
         /// </summary>
         /// <remarks>
         /// The status field the alias moves aside is <c>ro:1</c> in the .jg; the setting (b3f3) is not.

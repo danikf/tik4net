@@ -13,7 +13,7 @@ namespace tik4net.unittests.WinboxCli
 {
     /// <summary>
     /// What <see cref="WinboxCliClient"/> does when the carrier reports that the router never took the
-    /// command's bytes (<see cref="IWinboxM2Channel.SendAbandoned"/>) — P2.54.
+    /// command's bytes (<see cref="IWinboxM2Channel.SendAbandoned"/>).
     /// <para>
     /// The defect being pinned is not that the read failed: it is that it failed <b>slowly and at the wrong
     /// layer</b>. A dropped MAC-layer console used to cost the caller the whole receive timeout and then
@@ -23,7 +23,7 @@ namespace tik4net.unittests.WinboxCli
     /// demonstrably has not taken our bytes, and ignored once it demonstrably has.
     /// </para>
     /// <para>
-    /// The same fake also carries the softer <see cref="IWinboxM2Channel.SendStalled"/> signal (P2.56) —
+    /// The same fake also carries the softer <see cref="IWinboxM2Channel.SendStalled"/> signal —
     /// same carrier, one step earlier, and about what the client may <em>send</em> rather than what it may
     /// report.
     /// </para>
@@ -173,7 +173,7 @@ namespace tik4net.unittests.WinboxCli
             }
         }
 
-        // ── Pull suppression while the carrier is blocked (P2.56) ─────────────
+        // ── Pull suppression while the carrier is blocked ─────────────
 
         /// <summary>
         /// The terminal fires an empty pull whenever nothing is buffered, which is right while the stream is

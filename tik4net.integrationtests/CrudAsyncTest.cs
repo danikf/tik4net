@@ -6,7 +6,7 @@ using tik4net.Objects;
 namespace tik4net.integrationtests
 {
     /// <summary>
-    /// The Task-based O/R mapper (A7) against a live router: <c>LoadAllAsync</c> / <c>LoadByIdAsync</c> /
+    /// The Task-based O/R mapper against a live router: <c>LoadAllAsync</c> / <c>LoadByIdAsync</c> /
     /// <c>SaveAsync</c> / <c>DeleteAsync</c>, on every transport that declares
     /// <see cref="TikConnectionCapability.AsyncCommands"/> — which today is all of them.
     /// </summary>

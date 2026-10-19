@@ -1,4 +1,4 @@
-// EmptyResponseScalarTests.cs — P2.34: "the command returned nothing" must not be reported as
+// EmptyResponseScalarTests.cs — "the command returned nothing" must not be reported as
 // "no such item".
 //
 // A successful write prints nothing: over the CLI a set/unset/remove/enable/comment echoes an empty

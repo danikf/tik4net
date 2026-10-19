@@ -7,7 +7,7 @@ using tik4net.Api;
 
 namespace tik4net.unittests.Api
 {
-    // Loopback fake-router protocol tests for ApiConnection (P1.7 in ARCHITECTUREIMPROVEMENTPLAN.md).
+    // Loopback fake-router protocol tests for ApiConnection.
     // A scripted TcpListener (FakeRouterServer) plays the router side of the binary API wire protocol
     // so these run deterministically, router-free, in CI — unlike tik4net.integrationtests, which
     // needs a live device.

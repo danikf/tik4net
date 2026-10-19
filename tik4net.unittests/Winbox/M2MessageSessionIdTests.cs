@@ -8,8 +8,8 @@ namespace tik4net.unittests.Winbox
     /// Pins <see cref="M2Message.TryParseSessionId"/>, which the WinBox-CLI reader uses to decide whether an
     /// arriving mepty frame belongs to the terminal it is driving. Getting this wrong is not cosmetic: a
     /// foreign session's bytes entering the buffer corrupt the response and get counted into the per-session
-    /// byte acknowledgement (see the P2.13c note), and a frame that carries no SESSION_ID at all must stay
-    /// acceptable rather than being silently discarded.
+    /// byte acknowledgement (<c>Docs/findings-mepty-byte-ack-history.md</c>), and a frame that carries no SESSION_ID at
+    /// all must stay acceptable rather than being silently discarded.
     /// </summary>
     [TestClass]
     public class M2MessageSessionIdTests

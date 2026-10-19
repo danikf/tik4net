@@ -6,7 +6,7 @@ namespace tik4net.unittests.Cli
     /// <summary>
     /// Prompt detection. A prompt shape we fail to recognise does not throw — the read loop simply never
     /// terminates early and returns whatever accumulated by the receive deadline — so this is exactly the
-    /// kind of defect that needs asserting rather than observing (P2.31).
+    /// kind of defect that needs asserting rather than observing.
     /// </summary>
     [TestClass]
     public class RouterOsCliLoginTests

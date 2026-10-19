@@ -6,7 +6,7 @@ using tik4net.Objects.Interface.Wireless;
 namespace tik4net.integrationtests
 {
     /// <summary>
-    /// G3.5: <c>/interface/wireless/sniffer</c> must read the sniffer's SETTINGS on every transport.
+    /// <c>/interface/wireless/sniffer</c> must read the sniffer's SETTINGS on every transport.
     /// </summary>
     /// <remarks>
     /// Two WinBox windows share handler [88,9]. The 'Wireless Sniffer' ACTION window is the running

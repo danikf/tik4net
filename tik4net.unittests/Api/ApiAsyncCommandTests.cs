@@ -9,7 +9,7 @@ using tik4net.Api;
 namespace tik4net.unittests.Api
 {
     /// <summary>
-    /// The Task-based command surface on the binary API (job B of the P2.1 design), against a scripted
+    /// The Task-based command surface on the binary API, against a scripted
     /// router.
     /// </summary>
     /// <remarks>

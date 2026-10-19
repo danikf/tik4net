@@ -9,7 +9,7 @@ namespace tik4net.unittests.Rest
 {
     /// <summary>
     /// Covers the bound that turns an open-ended RouterOS monitor into one reading, and REST's application
-    /// of it (P2.26).
+    /// of it.
     /// </summary>
     /// <remarks>
     /// This is the piece of the REST <c>Listen</c> emulation whose failure mode is invisible. RouterOS

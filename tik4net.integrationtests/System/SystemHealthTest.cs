@@ -7,7 +7,7 @@ using tik4net.Objects.System;
 namespace tik4net.integrationtests
 {
     /// <summary>
-    /// G10: <c>/system/health</c>'s two states must read on every transport, and write on every transport
+    /// <c>/system/health</c>'s two states must read on every transport, and write on every transport
     /// that can write at all.
     /// </summary>
     /// <remarks>
@@ -44,7 +44,7 @@ namespace tik4net.integrationtests
                 // 7.21.4. Kept bound to the actual error in case a future board/build regresses.
                 //
                 // The comment here used to add "state/state-after-reboot are API/CLI-only fields WinBox
-                // never exposes". That was wrong — see HealthStateAgreesWithTheApi below (G10).
+                // never exposes". That was wrong — see HealthStateAgreesWithTheApi below.
                 Assert.Inconclusive("/system/health is not readable over native WinBox M2: " + ex.Message);
             }
         }
@@ -71,7 +71,7 @@ namespace tik4net.integrationtests
 
         /// <summary>
         /// The write direction, toggled and verified through the API — a value written at the wrong wire
-        /// type is one the router accepts, answers, and ignores (G4).
+        /// type is one the router accepts, answers, and ignores.
         /// </summary>
         /// <remarks>
         /// <c>state</c> is read-only on the router itself: <c>/system/health set</c> tab-completes to

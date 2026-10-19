@@ -6,7 +6,7 @@ using tik4net.Objects.Routing;
 namespace tik4net.unittests.Objects
 {
     /// <summary>
-    /// G3.1: a field RouterOS stores as a valueless PRESENCE FLAG is reported by the binary API and REST as
+    /// A field RouterOS stores as a valueless PRESENCE FLAG is reported by the binary API and REST as
     /// <c>name=</c> — the word present, the value empty — and omitted entirely when the flag is clear.
     /// Parsed as an ordinary bool, that empty value is <c>false</c>, so the field read back as
     /// <c>false</c> whatever the router said.

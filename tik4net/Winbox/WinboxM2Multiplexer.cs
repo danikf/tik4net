@@ -233,7 +233,7 @@ namespace tik4net.Winbox
                 // so a timeout can never fire mid-frame and desynchronize the stream (design §4.2a).
                 //
                 // The race is run in slices rather than as one Task.Delay so the carrier can be asked, while
-                // the wait is still going, whether the session is gone (G1). Waiting the whole deadline out
+                // the wait is still going, whether the session is gone. Waiting the whole deadline out
                 // and then reporting "no reply" would be reporting the symptom at the wrong layer: on the MAC
                 // carrier the router logs an idle session out, keeps the UDP socket open and answers nothing,
                 // and the transport has already retransmitted to exhaustion by then and knows it.

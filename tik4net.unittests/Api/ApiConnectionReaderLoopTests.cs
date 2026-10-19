@@ -9,12 +9,12 @@ using tik4net.Api;
 namespace tik4net.unittests.Api
 {
     /// <summary>
-    /// Concurrency contract of <see cref="ApiConnection"/>'s sentence reader (P2.3, F8).
+    /// Concurrency contract of <see cref="ApiConnection"/>'s sentence reader.
     /// </summary>
     /// <remarks>
     /// <para>
     /// These describe properties that the "every caller is a potential reader" model cannot have, and were
-    /// written before the reader loop existed — per the P2.1 design doc, which asks for the scenarios to land
+    /// written before the reader loop existed — the scenarios landed
     /// <b>first</b> so the refactor has a net rather than a story.
     /// </para>
     /// <para>
@@ -39,8 +39,8 @@ namespace tik4net.unittests.Api
         /// </summary>
         /// <remarks>
         /// <para>
-        /// This is what F8 actually costs. The starvation the finding describes does not reproduce — whoever
-        /// holds the read lock reads for everyone and shelves what is not theirs, so a reply is not withheld
+        /// This is what the shared read lock actually costs. The starvation the finding describes does not reproduce —
+        /// whoever holds the read lock reads for everyone and shelves what is not theirs, so a reply is not withheld
         /// from its caller. What is not shared is <i>time</i>: a caller blocked on the read lock has not
         /// started its own deadline yet, so its budget begins only once the previous reader gives up. Two
         /// silent commands therefore fail at 1× and 2× the timeout, and N of them at N×.

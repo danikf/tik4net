@@ -1,4 +1,4 @@
-// WinboxEnumAndUnsetDecodeTests.cs — router-free tests for A2: the decode steps where the RAW WIRE FORM was
+// WinboxEnumAndUnsetDecodeTests.cs — router-free tests for the decode steps where the RAW WIRE FORM was
 // reaching the caller instead of the value RouterOS's own API reports for the same record.
 //
 // All four rules were established against the live router (7.23.2) rather than guessed — the API column in

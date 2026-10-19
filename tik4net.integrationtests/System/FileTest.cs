@@ -20,7 +20,7 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// The row count must match what the binary API reports for the same menu (P2.17).
+        /// The row count must match what the binary API reports for the same menu.
         /// <para>
         /// IsNotNull was not enough to catch the defect this test exists for: /file carries
         /// <c>contents</c>, and a file body is full of ';', '=' and newlines — the separators of the

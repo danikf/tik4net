@@ -9,7 +9,7 @@ namespace tik4net.unittests.Api
 {
     /// <summary>
     /// <see cref="ApiConnection.Open(string,int,string,string)"/> and
-    /// <see cref="ApiConnection.OpenAsync(string,int,string,string)"/> are one implementation since P2.5 —
+    /// <see cref="ApiConnection.OpenAsync(string,int,string,string)"/> are one implementation —
     /// the async one, with the synchronous entry point blocking on it. These tests pin the property that
     /// makes that safe to keep: <b>the two put exactly the same bytes on the wire</b>.
     /// </summary>

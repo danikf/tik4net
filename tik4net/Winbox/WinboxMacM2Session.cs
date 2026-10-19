@@ -128,7 +128,7 @@ namespace tik4net.Winbox
         public bool SendAbandoned => LastSendAbandoned;
 
         // Same bookkeeping, read earlier: the stream is blocked but the head may still land. Nothing below
-        // this layer throttles the sender, so it is the caller that has to stop adding (P2.56).
+        // this layer throttles the sender, so it is the caller that has to stop adding.
         public bool SendStalled => LastSendStalled;
 
         /// <summary>
@@ -198,7 +198,7 @@ namespace tik4net.Winbox
 
             // Establish what actually arrived before reading anything into it. Folding "no frame" into
             // the digest comparison made a lost or late UDP reply indistinguishable from a rejected
-            // password — and over the MAC layer a lost reply is by far the likelier of the two (P2.41).
+            // password — and over the MAC layer a lost reply is by far the likelier of the two.
             byte[]? serverCc = RecvHandshakeFrame(timeoutMs);
             if (serverCc == null)
                 throw new InvalidOperationException(
@@ -307,8 +307,8 @@ namespace tik4net.Winbox
 
                 // Not a clean M2 frame — drop it and keep reading, as Receive does. Traced because a
                 // dropped frame is invisible by construction: the caller sees a read that produced
-                // nothing, which is also what a silent router looks like (P2.25), and this is the layer
-                // the MAC-side wedge (P2.19) lives on.
+                // nothing, which is also what a silent router looks like, and this is the layer
+                // the MAC-side wedge lives on.
                 //
                 // BOTH failure shapes land here. Decrypt answers null for a wrong key, a bad pad or a
                 // truncated frame and throws only for a cryptographic fault, and null is this method's word
@@ -391,7 +391,7 @@ namespace tik4net.Winbox
                 catch (Exception ex)
                 {
                     // A malformed packet must not take the pump down with it — but a pump that keeps
-                    // swallowing the same failure looks exactly like an idle router (P2.25).
+                    // swallowing the same failure looks exactly like an idle router.
                     if (tik4net.Diagnostics.TikWireTrace.Enabled)
                         tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
                             $"idle pump swallowed {ex.GetType().Name}: {ex.Message}");

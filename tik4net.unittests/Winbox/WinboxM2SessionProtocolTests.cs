@@ -12,7 +12,7 @@ namespace tik4net.unittests.Winbox
     /// <para>
     /// These pin the <b>current lockstep behaviour</b> so the multiplexing rewrite
     /// (<c>Docs/winbox-m2-multiplexing-design.md</c>) has a regression net — the same role
-    /// <c>ApiConnectionProtocolTests</c> plays for the binary API's reader-loop rewrite (P1.7 → P2.3).
+    /// <c>ApiConnectionProtocolTests</c> plays for the binary API's reader-loop rewrite.
     /// They must keep passing afterwards.
     /// </para>
     /// </summary>

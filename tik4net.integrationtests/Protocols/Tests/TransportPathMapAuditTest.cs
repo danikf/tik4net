@@ -54,7 +54,7 @@ namespace tik4net.integrationtests
         // entry here excuses a whole path's field set, so anything added must be a difference the router
         // itself imposes. The last occupant was /system/health, whose reason said state/state-after-reboot
         // were "API-only fields with no WinBox equivalent" — the router sends both at [24,14] 0x8/0x9 and
-        // no .jg window names those keys, which is a gap in us, not in WinBox (G10). A path that agrees
+        // no .jg window names those keys, which is a gap in us, not in WinBox. A path that agrees
         // must leave this table in the same change; the stale check below enforces it.
         private static readonly Dictionary<string, string> KnownFieldGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -387,9 +387,9 @@ namespace tik4net.integrationtests
         /// run turned up — interval/duration, raw MAC, zero-spelled-as-a-word sentinels, the empty list, set
         /// order, date/epoch, the <c>age</c> uptime clock, the wire-type key collision, the union/tuple
         /// element, the <c>multibits</c> bitmask, an <c>enm</c>'s <c>postfix</c>, the address:port pair —
-        /// has been closed, and so have the four G3 items that were recorded here as differences with a
-        /// reason and turned out to be client defects (G3.1 <c>fib</c>, G3.3 <c>auto-negotiation</c>,
-        /// G3.4 <c>/ip/route</c>, G3.5 the wireless sniffer).</para>
+        /// has been closed, and so have the four items that were recorded here as differences with a
+        /// reason and turned out to be client defects (<c>fib</c>, <c>auto-negotiation</c>,
+        /// <c>/ip/route</c>, the wireless sniffer).</para>
         /// <para>What remains are differences neither side can remove.</para>
         /// </remarks>
         private static readonly Dictionary<string, Dictionary<string, string>> ValueComparisonExceptions =
@@ -402,8 +402,8 @@ namespace tik4net.integrationtests
                 // for a table that has it and omit the word for one that does not, while the CLI transports
                 // and native answer `fib=true`. This audit compares RAW WORDS, so '' and 'true' differ here
                 // for good. The O/R mapper does not: RoutingTable.Fib is declared IsPresenceFlag and reads
-                // the empty value as true, which is what closed G3.1 — before that it read false on api and
-                // rest whatever the router said.
+                // the empty value as true, which is what closed the fib difference — before that it read false
+                // on api and rest whatever the router said.
                 ["fib"] = "api/rest spell a set presence flag as an empty value, native and the CLI as 'true'",
             },
             ["/interface"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -782,10 +782,9 @@ namespace tik4net.integrationtests
                     // paired by .id, over the fields both transports report.
                     var valueDiffs = CompareValues(a, n, path, out var excusedButAgreeing, out int pairedRows);
 
-                    // A tally that only ever grows stops meaning anything (the lesson A12's enum list was
-                    // built on). An excused field that now AGREES must leave the exception list in the same
-                    // change, or the remaining reasons stop describing what is actually still broken.
-                    // An excuse that is no longer needed must go — that is what this check is for. But a
+                    // A tally that only ever grows stops meaning anything. An excused field that now AGREES must leave
+                    // the exception list in the same change, or the remaining reasons stop describing what is actually
+                    // still broken. An excuse that is no longer needed must go — that is what this check is for. But a
                     // field excused for VOLATILITY is never "fixed": the DNS cache's ttl is a live
                     // countdown and two reads land in the same second often enough to look settled. Making
                     // the run fail on that would teach the next person to delete a true excuse.

@@ -8,7 +8,7 @@ using tik4net.Winbox;
 namespace tik4net.unittests.Winbox
 {
     /// <summary>
-    /// Loopback tests for <c>getall</c> pagination (P2.9) — the client must follow <b>both</b> continuation
+    /// Loopback tests for <c>getall</c> pagination — the client must follow <b>both</b> continuation
     /// keys a handler can page with, and carry each one back exactly as received.
     /// </summary>
     /// <remarks>
@@ -104,7 +104,7 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>
-        /// The defect P2.9 names: a handler that pages via <c>mfe0015</c> must be followed, and the cursor
+        /// The defect: a handler that pages via <c>mfe0015</c> must be followed, and the cursor
         /// must go back byte-identical. Asserting the <b>bytes</b> is what separates this from a client that
         /// decodes and rebuilds the token — that would pass a "did you send something" check while sending a
         /// cursor of its own invention.
@@ -235,7 +235,7 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>
-        /// G2: a read that cannot be finished must fail, not return the pages that fit. A native read is
+        /// A read that cannot be finished must fail, not return the pages that fit. A native read is
         /// proportional to the TABLE — the router picks the page size and <c>ufe0018</c> does not change it —
         /// so the loop can run out of budget on a big table, and a short list is indistinguishable from a
         /// router that has that many rows. This peer pages forever; the read must throw and the message must

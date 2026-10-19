@@ -13,7 +13,7 @@ namespace tik4net.Api
     /// whatever belonged to someone else. That model did not withhold replies — the lock holder read for
     /// everyone — but it did make a caller's <c>ReceiveTimeout</c> depend on what else was in flight: a
     /// caller queued on the read lock had not started its deadline yet, so two silent commands failed at 1×
-    /// and 2× the timeout and N of them at N× (F8). Here every caller waits on its own tag with its own
+    /// and 2× the timeout and N of them at N×. Here every caller waits on its own tag with its own
     /// deadline, because nobody has to become a reader to be answered.
     /// </para>
     /// <para>

@@ -1,4 +1,4 @@
-// WinboxEnumLabelCaseTests.cs — G8(c): normalizing a .jg enum label is right until it merges two members.
+// WinboxEnumLabelCaseTests.cs — normalizing a .jg enum label is right until it merges two members.
 //
 // Every .jg label is normalized (lowercased, whitespace folded to hyphens, abbreviation dots dropped), and
 // that is what makes a label match the API's spelling at all: 'as username' is the API's as-username, 'key 0'

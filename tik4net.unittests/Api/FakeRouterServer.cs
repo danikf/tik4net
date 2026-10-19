@@ -8,8 +8,8 @@ using tik4net.Api;
 
 namespace tik4net.unittests.Api
 {
-    // Minimal scripted RouterOS binary-API peer for loopback protocol tests (P1.7 in
-    // ARCHITECTUREIMPROVEMENTPLAN.md). Speaks the same length-prefixed word framing as
+    // Minimal scripted RouterOS binary-API peer for loopback protocol tests.
+    // Speaks the same length-prefixed word framing as
     // ApiConnection, reusing the production ApiConnectionHelper.EncodeLength encoder
     // (internal, reachable here via InternalsVisibleTo).
     internal sealed class FakeRouterServer : IDisposable

@@ -58,7 +58,7 @@ namespace tik4net.Rest
         // Monitor commands (see TikMonitorVerbs) are POSTed to the path as given: their trailing segment IS the
         // operation and their parameters are its INPUTS, not a print query. They are legitimately invoked
         // through a READ method (they answer with rows), so RestCallKind.NonQuery does not cover them and the
-        // implicit-'print' branch claimed them instead — POST /rest/ping/print → 400 "no such command" (P2.51).
+        // implicit-'print' branch claimed them instead — POST /rest/ping/print → 400 "no such command".
         // Verified live on 7.23.2 that POST /rest/ping with {"address":…,"count":…} returns the echo rows, and
         // the same for traceroute and monitor-traffic. 'monitor' is in the shared list AND in _writeVerbs; both
         // routes produce the same URL for it, so the overlap is harmless.
@@ -307,7 +307,7 @@ namespace tik4net.Rest
                 // that with 400 "missing or invalid resource identifier", because PATCH addresses a record
                 // and a singleton has no .id to put in the URL (measured on 7.23.2; the POST form clears the
                 // same 400 on /system/identity, /ip/dns and /snmp alike). No test covered a singleton WRITE
-                // over REST, which is why the wrong verb survived (P2.44).
+                // over REST, which is why the wrong verb survived.
                 return new RestRequest(HttpMethod.Post, restBase + "/set", SerialiseBody(body));
             }
         }

@@ -1,6 +1,6 @@
 #nullable enable
 #if NET8_0_OR_GREATER
-// TikFieldJsonTests.cs — System.Text.Json round trip of TikField<T> (design review C4: without a converter the
+// TikFieldJsonTests.cs — System.Text.Json round trip of TikField<T> (without a converter the
 // struct serialized its properties and deserialized as Absent, silently).
 
 using System.Text.Json;

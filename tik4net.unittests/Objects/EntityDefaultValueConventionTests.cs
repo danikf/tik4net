@@ -22,7 +22,7 @@ namespace tik4net.unittests.Objects
     /// <para>
     /// The rule the three tests enforce is one rule seen from three sides: <b>whatever an untouched property
     /// holds must be something the router is content to receive — or must not be sent at all.</b> A
-    /// non-nullable <c>bool</c> cannot satisfy that (A10 measured both ways round: declaring the router's
+    /// non-nullable <c>bool</c> cannot satisfy that (measured both ways round: declaring the router's
     /// default sends the opposite on every create, declaring the CLR default silently drops an explicitly
     /// assigned <c>false</c>), which is why a writable flag is <c>bool?</c>. An enum can satisfy it either
     /// way — by ordering its zero member to the router's default, or by going nullable — so the enum test
@@ -47,11 +47,11 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void ANumericPropertyThatDeclaresTheRoutersDefaultIsNullable()
         {
-            // A14, and the third face of A10's defect. The mapper compares a property's SERIALIZED value
+            // The third face of a non-nullable property's default. The mapper compares a property's SERIALIZED value
             // against DefaultValue and sends the field when they differ — so a fresh entity whose int is 0
             // while DefaultValue says "8080" puts 0 on the wire, which the router mostly rejects outright
             // ("value out of range"). The entity-generator skill used to advise DefaultValue = "0" for these;
-            // that is A10's mistake one type over, since it makes an explicitly assigned 0 indistinguishable
+            // that is the bool mistake one type over, since it makes an explicitly assigned 0 indistinguishable
             // from unassigned — and 0 is meaningful on several of them (max-sessions=0 is *unlimited*).
             // int? is the fix: unassigned is null, null is never sent, and the router applies its own default.
             //
@@ -110,10 +110,10 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void AWritableBoolIsNullable()
         {
-            // The convention B4 settled: a writable flag has three states on the router — yes, no, and "you
+            // The convention: a writable flag has three states on the router — yes, no, and "you
             // did not say" — and only bool? can hold all three. A plain bool cannot express the last one, so
-            // whichever value it holds, one of the three is misread, and no DefaultValue can rescue it (A10
-            // measured both ways round). Read-only properties are exempt: nothing is ever sent from them.
+            // whichever value it holds, one of the three is misread, and no DefaultValue can rescue it
+            // (measured both ways round). Read-only properties are exempt: nothing is ever sent from them.
             var offenders = Properties()
                 .Where(x => MappedPropertyType.Of(x.Property) == typeof(bool))
                 .Where(x => !x.Attribute.IsReadOnly && x.Property.SetMethod != null && x.Property.SetMethod.IsPublic)
@@ -131,7 +131,7 @@ namespace tik4net.unittests.Objects
         {
             // An untouched non-nullable enum property IS its zero member, so if that member is not what the
             // router would have chosen, the mapper sends it on every /add and the row is created with the
-            // wrong value — a certificate with md5/1024 rather than sha256/2048 (A12). There are two correct
+            // wrong value — a certificate with md5/1024 rather than sha256/2048. There are two correct
             // shapes and this accepts either: make the router's default the zero member, or make the property
             // nullable so "untouched" is a state of its own and nothing is sent at all.
             //

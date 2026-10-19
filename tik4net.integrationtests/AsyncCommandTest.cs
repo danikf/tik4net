@@ -22,7 +22,7 @@ namespace tik4net.integrationtests
     /// <para>
     /// Transports without the capability report Inconclusive rather than failing: a transport that cannot
     /// await its I/O has no async core, which would be a gap in our client, not a router refusal. Every
-    /// shipped transport declares <c>AsyncCommands</c> since P2.8 gave WinBox native its async surface, so the
+    /// shipped transport declares <c>AsyncCommands</c> since WinBox native gained its async surface, so the
     /// skip should no longer fire — if it does on a transport listed in the capability matrix, that is the
     /// finding.
     /// </para>

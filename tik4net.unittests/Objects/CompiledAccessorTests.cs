@@ -7,7 +7,7 @@ using tik4net.Objects.Ip.Firewall;
 namespace tik4net.unittests.Objects
 {
     /// <summary>
-    /// B1: the mapper reads and writes entity properties through a delegate bound once per property, not
+    /// The mapper reads and writes entity properties through a delegate bound once per property, not
     /// through <c>PropertyInfo.GetValue/SetValue</c> per field per row.
     /// </summary>
     /// <remarks>
@@ -119,7 +119,7 @@ namespace tik4net.unittests.Objects
 
             // The router did not report the field at all. That has to reach the property as null — a compiled
             // setter that boxed it into `default(bool)` would turn "nothing was said" into an explicit "no",
-            // which is the conflation B4 removed.
+            // which is the conflation bool? removed.
             Accessor("Enabled").SetEntityValue(entity, null);
 
             Assert.IsNull(entity.Enabled);

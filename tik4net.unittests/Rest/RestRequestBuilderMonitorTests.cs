@@ -12,7 +12,7 @@ namespace tik4net.unittests.Rest
     /// written (they answer with rows).
     /// </summary>
     /// <remarks>
-    /// P2.51: none of these names was on a verb list, so the implicit-<c>print</c> branch claimed them and the
+    /// None of these names was on a verb list, so the implicit-<c>print</c> branch claimed them and the
     /// builder sent <c>POST /rest/ping/print</c> → <c>400 no such command</c>. Measured live on 7.23.2 that the
     /// path itself is the endpoint: <c>curl -X POST -d '{"address":"127.0.0.1","count":"2"}' /rest/ping</c>
     /// returns the two echo rows, and the same holds for <c>/rest/tool/traceroute</c> and

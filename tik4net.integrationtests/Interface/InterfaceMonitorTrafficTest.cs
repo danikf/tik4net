@@ -16,8 +16,8 @@ namespace tik4net.integrationtests
         /// <remarks>
         /// A <c>once</c> snapshot is an ordinary synchronous read, not a stream — it used to gate on
         /// <c>Streaming</c>, which only the binary API reports, so it never ran anywhere else and the
-        /// CLI/REST defects P2.51 fixed went unseen. It runs on every transport now, WinBox native included
-        /// (P2.52 mapped the path onto the interface window's live rate fields).
+        /// CLI and REST transports dropping the monitor's inputs went unseen. It runs on every transport now, WinBox
+        /// native included (the path maps onto the interface window's live rate fields).
         /// </remarks>
         [TestMethod]
         public void GetTrafficSnapshotForEther1WillNotFail()

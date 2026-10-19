@@ -1,4 +1,4 @@
-// CliJsonParserTests.cs — router-free unit tests for CliJsonParser (P2.17).
+// CliJsonParserTests.cs — router-free unit tests for CliJsonParser.
 //
 // Every fixture below is a VERBATIM capture from RouterOS 7.23.2 over telnet
 // (Tools/probes/telnet-cli-probe.ps1), so the shapes asserted here are the router's, not a guess:
@@ -119,7 +119,7 @@ namespace tik4net.unittests.Cli
         public void ParseJson_NestedObject_ThrowsInsteadOfInventingAValue()
         {
             // Never observed in as-value output. If it ever appears, the caller must hear about it rather
-            // than receive raw JSON text that looks like a legitimate value (P2.25).
+            // than receive raw JSON text that looks like a legitimate value.
             var ex = Assert.ThrowsException<TikSentenceException>(
                 () => CliJsonParser.ParseJson("[{\"nested\":{\"a\":1}}]"));
             StringAssert.Contains(ex.Message, "nested");

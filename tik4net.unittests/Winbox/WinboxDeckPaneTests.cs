@@ -1,4 +1,4 @@
-// WinboxDeckPaneTests.cs — router-free tests for A3: a `type:'deck'` PANE holds the settings WinBox shows
+// WinboxDeckPaneTests.cs — router-free tests: a `type:'deck'` PANE holds the settings WinBox shows
 // only for one KIND of record, and RouterOS puts every kind's parameters in one flat record, telling them
 // apart by prefixing the kind (memory-lines, pcq-rate).
 //

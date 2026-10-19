@@ -8,7 +8,7 @@ namespace tik4net.unittests.Cli
 {
     /// <summary>
     /// Covers <see cref="AsyncSignal"/>, the awaitable "the pump received something" signal the terminal
-    /// transports wait on instead of blocking a thread-pool thread (A6).
+    /// transports wait on instead of blocking a thread-pool thread.
     /// </summary>
     /// <remarks>
     /// The property worth pinning is set-before-wait. The pump can signal in the window between the

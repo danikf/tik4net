@@ -55,7 +55,7 @@ namespace tik4net.MacTelnet
         private readonly StringBuilder         _rx       = new StringBuilder();
         // Awaitable rather than a ManualResetEventSlim: this is what a command read spends its whole
         // duration waiting on, and blocking on it meant every read occupied a thread-pool thread for as long
-        // as the router took to answer (P2.5 / A6). See AsyncSignal.
+        // as the router took to answer. See AsyncSignal.
         private readonly AsyncSignal           _rxSignal = new AsyncSignal();
         private Thread?           _pump;
         private volatile bool     _pumpStop;
@@ -196,7 +196,7 @@ namespace tik4net.MacTelnet
         {
             // No Task.Run: the pump owns the socket, so nothing here blocks. The send is a UDP datagram plus
             // its retransmit bookkeeping (MacLayerTransport.Send) and the read only waits for the pump to
-            // report progress — awaiting that holds no thread, which is the whole of A6 on this transport.
+            // report progress — awaiting that holds no thread, which is the whole of the async read on this transport.
             ct.ThrowIfCancellationRequested();
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
             // What the pump collected while the connection was idle is discarded below — but a relay that ended
@@ -403,7 +403,7 @@ namespace tik4net.MacTelnet
                     {
                         // Poll timeout: nothing arrived. If the router has not acknowledged what we sent,
                         // this silence is our own lost datagram — resend it rather than wait out the full
-                        // receive deadline for an answer to a command that never landed (P2.19).
+                        // receive deadline for an answer to a command that never landed.
                         RetransmitIfUnacked();
                     }
                 }
@@ -611,7 +611,7 @@ namespace tik4net.MacTelnet
                     // The router closing the session is an answer, and waiting out the rest of the login
                     // timeout after it cannot produce a better one. It sends PKT_END repeatedly, and on a
                     // refused login it sends the refusal text first — so whatever is already on screen is
-                    // the reason, and it is worth more than the fact that the session is gone (P2.49).
+                    // the reason, and it is worth more than the fact that the session is gone.
                     if (type == PKT_END)
                         throw RefusalOrClosure(VtStripper.StripAnsi(sb.ToString()));
 
@@ -656,7 +656,7 @@ namespace tik4net.MacTelnet
             // What it was waiting for is only half the story; the other half is what it had already been
             // given, and without that the failure is indistinguishable between "the router said nothing at all"
             // (a lost SESSIONSTART or a dead MAC path) and "the router is mid-negotiation and one packet
-            // went missing" (a stalled VT100 probe exchange). P2.49 spent nine reproduction runs on a
+            // went missing" (a stalled VT100 probe exchange). One diagnosis spent nine reproduction runs on a
             // message that carried neither.
             string seen = VtStripper.StripAnsi(sb.ToString());
             if (seen.Length > 200)

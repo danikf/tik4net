@@ -273,7 +273,7 @@ namespace tik4net.Testing
             Action? onDoneCallback = null)
         {
             _asyncTag = Guid.NewGuid().ToString();
-            // CallCommandAsync is obsolete for consumers (A9) and this is the shipped alternative it points
+            // CallCommandAsync is obsolete for consumers and this is the shipped alternative it points
             // them at — ExecuteWithCallback is implemented ON it, exactly as ApiCommand implements it on the binary
             // API's own version. Suppressed here rather than at the declaration, so a CONSUMER still sees the
             // warning and this one deliberate use does not silence it for everyone.

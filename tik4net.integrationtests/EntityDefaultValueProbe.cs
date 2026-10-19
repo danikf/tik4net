@@ -5,10 +5,10 @@
 // default). In 5.0 it reads Absent. Two kinds of caller code change meaning:
 //   SOMETIMES — the router prints the field on some rows and not on others (mangle passthrough: on mark-* rules,
 //               not on jump/return/accept). An expected row in a merge that assigns the default to a row of the
-//               silent kind never equals the loaded one again, so every run updates it (migration B7 —
+//               silent kind never equals the loaded one again, so every run updates it (
 //               MikrotikManager's shaper would have rewritten every jump rule).
 //   NEVER     — the router prints the field on no row it holds. Every 4.x read got the DefaultValue; 5.0 reads
-//               Absent (migration B3). Either the field is conditional and the lab has no row of the printing
+//               Absent. Either the field is conditional and the lab has no row of the printing
 //               kind, or this RouterOS version does not have the field (renamed or removed).
 // ALWAYS fields are safe: the default was never what a read returned.
 //

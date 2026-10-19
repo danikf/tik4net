@@ -13,7 +13,7 @@ namespace tik4net.integrationtests
     /// path, or to <c>1</c> for a default under <c>TestResults</c>); otherwise nothing is installed and
     /// <see cref="TikWireTrace"/> stays at its one-null-check cost. It exists because some defects only
     /// appear in a FULL suite run against one long-lived shared connection and cannot be reproduced by a
-    /// standalone command — P2.19's MAC-layer wedge is the case in point, where the MCP tool's
+    /// standalone command — the MAC-layer suite wedge is the case in point, where the MCP tool's
     /// per-call <c>traceLevel=bytes</c> cannot reach the failure at all.
     /// </para>
     /// <para>

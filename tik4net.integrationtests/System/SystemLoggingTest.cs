@@ -29,7 +29,7 @@ namespace tik4net.integrationtests
                 Prefix = "t4n-test",
             };
             // topics is a multitristatearray — one API list ("info", or "info,!debug") riding as TWO u32[]
-            // keys, the plain members and the negated ones. It encodes and decodes over native since A4; the
+            // keys, the plain members and the negated ones. It encodes and decodes over native; the
             // guard stays because it is feature-bound, so it costs nothing while the feature works and would
             // name the transport again if it regressed.
             SkipIfWinboxNativeCannot("/system/logging add", () => SaveTracked(entity));

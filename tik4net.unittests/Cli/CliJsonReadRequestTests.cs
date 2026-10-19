@@ -1,4 +1,4 @@
-// CliJsonReadRequestTests.cs — router-free tests for the REQUEST half of P2.17: that an entity carrying
+// CliJsonReadRequestTests.cs — router-free tests for the REQUEST half of the free-text read: that an entity carrying
 // free-form text asks for JSON, and that the CLI builder wraps the print correctly while every other
 // transport drops the marker.
 //

@@ -73,7 +73,7 @@ namespace tik4net.Ssh
                 async c =>
                 {
                     // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and
-                    // reusing the send budget for it was how this transport ignored the option entirely (D1).
+                    // reusing the send budget for it was how this transport ignored the option entirely.
                     // A refusal is a TikConnectionLoginException; a port that refuses or never answers is a
                     // SocketException and leaves as one, through a RoMON agent as on a direct connection.
                     client.Connect(host, port, user, password, loginKey);

@@ -241,7 +241,7 @@ namespace tik4net.unittests.Winbox
             });
         }
 
-        // ── The awaitable surface (P2.8) ──────────────────────────────────────
+        // ── The awaitable surface ──────────────────────────────────────
         //
         // SendReceiveAsync is what carries TikConnectionCapability.AsyncCommands on the native transports, and
         // its cancellation is what CancelInFlight rests on for an ordinary round trip. The claim being tested
@@ -383,7 +383,7 @@ namespace tik4net.unittests.Winbox
                 });
         }
         /// <summary>
-        /// A13: a timeout has to say enough to tell the two explanations apart. A silent channel and a slow
+        /// A timeout has to say enough to tell the two explanations apart. A silent channel and a slow
         /// answer look identical from the waiter's side and want opposite fixes — a dead connection versus
         /// paging or a longer deadline — so the message names what the READER has seen, not only the id it
         /// was waiting on.

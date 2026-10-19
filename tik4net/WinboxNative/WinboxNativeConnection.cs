@@ -399,15 +399,15 @@ namespace tik4net.WinboxNative
             // handshake would still have to finish first. ConnectTimeout is the real bound.
             cancellationToken.ThrowIfCancellationRequested();
             // A Task.Run façade, and knowingly so — the one place on this transport that still is, now that
-            // the command surface awaits for real (P2.8). Opening means a blocking connect followed by the
+            // the command surface awaits for real. Opening means a blocking connect followed by the
             // EC-SRP5 handshake and the .jg catalog fetch, none of which has an awaitable form:
             // IWinboxM2Channel.Open is synchronous down through WinboxTcpTransport and the crypto, and that
             // is reverse-engineered code with no deterministic coverage. So this holds a thread-pool thread
-            // for the duration of the open, which is what D5 says not to do; it is called out here rather
+            // for the duration of the open, which the async design says not to do; it is called out here rather
             // than left to be discovered. It does at least keep its promise to the CALLER — control returns
             // immediately — unlike a hook that would claim async and then block the caller.
             //
-            // A6 settled it: this stays. AsyncCommands is a claim about COMMANDS, and an open is once per
+            // It stays. AsyncCommands is a claim about COMMANDS, and an open is once per
             // connection; buying it back means an awaitable form of the EC-SRP5 handshake, i.e. rewriting
             // the one part of this transport that has no deterministic coverage, for a thread held once.
             // MAC-Telnet and WinBox CLI open the same way and for the same reason; the capability's own
@@ -419,7 +419,7 @@ namespace tik4net.WinboxNative
         {
             _session = session;
             // ReceiveTimeout, not ConnectTimeout: this bounds each M2 operation, not the connect phase.
-            // (P1.8 left this as ConnectTimeout because per-read socket deadlines made the distinction
+            // (It was ConnectTimeout while per-read socket deadlines made the distinction
             // moot; with per-request deadlines in the multiplexer it is now the value that actually fires.)
             _ops = new WinboxNativeM2Operations(session, () => ReceiveTimeoutMs);
             // Participate in the shared row-level diagnostics: render each raw M2 request/reply to the
@@ -437,7 +437,7 @@ namespace tik4net.WinboxNative
             try { _catalog = WinboxJgCatalog.Load(_ops, TikCacheFileSystem.ResolveDirectory(CatalogCachePath), routerKey); }
             catch { /* catalog is best-effort; seeds + normalizer still work */ }
             // Never silently: a seeds-only catalog answers "no" to singleton/dynamic-field/monitor lookups,
-            // which returns wrong values rather than errors (P2.23). CatalogHandlerCount makes it visible.
+            // which returns wrong values rather than errors. CatalogHandlerCount makes it visible.
             if (_catalog.HandlerCount == 0)
                 TikWireTrace.Emit("wbx.catalog", TikWireDir.Note,
                     "no .jg handlers loaded — running on seed table only, dynamic counters and singleton "
@@ -553,12 +553,12 @@ namespace tik4net.WinboxNative
         // ── Native read overrides ───────────────────────────────────────────────
 
         // The M2 round trips below are awaited, so the Task-based hooks are the real implementation and the
-        // synchronous ones block on them (D5: async is the primitive; nothing is pushed onto a thread-pool
+        // synchronous ones block on them (async is the primitive; nothing is pushed onto a thread-pool
         // thread to look asynchronous). Every await carries ConfigureAwait(false), which is also what keeps
         // the blocking wrappers safe under a UI / ASP.NET-classic SynchronizationContext.
         //
         // That includes the name→id round trips field encoding and record decoding need, which used to be the
-        // one blocking hole left in an awaited command (P2.8). They are still issued by SYNCHRONOUS code —
+        // one blocking hole left in an awaited command. They are still issued by SYNCHRONOUS code —
         // WinboxFieldResolver.EncodeField takes a plain Func resolveRef, and DecodeRecord returns a dictionary
         // — but no longer from this thread: the round trips are hoisted out and awaited first, and the
         // synchronous pass then reads answers that are already in memory.
@@ -594,7 +594,7 @@ namespace tik4net.WinboxNative
             }
             catch (TikConnectionSessionClosedException) when (SessionRebuildAllowed)
             {
-                // G1. The router dropped an idle session and said nothing; the carrier established that it
+                // The router dropped an idle session and said nothing; the carrier established that it
                 // never took our bytes, so nothing ran and re-running is not a second execution. Only reads
                 // come through here — RunAdd/RunNonQuery deliberately do not retry, because "the bytes were
                 // never acknowledged" is a statement about the CARRIER, and re-adding a row on the strength
@@ -606,7 +606,7 @@ namespace tik4net.WinboxNative
         }
 
         /// <summary>
-        /// Rebuilds the M2 channel after the router dropped the session (G1), unless another caller has
+        /// Rebuilds the M2 channel after the router dropped the session, unless another caller has
         /// already done it — <paramref name="observedGeneration"/> is what the caller saw before its command
         /// failed, so a session that has moved on since means the work is done and this returns.
         /// </summary>
@@ -667,12 +667,12 @@ namespace tik4net.WinboxNative
                 // map decodes the monitor's rows under the wrong names (the rows come back without so much as
                 // a 'name'). A read that answers with mislabelled data is worse than one that says it cannot
                 // do this at all, so this path keeps the actionable "no M2 handler mapping … add a PathAlias"
-                // below. Measured while fixing P2.51; the async path has the same mis-decode and its test only
-                // counts rows, which is why nobody had noticed.
+                // below. Measured while fixing the sync monitors; the async path has the same mis-decode and its test
+                // only counts rows, which is why nobody had noticed.
 
                 // The path may be an action verb (e.g. /system/script/run) rather than a table — a .jg
                 // doit/action SYS_CMD on the parent handler. Actions perform work and yield no rows, so they
-                // belong on the non-query path: reject the read misuse explicitly (R7) and guide to
+                // belong on the non-query path: reject the read misuse explicitly and guide to
                 // ExecuteNonQuery (RunVerb dispatches the SYS_CMD) before reporting "no such command".
                 if (IsActionVerbPath(descriptor))
                     throw ActionVerbOnReadPath(descriptor.CommandText);
@@ -696,7 +696,7 @@ namespace tik4net.WinboxNative
             // A monitor command (/ping, /tool/traceroute) reached through a read method. Checked before the
             // getall below because that is what the router answers with nothing: a monitor window holds no
             // records outside a monitor cycle, so the getall came back empty and ToolPing.Execute reported
-            // success with zero rows (P2.51).
+            // success with zero rows.
             //
             // Gated on the COMMAND's verb, not on "the resolved window happens to be a query window". The
             // latter reads like the more precise test and is in fact far too wide: /interface resolves to an
@@ -749,7 +749,7 @@ namespace tik4net.WinboxNative
                     // A row with no discriminator genuinely is not of this subtype. A row whose discriminator
                     // is not a number is a different thing: our model of the field is wrong, and dropping the
                     // row silently shortens the result set — a missing row reads exactly like "the router has
-                    // none" (P2.25). It is still dropped (including it would be a guess), but it says so.
+                    // none". It is still dropped (including it would be a guess), but it says so.
                     if (!r.TryGetValue(typeKey, out var t) || t.Item2 == null) return false;
                     if (WinboxFieldResolver.TryToInt64(t.Item2, out long tv)) return tv == typeValue;
                     if (TikWireTrace.Enabled)
@@ -849,7 +849,7 @@ namespace tik4net.WinboxNative
                 // the verb, so every reader had to re-derive whether the verb was missing from the catalog
                 // or merely spelled differently by its GUI label — the two need opposite fixes (a genuine
                 // protocol gap vs. an ActionMatchesVerb/override problem), and only the catalog can tell
-                // them apart. See P2.48, where '/log/error' turned out to be the first kind: the router's
+                // them apart. '/log/error' turned out to be the first kind: the router's
                 // own .jg declares no log-writing action on ANY handler, so WinBox itself cannot write a
                 // log line.
                 string offered = (actions == null || actions.Count == 0)

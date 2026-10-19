@@ -32,7 +32,7 @@ namespace tik4net.integrationtests
             WriteMarkerOverApi(marker);
 
             // Filter on the router: an unfiltered /log/print dumps the whole memory log, which does not fit
-            // in the read budget of a MAC transport (see the RunScript_Issue53 note in P2.43).
+            // in the read budget of a MAC transport.
             var rows = Connection.CreateCommandAndParameters("/log/print", "message", marker)
                                  .ExecuteList().ToList();
             Assert.AreEqual(1, rows.Count, "the marker line was not found in the router log");
@@ -54,7 +54,7 @@ namespace tik4net.integrationtests
         /// error-severity marker left a red line in the router log for every run of every transport —
         /// alarming for anyone who inspects the box afterwards, for no test value.
         /// </para>
-        /// This stays even though P2.48 fixed <c>/log/&lt;level&gt;</c> dispatch, and the reason has changed:
+        /// This stays even though <c>/log/&lt;level&gt;</c> dispatches correctly, and the reason has changed:
         /// REST now posts it correctly, but the native WinBox transports still cannot write a log line at all
         /// — the router's own <c>.jg</c> catalog declares no log-writing action on any handler. Writing over
         /// the transport under test would therefore make this test SKIP on WinBox native, which is the one

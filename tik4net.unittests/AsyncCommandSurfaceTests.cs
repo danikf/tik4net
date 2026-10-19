@@ -248,7 +248,7 @@ namespace tik4net.unittests
         public async Task AWriteThatPrintedNothing_IsAnEmptyResponse_OnBothSurfaces()
         {
             // Not "no such item": set/unset/remove/enable succeed silently, and calling that a missing record
-            // fabricates a router error for a command that worked (P2.34).
+            // fabricates a router error for a command that worked.
             var connection = OpenedConnection();   // Rows stays empty
 
             Assert.ThrowsException<TikCommandEmptyResponseException>(

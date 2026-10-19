@@ -8,7 +8,7 @@ using tik4net.Objects.Ip.Firewall;
 namespace tik4net.unittests.Objects
 {
     /// <summary>
-    /// B2: the enum ↔ wire-value mapping is resolved once per enum type instead of by walking
+    /// The enum ↔ wire-value mapping is resolved once per enum type instead of by walking
     /// <c>Enum.GetNames</c> and asking every member for its attribute on every value converted.
     /// </summary>
     /// <remarks>
@@ -191,7 +191,7 @@ namespace tik4net.unittests.Objects
         public void OneTableIsBuiltPerEnumTypeNotPerProperty()
         {
             // Two accessors over the same enum type must reach the same instance, or the table is being
-            // rebuilt per property and B2's cost simply moved from per-conversion to per-entity-type.
+            // rebuilt per property and the cost simply moved from per-conversion to per-entity-type.
             var first = TikEnumMetadata.Get(typeof(FirewallFilter.ActionType));
             var second = TikEnumMetadata.Get(typeof(FirewallFilter.ActionType));
 

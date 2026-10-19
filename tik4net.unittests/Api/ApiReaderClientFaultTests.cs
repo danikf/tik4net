@@ -44,7 +44,7 @@ namespace tik4net.unittests.Api
                 connection.OnReadRow += (s, e) =>
                     throw new FileLoadException("Could not load file or assembly 'Simulated.Assembly'.");
 
-                // A failure the open cannot name otherwise is a failed login wrapping it, as on every transport (D5); the
+                // A failure the open cannot name otherwise is a failed login wrapping it, as on every transport; the
                 // client's own diagnosis is what it wraps.
                 Exception ex = Assert.ThrowsException<TikConnectionLoginException>(
                     () => connection.Open("127.0.0.1", server.Port, "admin", "secret"));

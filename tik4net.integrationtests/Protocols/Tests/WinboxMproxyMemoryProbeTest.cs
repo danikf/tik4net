@@ -1,6 +1,6 @@
 ﻿// WinboxMproxyMemoryProbeTest.cs — does an mproxy file open cost the router memory it never gets back?
 //
-// P2.20 established that mproxy file handles cannot be released: the handle id is a plain sequential
+// An earlier investigation established that mproxy file handles cannot be released: the handle id is a plain sequential
 // counter and there is no close/release verb (cmds 8–11 answer 0xFE0009 not-implemented). That was noted
 // as a curiosity while ruling out a handle leak as the cause of channel loss. What was never measured is
 // the other half of it — whether each unreleasable handle also pins ROUTER MEMORY.
@@ -8,8 +8,7 @@
 // It matters well beyond the probes: every WinboxNative connection opens `list` plus up to 18 plugin
 // files, so a long test run performs hundreds of opens against a router that (if this is real) never
 // frees any of them. That would make it a library problem, not a probe artefact, and a candidate cause
-// for P2.35 (the lab router filling up and rebooting) and for P2.40 (the catalog test failing only inside
-// a full run).
+// for the lab router filling up and rebooting, and for the catalog test failing only inside a full run.
 //
 // ⚠️ READ THIS BEFORE TRUSTING A NUMBER THIS PROBE PRINTS. On the lab CHR (Hyper-V VM `Mikrotik-host`)
 // **Dynamic Memory is enabled**, and RouterOS's `free-memory` is then fiction: it reports total-memory

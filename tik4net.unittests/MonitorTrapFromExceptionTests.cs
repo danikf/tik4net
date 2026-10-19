@@ -5,13 +5,13 @@ using tik4net.Connection;
 namespace tik4net.unittests
 {
     /// <summary>
-    /// What a background monitor/async worker tells the caller when its poll threw (P2.25).
+    /// What a background monitor/async worker tells the caller when its poll threw.
     /// </summary>
     /// <remarks>
     /// The exception cannot cross the callback — the contract is a trap sentence — so this conversion is the
     /// only copy of the reason that survives. Reporting <c>ex.Message</c> alone is what made a router trap, a
     /// socket error and a bug in our own decoder arrive as the same unattributed line, which is the reason
-    /// P2.14's flaky async/listen failures had nothing to diagnose. Same defect, and same fix, as the synthetic
+    /// the flaky async/listen failures had nothing to diagnose. Same defect, and same fix, as the synthetic
     /// <c>!fatal</c> in <c>ApiConnection.CallCommandAsync</c>.
     /// </remarks>
     [TestClass]

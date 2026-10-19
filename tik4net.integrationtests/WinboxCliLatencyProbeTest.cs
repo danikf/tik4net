@@ -1,7 +1,7 @@
-﻿// WinboxCliLatencyProbeTest.cs — where does a WinboxCliMac round trip actually spend its time? (P2.43)
+﻿// WinboxCliLatencyProbeTest.cs — where does a WinboxCliMac round trip actually spend its time?
 //
 // A full winboxclimac run takes ~1 h 22 m and ends with a handful of failures; the same CLI engine over
-// TCP (winboxcli) is green in ~8 min. Two measurements from P2.50 narrowed the question and are what this
+// TCP (winboxcli) is green in ~8 min. Two earlier measurements narrowed the question and are what this
 // probe exists to confirm and quantify:
 //
 //   * the FIRST output of a command arrives ~5 s after it is sent over the MAC channel, while the channel

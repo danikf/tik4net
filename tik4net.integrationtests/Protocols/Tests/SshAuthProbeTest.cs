@@ -1,6 +1,6 @@
 ﻿// SshAuthProbeTest.cs — what does RouterOS actually do with a WRONG SSH password?
 //
-// P2.24 established that `admin` with an EMPTY password authenticates over SSH with method "none",
+// The login-failure work established that `admin` with an EMPTY password authenticates over SSH with method "none",
 // so a wrong password is accepted. That says nothing about an account that HAS a password, which is
 // the case that decides whether "SSH with a password" is an access control at all.
 //

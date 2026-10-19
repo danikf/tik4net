@@ -8,8 +8,8 @@ namespace tik4net.unittests.Objects
 {
     /// <summary>
     /// Characterization of how the mapper turns a property into a wire value and decides whether it is worth
-    /// sending — written <b>before</b> B4 touches any of it, so that a change to these rules has to be a
-    /// deliberate edit to this file rather than something noticed later on a router.
+    /// sending — written <b>before</b> nullable properties changed any of it, so that a change to these rules has to be
+    /// a deliberate edit to this file rather than something noticed later on a router.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -17,7 +17,7 @@ namespace tik4net.unittests.Objects
     /// <c>DefaultValue</c> is <i>computed</i> from the CLR default (so a <c>bool</c> silently gets
     /// <c>"no"</c>, an <c>int</c> <c>"0"</c>), and <c>GetEntityValue</c> substitutes <c>DefaultValue</c> when
     /// the property holds <c>null</c> — which is exactly the conflation of "unset" with "the default" that
-    /// B4 exists to unpick. Pinning them first means the unpicking cannot quietly take something else with it.
+    /// nullable properties unpick. Pinning them first means the unpicking cannot quietly take something else with it.
     /// </para>
     /// <para>
     /// The entity below is deliberately local to the test: it exercises each shape once, without depending on
@@ -56,7 +56,7 @@ namespace tik4net.unittests.Objects
         }
 
         /// <summary>
-        /// The same shapes made nullable — what B4 adds. A nullable property has a state no non-nullable one
+        /// The same shapes made nullable. A nullable property has a state no non-nullable one
         /// has: "the caller said nothing", which is distinct from every value it can hold.
         /// </summary>
         [TikEntity("/test/nullable-entity")]
@@ -65,7 +65,7 @@ namespace tik4net.unittests.Objects
             [TikProperty(".id", IsReadOnly = true)]
             public string Id { get; private set; }
 
-            /// <summary>A field the router turns on unless told otherwise — the A10 shape.</summary>
+            /// <summary>A field the router turns on unless told otherwise.</summary>
             [TikProperty("defaults-on", DefaultValue = "yes")]
             public bool? DefaultsOn { get; set; }
 
@@ -120,8 +120,8 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void ANullReferencePropertyReadsBackAsItsDefaultValueNotAsNull()
         {
-            // The conflation B4 unpicks: "the caller said nothing" and "the caller said the default" produce
-            // the same string here, so nothing downstream can tell them apart.
+            // The conflation nullable properties unpick: "the caller said nothing" and "the caller said the default"
+            // produce the same string here, so nothing downstream can tell them apart.
             var entity = new SampleEntity { PlainString = null, StringWithDefault = null };
 
             Assert.AreEqual("", Accessor("PlainString").GetEntityValue(entity));
@@ -145,8 +145,8 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void ADefaultDeclaredAsTheRoutersRatherThanTheClrOneNeverMatches()
         {
-            // A10 in one assertion, and the reason it cannot be fixed in the attribute: whichever of the two
-            // states the property is in, one of them is misread.
+            // A flag the router turns on, in one assertion, and the reason it cannot be fixed in the attribute:
+            // whichever of the two states the property is in, one of them is misread.
             var fresh = new SampleEntity();
             Assert.IsFalse(Accessor("BoolDefaultingOn").HasDefaultValue(fresh),
                 "untouched (false) does not match DefaultValue \"yes\" — so the field is sent on every /add");
@@ -174,7 +174,7 @@ namespace tik4net.unittests.Objects
                     + "'assigned' today, which is what B4 introduces");
         }
 
-        // ── What a nullable property adds (B4) ──────────────────────────────────
+        // ── What a nullable property adds ──────────────────────────────────
 
         [TestMethod]
         public void ANullablePropertyWithNoDeclaredDefaultHasNoDefaultAtAll()
@@ -210,7 +210,7 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void ANullablePropertyTellsAnExplicitFalseApartFromSilence()
         {
-            // A10, resolved. On a non-nullable bool these two are the same state (asserted above), which is
+            // The same flag, resolved. On a non-nullable bool these two are the same state (asserted above), which is
             // why no DefaultValue could ever be right for it.
             var untouched = new NullableEntity();
             var explicitlyOff = new NullableEntity { DefaultsOn = false };

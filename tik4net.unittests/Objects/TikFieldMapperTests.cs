@@ -298,8 +298,9 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void CloneEntity_OfAPlainFlagsProperty_KeepsItsUnknownWord()
         {
-            // Review C5 claimed a clone loses the word its Unknown bit stood for. It does not: a plain clone goes through the
-            // string form, which carries the word, and the clone records it again. Kept as the guard for that.
+            // A design review claimed a clone loses the word its Unknown bit stood for. It does not: a plain clone goes
+            // through the string form, which carries the word, and the clone records it again. Kept as the guard for
+            // that.
             var connection = new TikFakeConnection()
                 .WithResponse(cmd => cmd.FirstOrDefault() == "/box/print",
                     _ => new ITikSentence[] { new TikFakeReSentence(Row(("state", "new,untracked"))), new TikFakeDoneSentence() });
@@ -340,7 +341,7 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void ARowWithoutAFieldTheEntityRelied_OnStillLoads()
         {
-            // The C1 case: a field that was IsMandatory on the plain property. Absent, and the load succeeds.
+            // A field that was IsMandatory on the plain property. Absent, and the load succeeds.
             var box = Router(new Dictionary<string, string> { [".id"] = "*1" }).LoadAll<Box>().Single();
             Assert.AreEqual(TikFieldState.Absent, box.Name.State);
         }

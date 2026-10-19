@@ -27,7 +27,7 @@ namespace tik4net.Api
         private TcpClient _tcpConnection = null!; // assigned by Open()/OpenAsync(), called right after construction
         private Stream _tcpConnectionStream = null!; // assigned by Open()/OpenAsync()
 
-        // One reader owns the socket for the session's whole life; callers wait on their tag (P2.3). A
+        // One reader owns the socket for the session's whole life; callers wait on their tag. A
         // dispatcher per session: a close terminates it for good, so each open replaces it (ResetSessionState).
         private volatile ApiSentenceDispatcher _dispatcher = new ApiSentenceDispatcher();
         private Task? _readerTask;
@@ -184,7 +184,7 @@ namespace tik4net.Api
         public bool SafeModeGet() => SafeModeHeld;
 
         // Open and OpenAsync are ONE implementation, the async one, with the synchronous entry point
-        // blocking on it (P2.5; the same D5 inversion the CLI, REST and WinBox-native CRUD paths use).
+        // blocking on it (the same inversion the CLI, REST and WinBox-native CRUD paths use).
         // They used to be two near-identical copies, and they had already drifted where it mattered: the
         // synchronous copy negotiated TLS with `AuthenticateAsClientAsync(host, null, SslProtocols.None,
         // false)` and translated a handshake failure into TikConnectionSSLErrorException, while the async
@@ -754,7 +754,7 @@ namespace tik4net.Api
             }
         }
 
-        // ── Reader loop (P2.3) ────────────────────────────────────────────────
+        // ── Reader loop ────────────────────────────────────────────────
 
         /// <summary>
         /// Starts the one thread that reads this connection's socket. Runs from just after the stream is
@@ -794,7 +794,7 @@ namespace tik4net.Api
             {
                 // Every caller learns of this, not just whoever happened to own the read. Carry the reason:
                 // an empty !fatal makes a router reboot, a socket error and a bug in our own reader
-                // indistinguishable, and this is the only place the exception exists (P2.14).
+                // indistinguishable, and this is the only place the exception exists.
                 SetClosed();
                 // The sentence carries only the flattened text; keep the exception itself so a diagnosis
                 // that needs its TYPE (Open's protocol-mismatch check) does not have to parse the message.
@@ -1174,9 +1174,9 @@ namespace tik4net.Api
             try { WriteCommand(commandRows); }
             finally { _writeLock.Release(); }
 
-            // The thread pumps this tag's sentences into the callback — it does NOT touch the socket. Before
-            // P2.3 it was one of many readers, so a slow callback ran with nobody servicing the connection
-            // and every command's deadline depended on what else was in flight (F8). The signature stays a
+            // The thread pumps this tag's sentences into the callback — it does NOT touch the socket. When
+            // it was one of many readers, so a slow callback ran with nobody servicing the connection
+            // and every command's deadline depended on what else was in flight. The signature stays a
             // Thread because it is public API; what it does underneath is now dispatch, not I/O.
             Thread result = new Thread(() =>
             {
@@ -1204,7 +1204,7 @@ namespace tik4net.Api
                 {
                     // Everything that can still land here is local (a receive timeout on this tag). Connection
                     // loss arrives as the reader's !fatal, above. Either way the caller (ExecuteWithCallback) must be
-                    // told, or it never clears its running state — carry the reason (P2.14).
+                    // told, or it never clears its running state — carry the reason.
                     try
                     {
                         oneResponseCallback(new ApiFatalSentence(

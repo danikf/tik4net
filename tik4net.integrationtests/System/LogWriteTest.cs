@@ -10,9 +10,9 @@ namespace tik4net.integrationtests
     /// line to the router log on every transport that can reach the command.
     /// </summary>
     /// <remarks>
-    /// These four public helpers had <b>no</b> integration coverage on any transport, which is why P2.48 stayed
-    /// invisible: over REST the level was not on the request builder's write-verb allow-list, so it became part
-    /// of the path with an implicit <c>print</c> and went out as <c>GET /rest/log/error</c> — answered
+    /// These four public helpers had <b>no</b> integration coverage on any transport, which is why their dispatch
+    /// defect stayed invisible: over REST the level was not on the request builder's write-verb allow-list, so it
+    /// became part of the path with an implicit <c>print</c> and went out as <c>GET /rest/log/error</c> — answered
     /// <c>400 no such command</c>. The router was never the limit: <c>POST /rest/log/error</c> returns
     /// <c>200</c> and the line appears in <c>/log</c> (measured on 7.23.2).
     /// <para>
@@ -61,7 +61,7 @@ namespace tik4net.integrationtests
             // /log/debug succeeds but the line only reaches the memory log when the logging configuration
             // enables the debug topics — on a default router it does not (measured: POST /rest/log/debug
             // returns 200 and nothing appears in /log). So this asserts the CALL, not the line: it fails only
-            // if the transport rejects the command, which is exactly what P2.48 did.
+            // if the transport rejects the command, which is exactly what the dispatch defect did.
             WriteOrSkip(() => Connection.LogDebug(NewMarker()));
         }
 
@@ -75,7 +75,7 @@ namespace tik4net.integrationtests
         /// This is the one legitimate gap: WinBox invokes actions declared by the router's own <c>.jg</c>
         /// catalog, and no window in it — on <c>/log</c>'s handler <c>[3,4]</c> or anywhere else — declares a
         /// log-writing action. WinBox itself cannot write a log line, so there is no correctly-formed request
-        /// being refused (P2.48). Caught by the exception rather than by transport name, so the test starts
+        /// being refused. Caught by the exception rather than by transport name, so the test starts
         /// passing on its own if a future catalog gains the action.
         /// </remarks>
         private static void WriteOrSkip(Action write)

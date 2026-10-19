@@ -13,8 +13,8 @@ namespace tik4net.Winbox
     /// from a normalizer plus protocol-constant seeds plus session overrides.
     /// </summary>
     /// <remarks>
-    /// For the F1 read milestone the important direction is <c>key → apiName</c> (decoding records back
-    /// to API field names). The forward direction (<c>apiName → key</c>, for writes) is also exposed for F2.
+    /// For reads the important direction is <c>key → apiName</c> (decoding records back
+    /// to API field names). The forward direction (<c>apiName → key</c>, for writes) is also exposed.
     /// Ambiguity (an API name that maps to two different keys) throws a clear exception telling the caller
     /// to add a session field override or use a <c>WinboxCli</c> connection instead.
     /// </remarks>
@@ -2502,7 +2502,7 @@ namespace tik4net.Winbox
             // a not-wrapped one negates via its own bool (RouterOS's leading '!'). This has to happen before the
             // typed switch below, not after it: 'network', 'ipaddr', 'macaddr' and 'addr' all return from inside
             // the switch, so emitting the flags afterwards skipped exactly them — which is why every firewall
-            // address written over native reached the router as a rule matching EVERYTHING (P2.33).
+            // address written over native reached the router as a rule matching EVERYTHING.
             //
             // Clearing one is the same bool the other way round: an empty value on an opt-wrapped field means
             // "the option is not present". The flag is emitted ALONGSIDE whatever the encoders below make of
@@ -3106,7 +3106,7 @@ namespace tik4net.Winbox
                     {
                         // ...at the field's own wire type. A two-member map over a BOOL key is a real shape
                         // (/system/health spells its two bools 'disabled'/'enabled'), and a u32 written to a
-                        // bool key is a request the router accepts, answers, and ignores — G4's shape.
+                        // bool key is a request the router accepts, answers, and ignores.
                         result.Add(jg.WireType == "bool"
                             ? M2Message.BoolSys(key, kv.Key != 0)
                             : EncodeU32(key, (uint)kv.Key));
@@ -4266,7 +4266,7 @@ namespace tik4net.Winbox
 
         // Numeric read on a path whose fallback would be INDISTINGUISHABLE from a real answer: an unreadable
         // ipaddr used to render 0.0.0.0 and an unreadable netmask prefix /0, both of which reach the caller
-        // looking like something the router said (P2.25). There is no honest substitute, so this throws — and
+        // looking like something the router said. There is no honest substitute, so this throws — and
         // it means our .jg UI type and the value the router sent disagree, which is our bug to fix, not the
         // caller's to work around.
         private static uint ToU32(object value, string what)

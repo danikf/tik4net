@@ -7,7 +7,7 @@ using tik4net.Cli;
 namespace tik4net.unittests.Cli
 {
     /// <summary>
-    /// The CLI login/prompt/nag state machine, driven against recorded RouterOS transcripts (P2.24).
+    /// The CLI login/prompt/nag state machine, driven against recorded RouterOS transcripts.
     /// </summary>
     /// <remarks>
     /// These cover the assumptions that are version-dependent and, until now, only ever validated by the fact
@@ -48,7 +48,7 @@ namespace tik4net.unittests.Cli
         }
 
         /// <summary>
-        /// The invariant P2.13c paid for: while the change-password nag is on screen, <b>no byte other than
+        /// The invariant the lab paid for: while the change-password nag is on screen, <b>no byte other than
         /// Ctrl-C</b> may be sent. Anything else is typed into the new-password field — that is how the lab
         /// router's admin password got changed by a client that meant to answer a VT100 probe.
         /// </summary>

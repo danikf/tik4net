@@ -9,14 +9,14 @@ using tik4net.Objects;
 namespace tik4net.unittests.Objects
 {
     /// <summary>
-    /// G5: what the mapper puts on the wire must not depend on the thread's culture. Digits are the same
+    /// What the mapper puts on the wire must not depend on the thread's culture. Digits are the same
     /// everywhere that matters; the <b>negative sign</b> is not. A handful of cultures (sv-SE, fi-FI) render
     /// minus as U+2212 MINUS SIGN, which RouterOS will not parse — and in the other direction a value the
     /// router sent with U+002D fails to parse back.
     /// </summary>
     /// <remarks>
     /// Not hypothetical arithmetic: <c>/system/ntp/client</c> reports a negative <c>system-offset</c> and
-    /// <c>freq-drift</c>, and a route distance or a signal strength is signed too. The B5 types
+    /// <c>freq-drift</c>, and a route distance or a signal strength is signed too. The newer types
     /// (<c>uint</c>/<c>ulong</c>/<c>DateTime</c>) already pinned <see cref="CultureInfo.InvariantCulture"/>;
     /// <c>int</c>, <c>long</c> and <c>byte</c> predate that and did not.
     /// </remarks>

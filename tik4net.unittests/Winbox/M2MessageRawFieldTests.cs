@@ -7,7 +7,7 @@ using tik4net.Winbox;
 namespace tik4net.unittests.Winbox
 {
     /// <summary>
-    /// Codec-level tests for <see cref="M2Message.ExtractRawField"/> (the verbatim cursor echo P2.9 needs)
+    /// Codec-level tests for <see cref="M2Message.ExtractRawField"/> (the verbatim cursor echo pagination needs)
     /// and for the field-skipping that every walker over an M2 message depends on.
     /// </summary>
     [TestClass]

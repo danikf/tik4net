@@ -125,7 +125,7 @@ namespace tik4net.integrationtests
         /// part-way through means WE have consumed half a chunk and the framing is now desynced, which
         /// would make the channel unusable regardless of what the router does next. The two look identical
         /// from the caller (an IOException), and telling them apart is what decides whether a dead channel
-        /// is the router's doing or ours (P2.20).
+        /// is the router's doing or ours.
         /// </summary>
         public string LastReadFailure { get; private set; }
 

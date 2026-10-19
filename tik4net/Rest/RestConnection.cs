@@ -149,10 +149,10 @@ namespace tik4net.Rest
         // ── Open / Close ──────────────────────────────────────────────────────
 
         // As with the CRUD hooks below, the async form is the implementation and the synchronous one blocks
-        // on it (D5). OpenAsync used to be `Task.Run(() => Open(...))` — which held a thread-pool thread for
+        // on it. OpenAsync used to be `Task.Run(() => Open(...))` — which held a thread-pool thread for
         // the whole connectivity/credential probe, an HTTP round trip that SendHttpAsync could already await.
         // A Task.Run façade is exactly what the AsyncCommands capability exists to rule out, so leaving one
-        // on the open path made the flag mean less than it says (P2.5).
+        // on the open path made the flag mean less than it says.
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
@@ -268,7 +268,7 @@ namespace tik4net.Rest
         // ── CRUD hooks (over HTTP) ─────────────────────────────────────────────
         //
         // HttpClient is async to the bottom, so the Task-based hooks are the real implementation here and the
-        // synchronous ones block on them (D5: async is the primitive, and nothing is pushed onto a thread-pool
+        // synchronous ones block on them (async is the primitive, and nothing is pushed onto a thread-pool
         // thread to look asynchronous). Every await inside carries ConfigureAwait(false), which is also what keeps
         // the blocking wrapper safe to call from a UI or ASP.NET-classic SynchronizationContext.
 
@@ -410,7 +410,7 @@ namespace tik4net.Rest
         // ── HTTP execution ─────────────────────────────────────────────────────
 
         // Only reached from RunNonQuery, so the builder is told so: an unrecognised trailing segment here is
-        // an action verb, not a menu name (P2.48 — /log/error and friends).
+        // an action verb, not a menu name (/log/error and friends).
         private async Task ExecuteRequestAsync(string commandText, IList<ITikCommandParameter> parameters,
             CancellationToken cancellationToken)
         {
@@ -551,7 +551,7 @@ namespace tik4net.Rest
             string? detail = null;
             // Falling back to the raw body is honest here — the caller still gets an error carrying whatever
             // the router said, nothing is invented — but the catch is narrowed to the parse itself so a bug in
-            // this method cannot hide inside it (P2.25), and a body we could not read is traced.
+            // this method cannot hide inside it, and a body we could not read is traced.
             if (!string.IsNullOrEmpty(body))
             {
                 try

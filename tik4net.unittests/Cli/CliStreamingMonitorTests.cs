@@ -9,7 +9,7 @@ namespace tik4net.unittests.Cli
 {
     /// <summary>
     /// Covers the two pieces that let a CLI transport deliver a long-running monitor while it is still
-    /// running (P2.50): the line streamer that carves completed lines out of a growing read buffer, and the
+    /// running: the line streamer that carves completed lines out of a growing read buffer, and the
     /// column parser that reads RouterOS's interactive table.
     /// </summary>
     /// <remarks>

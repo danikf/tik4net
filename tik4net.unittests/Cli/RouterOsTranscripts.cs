@@ -1,7 +1,7 @@
 namespace tik4net.unittests.Cli
 {
     /// <summary>
-    /// RouterOS terminal transcripts, <b>captured off the wire</b> and stored verbatim (P2.24).
+    /// RouterOS terminal transcripts, <b>captured off the wire</b> and stored verbatim.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -49,7 +49,7 @@ namespace tik4net.unittests.Cli
         /// </summary>
         /// <remarks>
         /// The wording — <c>"Login failed, incorrect username or password"</c> — matched none of the five
-        /// phrases <c>RouterOsCliLogin.IsLoginFailure</c> carried before P2.24, which cost the full 30 s
+        /// phrases <c>RouterOsCliLogin.IsLoginFailure</c> carried once, which cost the full 30 s
         /// receive deadline on every rejected CLI login. The trailing <c>Login:</c> is the signal that does
         /// not depend on wording at all.
         /// </remarks>
@@ -95,7 +95,7 @@ namespace tik4net.unittests.Cli
         /// <summary>The shell prompt on its own, as a transport that authenticated below the terminal sees it.</summary>
         internal const string V7232_PromptOnly = "\r\n\r\r\r\r" + Esc + "[9999B[admin@CHR] > ";
 
-        /// <summary>Safe Mode prompt as 7.23.2 emits it — the <c>&gt;</c> is replaced by the token (P2.31).</summary>
+        /// <summary>Safe Mode prompt as 7.23.2 emits it — the <c>&gt;</c> is replaced by the token.</summary>
         internal const string V7232_SafeModePrompt = "\r\r\r" + Esc + "[9999B[admin@CHR] <SAFE> ";
     }
 }

@@ -127,7 +127,7 @@ namespace tik4net.integrationtests
             => AssertAgreesWithApi("/system/resource", "total-hdd-space");
 
         /// <summary>
-        /// G12: an interface's last link times, which the window declares <c>relative:1, scale:100</c> -
+        /// An interface's last link times, which the window declares <c>relative:1, scale:100</c> -
         /// hundredths of a second on the router's UPTIME clock, where every other <c>dateandtime</c> on the
         /// wire is unix-epoch seconds. Read as an epoch they landed in February 1970: a well-formed
         /// timestamp, which is why nothing else here catches them - the path-map audit excuses any field

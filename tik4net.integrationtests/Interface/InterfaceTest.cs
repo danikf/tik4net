@@ -29,7 +29,7 @@ namespace tik4net.integrationtests
         /// It is what distinguishes the two families. WinBox labels the interface window's live bit rate 'Rx'
         /// and the lifetime total 'Rx Bytes'; normalizing those labels handed the API name <c>rx-byte</c> to the
         /// RATE, so the native transport reported 5 536 where the API reported 76 024 833 for the same
-        /// interface — a wrong value under a right name, which no "did it throw" test can see (P2.52).
+        /// interface — a wrong value under a right name, which no "did it throw" test can see.
         /// </remarks>
         [TestMethod]
         public void InterfaceByteCountersAreCountersNotRates()
@@ -171,7 +171,7 @@ namespace tik4net.integrationtests
             lock (responses) got = responses.ToArray();
             Assert.IsTrue(got.Length > 0, "the monitor produced no rows at all");
             // Assert on the CONTENT, not just the count: over WinBox native this streamed two blank records a
-            // second — a monitor cycle on the wrong window — and a row count read that as success (P2.52).
+            // second — a monitor cycle on the wrong window — and a row count read that as success.
             Assert.AreEqual(TestConstants.Interface, got[0].GetResponseField("name"),
                 "a monitor-traffic row must name the interface it is monitoring");
             Assert.IsNotNull(got[0].GetResponseField("rx-bits-per-second"),
@@ -210,7 +210,7 @@ namespace tik4net.integrationtests
 
             try
             {
-                // The change MUST be made over a second connection (P2.14). The CLI family emulates listen
+                // The change MUST be made over a second connection. The CLI family emulates listen
                 // by polling a single request/reply terminal, and that worker owns the channel while it
                 // runs — a `set` issued on the same connection contends with the poller, which is why this
                 // test was a lottery over Telnet/WinBox CLI while passing over the tag-multiplexed API.
@@ -289,7 +289,7 @@ namespace tik4net.integrationtests
             {
                 // Driven over a second connection for the same reason as
                 // LoadListenAsync_DetectsInterfaceChange: on the CLI transports the listen poller owns the
-                // terminal, so CRUD on the shared connection contends with it (P2.14).
+                // terminal, so CRUD on the shared connection contends with it.
                 //
                 // The add/remove pair sits inside the retry because an id can only be deleted once, so each
                 // round needs a fresh address — but the two halves must NOT be back-to-back. The CLI listen
@@ -375,7 +375,7 @@ namespace tik4net.integrationtests
 
             // /interface/monitor-traffic emits about once a second, so the old fixed 1 s waits demanded a
             // row inside exactly one emit interval — no margin on a transport that is slower than the API
-            // or a router that is busy (P2.14). Wait for the actual condition instead.
+            // or a router that is busy. Wait for the actual condition instead.
             Assert.IsTrue(WaitUntil(() => EthCount() > 0),
                 "the eth monitor produced no rows at all — nothing to test cancellation against");
 

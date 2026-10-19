@@ -1,7 +1,7 @@
 ﻿// UserActiveSessionProbeTest.cs — does closing a connection actually end the router-side session?
 //
-// P2.35 was filed on an observation, not a measurement: the lab router once held 164 entries in
-// /user/active (109 api, 55 rest-api) dating back to the previous day, from test processes long since
+// The session-accumulation report was filed on an observation, not a measurement: the lab router once held 164 entries
+// in /user/active (109 api, 55 rest-api) dating back to the previous day, from test processes long since
 // exited, and shortly afterwards it stalled and rebooted. The open question is whether our close path
 // leaks sessions, or whether this is RouterOS bookkeeping we cannot influence — and per transport,
 // because REST logs in per request and the CLI/WinBox family holds a terminal.
@@ -20,7 +20,7 @@
 // ⚠️ Do NOT reach for free-memory to corroborate anything here — on this lab CHR it is fiction whenever
 // the VM is on Hyper-V Dynamic Memory (see WinboxMproxyMemoryProbeTest for the full trap).
 //
-// ── What this measured, 2026-07-28/29 on 7.23.2 (P2.35) ──────────────────────────────────────────────
+// ── What this measured, 2026-07-28/29 on 7.23.2 ──────────────────────────────────────────────
 //
 // Clean on eight of eleven transports: Api, ApiSsl, Telnet, Ssh, WinboxCli, WinboxNative, MacTelnet,
 // WinboxCliMac leave nothing behind (the two CLI-terminal ones linger a moment, gone inside 15 s).
@@ -201,7 +201,7 @@ namespace tik4net.integrationtests
         /// <remarks>
         /// The per-transport probe above can only answer "was it gone within 15 s". That is enough to clear
         /// a transport but not to condemn one: a session released after 90 s is a lag, a session still there
-        /// after an hour is the accumulation P2.35 was filed on. Nothing here creates load — one API
+        /// after an hour is the accumulation that was reported. Nothing here creates load — one API
         /// connection, one print per minute — so it is safe to leave running alongside other work.
         /// </remarks>
         [TestMethod]

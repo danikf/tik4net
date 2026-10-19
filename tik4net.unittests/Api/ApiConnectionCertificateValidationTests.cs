@@ -4,7 +4,7 @@ using tik4net.Api;
 
 namespace tik4net.unittests.Api
 {
-    // Certificate validation precedence for API-SSL (P1.1 in ARCHITECTUREIMPROVEMENTPLAN.md):
+    // Certificate validation precedence for API-SSL:
     // CertificateValidationCallback (if set) wins outright; otherwise AllowInvalidCertificate
     // decides between accept-all and standard SslPolicyErrors-based validation.
     [TestClass]
@@ -13,7 +13,7 @@ namespace tik4net.unittests.Api
         [TestMethod]
         public void AllowInvalidCertificate_DefaultsToFalse_RejectingOnPolicyErrors()
         {
-            // The 4.0 default (D5). A router's self-signed certificate is the common case, so this is the
+            // The 4.0 default. A router's self-signed certificate is the common case, so this is the
             // flip most likely to be noticed — which is the point: accepting an unverifiable certificate is
             // now something a caller asks for rather than something they get by not asking.
             var connection = new ApiConnection(isSsl: true);

@@ -9,7 +9,7 @@ namespace tik4net.unittests.Cli
 {
     /// <summary>
     /// A scripted RouterOS PTY peer: the CLI counterpart of <c>FakeWinboxServer</c> and
-    /// <c>FakeRouterServer</c> (P2.24). It replays a <b>recorded</b> terminal byte stream and supplies the
+    /// <c>FakeRouterServer</c>. It replays a <b>recorded</b> terminal byte stream and supplies the
     /// three I/O delegates <see cref="RouterOsCliLogin"/> is built around, so the login/prompt/nag state
     /// machine can be driven without a router.
     /// </summary>
@@ -19,7 +19,7 @@ namespace tik4net.unittests.Cli
     /// wording, the change-password nag, the prompt shape, the refusal text — is version- and
     /// state-dependent, and we have exactly one lab router on one version. A mismatch there does not throw;
     /// it waits for the receive deadline and then reports something plausible, which is how the safe-mode
-    /// prompt (P2.31) and the refusal wording (P2.24) both survived. Recording the stream turns "works on
+    /// prompt and the refusal wording both survived. Recording the stream turns "works on
     /// 7.23.2" into data, so a second version is a new transcript rather than another live campaign.
     /// </para>
     /// <para>

@@ -1,4 +1,4 @@
-// WinboxJgActionFieldTests.cs — router-free tests for the A1 defect: an action window's ARGUMENTS and the
+// WinboxJgActionFieldTests.cs — router-free tests: an action window's ARGUMENTS and the
 // record list's COLUMNS share one M2 handler, and merged into one field map the column wins.
 //
 // The live symptom was silent: /ip/ipsec/key/rsa/generate-key name=X key-size=2048 produced an unnamed

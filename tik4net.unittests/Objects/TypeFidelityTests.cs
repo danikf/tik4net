@@ -9,13 +9,13 @@ using tik4net.Objects;
 namespace tik4net.unittests.Objects
 {
     /// <summary>
-    /// B5: the property types the mapper understands (<c>uint</c>, <c>ulong</c>, <c>DateTime</c>,
+    /// The property types the mapper understands (<c>uint</c>, <c>ulong</c>, <c>DateTime</c>,
     /// <see cref="MacAddress"/>), and <see cref="ITikTypeConverter"/> for the ones it does not.
     /// </summary>
     /// <remarks>
     /// Every method here fails against the old code with <see cref="NotImplementedException"/> — these are
-    /// types the mapper had no branch for — so unlike the B1/B2 files this one is evidence rather than a pin.
-    /// The RouterOS date formats are not invented: they were read off a live 7.23 router across
+    /// types the mapper had no branch for — so unlike the accessor and enum files this one is evidence rather than a
+    /// pin. The RouterOS date formats are not invented: they were read off a live 7.23 router across
     /// <c>/system/clock</c>, <c>/system/resource</c>, <c>/certificate</c> and <c>/log</c>, and the written form on
     /// 6.49.13 and 7.24.5 <c>/system/scheduler</c>. See <see cref="TikDateTimeHelper"/>.
     /// </remarks>

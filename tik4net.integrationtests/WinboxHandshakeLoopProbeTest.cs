@@ -1,4 +1,4 @@
-﻿// WinboxHandshakeLoopProbeTest.cs — what actually fails when the WinBox handshake fails? (P2.41)
+﻿// WinboxHandshakeLoopProbeTest.cs — what actually fails when the WinBox handshake fails?
 //
 // The WinBox EC-SRP5 handshake fails roughly once per few hundred opens, and until this probe every
 // layer above it reported the failure as "Cannot log in. Wrong username or password" — a diagnosis

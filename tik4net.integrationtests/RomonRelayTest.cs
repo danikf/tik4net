@@ -32,7 +32,7 @@ namespace tik4net.integrationtests
     // The chr2 profile relays from CHR2 (RouterOS 6) to CHR3 (7.x); the default one from CHR to CHR2.
     [TestCategory(TestCategories.AnyRouter)]
     // Every lock a test here needs is taken up front, in TestInitialize, with the rest of its set: an escalation in the
-    // body releases the set and takes it again, and another leg's test runs in that gap (X24). The set is:
+    // body releases the set and takes it again, and another leg's test runs in that gap. The set is:
     // - the RoMON target, exclusive. The relay writes to it, takes Safe Mode there and counts the terminal sessions on
     //   it; a run against that router (-Router chr2) would move those counts and see these rows. A run with that
     //   router as ITS agent holds it shared, so the two legs' relay tests exclude each other on it.

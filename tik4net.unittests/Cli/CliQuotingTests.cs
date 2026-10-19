@@ -1,4 +1,4 @@
-// CliQuotingTests.cs — router-free tests for P2.38: the CLI value quoting must survive RouterOS's own
+// CliQuotingTests.cs — router-free tests: the CLI value quoting must survive RouterOS's own
 // string rules instead of being rewritten by them.
 //
 // Every expectation below was measured against RouterOS 7.23.2 over telnet before being encoded here
@@ -77,7 +77,7 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void QuoteIfNeeded_Dollar_IsQuotedAndEscaped()
         {
-            // The P2.38 defect: this used to go out as a bare  x$y  (syntax error) or, with a space
+            // The defect: this used to go out as a bare  x$y  (syntax error) or, with a space
             // anywhere in the value, as  "x$y"  which RouterOS silently stored as  x .
             Assert.AreEqual("\"x\\$y\"", CliCommandBuilder.QuoteIfNeeded("x$y"));
             Assert.AreEqual("\"x\\$y z\"", CliCommandBuilder.QuoteIfNeeded("x$y z"));
@@ -185,7 +185,7 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void QuoteForWhere_AddressKeepsBeingQuoted()
         {
-            // The original reason QuoteForWhere exists (P2.30): '/' is an operator in expression
+            // The original reason QuoteForWhere exists: '/' is an operator in expression
             // context, so where address=192.168.1.1/24 matches nothing.
             Assert.AreEqual("\"192.168.1.1/24\"", CliCommandBuilder.QuoteForWhere("192.168.1.1/24"));
         }

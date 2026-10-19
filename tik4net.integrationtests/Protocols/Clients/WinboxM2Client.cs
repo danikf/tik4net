@@ -37,7 +37,7 @@ namespace tik4net.integrationtests
 
         // Mirrors tik4net.Connection.TikOpenRetry, which the production connections use. It cannot be reused
         // directly here: that helper retries a whole Open(), whereas these tests hold the client and only the
-        // handshake needs redoing. The measurement behind both is the same (P2.41).
+        // handshake needs redoing. The measurement behind both is the same.
         private const int LoginAttempts = 3;
         private const int LoginRetryDelayMs = 100;
 
@@ -54,7 +54,7 @@ namespace tik4net.integrationtests
                 catch (TikConnectionLoginRefusedException) when (attempt < LoginAttempts)
                 {
                     // The router refuses roughly one WinBox login in 100-200 although the credentials are
-                    // correct (P2.41). A refused handshake leaves the channel unusable, so the retry has to
+                    // correct. A refused handshake leaves the channel unusable, so the retry has to
                     // build a new one — the same reconnect the legacy-MD5 fallback below does. Without this
                     // the standalone protocol tests stayed exposed to it after the production paths were
                     // fixed, which is how it kept surfacing as a lone red test in an otherwise green run.
@@ -534,7 +534,7 @@ namespace tik4net.integrationtests
             SendHandshake(payload);
 
             // Mirrors WinboxM2Session: silence is the only evidence of a router too old for EC-SRP5, so
-            // the window must not be short enough for a busy router to miss (P2.41).
+            // the window must not be short enough for a busy router to miss.
             const int probeTimeoutMs = 10000;
             _transport.SetReceiveTimeout(probeTimeoutMs);
             byte respLen, respTag;
@@ -590,7 +590,7 @@ namespace tik4net.integrationtests
 
             byte[] serverCc = _transport.ReadExact(srvHdr[0]);
             // Same classification as the production channel: where the digest belongs the router sometimes
-            // puts its own words instead, and a wrong length must be read before it is compared (P2.41).
+            // puts its own words instead, and a wrong length must be read before it is compared.
             tik4net.Winbox.WinboxHandshakeReply.ThrowIfRouterMessage(serverCc, 32);
 
             byte[] expectedCc = EcSrp5.Sha256(j.Concat(clientCc).Concat(zMont).ToArray());
@@ -914,8 +914,8 @@ namespace tik4net.integrationtests
         //
         // Without this the client takes "the next frame" rather than "its own frame", so one late or
         // duplicated frame shifts every later reply by one and the channel never recovers — the exact
-        // defect P2.22 found and fixed in the production path (WinboxNativeM2Operations.LockstepSendReceive,
-        // mirrored here). This client is a diagnostic instrument: P2.20 concluded "mproxy degrades under
+        // defect once found and fixed in the production path (WinboxNativeM2Operations.LockstepSendReceive,
+        // mirrored here). This client is a diagnostic instrument: an earlier diagnosis concluded "mproxy degrades under
         // back-to-back M2 sessions and stays degraded" from probes run through the UNCORRELATED version, so
         // the correlation has to exist here before any statement about the router can be made from it.
         /// <summary>
@@ -923,7 +923,7 @@ namespace tik4net.integrationtests
         /// path (<c>WinboxNativeM2Operations</c>) runs on the connection's <c>ReceiveTimeout</c>, 30 s by
         /// default — this client used to hard-code 5 s, which is short enough that a slow-but-healthy read
         /// of the 933 KB <c>roteros.jg</c> is indistinguishable from mproxy having stopped answering.
-        /// Keep it aligned with production before drawing conclusions about the router (P2.20).
+        /// Keep it aligned with production before drawing conclusions about the router.
         /// </summary>
         public int OperationTimeoutMs { get; set; } = 30000;
 

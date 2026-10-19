@@ -4,7 +4,7 @@ using tik4net.Winbox;
 namespace tik4net.unittests.Winbox
 {
     /// <summary>
-    /// G4: the write side of a <c>.jg</c> <c>interval</c> field. The wire carries a COUNT of 1/scale-second
+    /// The write side of a <c>.jg</c> <c>interval</c> field. The wire carries a COUNT of 1/scale-second
     /// units while the API spells the same value "5m" / "1w" / "500ms", so an interval needs an encoder as
     /// much as it needs the decoder it already had. Without one "5m" failed <c>long.TryParse</c> in the
     /// generic u32 branch and went out as the STRING "5m", which the router accepts, answers with status 0,

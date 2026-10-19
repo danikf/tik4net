@@ -1,6 +1,6 @@
-﻿// MacSiblingSessionProbeTest.cs — does a second MAC session's teardown kill the first? (P2.55)
+﻿// MacSiblingSessionProbeTest.cs — does a second MAC session's teardown kill the first?
 //
-// P2.54 made the WinBox-CLI-MAC wedge survivable (reopen + retry) without explaining it. Three traced
+// The reopen + retry makes the WinBox-CLI-MAC wedge survivable without explaining it. Three traced
 // full runs pin the shape of the thing precisely: exactly THREE sessions are dropped per suite run, in
 // the SAME three tests every time (Create_IpAddress_With_LowLevel_API, ListRadiusServersWillNotFail,
 // SearchByName_Interface_WillWork). It is deterministic, not a background rate the retry now hides.
@@ -29,7 +29,7 @@
 //
 // What the pump does NOT fix: RouterOS logs an idle MAC console out after ~30 s, and says so itself.
 // MacTelnet - pump and all - wedges at 30 s exactly like this transport does. That one is the router's
-// contract and is handled by reopen+retry (P2.54), not by inventing traffic.
+// contract and is handled by reopen+retry, not by inventing traffic.
 //
 // THE ROLLBACK IS ASYNCHRONOUS, and that is what two earlier versions of this probe got wrong. RouterOS
 // keeps the Safe Mode owner alive after the connection goes away, until a connection-tracking timeout,
@@ -57,7 +57,7 @@
 //     thing: a trace timestamp records when WE drained the socket. A session nobody reads shows no gap
 //     at all, because its backlog surfaces in one burst on the next read. Kept here because a hypothesis
 //     disproved by a mismeasurement looks exactly like a hypothesis disproved.
-//   * RouterOS echoing a log line into the terminal (the P2.47 family) — exactly one such echo in a
+//   * RouterOS echoing a log line into the terminal — exactly one such echo in a
 //     whole run, so it can account for at most one of the three.
 //   * the command itself — the three run green in isolation, in 3 s, with no drop.
 //   * a bad ACK on our side — the last inbound packet before each wedge is correctly acknowledged
@@ -127,7 +127,7 @@ namespace tik4net.integrationtests
         /// <summary>
         /// Runs one disturbance against a freshly opened WinBox-CLI-MAC connection and reports how long
         /// the poke afterwards took and whether it threw. A wedge shows up as either an exception or a
-        /// poke several seconds long (the P2.54 retry absorbing it).
+        /// poke several seconds long (the reopen + retry absorbing it).
         /// </summary>
         private static bool RunCycle(string label, Action disturb)
         {
@@ -206,8 +206,8 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// The minimal reproduction of one of the three wedges, in library terms rather than test terms
-        /// (P2.55). Reduced from a 340-test suite run to this:
+        /// The minimal reproduction of one of the three wedges, in library terms rather than test terms.
+        /// Reduced from a 340-test suite run to this:
         /// <list type="number">
         /// <item>a WinBox-CLI-MAC session is open and has done some work;</item>
         /// <item>a SECOND connection takes Safe Mode and is disposed <b>without releasing it</b>, so

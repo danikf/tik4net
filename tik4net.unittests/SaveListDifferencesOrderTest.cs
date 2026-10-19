@@ -10,7 +10,7 @@ using tik4net.Testing;
 namespace tik4net.unittests
 {
     /// <summary>
-    /// B6: <c>SaveListDifferences</c> applies the ORDER of the modified list on an <c>IsOrdered</c> entity.
+    /// <c>SaveListDifferences</c> applies the ORDER of the modified list on an <c>IsOrdered</c> entity.
     /// </summary>
     /// <remarks>
     /// <para>

@@ -383,7 +383,7 @@ namespace tik4net.Api
         //
         // Extracted rather than duplicated: which answer means "not found", which means "succeeded with
         // nothing to return", and which is a protocol violation must not be allowed to drift between the two
-        // paths (the same rule P2.2 applied to the CLI/REST transports).
+        // paths (the same rule the CLI and REST transports follow).
 
         private void InterpretNonQuery(ApiSentence[] responseArray)
         {
@@ -459,10 +459,10 @@ namespace tik4net.Api
             return response.Take(response.Count() - 1).Cast<ITikReSentence>().ToList();
         }
 
-        // ── ITikCommandAsync (P2.3 / job B) ───────────────────────────────────
+        // ── ITikCommandAsync ───────────────────────────────────
         //
-        // Mirrors the synchronous methods rather than either side wrapping the other — the same rule P2.2
-        // applied to the CLI and REST transports. Everything after the call is the shared Interpret* helpers
+        // Mirrors the synchronous methods rather than either side wrapping the other — the same rule
+        // the CLI and REST transports follow. Everything after the call is the shared Interpret* helpers
         // above, so the two surfaces cannot disagree about what an answer means.
         //
         // These are reached through the Execute*Async extension methods on ITikCommand, which apply the
@@ -738,7 +738,7 @@ namespace tik4net.Api
                 return result;
         }
 
-        // ── Bounded streaming reads (P2.4) ────────────────────────────────────
+        // ── Bounded streaming reads ────────────────────────────────────
         //
         // Both methods below run the command asynchronously and wait for it in the calling thread. The wait
         // is on the command itself — the same callbacks that carry the sentences — not on a 100 ms clock that
@@ -746,7 +746,7 @@ namespace tik4net.Api
         //
         //  * an end was noticed up to a full tick after it happened, so every such read paid up to 100 ms;
         //  * connection loss was read off `_connection.IsOpened` instead of the `!fatal` the reader loop had
-        //    already delivered to this very command — and that `!fatal` carries the reason (P2.14), which the
+        //    already delivered to this very command — and that `!fatal` carries the reason, which the
         //    flag does not, so the caller got "Connection has been closed" and never learned what happened;
         //  * the tick could also land between a `!trap` and the `!done` that follows it, and in that ordering
         //    `ExecuteListWithDuration` overwrote the router's message with the literal "Cancelled". Narrow,
@@ -999,7 +999,7 @@ namespace tik4net.Api
         }
 
 #if NET8_0_OR_GREATER
-        // ── Streaming reads as IAsyncEnumerable (P2.4's deferred half, D4) ────
+        // ── Streaming reads as IAsyncEnumerable ─────────────────────────────
         //
         // The synchronous ExecuteListWithDuration/ExecuteListUntilDone above collect rows into a List and
         // hand it over once the read has ended, so a caller watching /tool/torch learns nothing until the
@@ -1040,7 +1040,7 @@ namespace tik4net.Api
                 onDoneCallback: () => { doneReceived = true; },
                 onTerminalCallback: _ =>
                 {
-                    // The !fatal case carries the reader loop's reason (P2.14); !done needs nothing but the
+                    // The !fatal case carries the reader loop's reason; !done needs nothing but the
                     // completion. Reading the field the callbacks set is safe here: the pump thread has
                     // already run them by the time it reaches this one.
                     channel.Writer.TryComplete();

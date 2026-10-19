@@ -9,7 +9,7 @@ using ECPoint = tik4net.Crypto.ECPoint;
 namespace tik4net.unittests
 {
     /// <summary>
-    /// Router-free coverage of the EC-SRP5 math behind the WinBox handshake (P2.41).
+    /// Router-free coverage of the EC-SRP5 math behind the WinBox handshake.
     /// </summary>
     /// <remarks>
     /// The handshake fails roughly once per few hundred opens and every layer above it reports the

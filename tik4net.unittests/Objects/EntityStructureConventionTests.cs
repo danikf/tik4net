@@ -8,7 +8,7 @@ using tik4net.Objects;
 namespace tik4net.unittests.Objects
 {
     /// <summary>
-    /// C1: reflection checks over every <c>[TikEntity]</c> for the STRUCTURAL conventions — the ones about
+    /// Reflection checks over every <c>[TikEntity]</c> for the STRUCTURAL conventions — the ones about
     /// how an entity is put together, as opposed to
     /// <see cref="EntityDefaultValueConventionTests"/>, which is about the values it declares.
     /// </summary>

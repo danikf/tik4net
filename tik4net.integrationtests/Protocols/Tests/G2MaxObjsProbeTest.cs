@@ -1,6 +1,6 @@
 ﻿// G2MaxObjsProbeTest.cs — probe: what does the router do with ufe0018 (maxObjs) on a getall?
 //
-// G2 was written as "paging (maxObjs with the cursor) is the real fix". The .jg says something else:
+// The paging finding was written as "paging (maxObjs with the cursor) is the real fix". The .jg says something else:
 // maxobjs is a CAP, declared on three windows only (routes, connections, proxy cache) and paired with a
 // maxobjsmsg — "There are too many records to show them all" — i.e. a refusal, not a page boundary. Those
 // are two different things, so the router was asked rather than either source believed.

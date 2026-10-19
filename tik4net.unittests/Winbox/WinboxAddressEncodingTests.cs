@@ -6,7 +6,7 @@ using tik4net.Winbox;
 namespace tik4net.unittests.Winbox
 {
     /// <summary>
-    /// The webfig <c>addr</c> compound and the <c>FT_ADDR6</c> field type (P2.52/P2.53).
+    /// The webfig <c>addr</c> compound and the <c>FT_ADDR6</c> field type.
     /// </summary>
     /// <remarks>
     /// These are pure codec rules taken from <c>master*.js</c> (<c>types.addr.fromstr</c>/<c>tostr</c>,
@@ -133,7 +133,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AHostNameIsRefusedByAFieldThatDoesNotAcceptOne()
         {
-            // allow:'46' is address-only. Before P2.53 an unencodable value fell back to a bare string at the
+            // allow:'46' is address-only. An unencodable value once fell back to a bare string at the
             // field key, which the router silently ignores — the caller was told the command had succeeded.
             var ex = Assert.ThrowsException<WinboxFieldValueException>(
                 () => EncodeAddrField("example.com", "46"));

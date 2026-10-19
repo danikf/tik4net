@@ -9,7 +9,7 @@ namespace tik4net.unittests.Rest
     /// <summary>
     /// Covers how the builder tells an ACTION VERB from a MENU NAME in the trailing path segment.
     /// It cannot do that from the text alone — <c>/log/error</c> and <c>/ip/address</c> are the same shape —
-    /// so the answer comes from which command method the caller used. Before P2.48 that information never
+    /// so the answer comes from which command method the caller used. That information once never
     /// reached the builder: anything not on the hard-coded write-verb allow-list became part of the path with
     /// an implicit <c>print</c>, so <c>connection.LogError(…)</c> went out as <c>GET /rest/log/error</c> and
     /// RouterOS answered <c>400 no such command</c>. Measured live on 7.23.2 that the POST form works:

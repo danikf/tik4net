@@ -346,7 +346,7 @@ namespace tik4net.Winbox
 
         // The handshake writes to the stream and reads through ReadExact, so none of it passes the
         // SendChunked/RecvChunked emit points — leaving the one exchange that is hardest to reason about
-        // as the only part of the transport a wire trace could not see (P2.41).
+        // as the only part of the transport a wire trace could not see.
         private static void TraceHandshake(TikWireDir dir, byte[] payload, string what)
         {
             if (TikWireTrace.Enabled)

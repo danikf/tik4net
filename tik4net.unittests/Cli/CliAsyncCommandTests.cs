@@ -9,7 +9,7 @@ using tik4net.Cli;
 namespace tik4net.unittests.Cli
 {
     /// <summary>
-    /// The Task-based command surface on the CLI family (P2.2 step 3), driven against a scripted terminal
+    /// The Task-based command surface on the CLI family, driven against a scripted terminal
     /// instead of a router.
     /// </summary>
     /// <remarks>

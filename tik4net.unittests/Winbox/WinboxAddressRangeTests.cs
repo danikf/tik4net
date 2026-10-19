@@ -5,7 +5,7 @@ namespace tik4net.unittests.Winbox
 {
     /// <summary>
     /// The <c>network</c> + <c>range:1</c> pair (start address + range-END sibling) that every firewall address
-    /// field is built from (P2.33).
+    /// field is built from.
     /// </summary>
     /// <remarks>
     /// The rule pinned here is the ROUTER's, measured live on 7.23.2 and recorded in
@@ -28,7 +28,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ASingleHostRendersBare()
         {
-            // The filed P2.33 symptom was "192.0.2.74/32"; what it actually produced was "/6", because the end
+            // The reported symptom was "192.0.2.74/32"; what it actually produced was "/6", because the end
             // address was being bit-counted as if it were a netmask. Both are wrong: the API says "192.0.2.74".
             Assert.AreEqual("192.0.2.74", Format("192.0.2.74", "192.0.2.74"));
         }

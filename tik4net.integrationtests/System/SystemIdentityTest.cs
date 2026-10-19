@@ -10,7 +10,7 @@ namespace tik4net.integrationtests
     /// makes it the cheapest place to cover the singleton read AND write path on every transport.
     /// </summary>
     /// <remarks>
-    /// Both halves were broken over WinBox native until P2.44 and nothing caught it, because no test had
+    /// Both halves were broken over WinBox native, and nothing caught it, because no test had
     /// ever touched <see cref="SystemIdentity"/>: the read decoded the field under its WinBox label
     /// (<c>identity</c>) so <c>LoadSingle</c> threw "Missing field 'name'", and the write went down the
     /// record path, which demands an <c>.id</c> a singleton does not have.

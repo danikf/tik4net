@@ -49,7 +49,7 @@ namespace tik4net.Cli
             if (exitCode.HasValue && exitCode.Value != 0)
                 throw new TikCommandTrapException(cmd, new TikTrapSentenceResult(output.Trim()));
 
-            // Positional detection (P2.12). The CLI has no structural error channel — output and errors are
+            // Positional detection. The CLI has no structural error channel — output and errors are
             // the same text — so phrase matching can never be complete, and every phrase it misses is
             // reported to the caller as SUCCESS. Verified live on 7.23.2: a rejected write prints its
             // diagnostic and nothing else ("value of mtu contains invalid trailing characters",

@@ -67,7 +67,7 @@ namespace tik4net.unittests.Winbox
         }
 
         // A resolved set is remembered per router so that a momentarily unavailable `list` reuses it rather
-        // than leaving the connection on the seed table, where missing counters look like zeros (P2.23).
+        // than leaving the connection on the seed table, where missing counters look like zeros.
         [TestMethod]
         public void RememberedList_RoundTripsThePluginSet()
         {

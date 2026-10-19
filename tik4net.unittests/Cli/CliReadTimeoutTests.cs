@@ -6,7 +6,7 @@ namespace tik4net.unittests.Cli
 {
     /// <summary>
     /// The message a truncated CLI read produces. This used to be no message at all — the partial text was
-    /// returned as a successful result — so what the exception actually says is the whole point of P2.32.
+    /// returned as a successful result — so what the exception actually says is the whole point.
     /// </summary>
     [TestClass]
     public class CliReadTimeoutTests

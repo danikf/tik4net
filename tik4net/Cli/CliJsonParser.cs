@@ -127,7 +127,7 @@ namespace tik4net.Cli
                     return JoinArray(value, fieldName);
                 default:
                     // A nested object has never been observed in as-value output. Refuse it loudly rather
-                    // than handing the caller raw JSON text that looks like a value (P2.25).
+                    // than handing the caller raw JSON text that looks like a value.
                     throw new TikSentenceException(
                         "Field '" + fieldName + "' holds an unsupported JSON " + value.ValueKind
                             + " value: " + Excerpt(value.GetRawText()));

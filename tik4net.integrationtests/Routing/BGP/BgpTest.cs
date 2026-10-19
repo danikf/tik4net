@@ -64,7 +64,7 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// G3.7: over WinBox-native the path must FAIL, and say why it can never work.
+        /// Over WinBox-native the path must FAIL, and say why it can never work.
         /// </summary>
         /// <remarks>
         /// WinBox reaches advertisements through the BGP session window's 'Dump Adv.' action

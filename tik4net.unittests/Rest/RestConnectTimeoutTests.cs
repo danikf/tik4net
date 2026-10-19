@@ -11,7 +11,7 @@ using tik4net.Rest;
 namespace tik4net.unittests.Rest
 {
     /// <summary>
-    /// Covers <see cref="RestConnection.ConnectTimeout"/> — the REST half of P1.2, which was deferred
+    /// Covers <see cref="RestConnection.ConnectTimeout"/> — the REST half of the connect timeout, which was deferred
     /// because <c>SocketsHttpHandler.ConnectTimeout</c> does not exist on <c>netstandard2.0</c> and was
     /// closed by bounding the open probe with a <see cref="System.Threading.CancellationTokenSource"/> of
     /// its own instead.

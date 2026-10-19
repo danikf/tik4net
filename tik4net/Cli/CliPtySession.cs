@@ -102,7 +102,7 @@ namespace tik4net.Cli
             // the prompt inside that repaint leaves the echoed command text behind: the accumulated buffer
             // ends at "…[admin@CHR] > ", the settle window expires, and the trailing ":put […]" arrives
             // afterwards. The next command then reads that leftover as its own answer — and because the
-            // stale echo contains 'name=value' text it parses as a record with no '.id' (P2.28).
+            // stale echo contains 'name=value' text it parses as a record with no '.id'.
             // Gated on HasData so the normal, clean path pays nothing. WinboxCliClient does the same.
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
 
@@ -300,7 +300,7 @@ namespace tik4net.Cli
                 {
                     // Reached WITHOUT a settled prompt: the response is whatever arrived so far and may end
                     // mid-record. Silent truncation here is how a partial read reaches the parser looking
-                    // like data (P2.25's failure class), so it is always traced.
+                    // like data, so it is always traced.
                     settle.NoteEnd(closed ? "CLOSED" : "TIMEOUT", sw.ElapsedMilliseconds, accumulated.Length);
                     if (closed && sentCommand != null && RomonTarget != null)
                         throw RouterOsCliLogin.RomonRelayEndedWithTheSession(_transportName, RomonTarget, sentCommand, stripped);

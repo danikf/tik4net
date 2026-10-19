@@ -65,7 +65,7 @@ namespace tik4net.Cli
                     // The same snapshot a one-shot read takes, so RouterOS 6 — which has no as-value on its
                     // monitors — is polled through the plain table too. A rejected monitor (bad interface name)
                     // throws out of it rather than being shrugged off, so the loop reports the error once
-                    // instead of spinning with nothing to deliver (P2.51).
+                    // instead of spinning with nothing to deliver.
                     var rows = _host.RunMonitorSnapshotAsync(descriptor, snapshotModifier, includeFilters: false,
                         CancellationToken.None).GetAwaiter().GetResult();
                     PollingMonitorEngine.Emit(rows, handle, onRow);
@@ -107,7 +107,7 @@ namespace tik4net.Cli
                     // final output too, and a half-arrived line must never be classified as one.
                     CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
                     // The table's own header is the acceptance signal: RouterOS prints it before the first
-                    // reading, so text that never produced one is the refusal instead (P2.51). Keyed on the
+                    // reading, so text that never produced one is the refusal instead. Keyed on the
                     // header rather than on the row count, because a monitor can legitimately be accepted and
                     // then print no reading.
                     if (!table.HasHeader && !string.IsNullOrWhiteSpace(output))

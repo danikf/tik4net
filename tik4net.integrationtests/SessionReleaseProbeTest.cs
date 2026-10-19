@@ -3,7 +3,7 @@
 // Filed 2026-09-30: during a full matrix, CHR2 (6.49.13, the RoMON target) stopped answering every login — API 0
 // bytes, Telnet an empty reply, MAC-Telnet no packets — while still answering ping; its native console took ~20 s
 // to log in and then stalled, with the CPU busy. The suspicion is sessions the library never released, piling up
-// until the router's login path starved. UserActiveSessionProbeTest (P2.35) cleared eight direct transports on
+// until the router's login path starved. UserActiveSessionProbeTest cleared eight direct transports on
 // 7.23.2 by /user/active alone; it never covered a RoMON relay, RouterOS 6, the log, or what keeps running.
 //
 // Three witnesses per transport, because each can miss what the others see:
@@ -15,7 +15,7 @@
 // own, the target sees an ssh login marked by-romon.
 //
 // REST is expected to leave rest-api (+api) rows and "logged in" lines without a logout: that is RouterOS's own
-// accounting, proved with curl in P2.35, and is reported but not counted as ours.
+// accounting, proved with curl, and is reported but not counted as ours.
 //
 // Run against a router profile like the suite: TIK4NET_ROUTER=chr2|chr3 (run-integration-tests.ps1 -Router …).
 // TIK4NET_PROBE_TRANSPORTS narrows the direct sweep (e.g. "Telnet,Ssh"), TIK4NET_PROBE_CYCLES sets the cycles.

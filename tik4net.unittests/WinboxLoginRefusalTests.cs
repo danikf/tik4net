@@ -10,7 +10,7 @@ namespace tik4net.unittests
 {
     /// <summary>
     /// Router-free coverage of how a WinBox handshake reply is classified and how a refusal is ridden
-    /// out (P2.41).
+    /// out.
     /// </summary>
     /// <remarks>
     /// The live behaviour these encode was measured on RouterOS 7.23.2: about one WinBox login in one to
@@ -56,7 +56,7 @@ namespace tik4net.unittests
 
         /// <summary>
         /// A wrong-sized payload that is not text is a broken handshake, not a credential verdict — the
-        /// conflation P2.41 was filed against.
+        /// conflation this guards against.
         /// </summary>
         [TestMethod]
         public void WrongSizedBinaryPayload_IsReportedAsBrokenHandshake()
@@ -217,7 +217,7 @@ namespace tik4net.unittests
         /// <summary>
         /// One exception type, not one per transport: the same router behaviour reaches MAC-Telnet, which
         /// carries the identical EC-SRP5 handshake and is refused as terminal text after
-        /// <c>CTRL_END_AUTH</c> rather than as an M2 error (P2.49). Nothing anywhere catches the two
+        /// <c>CTRL_END_AUTH</c> rather than as an M2 error. Nothing anywhere catches the two
         /// cases separately, so splitting them would only be a distinction the code has to re-erase.
         /// </summary>
         [TestMethod]

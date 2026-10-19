@@ -131,7 +131,7 @@ namespace tik4net.WinboxCli
 
                 // From here the terminal is idle between commands, and a RouterOS terminal is written to
                 // unprompted. On a carrier that expects each write to be acknowledged, leaving it unread is
-                // what kills the session (P2.55) — so hand the channel the job of servicing itself. TCP has
+                // what kills the session — so hand the channel the job of servicing itself. TCP has
                 // nothing to do here.
                 _session.StartIdleServicing();
             }, ct);
@@ -539,7 +539,7 @@ namespace tik4net.WinboxCli
                     // through a stall only piles bytes up behind the hole (~2.4 KB in 24 packets, measured)
                     // and buries the one packet that has to get through. Suppression ends the moment the ACK
                     // arrives, and no pull is lost: lastPullMs is not advanced, so the next one fires at
-                    // once. False on carriers that cannot tell (P2.56).
+                    // once. False on carriers that cannot tell.
                     if (!settle.AtPrompt && !_session.SendStalled
                         && (lastPullMs < 0 || sw.ElapsedMilliseconds - lastPullMs >= PullIntervalMs))
                     {
@@ -555,7 +555,7 @@ namespace tik4net.WinboxCli
                 // Nothing has come back AND the carrier says the router never took the bytes, even after the
                 // retransmits ran out. Spending the rest of ReceiveTimeoutMs would only turn an answer we
                 // already have into "nothing was received within 30000 ms" — a message that blames the read
-                // for what the session did (P2.54). Safe to call the command un-run: see
+                // for what the session did. Safe to call the command un-run: see
                 // TikConnectionSessionClosedException. On carriers that cannot tell, SendAbandoned is false
                 // and this costs a field read per poll.
                 if (sb.Length == 0 && _session.SendAbandoned)

@@ -49,7 +49,7 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// A script source must survive the round trip with its own punctuation intact (P2.17).
+        /// A script source must survive the round trip with its own punctuation intact.
         /// <para>
         /// <c>AddSystemScriptWillNotFail</c> below asserts only the name, and its source
         /// (<c>:log info test</c>) happens to contain neither ';' nor '=' — so it never saw this. RouterOS
@@ -94,7 +94,7 @@ namespace tik4net.integrationtests
 
         /// <summary>
         /// A written value must reach the router as it was given, including the characters RouterOS
-        /// treats as special inside its own quoted strings (P2.38).
+        /// treats as special inside its own quoted strings.
         /// <para>
         /// This is the WRITE-side mirror of <see cref="ScriptSource_SurvivesItsOwnSeparators"/>. The
         /// CLI transports quote a value in double quotes, and in a RouterOS double-quoted string
@@ -127,7 +127,7 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// The backslash half of P2.38 — same helper, same mechanism, opposite failure mode.
+        /// The backslash half of the quoting round trip — same helper, same mechanism, opposite failure mode.
         /// <para>
         /// Inside a RouterOS quoted value <c>\</c> starts an escape sequence: an escape the router
         /// knows is applied silently (<c>C:\temp\new</c> is stored as <c>C:&lt;TAB&gt;emp&lt;LF&gt;ew</c>)
@@ -150,7 +150,7 @@ namespace tik4net.integrationtests
 
         /// <summary>
         /// Writes <paramref name="source"/> to a throwaway script and asserts the router's stored
-        /// copy is byte-for-byte what was sent. Shared by the two P2.38 tests above.
+        /// copy is byte-for-byte what was sent. Shared by the two quoting tests above.
         /// </summary>
         private void AssertScriptSourceRoundTrips(string source, string message)
         {

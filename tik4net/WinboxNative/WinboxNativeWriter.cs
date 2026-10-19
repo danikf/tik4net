@@ -376,8 +376,8 @@ namespace tik4net.WinboxNative
         // single object and no record list, so it has no .id to address and webfig writes it with
         // set-singleton instead (ObjectHolder.setObject). Without this split every singleton write over the
         // native transport failed with "no such item: could not resolve record .id ''", i.e. no
-        // IsSingleton entity was saveable at all — the suite only ever read them, so it went unnoticed
-        // (P2.44). <paramref name="encodeFields"/> is deferred so the .id still resolves before the fields
+        // IsSingleton entity was saveable at all — the suite only ever read them, so it went unnoticed.
+        // <paramref name="encodeFields"/> is deferred so the .id still resolves before the fields
         // are encoded, keeping "no such item" the error a caller sees when both are wrong.
         private async Task WriteFieldsAsync(int[] handler, WinboxFieldResolver resolver, TikCommandDescriptor descriptor,
             Func<Task<List<byte[]>>> encodeFields, CancellationToken cancellationToken)

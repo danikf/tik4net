@@ -12,7 +12,7 @@ namespace tik4net.integrationtests
     /// </summary>
     /// <remarks>
     /// The entity existed with no test at all, which is why the native transport could report a queue type's
-    /// depth as 'queue-size' and refuse to write 'pcq-rate' without anything going red (A3). Every assertion
+    /// depth as 'queue-size' and refuse to write 'pcq-rate' without anything going red. Every assertion
     /// here is on a field that lives in a deck pane, so it fails on any transport that loses the kind.
     /// </remarks>
     [TestClass]

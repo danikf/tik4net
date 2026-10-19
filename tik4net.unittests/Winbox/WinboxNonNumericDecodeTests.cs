@@ -6,7 +6,7 @@ using tik4net.Winbox;
 namespace tik4net.unittests.Winbox
 {
     /// <summary>
-    /// What the WinBox-native decode path does with a value it cannot read as a number (P2.25).
+    /// What the WinBox-native decode path does with a value it cannot read as a number.
     /// </summary>
     /// <remarks>
     /// The old code answered every one of these with <c>0</c>, and <c>0</c> is a legal address, a legal netmask
