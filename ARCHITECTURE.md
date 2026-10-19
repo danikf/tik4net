@@ -320,6 +320,13 @@ CLI specifics live in `Cli/`: `CliCommandBuilder`, `CliOutputParser`, `CliErrorP
 `CliMonitorVerbs`, `CliSafeModeParser`, `VtStripper`/`Vt100State` (terminal emulation),
 `RouterOsCliLogin`, `ITikCliCompletion`.
 
+`CliConnectionBase` keeps the driver (the terminal, the guarded execute path, Safe Mode), the CRUD dispatch and
+the write path. Each other concern is an internal collaborator in `Cli/` that reaches the connection through
+`ICliCommandHost`, which the connection implements explicitly, so none of it shows on the connection:
+
+- `CliRouterKnowledge` — what the connection has learnt about its router (`RouterFeatureSet`, `RouterMenuFacts`)
+  and the per-build `CliSchemaStore` that keeps it across connections; replaced on every open.
+
 `Mndp/` does neighbor discovery (used to resolve router MACs for the MAC-layer transports).
 `Crypto/` holds `EcSrp5` and `WinboxStreamCrypto` — reverse-engineered, high-risk, treat as
 load-bearing.
