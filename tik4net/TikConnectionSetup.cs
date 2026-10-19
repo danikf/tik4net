@@ -278,13 +278,12 @@ namespace tik4net
         /// <see cref="RomonAgentSetup"/>.
         /// </summary>
         /// <param name="connectionType">The transport to ask about.</param>
-        /// <exception cref="NotImplementedException">The type lives in a satellite package that has not been
-        /// registered (as for <see cref="Create(TikConnectionType)"/>).</exception>
+        /// <remarks>Answered from what tik4net knows of each transport, without creating a connection: SSH answers
+        /// whether or not <c>tik4net.ssh</c> has been registered.</remarks>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="connectionType"/> is not a declared
+        /// <see cref="TikConnectionType"/> value.</exception>
         public static bool SupportsRomon(TikConnectionType connectionType)
-        {
-            using (var probe = TikConnectionRegistry.Create(connectionType))
-                return probe is ITikRomonConnection;
-        }
+            => TikTransportInfo.Of(connectionType).RelaysRomon;
 
         /// <summary>Creates a connection setup for the given router address and credentials.</summary>
         /// <param name="address">

@@ -1189,9 +1189,6 @@ namespace tik4net.WinboxNative
             | TikConnectionCapability.FieldLabels | TikConnectionCapability.MenuSchema
             | TikConnectionCapability.StructuredWrites;
 
-        /// <inheritdoc/>
-        protected override string DiagnosticPrefix => "WBX";
-
         bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
         /// <summary>

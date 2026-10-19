@@ -2744,7 +2744,7 @@ namespace tik4net.Cli
         // Misuse of a read method (ExecuteList/ExecuteScalar/…) on an action command — guide to ExecuteNonQuery.
         private NotSupportedException ActionVerbOnReadPath(string commandText)
             => new NotSupportedException(
-                $"'{commandText}' is an action command and returns no result set over the {DiagnosticPrefix} " +
+                $"'{commandText}' is an action command and returns no result set over the {TransportName} " +
                 "transport. Invoke it with ExecuteNonQuery() instead of ExecuteList()/ExecuteScalar().");
 
         // ── Streaming monitor / async / listen (ITikMonitorTransport) ──────────

@@ -242,9 +242,10 @@ namespace tik4net.Connection
         /// </summary>
         protected bool RowTracingEnabled => DebugEnabled || OnReadRow != null || OnWriteRow != null;
 
-        /// <summary>Short tag prefixing <see cref="DebugEnabled"/> trace lines (e.g. <c>CLI&gt;&gt;</c>), naming the
-        /// channel (API / CLI / REST / …).</summary>
-        protected abstract string DiagnosticPrefix { get; }
+        /// <summary>Short tag prefixing <see cref="DebugEnabled"/> trace lines (e.g. <c>MAC-Telnet&gt;&gt;</c>), naming the
+        /// channel. The transport's name by default: a built-in transport's own (<c>API</c>, <c>Telnet</c>, <c>WinBox
+        /// native</c>…), the type's name for one written outside tik4net, which may override it.</summary>
+        protected virtual string DiagnosticPrefix => TransportName;
 
         /// <summary>Fires <see cref="OnWriteRow"/> and writes a debug line when <see cref="DebugEnabled"/>.</summary>
         protected void FireWriteRow(string word)

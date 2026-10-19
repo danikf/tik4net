@@ -111,9 +111,6 @@ namespace tik4net.Rest
         private const int MaxConcurrentRequests = 8;
         private readonly SemaphoreSlim _requestGate = new SemaphoreSlim(MaxConcurrentRequests, MaxConcurrentRequests);
 
-        /// <inheritdoc/>
-        protected override string DiagnosticPrefix => "REST";
-
         /// <summary>
         /// CRUD, <see cref="TikConnectionCapability.Listen"/> (polled — see <c>RunMonitorAsync</c>),
         /// <see cref="TikConnectionCapability.AsyncCommands"/> and <see cref="TikConnectionCapability.CancelInFlight"/>.

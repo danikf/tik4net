@@ -85,9 +85,6 @@ namespace tik4net.Api
             _isSsl = isSsl;
         }
 
-        /// <inheritdoc/>
-        protected override string DiagnosticPrefix => "API";
-
         // Open is not enough: a session that stopped answering is refused here too, rather than costing the
         // caller a full ReceiveTimeout to find out.
         protected override void EnsureOpened()

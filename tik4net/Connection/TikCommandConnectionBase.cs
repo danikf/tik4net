@@ -233,10 +233,6 @@ namespace tik4net.Connection
         internal Task<string> InvokeRunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => RunRawTextAsync(descriptor, cancellationToken);
 
-        /// <inheritdoc/>
-        /// <remarks>Transports override it so the debug output names the right channel (CLI / REST / …).</remarks>
-        protected override string DiagnosticPrefix => "CLI";
-
         /// <summary>The command a caller sees in an exception raised on a path that has a descriptor, not a command object.</summary>
         internal ITikCommand CommandFor(TikCommandDescriptor descriptor)
             => CommandFor(descriptor.CommandText, descriptor.Parameters);
