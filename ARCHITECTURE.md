@@ -332,6 +332,8 @@ the write path. Each other concern is an internal collaborator in `Cli/` that re
   print by name where `proplist=` exists, the id list of each flag (`find`) on RouterOS 6.
 - `CliPagedReader` — the counted and windowed print reads: a window of rows at a time where the read may be
   windowed, else one counted command, each answer held to the router's own count; `RunPrintQueryAsync` picks.
+- `CliMonitorDriver` — the monitor loops: a snapshot polled on a timer, a self-terminating monitor streamed once,
+  torch frame by frame. The connection stays `PollingMonitorEngine`'s host for the table shapes.
 
 `Mndp/` does neighbor discovery (used to resolve router MACs for the MAC-layer transports).
 `Crypto/` holds `EcSrp5` and `WinboxStreamCrypto` — reverse-engineered, high-risk, treat as

@@ -8,9 +8,9 @@ namespace tik4net.Cli
 {
     /// <summary>
     /// What the CLI connection's collaborators (<see cref="CliRouterKnowledge"/>, …) need from the connection that
-    /// runs them. <see cref="CliConnectionBase"/> implements it explicitly, so none of it shows on the connection.
+    /// runs them, the polling engine's host (<see cref="IPollingMonitorHost"/>) among it. <see cref="CliConnectionBase"/> implements it explicitly, so none of it shows on the connection.
     /// </summary>
-    internal interface ICliCommandHost
+    internal interface ICliCommandHost : IPollingMonitorHost
     {
         /// <summary>Where the menu grammar is cached (<see cref="CliConnectionBase.CatalogCachePath"/>).</summary>
         string? CatalogCachePath { get; }
@@ -84,5 +84,18 @@ namespace tik4net.Cli
 
         /// <summary>Throws the router's complaint when a read's whole answer is one parse error.</summary>
         void ThrowIfSyntaxError(string? output, TikCommandDescriptor descriptor);
+
+        /// <summary>
+        /// One monitor snapshot — the as-value form, or on a router that refuses it (RouterOS 6) the plain table. See
+        /// <c>CliConnectionBase.RunMonitorSnapshotAsync</c>.
+        /// </summary>
+        Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(TikCommandDescriptor descriptor, string modifier,
+            bool includeFilters, CancellationToken cancellationToken);
+
+        /// <summary>Whether the terminal can report a command's output line by line as it arrives.</summary>
+        bool SupportsStreamingRead { get; }
+
+        /// <summary>Runs a command, reporting each completed output line to <paramref name="onLine"/>.</summary>
+        string ExecuteStreaming(string cliText, Action<string> onLine);
     }
 }
