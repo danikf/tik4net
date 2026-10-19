@@ -402,7 +402,7 @@ namespace tik4net.WinboxNative
 
         /// <summary>
         /// Hands the channel's read side to a <see cref="WinboxM2Multiplexer"/> so M2 operations dispatch by
-        /// request id instead of serializing on <c>_cmdLock</c>.
+        /// request id instead of serializing on <c>CommandLock</c>.
         /// </summary>
         /// <remarks>
         /// Deliberately the <b>last</b> step of <see cref="InitAfterAuth"/>: authentication, the router
@@ -434,7 +434,7 @@ namespace tik4net.WinboxNative
         /// the real semaphore on any channel left on the lockstep path, where a reader that takes "the next
         /// frame" would otherwise pick up someone else's reply.
         /// </summary>
-        private CommandGate EnterCommand() => new CommandGate(_mux == null ? _cmdLock : null);
+        private CommandGate EnterCommand() => new CommandGate(_mux == null ? CommandLock : null);
 
         /// <summary>
         /// <see cref="EnterCommand"/> for an awaiting caller: on the multiplexed path there is nothing to
@@ -444,8 +444,8 @@ namespace tik4net.WinboxNative
         private async Task<CommandGate> EnterCommandAsync(CancellationToken cancellationToken)
         {
             if (_mux != null) return default;
-            await _cmdLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            return new CommandGate(_cmdLock, alreadyHeld: true);
+            await CommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return new CommandGate(CommandLock, alreadyHeld: true);
         }
 
         /// <summary>Scope object for <see cref="EnterCommand"/>; releases the semaphore if one was taken.</summary>

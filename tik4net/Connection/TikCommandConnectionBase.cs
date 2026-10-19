@@ -43,7 +43,7 @@ namespace tik4net.Connection
     /// </summary>
     /// <remarks>
     /// <b>Thread safety is the subclass's call, and it has to be made deliberately.</b> The
-    /// <see cref="_cmdLock"/> offered here is a default, not something this class enforces: the
+    /// <see cref="CommandLock"/> offered here is a default, not something this class enforces: the
     /// <c>Run*</c> hooks are invoked without it held, so each transport decides whether to serialize.
     /// The CLI family takes it around every command because a terminal carries one conversation;
     /// <see cref="Rest.RestConnection"/> never touches it, since each command is an independent HTTP
@@ -60,8 +60,11 @@ namespace tik4net.Connection
         /// <summary>The constructor of a built-in transport, which names its <see cref="TikConnectionType"/>.</summary>
         private protected TikCommandConnectionBase(TikConnectionType? connectionType) : base(connectionType) { }
 
-        /// <summary>Serialises command execution — the underlying transports are inherently sequential.</summary>
-        protected readonly SemaphoreSlim _cmdLock = new SemaphoreSlim(1, 1);
+        /// <summary>
+        /// A lock to serialise commands with, offered and not enforced: the <c>Run*</c> hooks run without it held, and each
+        /// transport decides whether its channel needs it (see the class remarks).
+        /// </summary>
+        protected SemaphoreSlim CommandLock { get; } = new SemaphoreSlim(1, 1);
 
         /// <summary>
         /// The exception for "the connection was closed while this command was still running".

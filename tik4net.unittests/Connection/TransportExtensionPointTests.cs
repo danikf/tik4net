@@ -196,6 +196,20 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>
+        /// The lock the extension point offers is the protected <c>CommandLock</c> property, which a foreign transport
+        /// reaches; it was a <c>_cmdLock</c> field, a name that reads as private.
+        /// </summary>
+        [TestMethod]
+        public void TheOfferedLockIsTheProtectedCommandLockProperty()
+        {
+            var getter = typeof(TikCommandConnectionBase).GetProperty("CommandLock", BindingFlags.Instance | BindingFlags.NonPublic)?.GetGetMethod(true);
+            Assert.IsNotNull(getter, "CommandLock is missing");
+            Assert.IsTrue(getter!.IsFamily, "CommandLock must be protected: Writing-your-own-transport tells a transport to use it");
+            Assert.AreEqual(typeof(System.Threading.SemaphoreSlim), getter.ReturnType);
+            Assert.IsNull(typeof(TikCommandConnectionBase).GetField("_cmdLock", BindingFlags.Instance | BindingFlags.NonPublic));
+        }
+
+        /// <summary>
         /// The extension point has one diagnostics channel, the row events and <c>DebugEnabled</c>, beside the
         /// process-wide <c>TikWireTrace</c>. The <c>TransportDiagnostic</c> callback it also offered was never
         /// invoked by anything, so it is gone rather than promising output that never came.

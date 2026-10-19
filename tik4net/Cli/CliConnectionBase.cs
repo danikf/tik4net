@@ -648,7 +648,7 @@ namespace tik4net.Cli
         /// <remarks>
         /// <paramref name="ct"/> is observed at the points where observing it is safe, which on a terminal is
         /// not the same as "wherever it fires" — see <see cref="TransportToken"/> and
-        /// <see cref="TikCancellationMode"/>. Cancelling while queued for <c>_cmdLock</c> is free: the command
+        /// <see cref="TikCancellationMode"/>. Cancelling while queued for <c>CommandLock</c> is free: the command
         /// has not been written, so nothing needs resynchronizing.
         /// </remarks>
         private protected Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
@@ -663,7 +663,7 @@ namespace tik4net.Cli
                 cliText = CliOutputHelper.WithEndMarker(cliText, NewEndNonce());
                 endLine = CliOutputHelper.EndMarkerLineOf(cliText);
             }
-            await _cmdLock.WaitAsync(ct).ConfigureAwait(false);
+            await CommandLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 ct.ThrowIfCancellationRequested();   // level 0 — nothing written yet
@@ -679,7 +679,7 @@ namespace tik4net.Cli
             }
             finally
             {
-                _cmdLock.Release();
+                CommandLock.Release();
             }
         }
 
@@ -847,7 +847,7 @@ namespace tik4net.Cli
         {
             var terminal = _terminal is { SupportsLineStreaming: true } t ? t : throw new NotSupportedException(
                 $"{TransportName} does not support incremental reads.");
-            _cmdLock.Wait();
+            CommandLock.Wait();
             try
             {
                 FireWriteRow(cliText);
@@ -858,7 +858,7 @@ namespace tik4net.Cli
             }
             finally
             {
-                _cmdLock.Release();
+                CommandLock.Release();
             }
         }
 
@@ -881,7 +881,7 @@ namespace tik4net.Cli
 
         private string SendControlKey(byte key)
         {
-            _cmdLock.Wait();
+            CommandLock.Wait();
             try
             {
                 FireWriteRow($"<ctrl-0x{key:X2}>");
@@ -889,7 +889,7 @@ namespace tik4net.Cli
                 FireReadRow(result);
                 return result;
             }
-            finally { _cmdLock.Release(); }
+            finally { CommandLock.Release(); }
         }
 
         /// <summary>
@@ -1032,7 +1032,7 @@ namespace tik4net.Cli
             Array.Copy(stem, keys, stem.Length);
             Array.Copy(F1, 0, keys, stem.Length, F1.Length);
 
-            _cmdLock.Wait();
+            CommandLock.Wait();
             try
             {
                 FireWriteRow("<help-key> " + partialInput);
@@ -1042,7 +1042,7 @@ namespace tik4net.Cli
                 catch { /* best-effort cleanup — the answer is already captured */ }
                 return answer;
             }
-            finally { _cmdLock.Release(); }
+            finally { CommandLock.Release(); }
         }
 
         private static readonly byte[] F1 = { 0x1B, (byte)'O', (byte)'P' };
@@ -1086,7 +1086,7 @@ namespace tik4net.Cli
             Array.Copy(stem, tab, stem.Length);
             tab[stem.Length] = Tab;
 
-            _cmdLock.Wait();
+            CommandLock.Wait();
             try
             {
                 FireWriteRow("<tab-complete> " + partialInput);
@@ -1123,7 +1123,7 @@ namespace tik4net.Cli
 
                 return (reaction, more);
             }
-            finally { _cmdLock.Release(); }
+            finally { CommandLock.Release(); }
         }
 
         // ── CRUD hooks — CLI text build + parse ────────────────────────────────
@@ -2804,7 +2804,7 @@ namespace tik4net.Cli
 
         /// <inheritdoc/>
         IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)
-            => RunPrint(printDescriptor);   // RunPrint serialises via ExecuteCliCommand's _cmdLock
+            => RunPrint(printDescriptor);   // RunPrint serialises via ExecuteCliCommand's CommandLock
 
         /// <inheritdoc/>
         TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => TikTrapSentenceResult.FromException(ex);

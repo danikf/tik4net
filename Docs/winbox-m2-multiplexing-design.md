@@ -121,10 +121,10 @@ loop completes, not from the I/O underneath it. `SendReceive` (the synchronous e
 `WinboxNativeM2Operations`'s sync API) blocks on `SendReceiveAsync` rather than duplicating the
 logic.
 
-The connection-wide lock this replaces (`_cmdLock` in `WinboxNativeConnection`) disappears from the
+The connection-wide lock this replaces (`CommandLock` in `WinboxNativeConnection`) disappears from the
 request path on a multiplexed connection: `EnterCommand`/`EnterCommandAsync` become no-ops once
 `_mux` is set, because the reader loop's id dispatch already makes concurrent operations safe, and
-serializing them would give back exactly the throughput multiplexing exists to gain. `_cmdLock`
+serializing them would give back exactly the throughput multiplexing exists to gain. `CommandLock`
 stays the real semaphore only for a channel that never gets a multiplexer (`SupportsReaderLoop ==
 false`).
 
