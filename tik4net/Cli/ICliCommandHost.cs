@@ -32,5 +32,29 @@ namespace tik4net.Cli
 
         /// <summary>The connection's per-open menu-schema cache.</summary>
         TikMenuSchemaCache MenuSchemas { get; }
+
+        /// <summary>The open console; <c>null</c> while the connection is closed.</summary>
+        ICliTerminal? Terminal { get; }
+
+        /// <summary>Throws the not-open exception when the connection is closed.</summary>
+        void EnsureOpened();
+
+        /// <summary>The transport's name in messages ("Telnet", "WinBox CLI", …).</summary>
+        string TransportName { get; }
+
+        /// <summary>The connection's text encoding.</summary>
+        System.Text.Encoding Encoding { get; }
+
+        /// <summary>The lock a command holds while it owns the terminal.</summary>
+        SemaphoreSlim CommandLock { get; }
+
+        /// <summary>Reports a row written to the router (<c>OnWriteRow</c>).</summary>
+        void FireWriteRow(string row);
+
+        /// <summary>Reports a row read from the router (<c>OnReadRow</c>).</summary>
+        void FireReadRow(string row);
+
+        /// <summary>Sends keystrokes with no line end and reads to the next prompt.</summary>
+        Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct);
     }
 }

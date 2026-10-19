@@ -326,6 +326,8 @@ the write path. Each other concern is an internal collaborator in `Cli/` that re
 
 - `CliRouterKnowledge` — what the connection has learnt about its router (`RouterFeatureSet`, `RouterMenuFacts`)
   and the per-build `CliSchemaStore` that keeps it across connections; replaced on every open.
+- `CliCompletion` — Tab completion and the help key (`ITikCliCompletion`, which the connection forwards to it),
+  with the settle window it learns from the link.
 
 `Mndp/` does neighbor discovery (used to resolve router MACs for the MAC-layer transports).
 `Crypto/` holds `EcSrp5` and `WinboxStreamCrypto` — reverse-engineered, high-risk, treat as
