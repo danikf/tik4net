@@ -54,6 +54,12 @@ namespace tik4net.Connection
     /// </remarks>
     public abstract class TikCommandConnectionBase : TikConnectionBase
     {
+        /// <summary>The constructor a transport written outside tik4net calls: it has no <see cref="TikConnectionType"/>.</summary>
+        protected TikCommandConnectionBase() : base(null) { }
+
+        /// <summary>The constructor of a built-in transport, which names its <see cref="TikConnectionType"/>.</summary>
+        private protected TikCommandConnectionBase(TikConnectionType? connectionType) : base(connectionType) { }
+
         /// <summary>Serialises command execution — the underlying transports are inherently sequential.</summary>
         protected readonly SemaphoreSlim _cmdLock = new SemaphoreSlim(1, 1);
 

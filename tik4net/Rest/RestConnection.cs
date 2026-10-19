@@ -114,8 +114,6 @@ namespace tik4net.Rest
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "REST";
 
-        private protected override string TransportName => "REST";
-
         /// <summary>
         /// CRUD, <see cref="TikConnectionCapability.Listen"/> (polled — see <c>RunMonitorAsync</c>),
         /// <see cref="TikConnectionCapability.AsyncCommands"/> and <see cref="TikConnectionCapability.CancelInFlight"/>.
@@ -146,7 +144,7 @@ namespace tik4net.Rest
         /// <summary>Creates a REST connection.</summary>
         /// <param name="useSsl">Use HTTPS (port 443) instead of HTTP (port 80).</param>
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
-        internal RestConnection(bool useSsl = false)
+        internal RestConnection(bool useSsl = false) : base(useSsl ? TikConnectionType.RestSsl : TikConnectionType.Rest)
         {
             _useSsl = useSsl;
         }

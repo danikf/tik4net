@@ -53,7 +53,8 @@ namespace tik4net.Cli
     /// </remarks>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
         ITikMonitorTransport, IPollingMonitorHost, ITikCliPagedReadConnection,
-        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection, ICliCompletionReaction, ICliHelpKey, ITikCatalogCacheConnection
+        ITikCliFieldSeparatorConnection, ITikMenuSchemaConnection, ICliCompletionReaction, ICliHelpKey, ITikCatalogCacheConnection,
+        ITikRomonConnection
     {
         /// <inheritdoc/>
         public string? CliFieldSeparator
@@ -488,11 +489,9 @@ namespace tik4net.Cli
         // OpenTerminal.
 
         /// <summary>Derived inside tik4net and its friend assemblies only; see the class remarks.</summary>
-        private protected CliConnectionBase() { }
+        /// <param name="connectionType">The transport this is; <c>null</c> only for a test double.</param>
+        private protected CliConnectionBase(TikConnectionType? connectionType = null) : base(connectionType) { }
         private ICliTerminal? _terminal;
-
-        /// <summary>Short transport name shown in the "connection is not open" diagnostic (e.g. "Telnet").</summary>
-        private protected abstract override string TransportName { get; }
 
         /// <summary>The timeouts a leaf hands its terminal client; the receive one is read per use.</summary>
         private protected CliClientTimeouts ClientTimeouts => new CliClientTimeouts(() => ReceiveTimeoutMs, ConnectTimeoutMs, SendTimeoutMs);
@@ -500,10 +499,9 @@ namespace tik4net.Cli
         /// <summary>
         /// When set before <c>Open</c>, the host/user/password given to <c>Open</c> are the AGENT's, and the
         /// transport continues from the agent into this target over RoMON before the connection counts as open.
-        /// Set by <see cref="TikConnectionSetup.ApplyTo"/> through <see cref="ITikRomonConnection"/>, which all five CLI
-        /// transports implement: Telnet, SSH and MAC-Telnet relay through <c>/tool romon ssh</c>, the two WinBox CLI
-        /// transports through the WinBox relay. A CLI transport that does not implement it refuses a target at open —
-        /// ignoring one would open the AGENT and run every command there.
+        /// Set by <see cref="TikConnectionSetup.ApplyTo"/> through <see cref="ITikRomonConnection"/>, which this class
+        /// implements for all five CLI transports: Telnet, SSH and MAC-Telnet relay through <c>/tool romon ssh</c>, the
+        /// two WinBox CLI transports through the WinBox relay.
         /// </summary>
         internal RomonRelayTarget? RomonTarget { get; set; }
 
@@ -515,9 +513,15 @@ namespace tik4net.Cli
         /// <see cref="RouterOsCliLogin.RomonSshLoginAsync"/> returned the agent's own RoMON id, or by a WinBox CLI
         /// transport once the WinBox relay (<see cref="Winbox.WinboxRomonChannel"/>) has opened its link.
         /// </summary>
-        internal void RomonEntered(TikConnectionType agentConnectionType, string host, string user, string agentRomonId,
-            TikRomonRelay relay = TikRomonRelay.Ssh)
-            => RomonConnectionInfo = TikRomonConnectionInfo.Relayed(RomonTarget!, host, agentConnectionType, user, agentRomonId, relay);
+        internal void RomonEntered(string host, string user, string agentRomonId, TikRomonRelay relay = TikRomonRelay.Ssh)
+            => RomonConnectionInfo = TikRomonConnectionInfo.Relayed(RomonTarget!, host, ConnectionType!.Value, user,
+                                                                    agentRomonId, relay);
+
+        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+
+        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => ConnectionType!.Value;
+
+        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         /// <summary>
         /// A failed login to the RoMON agent, said to be the agent's: otherwise the message reads as if the
@@ -532,7 +536,7 @@ namespace tik4net.Cli
 
         // Direct: just log in. Through a RoMON agent the login is the agent's — a refusal is reported as the agent's —
         // and the terminal is then continued into the target from the agent's shell.
-        private protected async Task LoginOrRelayAsync(TikConnectionType self, string host, string agentName, string user,
+        private protected async Task LoginOrRelayAsync(string host, string agentName, string user,
             Func<CancellationToken, Task> login, Func<RomonRelayTarget, CancellationToken, Task<string>> enterRomon,
             CancellationToken ct)
         {
@@ -545,7 +549,7 @@ namespace tik4net.Cli
             try { await login(ct).ConfigureAwait(false); }
             catch (TikConnectionLoginException ex) { throw AgentLoginFailed(agentName, ex); }
             string agentRomonId = await enterRomon(target, ct).ConfigureAwait(false);
-            RomonEntered(self, host, user, agentRomonId);
+            RomonEntered(host, user, agentRomonId);
         }
 
         /// <summary>What a leaf builds per open attempt: a fresh terminal and the login that makes it usable.</summary>
@@ -587,9 +591,6 @@ namespace tik4net.Cli
             // Before the login, not inside it: the login opens the socket synchronously and only then awaits, so an
             // already-cancelled token would otherwise still cost a TCP connect.
             cancellationToken.ThrowIfCancellationRequested();
-            if (RomonTarget != null && !(this is ITikRomonConnection))
-                throw new NotSupportedException(TransportName + " cannot relay to a RoMON target (" + RomonTarget +
-                    "); see TikConnectionSetup.SupportsRomon for the transports that can.");
             RomonConnectionInfo = null;
             _features = new RouterFeatureSet();
             _menuFacts = new RouterMenuFacts();

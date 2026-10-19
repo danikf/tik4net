@@ -24,22 +24,13 @@ namespace tik4net.Telnet
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class TelnetConnection : CliConnectionBase, ITikRomonConnection
+    public sealed class TelnetConnection : CliConnectionBase
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
-        internal TelnetConnection() { }
+        internal TelnetConnection() : base(TikConnectionType.Telnet) { }
 
         /// <summary>Default Telnet port.</summary>
         public const int DefaultPort = 23;
-
-        /// <inheritdoc/>
-        private protected override string TransportName => "Telnet";
-
-        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
-
-        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Telnet;
-
-        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
@@ -68,7 +59,7 @@ namespace tik4net.Telnet
             return new CliTerminalOpen(client, async ct =>
             {
                 client.Connect(host, port);
-                await LoginOrRelayAsync(TikConnectionType.Telnet, host, host, user,
+                await LoginOrRelayAsync(host, host, user,
                     c => client.LoginAsync(user, password, c), client.EnterRomonAsync, ct).ConfigureAwait(false);
             });
         }

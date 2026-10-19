@@ -108,8 +108,6 @@ namespace tik4net.unittests.Cli
                 _more = more;
             }
 
-            private protected override string TransportName => "Tab";
-
             public void OpenScripted()
             {
                 OpenScripted(_ => Task.FromResult(0), (cli, ct) => Task.FromResult(string.Empty),

@@ -123,8 +123,6 @@ namespace tik4net.unittests.Cli
                 _plain = plain;
             }
 
-            private protected override string TransportName => "Six";
-
             public void OpenScripted()
                 => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 

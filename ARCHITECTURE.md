@@ -299,6 +299,12 @@ way. It is keyed by `TikConnectionType`, a closed enum whose every value but `Ss
 `Create` and `Register` read the same built-in list, so the refusal cannot drift from what `Create` answers. That satellite is a friend
 assembly for *other* reasons (it reuses the internal CLI/PTY helpers), not because the hooks require it.
 
+The registry is the factory; `TikTransportInfo` is the facts. It holds one row per `TikConnectionType` (SSH
+included, without `tik4net.ssh`): the display name, the default port, whether the transport is MAC-layer and
+whether it relays RoMON. Each built-in connection is constructed with its `ConnectionType` (internal; `null` for a
+transport written outside), and its name in messages and its RoMON agent type are read from its row.
+`TikTransportInfoTests` holds the registry and the table to the same answers.
+
 `TikGenericCommand` cannot call a `protected` member from another class, so the base carries one internal
 `InvokeRun*` shim per hook — a forwarding call and nothing else. Adding a hook means adding its shim.
 

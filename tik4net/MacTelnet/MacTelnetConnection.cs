@@ -48,14 +48,14 @@ namespace tik4net.MacTelnet
     /// router with no IP route from here is still reachable: MAC layer to the agent, RoMON beyond it. A reconnect
     /// after an idle logout relays to the target again before the command is resent.</para>
     /// </remarks>
-    public sealed class MacTelnetConnection : CliConnectionBase, ITikMacCliConnection, ITikRomonConnection
+    public sealed class MacTelnetConnection : CliConnectionBase, ITikMacCliConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         // The MAC layer pages by default, and that is a correctness setting rather than a tuning one: a
         // single-command read of a large table makes RouterOS discard part of its own output while replaying
         // the backlog and hand back a short answer that looks whole (findings-mactelnet.md §9.6). Slicing the
         // read means the router never builds a backlog there is anything to drop.
-        internal MacTelnetConnection()
+        internal MacTelnetConnection() : base(TikConnectionType.MacTelnet)
             => CliReadPageSize = TikConnectionSetup.DefaultCliReadPageSize;
 
         /// <summary>Default MAC-Telnet UDP port.</summary>
@@ -63,15 +63,6 @@ namespace tik4net.MacTelnet
 
         /// <inheritdoc/>
         public string? RouterMac { get; set; }
-
-        /// <inheritdoc/>
-        private protected override string TransportName => "MAC-Telnet";
-
-        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
-
-        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.MacTelnet;
-
-        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         // The agent as a message names it: a MAC-layer agent may have been given by MAC alone.
         private string AgentName(string host) => !string.IsNullOrEmpty(host) ? host : RouterMac ?? "(unnamed)";
@@ -113,7 +104,7 @@ namespace tik4net.MacTelnet
         private CliTerminalOpen Session(string host, string user, string password)
         {
             var client = new MacTelnetUdpClient(Encoding, ClientTimeouts, RouterMac);
-            return new CliTerminalOpen(client, ct => LoginOrRelayAsync(TikConnectionType.MacTelnet, host, AgentName(host),
+            return new CliTerminalOpen(client, ct => LoginOrRelayAsync(host, AgentName(host),
                 user, c => client.LoginAsync(host, user, password, c), client.EnterRomonAsync, ct));
         }
 

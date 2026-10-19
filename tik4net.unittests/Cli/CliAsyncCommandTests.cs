@@ -42,8 +42,6 @@ namespace tik4net.unittests.Cli
             /// <summary>Raised before the reply is produced — the test's hook for "the command is in flight".</summary>
             public Func<CancellationToken, Task> BeforeReply;
 
-            private protected override string TransportName => "Scripted";
-
             public void OpenScripted()
                 => OpenScripted(_ => Task.FromResult(0), SendAsync,
                     (raw, ct) => Task.FromResult(string.Empty),

@@ -57,8 +57,6 @@ namespace tik4net.unittests.Connection
 
             public int Closed { get; private set; }
 
-            private protected override string TransportName => "Failing";
-
             private void OpenFailing()
                 => OpenScripted(_ => { throw _loginFailure; },
                     (cmd, ct) => Task.FromResult(string.Empty),

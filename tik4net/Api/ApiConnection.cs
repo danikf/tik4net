@@ -63,7 +63,6 @@ namespace tik4net.Api
 
         bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
-
         TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
             => MenuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 
@@ -81,15 +80,13 @@ namespace tik4net.Api
         /// <inheritdoc/>
         public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
 
-        public ApiConnection(bool isSsl)
+        public ApiConnection(bool isSsl) : base(isSsl ? TikConnectionType.ApiSsl : TikConnectionType.Api)
         {
             _isSsl = isSsl;
         }
 
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "API";
-
-        private protected override string TransportName => "API";
 
         // Open is not enough: a session that stopped answering is refused here too, rather than costing the
         // caller a full ReceiveTimeout to find out.

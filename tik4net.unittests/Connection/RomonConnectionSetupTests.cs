@@ -170,15 +170,6 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void ACliTransportWithoutTheRelay_RefusesATargetAtOpen_BeforeItLogsIn()
-        {
-            var conn = new PlainCli { RomonTarget = new RomonRelayTarget(TargetId, "u", "p") };
-
-            Assert.ThrowsException<NotSupportedException>(() => conn.Open("192.0.2.1", "u", "p"));
-            Assert.IsFalse(conn.LoginRan, "nothing may reach the agent");
-        }
-
-        [TestMethod]
         public void ARelayingTransportWhoseLoginNeverEnteredTheTarget_IsRefused_AndItsSessionEnded()
         {
             var conn = new NonEnteringRomonConnection { RomonTarget = new RomonRelayTarget(TargetId, "u", "p") };
@@ -325,25 +316,19 @@ namespace tik4net.unittests.Connection
         // ── fakes ─────────────────────────────────────────────────────────────
 
         /// <summary>A relaying CLI connection that records what it is opened with and simulates a relay that succeeds.</summary>
-        private sealed class RecordingRomonConnection : ScriptedCliConnectionBase, ITikRomonConnection
+        private sealed class RecordingRomonConnection : ScriptedCliConnectionBase
         {
-            public RecordingRomonConnection() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
+            public RecordingRomonConnection() : base(TikConnectionType.Telnet) { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
 
             public string? OpenHost, OpenUser, OpenPassword;
             public int? OpenPort;
-
-            private protected override string TransportName => "RecordingRomon";
-
-            RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
-            TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Telnet;
-            TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
             private void OpenRecorded(string host, int? port, string user, string password)
             {
                 OpenHost = host; OpenPort = port; OpenUser = user; OpenPassword = password;
                 OpenScripted(ct =>
                     {
-                        if (RomonTarget != null) RomonEntered(TikConnectionType.Telnet, host, user, AgentRomonId);
+                        if (RomonTarget != null) RomonEntered(host, user, AgentRomonId);
                         return Task.FromResult(0);
                     },
                     (cmd, ct) => Task.FromResult(string.Empty),
@@ -360,15 +345,11 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>A relaying CLI connection whose login logs in to the agent and never enters the target.</summary>
-        private sealed class NonEnteringRomonConnection : ScriptedCliConnectionBase, ITikRomonConnection
+        private sealed class NonEnteringRomonConnection : ScriptedCliConnectionBase
         {
+            public NonEnteringRomonConnection() : base(TikConnectionType.Telnet) { }
+
             public bool Ended;
-
-            private protected override string TransportName => "NonEntering";
-
-            RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
-            TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Telnet;
-            TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
             private void OpenAgentOnly()
                 => OpenScripted(ct => Task.FromResult(0),
@@ -382,29 +363,6 @@ namespace tik4net.unittests.Connection
             { OpenAgentOnly(); return Task.FromResult(0); }
             public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default)
             { OpenAgentOnly(); return Task.FromResult(0); }
-        }
-
-        /// <summary>A CLI connection that does not relay (no <see cref="ITikRomonConnection"/>).</summary>
-        private sealed class PlainCli : ScriptedCliConnectionBase
-        {
-            public PlainCli() { CliFieldSeparator = null; }   // scripts the as-value read; the DSV read is CliDsvReadTests
-
-            public bool LoginRan;
-
-            private protected override string TransportName => "Plain";
-
-            private void OpenPlain()
-                => OpenScripted(ct => { LoginRan = true; return Task.FromResult(0); },
-                    (cmd, ct) => Task.FromResult(string.Empty),
-                    (raw, ct) => Task.FromResult(string.Empty),
-                    () => { });
-
-            public override void Open(string host, string user, string password) => OpenPlain();
-            public override void Open(string host, int port, string user, string password) => OpenPlain();
-            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default)
-            { OpenPlain(); return Task.FromResult(0); }
-            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default)
-            { OpenPlain(); return Task.FromResult(0); }
         }
     }
 }

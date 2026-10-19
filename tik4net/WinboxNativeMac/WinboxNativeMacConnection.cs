@@ -35,7 +35,7 @@ namespace tik4net.WinboxNativeMac
     public sealed class WinboxNativeMacConnection : WinboxNativeConnection, ITikWinboxNativeMacConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
-        internal WinboxNativeMacConnection() { }
+        internal WinboxNativeMacConnection() : base(TikConnectionType.WinboxNativeMac) { }
 
         /// <inheritdoc/>
         public string? RouterMac { get; set; }
@@ -50,10 +50,5 @@ namespace tik4net.WinboxNativeMac
         // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of
         // scope here), but null is its documented meaning: discover the router via MNDP.
         private protected override IWinboxM2Channel CreateCarrier() => new WinboxMacM2Session(RouterMac!);
-
-        /// <inheritdoc/>
-        private protected override TikConnectionType RomonAgentConnectionType => TikConnectionType.WinboxNativeMac;
-
-        private protected override string TransportName => "WinBox native MAC";
     }
 }

@@ -88,8 +88,6 @@ namespace tik4net.unittests.Cli
             public readonly List<string> Sent = new List<string>();
             public bool RefuseEverything;
 
-            private protected override string TransportName => "Six";
-
             public void OpenScripted()
                 => OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => { });
 

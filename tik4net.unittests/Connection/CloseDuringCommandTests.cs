@@ -41,8 +41,6 @@ namespace tik4net.unittests.Connection
             /// <summary>True when the close delegate ran while <see cref="ITikConnection.IsOpened"/> was already false.</summary>
             public bool SawClosedFlagBeforeTeardown { get; private set; }
 
-            private protected override string TransportName => "Blocking";
-
             public void OpenScripted() => OpenBlocking(streaming: false);
 
             /// <summary>As <see cref="OpenScripted()"/>, with a streaming driver that blocks and fails the same way.</summary>

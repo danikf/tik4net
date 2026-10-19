@@ -41,22 +41,13 @@ namespace tik4net.WinboxCli
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class WinboxCliConnection : CliConnectionBase, ITikRomonConnection
+    public sealed class WinboxCliConnection : CliConnectionBase
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
-        internal WinboxCliConnection() { }
+        internal WinboxCliConnection() : base(TikConnectionType.WinboxCli) { }
 
         /// <summary>Default WinBox TCP port.</summary>
         public const int DefaultPort = 8291;
-
-        /// <inheritdoc/>
-        private protected override string TransportName => "WinBox CLI";
-
-        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
-
-        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.WinboxCli;
-
-        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
@@ -83,6 +74,6 @@ namespace tik4net.WinboxCli
         private CliTerminalOpen Attempt(string host, int port, string user, string password)
             => WinboxCliSession.Open(() => new tik4net.Winbox.WinboxM2Session(), RomonTarget, Encoding, ClientTimeouts,
                 host, port, user, password,
-                agentRomonId => RomonEntered(TikConnectionType.WinboxCli, host, user, agentRomonId, TikRomonRelay.Winbox));
+                agentRomonId => RomonEntered(host, user, agentRomonId, TikRomonRelay.Winbox));
     }
 }

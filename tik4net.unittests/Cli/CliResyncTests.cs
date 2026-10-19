@@ -28,8 +28,6 @@ namespace tik4net.unittests.Cli
             public Exception? DrainFails;
             public string Reply = string.Empty;
 
-            private protected override string TransportName => "Timing out";
-
             public void OpenScripted()
             {
                 OpenScripted(_ => Task.FromResult(0), SendAsync, (raw, ct) => Task.FromResult(string.Empty), () => Closed = true,

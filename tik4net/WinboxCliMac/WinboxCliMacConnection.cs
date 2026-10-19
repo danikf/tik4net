@@ -35,14 +35,14 @@ namespace tik4net.WinboxCliMac
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacCliConnection, ITikRomonConnection
+    public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacCliConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         // The MAC layer pages by default, and that is a correctness setting rather than a tuning one: a
         // single-command read of a large table makes RouterOS discard part of its own output while replaying
         // the backlog and hand back a short answer that looks whole (findings-mactelnet.md §9.6). Slicing the
         // read means the router never builds a backlog there is anything to drop.
-        internal WinboxCliMacConnection()
+        internal WinboxCliMacConnection() : base(TikConnectionType.WinboxCliMac)
             => CliReadPageSize = TikConnectionSetup.DefaultCliReadPageSize;
 
         /// <summary>MAC-layer WinBox UDP port (informational — the transport is fixed to UDP 20561).</summary>
@@ -50,15 +50,6 @@ namespace tik4net.WinboxCliMac
 
         /// <inheritdoc/>
         public string? RouterMac { get; set; }
-
-        /// <inheritdoc/>
-        private protected override string TransportName => "WinBox CLI MAC";
-
-        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
-
-        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.WinboxCliMac;
-
-        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
@@ -96,6 +87,6 @@ namespace tik4net.WinboxCliMac
         private CliTerminalOpen Session(string host, int port, string user, string password)
             => WinboxCliSession.Open(() => new WinboxMacM2Session(RouterMac!), RomonTarget, Encoding, ClientTimeouts,
                 host, port, user, password,
-                agentRomonId => RomonEntered(TikConnectionType.WinboxCliMac, host, user, agentRomonId, TikRomonRelay.Winbox));
+                agentRomonId => RomonEntered(host, user, agentRomonId, TikRomonRelay.Winbox));
     }
 }

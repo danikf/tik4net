@@ -27,10 +27,10 @@ namespace tik4net.Ssh
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class SshConnection : CliConnectionBase, ITikRomonConnection, ITikSshKeyConnection
+    public sealed class SshConnection : CliConnectionBase, ITikSshKeyConnection
     {
         // Only constructible via TikConnectionSetup (SshConnectionSetupExtensions)/ConnectionFactory (same assembly).
-        internal SshConnection() { }
+        internal SshConnection() : base(TikConnectionType.Ssh) { }
 
         /// <summary>Default SSH port.</summary>
         public const int DefaultPort = 22;
@@ -40,15 +40,6 @@ namespace tik4net.Ssh
 
         /// <inheritdoc/>
         public string? SshPrivateKeyPassphrase { get; set; }
-
-        /// <inheritdoc/>
-        private protected override string TransportName => "SSH";
-
-        RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
-
-        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Ssh;
-
-        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
@@ -87,7 +78,7 @@ namespace tik4net.Ssh
             var client = new SshShellClient(Encoding, ClientTimeouts);
             // Through a RoMON agent the SSH login is the agent's, with its password (the setup refuses a key there).
             var loginKey = RomonTarget == null ? key : null;
-            return new CliTerminalOpen(client, ct => LoginOrRelayAsync(TikConnectionType.Ssh, host, host, user,
+            return new CliTerminalOpen(client, ct => LoginOrRelayAsync(host, host, user,
                 async c =>
                 {
                     // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and

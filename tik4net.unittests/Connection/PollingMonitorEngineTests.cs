@@ -83,8 +83,6 @@ namespace tik4net.unittests.Connection
         {
             public ResetCli() { CliFieldSeparator = null; }
 
-            private protected override string TransportName => "Reset";
-
             public void OpenScripted()
                 => OpenScripted(_ => Task.FromResult(0), (cmd, ct) => throw new IOException("reset"),
                     (raw, ct) => Task.FromResult(string.Empty), () => { });

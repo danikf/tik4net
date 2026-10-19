@@ -30,8 +30,6 @@ namespace tik4net.unittests.Connection
             public readonly List<string> Sent = new List<string>();
             public string Reply = string.Empty;
 
-            private protected override string TransportName => "Recording";
-
             public void OpenScripted()
                 => OpenScripted(_ => Task.FromResult(0),
                     (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(Reply); },

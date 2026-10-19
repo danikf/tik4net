@@ -21,9 +21,17 @@ namespace tik4net.Connection
         // Volatile: the binary API's reader thread clears it when the socket fails, while callers read it.
         private volatile bool _isOpened;
 
-        private protected TikConnectionBase()
+        /// <param name="connectionType">The built-in transport this is; <c>null</c> for one written outside tik4net.</param>
+        private protected TikConnectionBase(TikConnectionType? connectionType)
         {
+            ConnectionType = connectionType;
         }
+
+        /// <summary>
+        /// Which built-in transport this connection is, and so which <see cref="TikTransportInfo"/> row describes it;
+        /// <c>null</c> for a transport written outside tik4net, which has no row.
+        /// </summary>
+        internal TikConnectionType? ConnectionType { get; }
 
         // ── ITikConnection properties ─────────────────────────────────────────
 
@@ -209,8 +217,12 @@ namespace tik4net.Connection
                 throw NotOpen();
         }
 
-        /// <summary>The transport's name in diagnostics such as "API connection is not open." — the type's name unless a transport names itself.</summary>
-        private protected virtual string TransportName => GetType().Name;
+        /// <summary>
+        /// The transport's name in diagnostics such as "API connection is not open.": its table row's name, or the type's
+        /// name for a transport written outside tik4net.
+        /// </summary>
+        private protected string TransportName
+            => ConnectionType is TikConnectionType type ? TikTransportInfo.Of(type).DisplayName : GetType().Name;
 
         /// <summary>The one "connection is not open" exception every transport throws.</summary>
         private protected TikConnectionNotOpenException NotOpen() => new TikConnectionNotOpenException(TransportName + " connection is not open.");

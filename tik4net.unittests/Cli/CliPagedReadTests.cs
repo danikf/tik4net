@@ -598,8 +598,6 @@ namespace tik4net.unittests.Cli
                 CliFieldSeparator = null;   // scripts the as-value read; the DSV read is CliDsvReadTests
             }
 
-            private protected override string TransportName => "Paging";
-
             public void OpenScripted()
                 => OpenScripted(_ => Task.FromResult(0), SendAsync,
                     (raw, ct) => Task.FromResult(string.Empty), () => { });

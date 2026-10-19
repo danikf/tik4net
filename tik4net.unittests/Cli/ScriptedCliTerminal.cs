@@ -57,6 +57,10 @@ namespace tik4net.unittests.Cli
     /// <summary>The base of the unit tests' fake CLI connections: they open over a <see cref="ScriptedCliTerminal"/>.</summary>
     internal abstract class ScriptedCliConnectionBase : CliConnectionBase
     {
+        /// <param name="connectionType">The transport the double stands in for, where a test needs one (a RoMON relay
+        /// reports it as the agent's); <c>null</c> otherwise.</param>
+        private protected ScriptedCliConnectionBase(TikConnectionType? connectionType = null) : base(connectionType) { }
+
         /// <summary>Opens over a scripted console, through the open every CLI transport takes.</summary>
         private protected void OpenScripted(ScriptedCliTerminal terminal, Func<CancellationToken, Task>? login = null)
             => OpenTerminal(() => new CliTerminalOpen(terminal, login ?? (_ => Task.FromResult(0))), retryRefusedLogin: false);

@@ -62,7 +62,10 @@ namespace tik4net.WinboxNative
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly); the MAC-layer
         // subclass constructor is internal too and calls this one.
-        internal WinboxNativeConnection() { }
+        internal WinboxNativeConnection() : this(TikConnectionType.WinboxNative) { }
+
+        /// <param name="connectionType">WinBox native, or its MAC-layer sibling.</param>
+        private protected WinboxNativeConnection(TikConnectionType connectionType) : base(connectionType) { }
 
         /// <summary>Default WinBox TCP port.</summary>
         public const int DefaultPort = 8291;
@@ -291,9 +294,6 @@ namespace tik4net.WinboxNative
         /// </summary>
         private protected virtual IWinboxM2Channel CreateCarrier() => new WinboxM2Session();
 
-        /// <summary>This transport, as the agent side of <see cref="TikRomonConnectionInfo"/> reports it.</summary>
-        private protected virtual TikConnectionType RomonAgentConnectionType => TikConnectionType.WinboxNative;
-
         // Through a RoMON agent the carrier goes to the agent, and the relay channel routes every message on to the
         // target (Docs/findings-romon.md §5).
         private IWinboxM2Channel CreateChannel()
@@ -311,7 +311,7 @@ namespace tik4net.WinboxNative
 
         RomonRelayTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
 
-        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => RomonAgentConnectionType;
+        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => ConnectionType!.Value;
 
         TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
@@ -361,7 +361,7 @@ namespace tik4net.WinboxNative
             string routerKey = host;
             if (session is WinboxRomonChannel relay)
             {
-                RomonConnectionInfo = TikRomonConnectionInfo.Relayed(RomonTarget!, host, RomonAgentConnectionType, user,
+                RomonConnectionInfo = TikRomonConnectionInfo.Relayed(RomonTarget!, host, ConnectionType!.Value, user,
                     relay.AgentRomonId!, TikRomonRelay.Winbox);
                 // The remembered plugin list is the TARGET's: keyed by the agent's host it would answer for every
                 // router reached through that agent.
@@ -1158,7 +1158,6 @@ namespace tik4net.WinboxNative
             }
         }
 
-
         // ── Capabilities and menu schema ─────────────────────────────────────────
 
         /// <summary>
@@ -1192,8 +1191,6 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "WBX";
-
-        private protected override string TransportName => "WinBox native";
 
         bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
