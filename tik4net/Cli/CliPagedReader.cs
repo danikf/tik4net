@@ -452,7 +452,9 @@ namespace tik4net.Cli
         /// <summary>
         /// Returns <paramref name="records"/> when there are as many as the router said, and refuses them
         /// otherwise — a short answer lost rows on the way, a long one had a row split by the parser, and
-        /// neither is the table.
+        /// neither is the table. The refusal names the body's non-empty lines and its length: a trace is
+        /// rarely running when it happens, and those two tell bytes lost on the way (too few lines for the
+        /// rows) from rows the parser joined or dropped (enough lines).
         /// </summary>
         internal IList<TikRecordSentence> EnsureCounted(IList<TikRecordSentence> records, int expected,
             TikCommandDescriptor descriptor, string response)
@@ -460,10 +462,16 @@ namespace tik4net.Cli
             if (records.Count == expected)
                 return records;
 
+            string body = response ?? string.Empty;
+            int lines = 0;
+            foreach (string line in body.Split('\n'))
+                if (line.Trim().Length > 0)
+                    lines++;
             throw new TikConnectionResponseIncompleteException(
                 _host.TransportName + ": the router counted " + expected + " record(s) in its answer to '"
-                    + descriptor.CommandText + "', and " + records.Count + " were read from it. The answer is not "
-                    + "the table, so it is refused rather than returned. Retry the read.",
+                    + descriptor.CommandText + "', and " + records.Count + " were read from it. The body held "
+                    + lines + " non-empty line(s), " + body.Length + " character(s). The answer is not the table, "
+                    + "so it is refused rather than returned. Retry the read.",
                 0, response);
         }
     }

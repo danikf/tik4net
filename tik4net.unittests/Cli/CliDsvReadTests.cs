@@ -240,6 +240,25 @@ namespace tik4net.unittests.Cli
             Assert.IsTrue(CliCommandBuilder.IsDsvProbeAccepted("str\r\n"));
         }
 
+        /// <summary>
+        /// A refused count says what arrived, so a short read diagnoses itself from the message alone: fewer lines than
+        /// the rows need means bytes were lost on the way, enough lines means the parser joined or dropped rows (X25).
+        /// </summary>
+        [TestMethod]
+        public void ARefusedCount_SaysHowManyLinesAndCharactersArrived()
+        {
+            using (var conn = new DsvRouter(refusesSerialize: false) { CountMarker = "#n=7/num" })
+            {
+                conn.OpenScripted();
+
+                var ex = Assert.ThrowsException<TikConnectionResponseIncompleteException>(() => conn.LoadAll<Box>().ToList());
+
+                StringAssert.Contains(ex.Message, "the router counted 7 record(s) in its answer to");
+                StringAssert.Contains(ex.Message, "and 2 were read from it.");
+                StringAssert.Contains(ex.Message, "The body held 4 non-empty line(s), " + DsvRouter.DsvBody.Length + " character(s).");
+            }
+        }
+
         [TestMethod]
         public void WithTheSeparatorNull_TheReadIsAsValue()
         {
@@ -260,7 +279,10 @@ namespace tik4net.unittests.Cli
         private sealed class DsvRouter : ScriptedCliConnectionBase
         {
             public bool RefusesSerialize;
+            public string? CountMarker;
             public readonly List<string> Sent = new List<string>();
+
+            public const string DsvBody = ".id~^~comment~^~name\r\n*1~^~a; b~^~one\r\n.id~^~name\r\n*2~^~two";
 
             public DsvRouter(bool refusesSerialize) => RefusesSerialize = refusesSerialize;
 
@@ -276,11 +298,9 @@ namespace tik4net.unittests.Cli
                 if (dsv && RefusesSerialize)
                     return Task.FromResult("bad command name serialize (line 1 column 60)");
 
-                string body = dsv
-                    ? ".id~^~comment~^~name\r\n*1~^~a; b~^~one\r\n.id~^~name\r\n*2~^~two"
-                    : ".id=*1;comment=a;name=one;.id=*2;name=two";
+                string body = dsv ? DsvBody : ".id=*1;comment=a;name=one;.id=*2;name=two";
                 bool windowed = Regex.IsMatch(cliText, @":pick \[/box find\] 0 \d+\]");
-                return Task.FromResult(body + "\r\n" + (windowed ? "#w=2" : "#n=2/num"));
+                return Task.FromResult(body + "\r\n" + (windowed ? "#w=2" : CountMarker ?? "#n=2/num"));
             }
 
             public override void Open(string host, string user, string password) => OpenScripted();
