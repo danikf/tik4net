@@ -630,18 +630,18 @@ namespace tik4net.Api
             return ms.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + " ms ago";
         }
 
-        private byte ReadByteChecked()
+        private byte ReadByteChecked(System.IO.Stream stream)
         {
-            int b = _tcpConnectionStream.ReadByte();
+            int b = stream.ReadByte();
             if (b < 0)
                 throw new TikEofException();
             NoteBytesReceived(1);
             return (byte)b;
         }
 
-        private long ReadWordLength()
+        private long ReadWordLength(System.IO.Stream stream)
         {
-            byte readByte = ReadByteChecked();
+            byte readByte = ReadByteChecked(stream);
             int length;
 
             if ((readByte & 0x80) == 0x00)
@@ -650,26 +650,26 @@ namespace tik4net.Api
             }
             else if ((readByte & 0xC0) == 0x80)
             {
-                length = ((readByte & 0x3F) << 8) + ReadByteChecked();
+                length = ((readByte & 0x3F) << 8) + ReadByteChecked(stream);
             }
             else if ((readByte & 0xE0) == 0xC0)
             {
-                length = ((readByte & 0x1F) << 8) + ReadByteChecked();
-                length = (length << 8) + ReadByteChecked();
+                length = ((readByte & 0x1F) << 8) + ReadByteChecked(stream);
+                length = (length << 8) + ReadByteChecked(stream);
             }
             else if ((readByte & 0xF0) == 0xE0)
             {
-                length = ((readByte & 0x0F) << 8) + ReadByteChecked();
-                length = (length << 8) + ReadByteChecked();
-                length = (length << 8) + ReadByteChecked();
+                length = ((readByte & 0x0F) << 8) + ReadByteChecked(stream);
+                length = (length << 8) + ReadByteChecked(stream);
+                length = (length << 8) + ReadByteChecked(stream);
             }
             else if (readByte == 0xF0)
             {
                 // 5-byte encoding: 0xF0 + four bytes (network order)
-                length =                  ReadByteChecked();
-                length = (length << 8) + ReadByteChecked();
-                length = (length << 8) + ReadByteChecked();
-                length = (length << 8) + ReadByteChecked();
+                length =                  ReadByteChecked(stream);
+                length = (length << 8) + ReadByteChecked(stream);
+                length = (length << 8) + ReadByteChecked(stream);
+                length = (length << 8) + ReadByteChecked(stream);
             }
             else
             {
@@ -680,13 +680,13 @@ namespace tik4net.Api
             return length;
         }
 
-        private string ReadWord(bool skipEmptyRow)
+        private string ReadWord(System.IO.Stream stream, bool skipEmptyRow)
         {
             string result;
 
             do
             {
-                long wordLength = ReadWordLength();
+                long wordLength = ReadWordLength(stream);
 
                 if (wordLength == 0)
                 {
@@ -704,7 +704,7 @@ namespace tik4net.Api
                         int totalRead = 0;
                         while (totalRead < length)
                         {
-                            int n = _tcpConnectionStream.Read(buffer, totalRead, length - totalRead);
+                            int n = stream.Read(buffer, totalRead, length - totalRead);
                             if (n == 0)
                                 throw new IOException("Connection closed while reading word body.");
                             NoteBytesReceived(n);
@@ -732,17 +732,19 @@ namespace tik4net.Api
             return result;
         }
 
-        private ITikSentence ReadSentence()
+        // Reads from the stream its reader loop was started with, never the field: a reader that outlives its
+        // session's bounded join must not read the next session's socket.
+        private ITikSentence ReadSentence(System.IO.Stream stream)
         {
             try
             {
-                string sentenceName = ReadWord(true);
+                string sentenceName = ReadWord(stream, true);
 
                 List<string> sentenceWords = new List<string>();
                 string sentenceWord;
                 do
                 {
-                    sentenceWord = ReadWord(false);
+                    sentenceWord = ReadWord(stream, false);
                     if (!string.IsNullOrWhiteSpace(sentenceWord)) //read ending empty row, but skip it from result
                         sentenceWords.Add(sentenceWord);
                 } while (!string.IsNullOrWhiteSpace(sentenceWord));
@@ -753,7 +755,7 @@ namespace tik4net.Api
                     case "!trap":  return new ApiTrapSentence(sentenceWords);
                     case "!re":    return new ApiReSentence(sentenceWords);
                     case "!fatal": return new ApiFatalSentence(sentenceWords);
-                    case "!empty": return ReadSentence(); // RouterOS 7.18+: data sentence meaning "no rows", always followed by !done — skip it and return the real final sentence
+                    case "!empty": return ReadSentence(stream); // RouterOS 7.18+: data sentence meaning "no rows", always followed by !done — skip it and return the real final sentence
                     case "": throw new IOException("Can not read sentence from connection"); // With SSL possibly not logged in
                     // A sentence type we do not know is the ROUTER being newer than us, not an unfinished
                     // method — and NotImplementedException escaped every catch(TikConnectionException).
@@ -762,7 +764,8 @@ namespace tik4net.Api
             }
             catch(IOException ex)
             {
-                _isOpened = _tcpConnection.Connected;
+                // Closing the connection is the reader loop's, which does it for every exception leaving here
+                // and only while its session is the connection's.
                 if (IsTimeout(ex))
                     throw new TikConnectionReceiveTimeoutException(_receiveTimeout, ex);
                 throw;
@@ -870,21 +873,27 @@ namespace tik4net.Api
             try { _tcpConnectionStream.ReadTimeout = System.Threading.Timeout.Infinite; }
             catch (InvalidOperationException) { /* stream does not support timeouts — nothing to relax */ }
 
-            // The loop keeps the dispatcher it was started with: a reader outliving its session's bounded
-            // join must not terminate the next session's.
+            // The loop keeps the dispatcher and the stream it was started with: a reader outliving its
+            // session's bounded join must neither read the next session's socket nor terminate its callers.
             var dispatcher = _dispatcher;
+            var stream = _tcpConnectionStream;
             _readerTask = System.Threading.Tasks.Task.Factory.StartNew(
-                () => ReaderLoop(dispatcher), System.Threading.Tasks.TaskCreationOptions.LongRunning);
+                () => ReaderLoop(dispatcher, stream), System.Threading.Tasks.TaskCreationOptions.LongRunning);
         }
 
-        private void ReaderLoop(ApiSentenceDispatcher dispatcher)
+        // The dispatcher is the session's token: the connection's state (closed, the reader's fault, the liveness
+        // counters) is this loop's to touch only while its dispatcher is still the connection's.
+        private bool IsCurrentSession(ApiSentenceDispatcher dispatcher) => ReferenceEquals(dispatcher, _dispatcher);
+
+        private void ReaderLoop(ApiSentenceDispatcher dispatcher, System.IO.Stream stream)
         {
             try
             {
                 while (!_readerStopRequested)
                 {
-                    ITikSentence sentence = ReadSentence();
-                    NoteSentenceReceived();     // before the Push, so a caller woken by it sees the note
+                    ITikSentence sentence = ReadSentence(stream);
+                    if (IsCurrentSession(dispatcher))
+                        NoteSentenceReceived();     // before the Push, so a caller woken by it sees the note
                     dispatcher.Push(sentence);
                 }
             }
@@ -893,11 +902,14 @@ namespace tik4net.Api
                 // Every caller learns of this, not just whoever happened to own the read. Carry the reason:
                 // an empty !fatal makes a router reboot, a socket error and a bug in our own reader
                 // indistinguishable, and this is the only place the exception exists (P2.14).
-                _isOpened = false;
+                bool current = IsCurrentSession(dispatcher);
+                if (current)
+                    _isOpened = false;
                 // The sentence carries only the flattened text; keep the exception itself so a diagnosis
                 // that needs its TYPE (Open's protocol-mismatch check) does not have to parse the message.
-                bool ours = _readerStopRequested || _closeInitiated;
-                _readerFault = ours ? null : ex;
+                bool ours = !current || _readerStopRequested || _closeInitiated;
+                if (current)
+                    _readerFault = ours ? null : ex;
                 dispatcher.TerminateAll(
                     ours ? new ApiFatalSentence(new[] { "connection closed by the client" }, clientInitiated: true)
                     // Worded so it cannot be read as the router's doing: nothing about this connection
@@ -913,7 +925,8 @@ namespace tik4net.Api
                 return;
             }
 
-            _isOpened = false;
+            if (IsCurrentSession(dispatcher))
+                _isOpened = false;
             dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" },
                                                           clientInitiated: true));
         }
