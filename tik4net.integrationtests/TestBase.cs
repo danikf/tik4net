@@ -804,13 +804,15 @@ namespace tik4net.integrationtests
                 // answers "no such command" before it looks at the filter), but a table answers with no
                 // rows instead of all of them — the lab's mangle table is ~1 700 rows. A singleton has no
                 // .id: the API and REST ignore the filter, WinBox native answers empty, and the CLI refuses
-                // it ("bad parameter where"), so a refusal that is not about the path falls back to the
-                // plain print, which on a singleton is one row.
+                // it — "bad parameter where" on 7.24, but "expected end of command" on 6.49 and 7.21, which
+                // reads as a missing command. So any refusal of the filtered print falls back to the plain
+                // one, and only the plain print's answer decides: one row on a singleton, and the same
+                // exception as ever for a menu that is not there.
                 try
                 {
                     _connection.CreateCommandAndParameters(commandPath + "/print", ".id", "*FFFFFFFF").ExecuteList();
                 }
-                catch (TikCommandTrapException ex) when (!(ex is TikNoSuchCommandException))
+                catch (TikCommandTrapException ex) when (!(ex is TikPathNotMappedException))
                 {
                     _connection.CreateCommand(commandPath + "/print").ExecuteList();
                 }
