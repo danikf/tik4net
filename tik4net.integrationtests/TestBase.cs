@@ -800,7 +800,20 @@ namespace tik4net.integrationtests
             try
             {
                 // ExecuteList (not CallCommandSync) interprets !trap and throws TikNoSuchCommandException.
-                _connection.CreateCommand(commandPath + "/print").ExecuteList();
+                // The filter names an .id no row has: the router still resolves the path (a missing menu
+                // answers "no such command" before it looks at the filter), but a table answers with no
+                // rows instead of all of them — the lab's mangle table is ~1 700 rows. A singleton has no
+                // .id: the API and REST ignore the filter, WinBox native answers empty, and the CLI refuses
+                // it ("bad parameter where"), so a refusal that is not about the path falls back to the
+                // plain print, which on a singleton is one row.
+                try
+                {
+                    _connection.CreateCommandAndParameters(commandPath + "/print", ".id", "*FFFFFFFF").ExecuteList();
+                }
+                catch (TikCommandTrapException ex) when (!(ex is TikNoSuchCommandException))
+                {
+                    _connection.CreateCommand(commandPath + "/print").ExecuteList();
+                }
             }
             catch (TikPathNotMappedException ex)
             {
