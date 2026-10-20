@@ -149,14 +149,22 @@ namespace tik4net.MacTelnet
         /// measured, a 10-row slice tripped it while the paged read it belonged to returned every row.</para>
         /// </summary>
         internal void ThrowIfResponseLostDatagrams(string sentCommand, string response)
+            => ThrowIfResponseLostDatagrams(DataHoles, sentCommand, response);
+
+        /// <summary>
+        /// The decision of <see cref="ThrowIfResponseLostDatagrams(string,string)"/> for a given number of wide gaps
+        /// (<paramref name="lost"/>, the pump's count for the command).
+        /// </summary>
+        internal static void ThrowIfResponseLostDatagrams(int lost, string sentCommand, string response)
         {
-            // One wide gap is not enough to condemn an answer. The router refills a single gap with one
-            // retransmit and carries on; what precedes the output-dropping is a SUSTAINED episode — we stay
-            // behind, the router keeps streaming, and its queue is what it eventually discards. The measured
-            // populations do not overlap: the reads that came back short had 4, 29, 30 and 31 wide gaps,
-            // while every intact read on the same suite leg had at most one.
-            int lost = DataHoles;
-            if (lost <= 1)
+            // Two wide gaps are not enough to condemn an answer. The router refills a gap with one retransmit
+            // and carries on; what precedes the output-dropping is a SUSTAINED episode — we stay behind, the
+            // router keeps streaming, and its queue is what it eventually discards. The reads that came back
+            // short had 4, 29, 30 and 31 wide gaps. Complete answers have had two under load: an add the router
+            // had executed (CHR2, RouterOS 6), and 3 412- and 3 444-character answers whose exact length
+            // TerminalFrameBoundaryTest checks, besides two earlier full-suite runs, all condemned at a threshold
+            // of two. Three keeps a margin below the smallest short read.
+            if (lost <= 2)
                 return;
 
             throw new TikConnectionResponseIncompleteException(

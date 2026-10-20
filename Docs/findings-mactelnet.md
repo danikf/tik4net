@@ -357,17 +357,19 @@ layer: it runs on all five CLI transports.
 so for those the client judges the answer by the shape of the packet loss, on two counts. `AckData` counts
 a gap only when it is **wider than one datagram** — sub-datagram gaps (4–528 B on this lab, the login-phase
 packets) are ordinary loss the router refills exactly. `MacTelnetUdpClient` then refuses the response only
-when that count is **above one**: a single wide gap is recovered by one retransmit, whereas a sustained run
-of them is the state in which the router starts discarding output. `MacTelnetConnection` skips it for a
+when that count is **above two**: a wide gap or two is recovered by retransmits, whereas a sustained run of
+them is the state in which the router starts discarding output. `MacTelnetConnection` skips it for a
 print, which the count already checks exactly: the heuristic condemns complete answers now and then — a
 10-row slice tripped it while the paged read it belonged to returned every row.
 
-**Both of its thresholds are empirical, and neither is sharp.** Judging on a single wide gap condemned
-seven sub-kilobyte responses (265 to 671 characters) on one suite leg. On that leg the reads that actually
-came back short had 4, 29, 30 and 31 wide gaps, which looked like a clean separation; the next leg produced
-two wide gaps on a 3.6 KB read and on an empty one, so the populations do overlap and the rule raises the
-occasional false alarm. The responses it still covers are small, and a spurious "retry it" costs one
-re-send.
+**Both of its thresholds are empirical, and neither is sharp.** The reads measured coming back short had 4,
+29, 30 and 31 wide gaps. Complete answers have one wide gap routinely (judging on one condemned seven
+sub-kilobyte responses, 265 to 671 characters, on one suite leg) and two under a loaded router: a 3.6 KB
+read and an empty one on one leg, an `add` the router had executed (RouterOS 6.49.13), and 3 412- and
+3 444-character answers whose exact length `TerminalFrameBoundaryTest` checks, under the parallel matrix.
+Every complete answer condemned at a threshold of two had exactly two gaps, so the threshold is three: a
+margin below the smallest short read. A spurious "retry it" costs one re-send; a missed short answer would
+be silent, which is why the margin is not wider.
 
 Paging also settles throughput for reads. A single command of this size moves 7–15 KB/s, because the loss
 episodes it provokes are recovered by backlog replay, and it cannot finish inside the 30 s receive deadline.
