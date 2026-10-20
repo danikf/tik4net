@@ -1529,9 +1529,9 @@ namespace tik4net.Cli
         /// backwards.
         /// <para>
         /// <c>null</c> means <b>no line was an id</b>, and the caller reports that rather than substituting
-        /// something for it. There used to be a fallback to the last non-empty line, which turned a read
-        /// that had gone wrong into an id-shaped string: it was stored on the entity and then reached the
-        /// <c>[find where .id=…]</c> of the next set or remove, where it matched nothing.
+        /// something for it. A fallback to the last non-empty line would turn a read that had gone wrong into
+        /// an id-shaped string, stored on the entity and sent in the <c>[find where .id=…]</c> of the next set
+        /// or remove, where it matches nothing.
         /// </para>
         /// </summary>
         private static string? ExtractAddId(string output)
@@ -1599,10 +1599,9 @@ namespace tik4net.Cli
         /// Used by <c>ExecuteScalar</c> (e.g. <c>/export</c>) and <c>ExecuteNonQuery</c>.
         /// </summary>
         /// <remarks>
-        /// The output IS checked for a router error, which raw mode used to leave alone on the argument that
-        /// it cannot know what counts as one for an arbitrary command. The argument is real but the trade is
-        /// the wrong way round: not checking meant <c>bad command name prnt (line 1 column 12)</c> was
-        /// returned as a successful value, to be assigned and used, while the command had never run. The
+        /// The output IS checked for a router error, although raw mode cannot know what counts as one for an
+        /// arbitrary command: unchecked, <c>bad command name prnt (line 1 column 12)</c> would be returned as a
+        /// successful value, to be assigned and used, while the command never ran. The
         /// check is <see cref="CliErrorParser"/>'s text-only one — the same the rest of the CLI path relies
         /// on — and it recognises a router error line rather than the word "error" appearing in a value.
         /// <para>

@@ -76,7 +76,7 @@ boolean spelling are §2.
 **`.proplist` never reaches the wire.** RouterOS's own `proplist=` refuses the whole read over one unknown name
 (§1, flag fields), where the API ignores it, so the read asks for the full field set — adding `detail`, and
 retrying without it when a singleton answers `bad parameter detail` — and trims the rows client-side
-(`CliConnectionBase.TrimToProplist`).
+(`TikProplist.Apply`, applied by the connection base for every transport that cannot send a proplist).
 
 **The `ITikCommand` surface over a terminal.** A CLI connection reports `Crud`, `Listen`, `SafeMode`,
 `RawCommand` and `AsyncCommands` — not `Streaming`, and not `CancelInFlight`:
@@ -545,8 +545,8 @@ only a router that *refuses* it while support is still unknown falls back to pla
 rest of that connection (and the fallback is only trusted once the plain form actually succeeds — an
 unrelated failure of both forms concludes nothing). Support is concluded only from a read that ran the
 serialisation: a paged window prints only when it holds ids (`:if ([:len $w] > 0) do={ … }`), so an empty
-window is no evidence either way — on 6.49.13 an empty free-text menu used to mark the connection as
-supporting `:serialize`, and the next free-text menu with rows failed with `bad command name serialize`.
+window is no evidence either way — taken as evidence, an empty free-text menu on 6.49.13 marks the connection
+as supporting `:serialize`, and the next free-text menu with rows fails with `bad command name serialize`.
 A pre-7.13 router therefore degrades silently to
 the same `;`-splitting behaviour as any other field; there is no error raised for it, so a free-text
 field on such a router should be assumed to parse incorrectly.

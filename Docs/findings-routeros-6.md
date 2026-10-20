@@ -322,8 +322,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      ([findings-cli.md](findings-cli.md) §1).
    - **WinboxCli, WinboxCliMac and MacTelnet** now answer the audit exactly as Telnet: the same 9 mismatches (the
      flags and counters above) and the same 3 value forms. 6.x repaints the typed line after every character; the
-     read no longer stops on a prompt inside that echo ([findings-cli.md](findings-cli.md) §4), and MAC-Telnet no
-     longer loses the session under it (problem 7).
+     read does not stop on a prompt inside that echo ([findings-cli.md](findings-cli.md) §4), and MAC-Telnet keeps
+     the session under it (problem 7).
    - **Every entity, one session, 2026-09-24** (`LoadAll`/`LoadSingle` of all 163 readable entities): Telnet and
      WinboxCli read all but `/routing/bgp/advertisements` (problem 9) and the
      menus 6.x does not have. WinboxCliMac and MacTelnet added `/ip/ipsec/policy` and `/system/package`, a

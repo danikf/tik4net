@@ -5,10 +5,10 @@ namespace tik4net
     /// the words RouterOS uses in place of one, or text the type could not read.
     /// </summary>
     /// <remarks>
-    /// The last two used to be one state, and conflating them cost twice. A caller had no way to ask "is
-    /// this field turned off?" except by comparing the raw word, and — worse — <b>a gap in our own parsing
-    /// was invisible</b>: unreadable text became a token, round-tripped through
-    /// <see cref="object.ToString"/> perfectly, and nobody ever learned the type had failed to read it.
+    /// The last two are separate states because conflating them costs twice. A caller would have no way to
+    /// ask "is this field turned off?" except by comparing the raw word, and — worse — <b>a gap in our own
+    /// parsing would be invisible</b>: unreadable text would become a token, round-trip through
+    /// <see cref="object.ToString"/> perfectly, and nobody would learn the type had failed to read it.
     /// <para>
     /// <see cref="Special"/> is a word the library recognises as a real router state.
     /// <see cref="Unknown"/> is the honest fallback — the value survives verbatim, so nothing is lost and

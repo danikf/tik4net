@@ -149,10 +149,9 @@ namespace tik4net.Rest
         // ── Open / Close ──────────────────────────────────────────────────────
 
         // As with the CRUD hooks below, the async form is the implementation and the synchronous one blocks
-        // on it. OpenAsync used to be `Task.Run(() => Open(...))` — which held a thread-pool thread for
-        // the whole connectivity/credential probe, an HTTP round trip that SendHttpAsync could already await.
-        // A Task.Run façade is exactly what the AsyncCommands capability exists to rule out, so leaving one
-        // on the open path made the flag mean less than it says.
+        // on it. A `Task.Run(() => Open(...))` façade would hold a thread-pool thread for the whole
+        // connectivity/credential probe, an HTTP round trip SendHttpAsync awaits — exactly what the
+        // AsyncCommands capability exists to rule out.
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)

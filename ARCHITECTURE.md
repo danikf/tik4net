@@ -98,17 +98,16 @@ connection?", and the cast to `ITikCliConnection` (or to `ITikCliCompletion`) al
 would be a second name for the transport family, not a capability.
 
 `CallCommandAsync` (both overloads, each taking a `CancellationToken`) sits beside `CallCommandSync` on
-`ITikRawSentenceConnection`. The low level was synchronous-only, which was backwards — it is where the long
-commands live (`/export`, a script) while the levels above it had been awaitable for some time. On the CLI
+`ITikRawSentenceConnection`: the low level is where the long commands live (`/export`, a script), so it is
+awaitable like the levels above it. On the CLI
 family the async form is the implementation and the synchronous one blocks on it, so there is one code path
 rather than two that can drift. `ITikCommand.ExecuteWithCallback` is a different thing entirely: callbacks, no
 `Task` — see its own docs.
 
-**There are no convenience shims on `ITikConnection`.** `TikRawSentenceExtensions` and
-`TikSafeModeExtensions` used to keep `connection.CallCommandSync(...)` and `connection.SafeModeTake()`
-compiling on any connection by casting and throwing when the transport lacked the interface — a compile
-error traded for a runtime one, on a call that could not work on most transports. They are gone, and
-`TypedConnectionTests` fails if anything of that shape comes back.
+**There are no convenience shims on `ITikConnection`.** An extension that kept `connection.CallCommandSync(...)`
+or `connection.SafeModeTake()` compiling on any connection, by casting and throwing when the transport lacks the
+interface, would trade a compile error for a runtime one, on a call that cannot work on most transports.
+`TypedConnectionTests` fails if anything of that shape appears.
 
 Reach a facet one of two ways, depending on whether the transport is known when the code is written:
 
@@ -368,11 +367,10 @@ The per-transport `Create<Transport>Connection[Async]()` factories are **extensi
 `<Transport>ConnectionSetupExtensions` class per folder. They forward to `Create(type)`, so a new option
 reaches every transport without anyone copying it.
 
-They used to be members of `TikConnectionSetup`, which meant one class grew a method pair per transport (22
-of them) and a satellite package could not add its own without changing core. The SSH transport already had
-the extension shape for exactly that reason — it lives in another assembly — so this makes the ten built-in
-transports match the one that had no choice. The cost is that they need a `using tik4net.<Transport>;` to
-be visible; the enum-driven `Create(TikConnectionType)` needs no import and stays the way to pick a
+As members of `TikConnectionSetup` they would grow one class by a method pair per transport, and a satellite
+package could not add its own without changing core. The SSH transport, which lives in another assembly, has
+no choice but the extension shape, and the ten built-in transports have the same one. The cost is that they
+need a `using tik4net.<Transport>;` to be visible; the enum-driven `Create(TikConnectionType)` needs no import and stays the way to pick a
 transport at runtime, from config.
 
 Options split into two kinds:

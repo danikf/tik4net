@@ -1109,9 +1109,8 @@ normally, which a starved router does for tens of seconds at a time (see below).
 (`WinboxNativeM2Operations.PagedReadBudgetFactor`). Re-sending the stalled page is *not* part of the
 mitigation and was measured not to work: the handler queues the repeats and answers all of them, none sooner
 than the original would have arrived, so a bounded retry count only converts a recoverable pause into a hard
-failure. It used to stop silently at a hidden 8-second budget and 256 rounds and return
-the pages that fit — a short list is indistinguishable from a router that has that many rows, which is the
-one outcome worse than the timeout. For a table this size on a busy channel, raise `ReceiveTimeout` or read
+failure. Nor does the read stop at a budget of its own and return the pages that fit: a short list is
+indistinguishable from a router that has that many rows, which is the one outcome worse than the timeout. For a table this size on a busy channel, raise `ReceiveTimeout` or read
 it over a transport that can filter router-side.
 
 ### 29.1 Webfig never reports a failed read because it has no deadline to miss

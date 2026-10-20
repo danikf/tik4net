@@ -31,6 +31,10 @@ absorb a pause and still finish, at 8.8 s and 11.7 s.
 52 795 ms, past the 30 s default `ReceiveTimeout`, which still completed because the read is bounded as a
 whole rather than per page.
 
+**A hidden budget, before the whole-read one.** The paged read first stopped silently at an 8-second budget and
+256 rounds and returned the pages that fit, so a stall read as a shorter table. The `4 × ReceiveTimeout` budget,
+which throws, replaced it.
+
 **Pauses that did not.** A paged read still unanswered when the whole-read budget expired was never observed
 to recover, and neither was the connection: a later `add` on the same connection timed out having received
 nothing **149 s** after that channel's last frame — 120 s of abandoned `getall` plus its own `ReceiveTimeout`.

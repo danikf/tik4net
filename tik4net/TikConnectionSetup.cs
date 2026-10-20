@@ -20,9 +20,7 @@ namespace tik4net
     /// <see cref="ITikTlsConnection"/> (the certificate options), <see cref="ITikMacLayerConnection"/>
     /// (<see cref="RouterMac"/>) and <see cref="ITikCancellationModeConnection"/>
     /// (<see cref="CancellationMode"/>) — so a transport either receives an option or provably has no use
-    /// for it. There is no third case where a value is set here and quietly dropped, which is what used to
-    /// happen (through 4.0, <see cref="AllowInvalidCertificate"/> reached REST and not API-SSL, and the SSH
-    /// satellite transport received only <see cref="CancellationMode"/>).
+    /// for it. There is no third case where a value is set here and quietly dropped.
     /// </para>
     /// <para>
     /// <see cref="ConnectionFactory"/> remains as a compatibility shim over the same machinery. It creates
@@ -661,8 +659,6 @@ namespace tik4net
         /// <param name="ct">
         /// Cancels the open. Passed through to the connection, so how far it reaches is the transport's
         /// answer — see <see cref="ITikConnection.OpenAsync(string, int, string, string, CancellationToken)"/>.
-        /// It used to be checked here and then dropped, which made it look like a stuck connect could be
-        /// abandoned when only <see cref="ConnectTimeout"/> could end one.
         /// </param>
         public async Task OpenAsync(ITikConnection connection, CancellationToken ct = default)
         {

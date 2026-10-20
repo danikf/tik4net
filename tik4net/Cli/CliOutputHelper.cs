@@ -507,9 +507,9 @@ namespace tik4net.Cli
         /// prompt-prefixed echo RouterOS's line editor paints, <c>"[admin@CHR] &gt; :put […]"</c>.
         /// </summary>
         /// <remarks>
-        /// Anchored on the leading <c>'['</c> for the same reason as <see cref="IsPromptLine"/>: this used to
-        /// be a bare "contains <c>] &gt;</c>" test, which discarded any leading data line that happened to
-        /// contain the sequence — a stored script source, a comment — as if it were an echo.
+        /// Anchored on the leading <c>'['</c> for the same reason as <see cref="IsPromptLine"/>: a bare
+        /// "contains <c>] &gt;</c>" test would discard any leading data line that happens to contain the
+        /// sequence — a stored script source, a comment — as if it were an echo.
         /// </remarks>
         internal static bool IsPromptPrefixed(string line)
         {

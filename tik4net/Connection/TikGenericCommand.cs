@@ -657,12 +657,10 @@ namespace tik4net.Connection
         /// command and the parameters its rows describe, appended to any the caller added directly.
         /// </summary>
         /// <remarks>
-        /// The row parsing is <see cref="TikCommandRow"/>'s, not a second copy of it. It used to be one: a
-        /// lenient inline version that recognised <c>?…</c> and <c>=…</c> and let everything else fall out
-        /// of the bottom of the loop in silence — so a row one leading <c>=</c> short became no parameter at
-        /// all, and the command went out missing a filter and answered with the whole table. That is the
-        /// exact defect <see cref="TikCommandRow"/> was written to end, and keeping two parsers of one
-        /// format meant only one of them knew it.
+        /// The row parsing is <see cref="TikCommandRow"/>'s, not a second copy of it. A lenient inline version
+        /// that recognises <c>?…</c> and <c>=…</c> and lets everything else fall out of the loop in silence
+        /// turns a row one leading <c>=</c> short into no parameter at all, and the command goes out missing a
+        /// filter and answers with the whole table — the defect <see cref="TikCommandRow"/> exists to end.
         /// <para>
         /// Blank lines are dropped before parsing: they are formatting rather than words, so they must not
         /// reach a parser that (correctly) refuses an empty row.
@@ -699,14 +697,13 @@ namespace tik4net.Connection
         /// <see cref="TikCommandParameterFormat.Filter"/> otherwise.
         /// </summary>
         /// <remarks>
-        /// The command default used to be ignored here, so every unformatted parameter of a read became a
-        /// filter whatever the caller had said. <c>CreateCommandAndParameters(path + "/print",
-        /// NameValue, "detail", "")</c> — the documented way to say what the parameters ARE — went out as
-        /// <c>where detail=""</c>, which matches no row: two rows over Telnet when the same parameter was
-        /// built with <c>CreateParameter(..., NameValue)</c>, and none this way. Not an error, not a wrong
-        /// value — an empty table, on a command the router never saw. The binary API has always resolved it
-        /// in this order (parameter → command default → use-case default; see <c>ApiCommand</c>), so the two
-        /// command implementations no longer disagree about what the same call means.
+        /// The command default is honoured: ignored, every unformatted parameter of a read would become a
+        /// filter whatever the caller had said, and <c>CreateCommandAndParameters(path + "/print",
+        /// NameValue, "detail", "")</c> — the documented way to say what the parameters ARE — would go out as
+        /// <c>where detail=""</c>, which matches no row. Not an error, not a wrong value — an empty table, on a
+        /// command the router never saw. The binary API resolves it in the same order (parameter → command
+        /// default → use-case default; see <c>ApiCommand</c>), so the two command implementations agree about
+        /// what the same call means.
         /// <para>The Filter fallback is what makes a bare <c>CreateCommandAndParameters(path + "/print",
         /// "name", "ether1")</c> a filtered read, and it stays: it applies only when the caller has said
         /// nothing at all.</para>

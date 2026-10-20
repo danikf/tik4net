@@ -349,10 +349,10 @@ Three layers deal with it, each covering what the one before cannot.
 (`ITikCliPagedReadConnection`, `:pick` + `from=` — see [findings-cli.md](findings-cli.md) §1) never gives the
 router a backlog, so there is nothing for it to discard, and a table smaller than one page still costs a
 single request. **A filtered read is windowed too** — its clause goes into the window's own `find`, so
-prevention covers the large filtered read as well, which is the one case that used to reach the router as a
-single command however big its answer was. Measured on the same lab: `/ip firewall mangle` (1672 rows)
-and `/queue/tree` (681) both read complete over MAC-Telnet, repeatedly, where neither had ever succeeded in
-a single command.
+prevention covers the large filtered read as well, which would otherwise reach the router as a single
+command however big its answer. Measured on the same lab: `/ip firewall mangle` (1672 rows) and
+`/queue/tree` (681) both read complete over MAC-Telnet, repeatedly, where neither completes as a single
+command.
 
 **The router's own count detects it, on every print.** The stream cannot show the loss, but the router can
 say how many records it meant to send: every window ends with the number of ids it held, and every

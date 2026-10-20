@@ -283,9 +283,9 @@ namespace tik4net
     /// router with nothing referring to it.
     /// </para>
     /// <para>
-    /// This used to be reported as an add that returned an empty id: the entity came back with no
-    /// <see cref="TikSpecialProperties.Id"/>, so the caller's own cleanup had nothing to delete and the row
-    /// survived the process that made it. A caller that catches this should <b>look the row up by a field it
+    /// It is an exception rather than an add that returns an empty id: an entity with no
+    /// <see cref="TikSpecialProperties.Id"/> gives the caller's own cleanup nothing to delete, and the row
+    /// survives the process that made it. A caller that catches this should <b>look the row up by a field it
     /// set</b> (a name or a comment it chose) rather than assume nothing happened — retrying the add blindly
     /// creates a second row.
     /// </para>
