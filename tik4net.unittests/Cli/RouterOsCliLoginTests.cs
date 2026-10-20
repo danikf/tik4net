@@ -1,3 +1,4 @@
+﻿using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
 
@@ -51,6 +52,72 @@ namespace tik4net.unittests.Cli
                        + "\r\r\r\r[9999B[admin@CHR] <SAFE> ";
 
             Assert.AreEqual("name=CHR", CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), sent));
+        }
+
+        // ── a login that ran out of time is not a refused one (X26, D28) ──────
+
+        // What RouterOS sends right after the password, before the banner: the UTF-8 cursor test
+        // (Docs/findings-mactelnet.md, the VT100 probe table). Stripped, it leaves "ěH".
+        private const string Utf8CursorProbe = "\u001b[H\u011bH\u001b[6n";
+
+        /// <summary>
+        /// The password went out, the router answered with its first VT100 probe, and the banner never came before
+        /// the deadline. That is a login that ran out of time, not a refusal, and the message must say so.
+        /// </summary>
+        [TestMethod]
+        public async Task Login_WhosePromptNeverCame_SaysItTimedOut_NotThatItFailed()
+        {
+            var term = new FakeRouterTerminal()
+                .Emits(RouterOsTranscripts.V7232_Login)
+                .Emits(RouterOsTranscripts.V7232_Password)
+                .Emits(Utf8CursorProbe);
+
+            var ex = await Assert.ThrowsExceptionAsync<TikConnectionLoginException>(() => term.LoginAsync());
+
+            StringAssert.Contains(ex.Message, "shell prompt did not arrive");
+            StringAssert.Contains(ex.Message, "the router had sent: '\u011bH'");
+            Assert.IsFalse(ex.Message.Contains("login failed"), ex.Message);
+        }
+
+        /// <summary>The settle-only path (SSH): a shell that never draws its prompt timed out too.</summary>
+        [TestMethod]
+        public async Task ResolveToPrompt_WhosePromptNeverCame_SaysItTimedOut()
+        {
+            var term = new FakeRouterTerminal().Emits(Utf8CursorProbe);
+
+            var ex = await Assert.ThrowsExceptionAsync<TikConnectionLoginException>(() => term.ResolveToPromptAsync());
+
+            StringAssert.Contains(ex.Message, "shell prompt did not arrive");
+            Assert.IsFalse(ex.Message.Contains("login failed"), ex.Message);
+        }
+
+        /// <summary>A re-offered <c>Login:</c> after the password is a refusal, and keeps saying so.</summary>
+        [TestMethod]
+        public async Task Login_ReofferedAfterThePassword_StillSaysLoginFailed()
+        {
+            var term = new FakeRouterTerminal()
+                .Emits(RouterOsTranscripts.V7232_Login)
+                .Emits(RouterOsTranscripts.V7232_Password)
+                .Emits("\r\n\r\nLogin: ");
+
+            var ex = await Assert.ThrowsExceptionAsync<TikConnectionLoginException>(
+                () => term.LoginAsync(password: "wrong"));
+
+            StringAssert.Contains(ex.Message, "RouterOS CLI login failed. Server response: ");
+        }
+
+        /// <summary>A refusal phrase before the password keeps its "login failed" wording.</summary>
+        [TestMethod]
+        public async Task Login_RefusalPhraseBeforeThePassword_StillSaysLoginFailed()
+        {
+            var term = new FakeRouterTerminal()
+                .Emits(RouterOsTranscripts.V7232_Login)
+                .Emits("admin+ct\r\nLogin failed, incorrect username or password\r\n");
+
+            var ex = await Assert.ThrowsExceptionAsync<TikConnectionLoginException>(() => term.LoginAsync());
+
+            StringAssert.Contains(ex.Message, "RouterOS CLI login failed. Server response: ");
+            StringAssert.Contains(ex.Message, "Login failed, incorrect username or password");
         }
     }
 }

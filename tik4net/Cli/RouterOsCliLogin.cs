@@ -211,7 +211,9 @@ namespace tik4net.Cli
         /// <param name="sendLine">Sends a line of text followed by the transport's line terminator.</param>
         /// <param name="sendBytes">Sends raw bytes (used for Ctrl-C).</param>
         /// <param name="ct">Cancellation token.</param>
-        /// <exception cref="TikConnectionLoginException">Credentials rejected or the shell prompt was never reached.</exception>
+        /// <exception cref="TikConnectionLoginException">Credentials rejected (the message says the login failed), or
+        /// the shell prompt did not arrive before a read gave up at the receive deadline or the end of the session (the
+        /// message says so, with how long the read waited and what the router had sent).</exception>
         public static async Task LoginAsync(
             string user,
             string password,
@@ -270,7 +272,10 @@ namespace tik4net.Cli
         /// router's own dialogue state rather than its choice of words, so it holds on a RouterOS whose
         /// refusal text nobody here has ever seen.
         /// </remarks>
-        /// <exception cref="TikConnectionLoginException">Credentials rejected, or the shell prompt was never reached.</exception>
+        /// <exception cref="TikConnectionLoginException">Credentials rejected (a re-offered <c>Login:</c>, or the
+        /// change-password nag still on screen after <see cref="MaxNagRounds"/> Ctrl-Cs: the message says the login
+        /// failed), or the shell prompt did not arrive before the read gave up at the receive deadline or the end of the
+        /// session (the message says so, with how long the read waited and what the router had sent).</exception>
         public static async Task ResolveToPromptAsync(
             Func<Func<string, bool>, CancellationToken, Task<string>> readUntil,
             Func<byte[], CancellationToken, Task> sendBytes,
@@ -285,17 +290,25 @@ namespace tik4net.Cli
                 IsShellPrompt(s) || IsChangePasswordNag(s)
                 || (loginPromptMeansFailure && IsLoginPrompt(s));
 
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             string result = await readUntil(settled, ct).ConfigureAwait(false);
 
             int nagRounds = 0;
             while (!IsShellPrompt(result) && IsChangePasswordNag(result) && nagRounds++ < MaxNagRounds)
             {
                 await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);
+                watch.Restart();
                 result = await readUntil(settled, ct).ConfigureAwait(false);
             }
 
-            if (!IsShellPrompt(result))
-                throw LoginException(result);
+            if (IsShellPrompt(result))
+                return;
+            // A read that returns text none of its predicates accepts gave up: the receive deadline passed or the
+            // session ended. That is not a refusal — the router may only have been slow to draw the banner — and
+            // reporting it as "login failed" sent a diagnosis after wrong credentials.
+            if (!settled(result))
+                throw PromptNeverArrived(result, watch.ElapsedMilliseconds);
+            throw LoginException(result);
         }
 
         // ── RoMON: continue an agent session into a target (SSH relay) ─────────
@@ -617,5 +630,11 @@ namespace tik4net.Cli
         private static TikConnectionLoginException LoginException(string serverText)
             => new TikConnectionLoginException(new Exception(
                 "RouterOS CLI login failed. Server response: " + (serverText ?? string.Empty).Trim()));
+
+        // The read cannot say which of the two ended it (the delegate returns only the text), so the wording names both.
+        private static TikConnectionLoginException PromptNeverArrived(string serverText, long waitedMs)
+            => new TikConnectionLoginException(new TimeoutException(
+                "RouterOS CLI login: the shell prompt did not arrive within " + waitedMs + " ms (the receive deadline "
+                + "passed or the session ended first); the router had sent: '" + (serverText ?? string.Empty).Trim() + "'."));
     }
 }
