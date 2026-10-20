@@ -135,11 +135,26 @@ namespace tik4net.MacTelnet
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, user, password, ct);
             Action close = () => { client.TryCloseSession(SafeModeHeld); client.Dispose(); };
 
+            // The re-login goes through RouterLoginRetry for the same reason the initial one does: RouterOS
+            // refuses roughly 1 % of EC-SRP5 logins that use correct credentials, and a recovery path that
+            // inherits that failure rate is worse than no recovery path at all.
             Func<CancellationToken, Task> reopen = async ct =>
             {
-                try { client.Dispose(); } catch { /* the old session is gone anyway */ }
-                client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
-                await client.LoginAsync(host, user, password, ct).ConfigureAwait(false);
+                // Marked in the trace because the rebuild is otherwise invisible: it turns a dropped session
+                // into a slow success.
+                if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                    tik4net.Diagnostics.TikWireTrace.Emit("mactelnet.session", tik4net.Diagnostics.TikWireDir.Note,
+                        "SESSION DROPPED BY ROUTER — reopening");
+
+                // As the open: a refused login ends with the router tearing the session down, so each attempt
+                // needs a new client. Disposing at the top of the attempt closes the dropped session on the
+                // first one and a refused one on the next.
+                await Winbox.RouterLoginRetry.RunAsync(async () =>
+                {
+                    try { client.Dispose(); } catch { /* the old session is gone anyway */ }
+                    client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
+                    await client.LoginAsync(host, user, password, ct).ConfigureAwait(false);
+                }).ConfigureAwait(false);
             };
 
             Func<string, CancellationToken, Task<string>> send = async (cmd, ct) =>
