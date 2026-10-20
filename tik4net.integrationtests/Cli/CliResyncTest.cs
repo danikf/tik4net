@@ -26,12 +26,13 @@ namespace tik4net.integrationtests
                 Assert.Inconclusive("A terminal transport's behaviour: the others frame their replies.");
             string identity = Connection.CreateCommand("/system/identity/print").ExecuteScalar();
 
-            // A connection of its own: the terminal clients take ReceiveTimeout when they open.
+            // A connection of its own, opened with the lab's timeout: ReceiveTimeout set before the open bounds every
+            // login step too, and under a loaded router a 1.5 s login runs out. The test is about the command after a
+            // timeout, so the short value is set on the open connection, which bounds the next command.
             var type = ResolveConnectionType();
-            var setup = LabSetup(type);
-            setup.ReceiveTimeout = TimeSpan.FromSeconds(1.5);
-            using (var connection = setup.Create(type))
+            using (var connection = LabSetup(type).Create(type))
             {
+                connection.ReceiveTimeout = TimeSpan.FromSeconds(1.5);
                 // Output before the stall and after it: either could be read by the next command if the session
                 // were left out of step.
                 Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
