@@ -379,6 +379,15 @@ Every complete answer condemned at a threshold of two had exactly two gaps, so t
 margin below the smallest short read. A spurious "retry it" costs one re-send; a missed short answer would
 be silent, which is why the margin is not wider.
 
+**The count is of datagrams arriving past a hole, not of holes.** `AckData` counts a packet whenever it lands
+more than one datagram past the last byte held, and while one hole stays open every later datagram of the
+answer does. One lost datagram early in a ~3.4 KB answer (three datagrams) therefore scores two or three:
+measured under four parallel CLI legs, `TerminalFrameBoundaryTest` ×50 (1 881 answers) had one loss episode — a
+68-byte datagram missing, then the next three arriving 1 518, 2 900 and 3 447 bytes past it — and that complete
+3 444-character answer scored three and was refused. So the threshold of three still refuses a complete answer
+whose early datagram was lost; counting distinct holes would separate that from a sustained backlog, which
+leaves many.
+
 Paging also settles throughput for reads. A single command of this size moves 7–15 KB/s, because the loss
 episodes it provokes are recovered by backlog replay, and it cannot finish inside the 30 s receive deadline.
 In windows the same tables read in a few seconds (`MacLayerLargeReadProbe`, three reads each, 7.24):
