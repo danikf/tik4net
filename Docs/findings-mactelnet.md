@@ -408,8 +408,18 @@ short nearly every time:
 
 The short ones broke off after 68–88 KB had arrived, whatever their full size. So the router can carry about
 70 KB of an answer through a loss episode, and loses output only beyond that. The windows with no loss came back whole
-at any size measured, up to 186 KB. This is one router (CHR, 7.24) and the two tables' row shapes. A 3.4 KB answer,
-like the ones the threshold of three refuses, is twenty times below the smallest short answer measured.
+at any size measured, up to 186 KB. The same sweep (page sizes 200–600, three reads each) on the other two lab
+routers puts the boundary in the same place:
+
+| Router | Smallest short answer | Largest whole answer after a loss | Windows (with a loss) |
+|---|---|---|---|
+| CHR, 7.24 | 69.5 KB | 74.6 KB | 250 (227) |
+| CHR2, 6.49.13 (the CHR's tables) | 70.8 KB; timeouts from about 65 KB | 86.5 KB | 304 (31) |
+| CHR3, 7.21.5 (1 700 + 700 seeded rows) | 74.2 KB | 77.5 KB | 90 (85) |
+
+On RouterOS 6 the large windows mostly stall rather than come back short, and the stall ends in a receive timeout,
+which is refused like a short answer. On every router no answer under about 69 KB came back short. A 3.4 KB answer,
+like the ones the threshold of three refuses, is twenty times below that.
 
 Paging also settles throughput for reads. A single command of this size moves 7–15 KB/s, because the loss
 episodes it provokes are recovered by backlog replay, and it cannot finish inside the 30 s receive deadline.
