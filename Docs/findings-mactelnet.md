@@ -394,8 +394,22 @@ full send window (23 200 bytes, 16 datagrams) past the hole, and the client refi
 time. The 13 short answers scored 35–47 arrivals past the hole and 25–36 distinct hole offsets; the 24 complete
 300-row mangle windows of the same run, each checked by the router's count, scored up to 43 and 36. Counting
 distinct offsets therefore scores a single loss as high as a backlog, and counting episodes scores every short
-answer 1. What did differ was the answer's size: every short answer was a single command or a 600-row window
-(roughly 58 KB and up), every complete one a smaller window — a correlation from one run, not a measured boundary.
+answer 1.
+
+**What decides it is the answer's size.** Swept over page sizes 200–600 on both tables (250 windows, 227 of them
+with a wide loss), no window below about 69 KB came back short, and above about 75 KB a window with a loss came back
+short nearly every time:
+
+| Window (intended bytes) | With a wide loss: whole | short or tail lost |
+|---|---|---|
+| up to 69 KB | 190 | 0 |
+| 69–75 KB | 9 (mangle 640–1280 at 69.5–70.2 KB; queue tree 0–240 at 74.6 KB, twice) | 4 (one mangle window at 69.5 KB lost its `#w=` tail; queue tree 0–240 once; mangle 0–360 twice) |
+| over 75 KB | 0 | 23, plus two timeouts |
+
+The short ones broke off after 68–88 KB had arrived, whatever their full size. So the router can carry about
+70 KB of an answer through a loss episode, and loses output only beyond that. The windows with no loss came back whole
+at any size measured, up to 186 KB. This is one router (CHR, 7.24) and the two tables' row shapes. A 3.4 KB answer,
+like the ones the threshold of three refuses, is twenty times below the smallest short answer measured.
 
 Paging also settles throughput for reads. A single command of this size moves 7–15 KB/s, because the loss
 episodes it provokes are recovered by backlog replay, and it cannot finish inside the 30 s receive deadline.
