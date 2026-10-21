@@ -385,8 +385,17 @@ answer does. One lost datagram early in a ~3.4 KB answer (three datagrams) there
 measured under four parallel CLI legs, `TerminalFrameBoundaryTest` ×50 (1 881 answers) had one loss episode — a
 68-byte datagram missing, then the next three arriving 1 518, 2 900 and 3 447 bytes past it — and that complete
 3 444-character answer scored three and was refused. So the threshold of three still refuses a complete answer
-whose early datagram was lost; counting distinct holes would separate that from a sustained backlog, which
-leaves many.
+whose early datagram was lost.
+
+**No count of the loss separates a short answer from a complete one.** Re-scored from wire traces
+(`MacLayerLargeReadProbe` with `TIK4NET_LARGE_READ_PAGES=0,600,300`, CHR, 7.24), every large answer that lost a
+datagram shows the same shape whether it came back whole or not: **one** loss episode, the router streaming its
+full send window (23 200 bytes, 16 datagrams) past the hole, and the client refilling it one retransmit at a
+time. The 13 short answers scored 35–47 arrivals past the hole and 25–36 distinct hole offsets; the 24 complete
+300-row mangle windows of the same run, each checked by the router's count, scored up to 43 and 36. Counting
+distinct offsets therefore scores a single loss as high as a backlog, and counting episodes scores every short
+answer 1. What did differ was the answer's size: every short answer was a single command or a 600-row window
+(roughly 58 KB and up), every complete one a smaller window — a correlation from one run, not a measured boundary.
 
 Paging also settles throughput for reads. A single command of this size moves 7–15 KB/s, because the loss
 episodes it provokes are recovered by backlog replay, and it cannot finish inside the 30 s receive deadline.
