@@ -362,15 +362,19 @@ refused with `TikConnectionResponseIncompleteException`. This is exact, and it i
 layer: it runs on all five CLI transports.
 
 **The packet-loss heuristic covers every other command.** An `add`, `set` or action has no count to check,
-so for those the client judges the answer by the shape of the packet loss, on two counts. `AckData` counts
+so for those the client judges the answer by its size and the shape of the packet loss. `AckData` counts
 a gap only when it is **wider than one datagram** — sub-datagram gaps (4–528 B on this lab, the login-phase
 packets) are ordinary loss the router refills exactly. `MacTelnetUdpClient` then refuses the response only
-when that count is **above two**: a wide gap or two is recovered by retransmits, whereas a sustained run of
-them is the state in which the router starts discarding output. `MacTelnetConnection` skips it for a
-print, which the count already checks exactly: the heuristic condemns complete answers now and then — a
-10-row slice tripped it while the paged read it belonged to returned every row.
+when it is **at least 32 KiB** (`MinimumCondemnedLength`) **and** that count is **above two**. The size floor is
+what separates the cases (see *What decides it is the answer's size* below): the router loses output only past
+about 70 KB of an answer, so a shorter answer that ends at a prompt is whole however many gaps it crossed, and the
+floor is half the smallest short answer measured. Above it, a wide gap or two is recovered by retransmits,
+whereas a sustained run of them is the state in which the router starts discarding output.
+`MacTelnetConnection` skips the check for a print, which the count already checks exactly: the heuristic
+condemns complete answers now and then — a 10-row slice tripped it while the paged read it belonged to returned
+every row.
 
-**Both of its thresholds are empirical, and neither is sharp.** The reads measured coming back short had 4,
+**The gap-count threshold is empirical, and not sharp.** The reads measured coming back short had 4,
 29, 30 and 31 wide gaps. Complete answers have one wide gap routinely (judging on one condemned seven
 sub-kilobyte responses, 265 to 671 characters, on one suite leg) and two under a loaded router: a 3.6 KB
 read and an empty one on one leg, an `add` the router had executed (RouterOS 6.49.13), and 3 412- and
@@ -384,8 +388,8 @@ more than one datagram past the last byte held, and while one hole stays open ev
 answer does. One lost datagram early in a ~3.4 KB answer (three datagrams) therefore scores two or three:
 measured under four parallel CLI legs, `TerminalFrameBoundaryTest` ×50 (1 881 answers) had one loss episode — a
 68-byte datagram missing, then the next three arriving 1 518, 2 900 and 3 447 bytes past it — and that complete
-3 444-character answer scored three and was refused. So the threshold of three still refuses a complete answer
-whose early datagram was lost.
+3 444-character answer scored three. The gap count alone therefore cannot clear a complete answer whose early
+datagram was lost; the size floor does.
 
 **No count of the loss separates a short answer from a complete one.** Re-scored from wire traces
 (`MacLayerLargeReadProbe` with `TIK4NET_LARGE_READ_PAGES=0,600,300`, CHR, 7.24), every large answer that lost a
@@ -418,8 +422,8 @@ routers puts the boundary in the same place:
 | CHR3, 7.21.5 (1 700 + 700 seeded rows) | 74.2 KB | 77.5 KB | 90 (85) |
 
 On RouterOS 6 the large windows mostly stall rather than come back short, and the stall ends in a receive timeout,
-which is refused like a short answer. On every router no answer under about 69 KB came back short. A 3.4 KB answer,
-like the ones the threshold of three refuses, is twenty times below that.
+which is refused like a short answer. On every router no answer under about 69 KB came back short. A 3.4 KB answer
+that crossed three wide gaps is twenty times below that, and the 32 KiB floor lets it through.
 
 Paging also settles throughput for reads. A single command of this size moves 7–15 KB/s, because the loss
 episodes it provokes are recovered by backlog replay, and it cannot finish inside the 30 s receive deadline.

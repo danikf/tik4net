@@ -224,19 +224,29 @@ namespace tik4net.MacTelnet
             => ThrowIfResponseLostDatagrams(DataHoles, sentCommand, response);
 
         /// <summary>
+        /// The smallest answer, in characters, that <see cref="ThrowIfResponseLostDatagrams(int,string,string)"/>
+        /// condemns. RouterOS drops part of its own output only past about 70 KB of an answer, so a shorter one that
+        /// ends at a prompt is whole however many datagrams it lost on the way (X27, D33).
+        /// </summary>
+        internal const int MinimumCondemnedLength = 32 * 1024;
+
+        /// <summary>
         /// The decision of <see cref="ThrowIfResponseLostDatagrams(string,string)"/> for a given number of wide gaps
         /// (<paramref name="lost"/>, the pump's count for the command).
         /// </summary>
         internal static void ThrowIfResponseLostDatagrams(int lost, string sentCommand, string response)
         {
-            // Two wide gaps are not enough to condemn an answer. The router refills a gap with one retransmit
-            // and carries on; what precedes the output-dropping is a SUSTAINED episode — we stay behind, the
-            // router keeps streaming, and its queue is what it eventually discards. The reads that came back
-            // short had 4, 29, 30 and 31 wide gaps. Complete answers have had two under load: an add the router
-            // had executed (CHR2, RouterOS 6), and 3 412- and 3 444-character answers whose exact length
-            // TerminalFrameBoundaryTest checks, besides two earlier full-suite runs, all condemned at a threshold
-            // of two. Three keeps a margin below the smallest short read.
-            if (lost <= 2)
+            // Size decides, not the gap count. One early lost datagram lets the router's whole window stream past
+            // the hole, so a complete answer scores as many wide gaps as a short one (measured 35-47 against up to
+            // 43) and no threshold on the count separates them. What does is length: on RouterOS 6.49.13, 7.21.5 and
+            // 7.24.5 no answer under ~69 KB came back short, every short one broke off after 68-88 KB, and loss-free
+            // answers came back whole up to 186 KB. The floor is half the smallest short answer; under it an answer
+            // that ends at a prompt is whole. Docs/findings-mactelnet.md has the sweep.
+            //
+            // Above it, two wide gaps are still not enough: the router refills a gap with one retransmit and carries
+            // on, and what precedes the output-dropping is a SUSTAINED episode. The reads that came back short had
+            // 4, 29, 30 and 31.
+            if (lost <= 2 || response.Length < MinimumCondemnedLength)
                 return;
 
             throw new TikConnectionResponseIncompleteException(
