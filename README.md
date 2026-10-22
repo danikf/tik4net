@@ -55,7 +55,7 @@ Step by step: [Getting started](https://github.com/danikf/tik4net/wiki/Getting-s
 
 ## What's new
 
-**5.0** — prerelease, `5.0.0-alpha2` on NuGet ([Upgrading from 4.x](https://github.com/danikf/tik4net/wiki/Upgrading-from-4.x-to-5.0)):
+**5.0** — prerelease, `5.0.0-alpha3` on NuGet ([Upgrading from 4.x](https://github.com/danikf/tik4net/wiki/Upgrading-from-4.x-to-5.0)):
 * [RoMON](https://github.com/danikf/tik4net/wiki/RoMON-connection) — reach a router through a neighbouring one, over any CLI or WinBox transport
 * One codebase from RouterOS 6.49 to 7.24 — [RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions)
 * [TikField](https://github.com/danikf/tik4net/wiki/TikField) — a property knows whether the router printed the field, and never invents a default
