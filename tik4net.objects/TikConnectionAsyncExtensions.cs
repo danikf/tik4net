@@ -83,10 +83,10 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            var command = TikConnectionExtensions.CreateLoadCommand<TEntity>(connection, filterParameters);
+            var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = await command.LoadListAsync<TEntity>(cancellationToken).ConfigureAwait(false);
 
-            TikConnectionExtensions.RegisterLoadedSnapshots(connection, entities, metadata, command);
+            TikConnectionExtensions.RegisterSnapshots(connection, entities, metadata, command);
             return entities;
         }
 
@@ -109,7 +109,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            var command = TikConnectionExtensions.CreateLoadCommand<TEntity>(connection, filterParameters);
+            var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = await command.LoadListAsync<TEntity>(cancellationToken).ConfigureAwait(false);
 
             return TikConnectionExtensions.ExactlyOne(connection, command, entities, metadata);
@@ -133,7 +133,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            var command = TikConnectionExtensions.CreateLoadCommand<TEntity>(connection, filterParameters);
+            var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = await command.LoadListAsync<TEntity>(cancellationToken).ConfigureAwait(false);
 
             return TikConnectionExtensions.AtMostOne(connection, command, entities, metadata);
@@ -156,7 +156,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            var command = TikConnectionExtensions.CreateLoadCommand<TEntity>(connection,
+            var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection,
                 connection.CreateParameter(TikSpecialProperties.Id, id));
             var entities = await command.LoadListAsync<TEntity>(cancellationToken).ConfigureAwait(false);
 
@@ -180,7 +180,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            var command = TikConnectionExtensions.CreateLoadCommand<TEntity>(connection,
+            var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection,
                 connection.CreateParameter("name", name));
             var entities = await command.LoadListAsync<TEntity>(cancellationToken).ConfigureAwait(false);
 

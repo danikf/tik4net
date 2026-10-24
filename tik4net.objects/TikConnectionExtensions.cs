@@ -317,13 +317,7 @@ namespace tik4net.Objects
         internal static TEntity ExactlyOne<TEntity>(ITikConnection connection, ITikCommand command,
             IList<TEntity> entities, TikEntityMetadata metadata)
         {
-            var cnt = entities.Count;
-            if (cnt == 0)
-                throw new TikNoSuchItemException(command);
-            else if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-
-            var entity = entities[0];
+            var entity = TikCommandExtensions.ExactlyOneRow(command, entities);
             TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
             return entity;
         }
@@ -332,29 +326,16 @@ namespace tik4net.Objects
         internal static TEntity? AtMostOne<TEntity>(ITikConnection connection, ITikCommand command,
             IList<TEntity> entities, TikEntityMetadata metadata)
         {
-            var cnt = entities.Count;
-            if (cnt == 0)
-                return default(TEntity);
-            if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-
-            var entity = entities[0];
-            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
+            var entity = TikCommandExtensions.AtMostOneRow(command, entities);
+            if (entities.Count == 1)
+                TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
             return entity;
         }
-
-        internal static ITikCommand CreateLoadCommand<TEntity>(ITikConnection connection,
-            params ITikCommandParameter[] parameters)
-            => CreateLoadCommandWithFilter<TEntity>(connection, parameters);
-
-        internal static void RegisterLoadedSnapshots<TEntity>(ITikConnection connection, IList<TEntity> entities,
-            TikEntityMetadata metadata, ITikCommand command)
-            => RegisterSnapshots(connection, entities, metadata, command);
 
         /// <summary>
         /// Registers snapshots for a batch of freshly loaded entities.
         /// </summary>
-        private static void RegisterSnapshots<TEntity>(ITikConnection connection, IList<TEntity> entities,
+        internal static void RegisterSnapshots<TEntity>(ITikConnection connection, IList<TEntity> entities,
             TikEntityMetadata metadata, ITikCommand command)
         {
             var tracker = TikChangeTracker.For(connection);
@@ -393,7 +374,7 @@ namespace tik4net.Objects
                 command.AddParameter(TikSpecialProperties.WinboxLabels, labels, TikCommandParameterFormat.NameValue);
         }
 
-        private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, params ITikCommandParameter[] parameters)
+        internal static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, params ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 

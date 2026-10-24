@@ -55,12 +55,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             var entities = await command.LoadListAsync<TEntity>(cancellationToken).ConfigureAwait(false);
-
-            if (entities.Count == 0)
-                throw new TikNoSuchItemException(command);
-            if (entities.Count > 1)
-                throw new TikCommandAmbiguousResultException(command, entities.Count);
-            return entities[0];
+            return TikCommandExtensions.ExactlyOneRow(command, entities);
         }
 
         /// <summary>
@@ -77,12 +72,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             var entities = await command.LoadListAsync<TEntity>(cancellationToken).ConfigureAwait(false);
-
-            if (entities.Count == 0)
-                return default(TEntity);
-            if (entities.Count > 1)
-                throw new TikCommandAmbiguousResultException(command, entities.Count);
-            return entities[0];
+            return TikCommandExtensions.AtMostOneRow(command, entities);
         }
     }
 }

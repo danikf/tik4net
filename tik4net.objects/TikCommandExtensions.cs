@@ -51,15 +51,9 @@ namespace tik4net.Objects
         public static TEntity LoadSingle<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
-            var candidates = LoadList<TEntity>(command);
-            
-            var cnt = candidates.Count();
-            if (cnt == 0)
-                throw new TikNoSuchItemException(command);
-            else if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-            else
-                return candidates.Single();
+            Guard.ArgumentNotNull(command, "command");
+
+            return ExactlyOneRow(command, Materialize<TEntity>(command, command.ExecuteList()));
         }
 
         /// <summary>
@@ -77,15 +71,9 @@ namespace tik4net.Objects
         public static TEntity? LoadSingleOrDefault<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
-            var candidates = LoadList<TEntity>(command);
+            Guard.ArgumentNotNull(command, "command");
 
-            var cnt = candidates.Count();
-            if (cnt == 0)
-                return default(TEntity);
-            else if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-            else
-                return candidates.Single();
+            return AtMostOneRow(command, Materialize<TEntity>(command, command.ExecuteList()));
         }
 
         /// <summary>
@@ -198,6 +186,31 @@ namespace tik4net.Objects
                     if (onExceptionCallback != null)
                         onExceptionCallback(new TikCommandTrapException(command, trapSentence));
                 });
+        }
+
+        // The row-count rule of every single-row load, the command-level ones here and in
+        // TikObjectsCommandAsyncExtensions as well as TikConnectionExtensions.ExactlyOne / AtMostOne, which add
+        // only the change-tracker snapshot. One copy, so "no row" and "more than one" cannot mean different
+        // things on different load paths.
+
+        /// <summary>Requires exactly one row.</summary>
+        internal static TEntity ExactlyOneRow<TEntity>(ITikCommand command, IList<TEntity> entities)
+        {
+            if (entities.Count == 0)
+                throw new TikNoSuchItemException(command);
+            if (entities.Count > 1)
+                throw new TikCommandAmbiguousResultException(command, entities.Count);
+            return entities[0];
+        }
+
+        /// <summary>Allows an empty result: the type default when nothing matched.</summary>
+        internal static TEntity? AtMostOneRow<TEntity>(ITikCommand command, IList<TEntity> entities)
+        {
+            if (entities.Count == 0)
+                return default(TEntity);
+            if (entities.Count > 1)
+                throw new TikCommandAmbiguousResultException(command, entities.Count);
+            return entities[0];
         }
 
         /// <summary>
