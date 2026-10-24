@@ -207,8 +207,6 @@ namespace tik4net.Api
                             return string.Format("={0}={1}", p.Name, p.Value);
                         case TikCommandParameterFormat.Tag:
                             return string.Format("{0}={1}", p.Name, p.Value);
-                        //case TikCommandParameterFormat.NameOnly:
-                        //      return string.Format("={0}", p.Name);
                         default:
                             // Not a tik4net exception on purpose: an undefined enum value here is a bug in
                             // the caller's argument, nothing the router said.
@@ -719,10 +717,6 @@ namespace tik4net.Api
                 _isRuning = false;
                 _asynchronouslyRunningTag = null;
                 throw;
-            }
-            finally
-            {
-                //still running
             }
         }
 

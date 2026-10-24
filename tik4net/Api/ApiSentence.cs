@@ -46,9 +46,6 @@ namespace tik4net.Api
                         _words.Add(key + idx, value);
                     }
                     //The name above is INVENTED here, not sent by the router - see IsDuplicateWorkaroundName.
-                    //if (_words[key] != value)
-                    //    throw new TikSentenceException(string.Format("Duplicit key '{0}' with deffirent values '{1}' vs. '{2}'", key, _words[key], value) , this);
-                    //else - duplicit key but the same value -> OK (workaround mikrotik bug?)
                 }
             }
         }
@@ -77,16 +74,6 @@ namespace tik4net.Api
 
         protected bool TryGetWordValue(string wordName, out string value)
         {
-            //Regex keyValueRegex = new Regex("^=?" + wordName.Replace(".", @"\.") +"=(?<VALUE>.+)$");
-            //foreach (string row in _words)
-            //{
-            //    Match regexMatch = keyValueRegex.Match(row);
-            //    if (regexMatch.Success)
-            //    {
-            //        value = regexMatch.Groups["VALUE"].Value;
-            //        return true;
-            //    }
-            //}
             bool found = _words.TryGetValue(wordName, out var v);
             value = v!; // null only when found is false; callers check the return value before using 'value'
             return found;

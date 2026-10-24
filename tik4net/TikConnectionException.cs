@@ -38,16 +38,6 @@ namespace tik4net
             : base(message, innerException)
         {
         }
-
-        ///// <summary>
-        ///// Initializes a new instance of the <see cref="TikConnectionException"/> class.
-        ///// </summary>
-        ///// <param name="message">The exception message.</param>
-        ///// <param name="command">The command sent to target.</param>
-        //public TikConnectionException(string message, ITikCommand command)
-        //    : this(FormatMessage(message, command, null))
-        //{
-        //}
     }
 
     /// <summary>

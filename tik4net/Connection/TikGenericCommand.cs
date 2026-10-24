@@ -640,16 +640,6 @@ namespace tik4net.Connection
             return new TikCommandDescriptor(commandText, parameters);
         }
 
-        private static string? FindIdParam(IList<ITikCommandParameter> parameters)
-        {
-            foreach (var p in parameters)
-            {
-                if (p.Name == TikSpecialProperties.Id)
-                    return p.Value;
-            }
-            return null;
-        }
-
         // ── Multi-line normalization (same logic as RestCommand) ──────────────
 
         /// <summary>
