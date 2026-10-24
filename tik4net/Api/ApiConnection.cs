@@ -1189,8 +1189,8 @@ namespace tik4net.Api
 
             // The thread pumps this tag's sentences into the callback — it does NOT touch the socket. When
             // it was one of many readers, so a slow callback ran with nobody servicing the connection
-            // and every command's deadline depended on what else was in flight. The signature stays a
-            // Thread because it is public API; what it does underneath is now dispatch, not I/O.
+            // and every command's deadline depended on what else was in flight. It returns the Thread
+            // because ApiCommand.CancelAndJoin joins it; what it does underneath is dispatch, not I/O.
             Thread result = new Thread(() =>
             {
                 try

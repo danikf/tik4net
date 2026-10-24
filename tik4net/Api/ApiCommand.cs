@@ -15,8 +15,8 @@ namespace tik4net.Api
 #endif
     {
         private volatile bool _isRunning;
-        // null when nothing is running. Was an int with -1 as the sentinel; tags are opaque strings now,
-        // so the absence of one is null rather than a value that could also be a tag.
+        // Null when nothing is running; a tag is an opaque string, so its absence is null rather than a
+        // sentinel value.
         private volatile string? _asynchronouslyRunningTag;
         private volatile Thread? _asyncLoadingThread; // only set while an ExecuteWithCallback-family command is running; null otherwise
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();

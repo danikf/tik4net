@@ -125,7 +125,7 @@ namespace tik4net.Connection
             {
                 if (_isRaw)
                 {
-                    // Fire-and-forget raw send; response discarded.
+                    // Raw send: the answer text is discarded, a router error still throws (RunRawText).
                     _connection.InvokeRunRawText(BuildRawDescriptor());
                     return;
                 }
@@ -266,7 +266,7 @@ namespace tik4net.Connection
             if (single.TryGetResponseField(fieldToRead, out var val))
                 return val;
             if (throwIfMissing)
-                throw new TikSentenceException($"Field '{fieldToRead}' not found in CLI response.", single);
+                throw new TikSentenceException($"Field '{fieldToRead}' is not in the row the router returned.", single);
             return defaultValue;
         }
 
@@ -287,10 +287,7 @@ namespace tik4net.Connection
         // ExecuteSingleRow's throwIfMissing:true never lets SingleRowFromRows return null.
         public ITikReSentence ExecuteSingleRow() => ExecuteSingleRowInternal(throwIfMissing: true)!;
 
-        // ITikCommand.ExecuteSingleRowOrDefault() declares a non-nullable return, but the XML doc says it
-        // returns null when nothing matched. The `!` matches the (non-nullable) interface signature, not
-        // actual runtime behaviour - same tradeoff as ExecuteScalarOrDefault() above.
-        public ITikReSentence ExecuteSingleRowOrDefault() => ExecuteSingleRowInternal(throwIfMissing: false)!;
+        public ITikReSentence? ExecuteSingleRowOrDefault() => ExecuteSingleRowInternal(throwIfMissing: false);
 
         private ITikReSentence? ExecuteSingleRowInternal(bool throwIfMissing)
         {
@@ -432,7 +429,7 @@ namespace tik4net.Connection
             {
                 if (_isRaw)
                 {
-                    // Fire-and-forget raw send; response discarded.
+                    // Raw send: the answer text is discarded, a router error still throws (RunRawText).
                     await _connection.InvokeRunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
                     return;
                 }
@@ -445,9 +442,6 @@ namespace tik4net.Connection
             }
         }
 
-        // Task<string> here is ITikCommandAsync's declared (non-nullable) return type, but throwIfMissing:false
-        // callers genuinely complete with a null defaultValue - see ExecuteScalarOrDefault()'s note above. The
-        // `!` on every branch below matches the interface signature, not actual runtime behaviour.
         private async Task<string?> ExecuteScalarInternalAsync(string? target, bool throwIfMissing, string? defaultValue,
             CancellationToken cancellationToken)
         {
@@ -460,7 +454,7 @@ namespace tik4net.Connection
                 if (_isRaw)
                 {
                     string rawText = await _connection.InvokeRunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
-                    return ScalarFromRawText(rawText, throwIfMissing, defaultValue)!;
+                    return ScalarFromRawText(rawText, throwIfMissing, defaultValue);
                 }
 
                 var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
@@ -481,9 +475,9 @@ namespace tik4net.Connection
                 {
                     if (throwIfMissing)
                         throw;
-                    return defaultValue!;
+                    return defaultValue;
                 }
-                return ScalarFromRows(rows, verb, target, throwIfMissing, defaultValue)!;
+                return ScalarFromRows(rows, verb, target, throwIfMissing, defaultValue);
             }
             finally
             {
@@ -491,8 +485,6 @@ namespace tik4net.Connection
             }
         }
 
-        // Task<ITikReSentence> here is ITikCommandAsync's declared (non-nullable) return type, but
-        // throwIfMissing:false genuinely completes with null - see ExecuteSingleRowOrDefault()'s note above.
         private async Task<ITikReSentence?> ExecuteSingleRowInternalAsync(bool throwIfMissing, CancellationToken cancellationToken)
         {
             EnsureConnectionSet();
@@ -502,7 +494,7 @@ namespace tik4net.Connection
             try
             {
                 var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
-                return SingleRowFromRows(rows, throwIfMissing)!;
+                return SingleRowFromRows(rows, throwIfMissing);
             }
             finally
             {
@@ -640,7 +632,7 @@ namespace tik4net.Connection
             return new TikCommandDescriptor(commandText, parameters);
         }
 
-        // ── Multi-line normalization (same logic as RestCommand) ──────────────
+        // ── Multi-line normalization ──────────────────────────────────────────
 
         /// <summary>
         /// Splits a multi-line <see cref="CommandText"/> — the whole sentence, one word per line — into the

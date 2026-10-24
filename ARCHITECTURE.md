@@ -156,7 +156,8 @@ Implemented by `ApiCommand` only, the same transport that implements the synchro
 `Microsoft.Bcl.AsyncInterfaces`, including the ones who never call it.
 
 Response sentences: `ITikReSentence` (`!re`), `ITikDoneSentence` (`!done`),
-`ITikTrapSentence` (`!trap`), `ITikFatalSentence` (`!fatal`).
+`ITikTrapSentence` (`!trap`). A `!fatal` has no interface: it ends the session and surfaces as
+`TikCommandFatalException`.
 
 ### Capabilities — the key cross-transport pattern
 
