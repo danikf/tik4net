@@ -18,7 +18,8 @@ namespace tik4net
     /// Gated by <see cref="TikConnectionCapability.RawCommand"/>: transports that do not declare it
     /// (REST, WinBox native) throw <see cref="TikConnectionCapabilityNotSupportedException"/> — WinBox native's raw
     /// form would be a numeric M2 message, not a string, so use a CLI transport for raw over that channel.
-    /// Parameters added to the returned command are ignored — the whole payload lives in the command text.
+    /// The whole payload lives in the command text. On the CLI transports parameters added to the returned command
+    /// are ignored; on the binary API they are appended as sentence words, as on any API command.
     /// <para>
     /// A raw <b>write</b> prints nothing when it succeeds, so run it with <see cref="ITikCommand.ExecuteNonQuery"/>;
     /// <see cref="ITikCommand.ExecuteScalar()"/> has no value to return and throws

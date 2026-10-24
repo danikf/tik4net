@@ -31,8 +31,7 @@ namespace tik4net
         /// <c>?name</c>) nor an API sentence marker (<c>.tag</c>, <c>.proplist</c>, which those transports
         /// cannot express and skip) raises an <see cref="System.ArgumentException"/> naming it. The binary
         /// API instead puts the row on the wire and lets the router judge it, which comes back as a trap.
-        /// Either way a malformed row is reported rather than dropped — one leading <c>=</c> short used to
-        /// mean a parameter silently missing from the command.
+        /// Either way a malformed row is reported, never dropped.
         /// </para>
         /// </remarks>
         string CommandText { get; set; }
@@ -150,7 +149,7 @@ namespace tik4net
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and ensures that operation returns exactly one row (1x !re and 1x !done) as result. If not, <c>null</c> is returned.
-        /// NOTE: !fail exceptions are handled as usual (throws error).
+        /// A router error (<c>!trap</c>) still throws.
         /// </summary>
         /// <returns>Content of !re sentence or null.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
@@ -309,14 +308,15 @@ namespace tik4net
 
         /// <summary>
         /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
-        /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
+        /// Blocks the calling thread until the router has acknowledged the cancel and the command's reading worker has ended.
         /// </summary>
         /// <seealso cref="ExecuteWithCallback"/>
         void CancelAndJoin();
 
         /// <summary>
         /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
-        /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
+        /// Blocks the calling thread until the router has acknowledged the cancel and the command's reading worker has ended,
+        /// or until <paramref name="timeout"/> elapses.
         /// </summary>
         /// <remarks>
         /// <b><paramref name="timeout"/> bounds the whole call, not just the join.</b> Cancelling is

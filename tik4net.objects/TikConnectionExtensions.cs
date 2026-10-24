@@ -94,12 +94,13 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> without filter, ensures that result contains exactly one row.
+        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/>, optionally filtered; returns the one row,
+        /// or the type default when nothing matched.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
-        /// <returns>Loaded single entity or null.</returns>
+        /// <returns>The loaded entity, or the type default when nothing matched.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
@@ -117,12 +118,12 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Loads entity with specified id. Returns null if not found.
+        /// Loads entity with specified id. Throws <see cref="TikNoSuchItemException"/> when no row matches.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="id">Entity id.</param>
-        /// <returns>Loaded entity or null.</returns>
+        /// <returns>The loaded entity.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
@@ -141,12 +142,12 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Loads entity with specified name. Returns null if not found.
+        /// Loads entity with specified name. Throws <see cref="TikNoSuchItemException"/> when no row matches.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="name">Entity name.</param>
-        /// <returns>Loaded entity or null.</returns>
+        /// <returns>The loaded entity.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>

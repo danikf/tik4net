@@ -261,11 +261,11 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
-        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
-        /// <exception cref="TikCommandTrapException">Some other Tik4Net error.</exception>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
+        /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
+        /// answered it (<see cref="TikConnectionLoginNoAnswerException"/>). Any other failure of the open arrives as this type, wrapping the cause.</exception>
+        /// <exception cref="TikConnectionProtocolMismatchException">Something other than this transport's protocol answered on the port.</exception>
+        /// <exception cref="TikConnectionSSLErrorException">The TLS handshake of an SSL transport failed.</exception>
         void Open(string host, string user, string password);
 
         /// <summary>
@@ -283,11 +283,11 @@ namespace tik4net
         /// <para>A closed connection can be opened again; each open starts a session of its own.</para>
         /// </remarks>
         /// <seealso cref="Close"/>
-        /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
-        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
-        /// <exception cref="TikCommandTrapException">Some other Tik4Net error.</exception>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
+        /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
+        /// answered it (<see cref="TikConnectionLoginNoAnswerException"/>). Any other failure of the open arrives as this type, wrapping the cause.</exception>
+        /// <exception cref="TikConnectionProtocolMismatchException">Something other than this transport's protocol answered on the port.</exception>
+        /// <exception cref="TikConnectionSSLErrorException">The TLS handshake of an SSL transport failed.</exception>
         void Open(string host, int port, string user, string password);
 
         /// <summary>
@@ -301,11 +301,12 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        /// <seealso cref="System.Net.Sockets.SocketException">Network connection failed.</seealso>
-        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
-        /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
+        /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
+        /// answered it (<see cref="TikConnectionLoginNoAnswerException"/>). Any other failure of the open arrives as this type, wrapping the cause.</exception>
+        /// <exception cref="TikConnectionProtocolMismatchException">Something other than this transport's protocol answered on the port.</exception>
+        /// <exception cref="TikConnectionSSLErrorException">The TLS handshake of an SSL transport failed.</exception>
+        /// <exception cref="System.OperationCanceledException"><paramref name="cancellationToken"/> was cancelled (see the parameter for how far it reaches).</exception>
         /// <param name="cancellationToken">
         /// Cancels the open. <b>How far it reaches depends on the transport, and it is never a promise that
         /// a connect can be torn out mid-handshake:</b>
@@ -335,11 +336,12 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        /// <seealso cref="System.Net.Sockets.SocketException">Network connection failed.</seealso>
-        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
-        /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
+        /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
+        /// answered it (<see cref="TikConnectionLoginNoAnswerException"/>). Any other failure of the open arrives as this type, wrapping the cause.</exception>
+        /// <exception cref="TikConnectionProtocolMismatchException">Something other than this transport's protocol answered on the port.</exception>
+        /// <exception cref="TikConnectionSSLErrorException">The TLS handshake of an SSL transport failed.</exception>
+        /// <exception cref="System.OperationCanceledException"><paramref name="cancellationToken"/> was cancelled (see the parameter for how far it reaches).</exception>
         /// <param name="cancellationToken">
         /// Cancels the open. <b>How far it reaches depends on the transport, and it is never a promise that
         /// a connect can be torn out mid-handshake:</b>
