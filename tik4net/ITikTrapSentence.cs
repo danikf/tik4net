@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace tik4net
+﻿namespace tik4net
 {
     /// <summary>
     /// Response sentence (<see cref="ITikSentence"/>) from mikrotik router with !trap status. 

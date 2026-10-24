@@ -1,8 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace tik4net
 {
@@ -324,8 +323,8 @@ namespace tik4net
         /// </list>
         /// Cancellation surfaces as <see cref="System.OperationCanceledException"/>, never wrapped.
         /// </param>
-        System.Threading.Tasks.Task OpenAsync(string host, string user, string password,
-            System.Threading.CancellationToken cancellationToken = default);
+        Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Opens connection to the specified mikrotik host on specified port and perform the logon operation.
@@ -358,8 +357,8 @@ namespace tik4net
         /// </list>
         /// Cancellation surfaces as <see cref="System.OperationCanceledException"/>, never wrapped.
         /// </param>
-        System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
-            System.Threading.CancellationToken cancellationToken = default);
+        Task OpenAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Performs the logoff operation and closes connection. Called also via Dispose of connector.
