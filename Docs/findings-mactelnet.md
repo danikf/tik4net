@@ -354,15 +354,19 @@ refused with `TikConnectionResponseIncompleteException`. This is exact, and it i
 layer: it runs on all five CLI transports.
 
 **The packet-loss heuristic covers every other command.** An `add`, `set` or action has no count to check,
-so for those the client judges the answer by the shape of the packet loss, on two counts. `AckData` counts
+so for those the client judges the answer by its size and the shape of the packet loss. `AckData` counts
 a gap only when it is **wider than one datagram** — sub-datagram gaps (4–528 B on this lab, the login-phase
 packets) are ordinary loss the router refills exactly. `MacTelnetUdpClient` then refuses the response only
-when that count is **above two**: a wide gap or two is recovered by retransmits, whereas a sustained run of
-them is the state in which the router starts discarding output. `MacTelnetConnection` skips it for a
-print, which the count already checks exactly: the heuristic condemns complete answers now and then — a
-10-row slice tripped it while the paged read it belonged to returned every row.
+when it is **at least 32 KiB** (`MinimumCondemnedLength`) **and** that count is **above two**. The size floor is
+what separates the cases (see *What decides it is the answer's size* below): the router loses output only past
+about 70 KB of an answer, so a shorter answer that ends at a prompt is whole however many gaps it crossed, and the
+floor is half the smallest short answer measured. Above it, a wide gap or two is recovered by retransmits,
+whereas a sustained run of them is the state in which the router starts discarding output.
+`MacTelnetConnection` skips the check for a print, which the count already checks exactly: the heuristic
+condemns complete answers now and then — a 10-row slice tripped it while the paged read it belonged to returned
+every row.
 
-**Both of its thresholds are empirical, and neither is sharp.** The reads measured coming back short had 4,
+**The gap-count threshold is empirical, and not sharp.** The reads measured coming back short had 4,
 29, 30 and 31 wide gaps. Complete answers have one wide gap routinely (judging on one condemned seven
 sub-kilobyte responses, 265 to 671 characters, on one suite leg) and two under a loaded router: a 3.6 KB
 read and an empty one on one leg, an `add` the router had executed (RouterOS 6.49.13), and 3 412- and
@@ -370,6 +374,48 @@ read and an empty one on one leg, an `add` the router had executed (RouterOS 6.4
 Every complete answer condemned at a threshold of two had exactly two gaps, so the threshold is three: a
 margin below the smallest short read. A spurious "retry it" costs one re-send; a missed short answer would
 be silent, which is why the margin is not wider.
+
+**The count is of datagrams arriving past a hole, not of holes.** `AckData` counts a packet whenever it lands
+more than one datagram past the last byte held, and while one hole stays open every later datagram of the
+answer does. One lost datagram early in a ~3.4 KB answer (three datagrams) therefore scores two or three:
+measured under four parallel CLI legs, `TerminalFrameBoundaryTest` ×50 (1 881 answers) had one loss episode — a
+68-byte datagram missing, then the next three arriving 1 518, 2 900 and 3 447 bytes past it — and that complete
+3 444-character answer scored three. The gap count alone therefore cannot clear a complete answer whose early
+datagram was lost; the size floor does.
+
+**No count of the loss separates a short answer from a complete one.** Re-scored from wire traces
+(`MacLayerLargeReadProbe` as it is on the 5.0 line, with `TIK4NET_LARGE_READ_PAGES=0,600,300`, CHR, 7.24), every large answer that lost a
+datagram shows the same shape whether it came back whole or not: **one** loss episode, the router streaming its
+full send window (23 200 bytes, 16 datagrams) past the hole, and the client refilling it one retransmit at a
+time. The 13 short answers scored 35–47 arrivals past the hole and 25–36 distinct hole offsets; the 24 complete
+300-row mangle windows of the same run, each checked by the router's count, scored up to 43 and 36. Counting
+distinct offsets therefore scores a single loss as high as a backlog, and counting episodes scores every short
+answer 1.
+
+**What decides it is the answer's size.** Swept over page sizes 200–600 on both tables (250 windows, 227 of them
+with a wide loss), no window below about 69 KB came back short, and above about 75 KB a window with a loss came back
+short nearly every time:
+
+| Window (intended bytes) | With a wide loss: whole | short or tail lost |
+|---|---|---|
+| up to 69 KB | 190 | 0 |
+| 69–75 KB | 9 (mangle 640–1280 at 69.5–70.2 KB; queue tree 0–240 at 74.6 KB, twice) | 4 (one mangle window at 69.5 KB lost its `#w=` tail; queue tree 0–240 once; mangle 0–360 twice) |
+| over 75 KB | 0 | 23, plus two timeouts |
+
+The short ones broke off after 68–88 KB had arrived, whatever their full size. So the router can carry about
+70 KB of an answer through a loss episode, and loses output only beyond that. The windows with no loss came back whole
+at any size measured, up to 186 KB. The same sweep (page sizes 200–600, three reads each) on the other two lab
+routers puts the boundary in the same place:
+
+| Router | Smallest short answer | Largest whole answer after a loss | Windows (with a loss) |
+|---|---|---|---|
+| CHR, 7.24 | 69.5 KB | 74.6 KB | 250 (227) |
+| CHR2, 6.49.13 (the CHR's tables) | 70.8 KB; timeouts from about 65 KB | 86.5 KB | 304 (31) |
+| CHR3, 7.21.5 (1 700 + 700 seeded rows) | 74.2 KB | 77.5 KB | 90 (85) |
+
+On RouterOS 6 the large windows mostly stall rather than come back short, and the stall ends in a receive timeout,
+which is refused like a short answer. On every router no answer under about 69 KB came back short. A 3.4 KB answer
+that crossed three wide gaps is twenty times below that, and the 32 KiB floor lets it through.
 
 Paging also settles throughput for reads. A single command of this size moves 7–15 KB/s, because the loss
 episodes it provokes are recovered by backlog replay, and it cannot finish inside the 30 s receive deadline.

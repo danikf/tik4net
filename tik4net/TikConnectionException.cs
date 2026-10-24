@@ -424,7 +424,8 @@ namespace tik4net
     /// <para>A read is protected from that by the count above. For any other command there is no count to
     /// check, so the loss cannot be detected from the response — only the packet loss that causes it can,
     /// and that is what this exception then reports. It does not mean the answer <i>is</i> short; it means
-    /// nothing here can promise it is not.</para>
+    /// nothing here can promise it is not. Only an answer of at least 32 KiB is refused this way: RouterOS
+    /// drops output only past about 70 KB of an answer, so a shorter one that ends at a prompt is whole.</para>
     /// <para>Either way, retry the command: the loss is transient, and an answer that arrives without it is
     /// exact. For a table too large to read comfortably, prefer a transport that is not on the MAC
     /// layer.</para>
