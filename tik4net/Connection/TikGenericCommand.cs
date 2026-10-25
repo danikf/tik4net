@@ -646,39 +646,34 @@ namespace tik4net.Connection
         }
 
         /// <summary>
-        /// Gives every <see cref="TikCommandParameterFormat.Default"/> parameter of a READ its actual
-        /// format: the command's own <see cref="DefaultParameterFormat"/> when one was set, and
-        /// <see cref="TikCommandParameterFormat.Filter"/> otherwise.
+        /// Gives every <see cref="TikCommandParameterFormat.Default"/> parameter of a READ its actual format through
+        /// <see cref="TikParameterFormat.Resolve"/>, with <see cref="TikCommandParameterFormat.Filter"/> as the use
+        /// case: <c>.proplist</c> is the field list and <c>.tag</c> a tag, then the command's own
+        /// <see cref="DefaultParameterFormat"/> when one was set, then a filter.
         /// </summary>
         /// <remarks>
         /// The command default is honoured: ignored, every unformatted parameter of a read would become a
         /// filter whatever the caller had said, and <c>CreateCommandAndParameters(path + "/print",
         /// NameValue, "detail", "")</c> — the documented way to say what the parameters ARE — would go out as
         /// <c>where detail=""</c>, which matches no row. Not an error, not a wrong value — an empty table, on a
-        /// command the router never saw. The binary API resolves it in the same order (parameter → command
-        /// default → use-case default; see <c>ApiCommand</c>), so the two command implementations agree about
-        /// what the same call means.
+        /// command the router never saw. The binary API resolves by the same function, so the two command
+        /// implementations agree about what the same call means.
         /// <para>The Filter fallback is what makes a bare <c>CreateCommandAndParameters(path + "/print",
         /// "name", "ether1")</c> a filtered read, and it stays: it applies only when the caller has said
         /// nothing at all.</para>
+        /// <para>Names with a <c>=</c> or <c>?</c> prefix carry their format in the name and are left as they are.</para>
         /// </remarks>
         private List<ITikCommandParameter> ResolveParamsForRead(IList<ITikCommandParameter> original)
         {
-            TikCommandParameterFormat forUnformatted =
-                _defaultParameterFormat != TikCommandParameterFormat.Default
-                    ? _defaultParameterFormat
-                    : TikCommandParameterFormat.Filter;
-
             var result = new List<ITikCommandParameter>(original.Count);
             foreach (var p in original)
             {
                 if (p.ParameterFormat == TikCommandParameterFormat.Default
-                    && p.Name != TikSpecialProperties.Proplist
-                    && p.Name != TikSpecialProperties.Tag
                     && !p.Name.StartsWith("=")
                     && !p.Name.StartsWith("?"))
                 {
-                    result.Add(new TikCommandParameter(p.Name, p.Value, forUnformatted));
+                    result.Add(new TikCommandParameter(p.Name, p.Value,
+                        TikParameterFormat.Resolve(p, _defaultParameterFormat, TikCommandParameterFormat.Filter)));
                 }
                 else
                 {

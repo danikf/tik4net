@@ -196,7 +196,7 @@ namespace tik4net.unittests.Connection
             cmd.AddParameter(TikSpecialProperties.Proplist, "comment");
             cmd.ExecuteList("name").ToList();
 
-            Assert.AreEqual("RunPrint | /ip/address/print | .proplist=comment (Default)", conn.Calls.Single());
+            Assert.AreEqual("RunPrint | /ip/address/print | .proplist=comment (NameValue)", conn.Calls.Single());
         }
 
         [TestMethod]

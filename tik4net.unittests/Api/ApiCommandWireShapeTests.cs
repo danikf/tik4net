@@ -173,6 +173,23 @@ namespace tik4net.unittests.Api
             AssertWords(words, "/ip/address/print", "?name=a", "?comment=b", "=.proplist=name", "=.proplist=address");
         }
 
+        [DataTestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void ACallersOwnProplistWithoutAFormat_IsTheFieldList(bool async)
+        {
+            // X13: a .proplist is the field list whatever its format, never a filter on a property named .proplist.
+            var words = Exchange(c =>
+            {
+                var cmd = c.CreateCommand("/interface/print");
+                cmd.AddParameter(TikSpecialProperties.Proplist, "name");
+                if (async) cmd.ExecuteListAsync().GetAwaiter().GetResult();
+                else cmd.ExecuteList().ToList();
+            }, OneRowThenDone);
+
+            AssertWords(words, "/interface/print", "=.proplist=name");
+        }
+
         [TestMethod]
         public void ExecuteListWithFields_RefusesACallersOwnProplist()
         {

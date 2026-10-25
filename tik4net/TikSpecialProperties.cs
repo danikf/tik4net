@@ -16,7 +16,8 @@ namespace tik4net
         public const string Id = ".id";
 
         /// <summary>
-        /// Proplist property = .proplist
+        /// Proplist property = .proplist: the fields a read returns. A parameter of this name is always sent as the field
+        /// list, whatever its <see cref="TikCommandParameterFormat"/>, and every transport honours it.
         /// </summary>
         public const string Proplist = ".proplist";
 

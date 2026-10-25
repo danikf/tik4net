@@ -88,18 +88,21 @@ namespace tik4net.unittests.Connection
             Assert.AreEqual(TikCommandParameterFormat.NameValue, FormatOf(conn.LastPrint, "detail"));
         }
 
-        [TestMethod]
-        public void TheApiSentenceMarkersAreLeftAlone()
+        [DataTestMethod]
+        [DataRow(TikCommandParameterFormat.NameValue)]
+        [DataRow(TikCommandParameterFormat.Filter)]
+        public void TheApiSentenceMarkersHaveTheirOwnFormatWhateverTheCommandDefault(TikCommandParameterFormat commandDefault)
         {
-            // '.proplist' and '.tag' are wire words with a format of their own; the resolution above must
-            // not touch them however the command is defaulted.
+            // '.proplist' is the field list and '.tag' a tag, whatever the command is defaulted to: a command default
+            // of Filter must not turn the field list into a filter on a property named '.proplist' (X13).
             var conn = new RecordingConnection();
-            conn.CreateCommandAndParameters("/interface/print",
-                TikCommandParameterFormat.NameValue,
-                TikSpecialProperties.Proplist, "name").ExecuteList();
+            conn.CreateCommandAndParameters("/interface/print", commandDefault,
+                TikSpecialProperties.Proplist, "name", TikSpecialProperties.Tag, "7").ExecuteList();
 
-            Assert.AreEqual(TikCommandParameterFormat.Default,
+            Assert.AreEqual(TikCommandParameterFormat.NameValue,
                 FormatOf(conn.LastPrint, TikSpecialProperties.Proplist));
+            Assert.AreEqual(TikCommandParameterFormat.Tag,
+                FormatOf(conn.LastPrint, TikSpecialProperties.Tag));
         }
     }
 }

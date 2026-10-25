@@ -127,20 +127,6 @@ namespace tik4net.Api
                 throw new InvalidOperationException("CommandText is not set.");
         }
 
-        private TikCommandParameterFormat ResolveParameterFormat(TikCommandParameterFormat usecaseDefaultFormat, TikCommandParameterFormat commandDefaultFormat, ITikCommandParameter parameter)
-        {
-            if (parameter.ParameterFormat != TikCommandParameterFormat.Default)
-                return parameter.ParameterFormat;
-            else if (parameter.Name == TikSpecialProperties.Tag)
-                return TikCommandParameterFormat.Tag; //.tag=1231
-            else if (commandDefaultFormat != TikCommandParameterFormat.Default)
-                return commandDefaultFormat;
-            else if (usecaseDefaultFormat != TikCommandParameterFormat.Default)
-                return usecaseDefaultFormat;
-            else
-                return TikCommandParameterFormat.NameValue;
-        }
-
         /// <summary>
         /// Client-side marker parameters that must NEVER be written to the binary API wire.
         /// (Mirror of <see cref="tik4net.Rest.RestRequestBuilder"/>.IsSpecialParam / CliCommandBuilder.IsSpecialParam;
@@ -165,7 +151,7 @@ namespace tik4net.Api
                 TikFilterValidation.Check(_connection, this, CommandText,
                     _parameters.Where(p => p.Name.StartsWith("?")
                             || (!p.Name.StartsWith("=") && !IsSpecialParam(p.Name)
-                                && ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p) == TikCommandParameterFormat.Filter))
+                                && TikParameterFormat.Resolve(p, _defaultParameterFormat, defaultParameterFormat) == TikCommandParameterFormat.Filter))
                         .Select(p => p.Name),
                     null);
             foreach (var additionalParameter in additionalParameters)
@@ -199,7 +185,7 @@ namespace tik4net.Api
                     return string.Format("{0}={1}", p.Name, p.Value);
                 else
                 {
-                    switch (ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p))
+                    switch (TikParameterFormat.Resolve(p, _defaultParameterFormat, defaultParameterFormat))
                     {
                         case TikCommandParameterFormat.Filter:
                             return string.Format("?{0}={1}", p.Name, p.Value);
@@ -211,7 +197,7 @@ namespace tik4net.Api
                             // Not a tik4net exception on purpose: an undefined enum value here is a bug in
                             // the caller's argument, nothing the router said.
                             throw new ArgumentOutOfRangeException(nameof(defaultParameterFormat),
-                                ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p),
+                                TikParameterFormat.Resolve(p, _defaultParameterFormat, defaultParameterFormat),
                                 "Unknown " + nameof(TikCommandParameterFormat) + ".");
                     }
                 }
