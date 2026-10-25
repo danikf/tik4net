@@ -100,13 +100,14 @@ namespace tik4net
     public class TikCommandTrapException : TikCommandException
     {
         /// <summary>
-        /// Code of the error.
+        /// Code of the error. Never null: <c>-1</c> when the router named no category, as on every trap sentence.
         /// </summary>
         /// <seealso cref="ITikTrapSentence.CategoryCode"/>
         public string? Code { get; private set; }
 
         /// <summary>
-        /// Code description of the error.
+        /// Code description of the error. Never null: <c>category not provided</c> when the router named no category,
+        /// as on every trap sentence.
         /// </summary>
         /// <seealso cref="ITikTrapSentence.CategoryDescription"/>
         public string? CodeDescription { get; private set; }
@@ -124,15 +125,16 @@ namespace tik4net
         }
 
         /// <summary>
-        /// .ctor. <see cref="Code"/> and <see cref="CodeDescription"/> are null.
+        /// .ctor. <see cref="Code"/> and <see cref="CodeDescription"/> are <c>-1</c> / <c>category not provided</c>,
+        /// as for a trap sentence that names no category.
         /// </summary>
         /// <param name="command">Command that throws exception.</param>
         /// <param name="message">Additional message</param>
         protected TikCommandTrapException(ITikCommand command, string message)
             : base(command, message)
         {
-            Code = null;
-            CodeDescription = null;
+            Code = TikTrapSentenceResult.NoCategoryCode;
+            CodeDescription = TikTrapSentenceResult.NoCategoryDescription;
         }
     }
 
