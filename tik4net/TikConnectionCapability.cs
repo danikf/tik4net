@@ -43,10 +43,10 @@ namespace tik4net
         SafeMode     = 32,
         /// <summary>
         /// The transport has a <b>command language a caller can write</b>, so a command can be sent in it
-        /// unchanged — bypassing the structured builder and the O/R mapper. This is what both raw levels are
-        /// gated on:
+        /// unchanged — bypassing the structured builder and the O/R mapper. The flag goes with the facet
+        /// <see cref="ITikRawSentenceConnection"/>, and both raw levels hang off it:
         /// <list type="bullet">
-        /// <item><c>ITikConnection.CreateRawCommand</c> — an <see cref="ITikCommand"/> whose
+        /// <item><see cref="TikRawCommandExtensions.CreateRawCommand"/> — an <see cref="ITikCommand"/> whose
         /// <see cref="ITikCommand.CommandText"/> is sent verbatim.</item>
         /// <item><see cref="ITikRawSentenceConnection.CallCommandSync(string[])"/> — the same thing one level
         /// down, answering with sentences directly.</item>

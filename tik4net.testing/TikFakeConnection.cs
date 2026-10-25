@@ -251,8 +251,9 @@ namespace tik4net.Testing
         /// <para>
         /// <see cref="TikConnectionCapability.RawCommand"/> is the one exception, and a deliberate one: the
         /// fake implements <see cref="ITikRawSentenceConnection"/> so that it can stand in for a typed
-        /// connection, but does not perform raw commands. Declaring the flag would move that failure from
-        /// the cast to somewhere later and less obvious.
+        /// connection, and its <c>CallCommandSync</c> and <c>CreateRawCommand</c> answer from the registered
+        /// handlers like any other command, since the raw level trusts the facet and checks no flag. The flag
+        /// stays clear so that code which asks <c>Supports(RawCommand)</c> can be tested on its fail-closed branch.
         /// </para>
         /// </summary>
         public TikConnectionCapability Capabilities { get; set; } =

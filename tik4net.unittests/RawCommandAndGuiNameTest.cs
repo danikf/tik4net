@@ -1,5 +1,5 @@
 // RawCommandAndGuiNameTest.cs — router-free unit tests for two developer-experience features:
-//   A. Raw command pass-through (CreateRawCommand) — capability gating (fail-closed).
+//   A. Raw command pass-through (CreateRawCommand) — it hangs off ITikRawSentenceConnection and trusts the facet.
 //   B. WinBox Native GUI-name addressing — WinboxHandlerMap / WinboxFieldResolver resolve a name
 //      copied from the WinBox GUI (spaces/underscores/dots, any case) when UseGuiNames is opted in.
 // These exercise pure resolution logic (seeds + a hand-built derived-path map), so they need no router.
@@ -10,6 +10,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Testing;
 using tik4net.Winbox;
@@ -19,26 +20,47 @@ namespace tik4net.unittests
     [TestClass]
     public class RawCommandAndGuiNameTest
     {
-        // ── A. Raw command pass-through — capability gating ────────────────────
+        // ── A. Raw command pass-through — the facet is the promise ─────────────
 
         [TestMethod]
-        public void CreateRawCommand_OnTransportWithoutCapability_ThrowsFailClosed()
+        public void CreateRawCommand_TrustsTheFacetLikeCallCommandSync()
         {
-            // TikFakeConnection does not implement ITikConnectionCapabilities → supports nothing (fail-closed).
-            ITikConnection conn = new TikFakeConnection();
+            // TikFakeConnection implements ITikRawSentenceConnection but leaves the RawCommand flag clear. Its
+            // CallCommandSync answers without asking the flag, and so does CreateRawCommand: one promise, one type.
+            var fake = new TikFakeConnection()
+                .WithScalarResponse(cmd => cmd.FirstOrDefault() == "/export", "# export");
+            ITikRawSentenceConnection conn = fake;
 
-            Assert.IsFalse(conn.Supports(TikConnectionCapability.RawCommand));
-            var ex = Assert.ThrowsException<TikConnectionCapabilityNotSupportedException>(
-                () => conn.CreateRawCommand("/export"));
-            Assert.AreEqual(TikConnectionCapability.RawCommand, ex.Capability);
+            Assert.IsFalse(fake.Supports(TikConnectionCapability.RawCommand));
+            Assert.AreEqual(1, conn.CallCommandSync("/export").Count());
+            Assert.AreEqual("# export", conn.CreateRawCommand("/export").ExecuteScalar());
         }
 
         [TestMethod]
         public void CreateRawCommand_NullOrEmpty_Throws()
         {
-            ITikConnection conn = new TikFakeConnection();
+            ITikRawSentenceConnection conn = new TikFakeConnection();
             Assert.ThrowsException<ArgumentNullException>(() => conn.CreateRawCommand(null));
             Assert.ThrowsException<ArgumentException>(() => conn.CreateRawCommand(""));
+        }
+
+        [TestMethod]
+        public void CreateRawCommand_OnAFacetThatIsNoConnection_ThrowsArgumentException()
+        {
+            // The facet does not extend ITikConnection; the command is created through ITikConnection.CreateCommand.
+            ITikRawSentenceConnection conn = new SentencesOnly();
+            var ex = Assert.ThrowsException<ArgumentException>(() => conn.CreateRawCommand("/export"));
+            Assert.AreEqual("connection", ex.ParamName);
+        }
+
+        private sealed class SentencesOnly : ITikRawSentenceConnection
+        {
+            public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows) => throw new NotSupportedException();
+            public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows) => throw new NotSupportedException();
+            public System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandAsync(string[] commandRows,
+                System.Threading.CancellationToken cancellationToken = default) => throw new NotSupportedException();
+            public System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandAsync(IEnumerable<string> commandRows,
+                System.Threading.CancellationToken cancellationToken = default) => throw new NotSupportedException();
         }
 
         // ── B. WinBox handler-map GUI-name path resolution ─────────────────────

@@ -237,9 +237,9 @@ namespace tik4net.Connection
     /// <summary>
     /// Implemented by command objects that can carry a <b>raw</b> pass-through flag (see
     /// <c>CreateRawCommand</c>). Lets the (assembly-internal) factory mark a command raw without widening the
-    /// public <see cref="ITikCommand"/> surface. Transports that cannot send a string-raw payload simply do
-    /// not declare <see cref="TikConnectionCapability.RawCommand"/>, so the factory fails closed before a raw
-    /// command is ever built for them.
+    /// public <see cref="ITikCommand"/> surface. Transports that cannot send a string-raw payload do not
+    /// implement <see cref="ITikRawSentenceConnection"/>, which the factory extends, so a raw command is never
+    /// built for them.
     /// </summary>
     internal interface ITikRawCommand
     {

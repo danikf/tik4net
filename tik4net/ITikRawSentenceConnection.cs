@@ -31,6 +31,10 @@ namespace tik4net
     /// <see cref="ITikCommand"/> level. The two flags are the low-level and ADO-level halves of one promise
     /// and travel together.
     /// </para>
+    /// <para>
+    /// <see cref="TikRawCommandExtensions.CreateRawCommand"/> is the command-level form of the same promise: it
+    /// extends this interface, so it compiles exactly where <see cref="CallCommandSync(string[])"/> does.
+    /// </para>
     /// </remarks>
     public interface ITikRawSentenceConnection
     {
@@ -71,10 +75,9 @@ namespace tik4net
         /// </param>
         /// <returns>The returned sentences, already read.</returns>
         /// <remarks>
-        /// The low level was synchronous-only, which was backwards: it is where long commands live —
-        /// <c>/export</c>, a script, a monitor — and the levels above it
-        /// (<c>ITikCommandAsync</c>, and <c>ITikStreamingCommand</c> on <c>net8.0</c>) had been awaitable
-        /// for some time. Every transport implementing this interface awaits its own I/O rather than
+        /// The low level is where long commands live — <c>/export</c>, a script, a monitor — so it is awaitable
+        /// like the levels above it (<c>ITikCommandAsync</c>, and <c>ITikStreamingCommand</c> on <c>net8.0</c>).
+        /// Every transport implementing this interface awaits its own I/O rather than
         /// wrapping the blocking call, which is the promise
         /// <see cref="TikConnectionCapability.AsyncCommands"/> makes.
         /// </remarks>

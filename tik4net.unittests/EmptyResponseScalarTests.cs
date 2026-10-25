@@ -31,9 +31,10 @@ namespace tik4net.unittests
 
         /// <summary>
         /// Minimal <see cref="TikCommandConnectionBase"/> whose CRUD hooks answer exactly what a silent
-        /// router does: no raw text, no new .id, no rows.
+        /// router does: no raw text, no new .id, no rows. It implements <see cref="ITikRawSentenceConnection"/>, as a
+        /// transport with a command language does, so it can create raw commands; the sentence level is not used here.
         /// </summary>
-        private sealed class SilentConnection : TikCommandConnectionBase
+        private sealed class SilentConnection : TikCommandConnectionBase, ITikRawSentenceConnection
         {
             public string RawTextToReturn { get; set; }
             public string AddIdToReturn { get; set; }
@@ -51,6 +52,13 @@ namespace tik4net.unittests
             public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public override void Close() { }
+
+            public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows) => throw new NotSupportedException();
+            public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows) => throw new NotSupportedException();
+            public Task<IList<ITikSentence>> CallCommandAsync(string[] commandRows, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+            public Task<IList<ITikSentence>> CallCommandAsync(IEnumerable<string> commandRows, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
         }
 
         // ── Raw pass-through (CLI transports) ──────────────────────────────────

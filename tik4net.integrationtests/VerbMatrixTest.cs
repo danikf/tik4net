@@ -410,18 +410,20 @@ namespace tik4net.integrationtests
         /// <summary>
         /// A raw <c>set</c> that changes the rule's comment, in the transport's OWN raw dialect — that is the
         /// whole point of raw pass-through, so there is no neutral spelling: the binary API takes a
-        /// <c>\n</c>-separated API sentence, the terminal transports take a CLI line.
+        /// <c>\n</c>-separated API sentence, the terminal transports take a CLI line. It is created on the
+        /// <see cref="ITikRawSentenceConnection"/> facet (<see cref="TestBase.RawConnection"/>), which every transport
+        /// with a raw dialect implements.
         /// </summary>
         private ITikCommand RawSilentSetComment(string id, string currentComment, string newComment)
         {
             var t = ResolveConnectionType();
             if (t == TikConnectionType.Api || t == TikConnectionType.ApiSsl)
-                return Connection.CreateRawCommand(
+                return RawConnection.CreateRawCommand(
                     Path + "/set\n=" + TikSpecialProperties.Id + "=" + id + "\n=comment=" + newComment);
 
             // The menu in its space-separated CLI form: RouterOS 7 also accepts '/ip/firewall/filter', but RouterOS 6
             // refuses the slash form ("expected command name (line 1 column 4)"), and raw means the router's own syntax.
-            return Connection.CreateRawCommand(
+            return RawConnection.CreateRawCommand(
                 "/" + Path.Trim('/').Replace('/', ' ') + " set [find comment=\"" + currentComment + "\"] comment=\""
                 + newComment + "\"");
         }

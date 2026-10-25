@@ -80,8 +80,10 @@ The three feature facets:
 - `ITikRawSentenceConnection` (`tik4net/ITikRawSentenceConnection.cs`) — `CallCommandSync`, both
   overloads (`RawCommand`). The contract is a command **in the connection's own language**, sent
   unchanged: API sentence words on the binary API, RouterOS CLI text on the five CLI transports. It is the
-  low-level half of what `CreateRawCommand` offers at the `ITikCommand` level — one flag gates both, since
-  a transport either has a writable command language or has neither level. `Api`/`ApiSsl` and the CLI family
+  low-level half of what `CreateRawCommand` offers at the `ITikCommand` level, and `CreateRawCommand` is an
+  extension on this facet (`TikRawCommandExtensions`), so both levels compile on the same types — a transport
+  either has a writable command language or has neither level. Like `CallCommandSync`, it trusts the facet and
+  checks no flag. `Api`/`ApiSsl` and the CLI family
   do; REST and WinBox native have a request shape rather than a language, so `TikCommandConnectionBase`
   deliberately does not implement the interface and `CliConnectionBase` does. Both levels raise a trap when
   the router reports an error, rather than handing the error text back as a value.
@@ -107,7 +109,9 @@ rather than two that can drift. `ITikCommand.ExecuteWithCallback` is a different
 **There are no convenience shims on `ITikConnection`.** An extension that kept `connection.CallCommandSync(...)`
 or `connection.SafeModeTake()` compiling on any connection, by casting and throwing when the transport lacks the
 interface, would trade a compile error for a runtime one, on a call that cannot work on most transports.
-`TypedConnectionTests` fails if anything of that shape appears.
+`TypedConnectionTests` fails if anything of that shape appears: it checks the facet calls' names, and reads the IL
+of every public extension on `ITikConnection` for a call to `Require`. The one allowed is `DescribeMenu`, whose
+facet is internal and whose answer depends on the router's version.
 
 Reach a facet one of two ways, depending on whether the transport is known when the code is written:
 
@@ -318,7 +322,7 @@ above for why a transport-neutral base cannot have a connection-specific format.
 
 Supporting pieces in `Connection/`: `TikPath` (path normalization), `TikQueryStack` (filter →
 transport query translation), `PollingMonitorEngine` + `TikMonitorHandle` (poll+diff emulation of
-`Listen` where it isn't native), `TikRawCommandExtensions` (`CreateRawCommand` pass-through),
+`Listen` where it isn't native), `TikRawCommandExtensions` (`CreateRawCommand` on `ITikRawSentenceConnection`),
 `TikCommandModel` (normalized command/params representation).
 
 CLI specifics live in `Cli/`: `CliCommandBuilder`, `CliOutputParser`, `CliErrorParser`,

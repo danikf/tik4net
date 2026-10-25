@@ -206,11 +206,10 @@ namespace tik4net.unittests.Connection
                 using (var conn = ConnectionFactory.CreateConnection(type))
                 {
                     Assert.IsFalse(conn.Supports(TikConnectionCapability.RawCommand), type.ToString());
-                    // Absent, not present-and-throwing: there is no CallCommandSync to call on these at all,
-                    // so the mistake is a compile error rather than an exception at run time.
+                    // Absent, not present-and-throwing: there is no CallCommandSync, and no CreateRawCommand (which
+                    // extends the same facet), to call on these at all, so the mistake is a compile error rather than
+                    // an exception at run time.
                     Assert.IsFalse(conn is ITikRawSentenceConnection, type.ToString());
-                    Assert.ThrowsException<TikConnectionCapabilityNotSupportedException>(
-                        () => conn.CreateRawCommand("/interface/print"), type.ToString());
                 }
             }
         }
@@ -238,9 +237,8 @@ namespace tik4net.unittests.Connection
         [TestMethod]
         public void TheFlagGatesBothRawLevelsTogether()
         {
-            // The merge is only honest if the flag really does answer for both levels: a transport that
-            // declares it must offer CreateRawCommand AND CallCommandSync, and one that does not must offer
-            // neither. That is the property the two separate flags were trying and failing to express.
+            // The flag answers for both levels: a transport that declares it offers CallCommandSync and
+            // CreateRawCommand (both on ITikRawSentenceConnection), and one that does not offers neither.
             foreach (TikConnectionType type in Enum.GetValues(typeof(TikConnectionType)))
             {
                 if (type == TikConnectionType.Ssh) continue; // satellite package, not referenced here
@@ -252,12 +250,9 @@ namespace tik4net.unittests.Connection
                     Assert.AreEqual(flag, conn is ITikRawSentenceConnection,
                         $"{type}: the low-level half (CallCommandSync) must match the flag");
 
-                    if (flag)
-                        conn.CreateRawCommand("/system/identity/print");   // must not throw on capability
-                    else
-                        Assert.ThrowsException<TikConnectionCapabilityNotSupportedException>(
-                            () => conn.CreateRawCommand("/system/identity/print"),
-                            $"{type}: the ADO-level half must refuse for the same reason");
+                    if (conn is ITikRawSentenceConnection raw)
+                        Assert.IsNotNull(raw.CreateRawCommand("/system/identity/print"),
+                            $"{type}: the ADO-level half hangs off the same facet");
                 }
             }
         }
