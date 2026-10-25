@@ -45,8 +45,8 @@ namespace tik4net
         /// <param name="raw">The raw payload in the transport's dialect (API sentence / CLI line).</param>
         /// <param name="wrapAsValue">CLI convenience: wrap the line in <c>:put [ … as-value]</c> so <c>print</c>
         ///   output materialises as parseable rows. No effect on the binary API. Default <c>false</c> (verbatim).</param>
-        /// <exception cref="ArgumentNullException"><paramref name="connection"/> or <paramref name="raw"/> is null.</exception>
-        /// <exception cref="ArgumentException"><paramref name="raw"/> is empty, or <paramref name="connection"/> is not
+        /// <exception cref="System.ArgumentNullException"><paramref name="connection"/> or <paramref name="raw"/> is null.</exception>
+        /// <exception cref="System.ArgumentException"><paramref name="raw"/> is empty, or <paramref name="connection"/> is not
         ///   an <see cref="ITikConnection"/>.</exception>
         public static ITikCommand CreateRawCommand(this ITikRawSentenceConnection connection, string raw,
             bool wrapAsValue = false)
