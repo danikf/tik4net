@@ -355,7 +355,8 @@ namespace tik4net.Api
         Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(string[] proplistFields, CancellationToken cancellationToken)
         {
             Guard.ArgumentNotNull(proplistFields, nameof(proplistFields));
-            return RunAsync(TikCommandParameterFormat.Filter, ProplistParameters(proplistFields), InterpretList, cancellationToken);
+            return RunAsync(TikCommandParameterFormat.Filter, null, InterpretList, cancellationToken,
+                proplistFields: proplistFields);
         }
 
         private Task<string?> ExecuteScalarInternalAsync(string? target, bool allowReturnDefault, string? defaultValue,
@@ -387,22 +388,26 @@ namespace tik4net.Api
                 r => { InterpretNonQuery(r.ToArray()); return (object?)null; },
                 CancellationToken.None, forceTag: false);
 
-        private ITikCommandParameter[] ProplistParameters(string[] proplist)
-            => proplist == null
-                ? new ITikCommandParameter[] { }
-                : proplist.Select(p => (ITikCommandParameter)new ApiCommandParameter(TikSpecialProperties.Proplist, p, TikCommandParameterFormat.NameValue)).ToArray();
+        // ExecuteList(fields): one =.proplist=a,b word, the documented single word every transport reads.
+        private ITikCommandParameter[] ProplistParameters(string[]? proplist)
+        {
+            var fieldList = FieldListParameter(proplist);
+            return fieldList == null ? new ITikCommandParameter[] { } : new[] { fieldList };
+        }
 
         // The one place the async surface talks to the connection: build the sentence, await the answer,
         // hand it to the shared interpreter. The run begins and ends here exactly as in the sync methods,
         // so the two surfaces share the "one command at a time per ITikCommand" rule too.
         private async Task<T> RunAsync<T>(TikCommandParameterFormat format, ITikCommandParameter[]? extraParameters,
-            Func<IEnumerable<ApiSentence>, T> interpret, CancellationToken cancellationToken, bool forceTag = true)
+            Func<IEnumerable<ApiSentence>, T> interpret, CancellationToken cancellationToken, bool forceTag = true,
+            string[]? proplistFields = null)
         {
             EnsureConnectionSet();
             BeginRun();
             try
             {
-                string[] commandRows = ConstructCommandText(format, extraParameters ?? new ITikCommandParameter[] { });
+                string[] commandRows = ConstructCommandText(format,
+                    proplistFields != null ? ProplistParameters(proplistFields) : extraParameters ?? new ITikCommandParameter[] { });
                 var response = await Session.CallCommandCoreAsync(commandRows, cancellationToken, forceTag).ConfigureAwait(false);
                 return interpret(EnsureApiSentences(response));
             }
@@ -450,8 +455,7 @@ namespace tik4net.Api
             BeginRun();
             try
             {
-                var proplistParameters = proplist == null ? new ITikCommandParameter[] { } : proplist.Select(p => new ApiCommandParameter(TikSpecialProperties.Proplist, p, TikCommandParameterFormat.NameValue)).ToArray();
-                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter, proplistParameters);
+                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter, ProplistParameters(proplist));
                 return InterpretList(EnsureApiSentences(Session.CallCommandSync(commandRows)));
             }
             finally

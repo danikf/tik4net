@@ -1,7 +1,7 @@
 // ApiCommandWireShapeTests.cs — the sentence each Execute* method of ApiCommand writes, and the answers the
 // command-layer review changes on purpose later.
 //
-// Characterisation tests: they pin today's behaviour, including the asymmetries X3, X4 and X5. A later fix shows
+// Characterisation tests: they pin today's behaviour, including the asymmetries X3 and X4. A later fix shows
 // up here as an assertion changed in its own commit. The transport-neutral command's half of the same method set
 // is GenericCommandShapeTests.
 
@@ -160,9 +160,9 @@ namespace tik4net.unittests.Api
         [DataTestMethod]
         [DataRow(false)]
         [DataRow(true)]
-        public void ExecuteListWithFields_WritesOneProplistWordPerField(bool async)
+        public void ExecuteListWithFields_WritesOneCommaJoinedProplistWord(bool async)
         {
-            // X5 as it is: two words; the transport-neutral command sends one comma-joined .proplist.
+            // X5: one word, as the transport-neutral command sends it.
             var words = Exchange(c =>
             {
                 var cmd = Command(c, "/ip/address/print");
@@ -170,7 +170,7 @@ namespace tik4net.unittests.Api
                 else cmd.ExecuteList("name", "address").ToList();
             }, Done);
 
-            AssertWords(words, "/ip/address/print", "?name=a", "?comment=b", "=.proplist=name", "=.proplist=address");
+            AssertWords(words, "/ip/address/print", "?name=a", "?comment=b", "=.proplist=name,address");
         }
 
         [DataTestMethod]
@@ -190,10 +190,12 @@ namespace tik4net.unittests.Api
             AssertWords(words, "/interface/print", "=.proplist=name");
         }
 
-        [TestMethod]
-        public void ExecuteListWithFields_RefusesACallersOwnProplist()
+        [DataTestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void ExecuteListWithFields_RefusesACallersOwnProplist(bool async)
         {
-            // X5 as it is: the transport-neutral command keeps the caller's .proplist and drops the argument.
+            // X5: refused before anything is sent, with the message the transport-neutral command uses.
             using var server = new FakeRouterServer();
             var serverTask = Task.Run(() =>
             {
@@ -211,8 +213,13 @@ namespace tik4net.unittests.Api
                 var cmd = connection.CreateCommand("/ip/address/print");
                 cmd.AddParameter(TikSpecialProperties.Proplist, "comment");
 
-                var ex = Assert.ThrowsException<ArgumentException>(() => cmd.ExecuteList("name").ToList());
-                StringAssert.Contains(ex.Message, "already defined");
+                var ex = Assert.ThrowsException<ArgumentException>(() =>
+                {
+                    if (async) cmd.ExecuteListAsync(new[] { "name" }).GetAwaiter().GetResult();
+                    else cmd.ExecuteList("name").ToList();
+                });
+                StringAssert.Contains(ex.Message, "already has a .proplist parameter");
+                Assert.IsFalse(cmd.IsRunning);
                 connection.Close();
             }
 

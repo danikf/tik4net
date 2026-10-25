@@ -179,8 +179,9 @@ namespace tik4net
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) as result.
         /// </summary>
-        /// <param name="proplistFields">List of fields to be returned (only subset of fields will be returned).</param>
+        /// <param name="proplistFields">The fields to return, sent as one <c>.proplist</c> parameter; every transport returns only these.</param>
         /// <returns>List of !re sentences</returns>
+        /// <exception cref="ArgumentException">The command already has its own <c>.proplist</c> parameter: name the fields there or here, not both. Thrown before anything is sent.</exception>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>

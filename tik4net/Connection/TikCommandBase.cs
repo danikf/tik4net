@@ -139,6 +139,23 @@ namespace tik4net.Connection
             return added;
         }
 
+        /// <summary>
+        /// The <c>.proplist</c> parameter <c>ExecuteList(fields)</c> adds: one comma-joined field list, or none for no
+        /// fields. A command that already has its own <c>.proplist</c> is refused before anything is sent: the fields
+        /// are named in one place.
+        /// </summary>
+        /// <exception cref="ArgumentException">The command already has a <c>.proplist</c> parameter.</exception>
+        private protected ITikCommandParameter? FieldListParameter(string[]? proplistFields)
+        {
+            if (proplistFields == null || proplistFields.Length == 0)
+                return null;
+            if (_parameters.Any(p => p.Name == TikSpecialProperties.Proplist))
+                throw new ArgumentException("The command already has a .proplist parameter; name the fields either "
+                    + "there or in ExecuteList(…), not both.", nameof(proplistFields));
+            return CreateParameter(TikSpecialProperties.Proplist, string.Join(",", proplistFields),
+                TikCommandParameterFormat.NameValue);
+        }
+
         public override string ToString()
             => CommandText + " PARAMS: " + string.Join("; ", _parameters.Select(p => $"{p.Name}:{p.Value}"));
 

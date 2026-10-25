@@ -72,8 +72,9 @@ namespace tik4net
         Task<IList<ITikReSentence>> ExecuteListAsync(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>Async <see cref="ITikCommand.ExecuteList(string[])"/>.</summary>
-        /// <param name="proplistFields">List of fields to be returned (ignored by transports that always return all fields).</param>
+        /// <param name="proplistFields">The fields to return, sent as one <c>.proplist</c> parameter; every transport returns only these.</param>
         /// <param name="cancellationToken">Cancellation token — see the interface remarks for what it guarantees per transport.</param>
+        /// <exception cref="System.ArgumentException">The command already has its own <c>.proplist</c> parameter: name the fields there or here, not both. Thrown before anything is sent.</exception>
         Task<IList<ITikReSentence>> ExecuteListAsync(string[] proplistFields, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

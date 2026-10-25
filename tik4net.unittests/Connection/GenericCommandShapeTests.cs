@@ -1,7 +1,7 @@
 // GenericCommandShapeTests.cs — what each Execute* method of the transport-neutral command hands the transport.
 //
 // Characterisation tests: they pin today's behaviour, including the asymmetries the command-layer review
-// changes on purpose later (X2, X4, X5, X7, X12). A later fix shows up here as an assertion changed in its own
+// changes on purpose later (X2, X4, X12). A later fix shows up here as an assertion changed in its own
 // commit. The binary API's half of the same method set is ApiCommandWireShapeTests.
 
 using System;
@@ -167,7 +167,7 @@ namespace tik4net.unittests.Connection
         [TestMethod]
         public void ExecuteListWithFields_SendsOneCommaJoinedProplist()
         {
-            // X5 as it is: one .proplist parameter; the binary API sends one word per field.
+            // X5: one comma-joined .proplist parameter, the word the binary API sends too.
             var conn = new RecordingConnection();
             conn.CreateCommandAndParameters("/ip/address/print", "name", "a", "comment", "b")
                 .ExecuteList("name", "address").ToList();
@@ -187,16 +187,24 @@ namespace tik4net.unittests.Connection
                 conn.Calls.Single());
         }
 
-        [TestMethod]
-        public void ExecuteListWithFields_KeepsTheCallersOwnProplist()
+        [DataTestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void ExecuteListWithFields_OnACommandWithItsOwnProplist_ThrowsBeforeSending(bool async)
         {
-            // The caller's .proplist wins and the argument is dropped; the binary API throws instead.
+            // X5: the fields are named in one place; a second .proplist is refused, as on the binary API.
             var conn = new RecordingConnection();
             var cmd = conn.CreateCommand("/ip/address/print");
             cmd.AddParameter(TikSpecialProperties.Proplist, "comment");
-            cmd.ExecuteList("name").ToList();
 
-            Assert.AreEqual("RunPrint | /ip/address/print | .proplist=comment (NameValue)", conn.Calls.Single());
+            var ex = Assert.ThrowsException<ArgumentException>(() =>
+            {
+                if (async) cmd.ExecuteListAsync(new[] { "name" }).GetAwaiter().GetResult();
+                else cmd.ExecuteList("name").ToList();
+            });
+            StringAssert.Contains(ex.Message, ".proplist");
+            Assert.AreEqual(0, conn.Calls.Count, string.Join(Environment.NewLine, conn.Calls));
+            Assert.IsFalse(cmd.IsRunning);
         }
 
         [TestMethod]

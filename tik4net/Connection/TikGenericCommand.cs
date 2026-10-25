@@ -227,19 +227,18 @@ namespace tik4net.Connection
         /// <summary>
         /// The read descriptor, carrying <paramref name="proplist"/> as a <c>.proplist</c> parameter when the
         /// caller named fields — the same word the binary API sends, which each transport honours its own way
-        /// (REST as <c>?.proplist=</c>, the CLI and WinBox native by trimming the rows).
+        /// (REST as <c>?.proplist=</c>, the CLI and WinBox native by trimming the rows). A command with its own
+        /// <c>.proplist</c> is refused (<see cref="TikCommandBase.FieldListParameter"/>).
         /// </summary>
         private TikCommandDescriptor BuildReadDescriptor(string[]? proplist)
         {
             var descriptor = BuildReadDescriptor();
-            if (proplist == null || proplist.Length == 0 || descriptor.IsRaw
-                || descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.Proplist))
+            if (descriptor.IsRaw)
                 return descriptor;
-            var parameters = new List<ITikCommandParameter>(descriptor.Parameters)
-            {
-                new TikCommandParameter(TikSpecialProperties.Proplist, string.Join(",", proplist),
-                    TikCommandParameterFormat.NameValue),
-            };
+            var fieldList = FieldListParameter(proplist);
+            if (fieldList == null)
+                return descriptor;
+            var parameters = new List<ITikCommandParameter>(descriptor.Parameters) { fieldList };
             return new TikCommandDescriptor(descriptor.CommandText, parameters);
         }
 
