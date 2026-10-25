@@ -412,9 +412,37 @@ namespace tik4net.Connection
 
         public override IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
         {
-            // CLI is synchronous and single-shot — fallback to regular list (same as REST).
-            return ExecuteList();
+            // A self-terminating read is one read on these transports: the print path (the CLI family reaches its
+            // monitor verbs from there). With a timeout it runs under a deadline on the transport's async path — the
+            // path every built-in transport's synchronous print awaits with no token — so the timeout is honoured where
+            // the transport can be interrupted. A transport without AsyncCommands has nothing a deadline can reach.
+            if (!timeout.HasValue || !Connection.Supports(TikConnectionCapability.AsyncCommands))
+                return ExecuteList();
+
+            var limit = TikTimeSpans.ToDuration(timeout.Value);
+            using (var deadline = new CancellationTokenSource(limit))
+            {
+                IList<ITikReSentence> rows;
+                try
+                {
+                    rows = ExecuteListInternalAsync(deadline.Token).GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+                {
+                    throw UntilDoneTimeout(timeout.Value);
+                }
+                // A transport that cancels cooperatively (the CLI's default) lets the read run out and hands the rows
+                // over late: the deadline still passed first.
+                if (deadline.IsCancellationRequested)
+                    throw UntilDoneTimeout(timeout.Value);
+                return rows;
+            }
         }
+
+        /// <summary>The binary API's wording for an <c>ExecuteListUntilDone</c> that outlived its timeout.</summary>
+        private TikCommandAbortException UntilDoneTimeout(TimeSpan timeout)
+            => new TikCommandAbortException(this, string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "Command did not finish within {0} second(s).", timeout.TotalSeconds));
 
         public override void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback,
             Action<ITikTrapSentence>? errorCallback = null,

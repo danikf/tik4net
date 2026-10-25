@@ -153,7 +153,10 @@ with a `TikCommandParameterFormat` of `Filter` (`?name=value`) or `NameValue` (`
 On `net8.0`, `ITikStreamingCommand` (`tik4net/ITikStreamingCommand.cs`) adds
 `ExecuteListWithDurationAsync`/`ExecuteListUntilDoneAsync` returning `IAsyncEnumerable<ITikReSentence>` —
 rows reach the caller as the router sends them, rather than in a list handed over once the read ends.
-Reached from a plain `ITikCommand` via `TikCommandStreamingExtensions`, which checks `Streaming` first.
+Reached from a plain `ITikCommand` via `TikCommandStreamingExtensions`, which checks `Streaming` first —
+except `ExecuteListUntilDoneAsync`, which off a streaming transport needs only `AsyncCommands` and yields the awaited
+`ExecuteListAsync` list (the synchronous `ExecuteListUntilDone` there is the print, its timeout a deadline on the async
+path).
 Implemented by `ApiCommand` only, the same transport that implements the synchronous
 `ExecuteListWithDuration`/`ExecuteListUntilDone`. It is compiled only under `NET8_0_OR_GREATER` — on
 `netstandard2.0`, `IAsyncEnumerable<T>` would mean every consumer taking a dependency on

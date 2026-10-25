@@ -238,16 +238,43 @@ namespace tik4net.unittests.Api
         public async Task StreamingIsRefusedOnATransportThatDoesNotDeclareIt()
         {
             // Fail-closed, like every other capability-gated surface: the CLI family has no way to deliver
-            // several rows inside one command exchange, so asking for it is an error rather than an empty read.
+            // several rows inside one command exchange, so a duration read is an error rather than an empty read.
             using var fake = new tik4net.Testing.TikFakeConnection();
             var command = fake.CreateCommand("/tool/torch");
 
-            await Assert.ThrowsExceptionAsync<TikConnectionCapabilityNotSupportedException>(async () =>
+            var ex = await Assert.ThrowsExceptionAsync<TikConnectionCapabilityNotSupportedException>(async () =>
             {
-                await foreach (var unused in command.ExecuteListUntilDoneAsync())
+                await foreach (var unused in command.ExecuteListWithDurationAsync(TimeSpan.FromSeconds(1)))
                 {
                 }
             });
+            Assert.AreEqual(TikConnectionCapability.Streaming, ex.Capability);
+        }
+
+        [TestMethod]
+        public async Task UntilDoneOffTheStreamingTransportIsTheAwaitedList()
+        {
+            // ExecuteListUntilDoneAsync needs AsyncCommands, not Streaming (D17): the fake declares the former, so the
+            // read runs as its awaited ExecuteListAsync, and without it the refusal names AsyncCommands.
+            using var fake = new tik4net.Testing.TikFakeConnection()
+                .WithResponse(rows => rows.First() == "/ping", _ => new ITikSentence[]
+                {
+                    new tik4net.Testing.TikFakeReSentence(new Dictionary<string, string> { ["seq"] = "0" }),
+                    new tik4net.Testing.TikFakeDoneSentence(),
+                });
+            var seqs = new List<string>();
+            await foreach (var row in fake.CreateCommand("/ping").ExecuteListUntilDoneAsync())
+                seqs.Add(row.GetResponseField("seq"));
+            CollectionAssert.AreEqual(new[] { "0" }, seqs);
+
+            fake.Capabilities &= ~TikConnectionCapability.AsyncCommands;
+            var ex = await Assert.ThrowsExceptionAsync<TikConnectionCapabilityNotSupportedException>(async () =>
+            {
+                await foreach (var unused in fake.CreateCommand("/ping").ExecuteListUntilDoneAsync())
+                {
+                }
+            });
+            Assert.AreEqual(TikConnectionCapability.AsyncCommands, ex.Capability);
         }
     }
 }

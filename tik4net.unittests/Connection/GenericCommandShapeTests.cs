@@ -150,7 +150,7 @@ namespace tik4net.unittests.Connection
         [DataRow("ExecuteSingleRow", "/ip/address/print", "RunPrint", Filters)]
         [DataRow("ExecuteSingleRowOrDefault", "/ip/address/print", "RunPrint", Filters)]
         [DataRow("ExecuteList", "/ip/address/print", "RunPrint", Filters)]
-        [DataRow("ExecuteListUntilDone", "/tool/ping", "RunPrint", Filters)]           // X2 as it is: the timeout reaches nothing
+        [DataRow("ExecuteListUntilDone", "/tool/ping", "RunPrintAsync", Filters)]      // D17: with a timeout, the async path under a deadline
         [DataRow("ExecuteWithCallback", "/interface/listen", "RunMonitor", Unformatted)]
         [DataRow("ExecuteNonQueryAsync", "/ip/address/set", "RunNonQueryAsync", Unformatted)]
         [DataRow("ExecuteScalarAsync", "/ip/address/print", "RunPrintAsync", Filters)]

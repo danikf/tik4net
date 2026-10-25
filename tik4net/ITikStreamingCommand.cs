@@ -21,7 +21,10 @@ namespace tik4net
     /// Implemented by the binary API, the one transport that reports
     /// <see cref="TikConnectionCapability.Streaming"/>: a streaming read needs several rows inside one
     /// command exchange, which a terminal transport has no way to deliver. Call it through
-    /// <see cref="TikCommandStreamingExtensions"/>, which checks the capability first.
+    /// <see cref="TikCommandStreamingExtensions"/>, which checks the capability first:
+    /// <c>ExecuteListWithDurationAsync</c> needs <see cref="TikConnectionCapability.Streaming"/>, while
+    /// <c>ExecuteListUntilDoneAsync</c> runs on every transport that declares
+    /// <see cref="TikConnectionCapability.AsyncCommands"/> — streamed on the binary API, the awaited list elsewhere.
     /// </para>
     /// <para>
     /// The rows are the same ones the synchronous <c>ExecuteListWithDuration</c>/<c>ExecuteListUntilDone</c>
@@ -66,8 +69,9 @@ namespace tik4net
 
     /// <summary>
     /// Reaches <see cref="ITikStreamingCommand"/> from a plain <see cref="ITikCommand"/>, checking the
-    /// transport's <see cref="TikConnectionCapability.Streaming"/> capability first — the same fail-closed
-    /// shape as the <c>Execute*Async</c> extensions.
+    /// transport's capability first — the same fail-closed shape as the <c>Execute*Async</c> extensions:
+    /// <see cref="TikConnectionCapability.Streaming"/> for <c>ExecuteListWithDurationAsync</c>,
+    /// <see cref="TikConnectionCapability.AsyncCommands"/> for <c>ExecuteListUntilDoneAsync</c>.
     /// </summary>
     public static class TikCommandStreamingExtensions
     {
@@ -83,9 +87,58 @@ namespace tik4net
         /// <param name="command">Command to execute.</param>
         /// <param name="timeout">Optional upper bound. <c>null</c> waits for the command.</param>
         /// <param name="cancellationToken">Ends the read early.</param>
+        /// <remarks>
+        /// Needs <see cref="TikConnectionCapability.AsyncCommands"/>, not <see cref="TikConnectionCapability.Streaming"/>.
+        /// On a transport that streams (the binary API) the rows arrive as the router sends them. On every other
+        /// transport that declares <see cref="TikConnectionCapability.AsyncCommands"/> the read is the awaited
+        /// <c>ExecuteListAsync</c>, and its rows are yielded once it has ended: not streamed, but the same rows
+        /// <see cref="ITikCommand.ExecuteListUntilDone(TimeSpan?)"/> returns. There <paramref name="timeout"/> ends a read
+        /// still running with <see cref="TikCommandAbortException"/> (on a CLI connection under
+        /// <see cref="TikCancellationMode.Cooperative"/> the router's command is let run out first), and
+        /// <paramref name="cancellationToken"/> with <see cref="OperationCanceledException"/>.
+        /// </remarks>
         public static IAsyncEnumerable<ITikReSentence> ExecuteListUntilDoneAsync(this ITikCommand command,
             TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => AsStreaming(command).ExecuteListUntilDoneAsync(timeout, cancellationToken);
+        {
+            Guard.ArgumentNotNull(command, nameof(command));
+            if (command.Connection == null)
+                throw new System.InvalidOperationException("Connection is not assigned.");
+            if (command.Connection.Supports(TikConnectionCapability.Streaming))
+                return AsStreaming(command).ExecuteListUntilDoneAsync(timeout, cancellationToken);
+
+            command.Connection.Require(TikConnectionCapability.AsyncCommands, "ExecuteListUntilDoneAsync");
+            return AwaitedListAsync(command, timeout.HasValue ? tik4net.Connection.TikTimeSpans.ToDuration(timeout.Value) : (TimeSpan?)null,
+                cancellationToken);
+        }
+
+        // Off the streaming transport: the awaited list under the timeout, linked with the caller's token, then its rows.
+        private static async IAsyncEnumerable<ITikReSentence> AwaitedListAsync(ITikCommand command, TimeSpan? timeout,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            IList<ITikReSentence> rows;
+            using (var deadline = timeout.HasValue ? new CancellationTokenSource(timeout.Value) : new CancellationTokenSource())
+            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token, cancellationToken))
+            {
+                try
+                {
+                    rows = await command.ExecuteListAsync(linked.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw;
+                }
+                catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+                {
+                    throw new TikCommandAbortException(command, "Timeout");
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (deadline.IsCancellationRequested)   // a cooperative cancel handed the rows over after the deadline
+                    throw new TikCommandAbortException(command, "Timeout");
+            }
+            foreach (var row in rows)
+                yield return row;
+        }
 
         /// <summary>
         /// The command as an <see cref="ITikStreamingCommand"/>, or a capability error naming what is missing.

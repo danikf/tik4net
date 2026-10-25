@@ -26,10 +26,13 @@ namespace tik4net
         /// this capability — API, all four CLI transports, and both WinBox native transports.
         /// </summary>
         Listen       = 2,
-        /// <summary>Blocking, synchronous streaming reads on a single command execution (<c>ExecuteList*</c> /
-        /// <c>ExecuteListWithDuration</c>) that push successive snapshots (e.g. <c>/interface/monitor-traffic</c>,
-        /// <c>/tool/torch</c>). Binary API only — CLI/WinBox transports have no persistent multi-row read within
-        /// one command exchange; use the async monitor pattern (<see cref="Listen"/>) there instead.</summary>
+        /// <summary>Streaming reads on a single command execution that push successive snapshots (e.g.
+        /// <c>/interface/monitor-traffic</c>, <c>/tool/torch</c>): <c>ExecuteListWithDuration</c> and its
+        /// <c>IAsyncEnumerable</c> form, and rows of <c>ExecuteListUntilDoneAsync</c> delivered as the router sends them.
+        /// Binary API only — CLI/WinBox transports have no persistent multi-row read within one command exchange; use
+        /// the async monitor pattern (<see cref="Listen"/>) there instead. <c>ExecuteListUntilDone</c> and
+        /// <c>ExecuteListUntilDoneAsync</c> do not need it: off the binary API they are the transport's read of the
+        /// command (the async form gated on <see cref="AsyncCommands"/>).</summary>
         Streaming    = 4,
         /// <summary>Per-command tagging for multiplexed concurrent commands on a single channel (binary API <c>.tag</c>).</summary>
         Tagging      = 16,

@@ -249,9 +249,20 @@ namespace tik4net
         /// Unlike <see cref="ExecuteListWithDuration(TimeSpan)"/>, this method does NOT send <c>/cancel</c> — it is intended for commands that terminate themselves
         /// (e.g. <c>/tool/traceroute count=N</c>, <c>/tool/ping count=N</c>).
         /// </summary>
+        /// <remarks>
+        /// Off the binary API the read is the transport's print of the command, which ends when the command does, and
+        /// the timeout is honoured on every transport that declares <see cref="TikConnectionCapability.AsyncCommands"/>
+        /// (every built-in one): the read runs under the deadline, which ends it as the transport cancels a command in
+        /// flight. On a CLI connection that is its <see cref="TikCancellationMode"/>: under
+        /// <see cref="TikCancellationMode.Cooperative"/> (the default) the router's command is let run out and the
+        /// exception comes when it has, leaving the terminal in step; under
+        /// <see cref="TikCancellationMode.AbandonAndClose"/> it comes at the deadline and the connection is closed. A
+        /// custom transport without <see cref="TikConnectionCapability.AsyncCommands"/> cannot be interrupted, so there
+        /// the timeout is not honoured and the call is <see cref="ExecuteList()"/>.
+        /// </remarks>
         /// <param name="timeout">
-        /// Optional safety timeout. If the router does not send <c>!done</c> within this period the command is cancelled
-        /// and <see cref="TikCommandAbortException"/> is thrown. Pass <c>null</c> to wait indefinitely; a negative value is zero.
+        /// Optional safety timeout. If the command has not ended within this period it is cancelled and
+        /// <see cref="TikCommandAbortException"/> is thrown. Pass <c>null</c> to wait indefinitely; a negative value is zero.
         /// </param>
         /// <returns>List of all <c>!re</c> sentences received before <c>!done</c>.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running.</exception>
