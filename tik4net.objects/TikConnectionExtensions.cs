@@ -86,6 +86,7 @@ namespace tik4net.Objects
         public static TEntity LoadSingle<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
+            Guard.ArgumentNotNull(connection, "connection");
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = command.LoadList<TEntity>().ToList();
@@ -110,6 +111,7 @@ namespace tik4net.Objects
         public static TEntity? LoadSingleOrDefault<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
+            Guard.ArgumentNotNull(connection, "connection");
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = command.LoadList<TEntity>().ToList();
@@ -134,6 +136,7 @@ namespace tik4net.Objects
         public static TEntity LoadById<TEntity>(this ITikConnection connection, string id)
             where TEntity : new()
         {
+            Guard.ArgumentNotNull(connection, "connection");
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id));
             var candidates = command.LoadList<TEntity>().ToList();
@@ -158,6 +161,7 @@ namespace tik4net.Objects
         public static TEntity LoadByName<TEntity>(this ITikConnection connection, string name)
             where TEntity : new()
         {
+            Guard.ArgumentNotNull(connection, "connection");
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter("name", name));
             var candidates = command.LoadList<TEntity>().ToList();
@@ -182,6 +186,7 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
+            Guard.ArgumentNotNull(connection, "connection");
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = command.LoadList<TEntity>().ToList();
@@ -193,6 +198,7 @@ namespace tik4net.Objects
         /// Calls command and reads all returned rows for given <paramref name="duration"/>.
         /// After this period calls cancel to mikrotik router and returns all loaded rows.
         /// Throws exception if any 'trap' row occurs.
+        /// Rows are tracked like any loaded entity, so <c>Save</c> sends only what changed.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
@@ -210,9 +216,11 @@ namespace tik4net.Objects
         {
             Guard.ArgumentNotNull(connection, "connection");
 
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
-
-            return command.LoadWithDuration<TEntity>(duration);
+            var entities = command.LoadWithDuration<TEntity>(duration).ToList();
+            RegisterSnapshots(connection, entities, metadata, command);
+            return entities;
         }
 
 
@@ -510,6 +518,7 @@ namespace tik4net.Objects
             TikSaveMode saveMode = TikSaveMode.Default)
             where TEntity:new()
         {
+            Guard.ArgumentNotNull(connection, "connection");
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             string? id = ResolveSaveId(entity, metadata);
 
@@ -859,6 +868,7 @@ namespace tik4net.Objects
         public static void SaveListDifferences<TEntity>(this ITikConnection connection, IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
             where TEntity : new()
         {
+            Guard.ArgumentNotNull(connection, "connection");
             var plan = PlanListDifferences(modifiedList, unmodifiedList);
             ValidateListDifferences(connection, plan);
 
@@ -1029,6 +1039,7 @@ namespace tik4net.Objects
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         public static void Delete<TEntity>(this ITikConnection connection, TEntity entity)
         {
+            Guard.ArgumentNotNull(connection, "connection");
             BuildDeleteCommand(connection, entity).ExecuteNonQuery();
         }
 
@@ -1089,6 +1100,7 @@ namespace tik4net.Objects
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         public static void Move<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore)
         {
+            Guard.ArgumentNotNull(connection, "connection");
             BuildMoveCommand(connection, entityToMove, entityToMoveBefore).ExecuteNonQuery();
         }
 
@@ -1122,6 +1134,7 @@ namespace tik4net.Objects
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         public static void MoveToEnd<TEntity>(this ITikConnection connection, TEntity entityToMove)
         {
+            Guard.ArgumentNotNull(connection, "connection");
             Move(connection, entityToMove, default(TEntity));
         }
 
