@@ -1035,11 +1035,14 @@ namespace tik4net.Api
                 reSentence => channel.Writer.TryWrite(reSentence),
                 error => { asyncTrap = error; channel.Writer.TryComplete(); },
                 onDoneCallback: () => { doneReceived = true; },
-                onTerminalCallback: _ =>
+                onTerminalCallback: sentence =>
                 {
-                    // The !fatal case carries the reader loop's reason (P2.14); !done needs nothing but the
-                    // completion. Reading the field the callbacks set is safe here: the pump thread has
-                    // already run them by the time it reaches this one.
+                    // A !fatal (the router going away, or the reader loop losing the connection) carries its
+                    // reason; it is kept so the stream ends with an exception rather than as complete. !done
+                    // needs nothing but the completion. The field is written before TryComplete, and the
+                    // consumer reads it only after observing the completion, which is the hand-over.
+                    if (sentence is ApiFatalSentence fatal)
+                        fatalMessage = string.IsNullOrEmpty(fatal.Message) ? "Connection has been closed" : fatal.Message;
                     channel.Writer.TryComplete();
                 });
 
