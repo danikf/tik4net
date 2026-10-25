@@ -165,6 +165,75 @@ namespace tik4net.unittests.Api
             Assert.IsTrue(serverTask.Wait(5000));
         }
 
+        /// <summary>
+        /// Answers the streamed command with two rows, then a <c>!fatal</c>, and closes the connection: the router
+        /// went away mid-read. No <c>/quit</c> follows, so the client disposes the connection without closing it.
+        /// </summary>
+        private static async Task<(List<string> Rows, Exception Error, TimeSpan Elapsed)> StreamUntilTheConnectionIsLost(
+            Func<ITikCommand, IAsyncEnumerable<ITikReSentence>> read)
+        {
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                server.AcceptClient();
+                server.ReadSentence();                       // login
+                server.WriteSentence("!done");
+
+                string tag = ExtractTag(server.ReadSentence());
+                server.WriteSentence("!re", $"{TikSpecialProperties.Tag}={tag}", "=rx=1");
+                server.WriteSentence("!re", $"{TikSpecialProperties.Tag}={tag}", "=rx=2");
+                server.WriteSentence("!fatal", "=message=router going down");
+                server.CloseClientConnection();
+            });
+
+            var rows = new List<string>();
+            Exception error = null;
+            var sw = Stopwatch.StartNew();
+            using (var connection = new ApiConnection(false))
+            {
+                connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+                try
+                {
+                    await foreach (var row in read(connection.CreateCommand("/tool/torch")))
+                        rows.Add(row.GetResponseField("rx"));
+                }
+                catch (Exception ex)
+                {
+                    error = ex;
+                }
+            }
+            sw.Stop();
+
+            Assert.IsTrue(serverTask.Wait(5000));
+            return (rows, error, sw.Elapsed);
+        }
+
+        [TestMethod]
+        public async Task ALostConnectionIsThrownOutOfTheEnumerationAfterTheRowsItAlreadyGave()
+        {
+            var (rows, error, _) = await StreamUntilTheConnectionIsLost(
+                c => c.ExecuteListUntilDoneAsync(TimeSpan.FromSeconds(20)));
+
+            // The rows that did arrive are delivered, and the read still fails: a stream cut by a lost connection
+            // must not read as a complete one.
+            CollectionAssert.AreEqual(new[] { "1", "2" }, rows);
+            Assert.IsInstanceOfType(error, typeof(TikCommandAbortException), "ended with: " + (error?.ToString() ?? "no exception"));
+            StringAssert.Contains(error.Message, "router going down");
+        }
+
+        [TestMethod]
+        public async Task ALostConnectionEndsADurationReadWithAnException()
+        {
+            var (rows, error, elapsed) = await StreamUntilTheConnectionIsLost(
+                c => c.ExecuteListWithDurationAsync(TimeSpan.FromSeconds(30)));
+
+            // Without this, the read ends as if the 30 s had been spent, and the caller cannot tell the difference.
+            CollectionAssert.AreEqual(new[] { "1", "2" }, rows);
+            Assert.IsInstanceOfType(error, typeof(TikCommandAbortException), "ended with: " + (error?.ToString() ?? "no exception"));
+            StringAssert.Contains(error.Message, "router going down");
+            Assert.IsTrue(elapsed < TimeSpan.FromSeconds(10), $"the lost connection should end the read; took {elapsed.TotalMilliseconds} ms");
+        }
+
         [TestMethod]
         public async Task StreamingIsRefusedOnATransportThatDoesNotDeclareIt()
         {
