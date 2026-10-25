@@ -25,10 +25,13 @@ namespace tik4net.unittests
         [TestMethod]
         public void CreateRawCommand_TrustsTheFacetLikeCallCommandSync()
         {
-            // TikFakeConnection implements ITikRawSentenceConnection but leaves the RawCommand flag clear. Its
-            // CallCommandSync answers without asking the flag, and so does CreateRawCommand: one promise, one type.
+            // TikFakeConnection implements ITikRawSentenceConnection and declares RawCommand by default; with the flag
+            // cleared, its CallCommandSync still answers without asking the flag, and so does CreateRawCommand: one
+            // promise, one type.
             var fake = new TikFakeConnection()
                 .WithScalarResponse(cmd => cmd.FirstOrDefault() == "/export", "# export");
+            Assert.IsTrue(fake.Supports(TikConnectionCapability.RawCommand), "the fake's flags agree with its facets");
+            fake.Capabilities &= ~TikConnectionCapability.RawCommand;
             ITikRawSentenceConnection conn = fake;
 
             Assert.IsFalse(fake.Supports(TikConnectionCapability.RawCommand));

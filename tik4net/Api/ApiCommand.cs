@@ -30,7 +30,8 @@ namespace tik4net.Api
 
         private protected override ITikConnection AcceptConnection(ITikConnection value)
         {
-            Guard.ArgumentOfType<ApiConnection>(value, "Session");
+            Guard.ArgumentNotNull(value, "value");
+            Guard.ArgumentOfType<ApiConnection>(value, "value");
             return (ApiConnection)value;
         }
 

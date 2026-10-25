@@ -229,37 +229,32 @@ namespace tik4net.Testing
         /// <summary>
         /// What this fake claims to support. Defaults to what it actually implements:
         /// <see cref="TikConnectionCapability.Crud"/>, <see cref="TikConnectionCapability.Listen"/> (the
-        /// callback <c>ExecuteWithCallback</c>/<c>LoadWithCallback</c> pattern) and
+        /// callback <c>ExecuteWithCallback</c>/<c>LoadWithCallback</c> pattern),
         /// <see cref="TikConnectionCapability.AsyncCommands"/> (the <c>Execute*Async</c> surface, completing
-        /// synchronously — see <see cref="TikFakeCommand"/>) and <see cref="TikConnectionCapability.SafeMode"/>
-        /// (recorded, not performed — the counters below).
+        /// synchronously — see <see cref="TikFakeCommand"/>), <see cref="TikConnectionCapability.SafeMode"/>
+        /// (recorded, not performed — the counters below), <see cref="TikConnectionCapability.Tagging"/> and
+        /// <see cref="TikConnectionCapability.RawCommand"/>.
         /// <para>
         /// Set it to test how your code behaves against a transport that lacks something — clearing
         /// <see cref="TikConnectionCapability.AsyncCommands"/>, for instance, makes <c>ExecuteListAsync</c> throw
         /// <see cref="TikConnectionCapabilityNotSupportedException"/> here exactly as it would over a CLI
         /// transport. It is deliberately <b>not</b> the full flag set: a fake that claims everything cannot be
-        /// used to test the fail-closed branches, and claiming a capability it does not implement
-        /// (<see cref="TikConnectionCapability.RawCommand"/>) would only move the failure later.
+        /// used to test the fail-closed branches.
         /// </para>
         /// <para>
-        /// <see cref="TikConnectionCapability.SafeMode"/> and <see cref="TikConnectionCapability.Tagging"/>
-        /// are in the default set because this fake implements <see cref="ITikSafeModeConnection"/> and
-        /// <see cref="ITikTaggedConnection"/> functionally, and a connection whose flags disagreed with the
-        /// interfaces it implements would answer the same question two ways. Clear either flag to test the
-        /// branch where a transport lacks that feature.
-        /// </para>
-        /// <para>
-        /// <see cref="TikConnectionCapability.RawCommand"/> is the one exception, and a deliberate one: the
-        /// fake implements <see cref="ITikRawSentenceConnection"/> so that it can stand in for a typed
-        /// connection, and its <c>CallCommandSync</c> and <c>CreateRawCommand</c> answer from the registered
-        /// handlers like any other command, since the raw level trusts the facet and checks no flag. The flag
-        /// stays clear so that code which asks <c>Supports(RawCommand)</c> can be tested on its fail-closed branch.
+        /// <see cref="TikConnectionCapability.SafeMode"/>, <see cref="TikConnectionCapability.Tagging"/> and
+        /// <see cref="TikConnectionCapability.RawCommand"/> are in the default set because this fake implements
+        /// <see cref="ITikSafeModeConnection"/>, <see cref="ITikTaggedConnection"/> and
+        /// <see cref="ITikRawSentenceConnection"/> functionally (its <c>CallCommandSync</c> and <c>CreateRawCommand</c>
+        /// answer from the registered handlers like any other command), and a connection whose flags disagreed with
+        /// the interfaces it implements would answer the same question two ways. Clear a flag to test the branch
+        /// where a transport lacks that feature.
         /// </para>
         /// </summary>
         public TikConnectionCapability Capabilities { get; set; } =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.Tagging;
+            | TikConnectionCapability.Tagging | TikConnectionCapability.RawCommand;
 
         // ── ITikConnection ─────────────────────────────────────────────────────
 

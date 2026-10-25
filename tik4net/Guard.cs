@@ -51,15 +51,19 @@ namespace tik4net
         }
 
         /// <summary>
-        /// Checks an argumen to ensure it is of given type.
+        /// Checks an argument to ensure it is of the given type. A null is not checked here: call
+        /// <see cref="ArgumentNotNull"/> first.
         /// </summary>
         /// <typeparam name="TExpectedType">Expected type.</typeparam>
         /// <param name="argumentValue">The argument value to check.</param>
         /// <param name="argumentName">The name of the argument.</param>
+        /// <exception cref="ArgumentException"><paramref name="argumentValue"/> is not a <typeparamref name="TExpectedType"/>.</exception>
         internal static void ArgumentOfType<TExpectedType>(object argumentValue, string argumentName)
         {
-            if (argumentName is TExpectedType)
-                throw new ArgumentException(string.Format(CultureInfo.CurrentCulture, "The provided argument {0} must of '{1}' type.", argumentName, typeof(TExpectedType)), argumentName);            
+            if (!(argumentValue is TExpectedType))
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture,
+                    "The provided argument {0} must be of '{1}' type; it is '{2}'.", argumentName,
+                    typeof(TExpectedType).Name, argumentValue?.GetType().FullName ?? "null"), argumentName);
         }
     }
 }

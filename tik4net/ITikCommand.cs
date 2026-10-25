@@ -16,9 +16,11 @@ namespace tik4net
         /// <summary>
         /// The connection that created the command. Assigning a different connection is not supported; the setter refuses
         /// one the command cannot run on (a binary-API command takes only an API connection, a command of the other
-        /// transports only one of theirs), and any change while the command runs.
+        /// transports only one of theirs), a null, and any change while the command runs. The running check comes first.
         /// </summary>
         /// <exception cref="InvalidOperationException">Set while the command runs (<see cref="IsRunning"/>).</exception>
+        /// <exception cref="ArgumentNullException">Set to null.</exception>
+        /// <exception cref="ArgumentException">Set to a connection the command cannot run on.</exception>
         ITikConnection Connection { get; set; }
 
         /// <summary>
