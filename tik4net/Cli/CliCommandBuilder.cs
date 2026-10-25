@@ -979,18 +979,16 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Client-side marker parameters that must NEVER be emitted as a CLI word — they are stripped
-        /// from where-clauses and from name=value lists. (Mirror of <c>RestRequestBuilder.IsSpecialParam</c>
-        /// / <c>ApiCommand.IsSpecialParam</c>; the membership differs per transport on purpose.)
+        /// Parameters that must NEVER be emitted as a CLI word — they are stripped from where-clauses and from
+        /// name=value lists: the client-side markers (<see cref="TikTransportMarkers.IsClientMarker"/>; this class and
+        /// <see cref="CliConnectionBase"/> act on them by name before the line is built: the stats merge, the
+        /// <c>:serialize</c> read, the flag read and the <c>show-sensitive</c> word in <see cref="BuildPrintExpression"/>),
+        /// plus the CLI's own two:
         ///   <c>.proplist</c> — honoured by trimming the rows client-side (<see cref="CliConnectionBase"/>), never as
         ///                    the CLI's own <c>proplist=</c>: that refuses the whole read when one name is
         ///                    unknown ("input does not match any value of value-name", 7.24), where the API
         ///                    ignores the name.
         ///   <c>.tag</c>      — no tag protocol over a terminal.
-        ///   <c>.cli-stats</c> — CLI-layer signal that triggers the two-query stats merge (<see cref="CliConnectionBase"/>).
-        ///   <c>.cli-json</c>  — CLI-layer signal that switches the read to <c>:serialize to=json</c> (same class).
-        ///   <c>.cli-flags</c> — the entity's flag fields, read separately on a pre-7.20 router (same class).
-        ///   <c>.cli-sensitive</c> — becomes the <c>show-sensitive</c> print word in <see cref="BuildPrintExpression"/>.
         /// NOTE: this is the "dropped" set. <c>detail</c> / <c>once</c> / <c>numbers</c> are a DIFFERENT
         /// category — "consumed flags" that <see cref="BuildPrint"/> translates into print modifiers
         /// (via <see cref="HasNameValueFlag"/> / <see cref="FindNameValueParam"/>), not dropped.
@@ -998,11 +996,7 @@ namespace tik4net.Cli
         private static bool IsSpecialParam(string name)
             => name == TikSpecialProperties.Proplist
             || name == TikSpecialProperties.Tag
-            || name == TikSpecialProperties.CliStats
-            || name == TikSpecialProperties.CliJson
-            || name == TikSpecialProperties.CliFlags
-            || name == TikSpecialProperties.CliSensitive
-            || name == TikSpecialProperties.WinboxLabels;
+            || TikTransportMarkers.IsClientMarker(name);
 
         /// <summary>
         /// Returns true when a non-Filter "consumed flag" parameter with the given name is present

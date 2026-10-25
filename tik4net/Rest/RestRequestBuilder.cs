@@ -368,26 +368,18 @@ namespace tik4net.Rest
         }
 
         /// <summary>
-        /// Client-side / specially-handled parameters that are NOT emitted as plain data words.
-        /// (Mirror of <c>ApiCommand.IsSpecialParam</c> / <c>CliCommandBuilder.IsSpecialParam</c>;
-        /// the membership differs per transport on purpose.)
+        /// Parameters that are NOT emitted as plain data words: the client-side markers
+        /// (<see cref="TikTransportMarkers.IsClientMarker"/>; REST answers in JSON with the flags and the secrets, so
+        /// it needs none of them), plus REST's own three:
         ///   <c>.proplist</c> — picked up separately and turned into the <c>?.proplist=</c> URL query.
         ///   <c>.tag</c>      — no tag protocol over REST.
-        ///   <c>.cli-stats</c> — CLI-only stats marker; never sent on the wire for REST.
-        ///   <c>.cli-json</c>  — CLI-only <c>:serialize</c> marker; REST already answers in JSON.
-        ///   <c>.cli-flags</c> — CLI-only flag list for pre-7.20 routers; REST always sends the flags.
-        ///   <c>.cli-sensitive</c> — CLI-only <c>show-sensitive</c> marker; REST always sends the secrets.
         ///   <c>detail</c>    — no-op in REST (full details are returned by default).
         /// </summary>
         private static bool IsSpecialParam(string name)
         {
             return name == TikSpecialProperties.Tag
                 || name == TikSpecialProperties.Proplist
-                || name == TikSpecialProperties.CliStats
-                || name == TikSpecialProperties.CliJson
-                || name == TikSpecialProperties.CliFlags
-                || name == TikSpecialProperties.CliSensitive
-                || name == TikSpecialProperties.WinboxLabels
+                || TikTransportMarkers.IsClientMarker(name)
                 || string.Equals(name, "detail", StringComparison.OrdinalIgnoreCase);
         }
 

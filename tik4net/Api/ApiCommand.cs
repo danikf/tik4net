@@ -40,21 +40,12 @@ namespace tik4net.Api
             => new ApiCommandParameter(name, value, format);
 
         /// <summary>
-        /// Client-side marker parameters that must NEVER be written to the binary API wire.
-        /// (Mirror of <see cref="tik4net.Rest.RestRequestBuilder"/>.IsSpecialParam / CliCommandBuilder.IsSpecialParam;
-        /// the membership differs per transport on purpose.) Unlike REST/CLI, the binary API understands
-        /// <c>.proplist</c> and <c>.tag</c> natively (they ARE valid wire words), so the only thing stripped
-        /// here is the CLI-only set: the <c>.cli-stats</c> stats marker, the <c>.cli-json</c>
-        /// <c>:serialize</c> marker, the <c>.cli-flags</c> flag list and the <c>.cli-sensitive</c> marker (the binary API
-        /// frames values and always sends the flags and the secrets, so it never needs any of them), and the
-        /// WinBox-native <c>.winbox-labels</c> marker.
+        /// The parameters that never reach the binary API wire: the client-side markers
+        /// (<see cref="TikTransportMarkers.IsClientMarker"/>) and nothing more. The API understands <c>.proplist</c> and
+        /// <c>.tag</c> natively, so it sends both; it frames values and always sends the flags and the secrets, so it
+        /// needs none of the CLI's markers.
         /// </summary>
-        private static bool IsSpecialParam(string name)
-            => name == TikSpecialProperties.CliStats
-            || name == TikSpecialProperties.CliJson
-            || name == TikSpecialProperties.CliFlags
-            || name == TikSpecialProperties.CliSensitive
-            || name == TikSpecialProperties.WinboxLabels;
+        private static bool IsSpecialParam(string name) => TikTransportMarkers.IsClientMarker(name);
 
         private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] additionalParameters)
         {
