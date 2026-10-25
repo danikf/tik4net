@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Objects.Tracking;
 
 namespace tik4net.Objects
 {
@@ -263,7 +264,8 @@ namespace tik4net.Objects
         /// Items which are not present in 'expected' and are present in 'original' will be deleted from mikrotik router.
         /// </summary>
         /// <returns>List of final entities on mikrotik router after save operation (with ids).</returns>
-        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
+        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called, or the entity does
+        /// not offer a verb the merge needs (see the remarks). Nothing has been sent.</exception>
         /// <remarks>
         /// <para>
         /// <b>Order.</b> On an ordered entity (<c>IsOrdered</c> — firewall filter, mangle, NAT, simple queues…) the
@@ -293,14 +295,20 @@ namespace tik4net.Objects
         /// <para>
         /// <b>A failure part-way</b> leaves the commands already sent in place — RouterOS has no transaction. The
         /// first error propagates; reload 'original' and run the merge again, and it continues from wherever the
-        /// router is.
+        /// router is. A verb the entity does not offer (<see cref="TikEntityAttribute.SupportedOperations"/>) and,
+        /// with <see cref="TikConnectionSetup.ValidateWrites"/>, a field the router does not take are refused before
+        /// the first command — and by <see cref="Simulate(out int, out int, out int, out int)"/>, which refuses what
+        /// <c>Save</c> would. A missing <c>move</c> is refused when the ordering pass reaches a move.
         /// </para>
         /// </remarks>
+        /// <exception cref="TikUnknownFieldException">With <see cref="TikConnectionSetup.ValidateWrites"/>: an update or
+        /// insert carries a field the router does not take. Nothing has been sent.</exception>
         /// <seealso cref="Simulate(out int, out int, out int, out int)"/>
         /// <seealso cref="SaveAsync"/>
         public IEnumerable<TEntity> Save()
         {
             var plan = Plan();
+            Preflight(plan);
 
             foreach (var entity in plan.Deletes)
             {
@@ -334,11 +342,15 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>List of final entities on mikrotik router after save operation (with ids).</returns>
-        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
+        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called, or the entity does
+        /// not offer a verb the merge needs (see the remarks on <see cref="Save"/>). Nothing has been sent.</exception>
+        /// <exception cref="TikUnknownFieldException">With <see cref="TikConnectionSetup.ValidateWrites"/>: an update or
+        /// insert carries a field the router does not take. Nothing has been sent.</exception>
         /// <exception cref="OperationCanceledException">Cancelled between two commands.</exception>
         public async Task<IEnumerable<TEntity>> SaveAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             var plan = Plan();
+            Preflight(plan);
 
             foreach (var entity in plan.Deletes)
             {
@@ -382,12 +394,19 @@ namespace tik4net.Objects
         /// <see cref="Save"/> for how few). A created item is placed by its create (<c>place-before</c>) and is not
         /// counted here.</param>
         /// <returns>Expected list of final entities on mikrotik router after save operation.</returns>
-        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
-        /// <remarks>Sends nothing, and calls neither log callback; the operation filter is consulted as by <see cref="Save"/>.</remarks>
+        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called, or the entity does
+        /// not offer a verb <see cref="Save"/> would need.</exception>
+        /// <exception cref="TikUnknownFieldException">With <see cref="TikConnectionSetup.ValidateWrites"/>: an update or
+        /// insert carries a field the router does not take, which <see cref="Save"/> would refuse.</exception>
+        /// <remarks>Sends no write, and calls neither log callback; the operation filter is consulted as by
+        /// <see cref="Save"/>. It refuses what <see cref="Save"/> would refuse before its first command; with
+        /// <see cref="TikConnectionSetup.ValidateWrites"/> that may read the menu's description from the router once
+        /// per connection.</remarks>
         /// <seealso cref="Save"/>
         public IEnumerable<TEntity> Simulate(out int insertCnt, out int updateCnt, out int deleteCnt, out int moveCnt)
         {
             var plan = Plan();
+            Preflight(plan);
             insertCnt = plan.Inserts.Count;
             updateCnt = plan.Updates.Count;
             deleteCnt = plan.Deletes.Count;
@@ -425,6 +444,30 @@ namespace tik4net.Objects
                 LogDml(MergeOperation.Insert, default(TEntity), entity);
             else
                 LogMove(entity, step.OldIndex, step.NewIndex);
+        }
+
+        /// <summary>
+        /// What <see cref="Save"/> refuses before its first command, with the rule <c>SaveListDifferences</c> uses: the
+        /// verbs this plan needs, and with <see cref="TikConnectionSetup.ValidateWrites"/> every update and insert built
+        /// and thrown away. An update is checked on a copy carrying the merged values, because the merge writes them
+        /// onto the caller's row only when it saves it, and a refusal must leave that row as it was.
+        /// </summary>
+        private void Preflight(MergePlan plan)
+        {
+            TikConnectionExtensions.EnsureListVerbs(_metadata, plan.Inserts.Count > 0, plan.Deletes.Count > 0, plan.Updates.Count > 0);
+            TikConnectionExtensions.ValidateListWrites(_connection, _metadata, UpdateProbes(plan), plan.Inserts, plan.CreateFieldNames);
+        }
+
+        private IEnumerable<(TEntity Entity, IEnumerable<string>? Filter)> UpdateProbes(MergePlan plan)
+        {
+            var tracker = TikChangeTracker.For(_connection);
+            foreach (var update in plan.Updates)
+            {
+                var probe = update.Key.CloneEntity();
+                tracker.ShareSnapshot(update.Key!, probe!);   // cleared fields and loaded values, as the row has them
+                UpdateEntityFields(probe, update.Value);
+                yield return (probe, plan.MergedFieldNames);
+            }
         }
 
         /// <summary>What <see cref="Save"/> sends, decided before anything is — shared by Save, SaveAsync and Simulate.</summary>

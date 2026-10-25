@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
 using tik4net.Testing;
@@ -301,6 +302,176 @@ namespace tik4net.unittests.Objects
             var after = Comments(table.Load(connection));
             CollectionAssert.Contains(after, "DYN");
             CollectionAssert.AreEqual(new[] { "B", "A" }, after.Where(c => c != "DYN").ToArray());
+        }
+
+        // ── TikListMerge: refusals before the first command ───────────────────────────────────────────────
+
+        /// <summary>A menu with <c>add</c> and <c>remove</c> but no <c>set</c>: a merge that updates cannot finish.</summary>
+        [TikEntity("/probe/no-set", SupportedOperations = TikEntityOperations.Add | TikEntityOperations.Remove)]
+        public class SetlessRow
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string Id { get; private set; }
+
+            [TikProperty("comment")]
+            public string Comment { get; set; }
+
+            [TikProperty("name")]
+            public string Name { get; set; }
+        }
+
+        private static (TikFakeConnection Connection, FakeRouterTable<SetlessRow> Table, List<SetlessRow> Original) SetlessTable()
+        {
+            var table = new FakeRouterTable<SetlessRow>().Seed(
+                new SetlessRow { Comment = "A", Name = "x" }, new SetlessRow { Comment = "B", Name = "x" });
+            var connection = table.AttachTo(new TikFakeConnection());
+            return (connection, table, connection.LoadAll<SetlessRow>().ToList());
+        }
+
+        private static TikListMerge<SetlessRow> SetlessMerge(ITikConnection connection, List<SetlessRow> original)
+            => connection.CreateMerge(new[] { new SetlessRow { Comment = "A", Name = "changed" } }, original)
+                .WithKey(r => r.Comment).Field(r => r.Name);   // update A, delete B
+
+        private static void AssertNothingWasSent(FakeRouterTable<SetlessRow> table, TikFakeConnection connection)
+        {
+            Assert.AreEqual(0, table.AppliedCommands.Count, "sent: " + string.Join(" / ", table.AppliedCommands));
+            CollectionAssert.AreEqual(new[] { "A", "B" }, table.Load(connection).Select(r => r.Comment).ToArray());
+        }
+
+        [TestMethod]
+        public void AMergeOnAMenuWithoutSetIsRefusedBeforeItsFirstDelete()
+        {
+            var (connection, table, original) = SetlessTable();
+
+            Assert.ThrowsException<InvalidOperationException>(() => SetlessMerge(connection, original).Save());
+
+            AssertNothingWasSent(table, connection);
+        }
+
+        [TestMethod]
+        public void AMergeOnAMenuWithoutSetIsRefusedBeforeItsFirstDelete_Async()
+        {
+            var (connection, table, original) = SetlessTable();
+
+            Assert.ThrowsException<InvalidOperationException>(
+                () => SetlessMerge(connection, original).SaveAsync().GetAwaiter().GetResult());
+
+            AssertNothingWasSent(table, connection);
+        }
+
+        [TestMethod]
+        public void SimulateRefusesWhatSaveWouldRefuse()
+        {
+            var (connection, table, original) = SetlessTable();
+
+            Assert.ThrowsException<InvalidOperationException>(
+                () => SetlessMerge(connection, original).Simulate(out _, out _, out _, out _));
+
+            AssertNothingWasSent(table, connection);
+        }
+
+        /// <summary>A menu whose <c>add</c> does not take <c>refused</c> (its <c>set</c> does).</summary>
+        [TikEntity("/probe/validated")]
+        public class ValidatedRow
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string Id { get; set; }
+
+            [TikProperty("comment")]
+            public string Comment { get; set; }
+
+            [TikProperty("name")]
+            public string Name { get; set; }
+
+            [TikProperty("refused")]
+            public string Refused { get; set; }
+        }
+
+        /// <summary>
+        /// Records every command that reaches a transport hook, and describes <c>/probe/validated</c> with an
+        /// <c>add</c> that lacks <c>refused</c>, with <see cref="TikConnectionSetup.ValidateWrites"/> on.
+        /// </summary>
+        private sealed class ValidatingConnection : TikCommandConnectionBase, ITikMenuSchemaConnection
+        {
+            public readonly List<string> Calls = new List<string>();
+
+            public override TikConnectionCapability Capabilities
+                => TikConnectionCapability.Crud | TikConnectionCapability.AsyncCommands | TikConnectionCapability.MenuSchema;
+
+            bool ITikMenuSchemaConnection.ValidateWrites { get => true; set { } }
+
+            public TikMenuSchema DescribeMenu(string path, string winboxLabels)
+                => new TikMenuSchema(path, TikMenuSchemaSource.ConsoleInspect, new[] { "add", "set", "remove" },
+                    new[] { "comment", "name" },
+                    new[] { "numbers", "comment", "name", "refused" },
+                    new[] { ".id", "comment", "name", "refused" }, null);
+
+            private void Record(string hook, TikCommandDescriptor d) => Calls.Add(hook + " " + d.CommandText);
+
+            protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+            {
+                Record("RunPrint", descriptor);
+                return new List<TikRecordSentence>();
+            }
+
+            protected override string RunAdd(TikCommandDescriptor descriptor)
+            {
+                Record("RunAdd", descriptor);
+                return "*9";
+            }
+
+            protected override void RunNonQuery(TikCommandDescriptor descriptor) => Record("RunNonQuery", descriptor);
+
+            protected override string RunRawText(TikCommandDescriptor descriptor)
+            {
+                Record("RunRawText", descriptor);
+                return "";
+            }
+
+            protected override Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+                => Task.FromResult(RunPrint(descriptor));
+
+            protected override Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+                => Task.FromResult(RunAdd(descriptor));
+
+            protected override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            {
+                RunNonQuery(descriptor);
+                return Task.CompletedTask;
+            }
+
+            protected override Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+                => Task.FromResult(RunRawText(descriptor));
+
+            public override void Open(string host, string user, string password) { }
+            public override void Open(string host, int port, string user, string password) { }
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public override void Close() { }
+        }
+
+        [TestMethod]
+        public void WithValidateWritesAMergeRefusesAnInsertBeforeItsFirstCommand()
+        {
+            var connection = new ValidatingConnection();
+            var original = new List<ValidatedRow>
+            {
+                new ValidatedRow { Id = "*1", Comment = "A", Name = "x" },
+                new ValidatedRow { Id = "*2", Comment = "B", Name = "x" },
+            };
+            var expected = new List<ValidatedRow>
+            {
+                new ValidatedRow { Comment = "A", Name = "y" },                  // update A: set takes name
+                new ValidatedRow { Comment = "N", Name = "n", Refused = "1" },   // insert N: add does not take refused
+            };                                                                   // and delete B
+
+            var ex = Assert.ThrowsException<TikUnknownFieldException>(() =>
+                connection.CreateMerge(expected, original).WithKey(r => r.Comment)
+                    .Field(r => r.Name).Field(r => r.Refused).Save());
+
+            CollectionAssert.AreEqual(new[] { "refused" }, ex.Fields.ToArray());
+            Assert.AreEqual(0, connection.Calls.Count, "sent: " + string.Join(" / ", connection.Calls));
+            Assert.AreEqual("x", original[0].Name, "the update was checked on a copy: the caller's row is unchanged");
         }
     }
 }

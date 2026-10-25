@@ -874,28 +874,67 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// <see cref="TikConnectionSetup.ValidateWrites"/> over a whole list before its first write: every update and
-        /// create is built — which checks it — and thrown away. A row that would be refused stops the pass before any
-        /// row, delete or move has gone out. A FullUpdate row, whose fields need a read of the router, is checked
-        /// when it is saved.
+        /// <see cref="TikConnectionSetup.ValidateWrites"/> over a whole <see cref="SaveListDifferences"/> pass before its
+        /// first write (see <see cref="ValidateListWrites"/>). A FullUpdate row, whose fields need a read of the router,
+        /// is checked when it is saved.
         /// </summary>
         internal static void ValidateListDifferences<TEntity>(ITikConnection connection, ListDifferencesPlan<TEntity> plan)
             where TEntity : new()
         {
-            if (!(connection is ITikMenuSchemaConnection described) || !described.ValidateWrites)
-                return;
             var metadata = plan.Metadata;
-            foreach (var entity in plan.Updates)
-            {
-                var (kind, filter) = ResolveUpdateFilter(connection, entity, metadata, TikSaveMode.Default);
-                if (kind == UpdateFilterKind.UseFilter)
-                    BuildUpdateCommands(connection, entity, metadata, filter, ResolveSaveId(entity, metadata));
-            }
             var creates = plan.OrderSteps != null
                 ? plan.Desired.Where(entity => IsCreate(metadata, ResolveSaveId(entity, metadata)))
                 : plan.Creates;
+            ValidateListWrites(connection, metadata, UpdatesWithTheirFilters(connection, plan), creates, null);
+        }
+
+        // The fields each update of a SaveListDifferences pass sends, as Save decides them; a FullUpdate row is left out.
+        private static IEnumerable<(TEntity Entity, IEnumerable<string>? Filter)> UpdatesWithTheirFilters<TEntity>(
+            ITikConnection connection, ListDifferencesPlan<TEntity> plan)
+        {
+            foreach (var entity in plan.Updates)
+            {
+                var (kind, filter) = ResolveUpdateFilter(connection, entity, plan.Metadata, TikSaveMode.Default);
+                if (kind == UpdateFilterKind.UseFilter)
+                    yield return (entity, filter);
+            }
+        }
+
+        /// <summary>
+        /// <see cref="TikConnectionSetup.ValidateWrites"/> over a list writer's updates and creates before its first
+        /// write, shared by <see cref="SaveListDifferences"/> and <see cref="TikListMerge{TEntity}"/>: every command is
+        /// built — which checks it — and thrown away, so a row that would be refused stops the pass before any delete,
+        /// update or move has gone out. Each update comes with the fields it sends, and every create with
+        /// <paramref name="createFilter"/> (<c>null</c>: every field it holds). The sequences are not read when the
+        /// connection does not validate.
+        /// </summary>
+        internal static void ValidateListWrites<TEntity>(ITikConnection connection, TikEntityMetadata metadata,
+            IEnumerable<(TEntity Entity, IEnumerable<string>? Filter)> updates, IEnumerable<TEntity> creates,
+            IEnumerable<string>? createFilter)
+        {
+            if (!(connection is ITikMenuSchemaConnection described) || !described.ValidateWrites)
+                return;
+            foreach (var (entity, filter) in updates)
+                BuildUpdateCommands(connection, entity, metadata, filter, ResolveSaveId(entity, metadata));
             foreach (var entity in creates)
-                BuildCreateCommand(connection, entity, metadata, null);
+                BuildCreateCommand(connection, entity, metadata, createFilter);
+        }
+
+        /// <summary>
+        /// The verbs a list writer's pass needs, checked before its first command, shared by
+        /// <see cref="SaveListDifferences"/> and <see cref="TikListMerge{TEntity}"/>. Only the verbs the pass actually
+        /// uses: demanding all of them would refuse a pure-delete pass on <c>/ppp/active</c>, which is precisely what
+        /// the menu does allow. <c>move</c> is checked by the ordering pass when it reaches a move, so a field-only
+        /// update on an ordered menu without <c>/move</c> is not refused.
+        /// </summary>
+        internal static void EnsureListVerbs(TikEntityMetadata metadata, bool creates, bool deletes, bool updates)
+        {
+            if (creates)
+                EnsureSupported(metadata, TikEntityOperations.Add);
+            if (deletes)
+                EnsureSupported(metadata, TikEntityOperations.Remove);
+            if (updates)
+                EnsureSupported(metadata, TikEntityOperations.Set);
         }
 
         /// <summary>
@@ -953,18 +992,9 @@ namespace tik4net.Objects
                 .Where(pair => modifiedEntities.ContainsKey(pair.Key) && !modifiedEntities[pair.Key].EntityEquals(pair.Value))
                 .Select(pair => modifiedEntities[pair.Key]));
 
-            // This is the one method that reaches for all four verbs, so it is the one that could get
-            // halfway through a partially-supported menu — rows deleted, then a create refused. Check what
-            // THIS diff will actually ask for, before the first command goes out: demanding all four would
-            // refuse a pure-delete pass on /ppp/active, which is precisely what the menu does allow.
-            // Move is checked by the ordering pass itself, and only when the plan contains a move — demanding
-            // it up front would refuse a field-only update on an ordered menu that does not offer /move.
-            if (entitiesToCreate.Count > 0)
-                EnsureSupported(metadata, TikEntityOperations.Add);
-            if (plan.Deletes.Count > 0)
-                EnsureSupported(metadata, TikEntityOperations.Remove);
-            if (plan.Updates.Count > 0)
-                EnsureSupported(metadata, TikEntityOperations.Set);
+            // A pass that reaches for several verbs could get halfway through a partially-supported menu — rows
+            // deleted, then a create refused — so what THIS diff asks for is checked before the first command.
+            EnsureListVerbs(metadata, entitiesToCreate.Count > 0, plan.Deletes.Count > 0, plan.Updates.Count > 0);
 
             //CREATE + ORDER
             if (metadata.IsOrdered)

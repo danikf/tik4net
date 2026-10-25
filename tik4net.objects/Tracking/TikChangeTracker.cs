@@ -77,6 +77,21 @@ namespace tik4net.Objects.Tracking
         internal TikSnapshot? GetSnapshot(object entity)
             => _snapshots.TryGetValue(entity, out var s) ? s : null;
 
+        /// <summary>
+        /// Gives <paramref name="copy"/> the snapshot <paramref name="original"/> has (none when it has none), so a copy
+        /// built to check a save is checked as the original would be saved. The snapshot is immutable and shared.
+        /// </summary>
+        internal void ShareSnapshot(object original, object copy)
+        {
+            var snapshot = GetSnapshot(original);
+            lock (_lock)
+            {
+                _snapshots.Remove(copy);
+                if (snapshot != null)
+                    _snapshots.Add(copy, snapshot);
+            }
+        }
+
         /// <summary>Removes the entity from tracking. The next Save will use FullUpdate behavior.</summary>
         public void Forget(object entity)
         {
