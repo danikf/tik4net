@@ -578,149 +578,180 @@ namespace tik4net.Api
                 return result;
         }
 
-        // ── Bounded streaming reads ────────────────────────────────────
+        // ── Bounded reads: one harness ────────────────────────────────────────
         //
-        // Both methods below run the command asynchronously and wait for it in the calling thread. The wait
-        // is on the command itself — the same callbacks that carry the sentences — not on a 100 ms clock that
-        // re-asks "are we there yet?". What that polling loop cost was not CPU but ACCURACY:
+        // ExecuteListWithDuration, ExecuteListUntilDone and the IAsyncEnumerable stream run the command through
+        // ExecuteAsyncCore and wait for it: in the calling thread for the first two, in the enumeration for the
+        // stream. BoundedRead wires the four callbacks once and records what happened; BoundedRead.Ending decides
+        // once, after the command has ended, how it ended; each method keeps its own mapping of an ending to a result
+        // or an exception.
         //
-        //  * an end was noticed up to a full tick after it happened, so every such read paid up to 100 ms;
-        //  * connection loss was read off the connection's `IsOpened` instead of the `!fatal` the reader loop had
-        //    already delivered to this very command — and that `!fatal` carries the reason, which the
-        //    flag does not, so the caller got "Connection has been closed" and never learned what happened;
-        //  * the tick could also land between a `!trap` and the `!done` that follows it, and in that ordering
-        //    `ExecuteListWithDuration` overwrote the router's message with the literal "Cancelled". Narrow,
-        //    and gone here: the reason is now decided once, after the command has ended, in priority order.
+        // The wait is on the command itself (the callbacks that carry its sentences), not on a clock that re-asks
+        // whether it has ended: an end is seen when it happens, a lost connection is the !fatal the reader loop
+        // delivers to this command with its reason, and a !trap's message stands even though its own !done follows.
         //
-        // The signal is deliberately NOT disposed: the pump thread can still set it after we have returned
-        // (a `!trap` is followed by its own `!done`), and disposing it underneath would throw inside a
-        // callback whose exceptions are swallowed by design.
+        // The signal is deliberately NOT disposed: the pump thread can still set it after the caller has returned
+        // (a !trap is followed by its own !done), and disposing it underneath would throw inside a callback whose
+        // exceptions are swallowed by design.
+
+        private enum BoundedReadEnding
+        {
+            /// <summary>The command's own <c>!done</c>.</summary>
+            Done,
+            /// <summary>A <c>!trap</c>: the router's error.</summary>
+            Trap,
+            /// <summary>A <c>!fatal</c>: the router closed the session, or the reader loop lost the connection.</summary>
+            ConnectionLost,
+            /// <summary>The caller's duration or timeout ran out while the command was still running.</summary>
+            DurationElapsed,
+            /// <summary>Ended without any of the above.</summary>
+            Cancelled,
+        }
+
+        /// <summary>One bounded read: where its rows go, and what ended it.</summary>
+        private sealed class BoundedRead
+        {
+            private readonly Action<ITikReSentence> _onRow;
+            private readonly Action _onEnded;
+            private volatile ITikTrapSentence? _trap;
+            private volatile ApiFatalSentence? _fatal;
+            private volatile bool _doneReceived;
+
+            private BoundedRead(Action<ITikReSentence> onRow, Action onEnded)
+            {
+                _onRow = onRow;
+                _onEnded = onEnded;
+            }
+
+            /// <summary>Rows collected into a list, the end signalled on an event (the synchronous reads).</summary>
+            internal static BoundedRead Collecting(ApiCommand command, out Func<List<ITikReSentence>> snapshot,
+                out ManualResetEventSlim finished)
+            {
+                var rows = new List<ITikReSentence>();
+                var rowsLock = new object();
+                var signal = new ManualResetEventSlim(false);
+                finished = signal;
+                // The pump thread appends to the list; the caller reads it once the command has ended. A copy, so the
+                // two cannot overlap on the trap path, where the pump keeps running until its !done.
+                snapshot = () => { lock (rowsLock) return new List<ITikReSentence>(rows); };
+                return new BoundedRead(row =>
+                {
+                    lock (rowsLock)
+                    {
+                        if (command.IsRunning)
+                            rows.Add(row);
+                    }
+                }, signal.Set);
+            }
+
+#if NET8_0_OR_GREATER
+            /// <summary>Rows written into a channel, the end signalled by completing it (the stream).</summary>
+            internal static BoundedRead Streaming(System.Threading.Channels.ChannelWriter<ITikReSentence> writer)
+                // The ending fields are written before TryComplete, and the consumer reads them only after observing the
+                // completion, which is the hand-over.
+                => new BoundedRead(row => writer.TryWrite(row), () => writer.TryComplete());
+#endif
+
+            internal ITikTrapSentence? Trap => _trap;
+            internal ApiFatalSentence? Fatal => _fatal;
+
+            /// <summary>The <c>!fatal</c>'s reason, or "Connection has been closed" when it gave none.</summary>
+            internal string FatalReason
+                => string.IsNullOrEmpty(_fatal?.Message) ? "Connection has been closed" : _fatal!.Message;
+
+            /// <summary>Runs the command with the four callbacks, once.</summary>
+            internal void Start(ApiCommand command)
+                => command.ExecuteAsyncCore(
+                    row => _onRow(row),
+                    trap =>
+                    {
+                        _trap = trap;
+                        _onEnded();   // a !trap ends this read; its !done arrives afterwards
+                    },
+                    onDoneCallback: () => _doneReceived = true,
+                    onTerminalCallback: sentence =>
+                    {
+                        if (sentence is ApiFatalSentence fatal)
+                            _fatal = fatal;
+                        _onEnded();
+                    });
+
+            /// <summary>
+            /// How the read ended, in priority order: the caller's deadline (when it ran out first), the router's trap,
+            /// a lost connection, the command's own <c>!done</c>, else cancelled.
+            /// </summary>
+            internal BoundedReadEnding Ending(bool deadlineElapsed)
+            {
+                if (deadlineElapsed)
+                    return BoundedReadEnding.DurationElapsed;
+                if (_trap != null)
+                    return BoundedReadEnding.Trap;
+                if (_fatal != null)
+                    return BoundedReadEnding.ConnectionLost;
+                return _doneReceived ? BoundedReadEnding.Done : BoundedReadEnding.Cancelled;
+            }
+        }
 
         public override IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
         {
-            ITikTrapSentence? asyncTrap = null;
-            string? fatalMessage = null;
-            bool doneReceived = false;
-            List<ITikReSentence> result = new List<ITikReSentence>();
-            object resultLock = new object();
-            ManualResetEventSlim finished = new ManualResetEventSlim(false);
+            var read = BoundedRead.Collecting(this, out var snapshot, out var finished);
+            read.Start(this);
+
+            // Waits in the calling thread, no longer than the requested duration.
+            bool elapsed = !finished.Wait(TikTimeSpans.ToDuration(duration));
+            if (!elapsed)
+                EndRun();
+
             wasAborted = false;
-            abortReason = null; // meaningful only when wasAborted is true, per the interface doc
-
-            //Async execute, responses are stored in result list
-            ExecuteAsyncCore(
-                reSentence =>
-                {
-                    lock (resultLock)
-                    {
-                        if (IsRunning)
-                            result.Add(reSentence);
-                    }
-                },
-                error =>
-                {
-                    asyncTrap = error;
-                    finished.Set(); //a !trap ends this read; its !done arrives afterwards
-                },
-                onDoneCallback: () =>
-                {
-                    doneReceived = true;
-                },
-                onTerminalCallback: sentence =>
-                {
-                    ApiFatalSentence? fatal = sentence as ApiFatalSentence;
-                    if (fatal != null)
-                        fatalMessage = string.IsNullOrEmpty(fatal.Message) ? "Connection has been closed" : fatal.Message;
-                    finished.Set();
-                });
-
-            //wait for the command (in calling =UI? thread), no longer than the requested duration
-            if (!finished.Wait(TikTimeSpans.ToDuration(duration)))
+            abortReason = null;   // meaningful only when wasAborted is true, per the interface doc
+            switch (read.Ending(elapsed))
             {
-                //duration elapsed while the command was still streaming - the normal end of a bounded read
-                CancelInternal(true, -1); //Join loading thread
-                return SnapshotResult(result, resultLock);
+                case BoundedReadEnding.DurationElapsed:
+                    // The normal end of a bounded read: the command was still streaming.
+                    CancelInternal(true, -1);   // and join the loading thread
+                    break;
+                case BoundedReadEnding.Trap:
+                    wasAborted = true;
+                    abortReason = read.Trap!.Message;   // what the router said
+                    break;
+                case BoundedReadEnding.ConnectionLost:
+                    wasAborted = true;
+                    abortReason = read.FatalReason;
+                    break;
+                case BoundedReadEnding.Cancelled:
+                    wasAborted = true;
+                    abortReason = "Cancelled";
+                    break;
             }
-
-            EndRun();
-
-            if (asyncTrap != null) //ended with an error - report what the router said
-            {
-                wasAborted = true;
-                abortReason = asyncTrap.Message;
-            }
-            else if (fatalMessage != null)
-            {
-                wasAborted = true;
-                abortReason = fatalMessage;
-            }
-            else if (!doneReceived)
-            {
-                wasAborted = true;
-                abortReason = "Cancelled";
-            }
-
-            return SnapshotResult(result, resultLock);
+            return snapshot();
         }
 
         public override IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
         {
-            ITikTrapSentence? asyncTrap = null;
-            string? fatalMessage = null;
-            List<ITikReSentence> result = new List<ITikReSentence>();
-            object resultLock = new object();
-            ManualResetEventSlim finished = new ManualResetEventSlim(false);
+            var read = BoundedRead.Collecting(this, out var snapshot, out var finished);
+            read.Start(this);
 
-            ExecuteAsyncCore(
-                reSentence =>
-                {
-                    lock (resultLock)
-                    {
-                        if (IsRunning)
-                            result.Add(reSentence);
-                    }
-                },
-                error =>
-                {
-                    asyncTrap = error;
-                    finished.Set();
-                },
-                onDoneCallback: null,
-                onTerminalCallback: sentence =>
-                {
-                    ApiFatalSentence? fatal = sentence as ApiFatalSentence;
-                    if (fatal != null)
-                        fatalMessage = string.IsNullOrEmpty(fatal.Message)
-                            ? "Connection has been closed."
-                            : "Connection has been closed: " + fatal.Message;
-                    finished.Set();
-                });
+            bool elapsed = !(timeout.HasValue
+                ? finished.Wait(TikTimeSpans.ToDuration(timeout.Value))
+                : finished.Wait(Timeout.Infinite));
+            if (!elapsed)
+                EndRun();
 
-            bool ended = timeout.HasValue ? finished.Wait(TikTimeSpans.ToDuration(timeout.Value)) : finished.Wait(Timeout.Infinite);
-            if (!ended)
+            switch (read.Ending(elapsed))
             {
-                // timeout elapsed — cancel and report
-                CancelInternal(true, -1);
-                throw new TikCommandAbortException(this, string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                    "Command did not finish within {0} second(s).", timeout!.Value.TotalSeconds));
+                case BoundedReadEnding.DurationElapsed:
+                    CancelInternal(true, -1);
+                    throw new TikCommandAbortException(this, string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        "Command did not finish within {0} second(s).", timeout!.Value.TotalSeconds));
+                case BoundedReadEnding.Trap:
+                    throw new TikCommandTrapException(this, read.Trap!);
+                case BoundedReadEnding.ConnectionLost:
+                    throw new IOException(string.IsNullOrEmpty(read.Fatal!.Message)
+                        ? "Connection has been closed."
+                        : "Connection has been closed: " + read.Fatal.Message);
+                default:
+                    return snapshot();   // !done received
             }
-
-            EndRun();
-
-            if (asyncTrap != null)
-                throw new TikCommandTrapException(this, asyncTrap);
-            if (fatalMessage != null)
-                throw new IOException(fatalMessage);
-
-            return SnapshotResult(result, resultLock); //!done received
-        }
-
-        // The pump thread appends to the list; the caller reads it once the command has ended. Handing back
-        // the live list let those two overlap on the trap path, where the pump keeps running until its !done.
-        private static List<ITikReSentence> SnapshotResult(List<ITikReSentence> result, object resultLock)
-        {
-            lock (resultLock)
-                return new List<ITikReSentence>(result);
         }
 
         private bool CancelInternal(bool joinLoadingThread, int millisecondsTimeout)
@@ -816,24 +847,8 @@ namespace tik4net.Api
             var channel = System.Threading.Channels.Channel.CreateUnbounded<ITikReSentence>(
                 new System.Threading.Channels.UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
 
-            ITikTrapSentence? asyncTrap = null;
-            string? fatalMessage = null;
-            bool doneReceived = false;
-
-            ExecuteAsyncCore(
-                reSentence => channel.Writer.TryWrite(reSentence),
-                error => { asyncTrap = error; channel.Writer.TryComplete(); },
-                onDoneCallback: () => { doneReceived = true; },
-                onTerminalCallback: sentence =>
-                {
-                    // A !fatal (the router going away, or the reader loop losing the connection) carries its
-                    // reason; it is kept so the stream ends with an exception rather than as complete. !done
-                    // needs nothing but the completion. The field is written before TryComplete, and the
-                    // consumer reads it only after observing the completion, which is the hand-over.
-                    if (sentence is ApiFatalSentence fatal)
-                        fatalMessage = string.IsNullOrEmpty(fatal.Message) ? "Connection has been closed" : fatal.Message;
-                    channel.Writer.TryComplete();
-                });
+            var read = BoundedRead.Streaming(channel.Writer);
+            read.Start(this);
 
             // A deadline is a second way to end the read, not a poll: the channel completes either when the
             // command does or when this fires, whichever happens first.
@@ -870,14 +885,19 @@ namespace tik4net.Api
             }
 
             // Whatever ended the stream is reported after the rows the caller already received, so a
-            // truncated read cannot be mistaken for a complete one.
-            if (asyncTrap != null)
-                throw new TikCommandAbortException(this, asyncTrap.Message);
-            if (fatalMessage != null)
-                throw new TikCommandAbortException(this, fatalMessage);
+            // truncated read cannot be mistaken for a complete one. The deadline is not an ending of its own here:
+            // for a duration it is the normal end, and a timeout counts only when nothing else ended the read.
+            var ending = read.Ending(deadlineElapsed: false);
+            switch (ending)
+            {
+                case BoundedReadEnding.Trap:
+                    throw new TikCommandAbortException(this, read.Trap!.Message);
+                case BoundedReadEnding.ConnectionLost:
+                    throw new TikCommandAbortException(this, read.FatalReason);
+            }
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
-            if (!doneReceived && !cancelOnEnd && limit.HasValue && deadline.IsCancellationRequested)
+            if (ending != BoundedReadEnding.Done && !cancelOnEnd && limit.HasValue && deadline.IsCancellationRequested)
                 throw new TikCommandAbortException(this, "Timeout");
         }
 #endif
