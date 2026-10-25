@@ -213,12 +213,17 @@ namespace tik4net
         /// <param name="duration">How long will method wait for results. A negative value is zero.</param>
         /// <returns>List of !re sentences read.</returns>
         /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="duration"/>.
-        /// A command that ends earlier (<c>!done</c>, <c>!trap</c> or a lost connection) returns as soon as it ends.</remarks>
+        /// A command that ends earlier (<c>!done</c>, <c>!trap</c> or a lost connection) returns as soon as it ends.
+        /// <para>
+        /// A router error or a lost connection ends the read with <see cref="TikCommandAbortException"/>, whose message is
+        /// the router's trap message or the connection's reason, and whose <see cref="Exception.InnerException"/> is the
+        /// cause: the classified trap (<see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/>, … or
+        /// <see cref="TikCommandTrapException"/>), or a <see cref="TikCommandFatalException"/>.
+        /// </para></remarks>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
-        /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
-        /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
+        /// <exception cref="TikCommandAbortException">The router answered with an error, or the connection was lost, before the
+        /// duration ran out; the cause is the <see cref="Exception.InnerException"/>.</exception>
+        /// <exception cref="TikConnectionCapabilityNotSupportedException">The transport does not declare <see cref="TikConnectionCapability.Streaming"/>.</exception>
         IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration);
 
         /// <summary>
@@ -250,9 +255,12 @@ namespace tik4net
         /// </param>
         /// <returns>List of all <c>!re</c> sentences received before <c>!done</c>.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running.</exception>
-        /// <exception cref="TikCommandTrapException"><c>!trap</c> returned from API call.</exception>
+        /// <exception cref="TikCommandTrapException">The router answered with an error (<c>!trap</c>), classified as on every
+        /// other read: <see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/> or
+        /// <see cref="TikAlreadyHaveSuchItemException"/> where the message says so, else the base type.</exception>
         /// <exception cref="TikCommandAbortException">Command did not finish within <paramref name="timeout"/>.</exception>
-        /// <exception cref="System.IO.IOException">Connection was closed before <c>!done</c> was received.</exception>
+        /// <exception cref="TikCommandFatalException">The connection was lost (or the router ended the session) before the
+        /// command finished.</exception>
         IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null);
 
         /// <summary>

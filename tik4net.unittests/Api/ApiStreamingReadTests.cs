@@ -256,7 +256,7 @@ namespace tik4net.unittests.Api
         }
 
         [TestMethod]
-        public void ExecuteListUntilDone_Trap_ThrowsTrapExceptionWithTheRouterMessage()
+        public void ExecuteListUntilDone_Trap_ThrowsTheClassifiedTrapWithTheRouterMessage()
         {
             const string RouterMessage = "no such command";
 
@@ -279,7 +279,8 @@ namespace tik4net.unittests.Api
             {
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
-                var ex = Assert.ThrowsException<TikCommandTrapException>(
+                // Classified as every read's trap is (TikTrapClassifier): "no such command" is its own type.
+                var ex = Assert.ThrowsException<TikNoSuchCommandException>(
                     () => connection.CreateCommand("/tool/traceroute").ExecuteListUntilDone().ToList());
                 StringAssert.Contains(ex.Message, RouterMessage);
 
@@ -290,7 +291,7 @@ namespace tik4net.unittests.Api
         }
 
         [TestMethod]
-        public void ExecuteListUntilDone_ConnectionLost_ThrowsIOExceptionCarryingTheCause()
+        public void ExecuteListUntilDone_ConnectionLost_ThrowsTikCommandFatalExceptionCarryingTheCause()
         {
             using var server = new FakeRouterServer();
             var serverTask = Task.Run(() =>
@@ -308,7 +309,7 @@ namespace tik4net.unittests.Api
             {
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
-                var ex = Assert.ThrowsException<IOException>(
+                var ex = Assert.ThrowsException<TikCommandFatalException>(
                     () => connection.CreateCommand("/tool/traceroute").ExecuteListUntilDone().ToList());
                 StringAssert.Contains(ex.Message, "Connection has been closed");
                 Assert.IsTrue(ex.Message.Length > "Connection has been closed.".Length,

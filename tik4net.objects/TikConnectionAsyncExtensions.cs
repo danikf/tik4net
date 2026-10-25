@@ -36,7 +36,7 @@ namespace tik4net.Objects
     /// <b>Not here, and deliberately.</b> <c>LoadWithDuration</c> needs
     /// <see cref="TikConnectionCapability.Streaming"/>, and <c>LoadWithCallback</c>/<c>LoadListenWithCallback</c> are the
     /// callback monitors — a different shape, handing back a running <see cref="ITikCommand"/>
-    /// rather than a <see cref="Task"/> (see <see cref="TikConnectionExtensions.LoadWithCallback"/>).
+    /// rather than a <see cref="Task"/> (see <see cref="TikConnectionExtensions.LoadWithCallback{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, ITikCommandParameter[])"/>).
     /// </para>
     /// <para>
     /// <b>The list writers</b> — <see cref="SaveListDifferencesAsync"/>, <see cref="DeleteAllAsync"/> and

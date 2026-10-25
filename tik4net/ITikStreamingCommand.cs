@@ -26,8 +26,11 @@ namespace tik4net
     /// <para>
     /// The rows are the same ones the synchronous <c>ExecuteListWithDuration</c>/<c>ExecuteListUntilDone</c>
     /// produce, and the read ends on the same events — the requested duration, the command's own
-    /// <c>!done</c>, or a router error, which surfaces as <see cref="TikCommandAbortException"/> thrown out
-    /// of the enumeration.
+    /// <c>!done</c>, a router error or a lost connection. The last two surface as
+    /// <see cref="TikCommandAbortException"/> thrown out of the enumeration after the rows already delivered, so a
+    /// truncated stream cannot be read as a complete one; its <see cref="Exception.InnerException"/> is the cause —
+    /// the classified trap (<see cref="TikNoSuchItemException"/>, … or <see cref="TikCommandTrapException"/>) or a
+    /// <see cref="TikCommandFatalException"/>.
     /// </para>
     /// </remarks>
     public interface ITikStreamingCommand
@@ -42,7 +45,8 @@ namespace tik4net
         /// Ends the read early. The command is cancelled on the router exactly as the duration would have
         /// cancelled it, so the connection is left usable (<see cref="TikConnectionCapability.CancelInFlight"/>).
         /// </param>
-        /// <exception cref="TikCommandAbortException">The router ended the command with an error.</exception>
+        /// <exception cref="TikCommandAbortException">The router ended the command with an error, or the connection was
+        /// lost; the cause is the <see cref="Exception.InnerException"/>.</exception>
         IAsyncEnumerable<ITikReSentence> ExecuteListWithDurationAsync(TimeSpan duration,
             CancellationToken cancellationToken = default);
 
@@ -53,7 +57,9 @@ namespace tik4net
         /// </summary>
         /// <param name="timeout">Optional upper bound. <c>null</c> waits for the command.</param>
         /// <param name="cancellationToken">Ends the read early.</param>
-        /// <exception cref="TikCommandAbortException">The router ended the command with an error.</exception>
+        /// <exception cref="TikCommandAbortException">The router ended the command with an error, or the connection was
+        /// lost (the cause is the <see cref="Exception.InnerException"/>), or <paramref name="timeout"/> elapsed first
+        /// (no inner exception).</exception>
         IAsyncEnumerable<ITikReSentence> ExecuteListUntilDoneAsync(TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
     }

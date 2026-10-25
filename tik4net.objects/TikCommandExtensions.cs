@@ -112,7 +112,7 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="command">Tik command executed to load.</param>
         /// <param name="onLoadItemCallback">Callback called for each loaded !re row</param>
-        /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
+        /// <param name="onExceptionCallback">Callback called when the router answers with an error (<c>!trap</c>): it receives the router's trap, classified as every command's trap is: a <see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/> or <see cref="TikAlreadyHaveSuchItemException"/> where the message says so, else a <see cref="TikCommandTrapException"/>.</param>
         /// <param name="onDoneCallback">Callback called at the end of command run (!done row is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="ITikCommand.CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
         public static void LoadWithCallback<TEntity>(this ITikCommand command,
                     Action<TEntity> onLoadItemCallback,
@@ -128,7 +128,7 @@ namespace tik4net.Objects
                 trapSentence =>
                 {
                     if (onExceptionCallback != null)
-                        onExceptionCallback(new TikCommandTrapException(command, trapSentence));
+                        onExceptionCallback(TikTrapClassifier.ToException(TikTrapClassifier.Classify(trapSentence.Message), command, trapSentence));
                 },
                 () =>
                 {
@@ -156,7 +156,7 @@ namespace tik4net.Objects
         /// <param name="command">Command with path ending in <c>/listen</c>.</param>
         /// <param name="onChangeCallback">Called for each changed item.</param>
         /// <param name="onDeletedCallback">Called with the deleted item's <c>.id</c> when <c>=.dead=yes</c> is received. Can be <c>null</c>.</param>
-        /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received.</param>
+        /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received, with the router's trap, classified as every command's trap is: a <see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/> or <see cref="TikAlreadyHaveSuchItemException"/> where the message says so, else a <see cref="TikCommandTrapException"/>.</param>
         public static void LoadListenWithCallback<TEntity>(this ITikCommand command,
             Action<TEntity> onChangeCallback,
             Action<string>? onDeletedCallback = null,
@@ -184,7 +184,7 @@ namespace tik4net.Objects
                 trapSentence =>
                 {
                     if (onExceptionCallback != null)
-                        onExceptionCallback(new TikCommandTrapException(command, trapSentence));
+                        onExceptionCallback(TikTrapClassifier.ToException(TikTrapClassifier.Classify(trapSentence.Message), command, trapSentence));
                 });
         }
 

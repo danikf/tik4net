@@ -1,13 +1,12 @@
 // ApiCommandWireShapeTests.cs — the sentence each Execute* method of ApiCommand writes, and the answers the
 // command-layer review changes on purpose later.
 //
-// Characterisation tests: they pin today's behaviour, including the asymmetries X3 and X4. A later fix shows
-// up here as an assertion changed in its own commit. The transport-neutral command's half of the same method set
+// Characterisation tests: they pin today's behaviour, including the asymmetry X4. A later fix shows up here as an
+// assertion changed in its own commit (X3: D10 moved the three bounded-read pins below). The transport-neutral command's half of the same method set
 // is GenericCommandShapeTests.
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -264,15 +263,12 @@ namespace tik4net.unittests.Api
         }
 
         [TestMethod]
-        public void ExecuteListUntilDone_Trap_ThrowsTheUnclassifiedTrapException()
+        public void ExecuteListUntilDone_Trap_ThrowsTheClassifiedTrapException()
         {
-            // X3 as it is: "no such item" would be TikNoSuchItemException through TikTrapClassifier.
-            Exchange(c =>
-            {
-                var ex = Assert.ThrowsException<TikCommandTrapException>(
-                    () => c.CreateCommand("/tool/traceroute").ExecuteListUntilDone().ToList());
-                Assert.AreEqual(typeof(TikCommandTrapException), ex.GetType());
-            }, (s, tag) =>
+            // D10: "no such item" is TikNoSuchItemException through TikTrapClassifier, as on every other read.
+            Exchange(c => Assert.ThrowsException<TikNoSuchItemException>(
+                    () => c.CreateCommand("/tool/traceroute").ExecuteListUntilDone().ToList()),
+                (s, tag) =>
             {
                 s.WriteSentence("!trap", $"{TikSpecialProperties.Tag}={tag}", "=message=no such item");
                 Done(s, tag);
@@ -280,10 +276,10 @@ namespace tik4net.unittests.Api
         }
 
         [TestMethod]
-        public void ExecuteListUntilDone_Fatal_ThrowsIOException()
+        public void ExecuteListUntilDone_Fatal_ThrowsTikCommandFatalException()
         {
-            // X3 as it is: outside the tik4net hierarchy.
-            Exchange(c => Assert.ThrowsException<IOException>(
+            // D10: inside the tik4net hierarchy, as a lost connection is on every other read.
+            Exchange(c => Assert.ThrowsException<TikCommandFatalException>(
                     () => c.CreateCommand("/tool/traceroute").ExecuteListUntilDone().ToList()),
                 (s, tag) =>
                 {
@@ -316,11 +312,12 @@ namespace tik4net.unittests.Api
         }
 
         [TestMethod]
-        public void ExecuteListWithDuration_Trap_ThrowsAbort()
+        public void ExecuteListWithDuration_Trap_ThrowsAbortCarryingTheClassifiedTrap()
         {
-            // X3 as it is: the same router error as the two above, as a third type.
-            Exchange(c => Assert.ThrowsException<TikCommandAbortException>(
-                    () => c.CreateCommand("/tool/torch").ExecuteListWithDuration(TimeSpan.FromSeconds(30)).ToList()),
+            // D10: the documented abort, with the classified trap as its InnerException.
+            Exchange(c => Assert.IsInstanceOfType(Assert.ThrowsException<TikCommandAbortException>(
+                    () => c.CreateCommand("/tool/torch").ExecuteListWithDuration(TimeSpan.FromSeconds(30)).ToList())
+                    .InnerException, typeof(TikNoSuchItemException)),
                 (s, tag) =>
                 {
                     s.WriteSentence("!trap", $"{TikSpecialProperties.Tag}={tag}", "=message=no such item");

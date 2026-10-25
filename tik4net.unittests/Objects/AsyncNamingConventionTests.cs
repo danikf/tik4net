@@ -87,7 +87,8 @@ namespace tik4net.unittests.Objects
             foreach (string name in new[] { "LoadWithCallback", "LoadListenWithCallback" })
             {
                 var found = PublicMapperMethods().Where(m => m.Name == name).ToList();
-                Assert.AreEqual(2, found.Count,
+                CollectionAssert.AreEquivalent(new[] { typeof(ITikConnection), typeof(ITikCommand) },
+                    found.Select(m => m.GetParameters()[0].ParameterType).Distinct().ToList(),
                     $"{name} should exist on both ITikConnection and ITikCommand");
                 Assert.IsTrue(found.All(m => m.GetCustomAttribute<ObsoleteAttribute>() == null),
                     $"{name} is the replacement and must not itself be obsolete");

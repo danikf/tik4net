@@ -259,6 +259,16 @@ namespace tik4net
     /// <summary>
     /// Exception thrown if command has been aborted.
     /// </summary>
+    /// <remarks>
+    /// A bounded read reports how it ended badly with this exception — <c>ExecuteListWithDuration(TimeSpan)</c>,
+    /// <c>ExecuteListUntilDone</c>'s timeout, and the streamed reads of <c>ITikStreamingCommand</c> on
+    /// net8.0. When the read was ended by the router or the network rather than by the clock, the cause is the
+    /// <see cref="Exception.InnerException"/>: the router's trap, classified as every command's trap is
+    /// (<see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/>, … or the base
+    /// <see cref="TikCommandTrapException"/>), or a <see cref="TikCommandFatalException"/> for a lost connection. The
+    /// message is the trap's or the connection's own. A timeout, a duration's normal end and a cancel carry no inner
+    /// exception.
+    /// </remarks>
     public class TikCommandAbortException : TikCommandException
     {
         /// <summary>
@@ -268,6 +278,13 @@ namespace tik4net
         /// <param name="message">Message exception.</param>
         public TikCommandAbortException(ITikCommand command, string message)
             : base(command, message)
+        {
+        }
+
+        // A bounded read that a router trap or a lost connection ended carries the classified trap or the
+        // TikCommandFatalException as its InnerException.
+        internal TikCommandAbortException(ITikCommand command, string message, Exception? innerException)
+            : base(command, message, innerException)
         {
         }
     }

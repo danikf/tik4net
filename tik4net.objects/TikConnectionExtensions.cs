@@ -19,7 +19,7 @@ namespace tik4net.Objects
     /// <item><see cref="LoadById"/></item>
     /// <item><see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/></item>
     /// <item><see cref="LoadWithDuration"/></item>
-    /// <item><see cref="LoadWithCallback"/></item>
+    /// <item><see cref="LoadWithCallback{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, ITikCommandParameter[])"/></item>
     /// <item><see cref="LoadListenWithCallback"/></item>
     /// </list>
     /// </para>
@@ -232,15 +232,43 @@ namespace tik4net.Objects
         /// The running load can be terminated by <see cref="ITikCommand.Cancel"/> or <see cref="ITikCommand.CancelAndJoin()"/> call. 
         /// Command is returned as result of the method.
         /// </summary>
+        /// <remarks>
+        /// To be told when the load has ended, use the overload with <c>onDoneCallback</c>
+        /// (<see cref="LoadWithCallback{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, Action, ITikCommandParameter[])"/>).
+        /// </remarks>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="onLoadItemCallback">Callback called for each loaded !re row</param>
-        /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
+        /// <param name="onExceptionCallback">Callback called when the router answers with an error (<c>!trap</c>): it receives the router's trap, classified as every command's trap is: a <see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/> or <see cref="TikAlreadyHaveSuchItemException"/> where the message says so, else a <see cref="TikCommandTrapException"/>.</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         /// <returns><see cref="ITikCommand"/> which is already running the async load operation. You can cancel the running operation by <see cref="ITikCommand.Cancel"/> method call.</returns>
         /// <seealso cref="TikCommandExtensions.LoadWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/>
         public static ITikCommand LoadWithCallback<TEntity>(this ITikConnection connection,
             Action<TEntity> onLoadItemCallback, Action<Exception>? onExceptionCallback = null,
+            params ITikCommandParameter[] parameters)
+            where TEntity : new()
+            => LoadWithCallback(connection, onLoadItemCallback, onExceptionCallback, onDoneCallback: null, parameters);
+
+        /// <summary>
+        /// As <see cref="LoadWithCallback{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, ITikCommandParameter[])"/>,
+        /// and calls <paramref name="onDoneCallback"/> once the load has ended: after the last row, and after the error
+        /// when the router answered with one. Callbacks are called from a background thread.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="onExceptionCallback"/> has no default here, so the shorter call shapes
+        /// (<c>LoadWithCallback&lt;T&gt;(onItem)</c>, <c>LoadWithCallback&lt;T&gt;(onItem, onError, filter)</c>) keep binding
+        /// to the overload without <paramref name="onDoneCallback"/>. Pass <c>null</c> for no error callback.
+        /// </remarks>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="onLoadItemCallback">Callback called for each loaded row.</param>
+        /// <param name="onExceptionCallback">Callback called when the router answers with an error (<c>!trap</c>): it receives the router's trap, classified as every command's trap is: a <see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/> or <see cref="TikAlreadyHaveSuchItemException"/> where the message says so, else a <see cref="TikCommandTrapException"/>. May be <c>null</c>.</param>
+        /// <param name="onDoneCallback">Callback called once the load has ended. May be <c>null</c>.</param>
+        /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
+        /// <returns><see cref="ITikCommand"/> which is already running the load. You can cancel it by <see cref="ITikCommand.Cancel"/>.</returns>
+        /// <seealso cref="TikCommandExtensions.LoadWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/>
+        public static ITikCommand LoadWithCallback<TEntity>(this ITikConnection connection,
+            Action<TEntity> onLoadItemCallback, Action<Exception>? onExceptionCallback, Action? onDoneCallback,
             params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
@@ -257,7 +285,8 @@ namespace tik4net.Objects
                     tracker.TakeSnapshot(entity, metadata, trackedFields);
                     onLoadItemCallback(entity);
                 },
-                onExceptionCallback);
+                onExceptionCallback,
+                onDoneCallback);
             return command;
         }
 
@@ -280,7 +309,7 @@ namespace tik4net.Objects
         /// <param name="connection">Active connection.</param>
         /// <param name="onChangeCallback">Called for each changed or added item.</param>
         /// <param name="onDeletedCallback">Called with the <c>.id</c> of a deleted item. Can be <c>null</c>.</param>
-        /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received.</param>
+        /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received, with the router's trap, classified as every command's trap is: a <see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/> or <see cref="TikAlreadyHaveSuchItemException"/> where the message says so, else a <see cref="TikCommandTrapException"/>.</param>
         /// <param name="parameters">Optional query filters applied to the listen command.</param>
         /// <returns>The running <see cref="ITikCommand"/>. Cancel it to stop listening.</returns>
         /// <seealso cref="TikCommandExtensions.LoadListenWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>

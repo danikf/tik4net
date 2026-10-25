@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -560,14 +559,18 @@ namespace tik4net.Api
 
         public override IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
         {
-            bool wasAborted;
-            string? abortReason;
-            var result = ExecuteListWithDuration(duration, out wasAborted, out abortReason);
-
-            if (wasAborted)
-                throw new TikCommandAbortException(this, abortReason!);   // non-null exactly when wasAborted is true
-            else
-                return result;
+            var (rows, ending, read) = RunWithDuration(duration);
+            switch (ending)
+            {
+                case BoundedReadEnding.Trap:
+                    throw new TikCommandAbortException(this, read.Trap!.Message, read.TrapException(this));
+                case BoundedReadEnding.ConnectionLost:
+                    throw new TikCommandAbortException(this, read.FatalReason, read.FatalException(this));
+                case BoundedReadEnding.Cancelled:
+                    throw new TikCommandAbortException(this, "Cancelled");
+                default:
+                    return rows;   // !done, or the duration's normal end
+            }
         }
 
         // ── Bounded reads: one harness ────────────────────────────────────────
@@ -645,11 +648,21 @@ namespace tik4net.Api
 #endif
 
             internal ITikTrapSentence? Trap => _trap;
-            internal ApiFatalSentence? Fatal => _fatal;
 
             /// <summary>The <c>!fatal</c>'s reason, or "Connection has been closed" when it gave none.</summary>
             internal string FatalReason
                 => string.IsNullOrEmpty(_fatal?.Message) ? "Connection has been closed" : _fatal!.Message;
+
+            /// <summary>The trap as every command reports one: classified (<see cref="TikTrapClassifier"/>).</summary>
+            internal TikCommandTrapException TrapException(ApiCommand command)
+                => TikTrapClassifier.ToException(TikTrapClassifier.Classify(_trap!.Message), command, _trap);
+
+            /// <summary>The lost connection as every command reports one, with the reader loop's cause, if any.</summary>
+            internal TikCommandFatalException FatalException(ApiCommand command)
+                => new TikCommandFatalException(command, string.IsNullOrEmpty(_fatal!.Message)
+                        ? "Connection has been closed."
+                        : "Connection has been closed: " + _fatal.Message,
+                    _fatal.Cause);
 
             /// <summary>Runs the command with the four callbacks, once.</summary>
             internal void Start(ApiCommand command)
@@ -686,6 +699,34 @@ namespace tik4net.Api
 
         public override IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
         {
+            var (rows, ending, read) = RunWithDuration(duration);
+            wasAborted = true;
+            switch (ending)
+            {
+                case BoundedReadEnding.Trap:
+                    abortReason = read.Trap!.Message;   // what the router said
+                    break;
+                case BoundedReadEnding.ConnectionLost:
+                    abortReason = read.FatalReason;
+                    break;
+                case BoundedReadEnding.Cancelled:
+                    abortReason = "Cancelled";
+                    break;
+                default:
+                    wasAborted = false;
+                    abortReason = null;   // meaningful only when wasAborted is true, per the interface doc
+                    break;
+            }
+            return rows;
+        }
+
+        /// <summary>
+        /// The duration read both <c>ExecuteListWithDuration</c> overloads share: the rows, how it ended, and the read
+        /// (its trap or fatal), so that each overload maps the ending its own way — the no-throw one to an abort
+        /// reason, the throwing one to an exception carrying the cause.
+        /// </summary>
+        private (List<ITikReSentence> Rows, BoundedReadEnding Ending, BoundedRead Read) RunWithDuration(TimeSpan duration)
+        {
             var read = BoundedRead.Collecting(this, out var snapshot, out var finished);
             read.Start(this);
 
@@ -694,28 +735,10 @@ namespace tik4net.Api
             if (!elapsed)
                 EndRun();
 
-            wasAborted = false;
-            abortReason = null;   // meaningful only when wasAborted is true, per the interface doc
-            switch (read.Ending(elapsed))
-            {
-                case BoundedReadEnding.DurationElapsed:
-                    // The normal end of a bounded read: the command was still streaming.
-                    CancelInternal(true, -1);   // and join the loading thread
-                    break;
-                case BoundedReadEnding.Trap:
-                    wasAborted = true;
-                    abortReason = read.Trap!.Message;   // what the router said
-                    break;
-                case BoundedReadEnding.ConnectionLost:
-                    wasAborted = true;
-                    abortReason = read.FatalReason;
-                    break;
-                case BoundedReadEnding.Cancelled:
-                    wasAborted = true;
-                    abortReason = "Cancelled";
-                    break;
-            }
-            return snapshot();
+            var ending = read.Ending(elapsed);
+            if (ending == BoundedReadEnding.DurationElapsed)
+                CancelInternal(true, -1);   // the normal end of a bounded read: the command was still streaming; join the loading thread
+            return (snapshot(), ending, read);
         }
 
         public override IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
@@ -736,11 +759,9 @@ namespace tik4net.Api
                     throw new TikCommandAbortException(this, string.Format(System.Globalization.CultureInfo.InvariantCulture,
                         "Command did not finish within {0} second(s).", timeout!.Value.TotalSeconds));
                 case BoundedReadEnding.Trap:
-                    throw new TikCommandTrapException(this, read.Trap!);
+                    throw read.TrapException(this);
                 case BoundedReadEnding.ConnectionLost:
-                    throw new IOException(string.IsNullOrEmpty(read.Fatal!.Message)
-                        ? "Connection has been closed."
-                        : "Connection has been closed: " + read.Fatal.Message);
+                    throw read.FatalException(this);
                 default:
                     return snapshot();   // !done received
             }
@@ -818,9 +839,9 @@ namespace tik4net.Api
         //
         // Ending is unchanged and deliberately shared with the synchronous methods: the requested duration
         // (which cancels the command on the router), the command's own !done, a !trap, or a !fatal. A trap or
-        // fatal is thrown out of the enumeration as TikCommandAbortException, matching what
-        // ExecuteListWithDuration(TimeSpan) does with the same event - a caller must not read a truncated stream
-        // as a complete one.
+        // fatal is thrown out of the enumeration as TikCommandAbortException carrying the classified trap or the
+        // TikCommandFatalException as its InnerException, matching what ExecuteListWithDuration(TimeSpan) does with the
+        // same event - a caller must not read a truncated stream as a complete one.
 
         /// <inheritdoc/>
         public IAsyncEnumerable<ITikReSentence> ExecuteListWithDurationAsync(TimeSpan duration,
@@ -883,9 +904,9 @@ namespace tik4net.Api
             switch (ending)
             {
                 case BoundedReadEnding.Trap:
-                    throw new TikCommandAbortException(this, read.Trap!.Message);
+                    throw new TikCommandAbortException(this, read.Trap!.Message, read.TrapException(this));
                 case BoundedReadEnding.ConnectionLost:
-                    throw new TikCommandAbortException(this, read.FatalReason);
+                    throw new TikCommandAbortException(this, read.FatalReason, read.FatalException(this));
             }
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
