@@ -149,7 +149,7 @@ public sealed class MikroTikTools
         "Use executeMode='nonquery' for ACTION verbs that perform work and return no rows " +
         "(e.g. /system/script/run, /system/reboot): over command transports (Telnet/MacTelnet/WinboxCli/WinboxNative) " +
         "the default 'auto' path routes such verbs to the read/print path and throws NotSupportedException, " +
-        "whereas 'nonquery' invokes ExecuteNonQuery() (fire-and-forget, dispatches the action/SYS_CMD). " +
+        "whereas 'nonquery' invokes ExecuteNonQuery(), which runs the command (dispatching the action/SYS_CMD) and discards any rows it prints, on every transport. " +
         "Set traceLevel='words' to also get the raw words exchanged with the router (per-transport wire/CLI form) " +
         "for the command exchange, or traceLevel='bytes' to additionally capture a byte/frame-level wire trace " +
         "(pre-ANSI-strip terminal bytes, mepty pull/settle decisions, M2 frame chunking, socket reads/writes) — " +
@@ -222,7 +222,7 @@ public sealed class MikroTikTools
                      "'nonquery' forces ExecuteNonQuery() — required for ACTION verbs that yield no result set " +
                      "(e.g. /system/script/run, /system/reboot, /system/reset-configuration) over command transports, " +
                      "where 'auto' would treat the verb as a read and throw NotSupportedException. " +
-                     "On success 'nonquery' returns 'OK (action executed, no data returned)'.")]
+                     "On success 'nonquery' returns 'OK (action executed, no data returned)'; rows the command printed are discarded, as ADO.NET's ExecuteNonQuery does.")]
         string executeMode = "auto",
         [Description("RoMON: the agent to reach the router through — its IP address or hostname, or on the MAC-layer " +
                      "transports its MAC (AA:BB:CC:DD:EE:FF). When set, host is the target's RoMON id and username/password are " +

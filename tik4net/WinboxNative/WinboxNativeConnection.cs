@@ -958,8 +958,18 @@ namespace tik4net.WinboxNative
             => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        protected override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => _writer.RunNonQueryAsync(descriptor, cancellationToken);
+        protected override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
+            // A read verb sent as a non-query is read and its rows discarded, as ADO.NET's ExecuteNonQuery does and as
+            // every other transport answers it. The writer knows only writes and .jg actions, and no window declares
+            // 'print' / 'get' as an action, so it refused the command before sending it.
+            if (TikCommandResult.IsReadVerb(TikPath.Verb(descriptor.CommandText)))
+            {
+                await RunPrintAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            await _writer.RunNonQueryAsync(descriptor, cancellationToken).ConfigureAwait(false);
+        }
 
         // ── Capabilities and menu schema ─────────────────────────────────────────
 

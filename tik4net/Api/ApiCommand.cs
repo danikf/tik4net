@@ -116,16 +116,6 @@ namespace tik4net.Api
             return sentences.Cast<ApiSentence>();
         }
 
-        private ApiSentence EnsureSingleResponse(IEnumerable<ApiSentence> response)
-        {
-            // Ignore progress sentences (e.g. .section=0, .section=1) sent by long-running commands
-            // like /system/script/run — they contain only a .section word and precede the real !done.
-            if (response.Count(x => !(x.Words.Count == 1 && x.Words.ContainsKey(".section"))) != 1)
-                throw new TikCommandUnexpectedResponseException("Single response sentence expected.", this, response.Cast<ITikSentence>());
-
-            return response.Last();
-        }
-
         private void EnsureOneReAndDone(IEnumerable<ApiSentence> response)
         {
             if (response.Count() != 2)
@@ -256,8 +246,13 @@ namespace tik4net.Api
                 return;
 
             ThrowPossibleResponseError(responseArray);
-            ApiSentence responseSentence = EnsureSingleResponse(responseArray);
-            EnsureDoneResponse(responseSentence);
+            // Whatever rows the command printed are discarded, as ADO.NET's ExecuteNonQuery does: a print, the
+            // progress rows of /system/package/update/download (status + .section), a script's output. The router
+            // has run the command by now, so refusing the rows would report a success as a failure. A trap among
+            // them has already thrown above; what is left to check is that the answer ended with !done.
+            if (responseArray.Length == 0)
+                throw new TikCommandUnexpectedResponseException("!done sentence expected as result.", this, responseArray.Cast<ITikSentence>());
+            EnsureDoneResponse(responseArray[responseArray.Length - 1]);
         }
 
         private string? InterpretScalar(IEnumerable<ApiSentence> response, bool allowReturnDefault, string? defaultValue)

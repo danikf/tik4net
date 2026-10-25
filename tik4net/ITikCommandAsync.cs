@@ -37,7 +37,8 @@ namespace tik4net
     /// <seealso cref="TikCommandAsyncExtensions"/>
     public interface ITikCommandAsync
     {
-        /// <summary>Async <see cref="ITikCommand.ExecuteNonQuery"/>.</summary>
+        /// <summary>Async <see cref="ITikCommand.ExecuteNonQuery"/>: runs the command and discards any rows it returns,
+        /// as ADO.NET's <c>DbCommand.ExecuteNonQueryAsync</c> does.</summary>
         /// <param name="cancellationToken">Cancellation token — see the interface remarks for what it guarantees per transport.</param>
         Task ExecuteNonQueryAsync(CancellationToken cancellationToken = default(CancellationToken));
 
