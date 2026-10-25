@@ -159,9 +159,7 @@ namespace tik4net.Connection
 
         private protected sealed override ITikCommand NewCommand(string? commandText, TikCommandParameterFormat format,
             ITikCommandParameter[] parameters)
-            => commandText == null
-                ? new TikGenericCommand(this, format)
-                : new TikGenericCommand(this, commandText, format, parameters);
+            => new TikGenericCommand(this, commandText, format, parameters);
 
         private protected sealed override ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format)
             => new TikCommandParameter(name, value, format);
@@ -238,7 +236,7 @@ namespace tik4net.Connection
         /// <summary>As <see cref="CommandFor(TikCommandDescriptor)"/>, for a bare command line.</summary>
         internal ITikCommand CommandFor(string commandText, IEnumerable<ITikCommandParameter>? parameters = null)
         {
-            var cmd = new TikGenericCommand(this, commandText);
+            var cmd = new TikGenericCommand(this, commandText, TikCommandParameterFormat.Default);
             if (parameters != null)
                 foreach (var p in parameters)
                     cmd.AddParameter(p.Name, p.Value, p.ParameterFormat);

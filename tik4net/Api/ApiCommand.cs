@@ -9,123 +9,35 @@ using tik4net.Connection;
 
 namespace tik4net.Api
 {
-    internal class ApiCommand: ITikCommand, ITikCommandAsync
+    internal class ApiCommand : TikCommandBase, ITikCommandAsync
 #if NET8_0_OR_GREATER
         , ITikStreamingCommand
 #endif
     {
-        private volatile bool _isRunning;
         // Null when nothing is running; a tag is an opaque string, so its absence is null rather than a
         // sentinel value.
         private volatile string? _asynchronouslyRunningTag;
         private volatile Thread? _asyncLoadingThread; // only set while an ExecuteWithCallback-family command is running; null otherwise
-        private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
-        private ApiConnection _connection = null!; // set via Connection property before EnsureConnectionSet() is called
-        private string _commandText = null!; // set via CommandText property before EnsureCommandTextSet() is called
-        private TikCommandParameterFormat _defaultParameterFormat;
 
-        public ITikConnection Connection
+        /// <summary>The connection, as the binary API connection the setter accepted.</summary>
+        private ApiConnection Session => (ApiConnection)Connection;
+
+        internal ApiCommand(ITikConnection connection, string? commandText, TikCommandParameterFormat defaultParameterFormat,
+            params ITikCommandParameter[] parameters)
+            : base(connection, commandText, defaultParameterFormat, parameters)
         {
-            get { return _connection; }
-            set
-            {
-                Guard.ArgumentOfType<ApiConnection>(value, "Session");
-                EnsureNotRunning();
-
-                _connection = (ApiConnection)value;
-            }
         }
 
-        public string CommandText
+        private protected override ITikConnection AcceptConnection(ITikConnection value)
         {
-            get { return _commandText; }
-            set
-            {
-                EnsureNotRunning();
-                _commandText = value;
-            }
+            Guard.ArgumentOfType<ApiConnection>(value, "Session");
+            return (ApiConnection)value;
         }
 
-        public bool IsRunning
-        {
-            get { return _isRunning; }
-        }
-
-        public IList<ITikCommandParameter> Parameters
-        {
-            get { return _parameters; }
-        }
-
-        public TikCommandParameterFormat DefaultParameterFormat
-        {
-            get { return _defaultParameterFormat; }
-            set { _defaultParameterFormat = value; }
-        }
-
-        public ApiCommand()
-        {
-            _defaultParameterFormat = TikCommandParameterFormat.Default;
-        }
-
-        public ApiCommand(TikCommandParameterFormat defaultParameterFormat)
-        {
-            _defaultParameterFormat = defaultParameterFormat;
-        }
-
-        public ApiCommand(ITikConnection connection)
-            : this()
-        {
-            Connection = connection;
-        }
-
-        public ApiCommand(ITikConnection connection, TikCommandParameterFormat defaultParameterFormat)
-            : this(defaultParameterFormat)
-        {
-            Connection = connection;
-        }
-
-        public ApiCommand(ITikConnection connection, string commandText)
-            :this(connection)
-        {
-            CommandText = commandText;
-        }
-
-        public ApiCommand(ITikConnection connection, string commandText, TikCommandParameterFormat defaultParameterFormat)
-            : this(connection, defaultParameterFormat)
-        {
-            CommandText = commandText;
-        }
-
-
-        public ApiCommand(ITikConnection connection, string commandText, params ITikCommandParameter[] parameters)
-            : this(connection, commandText)
-        {
-            _parameters.AddRange(parameters);
-        }
-
-        public ApiCommand(ITikConnection connection, string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
-            : this(connection, commandText, defaultParameterFormat)
-        {
-            _parameters.AddRange(parameters);
-        }
-
-        private void EnsureNotRunning()
-        {
-            if (_isRunning)
-                throw new InvalidOperationException("Command is already running.");
-        }
-
-        private void EnsureConnectionSet()
-        {
-            if (_connection == null)
-                throw new InvalidOperationException("Connection is not assigned.");
-        }
-
-        private void EnsureCommandTextSet()
-       {
-            if (string.IsNullOrWhiteSpace(_commandText))
-                throw new InvalidOperationException("CommandText is not set.");
-        }
+        // ApiCommandParameter refuses an empty name; TikCommandParameter does not.
+        private protected override ITikCommandParameter CreateParameter(string name, string? value,
+            TikCommandParameterFormat format)
+            => new ApiCommandParameter(name, value, format);
 
         /// <summary>
         /// Client-side marker parameters that must NEVER be written to the binary API wire.
@@ -147,16 +59,16 @@ namespace tik4net.Api
         private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] additionalParameters)
         {
             EnsureCommandTextSet();
-            if (_connection != null)
-                TikFilterValidation.Check(_connection, this, CommandText,
-                    _parameters.Where(p => p.Name.StartsWith("?")
+            if (Session != null)
+                TikFilterValidation.Check(Session, this, CommandText,
+                    Parameters.Where(p => p.Name.StartsWith("?")
                             || (!p.Name.StartsWith("=") && !IsSpecialParam(p.Name)
-                                && TikParameterFormat.Resolve(p, _defaultParameterFormat, defaultParameterFormat) == TikCommandParameterFormat.Filter))
+                                && TikParameterFormat.Resolve(p, DefaultParameterFormat, defaultParameterFormat) == TikCommandParameterFormat.Filter))
                         .Select(p => p.Name),
                     null);
             foreach (var additionalParameter in additionalParameters)
             {
-                if (_parameters.Any(p => p.Name == additionalParameter.Name))
+                if (Parameters.Any(p => p.Name == additionalParameter.Name))
                     throw new ArgumentException($"Parameter {additionalParameter.Name} already defined (could not be additionalParameter / proplist / etc.).");
             }
 
@@ -175,7 +87,7 @@ namespace tik4net.Api
             }
 
             //parameters
-            result.AddRange(_parameters.Concat(additionalParameters)
+            result.AddRange(Parameters.Concat(additionalParameters)
                 .Where(p => !IsSpecialParam(p.Name))
                 .Select(p =>
             {
@@ -185,7 +97,7 @@ namespace tik4net.Api
                     return string.Format("{0}={1}", p.Name, p.Value);
                 else
                 {
-                    switch (TikParameterFormat.Resolve(p, _defaultParameterFormat, defaultParameterFormat))
+                    switch (TikParameterFormat.Resolve(p, DefaultParameterFormat, defaultParameterFormat))
                     {
                         case TikCommandParameterFormat.Filter:
                             return string.Format("?{0}={1}", p.Name, p.Value);
@@ -197,7 +109,7 @@ namespace tik4net.Api
                             // Not a tik4net exception on purpose: an undefined enum value here is a bug in
                             // the caller's argument, nothing the router said.
                             throw new ArgumentOutOfRangeException(nameof(defaultParameterFormat),
-                                TikParameterFormat.Resolve(p, _defaultParameterFormat, defaultParameterFormat),
+                                TikParameterFormat.Resolve(p, DefaultParameterFormat, defaultParameterFormat),
                                 "Unknown " + nameof(TikCommandParameterFormat) + ".");
                     }
                 }
@@ -271,7 +183,7 @@ namespace tik4net.Api
         }
 
 
-        public void ExecuteNonQuery() => ExecuteNonQuery(_connection?.ReceiveTimeoutMs ?? 0);
+        public override void ExecuteNonQuery() => ExecuteNonQuery(Session?.ReceiveTimeoutMs ?? 0);
 
         /// <summary>
         /// <see cref="ExecuteNonQuery()"/> with an explicit reply deadline. Used by
@@ -281,45 +193,43 @@ namespace tik4net.Api
         private void ExecuteNonQuery(int receiveTimeoutMs)
         {
             EnsureConnectionSet();
-            EnsureNotRunning();
-
-            _isRunning = true;
+            BeginRun();
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
-                InterpretNonQuery(EnsureApiSentences(_connection.CallCommandSync(commandRows, receiveTimeoutMs)).ToArray());
+                InterpretNonQuery(EnsureApiSentences(Session.CallCommandSync(commandRows, receiveTimeoutMs)).ToArray());
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
-        public string ExecuteScalar()
+        public override string ExecuteScalar()
         {
             // allowReturnDefault:false - ExecuteScalarInternal either returns a real value or throws, never null.
             return ExecuteScalarInternal(null, false)!;
         }
 
-        public string ExecuteScalar(string target)
+        public override string ExecuteScalar(string target)
         {
             // allowReturnDefault:false - ExecuteScalarInternal either returns a real value or throws, never null.
             return ExecuteScalarInternal(target, false)!;
         }
 
-        public string? ExecuteScalarOrDefault()
+        public override string? ExecuteScalarOrDefault()
         {
             // Returns null (or the caller's defaultValue, which may be null) when nothing matched —
             // the interface says so and now types it that way.
             return ExecuteScalarInternal(null, true, null);
         }
 
-        public string? ExecuteScalarOrDefault(string? defaultValue)
+        public override string? ExecuteScalarOrDefault(string? defaultValue)
         {
             return ExecuteScalarInternal(null, true, defaultValue);
         }
 
-        public string? ExecuteScalarOrDefault(string? defaultValue, string target)
+        public override string? ExecuteScalarOrDefault(string? defaultValue, string target)
         {
             return ExecuteScalarInternal(target, true, defaultValue);
         }
@@ -327,19 +237,17 @@ namespace tik4net.Api
         private string? ExecuteScalarInternal(string? target, bool allowReturnDefault, string? defaultValue = null)
         {
             EnsureConnectionSet();
-            EnsureNotRunning();
-
-            _isRunning = true;
+            BeginRun();
             try
             {
                 var targetParameterInArray = target != null ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) } : new ITikCommandParameter[] { };
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue, targetParameterInArray);
-                IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
+                IEnumerable<ApiSentence> response = EnsureApiSentences(Session.CallCommandSync(commandRows));
                 return InterpretScalar(response, allowReturnDefault, defaultValue);
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -373,7 +281,7 @@ namespace tik4net.Api
                         return doneSentence.GetResponseWord();
                     // A bare !done: "nothing matched" after a read, "succeeded with nothing to return" after
                     // anything else (how the API answers every write), and an add that named no row.
-                    return TikCommandResult.EmptyScalar(this, tik4net.Connection.TikPath.Verb(_commandText),
+                    return TikCommandResult.EmptyScalar(this, tik4net.Connection.TikPath.Verb(CommandText),
                         allowReturnDefault, defaultValue, "answered !done without a =ret= value");
                 }
                 else if (response.Count() == 2) //!re + !done
@@ -485,59 +393,51 @@ namespace tik4net.Api
                 : proplist.Select(p => (ITikCommandParameter)new ApiCommandParameter(TikSpecialProperties.Proplist, p, TikCommandParameterFormat.NameValue)).ToArray();
 
         // The one place the async surface talks to the connection: build the sentence, await the answer,
-        // hand it to the shared interpreter. _isRunning is set and cleared here exactly as the sync methods
-        // do it, so the two surfaces share the "one command at a time per ITikCommand" rule too.
+        // hand it to the shared interpreter. The run begins and ends here exactly as in the sync methods,
+        // so the two surfaces share the "one command at a time per ITikCommand" rule too.
         private async Task<T> RunAsync<T>(TikCommandParameterFormat format, ITikCommandParameter[]? extraParameters,
             Func<IEnumerable<ApiSentence>, T> interpret, CancellationToken cancellationToken, bool forceTag = true)
         {
             EnsureConnectionSet();
-            EnsureNotRunning();
-
-            var apiConnection = _connection as ApiConnection;
-            if (apiConnection == null)
-                throw new InvalidOperationException("ApiCommand requires an ApiConnection.");
-
-            _isRunning = true;
+            BeginRun();
             try
             {
                 string[] commandRows = ConstructCommandText(format, extraParameters ?? new ITikCommandParameter[] { });
-                var response = await apiConnection.CallCommandCoreAsync(commandRows, cancellationToken, forceTag).ConfigureAwait(false);
+                var response = await Session.CallCommandCoreAsync(commandRows, cancellationToken, forceTag).ConfigureAwait(false);
                 return interpret(EnsureApiSentences(response));
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
-        public ITikReSentence ExecuteSingleRow()
+        public override ITikReSentence ExecuteSingleRow()
         {
             EnsureConnectionSet();
-            EnsureNotRunning();
-
-            _isRunning = true;
+            BeginRun();
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter);
-                return InterpretSingleRow(EnsureApiSentences(_connection.CallCommandSync(commandRows)));
+                return InterpretSingleRow(EnsureApiSentences(Session.CallCommandSync(commandRows)));
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
-        public ITikReSentence? ExecuteSingleRowOrDefault()
+        public override ITikReSentence? ExecuteSingleRowOrDefault()
         {
             return TikCommandResult.SingleRow(this, ExecuteList().ToList(), throwIfMissing: false);
         }
 
-        public IEnumerable<ITikReSentence> ExecuteList()
+        public override IEnumerable<ITikReSentence> ExecuteList()
         {
             return ExecuteListInternal(null);
         }
 
-        public IEnumerable<ITikReSentence> ExecuteList(params string[] proplist)
+        public override IEnumerable<ITikReSentence> ExecuteList(params string[] proplist)
         {
             Guard.ArgumentNotNull(proplist, nameof(proplist));
 
@@ -547,22 +447,20 @@ namespace tik4net.Api
         private IEnumerable<ITikReSentence> ExecuteListInternal(params string[]? proplist)
         {
             EnsureConnectionSet();
-            EnsureNotRunning();
-
-            _isRunning = true;
+            BeginRun();
             try
             {
                 var proplistParameters = proplist == null ? new ITikCommandParameter[] { } : proplist.Select(p => new ApiCommandParameter(TikSpecialProperties.Proplist, p, TikCommandParameterFormat.NameValue)).ToArray();
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter, proplistParameters);
-                return InterpretList(EnsureApiSentences(_connection.CallCommandSync(commandRows)));
+                return InterpretList(EnsureApiSentences(Session.CallCommandSync(commandRows)));
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
-        public void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback,
+        public override void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback,
             Action<ITikTrapSentence>? errorCallback = null,
             Action? onDoneCallback = null)
         {
@@ -591,17 +489,16 @@ namespace tik4net.Api
             Action<ITikSentence>? onTerminalCallback)
         {
             EnsureConnectionSet();
-            EnsureNotRunning();
+            BeginRun();
             System.Diagnostics.Debug.Assert(_asyncLoadingThread == null);
 
             string tag = TagSequence.NextTag();
-            _isRunning = true;
             _asynchronouslyRunningTag = tag;
 
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
-                _asyncLoadingThread = _connection.CallCommandCallbackThread(commandRows, tag,
+                _asyncLoadingThread = Session.CallCommandCallbackThread(commandRows, tag,
                                         response =>
                                         {
                                             ApiReSentence? reResponse = response as ApiReSentence;
@@ -629,7 +526,7 @@ namespace tik4net.Api
                                                 else if (response is ApiDoneSentence || response is ApiFatalSentence)
                                                 {
                                                     //REMARKS: we are expecting !trap + !done sentences when any error occurs
-                                                    _isRunning = false;
+                                                    EndRun();
                                                     _asynchronouslyRunningTag = null;
                                                     _asyncLoadingThread = null;
 
@@ -659,13 +556,13 @@ namespace tik4net.Api
             }
             catch
             {
-                _isRunning = false;
+                EndRun();
                 _asynchronouslyRunningTag = null;
                 throw;
             }
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
+        public override IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
         {
             bool wasAborted;
             string? abortReason;
@@ -684,7 +581,7 @@ namespace tik4net.Api
         // re-asks "are we there yet?". What that polling loop cost was not CPU but ACCURACY:
         //
         //  * an end was noticed up to a full tick after it happened, so every such read paid up to 100 ms;
-        //  * connection loss was read off `_connection.IsOpened` instead of the `!fatal` the reader loop had
+        //  * connection loss was read off the connection's `IsOpened` instead of the `!fatal` the reader loop had
         //    already delivered to this very command — and that `!fatal` carries the reason, which the
         //    flag does not, so the caller got "Connection has been closed" and never learned what happened;
         //  * the tick could also land between a `!trap` and the `!done` that follows it, and in that ordering
@@ -695,7 +592,7 @@ namespace tik4net.Api
         // (a `!trap` is followed by its own `!done`), and disposing it underneath would throw inside a
         // callback whose exceptions are swallowed by design.
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
+        public override IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
         {
             ITikTrapSentence? asyncTrap = null;
             string? fatalMessage = null;
@@ -712,7 +609,7 @@ namespace tik4net.Api
                 {
                     lock (resultLock)
                     {
-                        if (_isRunning)
+                        if (IsRunning)
                             result.Add(reSentence);
                     }
                 },
@@ -741,7 +638,7 @@ namespace tik4net.Api
                 return SnapshotResult(result, resultLock);
             }
 
-            _isRunning = false;
+            EndRun();
 
             if (asyncTrap != null) //ended with an error - report what the router said
             {
@@ -762,7 +659,7 @@ namespace tik4net.Api
             return SnapshotResult(result, resultLock);
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
+        public override IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
         {
             ITikTrapSentence? asyncTrap = null;
             string? fatalMessage = null;
@@ -775,7 +672,7 @@ namespace tik4net.Api
                 {
                     lock (resultLock)
                     {
-                        if (_isRunning)
+                        if (IsRunning)
                             result.Add(reSentence);
                     }
                 },
@@ -804,7 +701,7 @@ namespace tik4net.Api
                     "Command did not finish within {0} second(s).", timeout!.Value.TotalSeconds));
             }
 
-            _isRunning = false;
+            EndRun();
 
             if (asyncTrap != null)
                 throw new TikCommandTrapException(this, asyncTrap);
@@ -824,14 +721,14 @@ namespace tik4net.Api
 
         private bool CancelInternal(bool joinLoadingThread, int millisecondsTimeout)
         {
-            if (_isRunning && _asynchronouslyRunningTag != null)
+            if (IsRunning && _asynchronouslyRunningTag != null)
             {
                 // Capture the thread reference BEFORE ExecuteNonQuery — the async thread may set
                 // _asyncLoadingThread to null when it processes its own !done, which can race with
                 // the /cancel response arriving and leaving _asyncLoadingThread null before we read it.
                 Thread? loadingThread = _asyncLoadingThread;
 
-                ApiCommand cancelCommand = new ApiCommand(_connection, "/cancel",
+                ApiCommand cancelCommand = new ApiCommand(Session, "/cancel", TikCommandParameterFormat.Default,
                     new ApiCommandParameter("tag", _asynchronouslyRunningTag, TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
                     new ApiCommandParameter(TikSpecialProperties.Tag, "c_" + _asynchronouslyRunningTag, TikCommandParameterFormat.Tag) //tag of cancell command itself
                     );
@@ -846,7 +743,7 @@ namespace tik4net.Api
                 // only the first one says the connection is in trouble. What changes is when you hear it.
                 int budgetStart = Environment.TickCount;
                 cancelCommand.ExecuteNonQuery(
-                    millisecondsTimeout > 0 ? millisecondsTimeout : _connection.ReceiveTimeoutMs);
+                    millisecondsTimeout > 0 ? millisecondsTimeout : Session.ReceiveTimeoutMs);
 
                 if (joinLoadingThread)
                 {
@@ -868,74 +765,19 @@ namespace tik4net.Api
             return true;
         }
 
-        public void Cancel()
+        public override void Cancel()
         {
             CancelInternal(false, 0);
         }
 
-        public void CancelAndJoin()
+        public override void CancelAndJoin()
         {
             CancelInternal(true, -1);
         }
 
-        public bool CancelAndJoin(TimeSpan timeout)
+        public override bool CancelAndJoin(TimeSpan timeout)
         {
             return CancelInternal(true, TikTimeSpans.ToWaitMilliseconds(timeout, nameof(timeout)));
-        }
-
-        public ITikCommandParameter AddParameter(string name, string? value)
-        {
-            ApiCommandParameter result = new ApiCommandParameter(name, value);
-            _parameters.Add(result);
-
-            return result;
-        }
-
-        public ITikCommandParameter AddParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
-        {
-            ITikCommandParameter result = AddParameter(name, value);
-            result.ParameterFormat = parameterFormat;
-
-            return result;
-        }
-
-        public ITikCommand WithParameter(string name, string value)
-        {
-            AddParameter(name, value);
-
-            return this;
-        }
-
-        public ITikCommand WithParameter(string name, string value, TikCommandParameterFormat parameterFormat)
-        {
-            AddParameter(name, value, parameterFormat);
-
-            return this;
-        }
-
-        public override string ToString()
-        {
-            return CommandText + " PARAMS: " + string.Join("; ", Parameters.Select(p => $"{p.Name}:{p.Value}").ToArray());
-        }
-
-        private IEnumerable<ITikCommandParameter> CreateParameters(string[] parameterNamesAndValues)
-        {
-            Guard.NamesAndValuesArePaired(parameterNamesAndValues, nameof(parameterNamesAndValues));
-            List<ApiCommandParameter> parameters = new List<ApiCommandParameter>();
-            for (int idx = 0; idx < parameterNamesAndValues.Length / 2; idx++)   // name, value, name, value, ... sequence
-            {
-                parameters.Add(new ApiCommandParameter(parameterNamesAndValues[idx * 2], parameterNamesAndValues[idx * 2 + 1]));
-            }
-
-            return parameters.Cast<ITikCommandParameter>();
-        }
-
-        public IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues)
-        {
-            var parameters = CreateParameters(parameterNamesAndValues);
-            _parameters.AddRange(parameters);
-
-            return parameters;
         }
 
 #if NET8_0_OR_GREATER
@@ -1018,9 +860,9 @@ namespace tik4net.Api
             }
             finally
             {
-                if (_isRunning && (cancelOnEnd || linked.IsCancellationRequested))
+                if (IsRunning && (cancelOnEnd || linked.IsCancellationRequested))
                     CancelInternal(true, -1);
-                _isRunning = false;
+                EndRun();
             }
 
             // Whatever ended the stream is reported after the rows the caller already received, so a

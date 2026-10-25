@@ -1238,9 +1238,7 @@ namespace tik4net.Api
 
         private protected override ITikCommand NewCommand(string? commandText, TikCommandParameterFormat format,
             ITikCommandParameter[] parameters)
-            => commandText == null
-                ? new ApiCommand(this, format)
-                : new ApiCommand(this, commandText, format, parameters);
+            => new ApiCommand(this, commandText, format, parameters);
 
         private protected override ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format)
             => new ApiCommandParameter(name, value, format);

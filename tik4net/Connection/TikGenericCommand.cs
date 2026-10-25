@@ -11,13 +11,8 @@ namespace tik4net.Connection
     /// owning <see cref="TikCommandConnectionBase"/> CRUD hooks (RunPrint/RunAdd/RunNonQuery);
     /// it does not itself build any transport-specific (CLI text / native M2) payload.
     /// </summary>
-    internal class TikGenericCommand : ITikCommand, ITikRawCommand, ITikCommandAsync
+    internal class TikGenericCommand : TikCommandBase, ITikRawCommand, ITikCommandAsync
     {
-        private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
-        private TikCommandConnectionBase _connection = null!; // set via Connection property before EnsureConnectionSet() is called
-        private string _commandText = null!; // set via CommandText property before EnsureCommandTextSet() is called
-        private TikCommandParameterFormat _defaultParameterFormat;
-        private int _running;   // 1 while a run holds the command: set and cleared only through BeginRun / EndRun
         private TikMonitorHandle? _monitorHandle; // only set once ExecuteWithCallback has been called; see Cancel/CancelAndJoin's null-conditional use
 
         // ── Raw pass-through (ITikRawCommand) ──────────────────────────────────
@@ -29,120 +24,30 @@ namespace tik4net.Connection
         private bool _wrapAsValue;
 
         private TikCommandDescriptor BuildRawDescriptor()
-            => new TikCommandDescriptor(_commandText, new List<ITikCommandParameter>(), isRaw: true, wrapAsValue: _wrapAsValue);
+            => new TikCommandDescriptor(CommandText, new List<ITikCommandParameter>(), isRaw: true, wrapAsValue: _wrapAsValue);
 
-        public ITikConnection Connection
+        /// <summary>The connection, as the transport base the setter accepted.</summary>
+        private TikCommandConnectionBase Transport => (TikCommandConnectionBase)Connection;
+
+        internal TikGenericCommand(TikCommandConnectionBase connection, string? commandText,
+            TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
+            : base(connection, commandText, defaultParameterFormat, parameters)
         {
-            get { return _connection; }
-            set
-            {
-                EnsureNotRunning();
-                Guard.ArgumentOfType<TikCommandConnectionBase>(value, "connection");
-                _connection = (TikCommandConnectionBase)value;
-            }
         }
 
-        public string CommandText
+        private protected override ITikConnection AcceptConnection(ITikConnection value)
         {
-            get { return _commandText; }
-            set
-            {
-                EnsureNotRunning();
-                _commandText = value;
-            }
+            Guard.ArgumentOfType<TikCommandConnectionBase>(value, "connection");
+            return (TikCommandConnectionBase)value;
         }
 
-        public bool IsRunning => Volatile.Read(ref _running) != 0;
-
-        // ── Running guard ─────────────────────────────────────────────────────
-        // One run at a time, as ApiCommand: a second execute, or a change of what the command is, while it runs is
-        // refused with the same message on every transport. The check and the set are one atomic step, so two
-        // threads racing to execute cannot both pass. Only the outermost method of a delegation begins a run
-        // (ExecuteListUntilDone -> ExecuteList, ExecuteScalar* -> ExecuteScalarInternal, the async surface -> its
-        // *InternalAsync), and the run that began it ends it.
-
-        private void EnsureNotRunning()
-        {
-            if (IsRunning)
-                throw new InvalidOperationException("Command is already running.");
-        }
-
-        private void BeginRun()
-        {
-            if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
-                throw new InvalidOperationException("Command is already running.");
-        }
-
-        private void EndRun() => Volatile.Write(ref _running, 0);
-
-        public IList<ITikCommandParameter> Parameters => _parameters;
-
-        public TikCommandParameterFormat DefaultParameterFormat
-        {
-            get { return _defaultParameterFormat; }
-            set { _defaultParameterFormat = value; }
-        }
-
-        public TikGenericCommand()
-        {
-            _defaultParameterFormat = TikCommandParameterFormat.Default;
-        }
-
-        public TikGenericCommand(TikCommandParameterFormat defaultParameterFormat)
-        {
-            _defaultParameterFormat = defaultParameterFormat;
-        }
-
-        public TikGenericCommand(TikCommandConnectionBase connection) : this()
-        {
-            Connection = connection;
-        }
-
-        public TikGenericCommand(TikCommandConnectionBase connection, TikCommandParameterFormat defaultParameterFormat)
-            : this(defaultParameterFormat)
-        {
-            Connection = connection;
-        }
-
-        public TikGenericCommand(TikCommandConnectionBase connection, string commandText)
-            : this(connection)
-        {
-            CommandText = commandText;
-        }
-
-        public TikGenericCommand(TikCommandConnectionBase connection, string commandText, TikCommandParameterFormat defaultParameterFormat)
-            : this(connection, defaultParameterFormat)
-        {
-            CommandText = commandText;
-        }
-
-        public TikGenericCommand(TikCommandConnectionBase connection, string commandText, params ITikCommandParameter[] parameters)
-            : this(connection, commandText)
-        {
-            _parameters.AddRange(parameters);
-        }
-
-        public TikGenericCommand(TikCommandConnectionBase connection, string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
-            : this(connection, commandText, defaultParameterFormat)
-        {
-            _parameters.AddRange(parameters);
-        }
-
-        private void EnsureConnectionSet()
-        {
-            if (_connection == null)
-                throw new InvalidOperationException("Connection is not assigned.");
-        }
-
-        private void EnsureCommandTextSet()
-        {
-            if (string.IsNullOrWhiteSpace(_commandText))
-                throw new InvalidOperationException("CommandText is not set.");
-        }
+        private protected override ITikCommandParameter CreateParameter(string name, string? value,
+            TikCommandParameterFormat format)
+            => new TikCommandParameter(name, value, format);
 
         // ── Execute methods ───────────────────────────────────────────────────
 
-        public void ExecuteNonQuery()
+        public override void ExecuteNonQuery()
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
@@ -152,11 +57,11 @@ namespace tik4net.Connection
                 if (_isRaw)
                 {
                     // Raw send: the answer text is discarded, a router error still throws (RunRawText).
-                    _connection.InvokeRunRawText(BuildRawDescriptor());
+                    Transport.InvokeRunRawText(BuildRawDescriptor());
                     return;
                 }
-                var (cmd, p) = NormalizeMultilineCommand(_commandText, _parameters);
-                _connection.InvokeRunNonQuery(BuildCommand(cmd, p));
+                var (cmd, p) = NormalizeMultilineCommand(CommandText, Parameters);
+                Transport.InvokeRunNonQuery(BuildCommand(cmd, p));
             }
             finally
             {
@@ -164,31 +69,31 @@ namespace tik4net.Connection
             }
         }
 
-        public string ExecuteScalar()
+        public override string ExecuteScalar()
         {
             // throwIfMissing:true - ExecuteScalarInternal either returns a real value or throws, never null.
             return ExecuteScalarInternal(null, throwIfMissing: true, defaultValue: null)!;
         }
 
-        public string ExecuteScalar(string target)
+        public override string ExecuteScalar(string target)
         {
             // throwIfMissing:true - ExecuteScalarInternal either returns a real value or throws, never null.
             return ExecuteScalarInternal(target, throwIfMissing: true, defaultValue: null)!;
         }
 
-        public string? ExecuteScalarOrDefault()
+        public override string? ExecuteScalarOrDefault()
         {
             // Returns null (or the caller's defaultValue, which may be null) when nothing matched —
             // the interface says so and now types it that way.
             return ExecuteScalarInternal(null, throwIfMissing: false, defaultValue: null);
         }
 
-        public string? ExecuteScalarOrDefault(string? defaultValue)
+        public override string? ExecuteScalarOrDefault(string? defaultValue)
         {
             return ExecuteScalarInternal(null, throwIfMissing: false, defaultValue: defaultValue);
         }
 
-        public string? ExecuteScalarOrDefault(string? defaultValue, string target)
+        public override string? ExecuteScalarOrDefault(string? defaultValue, string target)
         {
             return ExecuteScalarInternal(target, throwIfMissing: false, defaultValue: defaultValue);
         }
@@ -201,21 +106,21 @@ namespace tik4net.Connection
             try
             {
                 if (_isRaw)
-                    return ScalarFromRawText(_connection.InvokeRunRawText(BuildRawDescriptor()), throwIfMissing, defaultValue);
+                    return ScalarFromRawText(Transport.InvokeRunRawText(BuildRawDescriptor()), throwIfMissing, defaultValue);
 
-                var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
+                var (normalCmd, normalParams) = NormalizeMultilineCommand(CommandText, Parameters);
                 string verb = TikPath.Verb(normalCmd);
 
                 if (verb == "add")
                     // The new .id, or TikAddIdNotReadException from the connection: never a default, which would hide
                     // a row that is on the router.
-                    return _connection.InvokeRunAdd(BuildCommand(normalCmd, normalParams));
+                    return Transport.InvokeRunAdd(BuildCommand(normalCmd, normalParams));
 
                 var cmd = BuildCommand(normalCmd, ResolveParamsForRead(normalParams));
                 IList<TikRecordSentence> rows;
                 try
                 {
-                    rows = _connection.InvokeRunPrint(cmd);
+                    rows = Transport.InvokeRunPrint(cmd);
                 }
                 catch (TikNoSuchItemException)
                 {
@@ -275,9 +180,9 @@ namespace tik4net.Connection
         }
 
         // ExecuteSingleRow's throwIfMissing:true never lets TikCommandResult.SingleRow return null.
-        public ITikReSentence ExecuteSingleRow() => ExecuteSingleRowInternal(throwIfMissing: true)!;
+        public override ITikReSentence ExecuteSingleRow() => ExecuteSingleRowInternal(throwIfMissing: true)!;
 
-        public ITikReSentence? ExecuteSingleRowOrDefault() => ExecuteSingleRowInternal(throwIfMissing: false);
+        public override ITikReSentence? ExecuteSingleRowOrDefault() => ExecuteSingleRowInternal(throwIfMissing: false);
 
         private ITikReSentence? ExecuteSingleRowInternal(bool throwIfMissing)
         {
@@ -286,7 +191,7 @@ namespace tik4net.Connection
             BeginRun();
             try
             {
-                return TikCommandResult.SingleRow(this, _connection.InvokeRunPrint(BuildReadDescriptor()), throwIfMissing);
+                return TikCommandResult.SingleRow(this, Transport.InvokeRunPrint(BuildReadDescriptor()), throwIfMissing);
             }
             finally
             {
@@ -294,12 +199,12 @@ namespace tik4net.Connection
             }
         }
 
-        public IEnumerable<ITikReSentence> ExecuteList()
+        public override IEnumerable<ITikReSentence> ExecuteList()
         {
             return ExecuteListInternal(null);
         }
 
-        public IEnumerable<ITikReSentence> ExecuteList(params string[] proplistFields)
+        public override IEnumerable<ITikReSentence> ExecuteList(params string[] proplistFields)
         {
             return ExecuteListInternal(proplistFields);
         }
@@ -311,7 +216,7 @@ namespace tik4net.Connection
             BeginRun();
             try
             {
-                return _connection.InvokeRunPrint(BuildReadDescriptor(proplist));
+                return Transport.InvokeRunPrint(BuildReadDescriptor(proplist));
             }
             finally
             {
@@ -347,7 +252,7 @@ namespace tik4net.Connection
         {
             if (_isRaw)
                 return BuildRawDescriptor();
-            var (cmd, baseParams) = NormalizeMultilineCommand(_commandText, _parameters);
+            var (cmd, baseParams) = NormalizeMultilineCommand(CommandText, Parameters);
             return BuildCommand(cmd, ResolveParamsForRead(baseParams));
         }
 
@@ -401,11 +306,11 @@ namespace tik4net.Connection
                 if (_isRaw)
                 {
                     // Raw send: the answer text is discarded, a router error still throws (RunRawText).
-                    await _connection.InvokeRunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
+                    await Transport.InvokeRunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
                     return;
                 }
-                var (cmd, p) = NormalizeMultilineCommand(_commandText, _parameters);
-                await _connection.InvokeRunNonQueryAsync(BuildCommand(cmd, p), cancellationToken).ConfigureAwait(false);
+                var (cmd, p) = NormalizeMultilineCommand(CommandText, Parameters);
+                await Transport.InvokeRunNonQueryAsync(BuildCommand(cmd, p), cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -424,23 +329,23 @@ namespace tik4net.Connection
             {
                 if (_isRaw)
                 {
-                    string rawText = await _connection.InvokeRunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
+                    string rawText = await Transport.InvokeRunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
                     return ScalarFromRawText(rawText, throwIfMissing, defaultValue);
                 }
 
-                var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
+                var (normalCmd, normalParams) = NormalizeMultilineCommand(CommandText, Parameters);
                 string verb = TikPath.Verb(normalCmd);
 
                 if (verb == "add")
                 {
-                    return await _connection.InvokeRunAddAsync(BuildCommand(normalCmd, normalParams), cancellationToken).ConfigureAwait(false);
+                    return await Transport.InvokeRunAddAsync(BuildCommand(normalCmd, normalParams), cancellationToken).ConfigureAwait(false);
                 }
 
                 var readCmd = BuildCommand(normalCmd, ResolveParamsForRead(normalParams));
                 IList<TikRecordSentence> rows;
                 try
                 {
-                    rows = await _connection.InvokeRunPrintAsync(readCmd, cancellationToken).ConfigureAwait(false);
+                    rows = await Transport.InvokeRunPrintAsync(readCmd, cancellationToken).ConfigureAwait(false);
                 }
                 catch (TikNoSuchItemException)
                 {
@@ -464,7 +369,7 @@ namespace tik4net.Connection
             BeginRun();
             try
             {
-                var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
+                var rows = await Transport.InvokeRunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
                 return TikCommandResult.SingleRow(this, rows, throwIfMissing);
             }
             finally
@@ -482,7 +387,7 @@ namespace tik4net.Connection
             BeginRun();
             try
             {
-                var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(proplist), cancellationToken).ConfigureAwait(false);
+                var rows = await Transport.InvokeRunPrintAsync(BuildReadDescriptor(proplist), cancellationToken).ConfigureAwait(false);
                 return rows.Cast<ITikReSentence>().ToList();
             }
             finally
@@ -493,37 +398,37 @@ namespace tik4net.Connection
 
         // ── Unsupported: streaming / async ────────────────────────────────────
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
+        public override IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
         {
             throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Streaming,
                 "This transport does not support streaming commands (ExecuteListWithDuration). Use a transport that reports the Streaming capability (binary API).");
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
+        public override IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration, out bool wasAborted, out string? abortReason)
         {
             throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Streaming,
                 "This transport does not support streaming commands (ExecuteListWithDuration). Use a transport that reports the Streaming capability (binary API).");
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
+        public override IEnumerable<ITikReSentence> ExecuteListUntilDone(TimeSpan? timeout = null)
         {
             // CLI is synchronous and single-shot — fallback to regular list (same as REST).
             return ExecuteList();
         }
 
-        public void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback,
+        public override void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback,
             Action<ITikTrapSentence>? errorCallback = null,
             Action? onDoneCallback = null)
         {
             // Streaming monitors are an opt-in transport capability (ITikMonitorTransport): native WinBox M2
             // implements it, the CLI transports do not. Only those that cannot do it throw NotSupported.
-            if (!(_connection is ITikMonitorTransport monitorTransport))
+            if (!(Transport is ITikMonitorTransport monitorTransport))
                 throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Listen,
                     "This transport does not support asynchronous/listen commands. Use a transport that reports the Listen capability.");
 
             // Normalize a multi-line command (e.g. "/interface/print\n?type=ether\n?#|") into a clean command
             // path plus parsed Filter parameters, exactly like the synchronous read paths do.
-            var (cmdText, allParams) = NormalizeMultilineCommand(_commandText, _parameters);
+            var (cmdText, allParams) = NormalizeMultilineCommand(CommandText, Parameters);
             var descriptor = new TikCommandDescriptor(cmdText, allParams);
             BeginRun();
             try
@@ -540,58 +445,12 @@ namespace tik4net.Connection
             }
         }
 
-        public void Cancel() { _monitorHandle?.Cancel(); }
-        public void CancelAndJoin() { _monitorHandle?.Join(-1); }
-        public bool CancelAndJoin(TimeSpan timeout)
+        public override void Cancel() { _monitorHandle?.Cancel(); }
+        public override void CancelAndJoin() { _monitorHandle?.Join(-1); }
+        public override bool CancelAndJoin(TimeSpan timeout)
         {
             int budget = TikTimeSpans.ToWaitMilliseconds(timeout, nameof(timeout));
             return _monitorHandle == null || _monitorHandle.Join(budget);
-        }
-
-        // ── Parameter helpers ─────────────────────────────────────────────────
-
-        public ITikCommandParameter AddParameter(string name, string? value)
-        {
-            var p = CreateParameter(name, value);
-            _parameters.Add(p);
-            return p;
-        }
-
-        public ITikCommandParameter AddParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
-        {
-            var p = CreateParameter(name, value, parameterFormat);
-            _parameters.Add(p);
-            return p;
-        }
-
-        public ITikCommand WithParameter(string name, string value)
-        {
-            AddParameter(name, value);
-            return this;
-        }
-
-        public ITikCommand WithParameter(string name, string value, TikCommandParameterFormat parameterFormat)
-        {
-            AddParameter(name, value, parameterFormat);
-            return this;
-        }
-
-        public IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues)
-        {
-            Guard.NamesAndValuesArePaired(parameterNamesAndValues, nameof(parameterNamesAndValues));
-            var result = new List<ITikCommandParameter>();
-            for (int i = 0; i < parameterNamesAndValues.Length / 2; i++)
-            {
-                var p = CreateParameter(parameterNamesAndValues[i * 2], parameterNamesAndValues[i * 2 + 1]);
-                _parameters.Add(p);
-                result.Add(p);
-            }
-            return result;
-        }
-
-        private static ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat fmt = TikCommandParameterFormat.Default)
-        {
-            return new TikCommandParameter(name, value, fmt);
         }
 
         // ── Internal builder helpers ──────────────────────────────────────────
@@ -607,7 +466,7 @@ namespace tik4net.Connection
         // ── Multi-line normalization ──────────────────────────────────────────
 
         /// <summary>
-        /// Splits a multi-line <see cref="CommandText"/> — the whole sentence, one word per line — into the
+        /// Splits a multi-line <see cref="TikCommandBase.CommandText"/> — the whole sentence, one word per line — into the
         /// command and the parameters its rows describe, appended to any the caller added directly.
         /// </summary>
         /// <remarks>
@@ -649,7 +508,7 @@ namespace tik4net.Connection
         /// Gives every <see cref="TikCommandParameterFormat.Default"/> parameter of a READ its actual format through
         /// <see cref="TikParameterFormat.Resolve"/>, with <see cref="TikCommandParameterFormat.Filter"/> as the use
         /// case: <c>.proplist</c> is the field list and <c>.tag</c> a tag, then the command's own
-        /// <see cref="DefaultParameterFormat"/> when one was set, then a filter.
+        /// <see cref="TikCommandBase.DefaultParameterFormat"/> when one was set, then a filter.
         /// </summary>
         /// <remarks>
         /// The command default is honoured: ignored, every unformatted parameter of a read would become a
@@ -673,7 +532,7 @@ namespace tik4net.Connection
                     && !p.Name.StartsWith("?"))
                 {
                     result.Add(new TikCommandParameter(p.Name, p.Value,
-                        TikParameterFormat.Resolve(p, _defaultParameterFormat, TikCommandParameterFormat.Filter)));
+                        TikParameterFormat.Resolve(p, DefaultParameterFormat, TikCommandParameterFormat.Filter)));
                 }
                 else
                 {
@@ -682,8 +541,5 @@ namespace tik4net.Connection
             }
             return result;
         }
-
-        public override string ToString()
-            => CommandText + " PARAMS: " + string.Join("; ", _parameters.Select(p => $"{p.Name}:{p.Value}"));
     }
 }

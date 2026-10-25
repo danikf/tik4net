@@ -1,6 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
-using tik4net.Connection;
+using tik4net.Testing;
 
 namespace tik4net.unittests.Cli
 {
@@ -12,7 +12,7 @@ namespace tik4net.unittests.Cli
     [TestClass]
     public class CliSafeModeParserTests
     {
-        private static void Take(string output) => CliSafeModeParser.ThrowIfTakeFailed(output, new TikGenericCommand());
+        private static void Take(string output) => CliSafeModeParser.ThrowIfTakeFailed(output, new TikFakeConnection().CreateCommand("/system/safe-mode"));
 
         [TestMethod]
         public void TheSuccessMessage_IsNotARefusal()
