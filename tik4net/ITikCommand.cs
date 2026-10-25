@@ -298,6 +298,7 @@ namespace tik4net
         /// </summary>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...). Type of parameter is resolved from parameter name or from command type.</param>
         /// <returns>List of created parameters.</returns>
+        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items); nothing is added.</exception>
         IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues);
 
         /// <summary>

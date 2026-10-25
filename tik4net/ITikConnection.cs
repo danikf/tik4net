@@ -408,6 +408,7 @@ namespace tik4net
         /// <param name="commandText">Command text in mikrotik API format</param>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
         /// <returns>Command with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items).</exception>
         ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues);
 
         /// <summary>
@@ -418,6 +419,7 @@ namespace tik4net
         /// <param name="defaultParameterFormat">How will be parameter formated in mikrotik command - default value for command (could be overriden per parameter).</param>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
         /// <returns>Command with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items).</exception>
         ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues);        
 
         /// <summary>

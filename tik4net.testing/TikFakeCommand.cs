@@ -323,10 +323,21 @@ namespace tik4net.Testing
         /// <inheritdoc/>
         public IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues)
         {
+            EnsurePaired(parameterNamesAndValues);
             var added = new List<ITikCommandParameter>();
             for (int i = 0; i + 1 < parameterNamesAndValues.Length; i += 2)
                 added.Add(AddParameter(parameterNamesAndValues[i], parameterNamesAndValues[i + 1]));
             return added;
+        }
+
+        // The real commands' rule (tik4net's internal Guard is not visible here): an unpaired last name is refused
+        // before anything is added, so a test against the fake cannot pass on a call the router-facing command refuses.
+        internal static void EnsurePaired(string[] parameterNamesAndValues)
+        {
+            if (parameterNamesAndValues.Length % 2 != 0)
+                throw new ArgumentException(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "Parameters come in name/value pairs; '{0}' has no value.",
+                    parameterNamesAndValues[parameterNamesAndValues.Length - 1]), nameof(parameterNamesAndValues));
         }
 
         /// <inheritdoc/>

@@ -975,6 +975,7 @@ namespace tik4net.Api
 
         private IEnumerable<ITikCommandParameter> CreateParameters(string[] parameterNamesAndValues)
         {
+            Guard.NamesAndValuesArePaired(parameterNamesAndValues, nameof(parameterNamesAndValues));
             List<ApiCommandParameter> parameters = new List<ApiCommandParameter>();
             for (int idx = 0; idx < parameterNamesAndValues.Length / 2; idx++)   // name, value, name, value, ... sequence
             {

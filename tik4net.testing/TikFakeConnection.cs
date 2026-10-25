@@ -380,6 +380,7 @@ namespace tik4net.Testing
         /// <inheritdoc/>
         public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
         {
+            TikFakeCommand.EnsurePaired(parameterNamesAndValues);
             var cmd = new TikFakeCommand(this) { CommandText = commandText, DefaultParameterFormat = defaultParameterFormat };
             for (int i = 0; i + 1 < parameterNamesAndValues.Length; i += 2)
                 cmd.Parameters.Add(CreateParameter(parameterNamesAndValues[i], parameterNamesAndValues[i + 1], defaultParameterFormat));

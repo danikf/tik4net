@@ -607,6 +607,7 @@ namespace tik4net.Connection
 
         public IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues)
         {
+            Guard.NamesAndValuesArePaired(parameterNamesAndValues, nameof(parameterNamesAndValues));
             var result = new List<ITikCommandParameter>();
             for (int i = 0; i < parameterNamesAndValues.Length / 2; i++)
             {

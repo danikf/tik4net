@@ -37,6 +37,20 @@ namespace tik4net
         }
 
         /// <summary>
+        /// Checks a name/value list (<c>name, value, name2, value2, …</c>) for an unpaired last name, which would
+        /// otherwise be dropped without a word. Called before anything of the list is added.
+        /// </summary>
+        /// <param name="namesAndValues">The list to check.</param>
+        /// <param name="argumentName">The name of the argument.</param>
+        internal static void NamesAndValuesArePaired(string[] namesAndValues, string argumentName)
+        {
+            if (namesAndValues.Length % 2 != 0)
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture,
+                    "Parameters come in name/value pairs; '{0}' has no value.",
+                    namesAndValues[namesAndValues.Length - 1]), argumentName);
+        }
+
+        /// <summary>
         /// Checks an argumen to ensure it is of given type.
         /// </summary>
         /// <typeparam name="TExpectedType">Expected type.</typeparam>

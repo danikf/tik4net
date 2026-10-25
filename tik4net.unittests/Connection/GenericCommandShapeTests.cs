@@ -237,16 +237,26 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void AddParameterAndValues_DropsAnUnpairedLastName()
+        public void AddParameterAndValues_RefusesAnUnpairedLastName()
         {
-            // X7 as it is: no error, the last name is gone.
+            // X7: an unpaired name is an error, and nothing of the list is added.
             var conn = new RecordingConnection();
             var cmd = conn.CreateCommand("/ip/address/print");
-            var added = cmd.AddParameterAndValues("name", "a", "comment").ToList();
+            var ex = Assert.ThrowsException<ArgumentException>(() => cmd.AddParameterAndValues("name", "a", "comment"));
 
-            Assert.AreEqual(1, added.Count);
-            Assert.AreEqual(1, cmd.Parameters.Count);
-            Assert.AreEqual("name", cmd.Parameters[0].Name);
+            StringAssert.Contains(ex.Message, "'comment'");
+            Assert.AreEqual(0, cmd.Parameters.Count);
+        }
+
+        [TestMethod]
+        public void CreateCommandAndParameters_RefusesAnUnpairedLastName()
+        {
+            var conn = new RecordingConnection();
+            var ex = Assert.ThrowsException<ArgumentException>(
+                () => conn.CreateCommandAndParameters("/ip/address/print", "name", "a", "comment"));
+
+            StringAssert.Contains(ex.Message, "'comment'");
+            Assert.AreEqual(0, conn.Calls.Count);
         }
 
         [TestMethod]

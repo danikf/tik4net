@@ -270,6 +270,28 @@ namespace tik4net.unittests.Api
         }
 
         [TestMethod]
+        public void AddParameterAndValues_RefusesAnUnpairedLastName()
+        {
+            // X7: refused before anything is sent, so no exchange is needed.
+            using var connection = new ApiConnection(false);
+            var cmd = connection.CreateCommand("/ip/address/print");
+            var ex = Assert.ThrowsException<ArgumentException>(() => cmd.AddParameterAndValues("name", "a", "comment"));
+
+            StringAssert.Contains(ex.Message, "'comment'");
+            Assert.AreEqual(0, cmd.Parameters.Count);
+        }
+
+        [TestMethod]
+        public void CreateCommandAndParameters_RefusesAnUnpairedLastName()
+        {
+            using var connection = new ApiConnection(false);
+            var ex = Assert.ThrowsException<ArgumentException>(
+                () => connection.CreateCommandAndParameters("/ip/address/print", "name", "a", "comment"));
+
+            StringAssert.Contains(ex.Message, "'comment'");
+        }
+
+        [TestMethod]
         public void ExecuteListWithDuration_Trap_ThrowsAbort()
         {
             // X3 as it is: the same router error as the two above, as a third type.
