@@ -7,7 +7,7 @@ layer — so you use whatever the router already has enabled, and switching tran
 you work at the level that suits the task — raw sentences, an ADO.NET-like command API, or a typed O/R mapper over
 170+ RouterOS menus — on the same connection. The first working program is five lines.
 
-Tested on RouterOS **7.24.5** on every transport, and on 7.21.5 and 6.49.13
+Tested on RouterOS **7.25** on every transport, and on 7.21.5 and 6.49.13
 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions)).
 
 ## Install
@@ -57,7 +57,7 @@ Step by step: [Getting started](https://github.com/danikf/tik4net/wiki/Getting-s
 
 **5.0** — prerelease, `5.0.0-alpha3` on NuGet ([Upgrading from 4.x](https://github.com/danikf/tik4net/wiki/Upgrading-from-4.x-to-5.0)):
 * [RoMON](https://github.com/danikf/tik4net/wiki/RoMON-connection) — reach a router through a neighbouring one, over any CLI or WinBox transport
-* One codebase from RouterOS 6.49 to 7.24 — [RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions)
+* One codebase from RouterOS 6.49 to 7.25 — [RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions)
 * [TikField](https://github.com/danikf/tik4net/wiki/TikField) — a property knows whether the router printed the field, and never invents a default
 * [Describing menus](https://github.com/danikf/tik4net/wiki/Describing-menus) — `DescribeMenu` asks the router which commands, arguments and values a menu takes
 * [Connection string](https://github.com/danikf/tik4net/wiki/Connecting-to-a-router#from-a-connection-string) — router, credentials and transport from configuration

@@ -286,7 +286,7 @@ with `<menu> add ` / `<menu> set ` over WinBox CLI, the space form `/ip firewall
 router profiles are in `tik4net.integrationtests/App.config`), or run `VersionPresenceProbe`, which does every mapped
 menu at once. Then:
 
-| Present on 7.24.5 / 7.21.5 / 6.49.13 | Bound |
+| Present on 7.25 / 7.21.5 / 6.49.13 | Bound |
 |---|---|
 | yes / yes / no | `MinRouterOs = "7"` |
 | yes / no / no | `MinRouterOs = "7.22"` |
