@@ -318,7 +318,10 @@ transport written outside), and its name in messages and its RoMON agent type ar
 `ApiCommand` and `TikGenericCommand` derive from the internal `TikCommandBase`, which holds what a command is
 (connection, command text, parameters, default format), the one-run-at-a-time guard and the parameter builders. They
 decide an answer by the same rules (`TikCommandResult`: the read verbs, an empty scalar, the single row) and resolve
-an unformatted parameter by the same function (`TikParameterFormat.Resolve`); what each sends is its own.
+an unformatted parameter by the same function (`TikParameterFormat.Resolve`); what each sends is its own. The
+`TikSpecialProperties` markers that only the mapper adds for one transport's own handling (`.cli-stats`, `.cli-json`,
+`.cli-flags`, `.cli-sensitive`, `.winbox-labels`) are listed once, in `TikTransportMarkers.IsClientMarker`. The API,
+REST and CLI builders strip them all, and each one adds its own transport's exceptions on top of that list.
 
 The one thing deliberately **not** offered here is `ITikRawSentenceConnection`: see the contract section
 above for why a transport-neutral base cannot have a connection-specific format.
