@@ -16,6 +16,7 @@ namespace tik4net
         /// <summary>
         /// Connection assigned to command (used to perform operations on router).
         /// </summary>
+        /// <exception cref="InvalidOperationException">Set while the command runs (<see cref="IsRunning"/>).</exception>
         ITikConnection Connection { get; set; }
 
         /// <summary>
@@ -34,10 +35,14 @@ namespace tik4net
         /// Either way a malformed row is reported, never dropped.
         /// </para>
         /// </remarks>
+        /// <exception cref="InvalidOperationException">Set while the command runs (<see cref="IsRunning"/>).</exception>
         string CommandText { get; set; }
 
         /// <summary>
-        /// True when command is already running.
+        /// True when command is already running: from the start of an execute until it returns, and for
+        /// <see cref="ExecuteWithCallback"/> until the monitor ends, however it ends (done, error, cancel, connection
+        /// lost). A second execute while the command runs throws <see cref="InvalidOperationException"/> on every
+        /// transport, and so does a change of <see cref="CommandText"/> or <see cref="Connection"/>.
         /// </summary>
         /// <seealso cref="ExecuteWithCallback"/>
         /// <seealso cref="Cancel"/>

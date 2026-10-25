@@ -17,7 +17,7 @@ namespace tik4net.Connection
         private TikCommandConnectionBase _connection = null!; // set via Connection property before EnsureConnectionSet() is called
         private string _commandText = null!; // set via CommandText property before EnsureCommandTextSet() is called
         private TikCommandParameterFormat _defaultParameterFormat;
-        private volatile bool _isRunning;
+        private int _running;   // 1 while a run holds the command: set and cleared only through BeginRun / EndRun
         private TikMonitorHandle? _monitorHandle; // only set once ExecuteWithCallback has been called; see Cancel/CancelAndJoin's null-conditional use
 
         // ── Raw pass-through (ITikRawCommand) ──────────────────────────────────
@@ -36,6 +36,7 @@ namespace tik4net.Connection
             get { return _connection; }
             set
             {
+                EnsureNotRunning();
                 Guard.ArgumentOfType<TikCommandConnectionBase>(value, "connection");
                 _connection = (TikCommandConnectionBase)value;
             }
@@ -44,10 +45,35 @@ namespace tik4net.Connection
         public string CommandText
         {
             get { return _commandText; }
-            set { _commandText = value; }
+            set
+            {
+                EnsureNotRunning();
+                _commandText = value;
+            }
         }
 
-        public bool IsRunning => _isRunning;
+        public bool IsRunning => Volatile.Read(ref _running) != 0;
+
+        // ── Running guard ─────────────────────────────────────────────────────
+        // One run at a time, as ApiCommand: a second execute, or a change of what the command is, while it runs is
+        // refused with the same message on every transport. The check and the set are one atomic step, so two
+        // threads racing to execute cannot both pass. Only the outermost method of a delegation begins a run
+        // (ExecuteListUntilDone -> ExecuteList, ExecuteScalar* -> ExecuteScalarInternal, the async surface -> its
+        // *InternalAsync), and the run that began it ends it.
+
+        private void EnsureNotRunning()
+        {
+            if (IsRunning)
+                throw new InvalidOperationException("Command is already running.");
+        }
+
+        private void BeginRun()
+        {
+            if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
+                throw new InvalidOperationException("Command is already running.");
+        }
+
+        private void EndRun() => Volatile.Write(ref _running, 0);
 
         public IList<ITikCommandParameter> Parameters => _parameters;
 
@@ -120,7 +146,7 @@ namespace tik4net.Connection
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
-            _isRunning = true;
+            BeginRun();
             try
             {
                 if (_isRaw)
@@ -134,7 +160,7 @@ namespace tik4net.Connection
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -171,7 +197,7 @@ namespace tik4net.Connection
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
-            _isRunning = true;
+            BeginRun();
             try
             {
                 if (_isRaw)
@@ -203,7 +229,7 @@ namespace tik4net.Connection
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -293,14 +319,14 @@ namespace tik4net.Connection
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
-            _isRunning = true;
+            BeginRun();
             try
             {
                 return SingleRowFromRows(_connection.InvokeRunPrint(BuildReadDescriptor()), throwIfMissing);
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -318,14 +344,14 @@ namespace tik4net.Connection
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
-            _isRunning = true;
+            BeginRun();
             try
             {
                 return _connection.InvokeRunPrint(BuildReadDescriptor(proplist));
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -424,7 +450,7 @@ namespace tik4net.Connection
             // Level 0 of the cancellation contract, applied here so it holds on every transport rather than
             // depending on each one remembering: a token that is already cancelled sends nothing at all.
             cancellationToken.ThrowIfCancellationRequested();
-            _isRunning = true;
+            BeginRun();
             try
             {
                 if (_isRaw)
@@ -438,7 +464,7 @@ namespace tik4net.Connection
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -448,7 +474,7 @@ namespace tik4net.Connection
             EnsureConnectionSet();
             EnsureCommandTextSet();
             cancellationToken.ThrowIfCancellationRequested();   // Level 0 — see ExecuteNonQueryInternalAsync
-            _isRunning = true;
+            BeginRun();
             try
             {
                 if (_isRaw)
@@ -481,7 +507,7 @@ namespace tik4net.Connection
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -490,7 +516,7 @@ namespace tik4net.Connection
             EnsureConnectionSet();
             EnsureCommandTextSet();
             cancellationToken.ThrowIfCancellationRequested();   // Level 0 — see ExecuteNonQueryInternalAsync
-            _isRunning = true;
+            BeginRun();
             try
             {
                 var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
@@ -498,7 +524,7 @@ namespace tik4net.Connection
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -508,7 +534,7 @@ namespace tik4net.Connection
             EnsureConnectionSet();
             EnsureCommandTextSet();
             cancellationToken.ThrowIfCancellationRequested();   // Level 0 — see ExecuteNonQueryInternalAsync
-            _isRunning = true;
+            BeginRun();
             try
             {
                 var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(proplist), cancellationToken).ConfigureAwait(false);
@@ -516,7 +542,7 @@ namespace tik4net.Connection
             }
             finally
             {
-                _isRunning = false;
+                EndRun();
             }
         }
 
@@ -554,17 +580,17 @@ namespace tik4net.Connection
             // path plus parsed Filter parameters, exactly like the synchronous read paths do.
             var (cmdText, allParams) = NormalizeMultilineCommand(_commandText, _parameters);
             var descriptor = new TikCommandDescriptor(cmdText, allParams);
-            _isRunning = true;
+            BeginRun();
             try
             {
                 _monitorHandle = monitorTransport.RunMonitorAsync(descriptor,
                     row => oneResponseCallback?.Invoke(row),
                     trap => errorCallback?.Invoke(trap),
-                    () => { _isRunning = false; onDoneCallback?.Invoke(); });
+                    () => { EndRun(); onDoneCallback?.Invoke(); });
             }
             catch
             {
-                _isRunning = false;
+                EndRun();
                 throw;
             }
         }
