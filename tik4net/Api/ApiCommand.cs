@@ -227,26 +227,6 @@ namespace tik4net.Api
             return sentences.Cast<ApiSentence>();
         }
 
-        /// <summary>
-        /// True for the read verbs, where a bare !done (no !re row, no =ret=) means "nothing matched" and
-        /// <see cref="TikNoSuchItemException"/> is the right answer. Every other verb answers a bare !done
-        /// on <b>success</b>, so the same shape there means "this command has no return value" — see
-        /// <see cref="TikCommandEmptyResponseException"/>. The two are indistinguishable in the response
-        /// alone; only the verb tells them apart.
-        /// </summary>
-        private bool IsReadVerb()
-        {
-            switch (tik4net.Connection.TikPath.Verb(_commandText))
-            {
-                case "print":
-                case "get":
-                case "getall":
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
         private ApiSentence EnsureSingleResponse(IEnumerable<ApiSentence> response)
         {
             // Ignore progress sentences (e.g. .section=0, .section=1) sent by long-running commands
@@ -405,25 +385,10 @@ namespace tik4net.Api
                     ApiDoneSentence doneSentence = EnsureDoneResponse(response.Single());
                     if (doneSentence.Words.ContainsKey(TikSpecialProperties.Ret))
                         return doneSentence.GetResponseWord();
-                    else if (tik4net.Connection.TikPath.Verb(_commandText) == "add")
-                        // The router took the add and named no row: it is very likely there anyway, and a default
-                        // would hide it, so OrDefault throws too (TikAddIdNotRead).
-                        throw TikAddIdNotRead.Create(this, null);
-                    else if (allowReturnDefault)
-                        return defaultValue;
-                    else if (IsReadVerb())
-                        // A read that produced no !re row genuinely found nothing.
-                        throw new TikNoSuchItemException(this);
-                    else
-                        // Anything else answering a bare !done with no =ret= succeeded and simply has no
-                        // return value — that is how the API answers every write. Reporting that as "no such
-                        // item" invented a router error for a command that had worked, and pointed the caller
-                        // at a record that was never missing. The CLI transports hit the same case (empty
-                        // output) and now answer identically.
-                        throw new TikCommandEmptyResponseException(this,
-                            "The router answered !done without a =ret= value, so there is no scalar value to return. "
-                            + "Commands that return nothing (set/unset/remove/enable/…) succeed this way — "
-                            + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the value is optional.");
+                    // A bare !done: "nothing matched" after a read, "succeeded with nothing to return" after
+                    // anything else (how the API answers every write), and an add that named no row.
+                    return TikCommandResult.EmptyScalar(this, tik4net.Connection.TikPath.Verb(_commandText),
+                        allowReturnDefault, defaultValue, "answered !done without a =ret= value");
                 }
                 else if (response.Count() == 2) //!re + !done
                 {
@@ -441,10 +406,10 @@ namespace tik4net.Api
         {
             ThrowPossibleResponseError(response.ToArray());
 
-            if (response.OfType<ApiReSentence>().Count() > 1)
-                throw new TikCommandAmbiguousResultException(this);
-            EnsureOneReAndDone(response);
-            return (ApiReSentence)response.First();
+            var rows = response.OfType<ApiReSentence>().ToList();
+            if (rows.Count <= 1)
+                EnsureOneReAndDone(response);   // the shape around the one row; a bare !done is no such item
+            return TikCommandResult.SingleRow(this, rows, throwIfMissing: true)!;
         }
 
         private IList<ITikReSentence> InterpretList(IEnumerable<ApiSentence> response)
@@ -487,9 +452,7 @@ namespace tik4net.Api
         {
             var rows = await RunAsync(TikCommandParameterFormat.Filter, null, InterpretList, cancellationToken)
                 .ConfigureAwait(false);
-            if (rows.Count > 1)
-                throw new TikCommandAmbiguousResultException(this);
-            return rows.SingleOrDefault();
+            return TikCommandResult.SingleRow(this, rows, throwIfMissing: false);
         }
 
         Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(CancellationToken cancellationToken)
@@ -580,11 +543,7 @@ namespace tik4net.Api
 
         public ITikReSentence? ExecuteSingleRowOrDefault()
         {
-            var sentences = ExecuteList();
-
-            if (sentences.Count() > 1)
-                throw new TikCommandAmbiguousResultException(this);
-            return sentences.SingleOrDefault();
+            return TikCommandResult.SingleRow(this, ExecuteList().ToList(), throwIfMissing: false);
         }
 
         public IEnumerable<ITikReSentence> ExecuteList()

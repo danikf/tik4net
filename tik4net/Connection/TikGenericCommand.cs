@@ -244,21 +244,9 @@ namespace tik4net.Connection
         /// detection or row extraction — raw has no record model.
         /// </summary>
         private string? ScalarFromRawText(string rawText, bool throwIfMissing, string? defaultValue)
-        {
-            if (!string.IsNullOrEmpty(rawText))
-                return rawText;
-
-            // Empty output is NOT "no such item": a raw command has no record model, and the silent answer is
-            // exactly what a successful write prints over the CLI (set/unset/remove/enable/comment all echo
-            // nothing). Reporting that as TikNoSuchItemException fabricated a router error for a command that
-            // had worked.
-            if (throwIfMissing)
-                throw new TikCommandEmptyResponseException(this,
-                    "Raw command returned no output, so there is no scalar value to return. "
-                    + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
-                    + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
-            return defaultValue;
-        }
+            // Empty output is not "no such item": a raw command has no record model, and the silent answer is what a
+            // successful write prints over the CLI (set/unset/remove/enable/comment all echo nothing).
+            => !string.IsNullOrEmpty(rawText) ? rawText : TikCommandResult.EmptyRawScalar(this, !throwIfMissing, defaultValue);
 
         /// <summary>
         /// Scalar of a read: pick <paramref name="target"/> (or the first non-<c>.id</c> field) out of the single
@@ -269,19 +257,9 @@ namespace tik4net.Connection
         private string? ScalarFromRows(IList<TikRecordSentence> rows, string verb, string? target, bool throwIfMissing, string? defaultValue)
         {
             if (rows.Count == 0)
-            {
-                if (throwIfMissing)
-                    // A read that matched nothing really is 'no such item'; any other verb printing
-                    // nothing has simply succeeded without a return value (same rule as the binary API
-                    // applies to a bare !done — the two shapes are indistinguishable without the verb).
-                    throw IsReadVerb(verb)
-                        ? (TikCommandException)new TikNoSuchItemException(this)
-                        : new TikCommandEmptyResponseException(this,
-                            $"'{verb}' returned no output, so there is no scalar value to return. "
-                            + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
-                            + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
-                return defaultValue;
-            }
+                // A read that matched nothing really is 'no such item'; any other verb printing nothing has simply
+                // succeeded without a return value (the binary API's bare !done, told apart the same way).
+                return TikCommandResult.EmptyScalar(this, verb, !throwIfMissing, defaultValue, "returned no output");
             if (rows.Count > 1)
                 throw new TikCommandUnexpectedResponseException("Single value expected but multiple rows returned.", this, rows.Cast<ITikSentence>());
 
@@ -296,21 +274,7 @@ namespace tik4net.Connection
             return defaultValue;
         }
 
-        /// <summary>Single-row result interpretation, shared by the sync and Task-based paths.</summary>
-        private ITikReSentence? SingleRowFromRows(IList<TikRecordSentence> rows, bool throwIfMissing)
-        {
-            if (rows.Count == 0)
-            {
-                if (throwIfMissing)
-                    throw new TikNoSuchItemException(this);
-                return null;
-            }
-            if (rows.Count > 1)
-                throw new TikCommandAmbiguousResultException(this, rows.Count);
-            return rows[0];
-        }
-
-        // ExecuteSingleRow's throwIfMissing:true never lets SingleRowFromRows return null.
+        // ExecuteSingleRow's throwIfMissing:true never lets TikCommandResult.SingleRow return null.
         public ITikReSentence ExecuteSingleRow() => ExecuteSingleRowInternal(throwIfMissing: true)!;
 
         public ITikReSentence? ExecuteSingleRowOrDefault() => ExecuteSingleRowInternal(throwIfMissing: false);
@@ -322,7 +286,7 @@ namespace tik4net.Connection
             BeginRun();
             try
             {
-                return SingleRowFromRows(_connection.InvokeRunPrint(BuildReadDescriptor()), throwIfMissing);
+                return TikCommandResult.SingleRow(this, _connection.InvokeRunPrint(BuildReadDescriptor()), throwIfMissing);
             }
             finally
             {
@@ -375,25 +339,6 @@ namespace tik4net.Connection
         }
 
         /// <summary>
-        /// True for the read verbs, where an empty result set means "nothing matched". Every other verb
-        /// prints nothing on <b>success</b>, so there an empty result set means "this command has no return
-        /// value" (<see cref="TikCommandEmptyResponseException"/>). Kept in step with the binary API's
-        /// equivalent test in <c>ApiCommand.IsReadVerb</c>.
-        /// </summary>
-        private static bool IsReadVerb(string verb)
-        {
-            switch (verb)
-            {
-                case "print":
-                case "get":
-                case "getall":
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>
         /// The descriptor the read paths (ExecuteList/ExecuteSingleRow and their async siblings) hand to the print
         /// hook: verbatim for a raw command, otherwise the multiline command + params normalized and with Default
         /// parameters resolved to Filter.
@@ -412,7 +357,7 @@ namespace tik4net.Connection
         // path must keep working on transports whose async hooks are not implemented yet (they throw), and running
         // the async path over a blocking hook would be the Task.Run façade the design rules out. What the two
         // paths must NOT do is interpret a response differently, so everything after the Run*/Run*Async call is
-        // the shared Scalar*/SingleRowFromRows helpers.
+        // the shared Scalar* helpers and TikCommandResult.
         //
         // Explicit implementation: consumers reach these through the Execute*Async extension methods on
         // ITikCommand, which apply the fail-closed AsyncCommands check first.
@@ -520,7 +465,7 @@ namespace tik4net.Connection
             try
             {
                 var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
-                return SingleRowFromRows(rows, throwIfMissing);
+                return TikCommandResult.SingleRow(this, rows, throwIfMissing);
             }
             finally
             {
