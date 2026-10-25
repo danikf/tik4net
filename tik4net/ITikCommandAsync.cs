@@ -10,9 +10,10 @@ namespace tik4net
     /// <para>
     /// <b>Consumers do not use this interface directly and never cast to it</b> — call the <c>Execute*Async</c>
     /// extension methods on <see cref="ITikCommand"/> (<see cref="TikCommandAsyncExtensions"/>), which do the
-    /// dispatch and the fail-closed capability check. The interface exists because <c>netstandard2.0</c> has no
-    /// default interface methods, so adding these members to <see cref="ITikCommand"/> would break every external
-    /// implementer — including <c>tik4net.testing</c>'s fake connection and any consumer's own fake.
+    /// dispatch and the fail-closed <see cref="TikConnectionCapability.AsyncCommands"/> check. The members live on a
+    /// separate interface so that a custom <see cref="ITikCommand"/> — <c>tik4net.testing</c>'s fake connection, or a
+    /// consumer's own fake — need not implement them: the extensions refuse such a command with
+    /// <see cref="TikConnectionCapabilityNotSupportedException"/>.
     /// </para>
     /// </summary>
     /// <remarks>

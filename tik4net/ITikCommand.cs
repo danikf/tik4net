@@ -14,7 +14,9 @@ namespace tik4net
     public interface ITikCommand
     {
         /// <summary>
-        /// Connection assigned to command (used to perform operations on router).
+        /// The connection that created the command. Assigning a different connection is not supported; the setter refuses
+        /// one the command cannot run on (a binary-API command takes only an API connection, a command of the other
+        /// transports only one of theirs), and any change while the command runs.
         /// </summary>
         /// <exception cref="InvalidOperationException">Set while the command runs (<see cref="IsRunning"/>).</exception>
         ITikConnection Connection { get; set; }
@@ -128,7 +130,10 @@ namespace tik4net
         /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <paramref name="defaultValue"/>.
         /// Usefull to return one value from one selected row (for example .id of searched record).
         /// </summary>
-        /// <param name="defaultValue">Value returned when matching record was not found.</param>
+        /// <remarks>
+        /// To name a field without a default, pass <c>null</c>: <c>ExecuteScalarOrDefault(null, target)</c>.
+        /// </remarks>
+        /// <param name="defaultValue">Value returned when matching record was not found; <c>null</c> for none.</param>
         /// <param name="target">Name of returned field.</param>
         /// <returns>Value returned by router or <paramref name="defaultValue"/>.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
@@ -169,6 +174,10 @@ namespace tik4net
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) as result.
         /// </summary>
         /// <returns>List of !re sentences</returns>
+        /// <remarks>
+        /// The rows are read in full before the method returns: the result is a materialised list behind the
+        /// <c>IEnumerable&lt;T&gt;</c>, so enumerating it twice sends nothing twice.
+        /// </remarks>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
@@ -181,6 +190,10 @@ namespace tik4net
         /// </summary>
         /// <param name="proplistFields">The fields to return, sent as one <c>.proplist</c> parameter; every transport returns only these.</param>
         /// <returns>List of !re sentences</returns>
+        /// <remarks>
+        /// The rows are read in full before the method returns: the result is a materialised list behind the
+        /// <c>IEnumerable&lt;T&gt;</c>, so enumerating it twice sends nothing twice.
+        /// </remarks>
         /// <exception cref="ArgumentException">The command already has its own <c>.proplist</c> parameter: name the fields there or here, not both. Thrown before anything is sent.</exception>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>

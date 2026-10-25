@@ -1,7 +1,8 @@
 ﻿namespace tik4net.Api
 {
     /// <summary>
-    /// Connection/command extensions specific for <see cref="ApiConnection"/>.
+    /// Connection/command extensions for the <c>.proplist</c> parameter. Works on every transport; each honours
+    /// <c>.proplist</c> in its own way.
     /// </summary>
     public static class ApiExtensions
     {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 
@@ -40,7 +41,12 @@ namespace tik4net
         /// CLI-only marker — when present on a command, the CLI layer performs two
         /// print queries (detail + stats) and merges the results by .id.
         /// API and REST transports silently ignore this parameter.
+        /// <para>
+        /// The O/R mapper's marker for the CLI transports. Not meant to be added by hand; no transport sends it to the
+        /// router.
+        /// </para>
         /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public const string CliStats = ".cli-stats";
 
         /// <summary>
@@ -54,7 +60,12 @@ namespace tik4net
         /// prints, so a low-level print on a pre-7.20 router has no flag fields. API, REST and WinBox-native
         /// transports silently ignore this parameter.
         /// </para>
+        /// <para>
+        /// The O/R mapper's marker for the CLI transports. Not meant to be added by hand; no transport sends it to the
+        /// router.
+        /// </para>
         /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public const string CliFlags = ".cli-flags";
 
         /// <summary>
@@ -74,7 +85,12 @@ namespace tik4net
         /// prints the text as stored — so the value survives there too, except that a CRLF line ending reads as LF.
         /// API, REST and WinBox-native transports silently ignore this parameter.
         /// </para>
+        /// <para>
+        /// The O/R mapper's marker for the CLI transports. Not meant to be added by hand; no transport sends it to the
+        /// router.
+        /// </para>
         /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public const string CliJson = ".cli-json";
 
         /// <summary>
@@ -87,7 +103,12 @@ namespace tik4net
         /// ("expected end of command"): a menu that refuses it is read without it, and remembered per connection.
         /// API, REST and WinBox-native transports silently ignore this parameter.
         /// </para>
+        /// <para>
+        /// The O/R mapper's marker for the CLI transports. Not meant to be added by hand; no transport sends it to the
+        /// router.
+        /// </para>
         /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public const string CliSensitive = ".cli-sensitive";
 
         /// <summary>
@@ -100,7 +121,12 @@ namespace tik4net
         /// connection that declares <see cref="TikConnectionCapability.FieldLabels"/>. API, REST and the CLI
         /// transports silently ignore this parameter if it reaches them anyway.
         /// </para>
+        /// <para>
+        /// The O/R mapper's marker for the WinBox-native transports. Not meant to be added by hand; no transport sends it
+        /// to the router.
+        /// </para>
         /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public const string WinboxLabels = ".winbox-labels";
     }
 }

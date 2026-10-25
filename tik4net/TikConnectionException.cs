@@ -8,8 +8,13 @@ using System.Text.RegularExpressions;
 namespace tik4net
 {
     /// <summary>
-    /// Any exception from mikrotik session.
+    /// The root of every tik4net exception: connection, login and command errors all derive from it.
     /// </summary>
+    /// <remarks>
+    /// The O/R mapper's two value checks are the exception: <c>TikUnparsedValueException</c> and
+    /// <c>TikStrictValueException</c> report a value already read into an entity, not anything the router or the
+    /// connection did, and derive from <see cref="InvalidOperationException"/>.
+    /// </remarks>
     public abstract class TikConnectionException : Exception
     {
         /// <summary>

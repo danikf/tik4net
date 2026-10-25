@@ -75,6 +75,12 @@ namespace tik4net.Objects
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND).</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
+        /// <remarks>
+        /// The token comes before the filters, so a filtered call passes it first —
+        /// <c>LoadListAsync&lt;T&gt;(cancellationToken, filter1, filter2)</c> — or names the filters without a token:
+        /// <c>LoadListAsync&lt;T&gt;(filterParameters: new[] { filter1, filter2 })</c>. <c>LoadListAsync&lt;T&gt;(filter)</c> does not
+        /// compile, since the first argument after the connection is the token.
+        /// </remarks>
         public static async Task<IList<TEntity>> LoadListAsync<TEntity>(this ITikConnection connection,
             CancellationToken cancellationToken = default(CancellationToken),
             params ITikCommandParameter[] filterParameters)
@@ -101,6 +107,12 @@ namespace tik4net.Objects
         /// <returns>The single loaded entity.</returns>
         /// <exception cref="TikNoSuchItemException">No row returned.</exception>
         /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
+        /// <remarks>
+        /// The token comes before the filters, so a filtered call passes it first —
+        /// <c>LoadSingleAsync&lt;T&gt;(cancellationToken, filter1, filter2)</c> — or names the filters without a token:
+        /// <c>LoadSingleAsync&lt;T&gt;(filterParameters: new[] { filter1, filter2 })</c>. <c>LoadSingleAsync&lt;T&gt;(filter)</c> does not
+        /// compile, since the first argument after the connection is the token.
+        /// </remarks>
         public static async Task<TEntity> LoadSingleAsync<TEntity>(this ITikConnection connection,
             CancellationToken cancellationToken = default(CancellationToken),
             params ITikCommandParameter[] filterParameters)
@@ -125,6 +137,12 @@ namespace tik4net.Objects
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND).</param>
         /// <returns>The single loaded entity, or the type default when nothing matched.</returns>
         /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
+        /// <remarks>
+        /// The token comes before the filters, so a filtered call passes it first —
+        /// <c>LoadSingleOrDefaultAsync&lt;T&gt;(cancellationToken, filter1, filter2)</c> — or names the filters without a token:
+        /// <c>LoadSingleOrDefaultAsync&lt;T&gt;(filterParameters: new[] { filter1, filter2 })</c>. <c>LoadSingleOrDefaultAsync&lt;T&gt;(filter)</c> does not
+        /// compile, since the first argument after the connection is the token.
+        /// </remarks>
         public static async Task<TEntity?> LoadSingleOrDefaultAsync<TEntity>(this ITikConnection connection,
             CancellationToken cancellationToken = default(CancellationToken),
             params ITikCommandParameter[] filterParameters)

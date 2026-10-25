@@ -22,6 +22,7 @@
 
         /// <summary>
         /// Format .tag=value. <seealso cref="TikSpecialProperties.Tag"/>
+        /// Binary API only. The other transports ignore a <c>.tag</c> parameter, like every API sentence marker.
         /// </summary>
         Tag,
     }

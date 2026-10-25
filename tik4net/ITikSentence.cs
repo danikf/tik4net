@@ -13,7 +13,7 @@ namespace tik4net
         IReadOnlyDictionary<string, string> Words { get; }
 
         /// <summary>
-        /// Tag of sentence (see asynchronous commands for details).
+        /// The binary API's <c>.tag</c>; empty on every other transport.
         /// </summary>
         /// <seealso cref="ITikCommand.ExecuteWithCallback"/>
         string Tag { get; }

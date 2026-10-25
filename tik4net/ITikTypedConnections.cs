@@ -70,9 +70,15 @@ namespace tik4net
     /// </summary>
     /// <remarks>
     /// Carries two things the other transports have no equivalent of: <see cref="ITikCliCompletion"/>, the
-    /// router's own Tab-completion, which was previously reachable only by casting and had no convenience
-    /// shim at all; and <see cref="ITikCancellationModeConnection"/>, because a terminal is the only place
-    /// where cancelling mid-command is a choice between waiting and losing the session.
+    /// router's own Tab-completion; and <see cref="ITikCancellationModeConnection"/>, because a terminal is the only
+    /// place where cancelling mid-command is a choice between waiting and losing the session.
+    /// <para>
+    /// <b>Setting facets not on this type.</b> Every CLI connection also implements
+    /// <see cref="ITikCliPagedReadConnection"/>, <see cref="ITikCliFieldSeparatorConnection"/> and
+    /// <see cref="ITikCatalogCacheConnection"/>, and the SSH connection <see cref="ITikSshKeyConnection"/>.
+    /// <see cref="TikConnectionSetup"/> applies all of them when it creates the connection; a caller who needs one
+    /// afterwards casts: <c>((ITikCliPagedReadConnection)connection).CliReadPageSize = 50</c>.
+    /// </para>
     /// <para>
     /// <b>Thread safety.</b> Safe from several threads, but commands queue rather than overlap: a
     /// terminal carries one conversation. See <see cref="Cli.CliConnectionBase"/> for what that means for
@@ -114,6 +120,11 @@ namespace tik4net
     /// <c>configure</c> callback of <c>CreateWinboxNativeConnection</c>, which hands you the concrete
     /// <see cref="WinboxNative.WinboxNativeConnection"/>. That is the line: what you configure before
     /// opening comes from the callback, what you use afterwards is on this interface.
+    /// </para>
+    /// <para>
+    /// <b>Setting facets not on this type.</b> The connection also implements <see cref="ITikCatalogCacheConnection"/>,
+    /// which <see cref="TikConnectionSetup"/> applies when it creates the connection; a caller who needs it afterwards
+    /// casts: <c>((ITikCatalogCacheConnection)connection).CatalogCachePath</c>.
     /// </para>
     /// <para>
     /// <b>Thread safety.</b> Safe from several threads, and commands genuinely overlap once the
