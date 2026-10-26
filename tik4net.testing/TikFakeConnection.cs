@@ -164,6 +164,10 @@ namespace tik4net.Testing
         /// <summary>
         /// Registers a handler that returns a !trap sentence followed by !done, simulating a router error.
         /// </summary>
+        /// <remarks>
+        /// <c>ExecuteWithCallback</c> / <c>LoadWithCallback</c> report it to the error callback and, as on every transport,
+        /// do not call <c>onDone</c> after it.
+        /// </remarks>
         /// <param name="predicate">Matches the command rows to trap.</param>
         /// <param name="message">Error message (e.g. "no such item", "already have such item").</param>
         /// <param name="categoryCode">Optional MikroTik error category code.</param>

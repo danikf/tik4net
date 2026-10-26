@@ -278,13 +278,19 @@ namespace tik4net.Testing
             // API's own version. Suppressed here rather than at the declaration, so a CONSUMER still sees the
             // warning and this one deliberate use does not silence it for everyone.
 #pragma warning disable 618
+            // As the transports do: onDone only when the command ends without an error. A scripted trap is followed by
+            // !done (WithTrap), and that !done does not reach onDone.
+            bool errorReported = false;   // only the one delivery thread reads and writes it
             _asyncThread = _fakeConnection.CallCommandAsync(BuildCommandRows(), _asyncTag, sentence =>
             {
                 if (sentence is ITikReSentence re)
                     oneResponseCallback(re);
                 else if (sentence is ITikTrapSentence trap)
+                {
+                    errorReported = true;
                     errorCallback?.Invoke(trap);
-                else if (sentence is ITikDoneSentence)
+                }
+                else if (sentence is ITikDoneSentence && !errorReported)
                     onDoneCallback?.Invoke();
             });
 #pragma warning restore 618

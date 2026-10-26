@@ -451,12 +451,16 @@ namespace tik4net.Connection
             var (cmdText, allParams) = NormalizeMultilineCommand(CommandText, Parameters);
             var descriptor = new TikCommandDescriptor(cmdText, allParams);
             BeginRun();
+            // D21: the run ends (EndRun) on every ending, X6's running guard depends on it; the caller's onDone only
+            // when no error was reported. The engine reports no error when the caller cancelled, so a cancel still
+            // ends in onDone.
+            var ending = new TikCallbackEnding();
             try
             {
                 _monitorHandle = monitorTransport.RunMonitorAsync(descriptor,
                     row => oneResponseCallback?.Invoke(row),
-                    trap => errorCallback?.Invoke(trap),
-                    () => { EndRun(); onDoneCallback?.Invoke(); });
+                    trap => ending.Error(trap, errorCallback),
+                    () => { EndRun(); ending.Done(onDoneCallback); });
             }
             catch
             {

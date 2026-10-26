@@ -211,7 +211,8 @@ namespace tik4net.unittests.Connection
             var ended = new ManualResetEventSlim(false);
             var traps = new List<string>();
 
-            cmd.ExecuteWithCallback(row => { }, trap => { lock (traps) traps.Add(trap.Message); }, () => ended.Set());
+            // Ended: onDone, or the error for the monitor that failed (D21: no onDone after an error).
+            cmd.ExecuteWithCallback(row => { }, trap => { lock (traps) traps.Add(trap.Message); ended.Set(); }, () => ended.Set());
 
             try
             {
@@ -232,6 +233,44 @@ namespace tik4net.unittests.Connection
                     "an error is reported only when the monitor failed on its own");
             Assert.IsFalse(cmd.IsRunning, "a monitor that ended (" + ending + ") clears the flag");
             cmd.ExecuteList();   // the fake still answers after "lost": what is under test is the flag
+        }
+
+        /// <summary>
+        /// D21: onDone fires once when the monitor ends without an error (it ended by itself, or the caller cancelled
+        /// it), and not after an error, which goes to errorCallback alone. The running flag clears either way.
+        /// </summary>
+        /// <remarks>
+        /// "lost" is a poll that fails after the connection has closed: <see cref="PollingMonitorEngine"/> counts that
+        /// as stopping and reports no error, so it ends in onDone.
+        /// </remarks>
+        [DataTestMethod]
+        [DataRow("done", true)]
+        [DataRow("cancel", true)]
+        [DataRow("lost", true)]
+        [DataRow("trap", false)]
+        public void OnDoneFiresOnlyWhenTheMonitorEndsWithoutAnError(string ending, bool expectDone)
+        {
+            var conn = new BlockingConnection { MonitorEnding = ending };
+            conn.Disarm();
+            var cmd = conn.CreateCommand("/ip/address/print");
+            var ended = new ManualResetEventSlim(false);
+            var traps = new List<string>();
+            int done = 0;
+
+            cmd.ExecuteWithCallback(row => { },
+                trap => { lock (traps) traps.Add(trap.Message); ended.Set(); },
+                () => { Interlocked.Increment(ref done); ended.Set(); });
+            if (ending == "cancel")
+                cmd.Cancel();
+            else
+                conn.EndMonitor.Set();
+
+            Assert.IsTrue(ended.Wait(Wait), "a callback said the monitor ended");
+            Assert.IsTrue(cmd.CancelAndJoin(Wait), "the worker finished");
+            lock (traps)
+                Assert.AreEqual(ending == "trap" ? 1 : 0, traps.Count, "errors reported");
+            Assert.AreEqual(expectDone ? 1 : 0, Volatile.Read(ref done), "onDone calls after '" + ending + "'");
+            Assert.IsFalse(cmd.IsRunning, "the flag clears on every ending");
         }
     }
 }

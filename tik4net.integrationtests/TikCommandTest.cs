@@ -239,13 +239,16 @@ namespace tik4net.integrationtests
             bool onDoneCallbackCalled = false;
 
             int rows = 0;
+            ITikTrapSentence error = null;
             var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
-            torchCommand.ExecuteWithCallback(response => Interlocked.Increment(ref rows), error => { }, () => { onDoneCallbackCalled = true; });
-            // Running before it is cancelled: a row, or done already (a transport that bounds the monitor).
-            WaitUntil(() => Volatile.Read(ref rows) > 0 || onDoneCallbackCalled, TimeSpan.FromSeconds(3));
+            torchCommand.ExecuteWithCallback(response => Interlocked.Increment(ref rows), e => error = e, () => { onDoneCallbackCalled = true; });
+            // Running before it is cancelled: a row, or done already (a transport that bounds the monitor), or an error.
+            WaitUntil(() => Volatile.Read(ref rows) > 0 || onDoneCallbackCalled || error != null, TimeSpan.FromSeconds(3));
             torchCommand.CancelAndJoin();
 
-            Assert.IsTrue(onDoneCallbackCalled);
+            // onDone is not called after an error (D21), so name the error rather than fail on the missing onDone.
+            Assert.IsNull(error, "torch reported an error: " + error?.Message);
+            Assert.IsTrue(onDoneCallbackCalled, "a cancelled command ends in onDone");
         }
 
         [TestMethod]

@@ -251,8 +251,9 @@ namespace tik4net.Objects
 
         /// <summary>
         /// As <see cref="LoadWithCallback{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, ITikCommandParameter[])"/>,
-        /// and calls <paramref name="onDoneCallback"/> once the load has ended: after the last row, and after the error
-        /// when the router answered with one. Callbacks are called from a background thread.
+        /// and calls <paramref name="onDoneCallback"/> once the load has ended without an error: after the last row, or when
+        /// <see cref="ITikCommand.Cancel"/> stopped it. After an error only <paramref name="onExceptionCallback"/> is called.
+        /// Callbacks are called from a background thread.
         /// </summary>
         /// <remarks>
         /// <paramref name="onExceptionCallback"/> has no default here, so the shorter call shapes
@@ -263,7 +264,7 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="onLoadItemCallback">Callback called for each loaded row.</param>
         /// <param name="onExceptionCallback">Callback called when the router answers with an error (<c>!trap</c>): it receives the router's trap, classified as every command's trap is: a <see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/> or <see cref="TikAlreadyHaveSuchItemException"/> where the message says so, else a <see cref="TikCommandTrapException"/>. May be <c>null</c>.</param>
-        /// <param name="onDoneCallback">Callback called once the load has ended. May be <c>null</c>.</param>
+        /// <param name="onDoneCallback">Callback called once the load has ended without an error; not after an error. May be <c>null</c>.</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         /// <returns><see cref="ITikCommand"/> which is already running the load. You can cancel it by <see cref="ITikCommand.Cancel"/>.</returns>
         /// <seealso cref="TikCommandExtensions.LoadWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/>

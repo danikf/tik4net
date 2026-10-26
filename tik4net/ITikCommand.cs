@@ -301,8 +301,12 @@ namespace tik4net
         /// </para>
         /// </remarks>
         /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>
-        /// <param name="errorCallback">Callback called when error occurs (command operation is than ended).</param>
-        /// <param name="onDoneCallback">Callback called at the end of command run (when command is successfully finished - !done is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
+        /// <param name="errorCallback">Callback called once when the command ends with an error: the router's error, or a lost
+        /// connection. <paramref name="onDoneCallback"/> is not called after it.</param>
+        /// <param name="onDoneCallback">Callback called once when the command ends without an error: it finished, or
+        /// <see cref="Cancel"/> stopped it. It is not called after an error, which is reported to
+        /// <paramref name="errorCallback"/> instead, so cleanup that must run on every ending belongs in both callbacks, or
+        /// after <see cref="CancelAndJoin()"/> on the calling thread. The same on every transport.</param>
         /// <seealso cref="Cancel"/>
         /// <seealso cref="ITikReSentence"/>
         void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence>? errorCallback = null, Action? onDoneCallback = null);

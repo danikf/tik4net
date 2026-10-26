@@ -113,7 +113,7 @@ namespace tik4net.Objects
         /// <param name="command">Tik command executed to load.</param>
         /// <param name="onLoadItemCallback">Callback called for each loaded !re row</param>
         /// <param name="onExceptionCallback">Callback called when the router answers with an error (<c>!trap</c>): it receives the router's trap, classified as every command's trap is: a <see cref="TikNoSuchItemException"/>, <see cref="TikNoSuchCommandException"/> or <see cref="TikAlreadyHaveSuchItemException"/> where the message says so, else a <see cref="TikCommandTrapException"/>.</param>
-        /// <param name="onDoneCallback">Callback called at the end of command run (!done row is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="ITikCommand.CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
+        /// <param name="onDoneCallback">Callback called once when the load ends without an error: after the last row, or when <see cref="ITikCommand.Cancel"/> stopped it. It is not called after an error, which reaches <paramref name="onExceptionCallback"/> instead; cleanup that must run on every ending belongs in both, or after <see cref="ITikCommand.CancelAndJoin()"/> on the calling thread.</param>
         public static void LoadWithCallback<TEntity>(this ITikCommand command,
                     Action<TEntity> onLoadItemCallback,
                     Action<Exception>? onExceptionCallback = null,
