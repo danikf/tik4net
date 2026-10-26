@@ -34,11 +34,6 @@ namespace tik4net.Api
             return (ApiConnection)value;
         }
 
-        // ApiCommandParameter refuses an empty name; TikCommandParameter does not.
-        private protected override ITikCommandParameter CreateParameter(string name, string? value,
-            TikCommandParameterFormat format)
-            => new ApiCommandParameter(name, value, format);
-
         /// <summary>
         /// The parameters that never reach the binary API wire: the client-side markers
         /// (<see cref="TikTransportMarkers.IsClientMarker"/>) and nothing more. The API understands <c>.proplist</c> and
@@ -221,7 +216,7 @@ namespace tik4net.Api
             BeginRun();
             try
             {
-                var targetParameterInArray = target != null ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) } : new ITikCommandParameter[] { };
+                var targetParameterInArray = target != null ? new ITikCommandParameter[] { new TikCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) } : new ITikCommandParameter[] { };
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue, targetParameterInArray);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(Session.CallCommandSync(commandRows));
                 return InterpretScalar(response, target, allowReturnDefault, defaultValue);
@@ -356,7 +351,7 @@ namespace tik4net.Api
             CancellationToken cancellationToken, bool forceTag = true)
         {
             var targetParameter = target != null
-                ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) }
+                ? new ITikCommandParameter[] { new TikCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) }
                 : new ITikCommandParameter[] { };
             // InterpretScalar genuinely returns null when allowReturnDefault is set and defaultValue is null.
             return RunAsync(TikCommandParameterFormat.NameValue, targetParameter,
@@ -779,8 +774,8 @@ namespace tik4net.Api
                 Thread? loadingThread = _asyncLoadingThread;
 
                 ApiCommand cancelCommand = new ApiCommand(Session, "/cancel", TikCommandParameterFormat.Default,
-                    new ApiCommandParameter("tag", _asynchronouslyRunningTag, TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
-                    new ApiCommandParameter(TikSpecialProperties.Tag, "c_" + _asynchronouslyRunningTag, TikCommandParameterFormat.Tag) //tag of cancell command itself
+                    new TikCommandParameter("tag", _asynchronouslyRunningTag, TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
+                    new TikCommandParameter(TikSpecialProperties.Tag, "c_" + _asynchronouslyRunningTag, TikCommandParameterFormat.Tag) //tag of cancell command itself
                     );
                 // A bounded CancelAndJoin promises to come back within millisecondsTimeout. The /cancel is a
                 // command like any other, so on the connection's ReceiveTimeout it could sit for 30 s before

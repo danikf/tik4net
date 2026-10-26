@@ -117,11 +117,14 @@ namespace tik4net.Connection
 
         // ── Command factory ───────────────────────────────────────────────────
 
-        // The two things a transport decides; the eight factory overloads below are the same for every transport.
+        // The one thing a transport decides; the eight factory overloads below are the same for every transport.
         // A null commandText is a command whose text the caller sets later.
         private protected abstract ITikCommand NewCommand(string? commandText, TikCommandParameterFormat format,
             ITikCommandParameter[] parameters);
-        private protected abstract ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format);
+
+        // One parameter class for every transport (it refuses an empty name).
+        private static ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format)
+            => new tik4net.Connection.TikCommandParameter(name, value, format);
 
         /// <inheritdoc/>
         public ITikCommand CreateCommand()

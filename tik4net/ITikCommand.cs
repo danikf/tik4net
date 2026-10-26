@@ -313,6 +313,7 @@ namespace tik4net
         /// <param name="name">Parameter name.</param>
         /// <param name="value">Parameter value</param>
         /// <returns>Instance of added parameter.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is empty; nothing is added.</exception>
         ITikCommandParameter AddParameter(string name, string? value);
 
         /// <summary>
@@ -322,6 +323,7 @@ namespace tik4net
         /// <param name="value">Parameter value</param>
         /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
         /// <returns>Instance of added parameter.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is empty; nothing is added.</exception>
         ITikCommandParameter AddParameter(string name, string? value, TikCommandParameterFormat parameterFormat);
 
         /// <summary>
@@ -346,24 +348,25 @@ namespace tik4net
         /// </summary>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...). Type of parameter is resolved from parameter name or from command type.</param>
         /// <returns>List of created parameters.</returns>
-        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items); nothing is added.</exception>
+        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items), or an empty name; nothing is added.</exception>
         IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues);
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
+        /// Asks the running async command to stop (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
+        /// It may return before the command has stopped; use <see cref="CancelAndJoin()"/> to wait until it has.
         /// </summary>
         /// <seealso cref="ExecuteWithCallback"/>
         void Cancel();
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
+        /// Cancels the running async command (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// Blocks the calling thread until the router has acknowledged the cancel and the command's reading worker has ended.
         /// </summary>
         /// <seealso cref="ExecuteWithCallback"/>
         void CancelAndJoin();
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
+        /// Cancels the running async command (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// Blocks the calling thread until the router has acknowledged the cancel and the command's reading worker has ended,
         /// or until <paramref name="timeout"/> elapses.
         /// </summary>

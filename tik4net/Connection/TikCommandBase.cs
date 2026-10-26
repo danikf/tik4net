@@ -64,9 +64,10 @@ namespace tik4net.Connection
         /// <summary>The connection this class can run on, or the exception for one it cannot.</summary>
         private protected abstract ITikConnection AcceptConnection(ITikConnection value);
 
-        /// <summary>A parameter of this class's own type.</summary>
-        private protected abstract ITikCommandParameter CreateParameter(string name, string? value,
-            TikCommandParameterFormat format);
+        /// <summary>A parameter: one class for every transport, which refuses an empty name.</summary>
+        private protected static ITikCommandParameter CreateParameter(string name, string? value,
+            TikCommandParameterFormat format)
+            => new TikCommandParameter(name, value, format);
 
         // ── Guards ────────────────────────────────────────────────────────────
         // One run at a time on every transport: a second execute, or a change of what the command is, while it runs is

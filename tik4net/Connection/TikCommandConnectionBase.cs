@@ -162,9 +162,6 @@ namespace tik4net.Connection
             ITikCommandParameter[] parameters)
             => new TikGenericCommand(this, commandText, format, parameters);
 
-        private protected sealed override ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format)
-            => new TikCommandParameter(name, value, format);
-
         // ── Internal dispatch ─────────────────────────────────────────────────
         //
         // The hooks above are protected: they are the extension point a transport implements, and a

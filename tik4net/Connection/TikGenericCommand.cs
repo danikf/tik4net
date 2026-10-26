@@ -42,10 +42,6 @@ namespace tik4net.Connection
             return (TikCommandConnectionBase)value;
         }
 
-        private protected override ITikCommandParameter CreateParameter(string name, string? value,
-            TikCommandParameterFormat format)
-            => new TikCommandParameter(name, value, format);
-
         // ── Execute methods ───────────────────────────────────────────────────
 
         public override void ExecuteNonQuery()

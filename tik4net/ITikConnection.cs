@@ -408,7 +408,7 @@ namespace tik4net
         /// <param name="commandText">Command text in mikrotik API format</param>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
         /// <returns>Command with assiged <see cref="ITikCommand.Connection"/>.</returns>
-        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items).</exception>
+        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items), or an empty name.</exception>
         ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues);
 
         /// <summary>
@@ -419,7 +419,7 @@ namespace tik4net
         /// <param name="defaultParameterFormat">How will be parameter formated in mikrotik command - default value for command (could be overriden per parameter).</param>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
         /// <returns>Command with assiged <see cref="ITikCommand.Connection"/>.</returns>
-        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items).</exception>
+        /// <exception cref="ArgumentException">An unpaired last name (an odd number of items), or an empty name.</exception>
         ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues);        
 
         /// <summary>
@@ -428,6 +428,7 @@ namespace tik4net
         /// <param name="name">Name of the parameter (without '=')</param>
         /// <param name="value">Value of the parameter</param>
         /// <returns>Created parameter with name and value.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
         /// <seealso cref="ITikCommand.Parameters"/>
         ITikCommandParameter CreateParameter(string name, string? value);
 
@@ -438,6 +439,7 @@ namespace tik4net
         /// <param name="value">Value of the parameter</param>
         /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
         /// <returns>Created parameter with name and value.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
         /// <seealso cref="ITikCommand.Parameters"/>
         ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat);
     }

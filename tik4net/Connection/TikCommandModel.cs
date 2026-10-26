@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace tik4net.Connection
 {
     /// <summary>
-    /// Transport-neutral command parameter (name/value/format) used by
-    /// <see cref="TikCommandConnectionBase"/> and its command implementation.
+    /// The command parameter (name/value/format) of every transport: what <c>CreateParameter</c> and
+    /// <c>AddParameter</c> build, on the binary API and on <see cref="TikCommandConnectionBase"/> alike.
     /// </summary>
     internal class TikCommandParameter : ITikCommandParameter
     {
@@ -15,8 +15,11 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public TikCommandParameterFormat ParameterFormat { get; set; }
 
+        /// <exception cref="System.ArgumentException"><paramref name="name"/> is empty: no transport can send a
+        /// nameless word. A bare <c>?name</c> filter has a null <paramref name="value"/>, not an empty name.</exception>
         internal TikCommandParameter(string name, string? value, TikCommandParameterFormat format = TikCommandParameterFormat.Default)
         {
+            Guard.ArgumentNotNullOrEmptyString(name, "name");
             Name = name;
             Value = value;
             ParameterFormat = format;

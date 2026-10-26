@@ -338,7 +338,7 @@ namespace tik4net.Api
             try
             {
                 ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-                    new ApiCommandParameter("name", user), new ApiCommandParameter("password", password)); //parameters will be ignored with old login protocol
+                    new TikCommandParameter("name", user), new TikCommandParameter("password", password)); //parameters will be ignored with old login protocol
 
                 var responseHashOrNull = await loginCommand.LoginScalarOrDefaultAsync().ConfigureAwait(false);
 
@@ -349,7 +349,7 @@ namespace tik4net.Api
                     // non-null inside the IsNullOrEmpty guard; netstandard2.0's BCL cannot tell the compiler so
                     string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHashOrNull!);
                     ApiCommand loginCommand2 = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-                        new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
+                        new TikCommandParameter("name", user), new TikCommandParameter("response", hashedPass));
                     await loginCommand2.LoginNonQueryAsync().ConfigureAwait(false);
                 }
             }
@@ -1239,8 +1239,5 @@ namespace tik4net.Api
         private protected override ITikCommand NewCommand(string? commandText, TikCommandParameterFormat format,
             ITikCommandParameter[] parameters)
             => new ApiCommand(this, commandText, format, parameters);
-
-        private protected override ITikCommandParameter NewParameter(string name, string? value, TikCommandParameterFormat format)
-            => new ApiCommandParameter(name, value, format);
     }
 }
