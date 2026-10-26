@@ -224,7 +224,7 @@ namespace tik4net.Api
                 var targetParameterInArray = target != null ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) } : new ITikCommandParameter[] { };
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue, targetParameterInArray);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(Session.CallCommandSync(commandRows));
-                return InterpretScalar(response, allowReturnDefault, defaultValue);
+                return InterpretScalar(response, target, allowReturnDefault, defaultValue);
             }
             finally
             {
@@ -255,7 +255,8 @@ namespace tik4net.Api
             EnsureDoneResponse(responseArray[responseArray.Length - 1]);
         }
 
-        private string? InterpretScalar(IEnumerable<ApiSentence> response, bool allowReturnDefault, string? defaultValue)
+        private string? InterpretScalar(IEnumerable<ApiSentence> response, string? target, bool allowReturnDefault,
+            string? defaultValue)
         {
             {
                 ThrowPossibleResponseError(response.ToArray());
@@ -275,6 +276,12 @@ namespace tik4net.Api
                     EnsureOneReAndDone(response);
                     ApiReSentence reResponse = (ApiReSentence)response.First();
 
+                    // A named target is read by name. The router answers a .proplist naming an unknown field with an
+                    // empty !re, which is the generic command's answer: TikSentenceException, or the caller's default.
+                    if (target != null)
+                        return TikCommandResult.FieldOfRow(reResponse, target, allowReturnDefault, defaultValue);
+
+                    // No target: the row's one word. D18 (the WinBox review) replaces this pick.
                     return reResponse.Words.Single(v => v.Key != TikSpecialProperties.Tag).Value; //single word value from !re  //NOTE - .tag could be added when Connection.SendTagWithSyncCommand=true
                 }
                 else
@@ -353,7 +360,7 @@ namespace tik4net.Api
                 : new ITikCommandParameter[] { };
             // InterpretScalar genuinely returns null when allowReturnDefault is set and defaultValue is null.
             return RunAsync(TikCommandParameterFormat.NameValue, targetParameter,
-                r => InterpretScalar(r, allowReturnDefault, defaultValue), cancellationToken, forceTag);
+                r => InterpretScalar(r, target, allowReturnDefault, defaultValue), cancellationToken, forceTag);
         }
 
         // ── The login exchange (ApiConnection.Login_v3Async) ───────────────────

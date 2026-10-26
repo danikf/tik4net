@@ -173,11 +173,7 @@ namespace tik4net.Connection
             string fieldToRead = target
                 ?? single.Words.Keys.FirstOrDefault(k => k != TikSpecialProperties.Id && k != TikSpecialProperties.Tag)
                 ?? TikSpecialProperties.Id;
-            if (single.TryGetResponseField(fieldToRead, out var val))
-                return val;
-            if (throwIfMissing)
-                throw new TikSentenceException($"Field '{fieldToRead}' is not in the row the router returned.", single);
-            return defaultValue;
+            return TikCommandResult.FieldOfRow(single, fieldToRead, !throwIfMissing, defaultValue);
         }
 
         // ExecuteSingleRow's throwIfMissing:true never lets TikCommandResult.SingleRow return null.

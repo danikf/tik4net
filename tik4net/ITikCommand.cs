@@ -109,6 +109,7 @@ namespace tik4net
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
         /// <exception cref="TikCommandEmptyResponseException">Command succeeded but returned no value at all (bare !done without =ret=, or empty CLI output) - use <see cref="ExecuteNonQuery"/> for commands that print nothing.</exception>
+        /// <exception cref="TikSentenceException">The row the router returned has no <paramref name="target"/> field (for example a field name the menu does not have), on every transport.</exception>
         string ExecuteScalar(string target);
 
         /// <summary>
@@ -142,7 +143,7 @@ namespace tik4net
         /// <remarks>
         /// To name a field without a default, pass <c>null</c>: <c>ExecuteScalarOrDefault(null, target)</c>.
         /// </remarks>
-        /// <param name="defaultValue">Value returned when matching record was not found; <c>null</c> for none.</param>
+        /// <param name="defaultValue">Value returned when matching record was not found, or when the row the router returned has no <paramref name="target"/> field; <c>null</c> for none.</param>
         /// <param name="target">Name of returned field.</param>
         /// <returns>Value returned by router or <paramref name="defaultValue"/>.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>

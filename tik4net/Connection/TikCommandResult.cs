@@ -65,6 +65,20 @@ namespace tik4net.Connection
         }
 
         /// <summary>
+        /// The scalar of a row read by field name: the value of <paramref name="field"/>. When the row lacks it, the
+        /// result is <paramref name="defaultValue"/> with <paramref name="allowDefault"/>, otherwise
+        /// <see cref="TikSentenceException"/> carrying the row.
+        /// </summary>
+        internal static string? FieldOfRow(ITikReSentence row, string field, bool allowDefault, string? defaultValue)
+        {
+            if (row.TryGetResponseField(field, out var value))
+                return value;
+            if (allowDefault)
+                return defaultValue;
+            throw new TikSentenceException($"Field '{field}' is not in the row the router returned.", row);
+        }
+
+        /// <summary>
         /// The one row of a single-row read: none is <see cref="TikNoSuchItemException"/> (or null without
         /// <paramref name="throwIfMissing"/>), more than one is <see cref="TikCommandAmbiguousResultException"/>.
         /// </summary>

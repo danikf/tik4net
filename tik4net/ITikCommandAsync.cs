@@ -52,7 +52,7 @@ namespace tik4net
         Task<string> ExecuteScalarAsync(string target, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>Async <see cref="ITikCommand.ExecuteScalarOrDefault(string, string)"/>.</summary>
-        /// <param name="defaultValue">Value returned when no matching record was found.</param>
+        /// <param name="defaultValue">Value returned when no matching record was found, or when the row has no <paramref name="target"/> field.</param>
         /// <param name="target">Name of the returned field, or <c>null</c> for the first non-<c>.id</c> field.</param>
         /// <param name="cancellationToken">Cancellation token — see the interface remarks for what it guarantees per transport.</param>
         Task<string?> ExecuteScalarOrDefaultAsync(string? defaultValue = null, string? target = null, CancellationToken cancellationToken = default(CancellationToken));
