@@ -266,7 +266,8 @@ namespace tik4net.Winbox
             ["/ppp/profile"]                 = "/ppp/ppp-profile",
             ["/ppp/secret"]                  = "/ppp/ppp-secret",
             ["/ppp/active"]                  = "/ppp/ppp-active-user",
-            ["/ppp/aaa"]                     = "/ppp/ppp-authentication&accounting", // singleton
+            // 7.25 titles the window 'PPP Authentication & Accounting'; earlier catalogs: see OlderCatalogAlias.
+            ["/ppp/aaa"]                     = "/ppp/ppp-authentication-&-accounting", // singleton
 
             // ── System ──
             ["/system/identity"]             = "/system/identity/identity",          // singleton
@@ -304,7 +305,7 @@ namespace tik4net.Winbox
             ["/user"]                        = "/system/users/user",
             ["/user/group"]                  = "/system/users/group",
             ["/user/active"]                 = "/system/users/active-user",
-            ["/user/aaa"]                    = "/system/users/login-authentication&accounting", // singleton
+            ["/user/aaa"]                    = "/system/users/login-authentication-&-accounting", // singleton
             ["/user/ssh-keys"]               = "/system/users/ssh-keys",
             ["/user/ssh-keys/private"]       = "/system/users/ssh-private-keys",
             ["/certificate"]                 = "/system/certificates/certificate",
@@ -446,6 +447,10 @@ namespace tik4net.Winbox
             ["/interface/wireless/registration-table"] = new[] { "/wireless/ap-client" },
             ["/interface/wireless/security-profiles"]  = new[] { "/wireless/security-profile" },
             ["/interface/wireless/sniffer"]            = new[] { "/wireless/wireless-sniffer-settings" },
+
+            // Before 7.25 the AAA windows are titled 'Authentication&Accounting', with no spaces around the '&'.
+            ["/ppp/aaa"]                  = new[] { "/ppp/ppp-authentication&accounting" },             // singleton
+            ["/user/aaa"]                 = new[] { "/system/users/login-authentication&accounting" },  // singleton
 
             // Menus 7 no longer has, so there is no primary alias to fall back from.
             ["/ip/accounting"]            = new[] { "/ip/accounting/traffic-accounting" },             // singleton

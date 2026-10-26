@@ -639,6 +639,23 @@ string comparison). The binary API takes `?disabled=true` and the mapper writes 
 not know the field's type, so a string field compared with the literal text `true` is compared with `yes` —
 the one case the translation gets wrong.
 
+### An `.id` filter on a name finds the named row from 7.25 on
+
+An item id is `*` and hex digits. The binary API compares `.id` with the value as given, so `?.id=ether1` answers no
+row. The CLI does the same before 7.25 and resolves a name there from 7.25 on (telnet, `/interface`):
+
+| `:put [:len [/interface find where …]]` | 7.25 | 7.21.5 | 6.49.13 |
+|---|---|---|---|
+| `.id=ether1`, `.id="ether1"` | **1** | 0 | 0 |
+| `.id=*FFFF`, `.id="nonexistent"` | 0 | 0 | 0 |
+| `false` | 0 | 0 | 0 |
+| `!(false)` | all | all | all |
+| `(false \|\| name="ether1")` | 1 | 1 | 1 |
+
+`/ip address find where .id=ether1` is refused with `expected item id` on 7.25 and 7.21.5. `BuildWhereClause` sends an
+`.id` filter only for an id-shaped value; any other value is rendered as the literal `false`, which answers what the
+API answers on every version and composes with the query stack like any other predicate.
+
 ### A `name=value` argument is parsed by the PARAMETER's type, so it needs the same quoting
 
 An unquoted value is not read as text: RouterOS parses it according to the type of the parameter it is

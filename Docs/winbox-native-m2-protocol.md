@@ -2456,6 +2456,13 @@ Defaults move between versions too (DHCP `lease-time` 10m on 6.49, 30m on 7.24; 
 field absent from a version's catalog — while other versions' catalogs have it — is the version signal: it separates
 "this RouterOS lacks the field" from "no WinBox window shows it" and from "this kind of row does not have it" (§34.1).
 
+A window title is stable text, not a frozen one. 7.25 respells both AAA windows: `PPP Authentication&Accounting`
+(`ppp.jg`, `[27,104]`) and `Login Authentication&Accounting` (`roteros.jg`, `[13,5]`) become `PPP Authentication &
+Accounting` and `Login Authentication & Accounting`, same handlers. The label normalizer keeps the `&`, so the two
+spellings derive to different menu-label paths (`/ppp/ppp-authentication&accounting`,
+`/ppp/ppp-authentication-&-accounting`). `WinboxHandlerMap` names the current title in `ShippedAlias` and the earlier
+one in `OlderCatalogAlias`, which it tries only when the router's catalog lacks the current one.
+
 ---
 
 ## 35. A `getall` row can be a sketch, and a list element can carry a status of its own

@@ -242,6 +242,30 @@ namespace tik4net.unittests
             Assert.AreEqual(35, typeValue);
         }
 
+        // RouterOS 7.25 retitled both AAA windows from 'Authentication&Accounting' to 'Authentication & Accounting'
+        // (same handlers, [27,104] and [13,5]); the label normaliser keeps the '&', so the two spellings derive to
+        // different keys.
+
+        [TestMethod]
+        public void OnARouterOs725Catalog_TheAaaSingletons_ResolveUnderTheSpacedTitle()
+        {
+            var map = MapWithDerived(("/ppp/ppp-authentication-&-accounting", new[] { 27, 104 }),
+                                     ("/system/users/login-authentication-&-accounting", new[] { 13, 5 }));
+
+            CollectionAssert.AreEqual(new[] { 27, 104 }, map.Resolve("/ppp/aaa"));
+            CollectionAssert.AreEqual(new[] { 13, 5 }, map.Resolve("/user/aaa"));
+        }
+
+        [TestMethod]
+        public void OnAnOlderCatalog_TheAaaSingletons_ResolveUnderTheUnspacedTitle()
+        {
+            var map = MapWithDerived(("/ppp/ppp-authentication&accounting", new[] { 27, 104 }),
+                                     ("/system/users/login-authentication&accounting", new[] { 13, 5 }));
+
+            CollectionAssert.AreEqual(new[] { 27, 104 }, map.Resolve("/ppp/aaa"));
+            CollectionAssert.AreEqual(new[] { 13, 5 }, map.Resolve("/user/aaa"));
+        }
+
         [TestMethod]
         public void TheOlderLabel_IsNeverTakenForAPathWithoutOne()
         {
