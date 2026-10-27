@@ -545,6 +545,13 @@ namespace tik4net.Api
                                                         errorCallback(
                                                             new Connection.TikTrapSentenceResult(fatal.Message));
 
+                                                    // The caller's own Close() stopped it, as a Cancel() does: it ends
+                                                    // in onDone, as on the polled transports (PollingMonitorEngine.Stopping).
+                                                    // Not for the bounded readers, which take the !fatal as their abort.
+                                                    if (response is ApiFatalSentence closed && closed.ClientInitiated
+                                                        && onTerminalCallback == null && onDoneCallback != null)
+                                                        onDoneCallback();
+
                                                     // Last, so a waiter woken by this signal already sees
                                                     // everything set above it.
                                                     if (onTerminalCallback != null)

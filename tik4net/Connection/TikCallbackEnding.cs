@@ -4,7 +4,7 @@ namespace tik4net.Connection
 {
     /// <summary>
     /// One <c>ExecuteWithCallback</c> run's ending, as the caller sees it (command-layer D21): <c>onDone</c> fires when
-    /// the command ends without an error (it finished, or the caller's <c>Cancel()</c> stopped it), and not after an
+    /// the command ends without an error (it finished, or the caller's <c>Cancel()</c> or <c>Close()</c> stopped it), and not after an
     /// error, which reaches <c>errorCallback</c> alone.
     /// </summary>
     /// <remarks>

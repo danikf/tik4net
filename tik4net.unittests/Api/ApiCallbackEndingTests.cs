@@ -1,7 +1,7 @@
 // ApiCallbackEndingTests.cs — ExecuteWithCallback's onDone on the binary API fires only when the command ends
 // without an error: it finished (!done), or the caller's Cancel() stopped it (the interrupted trap is not an error).
 // After a router error (!trap, then !done) or a lost connection (!fatal) only errorCallback fires (command-layer X16,
-// D21).
+// D21). The caller's own Close() ends it in onDone too, as it does on every polled transport.
 
 #nullable enable
 
@@ -146,6 +146,16 @@ namespace tik4net.unittests.Api
             }, cmd => cmd.Cancel());
             Assert.AreEqual(0, e.Errors.Count, "the caller's own cancel is not an error");
             Assert.AreEqual(1, e.Done, "a cancelled command ends in onDone");
+        }
+
+        [TestMethod]
+        public void ConnectionClosedByTheCaller_CallsOnDone()
+        {
+            // The caller's own Close() stops the command as a cancel does, as on every polled transport
+            // (PollingMonitorEngine.Stopping): onDone, not an error.
+            var e = Run((s, t) => s.WriteSentence("!re", Tag(t), "=name=ether1"), cmd => cmd.Connection.Close());
+            Assert.AreEqual(0, e.Errors.Count, "the caller's own close is not an error");
+            Assert.AreEqual(1, e.Done, "a command whose connection the caller closed ends in onDone");
         }
     }
 }

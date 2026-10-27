@@ -307,6 +307,31 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        public void ExecuteAsync_ClosedByTheCaller_EndsInOnDone()
+        {
+            // The caller's own Close() stops a running command as Cancel() does: onDone, and no error.
+            EnsureCapability(TikConnectionCapability.Listen, "ExecuteWithCallback");
+
+            using (var victim = OpenSecondaryConnection())
+            {
+                int done = 0;
+                ITikTrapSentence error = null;
+                var listen = victim.CreateCommand("/ip/address/listen");
+                listen.ExecuteWithCallback(_ => { }, e => error = e, () => Interlocked.Increment(ref done));
+                Thread.Sleep(1500);   // the listen is running (a polled one has taken its baseline and a poll)
+                Assert.IsNull(error, "the listen failed before the close: " + error?.Message);
+
+                victim.Close();
+
+                Assert.IsTrue(WaitUntil(() => Volatile.Read(ref done) > 0 || error != null, TimeSpan.FromSeconds(15)),
+                    "no callback said the command ended after the caller closed its connection");
+                Thread.Sleep(500);   // a second callback would arrive right behind the first
+                Assert.IsNull(error, "the caller's own close is not an error: " + error?.Message);
+                Assert.AreEqual(1, Volatile.Read(ref done), "onDone calls");
+            }
+        }
+
+        [TestMethod]
         [TestLock("/tool/profile")]   // one profiler per router: a second one is refused "already running"
         public void ExecuteAsync_StreamsMonitorRows()
         {

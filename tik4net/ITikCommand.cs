@@ -304,7 +304,7 @@ namespace tik4net
         /// <param name="errorCallback">Callback called once when the command ends with an error: the router's error, or a lost
         /// connection. <paramref name="onDoneCallback"/> is not called after it.</param>
         /// <param name="onDoneCallback">Callback called once when the command ends without an error: it finished, or
-        /// <see cref="Cancel"/> stopped it. It is not called after an error, which is reported to
+        /// <see cref="Cancel"/> stopped it, or the caller closed the connection. It is not called after an error, which is reported to
         /// <paramref name="errorCallback"/> instead, so cleanup that must run on every ending belongs in both callbacks, or
         /// after <see cref="CancelAndJoin()"/> on the calling thread. The same on every transport.</param>
         /// <seealso cref="Cancel"/>

@@ -252,7 +252,7 @@ namespace tik4net.Objects
         /// <summary>
         /// As <see cref="LoadWithCallback{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, ITikCommandParameter[])"/>,
         /// and calls <paramref name="onDoneCallback"/> once the load has ended without an error: after the last row, or when
-        /// <see cref="ITikCommand.Cancel"/> stopped it. After an error only <paramref name="onExceptionCallback"/> is called.
+        /// <see cref="ITikCommand.Cancel"/> or the caller's own <see cref="ITikConnection.Close"/> stopped it. After an error only <paramref name="onExceptionCallback"/> is called.
         /// Callbacks are called from a background thread.
         /// </summary>
         /// <remarks>
