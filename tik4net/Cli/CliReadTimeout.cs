@@ -113,6 +113,25 @@ namespace tik4net.Cli
                 received.Length == 0 ? null : received);
         }
 
+        /// <summary>
+        /// Creates the exception for a command the carrier refused to write because the router had already closed the
+        /// connection — the same report as <see cref="CreateClosed"/>, except that the command did not run.
+        /// </summary>
+        /// <param name="transport">Short transport name, e.g. <c>"SSH"</c>.</param>
+        /// <param name="timeoutMs">The configured receive timeout.</param>
+        /// <param name="sentCommand">The command that was to be sent.</param>
+        /// <param name="cause">The carrier's own exception.</param>
+        internal static TikConnectionReceiveTimeoutException CreateClosedBeforeWrite(
+            string transport, int timeoutMs, string sentCommand, Exception cause)
+        {
+            string message =
+                transport + ": the router closed the connection before the command could be written — "
+                + cause.GetType().Name + ": " + cause.Message + ". Command: '" + sentCommand.Trim() + "'. "
+                + "It was not sent, so it did not run.";
+
+            return new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs), message, null, cause);
+        }
+
         // Last TailChars characters with line breaks made visible, so the quoted tail stays on one line.
         private static string Tail(string received)
         {

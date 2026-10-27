@@ -114,7 +114,16 @@ namespace tik4net.Cli
                 RouterOsCliLogin.ThrowIfRomonRelayEnded(_transportName, RomonTarget, cmd, residue, commandSent: false);
             }
 
-            await SendLineAsync(cmd, ct).ConfigureAwait(false);
+            // A carrier the router has closed refuses the write in its own words (SSH.NET: ObjectDisposedException);
+            // reported as the read a close ends is, and the command was never written.
+            try
+            {
+                await SendLineAsync(cmd, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException) && _stream.ClosedAndDrained)
+            {
+                throw CliReadTimeout.CreateClosedBeforeWrite(_transportName, ReceiveTimeoutMs, cmd, ex);
+            }
 
             string raw = await ReadCommandResponseAsync(ct, cmd, onLine).ConfigureAwait(false);
 

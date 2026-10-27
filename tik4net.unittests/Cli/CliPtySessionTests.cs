@@ -96,6 +96,40 @@ namespace tik4net.unittests.Cli
             StringAssert.EndsWith(ex.PartialResponse, "CH", "what arrived before the close stays reachable");
         }
 
+        /// <summary>
+        /// A carrier the router has closed before the command is written: SSH.NET's shell stream throws
+        /// <see cref="ObjectDisposedException"/> on a write to a channel the server closed.
+        /// </summary>
+        private sealed class ClosedOnWriteByteStream : ICliByteStream
+        {
+            private bool _closed;
+            public bool HasData => false;
+            public Task<int> ReadAsync(byte[] buffer, CancellationToken ct) => throw new InvalidOperationException("nothing to read");
+            public bool ClosedAndDrained => _closed;
+
+            public Task WriteAsync(byte[] bytes, CancellationToken ct)
+            {
+                _closed = true;
+                throw new ObjectDisposedException("Renci.SshNet.ShellStream");
+            }
+        }
+
+        [TestMethod]
+        public void AWriteToAClosedCarrier_IsReportedAsClosed_AndTheCommandDidNotRun()
+        {
+            // The same report as a read the close ended (AClosedCarrier_IsReportedAsClosed_NotAsTheDeadline), not the
+            // carrier's own ObjectDisposedException, and it says the command was never written.
+            var session = Session(new ClosedOnWriteByteStream());
+
+            var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                () => session.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
+
+            StringAssert.Contains(ex.Message, "closed the connection");
+            StringAssert.Contains(ex.Message, "did not run");
+            StringAssert.Contains(ex.Message, Command);
+            Assert.IsInstanceOfType(ex.InnerException, typeof(ObjectDisposedException), "the carrier's own exception rides along");
+        }
+
         [TestMethod]
         public void ARelayThatClosesMidCommand_IsReportedAsTheRelayEnding()
         {

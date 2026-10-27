@@ -231,8 +231,17 @@ namespace tik4net.Ssh
         Task ICliByteStream.WriteAsync(byte[] bytes, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            _shell.Write(bytes, 0, bytes.Length);
-            _shell.Flush();
+            try
+            {
+                _shell.Write(bytes, 0, bytes.Length);
+                _shell.Flush();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The server closed the channel; the PTY session reports the write as the closed connection it is.
+                _shellClosed = true;
+                throw;
+            }
             return Task.CompletedTask;
         }
     }
