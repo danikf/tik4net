@@ -309,6 +309,11 @@ namespace tik4net
     /// reads its own answer; only when the marker never comes back is it closed. The timed-out command itself may
     /// have run in part.
     /// </para>
+    /// <para>
+    /// A terminal transport also throws it when the answer stops because the connection closed under it — the router
+    /// ended the session, or a frame broke off part-way. The message then says so and how long the read ran, rather
+    /// than that the deadline passed, and the connection is closed: there is nothing left to bring back in step.
+    /// </para>
     /// </remarks>
     public class TikConnectionReceiveTimeoutException : TikConnectionException
     {

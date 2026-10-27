@@ -82,6 +82,37 @@ namespace tik4net.Cli
                 received.Length == 0 ? null : received, cause);
         }
 
+        /// <summary>
+        /// Creates the exception for a response the carrier stopped delivering because it closed: the router (or the
+        /// network) ended the connection before the answer reached a prompt.
+        /// </summary>
+        /// <remarks>
+        /// Still a <see cref="TikConnectionReceiveTimeoutException"/>, as <see cref="CreateMidFrame"/> is, because the
+        /// caller's position is the same — the response is incomplete and the command may have run — but it says the
+        /// connection closed and how long the read ran, instead of claiming the whole deadline passed.
+        /// </remarks>
+        /// <param name="transport">Short transport name, e.g. <c>"Telnet"</c>.</param>
+        /// <param name="timeoutMs">The configured receive timeout.</param>
+        /// <param name="elapsedMs">How long the read had run when the carrier closed.</param>
+        /// <param name="sentCommand">The command that was sent.</param>
+        /// <param name="received">Everything received so far (ANSI-stripped).</param>
+        internal static TikConnectionReceiveTimeoutException CreateClosed(
+            string transport, int timeoutMs, long elapsedMs, string sentCommand, string received)
+        {
+            received = received ?? string.Empty;
+
+            string message =
+                transport + ": the router closed the connection " + elapsedMs + " ms into the " + timeoutMs
+                + " ms receive deadline, before the answer reached a shell prompt — "
+                + (received.Length == 0
+                    ? "nothing had been received. "
+                    : received.Length + " characters had been received; the tail is '" + Tail(received) + "'. ")
+                + "Command: '" + sentCommand.Trim() + "'. The command may have run.";
+
+            return new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs), message,
+                received.Length == 0 ? null : received);
+        }
+
         // Last TailChars characters with line breaks made visible, so the quoted tail stays on one line.
         private static string Tail(string received)
         {

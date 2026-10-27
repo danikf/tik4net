@@ -305,7 +305,9 @@ namespace tik4net.Cli
                     if (closed && sentCommand != null && RomonTarget != null)
                         throw RouterOsCliLogin.RomonRelayEndedWithTheSession(_transportName, RomonTarget, sentCommand, stripped);
                     if (sentCommand != null)
-                        throw CliReadTimeout.Create(_transportName, ReceiveTimeoutMs, sentCommand, stripped);
+                        throw closed
+                            ? CliReadTimeout.CreateClosed(_transportName, ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, stripped)
+                            : CliReadTimeout.Create(_transportName, ReceiveTimeoutMs, sentCommand, stripped);
                     return stripped;
                 }
 

@@ -81,6 +81,22 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void AClosedCarrier_IsReportedAsClosed_NotAsTheDeadline()
+        {
+            // The router closing the connection ends the read at once; the message says so, with how long the read
+            // ran, rather than claiming the whole receive timeout passed with nothing received.
+            var session = Session(new ScriptedByteStream(new[] { Command + "\r\nCH" }, closeWhenEmpty: true));
+
+            var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                () => session.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
+
+            StringAssert.Contains(ex.Message, "closed the connection");
+            Assert.IsFalse(ex.Message.Contains("did not finish answering within"), ex.Message);
+            StringAssert.Contains(ex.Message, Command);
+            StringAssert.EndsWith(ex.PartialResponse, "CH", "what arrived before the close stays reachable");
+        }
+
+        [TestMethod]
         public void ARelayThatClosesMidCommand_IsReportedAsTheRelayEnding()
         {
             var session = Session(new ScriptedByteStream(new[] { Command + "\r\nCH" }, closeWhenEmpty: true));
