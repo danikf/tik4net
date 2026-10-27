@@ -34,16 +34,18 @@ The lab runs three CHRs. Only the first is needed for the suite; the others cove
 
 | | **CHR** — the suite's router | **CHR2** — RoMON target, older RouterOS | **CHR3** — a second RouterOS 7 |
 |---|---|---|---|
-| `App.config` keys | `host`, `user`, `pass`, `routerMac`, `routerIdentity` | `romonTargetId`, `romonTargetHost`, `romonTargetUser`, `romonTargetPass`; profile `chr2.*` | profile `chr3.*`; `chr2.romonTarget*` |
+| `App.config` keys | `host`, `user`, `pass`, `routerMac`, `routerIdentity` | `romonTargetId`, `romonTargetHost`, `romonTargetUser`, `romonTargetPass`; profile `chr2.*` | profile `chr3.*`; `romonSshTarget*`; `chr2.romonTarget*` |
 | RouterOS | the version README promises (current stable) | **6.49.21** (the oldest 6.x with the 2026 SSH security fixes), kept there on purpose | **7.21.5** (long-term), kept there on purpose |
 | Identity | `CHR` | `CHR2` — must differ from the first | `CHR3` |
 | Ports | two (`testInterface`, `testSecondInterface`) | two, the same names — aligned with CHR on purpose | two, the same names |
-| Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router; the agent of `-Router chr2` | an older 7.x for the version-sensitive tests (`-Router chr3`); the RoMON target of `-Router chr2` |
+| Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router; the agent of `-Router chr2` | an older 7.x for the version-sensitive tests (`-Router chr3`); the RoMON target of the terminal relays and of `-Router chr2` |
 
-**RoMON.** `RomonRelayTest` opens CHR2 *through* CHR (Telnet, SSH and MAC-Telnet to CHR, `/tool romon ssh`
-beyond it; the four WinBox transports through CHR's WinBox relay) and writes to it, checking each write over CHR2's own API connection (`romonTargetHost`). With
-`-Router chr2` the same tests run from CHR2 to CHR3 — a RouterOS 6 agent and a 7.x target (`chr2.romonTarget*`).
-RoMON is enabled on all three. With `romonTargetId` empty those tests are Inconclusive.
+**RoMON.** `RomonRelayTest` opens a target *through* CHR and writes to it, checking each write over the target's
+own API connection. The four WinBox transports relay through CHR's WinBox relay to CHR2 (`romonTarget*`). Telnet,
+SSH and MAC-Telnet to CHR, with `/tool romon ssh` beyond it, relay to CHR3 (`romonSshTarget*`): a RouterOS 7.25
+agent cannot SSH to a RouterOS 6 router, so these rows relay 7.x to 7.x. With `romonSshTargetId` empty they use
+`romonTarget*` too. With `-Router chr2` every row runs from CHR2 to CHR3 — a RouterOS 6 agent and a 7.x target
+(`chr2.romonTarget*`). RoMON is enabled on all three. With `romonTargetId` empty those tests are Inconclusive.
 
 **Pin each target's RoMON id** to its `romonTargetId` (`/tool romon set id=<romonTargetId>`: CHR2's, and CHR3's from `chr2.romonTargetId`). Left at its default
 (`id=00:00:00:00:00:00`), RouterOS picks an interface MAC, and on this two-port CHR the pick has moved twice —

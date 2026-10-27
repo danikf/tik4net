@@ -1,7 +1,10 @@
 ﻿// RomonRelayTest.cs — a router reached THROUGH another one over RoMON, written to and read back.
 //
 // Two lab routers: the agent is the router the whole suite talks to (host/user/pass/routerMac in App.config),
-// the target is the second one (romonTarget* in App.config). Every test opens the target through the agent over
+// the target is the second one (romonTarget* in App.config). The relays over /tool romon ssh may have a target of
+// their own (romonSshTarget*): a RouterOS 7.25 agent cannot SSH to a RouterOS 6 target, so the default profile
+// sends its terminal relays to a 7.x router and keeps the WinBox relays on the RouterOS 6 one (known accepted gap).
+// Every test opens the target through the agent over
 // each transport that relays (Telnet, SSH, MAC-Telnet to the agent and /tool romon ssh beyond it; the four WinBox
 // transports through the agent's WinBox relay) — whatever
 // transport the run selects, like MacOnlyAddressingTest, so the relay stays covered by every run.
@@ -42,6 +45,10 @@ namespace tik4net.integrationtests
     //   the MAC layer at the same time.
     // LockSpec's one order (rank, then key) takes them, so no two classes deadlock; RomonRelayLockSetTest checks the set.
     [TestLock(TestLockScope.Router, RouterHostKey = "romonTargetHost")]
+    [TestLock(TestLockScope.Router, RouterHostKey = "romonSshTargetHost", WhenTransport = new[]
+    {
+        TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.MacTelnet,
+    })]
     [TestLock(TestLockAttribute.MacLayer, WhenTransport = new[]
     {
         TikConnectionType.MacTelnet, TikConnectionType.WinboxCliMac, TikConnectionType.WinboxNativeMac,
@@ -51,24 +58,42 @@ namespace tik4net.integrationtests
         // Rows this class creates carry this list name, so a sweep can find what an interrupted run left.
         private const string TestList = "tik4net-romon";
 
-        private static string TargetId => LabConfig.Get("romonTargetId");
-        private static string TargetHost => LabConfig.Get("romonTargetHost");
-        private static string TargetUser => LabConfig.Get("romonTargetUser");
-        private static string TargetPass => LabConfig.Get("romonTargetPass") ?? "";
+        // The target of a relay over this agent transport: romonSshTarget* for the relays over /tool romon ssh when
+        // the profile names one, romonTarget* otherwise. A test without a transport row (null) uses romonTarget*.
+        private static string TargetSetting(string name, TikConnectionType? agentTransport)
+            => agentTransport.HasValue && RelaysOverSsh(agentTransport.Value)
+               && !string.IsNullOrEmpty(LabConfig.Get("romonSshTargetId"))
+                ? LabConfig.Get("romonSshTarget" + name)
+                : LabConfig.Get("romonTarget" + name);
+
+        private static bool RelaysOverSsh(TikConnectionType agentTransport)
+            => agentTransport == TikConnectionType.Telnet || agentTransport == TikConnectionType.Ssh
+               || agentTransport == TikConnectionType.MacTelnet;
+
+        private static string TargetIdFor(TikConnectionType? agentTransport) => TargetSetting("Id", agentTransport);
+
+        // The transport of the data row being run, which picks the target for the whole test.
+        private TikConnectionType? RowTransport
+            => TestContext?.TestData?.OfType<TikConnectionType>().Select(t => (TikConnectionType?)t).FirstOrDefault();
+
+        private string TargetId => TargetIdFor(RowTransport);
+        private string TargetHost => TargetSetting("Host", RowTransport);
+        private string TargetUser => TargetSetting("User", RowTransport);
+        private string TargetPass => TargetSetting("Pass", RowTransport) ?? "";
 
         private static string AgentHost => LabConfig.Get("host");
         private static string AgentUser => LabConfig.Get("user");
         private static string AgentPass => LabConfig.Get("pass") ?? "";
         private static string AgentMac => LabConfig.Get("routerMac");
 
-        private static void RequireTarget()
+        private void RequireTarget()
         {
             if (string.IsNullOrEmpty(TargetId))
                 Assert.Inconclusive("No romonTargetId in App.config" + (LabConfig.Profile != null ? $" for router profile '{LabConfig.Profile}'" : "")
                     + " — there is no second router to relay to.");
         }
 
-        private static void RequireTargetHost()
+        private void RequireTargetHost()
         {
             RequireTarget();
             if (string.IsNullOrEmpty(TargetHost))
@@ -87,7 +112,8 @@ namespace tik4net.integrationtests
             var agentAddress = IsMacLayer(agentTransport) && !string.IsNullOrEmpty(AgentMac)
                 ? TikRouterAddress.FromHostAndMac(AgentHost, AgentMac)
                 : TikRouterAddress.FromHost(AgentHost);
-            return new TikConnectionSetup(TikRouterAddress.FromRomonId(TargetId), TargetUser, TargetPass)
+            return new TikConnectionSetup(TikRouterAddress.FromRomonId(TargetIdFor(agentTransport)),
+                                          TargetSetting("User", agentTransport), TargetSetting("Pass", agentTransport) ?? "")
             {
                 RomonAgentSetup = new TikRomonAgentSetup(agentAddress, AgentUser, AgentPass),
             };
@@ -122,7 +148,7 @@ namespace tik4net.integrationtests
             }
         }
 
-        private static ITikConnection OpenTargetDirect()
+        private ITikConnection OpenTargetDirect()
             => new TikConnectionSetup(TargetHost, TargetUser, TargetPass).Create(TikConnectionType.Api);
 
         private static ITikConnection OpenAgentDirect()
@@ -306,7 +332,7 @@ namespace tik4net.integrationtests
 
         // The target is back in the agent's overlay a few seconds after RoMON comes back on; the next test's relay
         // would otherwise open into "could not reach".
-        private static void WaitUntilTheAgentSeesTheTarget()
+        private void WaitUntilTheAgentSeesTheTarget()
         {
             var watch = Stopwatch.StartNew();
             while (AgentDiscover().IndexOf(TargetId, StringComparison.OrdinalIgnoreCase) < 0
@@ -499,6 +525,7 @@ namespace tik4net.integrationtests
         /// </summary>
         [TestMethod]
         [TestLock(TestLockAttribute.MacLayer)]   // its relays include the three MAC-layer ones
+        [TestLock(TestLockScope.Router, RouterHostKey = "romonSshTargetHost")]   // and the terminal relays' target
         public void Relay_AfterIdle_StillAnswersFromTheTarget()
         {
             RequireTarget();
@@ -509,8 +536,8 @@ namespace tik4net.integrationtests
             var relays = transports.Select(OpenRelay).ToArray();
             try
             {
-                foreach (var relay in relays)
-                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true);
+                for (int i = 0; i < relays.Length; i++)
+                    Assert.AreEqual(TargetIdFor(transports[i]), relays[i].LoadSingle<ToolRomon>().CurrentId.Value, true);
 
                 Thread.Sleep(40000);
 
@@ -533,7 +560,7 @@ namespace tik4net.integrationtests
                 foreach (var r in results)
                 {
                     Assert.IsNull(r.Error, $"{r.Transport}: the first read after idle failed: {r.Error}");
-                    Assert.AreEqual(TargetId, r.Id, true, $"{r.Transport}: after idle the relay answered from the agent");
+                    Assert.AreEqual(TargetIdFor(r.Transport), r.Id, true, $"{r.Transport}: after idle the relay answered from the agent");
                 }
             }
             finally
@@ -996,7 +1023,7 @@ namespace tik4net.integrationtests
         }
 
         // null when Safe Mode on the target could be taken (and was released again); else the refusal.
-        private static string TryTakeAndReleaseOnTarget()
+        private string TryTakeAndReleaseOnTarget()
         {
             using (var target = new TikConnectionSetup(TargetHost, TargetUser, TargetPass).Create(TikConnectionType.WinboxNative))
             {

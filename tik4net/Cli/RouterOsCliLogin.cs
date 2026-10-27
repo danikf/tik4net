@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -431,8 +432,15 @@ namespace tik4net.Cli
                 if (!IsShellPrompt(opened) && !IsRomonRelayEnd(opened))
                     throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id,
                         "the agent did not answer /tool romon ssh with a password prompt " + WithinReceiveTimeout, opened);
+                // An id the agent cannot reach prints nothing before 'Welcome back!'. A line there is the agent's own
+                // SSH client refusing the session — the target IS in the overlay (7.25 agent to a 6.x target:
+                // "packet not aligned").
+                string agentSaid = RomonRelayAgentMessage(opened, relayCommand);
                 throw Relay(TikRomonRelayFailure.TargetUnreachable, id,
-                    "the agent could not reach RoMON id " + id + " (not in its RoMON overlay — see /tool romon discover on the agent)",
+                    agentSaid.Length > 0
+                        ? "the agent's SSH session to RoMON id " + id + " failed: " + agentSaid
+                          + " (the agent's own SSH client refused the target)"
+                        : "the agent could not reach RoMON id " + id + " (not in its RoMON overlay — see /tool romon discover on the agent)",
                     opened);
             }
 
@@ -620,6 +628,18 @@ namespace tik4net.Cli
                 throw new ArgumentException(
                     "A RoMON id is six hex octets, e.g. AA:BB:CC:DD:EE:FF; got '" + romonId + "'.", nameof(romonId));
             return s.ToUpperInvariant();
+        }
+
+        // What the agent printed between the relay command's echo and 'Welcome back!', on one line; empty when it
+        // printed nothing there.
+        private static string RomonRelayAgentMessage(string opened, string relayCommand)
+        {
+            int end = opened.IndexOf(RomonRelayEndText, StringComparison.Ordinal);
+            string before = end >= 0 ? opened.Substring(0, end) : opened;
+            return string.Join("; ", CliOutputHelper.CleanOutput(before, relayCommand)
+                .Split('\n')
+                .Select(l => l.Trim())
+                .Where(l => l.Length > 0 && !IsShellPrompt(l)));
         }
 
         private static TikRomonRelayException Relay(TikRomonRelayFailure reason, string id, string what, string? serverText)

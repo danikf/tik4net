@@ -37,6 +37,8 @@ namespace tik4net.integrationtests
         public void EveryRelayTestHoldsWhatItTouches_FromTheStart()
         {
             string agent = LabConfig.Get("host"), target = LabConfig.Get("romonTargetHost");
+            // The relays over /tool romon ssh may go to a target of their own (RomonRelayTest.TargetSetting).
+            string sshTarget = string.IsNullOrEmpty(LabConfig.Get("romonSshTargetId")) ? null : LabConfig.Get("romonSshTargetHost");
             if (string.IsNullOrWhiteSpace(target))
                 Assert.Inconclusive("No romonTargetHost in App.config: RomonRelayTest locks no second router.");
 
@@ -62,6 +64,13 @@ namespace tik4net.integrationtests
 
                     if (!held.TryGetValue("router@" + target, out bool targetExclusive) || !targetExclusive)
                         problems.Add(name + ": the target is not held exclusive");
+                    bool opensSshRelay = method.Name == AllTransports
+                                         || data.OfType<TikConnectionType>().Any(t => t == TikConnectionType.Telnet
+                                                                                      || t == TikConnectionType.Ssh
+                                                                                      || t == TikConnectionType.MacTelnet);
+                    if (sshTarget != null && opensSshRelay
+                        && (!held.TryGetValue("router@" + sshTarget, out bool sshTargetExclusive) || !sshTargetExclusive))
+                        problems.Add(name + ": the SSH relay's target is not held exclusive");
                     if (!held.TryGetValue("router@" + agent, out bool agentHeldExclusive))
                         problems.Add(name + ": the agent is not held");
                     else if (agentExclusive != agentHeldExclusive)

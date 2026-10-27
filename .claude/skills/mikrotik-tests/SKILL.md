@@ -26,7 +26,9 @@ RoMON target `RomonRelayTest` reaches through the first (and writes to), kept on
 older router — no REST, no `proplist=`, flags read as id lists (`Docs/findings-routeros-6.md`, which also
 holds the numbered list of what is still open on 6.x). Run `CliFlagFieldsTest` against it after any change to
 the CLI read path; not the full suite, which assumes the first router's topology. Empty `romonTargetId` = the
-RoMON tests are Inconclusive. The table is in `tik4net.integrationtests/README.md`, *The lab routers*.
+RoMON tests are Inconclusive. The `romonSshTarget*` keys send the Telnet/SSH/MAC-Telnet relay rows to CHR3
+instead: a RouterOS 7.25 agent cannot SSH to a 6.x router (`packet not aligned`, a RouterOS defect, not ours).
+The table is in `tik4net.integrationtests/README.md`, *The lab routers*.
 
 **Switch routers with `-Router`, never by editing `App.config`.** A router profile is a set of `<name>.<key>`
 entries in `App.config` (`chr2.host`, `chr2.routerMac`, …) that override the plain keys; `-Router chr2` sets

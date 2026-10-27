@@ -191,6 +191,21 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public async Task Relay_TheAgentsSshClientRefusingTheTarget_LeadsWithWhatItPrinted_NotTheOverlay()
+        {
+            // A RouterOS 7.25 agent to a RouterOS 6 target (2026-10-27): the agent's own SSH client prints its error
+            // before 'Welcome back!'. The target is in the overlay, so "not in its RoMON overlay" would mislead.
+            var term = AgentTerminal().Emits(
+                SshCommand + "\r\n\r\u001b7\u001b8\r\u001b[9999B\r\npacket not aligned\r\n\r\nWelcome back!\r\ninterrupted\r\n\u001b7\u001b8");
+
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
+
+            Assert.AreEqual(TikRomonRelayFailure.TargetUnreachable, ex.Reason);
+            StringAssert.Contains(ex.Message, "SSH session to RoMON id " + Target + " failed: packet not aligned");
+            Assert.IsFalse(ex.Message.Contains("not in its RoMON overlay"), ex.Message);
+        }
+
+        [TestMethod]
         public async Task Relay_TheAgentsPromptBeforePassword_ReportsTheTargetUnreachable()
         {
             var term = AgentTerminal().Emits(WelcomeBackToTheAgentsPrompt);
