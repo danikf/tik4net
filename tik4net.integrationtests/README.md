@@ -35,7 +35,7 @@ The lab runs three CHRs. Only the first is needed for the suite; the others cove
 | | **CHR** — the suite's router | **CHR2** — RoMON target, older RouterOS | **CHR3** — a second RouterOS 7 |
 |---|---|---|---|
 | `App.config` keys | `host`, `user`, `pass`, `routerMac`, `routerIdentity` | `romonTargetId`, `romonTargetHost`, `romonTargetUser`, `romonTargetPass`; profile `chr2.*` | profile `chr3.*`; `chr2.romonTarget*` |
-| RouterOS | the version README promises (current stable) | **6.49.13**, kept there on purpose | **7.21.5** (long-term), kept there on purpose |
+| RouterOS | the version README promises (current stable) | **6.49.21** (the oldest 6.x with the 2026 SSH security fixes), kept there on purpose | **7.21.5** (long-term), kept there on purpose |
 | Identity | `CHR` | `CHR2` — must differ from the first | `CHR3` |
 | Ports | two (`testInterface`, `testSecondInterface`) | two, the same names — aligned with CHR on purpose | two, the same names |
 | Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router; the agent of `-Router chr2` | an older 7.x for the version-sensitive tests (`-Router chr3`); the RoMON target of `-Router chr2` |

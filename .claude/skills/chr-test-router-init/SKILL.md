@@ -346,7 +346,7 @@ findings doc is in flight:
 ## Second router — CHR2: the RoMON target and the older RouterOS
 
 The lab's second CHR, identity `CHR2`, has two roles: the RoMON target the suite reaches through the first router
-(`RomonRelayTest` writes to it), and the router kept on an **older RouterOS** (6.49.13) for tests that must also
+(`RomonRelayTest` writes to it), and the router kept on an **older RouterOS** (6.49.21) for tests that must also
 hold on RouterOS 6. Its role in the suite is described in `tik4net.integrationtests/README.md`, *The lab routers*.
 Provision it with steps 0–6 like the first, with these differences:
 
@@ -365,8 +365,11 @@ Provision it with steps 0–6 like the first, with these differences:
   `chr2.romonTarget*`. After re-provisioning CHR3, enable RoMON there and pin its id the same way.
 - Verify with `run-integration-tests.ps1 -Router @('default','chr2') -Transport @('api') -Filter
   'FullyQualifiedName~RomonRelayTest'` — 40 tests per profile, three agent transports each, about 5 min.
-- **The lab keeps it on RouterOS 6.49.13**, the oldest public CHR, so the RouterOS 6 paths run somewhere
-  (`Docs/findings-routeros-6.md`). Do not upgrade it with the first one. The version is chosen by the **disk
+- **The lab keeps it on RouterOS 6.49.21**, the oldest 6.x with the fixes for the September 2026 SSH
+  vulnerabilities (CVE-2026-67277/-67279/-86060), so the RouterOS 6 paths run on the oldest 6.x a user should still
+  run (`Docs/findings-routeros-6.md`). Do not upgrade it with the first one. Within 6.x it takes a package
+  upgrade: `/tool/fetch` `routeros-x86-<ver>.npk` and `dude-<ver>.npk` from `download.mikrotik.com/routeros/<ver>/`,
+  then reboot. The version is chosen by the **disk
   image**, not by a package: a CHR refuses any package older than its `factory-software`, so a 7.x-built VM given
   a 6.x `.npk` logs `omitting package … min RouterOS version is 7.1` and boots its old version again. Within one
   major version, `/system/package/downgrade` works — upload `routeros-<ver>.npk` and the

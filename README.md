@@ -7,7 +7,7 @@ layer — so you use whatever the router already has enabled, and switching tran
 you work at the level that suits the task — raw sentences, an ADO.NET-like command API, or a typed O/R mapper over
 170+ RouterOS menus — on the same connection. The first working program is five lines.
 
-Tested on RouterOS **7.25** on every transport, and on 7.21.5 and 6.49.13
+Tested on RouterOS **7.25** on every transport, and on 7.21.5 and 6.49.21
 ([RouterOS versions](https://github.com/danikf/tik4net/wiki/RouterOS-versions)).
 
 ## Install

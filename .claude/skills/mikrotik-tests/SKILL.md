@@ -22,7 +22,7 @@ dotnet test tik4net.unittests/tik4net.unittests.csproj
 Router coordinates come from `tik4net.integrationtests/App.config` (`host`, `user`, `pass`,
 `routerMac`, plus the topology keys consumed by `TestConstants.cs`). That file is the single source of
 truth — read it, never restate its values. The `romonTarget*` keys name the **second** lab router, CHR2: the
-RoMON target `RomonRelayTest` reaches through the first (and writes to), kept on **RouterOS 6.49.13** as the
+RoMON target `RomonRelayTest` reaches through the first (and writes to), kept on **RouterOS 6.49.21** as the
 older router — no REST, no `proplist=`, flags read as id lists (`Docs/findings-routeros-6.md`, which also
 holds the numbered list of what is still open on 6.x). Run `CliFlagFieldsTest` against it after any change to
 the CLI read path; not the full suite, which assumes the first router's topology. Empty `romonTargetId` = the

@@ -1,7 +1,9 @@
 # RouterOS 6 — findings and open problems
 
-What RouterOS 6 does differently from 7, as measured on CHR 6.49.13 (long-term, x86_64) — the lab's second
-router, CHR2 (`tik4net.integrationtests/README.md`, *The lab routers*). The first half is ground truth and what
+What RouterOS 6 does differently from 7, as measured on the lab's second router, CHR2
+(`tik4net.integrationtests/README.md`, *The lab routers*). CHR2 runs 6.49.21 (long-term, x86_64), the oldest 6.x
+with the fixes for the September 2026 SSH vulnerabilities; a version named below is the one a measurement was taken
+on, mostly 6.49.13. The first half is ground truth and what
 tik4net does about it; the second is the list of problems still open, to be taken one at a time.
 
 ## 1. Where each transport stands

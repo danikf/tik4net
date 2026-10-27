@@ -211,7 +211,7 @@ software id, a path only one machine has.
 A release says which RouterOS it was tested on, and that claim should be the version users are installing now.
 Before a release is published, **CHR1 — the default lab router, `host` in `tik4net.integrationtests/App.config`
 — runs the latest RouterOS on the `stable` channel**, and the integration matrix of 1.1 ran on it after the
-upgrade. CHR2 (6.49.13) and CHR3 (7.21.x) stay where they are on purpose; they are the older versions.
+upgrade. CHR2 (6.49.21) and CHR3 (7.21.x) stay where they are on purpose; they are the older versions.
 
 Ask the router itself which stable is current (the `mikrotik` skill, over the API):
 
