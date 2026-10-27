@@ -628,6 +628,7 @@ namespace tik4net.WinboxNative
                 _mux?.Dispose();
                 _mux = null;
                 try { _session?.Dispose(); } catch { /* the old session is gone anyway */ }
+                MarkLost();   // cleared by the reopen; left set when it fails
                 SetClosed();
 
                 // The same login sequence Open runs, credentials included — a reopen that diverged from the
@@ -1088,7 +1089,7 @@ namespace tik4net.WinboxNative
         // ── IPollingMonitorHost (shared listen/async-list scaffolding lives in PollingMonitorEngine) ──
 
         /// <inheritdoc/>
-        bool IPollingMonitorHost.IsOpen => IsOpened;
+        bool IPollingMonitorHost.ClosedByCaller => ClosedByCaller;
 
         /// <inheritdoc/>
         IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)

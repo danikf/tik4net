@@ -22,7 +22,7 @@ namespace tik4net.unittests.Connection
             public readonly List<string> Polled = new List<string>();
             public IList<TikRecordSentence> Rows = new List<TikRecordSentence>();
 
-            public bool IsOpen => true;
+            public bool ClosedByCaller => false;
 
             public IList<TikRecordSentence> PollSnapshot(TikCommandDescriptor printDescriptor)
             {

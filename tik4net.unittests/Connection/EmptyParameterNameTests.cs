@@ -1,5 +1,6 @@
 // EmptyParameterNameTests.cs — a parameter with an empty name is refused when it is created, on every transport
 // (command-layer C8). The binary API always refused it; the ten other transports built it and sent a nameless word.
+// TikFakeConnection refuses it too, so a test against the fake cannot pass on a call every transport refuses.
 
 using System;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Api;
 using tik4net.Connection;
+using tik4net.Testing;
 
 namespace tik4net.unittests.Connection
 {
@@ -39,6 +41,7 @@ namespace tik4net.unittests.Connection
         {
             yield return ("generic", new InertConnection());
             yield return ("api", new ApiConnection(false));
+            yield return ("fake", new TikFakeConnection().WithNonQuery(_ => true));
         }
 
         [TestMethod]

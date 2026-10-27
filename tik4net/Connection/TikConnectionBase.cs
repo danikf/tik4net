@@ -20,6 +20,7 @@ namespace tik4net.Connection
     {
         // Volatile: the binary API's reader thread clears it when the socket fails, while callers read it.
         private volatile bool _isOpened;
+        private volatile bool _lost;
 
         /// <param name="connectionType">The built-in transport this is; <c>null</c> for one written outside tik4net.</param>
         private protected TikConnectionBase(TikConnectionType? connectionType)
@@ -212,6 +213,7 @@ namespace tik4net.Connection
         {
             // What the previous open learnt about its router's menus is not true of this one.
             MenuSchemas = new TikMenuSchemaCache();
+            _lost = false;
             _isOpened = true;
         }
 
@@ -222,6 +224,18 @@ namespace tik4net.Connection
         /// Subclasses must call this when closing or on a fatal error to mark the connection as closed.
         /// </summary>
         protected void SetClosed() => _isOpened = false;
+
+        /// <summary>
+        /// Subclasses call this before closing the connection themselves because it broke (a read that cannot be
+        /// brought back in step, a session that cannot be reopened), so that close is not taken for the caller's.
+        /// </summary>
+        private protected void MarkLost() => _lost = true;
+
+        /// <summary>
+        /// True when the connection is closed and the caller closed it: closed, and not marked lost since it was
+        /// opened. A running monitor ends quietly on this and reports an error on any other close.
+        /// </summary>
+        internal bool ClosedByCaller => !_isOpened && !_lost;
 
         /// <summary>
         /// Throws <see cref="TikConnectionNotOpenException"/> when the connection has not been opened. A transport

@@ -34,9 +34,10 @@ namespace tik4net.unittests.Connection
             /// <summary>No print blocks: for the monitor tests, whose held run is the monitor.</summary>
             public void Disarm() => Interlocked.Exchange(ref _armed, 0);
 
+            public BlockingConnection() => SetOpened();
+
             public string MonitorEnding = "";
             public readonly ManualResetEventSlim EndMonitor = new ManualResetEventSlim(false);
-            private volatile bool _open = true;
 
             public override TikConnectionCapability Capabilities
                 => TikConnectionCapability.Crud | TikConnectionCapability.AsyncCommands | TikConnectionCapability.Listen;
@@ -116,13 +117,19 @@ namespace tik4net.unittests.Connection
                         case "trap":
                             throw new InvalidOperationException("monitor failed");
                         case "lost":
-                            _open = false;
+                            // The transport closes itself because the connection broke (CliConnectionBase.CloseAfterAbandonedRead).
+                            MarkLost();
+                            SetClosed();
                             throw new IOException("connection lost");
+                        case "closed":
+                            // The caller's Close() on another thread: the poll then fails on the closed channel.
+                            SetClosed();
+                            throw new IOException("channel closed");
                     }
                 }));
             }
 
-            bool IPollingMonitorHost.IsOpen => _open;
+            bool IPollingMonitorHost.ClosedByCaller => ClosedByCaller;
             IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor) => OneRow();
             TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => new TikTrapSentenceResult(ex.Message);
 
@@ -203,6 +210,7 @@ namespace tik4net.unittests.Connection
         [DataRow("trap")]
         [DataRow("cancel")]
         [DataRow("lost")]
+        [DataRow("closed")]
         public void EveryWayAMonitorEndsClearsTheFlag(string ending)
         {
             var conn = new BlockingConnection { MonitorEnding = ending };
@@ -229,24 +237,27 @@ namespace tik4net.unittests.Connection
             Assert.IsTrue(ended.Wait(Wait), "the monitor ended");
             Assert.IsTrue(cmd.CancelAndJoin(Wait), "the worker finished");
             lock (traps)
-                CollectionAssert.AreEqual(ending == "trap" ? new[] { "monitor failed" } : new string[0], traps.ToArray(),
-                    "an error is reported only when the monitor failed on its own");
+                CollectionAssert.AreEqual(ending == "trap" ? new[] { "monitor failed" } : ending == "lost" ? new[] { "connection lost" } : new string[0],
+                    traps.ToArray(), "an error is reported only when the monitor failed or lost its connection");
             Assert.IsFalse(cmd.IsRunning, "a monitor that ended (" + ending + ") clears the flag");
-            cmd.ExecuteList();   // the fake still answers after "lost": what is under test is the flag
+            cmd.ExecuteList();   // the fake still answers after "lost" and "closed": what is under test is the flag
         }
 
         /// <summary>
         /// D21: onDone fires once when the monitor ends without an error (it ended by itself, or the caller cancelled
-        /// it), and not after an error, which goes to errorCallback alone. The running flag clears either way.
+        /// it or closed the connection), and not after an error, which goes to errorCallback alone. The running flag
+        /// clears either way.
         /// </summary>
         /// <remarks>
-        /// "lost" is a poll that fails after the connection has closed: <see cref="PollingMonitorEngine"/> counts that
-        /// as stopping and reports no error, so it ends in onDone.
+        /// "lost" is the transport closing a connection that broke, "closed" the caller's Close(): both leave the
+        /// connection closed when the poll fails, and only the caller's is a quiet ending. A lost connection is an
+        /// error, as the binary API reports it (ApiCallbackEndingTests.LostConnection_CallsTheErrorCallbackOnly).
         /// </remarks>
         [DataTestMethod]
         [DataRow("done", true)]
         [DataRow("cancel", true)]
-        [DataRow("lost", true)]
+        [DataRow("closed", true)]
+        [DataRow("lost", false)]
         [DataRow("trap", false)]
         public void OnDoneFiresOnlyWhenTheMonitorEndsWithoutAnError(string ending, bool expectDone)
         {
@@ -268,7 +279,7 @@ namespace tik4net.unittests.Connection
             Assert.IsTrue(ended.Wait(Wait), "a callback said the monitor ended");
             Assert.IsTrue(cmd.CancelAndJoin(Wait), "the worker finished");
             lock (traps)
-                Assert.AreEqual(ending == "trap" ? 1 : 0, traps.Count, "errors reported");
+                Assert.AreEqual(ending == "trap" || ending == "lost" ? 1 : 0, traps.Count, "errors reported");
             Assert.AreEqual(expectDone ? 1 : 0, Volatile.Read(ref done), "onDone calls after '" + ending + "'");
             Assert.IsFalse(cmd.IsRunning, "the flag clears on every ending");
         }

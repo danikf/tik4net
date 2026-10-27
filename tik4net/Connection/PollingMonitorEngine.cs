@@ -14,8 +14,11 @@ namespace tik4net.Connection
     /// </summary>
     internal interface IPollingMonitorHost
     {
-        /// <summary>True while the connection is open. A poll failure after close is graceful, not an error.</summary>
-        bool IsOpen { get; }
+        /// <summary>
+        /// True once the caller has closed the connection: a poll failure after that is graceful, not an error. A
+        /// connection the transport closed itself because it broke is not closed by the caller.
+        /// </summary>
+        bool ClosedByCaller { get; }
 
         /// <summary>
         /// Reads the current table for a <c>/path/print</c> descriptor, applying whatever serialization the
@@ -96,9 +99,9 @@ namespace tik4net.Connection
         }
 
         /// <summary>A worker is "stopping" (so a transport error is expected, not reported) when the caller
-        /// cancelled or the connection was closed out from under the poll — both are graceful, not failures.</summary>
+        /// cancelled or closed the connection. A connection lost under the poll is neither: it is reported.</summary>
         public static bool Stopping(IPollingMonitorHost host, TikMonitorHandle handle)
-            => handle.CancelRequested || !host.IsOpen;
+            => handle.CancelRequested || host.ClosedByCaller;
 
         /// <summary>Sleeps in short slices so cancel/close is responsive.</summary>
         public static void SleepInterruptible(int totalMs, TikMonitorHandle handle)
@@ -151,7 +154,8 @@ namespace tik4net.Connection
             => Run(host, handle, onError, onDone, () =>
             {
                 int incompleteInARow = 0;
-                while (!handle.CancelRequested && host.IsOpen)
+                // A connection lost between polls fails the next poll, which reports it.
+                while (!handle.CancelRequested && !host.ClosedByCaller)
                 {
                     IList<TikRecordSentence> rows;
                     try { rows = host.PollSnapshot(descriptor); }

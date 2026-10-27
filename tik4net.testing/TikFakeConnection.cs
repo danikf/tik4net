@@ -225,7 +225,10 @@ namespace tik4net.Testing
         internal void CancelTag(string tag)
         {
             lock (_cancelledTags)
+            {
                 _cancelledTags.Add(tag);
+                Monitor.PulseAll(_cancelledTags);
+            }
         }
 
         // ── Capabilities ───────────────────────────────────────────────────────
@@ -439,7 +442,9 @@ namespace tik4net.Testing
         }
 
         // Async variant — runs the fake sentences on a background thread, calling oneResponseCallback for
-        // each sentence until the thread is cancelled. Internal since 4.0, mirroring the real connections:
+        // each sentence until the thread is cancelled. A command that has not ended (no !done delivered: cancelled
+        // part-way, or a script that stops short of one, as a running monitor does) runs until it is cancelled and
+        // then ends in a !done, as the binary API ends a cancelled command. Internal since 4.0, mirroring the real connections:
         // the Thread-returning entry point left ITikConnection, and TikFakeCommand (same assembly) is the
         // only caller left, driving ITikCommand.ExecuteWithCallback exactly as ApiCommand does.
         internal Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
@@ -465,7 +470,14 @@ namespace tik4net.Testing
                         cancelled = _cancelledTags.Contains(tag);
                     if (cancelled) break;
                     oneResponseCallback(sentence);
+                    if (sentence is ITikDoneSentence)
+                        return;
                 }
+
+                lock (_cancelledTags)
+                    while (!_cancelledTags.Contains(tag))
+                        Monitor.Wait(_cancelledTags);
+                oneResponseCallback(new TikFakeDoneSentence());
             });
             thread.IsBackground = true;
             thread.Start();

@@ -366,7 +366,7 @@ namespace tik4net.Rest
         // ── IPollingMonitorHost (the loop scaffolding lives in PollingMonitorEngine) ──
 
         /// <inheritdoc/>
-        bool IPollingMonitorHost.IsOpen => IsOpened;
+        bool IPollingMonitorHost.ClosedByCaller => ClosedByCaller;
 
         /// <inheritdoc/>
         IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)

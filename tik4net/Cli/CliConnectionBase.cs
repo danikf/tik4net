@@ -667,6 +667,7 @@ namespace tik4net.Cli
                 "read abandoned mid-response (in-flight cancel with TikCancellationMode.AbandonAndClose, "
                     + "a receive timeout, or the end of a RoMON relay) — closing the connection, the unread "
                     + "response cannot be resynchronized");
+            MarkLost();
             try { Close(); }
             catch (Exception ex)
             {
@@ -1718,7 +1719,7 @@ namespace tik4net.Cli
         // ── IPollingMonitorHost (shared listen/async-list scaffolding lives in PollingMonitorEngine) ──
 
         /// <inheritdoc/>
-        bool IPollingMonitorHost.IsOpen => IsOpened;
+        bool IPollingMonitorHost.ClosedByCaller => ClosedByCaller;
 
         /// <inheritdoc/>
         IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)

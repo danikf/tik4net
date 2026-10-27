@@ -53,6 +53,40 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual(1, Volatile.Read(ref done));
         }
 
+        /// <summary>A scripted monitor: rows and no !done, so it runs until it is cancelled.</summary>
+        private static TikFakeConnection RunningMonitor()
+            => new TikFakeConnection().WithResponse(rows => rows.First() == "/interface/monitor-traffic",
+                new ITikSentence[] { new TikFakeReSentence(new System.Collections.Generic.Dictionary<string, string> { { "name", "ether1" } }) });
+
+        [TestMethod]
+        public void FakeCommand_ACancelledMonitor_EndsInOnDone()
+        {
+            var cmd = RunningMonitor().CreateCommand("/interface/monitor-traffic");
+            int rows = 0, done = 0;
+            cmd.ExecuteWithCallback(_ => Interlocked.Increment(ref rows), _ => Assert.Fail("no error expected"),
+                () => Interlocked.Increment(ref done));
+
+            Assert.IsTrue(SpinWait.SpinUntil(() => Volatile.Read(ref rows) == 1, Wait), "the row arrived");
+            Assert.IsTrue(cmd.IsRunning, "a monitor without !done runs until it is cancelled");
+            Assert.AreEqual(0, Volatile.Read(ref done), "not done before the cancel");
+            Assert.IsTrue(cmd.CancelAndJoin(Wait), "the cancel ended it");
+            Assert.AreEqual(1, Volatile.Read(ref done), "the caller's cancel ends in onDone, as on every transport");
+        }
+
+        [TestMethod]
+        public void FakeCommand_ACancelAfterATrap_DoesNotCallOnDone()
+        {
+            var cmd = new TikFakeConnection().WithResponse(rows => rows.First() == "/interface/monitor-traffic",
+                    new ITikSentence[] { new TikFakeTrapSentence("monitor failed") })
+                .CreateCommand("/interface/monitor-traffic");
+            int errors = 0, done = 0;
+            cmd.ExecuteWithCallback(_ => { }, _ => Interlocked.Increment(ref errors), () => Interlocked.Increment(ref done));
+
+            Assert.IsTrue(SpinWait.SpinUntil(() => Volatile.Read(ref errors) == 1, Wait), "the trap arrived");
+            Assert.IsTrue(cmd.CancelAndJoin(Wait));
+            Assert.AreEqual(0, Volatile.Read(ref done), "onDone is not called after an error (D21), a cancel included");
+        }
+
         [TestMethod]
         public void CommandLoadWithCallback_ATrap_CallsOnExceptionAndNotOnDone()
         {

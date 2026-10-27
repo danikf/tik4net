@@ -27,7 +27,7 @@ namespace tik4net.unittests.Connection
 
             public ScriptedHost(params int[] incompletePolls) { _incomplete = new HashSet<int>(incompletePolls); }
 
-            public bool IsOpen => true;
+            public bool ClosedByCaller => false;
 
             public IList<TikRecordSentence> PollSnapshot(TikCommandDescriptor printDescriptor)
             {

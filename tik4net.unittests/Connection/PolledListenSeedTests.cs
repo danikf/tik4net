@@ -31,7 +31,7 @@ namespace tik4net.unittests.Connection
             public Exception? FailWith { get; set; }
             public int Polls;
 
-            public bool IsOpen => true;
+            public bool ClosedByCaller => false;
 
             public void Set(string id, string name)
             {

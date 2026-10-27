@@ -252,6 +252,61 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        public void ExecuteAsync_LostConnection_EndsInTheErrorCallbackOnly()
+        {
+            // D21: a connection the router drops under a running command is an error, not a finish — errorCallback,
+            // and no onDone. The session is dropped by the router (/user/active remove), not by our Close(), which
+            // is the caller stopping the command and is not under test here.
+            EnsureCapability(TikConnectionCapability.Listen, "ExecuteWithCallback");
+            if (!DeliversMonitorRowsLive())
+                Assert.Inconclusive("REST has no session to drop: every request is its own, and its /user/active rows cannot be removed.");
+
+            var before = new HashSet<string>(Connection.CreateCommand("/user/active/print").ExecuteList().Select(r => r.GetId()));
+            using (var victim = OpenSecondaryConnection())
+            {
+                var sessionIds = Connection.CreateCommand("/user/active/print").ExecuteList()
+                    .Select(r => r.GetId()).Where(id => !before.Contains(id)).ToList();
+                Assert.AreNotEqual(0, sessionIds.Count, "the second connection's /user/active row was not found");
+
+                int done = 0;
+                ITikTrapSentence error = null;
+                var listen = victim.CreateCommand("/ip/address/listen");
+                listen.ExecuteWithCallback(_ => { }, e => error = e, () => Interlocked.Increment(ref done));
+                Thread.Sleep(1500);   // the listen is running (a polled one has taken its baseline and a poll)
+                Assert.IsNull(error, "the listen failed before the session was dropped: " + error?.Message);
+
+                // A WinBox login holds two rows, and removing one ends both.
+                foreach (var id in sessionIds)
+                {
+                    try { Connection.CreateCommandAndParameters("/user/active/remove", TikSpecialProperties.Id, id).ExecuteNonQuery(); }
+                    catch (TikNoSuchItemException) { }
+                    catch (TikCommandTrapException ex) when (!IsNonApiTransport())
+                    {
+                        Assert.Inconclusive("the router refuses to drop an API session: " + ex.Message);
+                    }
+                }
+
+                // A dropped session is noticed when a read fails, which over a silent channel is its receive timeout.
+                if (!WaitUntil(() => error != null || Volatile.Read(ref done) > 0, victim.ReceiveTimeout + TimeSpan.FromSeconds(30)))
+                {
+                    // Nothing ended: either the router still serves the session (it removes a MAC-Telnet session's row
+                    // and keeps answering on it), or our monitor missed the loss. The session itself says which.
+                    listen.CancelAndJoin();
+                    try { victim.ExecuteScalar("/system/identity/print"); }
+                    catch (Exception ex)
+                    {
+                        Assert.Fail("the session is gone, yet the listen neither failed nor ended: " + ex.Message);
+                    }
+                    Assert.Inconclusive("the router removed the session's /user/active row and kept serving it");
+                }
+                Assert.IsNotNull(error, "a dropped session ended in onDone, not errorCallback");
+                Thread.Sleep(500);   // an onDone after the error would arrive right behind it
+                Assert.AreEqual(0, Volatile.Read(ref done), "onDone after a lost connection; the error was: " + error.Message);
+                Console.WriteLine("errorCallback: " + error.Message);
+            }
+        }
+
+        [TestMethod]
         [TestLock("/tool/profile")]   // one profiler per router: a second one is refused "already running"
         public void ExecuteAsync_StreamsMonitorRows()
         {
