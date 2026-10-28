@@ -16,45 +16,103 @@ namespace tik4net.Winbox
     /// </remarks>
     internal static class M2Message
     {
+        /// <summary>
+        /// The M2 type bytes: <c>(ftype &lt;&lt; 3) | size flags</c>, with the ftype table from webfig's
+        /// <c>master*.js</c> (0 bool, 1 u32, 2 u64, 3 addr6, 4 string, 5 message, 6 raw, and +16 for the array forms)
+        /// and the size flags <see cref="Short"/> (1-byte length or count) and <see cref="Long"/> (4-byte).
+        /// </summary>
+        internal static class TypeByte
+        {
+            internal const int Short = 0x01;
+            internal const int Long = 0x02;
+
+            internal const int False = 0x00;          // bool: the value is the short flag itself
+            internal const int True = 0x01;
+            internal const int U32 = 0x08;
+            internal const int U8 = 0x09;             // u32, short form: one byte
+            internal const int U64 = 0x10;
+            internal const int Addr6 = 0x18;          // sixteen bytes, no length
+            internal const int String = 0x20;
+            internal const int Message = 0x28;
+            internal const int Raw = 0x30;
+            internal const int BoolArray = 0x80;
+            internal const int U32Array = 0x88;
+            internal const int U64Array = 0x90;
+            internal const int Addr6Array = 0x98;
+            internal const int StringArray = 0xA0;
+            internal const int MessageArray = 0xA8;
+            internal const int RawArray = 0xB0;
+        }
+
         // ── TLV building ──────────────────────────────────────────────────────
 
         // M2 message = b'M2' + concatenated TLV fields
         internal static byte[] BuildM2(params byte[][] fields)
             => new byte[] { (byte)'M', (byte)'2' }.Concat(fields.SelectMany(f => f)).ToArray();
 
-        // SYS_TO u32_array: key=(0x01,0x00,0xFF)
-        internal static byte[] SysToArr(params int[] ids)
+        // The 4-byte field header every builder starts with: the full key over three little-endian bytes (key low,
+        // key high, namespace), then the type byte.
+        private static List<byte> Header(int fullKey, int type, int capacity = 8)
+            => new List<byte>(capacity) { (byte)fullKey, (byte)(fullKey >> 8), (byte)(fullKey >> 16), (byte)type };
+
+        // String and raw share one length rule: the short form (type | Short, a 1-byte length) up to 255 bytes, the
+        // normal form (a 2-byte length) above.
+        private static byte[] VarLen(int fullKey, int normalType, byte[] data)
         {
-            var b = new List<byte> { 0x01, 0x00, 0xFF, 0x88 };
-            b.AddRange(BitConverter.GetBytes((ushort)ids.Length));
-            foreach (int id in ids) b.AddRange(BitConverter.GetBytes((uint)id));
+            List<byte> b;
+            if (data.Length <= 255)
+            {
+                b = Header(fullKey, normalType | TypeByte.Short, 5 + data.Length);
+                b.Add((byte)data.Length);
+            }
+            else
+            {
+                b = Header(fullKey, normalType, 6 + data.Length);
+                b.AddRange(BitConverter.GetBytes((ushort)data.Length));
+            }
+            b.AddRange(data);
             return b.ToArray();
         }
 
-        // SYS_FROM u32_array [0, srcId]: key=(0x02,0x00,0xFF)
-        internal static byte[] SysFrom(int srcId = 8)
+        // The counted arrays (u32[], u64[], addr6[], string[], raw[], message[]): a 2-byte count, then each item as
+        // writeItem writes it.
+        private static byte[] Counted<T>(int fullKey, int type, IList<T> items, Action<List<byte>, T> writeItem)
         {
-            var b = new List<byte> { 0x02, 0x00, 0xFF, 0x88, 0x02, 0x00 };
-            b.AddRange(BitConverter.GetBytes((uint)0));
-            b.AddRange(BitConverter.GetBytes((uint)srcId));
+            var b = Header(fullKey, type);
+            b.AddRange(BitConverter.GetBytes((ushort)items.Count));
+            foreach (T item in items) writeItem(b, item);
             return b.ToArray();
         }
+
+        // A 2-byte length followed by the bytes: one element of string[], raw[] and message[].
+        private static void LengthPrefixed(List<byte> b, byte[] data)
+        {
+            b.AddRange(BitConverter.GetBytes((ushort)data.Length));
+            b.AddRange(data);
+        }
+
+        // SYS_TO u32_array: key=(0x01,0x00,0xFF)
+        internal static byte[] SysToArr(params int[] ids) => U32ArraySys(WinboxM2Protocol.SysKey.To, ids);
+
+        // SYS_FROM u32_array [0, srcId]: key=(0x02,0x00,0xFF)
+        internal static byte[] SysFrom(int srcId = 8) => U32ArraySys(WinboxM2Protocol.SysKey.From, 0, srcId);
 
         // Bool field for system keys
         internal static byte[] BoolSys(int fullKey, bool val)
-            => new byte[] { (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                            (byte)((fullKey >> 16) & 0xFF), val ? (byte)0x01 : (byte)0x00 };
+            => Header(fullKey, val ? TypeByte.True : TypeByte.False).ToArray();
 
         // u8 field for system keys
         internal static byte[] U8Sys(int fullKey, byte val)
-            => new byte[] { (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                            (byte)((fullKey >> 16) & 0xFF), 0x09, val };
+        {
+            var b = Header(fullKey, TypeByte.U8);
+            b.Add(val);
+            return b.ToArray();
+        }
 
         // u32 field for system keys (used when value > 255)
         internal static byte[] U32Sys(int fullKey, int val)
         {
-            var b = new List<byte> { (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                                     (byte)((fullKey >> 16) & 0xFF), 0x08 };
+            var b = Header(fullKey, TypeByte.U32);
             b.AddRange(BitConverter.GetBytes((uint)val));
             return b.ToArray();
         }
@@ -65,8 +123,7 @@ namespace tik4net.Winbox
         // fields were unwritable over native while resolving to the right keys.
         internal static byte[] U64Sys(int fullKey, ulong val)
         {
-            var b = new List<byte> { (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                                     (byte)((fullKey >> 16) & 0xFF), 0x10 };
+            var b = Header(fullKey, TypeByte.U64, 12);
             b.AddRange(BitConverter.GetBytes(val));
             return b.ToArray();
         }
@@ -79,10 +136,10 @@ namespace tik4net.Winbox
             var body = new List<byte> { (byte)'M', (byte)'2' };
             foreach (var f in subFields) if (f != null) body.AddRange(f);
 
-            var b = new List<byte> { (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF), (byte)((fullKey >> 16) & 0xFF) };
-            if (body.Count <= 0xFF) { b.Add(0x29); b.Add((byte)body.Count); }
-            else if (body.Count <= 0xFFFF) { b.Add(0x28); b.Add((byte)(body.Count & 0xFF)); b.Add((byte)((body.Count >> 8) & 0xFF)); }
-            else { b.Add(0x2A); b.AddRange(BitConverter.GetBytes((uint)body.Count)); }
+            List<byte> b;
+            if (body.Count <= 0xFF) { b = Header(fullKey, TypeByte.Message | TypeByte.Short); b.Add((byte)body.Count); }
+            else if (body.Count <= 0xFFFF) { b = Header(fullKey, TypeByte.Message); b.AddRange(BitConverter.GetBytes((ushort)body.Count)); }
+            else { b = Header(fullKey, TypeByte.Message | TypeByte.Long); b.AddRange(BitConverter.GetBytes((uint)body.Count)); }
             b.AddRange(body);
             return b.ToArray();
         }
@@ -98,71 +155,24 @@ namespace tik4net.Winbox
         /// Profile monitor's 0xFFFFFFFD), so callers that hold a u32 id should use this overload directly rather
         /// than round-tripping through a signed cast.</summary>
         internal static byte[] SessionIdField(uint id)
-        {
-            if (id <= 255)
-                return new byte[] { 0x01, 0x00, 0xFE, 0x09, (byte)id };
-            var b = new List<byte> { 0x01, 0x00, 0xFE, 0x08 };
-            b.AddRange(BitConverter.GetBytes(id));
-            return b.ToArray();
-        }
+            => id <= 255
+                ? U8Sys(WinboxM2Protocol.RecordKey.Id, (byte)id)
+                : U32Sys(WinboxM2Protocol.RecordKey.Id, unchecked((int)id));
 
-        // String field, user namespace (key_id in 0x00 namespace)
-        internal static byte[] StringUser(int keyId, string value)
-        {
-            byte kl = (byte)(keyId & 0xFF), kh = (byte)((keyId >> 8) & 0xFF);
-            byte[] data = Encoding.UTF8.GetBytes(value);
-            if (data.Length <= 255)
-                return new byte[] { kl, kh, 0x00, 0x21, (byte)data.Length }.Concat(data).ToArray();
-            var b = new List<byte> { kl, kh, 0x00, 0x20 };
-            b.AddRange(BitConverter.GetBytes((ushort)data.Length));
-            b.AddRange(data);
-            return b.ToArray();
-        }
-
-        // u32 field, user namespace
-        internal static byte[] U32User(int keyId, int val)
-        {
-            byte kl = (byte)(keyId & 0xFF), kh = (byte)((keyId >> 8) & 0xFF);
-            return new byte[] { kl, kh, 0x00, 0x08 }.Concat(BitConverter.GetBytes((uint)val)).ToArray();
-        }
-
-        // Raw bytes field, user namespace
-        internal static byte[] RawUser(int keyId, byte[] data)
-        {
-            byte kl = (byte)(keyId & 0xFF), kh = (byte)((keyId >> 8) & 0xFF);
-            if (data.Length <= 255)
-                return new byte[] { kl, kh, 0x00, 0x31, (byte)data.Length }.Concat(data).ToArray();
-            var b = new List<byte> { kl, kh, 0x00, 0x30 };
-            b.AddRange(BitConverter.GetBytes((ushort)data.Length));
-            b.AddRange(data);
-            return b.ToArray();
-        }
+        // The user-namespace builders: the *Sys builders with namespace 0. The key is masked to its 16 bits, so a
+        // key with namespace bits still lands in namespace 0.
+        internal static byte[] StringUser(int keyId, string value) => StringSys(keyId & 0xFFFF, value);
+        internal static byte[] U32User(int keyId, int val) => U32Sys(keyId & 0xFFFF, val);
+        internal static byte[] RawUser(int keyId, byte[] data) => RawSys(keyId & 0xFFFF, data);
+        internal static byte[] U32ArrayUser(int keyId, params int[] values) => U32ArraySys(keyId & 0xFFFF, values);
 
         // String field for a full key (any namespace, e.g. 0xFE0009 = comment).
         internal static byte[] StringSys(int fullKey, string value)
-        {
-            byte[] data = Encoding.UTF8.GetBytes(value ?? "");
-            byte kl = (byte)(fullKey & 0xFF), kh = (byte)((fullKey >> 8) & 0xFF), ns = (byte)((fullKey >> 16) & 0xFF);
-            if (data.Length <= 255)
-                return new byte[] { kl, kh, ns, 0x21, (byte)data.Length }.Concat(data).ToArray();
-            var b = new List<byte> { kl, kh, ns, 0x20 };
-            b.AddRange(BitConverter.GetBytes((ushort)data.Length));
-            b.AddRange(data);
-            return b.ToArray();
-        }
+            => VarLen(fullKey, TypeByte.String, Encoding.UTF8.GetBytes(value ?? ""));
 
         // Raw bytes field for a full key (any namespace, e.g. mac/ip encoded as raw bytes).
         internal static byte[] RawSys(int fullKey, byte[] data)
-        {
-            data = data ?? new byte[0];
-            byte kl = (byte)(fullKey & 0xFF), kh = (byte)((fullKey >> 8) & 0xFF), ns = (byte)((fullKey >> 16) & 0xFF);
-            if (data.Length <= 255)
-                return new byte[] { kl, kh, ns, 0x31, (byte)data.Length }.Concat(data).ToArray();
-            var b = new List<byte> { kl, kh, ns, 0x30 };
-            b.AddRange(BitConverter.GetBytes((ushort)data.Length));
-            b.AddRange(data);
-            return b.ToArray();
-        }
+            => VarLen(fullKey, TypeByte.Raw, data ?? new byte[0]);
 
         /// <summary>
         /// IPv6 address field (webfig ftype 3, <c>FT_ADDR6</c> — type byte <c>0x18</c>): sixteen raw bytes
@@ -178,22 +188,14 @@ namespace tik4net.Winbox
         {
             if (addr16 == null || addr16.Length != 16)
                 throw new ArgumentException("An FT_ADDR6 field is exactly 16 bytes.", nameof(addr16));
-            byte kl = (byte)(fullKey & 0xFF), kh = (byte)((fullKey >> 8) & 0xFF), ns = (byte)((fullKey >> 16) & 0xFF);
-            return new byte[] { kl, kh, ns, 0x18 }.Concat(addr16).ToArray();
+            var b = Header(fullKey, TypeByte.Addr6, 20);
+            b.AddRange(addr16);
+            return b.ToArray();
         }
 
         // u32 array field for a system key (namespace 0xFF or 0xFE).
         internal static byte[] U32ArraySys(int fullKey, params int[] values)
-        {
-            var b = new List<byte>
-            {
-                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                (byte)((fullKey >> 16) & 0xFF), 0x88
-            };
-            b.AddRange(BitConverter.GetBytes((ushort)values.Length));
-            foreach (int v in values) b.AddRange(BitConverter.GetBytes((uint)v));
-            return b.ToArray();
-        }
+            => Counted(fullKey, TypeByte.U32Array, values, (b, v) => b.AddRange(BitConverter.GetBytes((uint)v)));
 
         /// <summary>
         /// u64-array field (webfig ftype 18, <c>FT_U64_ARRAY</c> — type byte <c>0x90</c>): a 16-bit element
@@ -205,16 +207,7 @@ namespace tik4net.Winbox
         /// as.
         /// </remarks>
         internal static byte[] U64ArraySys(int fullKey, IList<ulong> values)
-        {
-            var b = new List<byte>
-            {
-                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                (byte)((fullKey >> 16) & 0xFF), 0x90
-            };
-            b.AddRange(BitConverter.GetBytes((ushort)values.Count));
-            foreach (ulong v in values) b.AddRange(BitConverter.GetBytes(v));
-            return b.ToArray();
-        }
+            => Counted(fullKey, TypeByte.U64Array, values, (b, v) => b.AddRange(BitConverter.GetBytes(v)));
 
         /// <summary>
         /// String-array field (webfig ftype 20, <c>FT_STRING_ARRAY</c> — type byte <c>0xA0</c>): a 16-bit
@@ -227,21 +220,7 @@ namespace tik4net.Winbox
         /// each. An empty array is a valid value and the only way to CLEAR the field.
         /// </remarks>
         internal static byte[] StringArraySys(int fullKey, IList<string> values)
-        {
-            var b = new List<byte>
-            {
-                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                (byte)((fullKey >> 16) & 0xFF), 0xA0
-            };
-            b.AddRange(BitConverter.GetBytes((ushort)values.Count));
-            foreach (string v in values)
-            {
-                byte[] data = Encoding.UTF8.GetBytes(v ?? "");
-                b.AddRange(BitConverter.GetBytes((ushort)data.Length));
-                b.AddRange(data);
-            }
-            return b.ToArray();
-        }
+            => Counted(fullKey, TypeByte.StringArray, values, (b, v) => LengthPrefixed(b, Encoding.UTF8.GetBytes(v ?? "")));
 
         /// <summary>
         /// Raw-array field (webfig ftype 22, <c>FT_RAW_ARRAY</c> — type byte <c>0xB0</c>): the same shape as
@@ -254,21 +233,7 @@ namespace tik4net.Winbox
         /// so both widths are 2 bytes here.
         /// </remarks>
         internal static byte[] RawArraySys(int fullKey, IList<byte[]> values)
-        {
-            var b = new List<byte>
-            {
-                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                (byte)((fullKey >> 16) & 0xFF), 0xB0
-            };
-            b.AddRange(BitConverter.GetBytes((ushort)values.Count));
-            foreach (byte[] v in values)
-            {
-                byte[] data = v ?? new byte[0];
-                b.AddRange(BitConverter.GetBytes((ushort)data.Length));
-                b.AddRange(data);
-            }
-            return b.ToArray();
-        }
+            => Counted(fullKey, TypeByte.RawArray, values, (b, v) => LengthPrefixed(b, v ?? new byte[0]));
 
         /// <summary>
         /// IPv6-array field (webfig ftype 19, <c>FT_ADDR6_ARRAY</c> — type byte <c>0x98</c>): a 16-bit
@@ -276,21 +241,12 @@ namespace tik4net.Winbox
         /// fixed-width rule the scalar <see cref="Addr6Sys"/> follows.
         /// </summary>
         internal static byte[] Addr6ArraySys(int fullKey, IList<byte[]> values)
-        {
-            var b = new List<byte>
-            {
-                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                (byte)((fullKey >> 16) & 0xFF), 0x98
-            };
-            b.AddRange(BitConverter.GetBytes((ushort)values.Count));
-            foreach (byte[] v in values)
+            => Counted(fullKey, TypeByte.Addr6Array, values, (b, v) =>
             {
                 if (v == null || v.Length != 16)
                     throw new ArgumentException("An FT_ADDR6 element is exactly 16 bytes.", nameof(values));
                 b.AddRange(v);
-            }
-            return b.ToArray();
-        }
+            });
 
         /// <summary>
         /// Message-array field (webfig ftype 21, <c>FT_MESSAGE_ARRAY</c> — type byte <c>0xA8</c>): a 16-bit
@@ -298,31 +254,7 @@ namespace tik4net.Winbox
         /// (<c>'M2'</c> + its own TLVs) — the write side of <see cref="ParseRecords"/>.
         /// </summary>
         internal static byte[] MessageArraySys(int fullKey, IList<byte[][]> elements)
-        {
-            var b = new List<byte>
-            {
-                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
-                (byte)((fullKey >> 16) & 0xFF), 0xA8
-            };
-            b.AddRange(BitConverter.GetBytes((ushort)elements.Count));
-            foreach (byte[][] fields in elements)
-            {
-                byte[] body = BuildM2(fields);
-                b.AddRange(BitConverter.GetBytes((ushort)body.Length));
-                b.AddRange(body);
-            }
-            return b.ToArray();
-        }
-
-        // u32 array, user namespace
-        internal static byte[] U32ArrayUser(int keyId, params int[] values)
-        {
-            byte kl = (byte)(keyId & 0xFF), kh = (byte)((keyId >> 8) & 0xFF);
-            var b = new List<byte> { kl, kh, 0x00, 0x88 };
-            b.AddRange(BitConverter.GetBytes((ushort)values.Length));
-            foreach (int v in values) b.AddRange(BitConverter.GetBytes((uint)v));
-            return b.ToArray();
-        }
+            => Counted(fullKey, TypeByte.MessageArray, elements, (b, fields) => LengthPrefixed(b, BuildM2(fields)));
 
         // ── Diagnostics ───────────────────────────────────────────────────────
 
