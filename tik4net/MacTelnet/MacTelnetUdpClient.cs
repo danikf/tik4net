@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Cli;
+using tik4net.Connection;
 
 namespace tik4net.MacTelnet
 {
@@ -57,8 +58,7 @@ namespace tik4net.MacTelnet
         // duration waiting on, and blocking on it meant every read occupied a thread-pool thread for as long
         // as the router took to answer. See AsyncSignal.
         private readonly AsyncSignal           _rxSignal = new AsyncSignal();
-        private Thread?           _pump;
-        private volatile bool     _pumpStop;
+        private readonly TikBackgroundLoop _pump = new TikBackgroundLoop();
         private volatile Exception? _pumpFault;
         // The router sent PKT_END: it has ended the session (see TryCloseSession).
         private volatile bool     _routerEnded;
@@ -311,7 +311,7 @@ namespace tik4net.MacTelnet
         /// <c>PKT_END</c> — at most <see cref="RouterOsCliLogin.SafeModeQuitWaitMs"/> — before ending the session itself.</remarks>
         internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
-            if (answerSafeModeQuestion && _pump != null)
+            if (answerSafeModeQuestion && _pump.IsRunning)
             {
                 try { SendTerminalBytes(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(true, "\r"))); } catch { /* ignore */ }
                 WaitForRouterToEndSession(RouterOsCliLogin.SafeModeQuitWaitMs);
@@ -365,32 +365,15 @@ namespace tik4net.MacTelnet
         /// why the wedge looked like it needed "accumulated state" to reproduce.
         /// </para>
         /// </summary>
-        private void StartPump()
-        {
-            _pumpStop = false;
-            _pump = new Thread(PumpLoop)
-            {
-                IsBackground = true,
-                Name = "tik4net MAC-Telnet pump",
-            };
-            _pump.Start();
-        }
+        private void StartPump() => _pump.Start("tik4net MAC-Telnet pump", PumpLoop);
 
-        private void StopPump()
-        {
-            var pump = _pump;
-            if (pump == null)
-                return;
-            _pump = null;
-            _pumpStop = true;
-            try { pump.Join(2000); } catch { /* ignore */ }
-        }
+        private void StopPump() => _pump.Stop(2000);
 
-        private void PumpLoop()
+        private void PumpLoop(Func<bool> stopping)
         {
             try
             {
-                while (!_pumpStop)
+                while (!stopping())
                 {
                     _udp.Client.ReceiveTimeout = PumpPollMs;
                     try

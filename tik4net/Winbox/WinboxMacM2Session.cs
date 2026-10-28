@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using tik4net.Connection;
 using tik4net.Crypto;
 using tik4net.MacTelnet;
 using ECPoint = tik4net.Crypto.ECPoint;
@@ -330,8 +331,7 @@ namespace tik4net.Winbox
         // costing one non-blocking syscall per tick.
         private const int IdlePumpIntervalMs = 200;
 
-        private Thread? _idlePump;
-        private volatile bool _idlePumpStop;
+        private readonly TikBackgroundLoop _idlePump = new TikBackgroundLoop();
 
         /// <inheritdoc/>
         /// <remarks>
@@ -351,22 +351,16 @@ namespace tik4net.Winbox
         /// </remarks>
         public void StartIdleServicing()
         {
-            if (_idlePump != null) return;
-            _idlePumpStop = false;
-            _idlePump = new Thread(IdlePumpLoop)
-            {
-                IsBackground = true,
-                Name = "tik4net WinBox-MAC idle ACK pump",
-            };
-            _idlePump.Start();
+            if (_idlePump.IsRunning) return;
+            _idlePump.Start("tik4net WinBox-MAC idle ACK pump", IdlePumpLoop);
         }
 
-        private void IdlePumpLoop()
+        private void IdlePumpLoop(Func<bool> stopping)
         {
-            while (!_idlePumpStop && !_closed)
+            while (!stopping() && !_closed)
             {
                 Thread.Sleep(IdlePumpIntervalMs);
-                if (_idlePumpStop || _closed) return;
+                if (stopping() || _closed) return;
 
                 // TryEnter, never a blocking wait: a reader holding the gate is already servicing the socket,
                 // and queueing behind it would only park this thread inside a 30 s command read.
@@ -389,14 +383,7 @@ namespace tik4net.Winbox
             }
         }
 
-        private void StopIdlePump()
-        {
-            var pump = _idlePump;
-            if (pump == null) return;
-            _idlePumpStop = true;
-            _idlePump = null;
-            try { pump.Join(IdlePumpIntervalMs * 5); } catch { }
-        }
+        private void StopIdlePump() => _idlePump.Stop(IdlePumpIntervalMs * 5);
 
         // WinBox over MAC uses the SAME chunked framing as TCP ([chunkLen][tag][data]…), carried inside
         // MAC DATA packets — NOT a bare encrypted blob. The encrypted frame is chunk-wrapped on send and
