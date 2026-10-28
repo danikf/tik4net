@@ -11,15 +11,15 @@ using ECPoint = tik4net.Crypto.ECPoint;
 namespace tik4net.Winbox
 {
     /// <summary>
-    /// WinBox M2 channel over the MAC layer (UDP 20561, <c>client_type=0x0f90</c>). Reuses the proven
-    /// <see cref="MacLayerTransport"/> (framing, ACK/PING handling, EC-SRP5 authentication and AES/HMAC
-    /// stream-key derivation) and carries each M2 message as a single AES-128-CBC blob inside a
-    /// <c>PKT_DATA</c> payload — no TCP-style chunk wrapper.
+    /// WinBox M2 channel over the MAC layer (UDP 20561, <c>client_type=0x0f90</c>). Uses
+    /// <see cref="MacLayerTransport"/> for the MAC-layer packets, ACK/PING handling and retransmission, runs the
+    /// WinBox EC-SRP5 handshake over it, and carries each encrypted M2 message in the same chunked framing as the
+    /// TCP carrier, inside <c>PKT_DATA</c> payloads.
     /// </summary>
     /// <remarks>
-    /// Shared between the CLI/terminal MAC mode (<c>WinboxCliMac</c>) and a future native-M2 MAC mode.
-    /// Implements <see cref="IWinboxM2Channel"/> so it drops straight into the shared
-    /// <c>WinboxCliClient</c> in place of the TCP <see cref="WinboxM2Session"/>.
+    /// Shared between the CLI/terminal MAC mode (<c>WinboxCliMac</c>) and the native MAC mode
+    /// (<c>WinboxNativeMac</c>). Implements <see cref="IWinboxM2Channel"/> so it drops straight into the shared
+    /// <c>WinboxCliClient</c> and <c>WinboxNativeM2Operations</c> in place of the TCP <see cref="WinboxM2Session"/>.
     /// </remarks>
     internal sealed class WinboxMacM2Session : MacLayerTransport, IWinboxM2Channel
     {

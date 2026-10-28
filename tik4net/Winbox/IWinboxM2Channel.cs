@@ -10,8 +10,9 @@ namespace tik4net.Winbox
     /// </summary>
     /// <remarks>
     /// The CLI engine (<c>WinboxCliClient</c>) builds mepty terminal messages on top of this interface,
-    /// so the same terminal/VT100 logic drives both the WinBox-CLI (TCP) and WinBox-CLI-MAC transports.
-    /// A future native-M2 mode will reuse the same channel.
+    /// so the same terminal/VT100 logic drives both the WinBox-CLI (TCP) and WinBox-CLI-MAC transports, and
+    /// the native transports (<c>WinboxNativeConnection</c>, <c>WinboxNativeMacConnection</c>) run their M2
+    /// operations over it.
     /// </remarks>
     internal interface IWinboxM2Channel : IDisposable
     {

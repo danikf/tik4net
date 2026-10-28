@@ -11,8 +11,8 @@ namespace tik4net.Winbox
     /// </summary>
     /// <remarks>
     /// Each field: <c>[key_lo][key_hi][namespace][type][data…]</c>. Namespace 0x00 = user fields
-    /// (1-based key), 0xFF = system fields, 0xFE = session fields. Shared by the TCP transport
-    /// (<see cref="WinboxM2Session"/>) and — later — the MAC transport (chapter H).
+    /// (1-based key), 0xFF = system fields, 0xFE = session fields. Shared by every WinBox transport, over
+    /// TCP (<see cref="WinboxM2Session"/>) and the MAC layer (<see cref="WinboxMacM2Session"/>) alike.
     /// </remarks>
     internal static class M2Message
     {
