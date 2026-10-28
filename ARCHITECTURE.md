@@ -164,7 +164,9 @@ Implemented by `ApiCommand` only, the same transport that implements the synchro
 
 Response sentences: `ITikReSentence` (`!re`), `ITikDoneSentence` (`!done`),
 `ITikTrapSentence` (`!trap`). A `!fatal` has no interface: it ends the session and surfaces as
-`TikCommandFatalException`.
+`TikCommandFatalException`. On the binary API a `!fatal` is connection-wide whatever tag it carries — the
+router sends it untagged when it ends the session itself (the answer to `/quit`) — so it ends every
+command in flight with the router's reason; the EOF that follows does not replace it.
 
 ### Capabilities — the key cross-transport pattern
 
@@ -600,6 +602,9 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
     Negatability is in the type rather than an attribute so that a negation assigned to any other field does not
     compile; both types share `TikFieldCore<T>`, which holds the field's `!` beside its `TikValue<T>`, and the internal
     `ITikField` the mapper, tracker and merge use. `TikValueList<T>.Not(…)` builds a negated list field.
+11. **A compile-error shim (`[Obsolete(…, true)]`) stays through the next major after the one that added it**, then
+    goes: one added in 4.x is removed in 6.0. An entity `[Obsolete]` as a warning because it exists only on
+    RouterOS 6 (`MaxRouterOs = "6"`) is not a shim; it goes when tik4net drops RouterOS 6.
 
 Most of these conventions are **enforced in CI**, not just documented — they run over every `[TikEntity]` on
 every push, so a new entity that breaks one fails the build rather than the first person to load that menu:
@@ -702,7 +707,10 @@ NuGet outputs. Warnings are errors in CI only; `.editorconfig` raises the doc wa
   reverses in place and returns `void`) rather than `Enumerable.Reverse`, under the solution's current
   `LangVersion`. `EcSrp5.cs` and `WinboxStreamCrypto.cs` spell it out as `Enumerable.Reverse(x)` for this
   reason — a discarded return value there would corrupt a buffer silently instead of failing to compile.
-- `ApiConnection`'s reader/tag multiplexing is the most subtle code in the repo and is likewise
-  only exercised against real hardware.
+- `ApiConnection`'s reader/tag multiplexing (`ApiSentenceDispatcher`, `TagSequence`) is the most subtle
+  code in the repo. Its reader states — per-caller deadlines, a lost peer, a `!fatal` with or without a tag,
+  a socket closed mid-sentence, read-stall attribution — are covered against `FakeRouterServer` in
+  `tik4net.unittests/Api/`; a change there starts as a red test in that folder and still needs live
+  verification.
 - `TikChangeTracker` and the `Save` default-vs-unset rules encode non-obvious semantics; a
   "cleanup" there will change observable behaviour.

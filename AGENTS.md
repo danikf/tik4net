@@ -145,9 +145,10 @@ Bump `VersionPrefix` on the train for a patch, and on `master` when it starts th
 
 ### High-risk areas — do not refactor opportunistically
 
-`Crypto/` (EC-SRP5, WinBox stream cipher), `WinboxNative*/`, `MacTelnet/`, and `ApiConnection`'s
-reader/tag multiplexing are reverse-engineered or subtle, and have no deterministic test coverage.
-Change them only with live-router verification.
+`Crypto/` (EC-SRP5, WinBox stream cipher), `WinboxNative*/` and `MacTelnet/` are reverse-engineered
+and have no deterministic test coverage. `ApiConnection`'s reader/tag multiplexing (`ApiSentenceDispatcher`,
+`TagSequence`) is subtle; it is covered against a fake router in `tik4net.unittests/Api/`, so write the red
+test there first. Change any of them only with live-router verification.
 
 Inside `Crypto/`, watch for `someArray.Reverse()`: under the current `LangVersion` it binds to
 `MemoryExtensions.Reverse`, a `Span` extension that reverses **in place and returns void**, not

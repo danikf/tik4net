@@ -75,15 +75,22 @@ namespace tik4net.Api
         }
 
         /// <summary>
-        /// Ends every wait, now and later, with <paramref name="sentence"/> — the synthetic <c>!fatal</c>
-        /// built by the reader loop when the connection dies. Already-queued sentences are kept: a reply that
-        /// arrived before the connection dropped is still that caller's answer.
+        /// Ends every wait, now and later, with <paramref name="sentence"/> — the router's own <c>!fatal</c>, or
+        /// the synthetic one built by the reader loop when the connection dies. Already-queued sentences are
+        /// kept: a reply that arrived before the connection dropped is still that caller's answer.
         /// </summary>
+        /// <remarks>
+        /// The first ending is kept and later ones change nothing. A connection ends more than once: the router
+        /// sends its <c>!fatal</c> and then closes the socket, and the EOF that follows must not replace the
+        /// router's reason with "connection lost".
+        /// </remarks>
         internal void TerminateAll(ITikSentence sentence)
         {
             lock (_sync)
             {
-                _termination = sentence;
+                if (_termination == null)
+                    _termination = sentence;
+                sentence = _termination;
                 foreach (var queue in _queues.Values)
                     while (queue.AsyncWaiters.Count > 0)
                         queue.AsyncWaiters.Dequeue().TrySetResult(sentence);

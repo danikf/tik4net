@@ -797,6 +797,15 @@ namespace tik4net.Api
                     if (IsCurrentSession(dispatcher))
                         NoteSentenceReceived();     // before the Push, so a caller woken by it sees the note
                     dispatcher.Push(sentence);
+
+                    // A !fatal ends the whole session whatever tag it carries. The router sends it untagged when it
+                    // ends the session itself (the answer to `/quit`), where no tagged caller waits for it, so it
+                    // ends every wait here rather than leaving the EOF that follows to report "connection lost".
+                    // Closing is still the caller's doing when the !fatal is the answer to Close's own /quit.
+                    if (sentence is ApiFatalSentence)
+                        dispatcher.TerminateAll(_closeInitiated
+                            ? new ApiFatalSentence(new[] { "connection closed by the client" }, clientInitiated: true)
+                            : sentence);
                 }
             }
             catch (Exception ex)

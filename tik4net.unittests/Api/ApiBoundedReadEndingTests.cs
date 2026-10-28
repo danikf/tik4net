@@ -50,6 +50,28 @@ namespace tik4net.unittests.Api
             s.CloseClientConnection();
         }
 
+        // How the router ends a session itself: `/quit` is answered with an untagged `!fatal session terminated on
+        // request` (7.24.2, raw socket). A !fatal is connection-wide whatever tag it carries, or none.
+        private static void UntaggedFatalThenClose(FakeRouterServer s, string tag)
+        {
+            s.WriteSentence("!re", $"{TikSpecialProperties.Tag}={tag}", "=rx=1");
+            s.WriteSentence("!fatal", "router going down");
+            s.CloseClientConnection();
+        }
+
+        private static void FatalOnAnotherTagThenClose(FakeRouterServer s, string tag)
+        {
+            s.WriteSentence("!re", $"{TikSpecialProperties.Tag}={tag}", "=rx=1");
+            s.WriteSentence("!fatal", "router going down", $"{TikSpecialProperties.Tag}=another-{tag}");
+            s.CloseClientConnection();
+        }
+
+        private static Action<FakeRouterServer, string> FatalReply(string kind)
+            => kind == "tagged" ? FatalThenClose
+             : kind == "untagged" ? UntaggedFatalThenClose
+             : kind == "another-tag" ? FatalOnAnotherTagThenClose
+             : throw new ArgumentOutOfRangeException(nameof(kind));
+
         private static void CloseWithoutFatal(FakeRouterServer s, string tag)
         {
             s.WriteSentence("!re", $"{TikSpecialProperties.Tag}={tag}", "=rx=1");
@@ -126,15 +148,18 @@ namespace tik4net.unittests.Api
             }, GenericTrap, connectionSurvives: true);
         }
 
-        [TestMethod]
-        public void UntilDone_AFatal_IsTikCommandFatalException()
+        [DataTestMethod]
+        [DataRow("tagged")]
+        [DataRow("untagged")]
+        [DataRow("another-tag")]
+        public void UntilDone_AFatal_IsTikCommandFatalException(string fatal)
         {
             Exchange(c =>
             {
                 var ex = Assert.ThrowsException<TikCommandFatalException>(
                     () => c.CreateCommand("/tool/ping").ExecuteListUntilDone(TimeSpan.FromSeconds(10)).ToList());
                 StringAssert.StartsWith(ex.Message, "Connection has been closed: router going down");
-            }, FatalThenClose, connectionSurvives: false);
+            }, FatalReply(fatal), connectionSurvives: false);
         }
 
         [TestMethod]
@@ -159,8 +184,11 @@ namespace tik4net.unittests.Api
             }, NoSuchItemTrap, connectionSurvives: true);
         }
 
-        [TestMethod]
-        public void WithDuration_LostConnection_IsAnAbortCarryingTheFatal()
+        [DataTestMethod]
+        [DataRow("tagged")]
+        [DataRow("untagged")]
+        [DataRow("another-tag")]
+        public void WithDuration_LostConnection_IsAnAbortCarryingTheFatal(string fatal)
         {
             Exchange(c =>
             {
@@ -168,7 +196,7 @@ namespace tik4net.unittests.Api
                     () => c.CreateCommand("/tool/torch").ExecuteListWithDuration(TimeSpan.FromSeconds(30)).ToList());
                 StringAssert.StartsWith(ex.Message, "router going down");
                 Assert.IsInstanceOfType(ex.InnerException, typeof(TikCommandFatalException));
-            }, FatalThenClose, connectionSurvives: false);
+            }, FatalReply(fatal), connectionSurvives: false);
         }
 
         [TestMethod]
@@ -215,16 +243,20 @@ namespace tik4net.unittests.Api
         }
 
         [DataTestMethod]
-        [DataRow(true)]
-        [DataRow(false)]
-        public async Task Stream_LostConnection_IsAnAbortCarryingTheFatal(bool untilDone)
+        [DataRow(true, "tagged")]
+        [DataRow(false, "tagged")]
+        [DataRow(true, "untagged")]
+        [DataRow(false, "untagged")]
+        [DataRow(true, "another-tag")]
+        [DataRow(false, "another-tag")]
+        public async Task Stream_LostConnection_IsAnAbortCarryingTheFatal(bool untilDone, string fatal)
         {
             await ExchangeAsync(async c =>
             {
                 var ex = await StreamFails(c, "/tool/torch", untilDone);
                 StringAssert.StartsWith(ex.Message, "router going down");
                 Assert.IsInstanceOfType(ex.InnerException, typeof(TikCommandFatalException));
-            }, FatalThenClose, connectionSurvives: false);
+            }, FatalReply(fatal), connectionSurvives: false);
         }
 #endif
     }
