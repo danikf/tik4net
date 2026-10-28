@@ -400,13 +400,9 @@ namespace tik4net.MacTelnet
                         if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
                             continue;
 
-                        if (type == PKT_ACK)  { NoteAck(counter);  continue; }
-                        if (type == PKT_PING) { SendPong(counter); continue; }
                         if (type == PKT_END)  { _routerEnded = true; _rxSignal.Set(); continue; }
-                        if (type != PKT_DATA) continue;
-
-                        if (!AckData(counter, payload.Length)) continue;   // duplicate or out-of-order
-                        if (IsControlPacket(payload))          continue;
+                        if (!TryAcceptData(type, payload, counter)) continue;
+                        if (IsControlPacket(payload))               continue;
 
                         string text = _encoding.GetString(payload);
                         lock (_rxLock)
@@ -645,9 +641,6 @@ namespace tik4net.MacTelnet
                     if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
                         continue;
 
-                    if (type == PKT_ACK) { NoteAck(counter); continue; }
-                    if (type == PKT_PING) { SendPong(counter); continue; }
-
                     // The router closing the session is an answer, and waiting out the rest of the login
                     // timeout after it cannot produce a better one. It sends PKT_END repeatedly, and on a
                     // refused login it sends the refusal text first — so whatever is already on screen is
@@ -655,9 +648,7 @@ namespace tik4net.MacTelnet
                     if (type == PKT_END)
                         throw RefusalOrClosure(VtStripper.StripAnsi(sb.ToString()));
 
-                    if (type != PKT_DATA) continue;
-
-                    if (!AckData(counter, payload.Length)) continue;   // duplicate retransmit
+                    if (!TryAcceptData(type, payload, counter)) continue;
                     if (IsControlPacket(payload))
                         continue;
 

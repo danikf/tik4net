@@ -90,10 +90,7 @@ namespace tik4net.Winbox
         {
             RecvAvailable((type, payload, counter) =>
             {
-                if (type == PKT_ACK)  { NoteAck(counter); return false; }
-                if (type == PKT_PING) { SendPong(counter); return false; }
-                if (type != PKT_DATA) return false;
-                if (!AckData(counter, payload.Length)) return false;  // duplicate retransmit
+                if (!TryAcceptData(type, payload, counter)) return false;
                 if (IsControlPacket(payload)) return false;
                 _rxBuf.AddRange(payload);
                 System.Threading.Interlocked.Add(ref _bytesReceived, payload.Length);
@@ -226,10 +223,7 @@ namespace tik4net.Winbox
             {
                 RecvUntil(timeoutMs, (type, payload, counter) =>
                 {
-                    if (type == PKT_ACK) { NoteAck(counter); return false; }
-                    if (type == PKT_PING) { SendPong(counter); return false; }
-                    if (type != PKT_DATA) return false;
-                    if (!AckData(counter, payload.Length)) return false;  // duplicate retransmit
+                    if (!TryAcceptData(type, payload, counter)) return false;
                     if (IsControlPacket(payload)) return false;
                     result = payload;
                     return true;

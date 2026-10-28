@@ -639,6 +639,25 @@ namespace tik4net.MacTelnet
         }
 
         /// <summary>
+        /// The bookkeeping every received packet needs — notes an ACK, answers a PING, acknowledges DATA (re-ACKing
+        /// a duplicate, holding the ACK at a hole) — and whether the packet is NEW session data for the caller.
+        /// </summary>
+        /// <remarks>
+        /// What stays the caller's: <see cref="PKT_END"/> (this answers false for it) and whether the new data is a
+        /// control packet.
+        /// </remarks>
+        protected bool TryAcceptData(byte type, byte[] payload, uint counter)
+        {
+            switch (type)
+            {
+                case PKT_ACK:  NoteAck(counter);  return false;
+                case PKT_PING: SendPong(counter); return false;
+                case PKT_DATA: return AckData(counter, payload.Length);
+                default:       return false;
+            }
+        }
+
+        /// <summary>
         /// Records an ACK from the router. Its counter is the stream offset the router has consumed up to,
         /// so it both retires every queued packet that now falls below it and gives
         /// <see cref="RetransmitIfUnacked"/> the mark to compare the rest against.
@@ -922,10 +941,7 @@ namespace tik4net.MacTelnet
             var seen = new HashSet<byte>();
             RecvUntilDuringLogin(10000, seen, (type, payload, counter) =>
             {
-                if (type == PKT_ACK) { NoteAck(counter); return false; }
-                if (type == PKT_PING) { SendPong(counter); return false; }
-                if (type != PKT_DATA) return false;
-                if (!AckData(counter, payload.Length)) return false;   // duplicate — ignore
+                if (!TryAcceptData(type, payload, counter)) return false;
                 foreach (var (ct, cd) in ParseCtrl(payload))
                 {
                     if (ct == CTRL_PASSSALT && cd.Length == 49)
@@ -998,10 +1014,7 @@ namespace tik4net.MacTelnet
 
             RecvUntil(10000, (type, payload, counter) =>
             {
-                if (type == PKT_ACK) { NoteAck(counter); return false; }
-                if (type == PKT_PING) { SendPong(counter); return false; }
-                if (type != PKT_DATA) return false;
-                if (!AckData(counter, payload.Length)) return false;   // duplicate — ignore
+                if (!TryAcceptData(type, payload, counter)) return false;
                 foreach (var (ctype, _) in ParseCtrl(payload))
                     if (ctype == CTRL_END_AUTH) return true;
                 return false;
