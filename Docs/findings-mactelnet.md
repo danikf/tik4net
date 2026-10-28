@@ -317,8 +317,8 @@ all" apart from "we are mid-negotiation and one packet went missing".
 
 ### 9.4 Every trace line carries its session tag
 
-Both parsers that emit RECV lines — `MacTelnetUdpClient.TryParsePacket` and `ReceiveOne` — tag them with
-the session key, so a trace can be split by `key=` and read one session at a time. This is not cosmetic:
+Every received packet is traced in one place — `MacLayerTransport.ReadDatagram`, which MAC-Telnet's loops and the
+WinBox-MAC carrier both read through — and the RECV line carries the session key, so a trace can be split by `key=` and read one session at a time. This is not cosmetic:
 untagged inbound lines get attributed to whichever session opened last, and a per-session reconstruction
 of a **green** run then reports hundreds of stream holes that never happened.
 
