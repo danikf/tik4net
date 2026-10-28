@@ -777,19 +777,12 @@ namespace tik4net.MacTelnet
         private bool TryParsePacket(byte[] pkt, out byte type, out uint counter, out byte[] payload)
         {
             type = 0; counter = 0; payload = new byte[0];
-            if (pkt == null || pkt.Length < 22) return false;
+            if (!MacLayerPacket.TryParseReply(pkt, out var reply)) return false;
+            if (reply.SrcMac.SequenceEqual(_localMac)) return false;   // our own broadcast echo
 
-            // Skip own echo (srcMac == _localMac)
-            bool ownEcho = true;
-            for (int i = 0; i < 6; i++)
-                if (pkt[2 + i] != _localMac[i]) { ownEcho = false; break; }
-            if (ownEcho) return false;
-
-            type    = pkt[1];
-            counter = ((uint)pkt[18] << 24) | ((uint)pkt[19] << 16) |
-                      ((uint)pkt[20] <<  8) |  pkt[21];
-            payload = pkt.Length > 22 ? new byte[pkt.Length - 22] : new byte[0];
-            if (payload.Length > 0) Buffer.BlockCopy(pkt, 22, payload, 0, payload.Length);
+            type    = reply.Type;
+            counter = reply.Counter;
+            payload = reply.Payload;
 
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,

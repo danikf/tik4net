@@ -1,13 +1,4 @@
-// MacLayerTransport.cs — UDP 20561 MAC-Telnet/WinBox 22-byte framing + EC-SRP5 auth
-//
-// Packet format (22-byte header):
-//   [0]      version = 1
-//   [1]      type    (0=SESSIONSTART, 1=DATA, 2=ACK, 4=PING, 5=PONG, 255=END)
-//   [2–7]    source MAC address
-//   [8–13]   destination MAC address
-//   [14–15]  session_key  big-endian
-//   [16–17]  client_type  big-endian
-//   [18–21]  counter, big-endian uint32
+// MacLayerTransport.cs — UDP 20561 MAC-Telnet/WinBox session over the 22-byte packet (MacLayerPacket) + EC-SRP5 auth
 //
 // Control packet (inside DATA payload, starts with magic 56 34 12 FF):
 //   [0–3]    magic: 0x56, 0x34, 0x12, 0xFF
@@ -356,12 +347,7 @@ namespace tik4net.MacTelnet
 
             internal void SendSessionStart(byte[] routerMac, ushort clientType)
             {
-                byte[] pkt = new byte[22];
-                pkt[0] = 1; pkt[1] = PKT_SESSIONSTART;
-                Buffer.BlockCopy(LocalMac, 0, pkt, 2, 6);
-                Buffer.BlockCopy(routerMac, 0, pkt, 8, 6);
-                pkt[14] = (byte)(SessionKey >> 8); pkt[15] = (byte)(SessionKey & 0xFF);
-                pkt[16] = (byte)(clientType >> 8); pkt[17] = (byte)(clientType & 0xFF);
+                byte[] pkt = MacLayerPacket.Build(PKT_SESSIONSTART, LocalMac, routerMac, SessionKey, clientType, 0);
                 // A NIC that refuses to send is simply not the one; the others are still being tried.
                 try
                 {
@@ -386,42 +372,32 @@ namespace tik4net.MacTelnet
                     {
                         var ep = new IPEndPoint(IPAddress.Any, 0);
                         byte[] pkt = Udp.Receive(ref ep);
+                        bool parsed = MacLayerPacket.TryParseReply(pkt, out var reply);
                         Trace?.Invoke("PROBE RECV local=" + Udp.Client.LocalEndPoint + " from=" + ep
                             + " len=" + pkt.Length
-                            + (pkt.Length >= 22
-                                ? " type=0x" + pkt[1].ToString("x2")
-                                  + " key=" + (((uint)pkt[16] << 8) | pkt[17]).ToString("x4")
-                                  + " srcMac=" + BitConverter.ToString(pkt, 2, 6)
+                            + (parsed
+                                ? " type=0x" + reply.Type.ToString("x2")
+                                  + " key=" + reply.SessionKey.ToString("x4")
+                                  + " srcMac=" + BitConverter.ToString(reply.SrcMac)
                                 : ""));
 
-                        if (pkt.Length < 22 || pkt[1] != PKT_ACK) continue;
+                        if (!parsed || reply.Type != PKT_ACK) continue;
 
                         // The session key rules out an ACK meant for another probe, and the source MAC
-                        // rules out another MikroTik on the segment answering our broadcast.
-                        //
-                        // THE KEY IS AT [16], NOT AT [14]: the header swaps session key and client type by
-                        // direction (Docs/mactelnet-protocol.md, "Packet header structure"), so a reply
-                        // carries the client type where our own send carries the key. Reading it at [14]
-                        // matches 0x0015 — the client type — against the key, rejects every ACK the router
-                        // sends, and the probe then loses to its own timeout with the router answering
-                        // correctly the whole time.
-                        if (pkt[16] != (byte)(SessionKey >> 8) || pkt[17] != (byte)(SessionKey & 0xFF)) continue;
-                        if (!IsFrom(pkt, routerMac)) continue;
+                        // rules out another MikroTik on the segment answering our broadcast. A reply carries
+                        // the key where a request carries the client type (MacLayerPacket reads it by
+                        // direction): read at a request's offset it is 0x0015 — the client type — and every
+                        // ACK the router sends would be rejected.
+                        if (reply.SessionKey != SessionKey) continue;
+                        if (!reply.SrcMac.SequenceEqual(routerMac)) continue;
 
-                        counter = ((uint)pkt[18] << 24) | ((uint)pkt[19] << 16) | ((uint)pkt[20] << 8) | pkt[21];
+                        counter = reply.Counter;
                         return true;
                     }
                 }
                 catch (SocketException) { /* this NIC is out of the running */ }
 
                 return false;
-            }
-
-            private static bool IsFrom(byte[] pkt, byte[] routerMac)
-            {
-                for (int i = 0; i < 6; i++)
-                    if (pkt[2 + i] != routerMac[i]) return false;
-                return true;
             }
 
             public void Dispose()
@@ -1176,16 +1152,7 @@ namespace tik4net.MacTelnet
         private void SendCore(byte type, byte[]? payload)
         {
             uint counter = (type == PKT_DATA) ? _outCounter : 0u;
-            byte[] pkt = new byte[22 + (payload?.Length ?? 0)];
-            pkt[0] = 1; pkt[1] = type;
-            Buffer.BlockCopy(_localMac,  0, pkt, 2, 6);
-            Buffer.BlockCopy(_routerMac, 0, pkt, 8, 6);
-            pkt[14] = (byte)(_sessionKey >> 8);  pkt[15] = (byte)(_sessionKey & 0xFF);
-            pkt[16] = (byte)(_clientType >> 8);  pkt[17] = (byte)(_clientType & 0xFF);
-            pkt[18] = (byte)(counter >> 24); pkt[19] = (byte)(counter >> 16);
-            pkt[20] = (byte)(counter >> 8);  pkt[21] = (byte)(counter & 0xFF);
-            if (payload != null && payload.Length > 0)
-                Buffer.BlockCopy(payload, 0, pkt, 22, payload.Length);
+            byte[] pkt = MacLayerPacket.Build(type, _localMac, _routerMac, _sessionKey, _clientType, counter, payload);
             _udp.Send(pkt, pkt.Length, (type == PKT_SESSIONSTART) ? _routerEp : Dst);
 
             // The counter belongs in the note: it is the stream offset this packet claims, and the
@@ -1216,51 +1183,28 @@ namespace tik4net.MacTelnet
         /// <summary>Acknowledges received payload, taking <see cref="SendGate"/> first.</summary>
         /// <param name="ackCounter">The stream offset past the data being acknowledged — the received
         /// packet's counter <b>plus its payload length</b>, not the counter alone.</param>
-        protected void SendAck(uint ackCounter)
-        {
-            lock (SendGate)
-                SendAckCore(ackCounter);
-        }
-
-        private void SendAckCore(uint ackCounter)
-        {
-            byte[] pkt = new byte[22];
-            pkt[0] = 1; pkt[1] = PKT_ACK;
-            Buffer.BlockCopy(_localMac,  0, pkt, 2, 6);
-            Buffer.BlockCopy(_routerMac, 0, pkt, 8, 6);
-            pkt[14] = (byte)(_sessionKey >> 8);  pkt[15] = (byte)(_sessionKey & 0xFF);
-            pkt[16] = (byte)(_clientType >> 8);  pkt[17] = (byte)(_clientType & 0xFF);
-            pkt[18] = (byte)(ackCounter >> 24); pkt[19] = (byte)(ackCounter >> 16);
-            pkt[20] = (byte)(ackCounter >> 8);  pkt[21] = (byte)(ackCounter & 0xFF);
-            _udp.Send(pkt, pkt.Length, Dst);
-
-            // Traced because a regressing ACK cannot be seen from the receive side alone - the router's
-            // reaction (a retransmit burst) reads as router misbehaviour until you can see what we told
-            // it.
-            if (Diagnostics.TikWireTrace.Enabled)
-                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
-                    "type=0x02 ack=" + ackCounter + TraceTag);
-        }
+        protected void SendAck(uint ackCounter) => SendControl(PKT_ACK, ackCounter);
 
         /// <summary>Answers a router <see cref="PKT_PING"/>, taking <see cref="SendGate"/> first.</summary>
         /// <param name="counter">The counter from the ping, echoed back unchanged.</param>
-        protected void SendPong(uint counter)
+        protected void SendPong(uint counter) => SendControl(PKT_PONG, counter);
+
+        // A header-only packet whose counter is the caller's (an ACK's offset, a PONG's echo) rather than the
+        // outbound stream's, sent to the router under SendGate.
+        private void SendControl(byte type, uint counter)
         {
             lock (SendGate)
-                SendPongCore(counter);
-        }
+            {
+                byte[] pkt = MacLayerPacket.Build(type, _localMac, _routerMac, _sessionKey, _clientType, counter);
+                _udp.Send(pkt, pkt.Length, Dst);
 
-        private void SendPongCore(uint counter)
-        {
-            byte[] pkt = new byte[22];
-            pkt[0] = 1; pkt[1] = PKT_PONG;
-            Buffer.BlockCopy(_localMac,  0, pkt, 2, 6);
-            Buffer.BlockCopy(_routerMac, 0, pkt, 8, 6);
-            pkt[14] = (byte)(_sessionKey >> 8);  pkt[15] = (byte)(_sessionKey & 0xFF);
-            pkt[16] = (byte)(_clientType >> 8);  pkt[17] = (byte)(_clientType & 0xFF);
-            pkt[18] = (byte)(counter >> 24); pkt[19] = (byte)(counter >> 16);
-            pkt[20] = (byte)(counter >> 8);  pkt[21] = (byte)(counter & 0xFF);
-            _udp.Send(pkt, pkt.Length, Dst);
+                // Traced because a regressing ACK cannot be seen from the receive side alone - the router's
+                // reaction (a retransmit burst) reads as router misbehaviour until you can see what we told
+                // it.
+                if (type == PKT_ACK && Diagnostics.TikWireTrace.Enabled)
+                    Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
+                        "type=0x02 ack=" + counter + TraceTag);
+            }
         }
 
         /// <summary>
@@ -1405,16 +1349,7 @@ namespace tik4net.MacTelnet
 
         // Parses a raw UDP datagram. Returns null if too short.
         private static (byte type, uint counter, byte[] payload, byte[] srcMac)? ParsePacket(byte[] pkt)
-        {
-            if (pkt == null || pkt.Length < 22) return null;
-            byte   type    = pkt[1];
-            uint   counter = ((uint)pkt[18] << 24) | ((uint)pkt[19] << 16) |
-                             ((uint)pkt[20] <<  8) |  pkt[21];
-            byte[] payload = pkt.Length > 22 ? new byte[pkt.Length - 22] : new byte[0];
-            if (payload.Length > 0) Buffer.BlockCopy(pkt, 22, payload, 0, payload.Length);
-            byte[] srcMac  = new byte[6]; Buffer.BlockCopy(pkt, 2, srcMac, 0, 6);
-            return (type, counter, payload, srcMac);
-        }
+            => MacLayerPacket.TryParseReply(pkt, out var r) ? (r.Type, r.Counter, r.Payload, r.SrcMac) : null;
 
         // ── Control packet helpers ───────────────────────────────────────────────
 
