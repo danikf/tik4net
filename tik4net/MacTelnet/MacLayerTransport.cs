@@ -1329,12 +1329,34 @@ namespace tik4net.MacTelnet
         /// broadcast echo are <c>false</c>.
         /// </summary>
         private bool ReceiveOne(Func<byte, byte[], uint, bool> handler)
+            => ReadDatagram(out var r) && handler(r.Type, r.Payload, r.Counter);
+
+        /// <summary>
+        /// Waits up to <paramref name="timeoutMs"/> (<c>SO_RCVTIMEO</c>) for one datagram, then parses, traces and
+        /// returns it as <see cref="ReceiveOne"/> does. False for a malformed packet or our own echo; a timeout
+        /// surfaces as the socket's <see cref="SocketException"/>, as from <see cref="UdpClient.Receive"/> itself.
+        /// </summary>
+        /// <remarks>For a caller that owns a blocking read loop (MAC-Telnet's pump and login loops).</remarks>
+        protected bool TryReceive(int timeoutMs, out byte type, out uint counter, out byte[] payload)
+        {
+            _udp.Client.ReceiveTimeout = timeoutMs;
+            bool ok = ReadDatagram(out var r);
+            type = r.Type;
+            counter = r.Counter;
+            payload = r.Payload ?? new byte[0];
+            return ok;
+        }
+
+        // Reads one datagram under the socket's current receive timeout: parsed, our own echo dropped, the router's
+        // unicast address latched, traced. False for a malformed packet or our own echo.
+        private bool ReadDatagram(out MacLayerReply reply)
         {
             IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
             byte[] pkt = _udp.Receive(ref ep);
-            var parsed = ParsePacket(pkt);
-            if (parsed == null) return false;
-            var (type, counter, payload, srcMac) = parsed.Value;
+            if (!MacLayerPacket.TryParseReply(pkt, out reply)) return false;
+            byte type = reply.Type;
+            uint counter = reply.Counter;
+            byte[] payload = reply.Payload, srcMac = reply.SrcMac;
             if (srcMac.SequenceEqual(_localMac)) return false;  // skip own echo
 
             // Latch only on OUR router's own packets. The socket is bound for broadcast, so on a segment
@@ -1351,18 +1373,11 @@ namespace tik4net.MacTelnet
             // undiagnosable.
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
-                    payload, 0, payload?.Length ?? 0,
+                    payload, 0, payload.Length,
                     "type=0x" + type.ToString("x2") + " counter=" + counter
                     + " from=" + ep + " srcMac=" + BitConverter.ToString(srcMac) + TraceTag);
-
-            // payload is a non-nullable tuple element of ParsePacket's result; nullable state analysis loses
-            // that through the Nullable<ValueTuple> deconstruction above, but it is never actually null here.
-            return handler(type, payload!, counter);
+            return true;
         }
-
-        // Parses a raw UDP datagram. Returns null if too short.
-        private static (byte type, uint counter, byte[] payload, byte[] srcMac)? ParsePacket(byte[] pkt)
-            => MacLayerPacket.TryParseReply(pkt, out var r) ? (r.Type, r.Counter, r.Payload, r.SrcMac) : null;
 
         // ── Control packet helpers ───────────────────────────────────────────────
 

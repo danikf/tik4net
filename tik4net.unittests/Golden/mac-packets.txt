@@ -14,38 +14,27 @@ probe TryReadAck ACK from another MAC False counter=0
 probe TryReadAck DATA False counter=0
 probe TryReadAck short False counter=0
 parse SESSIONSTART 01000200000000020200000000010015123400000000
-  ParsePacket (0, 0, -, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=0 counter=0 payload=-
+  MacLayerPacket.TryParseReply type=0 counter=0 key=1234 srcMac=020000000002 payload=-
 parse DATA 0101020000000002020000000001001512340000000068656C6C6F
-  ParsePacket (1, 0, 68656C6C6F, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=1 counter=0 payload=68656C6C6F
+  MacLayerPacket.TryParseReply type=1 counter=0 key=1234 srcMac=020000000002 payload=68656C6C6F
 parse DATA control 01010200000000020200000000010015123400000000563412FF0900000000
-  ParsePacket (1, 0, 563412FF0900000000, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=1 counter=0 payload=563412FF0900000000
+  MacLayerPacket.TryParseReply type=1 counter=0 key=1234 srcMac=020000000002 payload=563412FF0900000000
 parse DATA duplicate 0101020000000002020000000001001512340000000068656C6C6F
-  ParsePacket (1, 0, 68656C6C6F, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=1 counter=0 payload=68656C6C6F
+  MacLayerPacket.TryParseReply type=1 counter=0 key=1234 srcMac=020000000002 payload=68656C6C6F
 parse DATA past a hole 01010200000000020200000000010015123400000FA068656C6C6F
-  ParsePacket (1, 4000, 68656C6C6F, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=1 counter=4000 payload=68656C6C6F
+  MacLayerPacket.TryParseReply type=1 counter=4000 key=1234 srcMac=020000000002 payload=68656C6C6F
 parse ACK 01020200000000020200000000010015123400000007
-  ParsePacket (2, 7, -, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=2 counter=7 payload=-
+  MacLayerPacket.TryParseReply type=2 counter=7 key=1234 srcMac=020000000002 payload=-
 parse PING 01040200000000020200000000010015123400000009
-  ParsePacket (4, 9, -, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=4 counter=9 payload=-
+  MacLayerPacket.TryParseReply type=4 counter=9 key=1234 srcMac=020000000002 payload=-
 parse PONG 01050200000000020200000000010015123400000009
-  ParsePacket (5, 9, -, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=5 counter=9 payload=-
+  MacLayerPacket.TryParseReply type=5 counter=9 key=1234 srcMac=020000000002 payload=-
 parse END 01FF0200000000020200000000010015123400000000
-  ParsePacket (255, 0, -, 020000000002)
-  MacTelnetUdpClient.TryParsePacket True type=255 counter=0 payload=-
+  MacLayerPacket.TryParseReply type=255 counter=0 key=1234 srcMac=020000000002 payload=-
 parse own echo DATA 0101020000000001020000000001001512340000000068656C6C6F
-  ParsePacket (1, 0, 68656C6C6F, 020000000001)
-  MacTelnetUdpClient.TryParsePacket False type=0 counter=0 payload=-
+  MacLayerPacket.TryParseReply type=1 counter=0 key=1234 srcMac=020000000001 payload=68656C6C6F
 parse short datagram 01010203
-  ParsePacket null
-  MacTelnetUdpClient.TryParsePacket False type=0 counter=0 payload=-
+  MacLayerPacket.TryParseReply false
 ctrl BuildCtrl(0, 'ab') 563412FF00000000026162
 ctrl BuildCtrl(1, 'ab') 563412FF01000000026162
 ctrl BuildCtrl(2, 'ab') 563412FF02000000026162

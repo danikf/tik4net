@@ -184,21 +184,15 @@ namespace tik4net.unittests.Golden
                 }
             }
 
-            // The two parsers of a received datagram.
-            var parsePacket = typeof(MacLayerTransport).GetMethod("ParsePacket", Stat)!;
-            using (var client = new MacTelnetUdpClient(Encoding.UTF8, CliClientTimeouts.Fixed(1000, 1000), null))
+            // The one parser of a received datagram, which every receive path goes through.
+            foreach (var (name, packets) in Inbound())
             {
-                Set(client, "_localMac", ClientMac);
-                var tryParse = typeof(MacTelnetUdpClient).GetMethod("TryParsePacket", Inst)!;
-                foreach (var (name, packets) in Inbound())
-                {
-                    byte[] pkt = packets.Last();
-                    lines.Add("parse " + name + " " + Bytes(pkt));
-                    lines.Add("  ParsePacket " + Try(() => RenderTuple(parsePacket.Invoke(null, new object[] { pkt }))));
-                    var args = new object?[] { pkt, null, null, null };
-                    lines.Add("  MacTelnetUdpClient.TryParsePacket " + Try(() =>
-                        tryParse.Invoke(client, args) + " type=" + args[1] + " counter=" + args[2] + " payload=" + Bytes((byte[]?)args[3])));
-                }
+                byte[] pkt = packets.Last();
+                lines.Add("parse " + name + " " + Bytes(pkt));
+                lines.Add("  MacLayerPacket.TryParseReply " + Try(() => MacLayerPacket.TryParseReply(pkt, out var r)
+                    ? "type=" + r.Type + " counter=" + r.Counter + " key=" + r.SessionKey.ToString("x4")
+                      + " srcMac=" + Bytes(r.SrcMac) + " payload=" + Bytes(r.Payload)
+                    : "false"));
             }
 
             // Control packets: framing, walking and recognition.

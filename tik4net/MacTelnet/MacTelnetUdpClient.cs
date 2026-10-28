@@ -375,12 +375,9 @@ namespace tik4net.MacTelnet
             {
                 while (!stopping())
                 {
-                    _udp.Client.ReceiveTimeout = PumpPollMs;
                     try
                     {
-                        IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                        byte[] pkt = _udp.Receive(ref ep);
-                        if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
+                        if (!TryReceive(PumpPollMs, out byte type, out uint counter, out byte[] payload))
                             continue;
 
                         if (type == PKT_END)  { _routerEnded = true; _rxSignal.Set(); continue; }
@@ -616,12 +613,9 @@ namespace tik4net.MacTelnet
 
             while (sw.ElapsedMilliseconds < _loginTimeoutMs)
             {
-                _udp.Client.ReceiveTimeout = PollMs;
                 try
                 {
-                    IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                    byte[] pkt = _udp.Receive(ref ep);
-                    if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
+                    if (!TryReceive(PollMs, out byte type, out uint counter, out byte[] payload))
                         continue;
 
                     // The router closing the session is an answer, and waiting out the rest of the login
@@ -718,14 +712,11 @@ namespace tik4net.MacTelnet
         private void DrainSync(int quietMs)
         {
             var quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
-            _udp.Client.ReceiveTimeout = 50;
             while (DateTime.UtcNow < quietDeadline)
             {
                 try
                 {
-                    IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                    byte[] pkt = _udp.Receive(ref ep);
-                    if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
+                    if (!TryReceive(50, out byte type, out uint counter, out byte[] payload))
                         continue;
                     if (type == PKT_DATA)
                     {
@@ -747,23 +738,5 @@ namespace tik4net.MacTelnet
             }
         }
 
-        // Parses raw datagram. Skips own-echo. Returns false if invalid or own echo.
-        private bool TryParsePacket(byte[] pkt, out byte type, out uint counter, out byte[] payload)
-        {
-            type = 0; counter = 0; payload = new byte[0];
-            if (!MacLayerPacket.TryParseReply(pkt, out var reply)) return false;
-            if (reply.SrcMac.SequenceEqual(_localMac)) return false;   // our own broadcast echo
-
-            type    = reply.Type;
-            counter = reply.Counter;
-            payload = reply.Payload;
-
-            if (Diagnostics.TikWireTrace.Enabled)
-                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
-                    payload, 0, payload.Length,
-                    "type=0x" + type.ToString("x2") + " counter=" + counter + TraceTag);
-
-            return true;
-        }
     }
 }
