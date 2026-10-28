@@ -65,6 +65,15 @@ namespace tik4net.Crypto
         // Returns [enc_len 2B BE][IV 16B][ciphertext].
         internal static byte[] Encrypt(byte[] msg, byte[] aesKey, byte[] hmacKey)
         {
+            byte[] iv = new byte[16];
+            using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(iv);
+            return Encrypt(msg, aesKey, hmacKey, iv);
+        }
+
+        // The same with a caller-chosen IV — the test seam for the cipher's known-answer vectors. Every
+        // production frame goes through the overload above, which draws a fresh random IV.
+        internal static byte[] Encrypt(byte[] msg, byte[] aesKey, byte[] hmacKey, byte[] iv)
+        {
             byte[] hmac;
             using (var h = new HMACSHA1(hmacKey))
                 hmac = h.ComputeHash(msg);
@@ -72,9 +81,6 @@ namespace tik4net.Crypto
             byte[] toEnc = msg.Concat(hmac).ToArray();
             int padByte = 0x0F - (toEnc.Length % 0x10);
             toEnc = toEnc.Concat(Enumerable.Repeat((byte)padByte, padByte + 1)).ToArray();
-
-            byte[] iv = new byte[16];
-            using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(iv);
 
             byte[] ciphertext;
             using (var aes = Aes.Create())

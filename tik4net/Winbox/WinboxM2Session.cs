@@ -250,10 +250,20 @@ namespace tik4net.Winbox
 
         // ── EC-SRP5 authentication ────────────────────────────────────────────
 
+        /// <summary>
+        /// Test seam for the EC-SRP5 known-answer vectors: a fixed 32-byte client private key. Null — always,
+        /// outside the unit tests — draws a random one per handshake.
+        /// </summary>
+        internal byte[]? EcSrp5PrivateKeyOverride { get; set; }
+
         private void EcSrp5Auth(string user, string pass, int probeTimeoutMs)
         {
-            byte[] privA = new byte[32];
-            using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
+            byte[]? privA = EcSrp5PrivateKeyOverride;
+            if (privA == null)
+            {
+                privA = new byte[32];
+                using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
+            }
 
             var (xWA, parityA) = EcSrp5.GenPublicKey(privA);
             byte[] userBytes = Encoding.UTF8.GetBytes(user);

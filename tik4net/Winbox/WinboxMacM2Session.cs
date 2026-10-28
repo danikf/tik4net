@@ -161,8 +161,7 @@ namespace tik4net.Winbox
         {
             StartSession();
 
-            byte[] privA = new byte[32];
-            using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
+            byte[] privA = NewEcSrp5PrivateKey();
             var (xWA, parityA) = EcSrp5.GenPublicKey(privA);
 
             byte[] payload = Encoding.UTF8.GetBytes(user)

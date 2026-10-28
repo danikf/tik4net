@@ -928,8 +928,7 @@ namespace tik4net.MacTelnet
         /// </summary>
         protected void Authenticate(string user, string pass)
         {
-            byte[] privA = new byte[32];
-            using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
+            byte[] privA = NewEcSrp5PrivateKey();
             var (xWA, parityA) = EcSrp5.GenPublicKey(privA);
 
             StartSession();
@@ -968,6 +967,22 @@ namespace tik4net.MacTelnet
             // salt is always assigned together with xWB in the CTRL_PASSSALT branch above, so it is
             // non-null here too even though the compiler cannot see that relationship.
             FinishAuth(user, pass, privA, xWA, xWB, parityB, salt!);
+        }
+
+        /// <summary>
+        /// Test seam for the EC-SRP5 known-answer vectors: a fixed 32-byte client private key. Null — always,
+        /// outside the unit tests — draws a random one per handshake.
+        /// </summary>
+        internal byte[]? EcSrp5PrivateKeyOverride { get; set; }
+
+        /// <summary>The client's EC-SRP5 private key for one handshake: <see cref="EcSrp5PrivateKeyOverride"/>, or 32
+        /// random bytes.</summary>
+        protected byte[] NewEcSrp5PrivateKey()
+        {
+            if (EcSrp5PrivateKeyOverride != null) return EcSrp5PrivateKeyOverride;
+            byte[] privA = new byte[32];
+            using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
+            return privA;
         }
 
         // Shared EC-SRP5 completion: compute shared secret, send CTRL_PASSWORD, wait for END_AUTH.
