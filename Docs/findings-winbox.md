@@ -25,7 +25,7 @@ checking who cites it.
 ```
 tik4net/Winbox/                shared session/crypto layer + native M2 protocol constants and codec
 ├── M2Message.cs                   M2 TLV parse/build
-├── WinboxM2Protocol.cs            protocol constants: SysKey/RecordKey/Command/Error/Mproxy/SysInfo/LegacyAuth/Mepty/Tlv
+├── WinboxM2Protocol.cs            protocol constants: SysKey/RecordKey/Command/Error/Mproxy/SysInfo/LegacyAuth/Mepty
 ├── WinboxTcpTransport.cs          chunked AES framing over TCP
 ├── WinboxM2Session.cs             EC-SRP5 / legacy MD5 auth + frame I/O + generic Send/Receive/SendReceive
 ├── WinboxMacM2Session.cs          the same M2 session carried over MacLayerTransport
@@ -202,7 +202,7 @@ Every M2 constant used by production code and tests — `Mepty.Login`/`Mepty.Dat
 `Mepty.Key.Cols`/`Counter` collision, `Mproxy` command numbers, `SysKey`/`RecordKey`/`Command`/`Error`
 codes — is centralized in [`WinboxM2Protocol.cs`](../tik4net/Winbox/WinboxM2Protocol.cs)
 (`internal static`, grouped into `SysKey`/`RecordKey`/`Command`/`Error`/`Mproxy`/`SysInfo`/
-`LegacyAuth`/`Mepty`/`Tlv`), which documents each constant's meaning and wire encoding, including the
+`LegacyAuth`/`Mepty`), which documents each constant's meaning and wire encoding, including the
 `0xFE00xx` collisions between command numbers and error codes. `Mepty.Key.Cols` (key 3 on `Login`) and
 `Mepty.Key.Counter` (key 3 on `Data`) are the same wire key with two different meanings depending on
 which command carries it.

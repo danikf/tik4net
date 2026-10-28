@@ -21,8 +21,9 @@
     /// <b>Field-key encoding.</b> A field on the wire begins with a 3-byte little-endian key
     /// (<c>[key_lo][key_mid][key_hi]</c>) where the high byte is the namespace: <c>0x00</c> = user
     /// fields (1-based key), <c>0xFF</c> = system fields, <c>0xFE</c> = session/record fields. The 4th
-    /// header byte is the type byte (see <see cref="Tlv"/>). So e.g. key <c>0xFE0009</c> = namespace
-    /// <c>0xFE</c>, key id <c>0x0009</c> (the well-known <c>comment</c> field).
+    /// header byte is the type byte, <c>(ftype &lt;&lt; 3) | size flags</c> (decoded in <see cref="M2Message"/>).
+    /// So e.g. key <c>0xFE0009</c> = namespace <c>0xFE</c>, key id <c>0x0009</c> (the well-known <c>comment</c>
+    /// field).
     /// </para>
     /// <para>
     /// <b>Value collisions — same number, different concept.</b> The command numbers (<see cref="Command"/>)
@@ -477,51 +478,6 @@
             /// COLLISION: same value as <see cref="Command.Subscribe"/>.
             /// </summary>
             internal const int Busy = 0xFE0012;
-        }
-
-        // ──────────────────────────────────────────────────────────────────────
-        // Tlv — TLV type bytes for the M2 wire format (4th field-header byte).
-        // The byte = (ftype<<3) | sizeFlags, where sizeFlags = FS_SHORT(0x01) | FS_LONG(0x02).
-        // ftype: 0=bool 1=u32 2=u64 3=addr6 4=string 5=message 6=raw  (+16 for the array variant).
-        // Length/count: short=1B, normal=2B, long=4B (webfig readLen). These are documented here for
-        // reference; M2Message's builders/parser keep the literals inline (switch labels) for clarity.
-        // ──────────────────────────────────────────────────────────────────────
-        internal static class Tlv
-        {
-            /// <summary>bool false (ftype 0).</summary>
-            internal const int BoolFalse = 0x00;
-            /// <summary>bool true (ftype 0).</summary>
-            internal const int BoolTrue = 0x01;
-            /// <summary>u8 — single byte (ftype 1, short flag). Used for small u32 values (&lt;= 255).</summary>
-            internal const int U8 = 0x09;
-            /// <summary>u32 — 4-byte little-endian (ftype 1).</summary>
-            internal const int U32 = 0x08;
-            /// <summary>u64 — 8-byte little-endian (ftype 2).</summary>
-            internal const int U64 = 0x10;
-            /// <summary>u32[] — 2B count + count×4B (ftype 17).</summary>
-            internal const int U32Array = 0x88;
-            /// <summary>string, short — 1B length + UTF-8 bytes (ftype 4, short).</summary>
-            internal const int StringShort = 0x21;
-            /// <summary>string, normal — 2B length + UTF-8 bytes (ftype 4).</summary>
-            internal const int StringNormal = 0x20;
-            /// <summary>raw, short — 1B length + bytes (ftype 6, short).</summary>
-            internal const int RawShort = 0x31;
-            /// <summary>raw, normal — 2B length + bytes (ftype 6).</summary>
-            internal const int RawNormal = 0x30;
-            /// <summary>string[] — 2B count + (2B len + bytes) per entry (ftype 20). The 0xA0 "str_array" trap.</summary>
-            internal const int StringArray = 0xA0;
-            /// <summary>message, normal — 2B length + 'M2' submessage (ftype 5).</summary>
-            internal const int MessageNormal = 0x28;
-            /// <summary>message, short — 1B length + 'M2' submessage (ftype 5, short).</summary>
-            internal const int MessageShort = 0x29;
-            /// <summary>message, long — 4B length + 'M2' submessage (ftype 5, long).</summary>
-            internal const int MessageLong = 0x2A;
-            /// <summary>message[], normal — 2B count + (2B len + 'M2' submessage) per element (ftype 21).</summary>
-            internal const int MessageArrayNormal = 0xA8;
-            /// <summary>message[], short — 1B count + (1B len + submessage) per element (ftype 21, short).</summary>
-            internal const int MessageArrayShort = 0xA9;
-            /// <summary>message[], long — 4B count + (4B len + submessage) per element (ftype 21, long).</summary>
-            internal const int MessageArrayLong = 0xAA;
         }
     }
 }
