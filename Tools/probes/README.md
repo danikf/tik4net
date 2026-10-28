@@ -12,6 +12,7 @@ None of them takes router credentials as a baked-in value: coordinates come from
 |---|---|
 | [`run-integration-tests.ps1`](#run-integration-testsps1) | Run the integration suite: every leg in parallel, one transport, a smoke subset, one router |
 | [`parse-trx.ps1`](#parse-trxps1) | Summarise TRX results — counts, failures, and the named skips |
+| [`trxdiff.py`](#trxdiffpy) | Per-test outcome and skip-reason diff of two TRX files or two result directories |
 | [`telnet-cli-probe.ps1`](#telnet-cli-probeps1) | Raw RouterOS Telnet client, for CLI ground truth without the library |
 | [`jg_analyze.py`](#jg_analyzepy) | Parse and report on WinBox `.jg` catalogs |
 
@@ -64,6 +65,22 @@ MSTest records `Assert.Inconclusive` in a TRX as `notExecuted`, and neither the 
 failures can still differ, and a changed skip count is often the only observation available.
 
 `-FailedTestFilter` emits a ready-made `--filter` expression for re-running only the failures.
+
+## `trxdiff.py`
+
+Compares two runs test by test: each test's outcome, and for a test that did not pass, the first line of its message
+(the skip reason of an `Assert.Inconclusive`). Use it to check that a refactoring left a leg exactly as it was — equal
+counts can hide one test skipping where another used to.
+
+```
+python Tools/probes/trxdiff.py old.trx new.trx
+python Tools/probes/trxdiff.py <old-dir> <new-dir>                 # pairs the .trx files by relative path, recursively
+python Tools/probes/trxdiff.py <baseline-dir> <subset-dir> --common   # only the legs both runs have
+python Tools/probes/trxdiff.py <old-dir> <new-dir> --pattern "results_winbox*.trx" --ignore-reasons
+```
+
+A test is keyed by class and test name. The exit code is 0 when everything compared is the same and 1 when anything
+differs, so it can gate a script.
 
 ## `telnet-cli-probe.ps1`
 
