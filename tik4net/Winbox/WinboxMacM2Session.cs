@@ -46,7 +46,13 @@ namespace tik4net.Winbox
 
         // ── IWinboxM2Channel ──────────────────────────────────────────────────
 
-        public bool IsEncrypted => _sendAesKey != null;
+        public bool IsEncrypted => _keys != null;
+
+        // Set by the handshake; null until it completes.
+        private WinboxStreamKeys? _keys;
+
+        private WinboxStreamKeys Keys
+            => _keys ?? throw new InvalidOperationException("The MAC-WinBox session has not completed its handshake.");
 
         /// <summary>
         /// True when a complete M2 frame is ready to be taken by <see cref="Receive"/> — <b>not</b> merely
@@ -184,8 +190,7 @@ namespace tik4net.Winbox
             // text included.
             proof.Verify(serverCc, 32);
 
-            WinboxStreamCrypto.DeriveStreamKeys(false, proof.Secret,
-                out _sendAesKey, out _receiveAesKey, out _sendHmacKey, out _receiveHmacKey);
+            _keys = WinboxStreamKeys.Derive(proof.Secret);
         }
 
         private void SendHandshakeFrame(byte[] payload)
@@ -283,7 +288,7 @@ namespace tik4net.Winbox
                 string? dropped = null;
                 try
                 {
-                    byte[]? plain = WinboxStreamCrypto.Decrypt(frame, _receiveAesKey);
+                    byte[]? plain = Keys.Decrypt(frame);
                     if (plain != null) return plain;
                     dropped = "Decrypt returned null (wrong key, bad padding, or a truncated frame)";
                 }
@@ -364,7 +369,7 @@ namespace tik4net.Winbox
         // MAC DATA packets — NOT a bare encrypted blob. The encrypted frame is chunk-wrapped on send and
         // reassembled on receive before AES decryption.
         public void Send(byte[] m2)
-            => Send(PKT_DATA, WinboxChunkFraming.Chunk(WinboxStreamCrypto.Encrypt(m2, _sendAesKey, _sendHmacKey),
+            => Send(PKT_DATA, WinboxChunkFraming.Chunk(Keys.Encrypt(m2),
                 WinboxChunkFraming.EncryptedTag));
 
         public byte[]? SendReceive(byte[] m2, int timeoutMs)
@@ -377,7 +382,7 @@ namespace tik4net.Winbox
         {
             byte[]? frame = RecvFrame(timeoutMs);   // null: nothing within the timeout
             if (frame == null) return null;
-            try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey); }
+            try { return Keys.Decrypt(frame); }
             catch { return null; }   // not a clean M2 frame
         }
 
@@ -422,7 +427,7 @@ namespace tik4net.Winbox
         // waiting for one merged it with the next frame and stalled the terminal (see
         // WinboxChunkFraming.ReadChunkedFrame). The handshake frames before that declare no length.
         private byte[]? TryExtractFrame()
-            => WinboxChunkFraming.TryTakeChunkedFrame(_rxBuf, encrypted: _receiveAesKey != null);
+            => WinboxChunkFraming.TryTakeChunkedFrame(_rxBuf, encrypted: _keys != null);
 
         /// <summary>
         /// Tells the router the session is over before the socket goes away, by sending the MAC-layer

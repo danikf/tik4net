@@ -29,16 +29,16 @@ namespace tik4net.Winbox
         private const int ConfirmationLength = 32;
 
         private readonly WinboxTcpTransport _transport = new WinboxTcpTransport();
-        // Set together by DeriveStreamKeys in EcSrp5Auth. Only read on the encrypted path (IsEncrypted /
-        // _encrypted true), which is set true in the same method right after these are derived; the legacy
-        // MD5 path never sets _encrypted and never reads these.
-        private byte[] _sendAesKey = null!, _sendHmacKey = null!, _receiveAesKey = null!, _receiveHmacKey = null!;
-        private bool _encrypted;
+        // Set by EcSrp5Auth; null on the legacy MD5 path, which is unencrypted.
+        private WinboxStreamKeys? _keys;
         private int _reqId;
         private bool _readerLoopTimeoutSet;
 
         /// <summary>True once an encrypted (EC-SRP5) channel is established. False for legacy MD5 auth.</summary>
-        public bool IsEncrypted => _encrypted;
+        public bool IsEncrypted => _keys != null;
+
+        private WinboxStreamKeys Keys
+            => _keys ?? throw new InvalidOperationException("The WinBox session is not encrypted (legacy MD5 login).");
 
         public bool DataAvailable => _transport.DataAvailable;
 
@@ -94,7 +94,6 @@ namespace tik4net.Winbox
             try
             {
                 EcSrp5Auth(user, pass, Math.Max(MinEcSrp5ProbeMs, TikTimeouts.HandshakeBoundMs(connectTimeoutMs, ioTimeoutMs)));
-                _encrypted = true;
             }
             catch (WinboxEcSrp5UnsupportedException unsupported)
             {
@@ -114,7 +113,7 @@ namespace tik4net.Winbox
                         $"because {unsupported.Reason}, so the credentials may be fine and the EC-SRP5 " +
                         "handshake the real failure.", unsupported);
                 }
-                _encrypted = false;
+                _keys = null;
             }
         }
 
@@ -123,21 +122,21 @@ namespace tik4net.Winbox
         /// <summary>Sends one M2 message and reads one response, honouring the channel mode.</summary>
         public byte[] SendReceive(byte[] m2, int timeoutMs)
         {
-            if (_encrypted) { EncryptAndSend(m2); return RecvAndDecrypt(timeoutMs); }
+            if (IsEncrypted) { EncryptAndSend(m2); return RecvAndDecrypt(timeoutMs); }
             return SendRecvRaw(m2, timeoutMs);
         }
 
         /// <summary>Sends one M2 message without waiting for a response (fire-and-forget).</summary>
         public void Send(byte[] m2)
         {
-            if (_encrypted) EncryptAndSend(m2);
+            if (IsEncrypted) EncryptAndSend(m2);
             else _transport.SendRaw(m2);
         }
 
         /// <summary>Receives and decodes one M2 frame already arriving on the wire.</summary>
         public byte[] Receive(int timeoutMs)
         {
-            if (_encrypted) return RecvAndDecrypt(timeoutMs);
+            if (IsEncrypted) return RecvAndDecrypt(timeoutMs);
 
             return _transport.WithReceiveTimeout(timeoutMs,
                 () => WinboxChunkFraming.StripRawLength(_transport.RecvChunked(WinboxChunkFraming.RawTag)));
@@ -172,8 +171,8 @@ namespace tik4net.Winbox
             {
                 // Null is the interface's "channel closed". A frame that does not decrypt must NOT take that
                 // path — see DecryptOrThrow.
-                if (_encrypted)
-                    return DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _receiveAesKey);
+                if (_keys != null)
+                    return DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _keys.ReceiveAes);
 
                 byte[] assembled = _transport.RecvChunked(WinboxChunkFraming.RawTag);
                 return WinboxChunkFraming.StripRawLength(assembled);
@@ -186,13 +185,13 @@ namespace tik4net.Winbox
 
         private void EncryptAndSend(byte[] msg)
         {
-            byte[] full = WinboxStreamCrypto.Encrypt(msg, _sendAesKey, _sendHmacKey);
+            byte[] full = Keys.Encrypt(msg);
             _transport.SendChunked(full, WinboxChunkFraming.EncryptedTag);
         }
 
         private byte[] RecvAndDecrypt(int timeoutMs)
             => _transport.WithReceiveTimeout(timeoutMs,
-                () => DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _receiveAesKey));
+                () => DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), Keys.ReceiveAes));
 
         /// <summary>
         /// Decrypts one assembled frame, or throws naming what happened.
@@ -279,9 +278,7 @@ namespace tik4net.Winbox
             // account of what happened, and it is not always true — see TikConnectionLoginRefusedException.
             proof.Verify(serverCc, ConfirmationLength);
 
-            WinboxStreamCrypto.DeriveStreamKeys(false, proof.Secret,
-                out _sendAesKey, out _receiveAesKey,
-                out _sendHmacKey, out _receiveHmacKey);
+            _keys = WinboxStreamKeys.Derive(proof.Secret);
         }
 
         private void SendHandshake(byte[] payload, string what)
