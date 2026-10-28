@@ -19,7 +19,6 @@ using System.Threading.Tasks;
 using tik4net.Connection;
 using tik4net.Crypto;
 using tik4net.Mndp;
-using ECPoint = tik4net.Crypto.ECPoint;
 
 namespace tik4net.MacTelnet
 {
@@ -887,30 +886,24 @@ namespace tik4net.MacTelnet
         /// </summary>
         protected void Authenticate(string user, string pass)
         {
-            byte[] privA = NewEcSrp5PrivateKey();
-            var (xWA, parityA) = EcSrp5.GenPublicKey(privA);
+            var client = new EcSrp5Client(user, EcSrp5PrivateKeyOverride);
 
             StartSession();
 
-            byte[] psd = Encoding.UTF8.GetBytes(user)
-                .Concat(new byte[] { 0 }).Concat(xWA).Concat(new byte[] { (byte)parityA })
-                .ToArray();
             Send(PKT_DATA,
                 BuildCtrl(CTRL_BEGINAUTH, new byte[0])
-                .Concat(BuildCtrl(CTRL_PASSSALT, psd)).ToArray());
+                .Concat(BuildCtrl(CTRL_PASSSALT, client.Hello)).ToArray());
 
-            byte[]? xWB = null; int parityB = 0; byte[]? salt = null;
+            byte[]? challenge = null;
             var seen = new HashSet<byte>();
             RecvUntilDuringLogin(10000, seen, (type, payload, counter) =>
             {
                 if (!TryAcceptData(type, payload, counter)) return false;
                 foreach (var (ct, cd) in ParseCtrl(payload))
                 {
-                    if (ct == CTRL_PASSSALT && cd.Length == 49)
+                    if (ct == CTRL_PASSSALT && cd.Length == EcSrp5Client.ChallengeLength)
                     {
-                        xWB    = cd.Take(32).ToArray();
-                        parityB = cd[32];
-                        salt    = cd.Skip(33).Take(16).ToArray();
+                        challenge = cd;
                         return true;
                     }
                     if (ct == CTRL_PASSSALT && cd.Length == 16)
@@ -918,11 +911,9 @@ namespace tik4net.MacTelnet
                 }
                 return false;
             });
-            if (xWB == null) throw new InvalidOperationException("No server PASSSALT received (auth failed)");
+            if (challenge == null) throw new InvalidOperationException("No server PASSSALT received (auth failed)");
 
-            // salt is always assigned together with xWB in the CTRL_PASSSALT branch above, so it is
-            // non-null here too even though the compiler cannot see that relationship.
-            FinishAuth(user, pass, privA, xWA, xWB, parityB, salt!);
+            FinishAuth(user, pass, client, challenge);
         }
 
         /// <summary>
@@ -931,34 +922,14 @@ namespace tik4net.MacTelnet
         /// </summary>
         internal byte[]? EcSrp5PrivateKeyOverride { get; set; }
 
-        /// <summary>The client's EC-SRP5 private key for one handshake: <see cref="EcSrp5PrivateKeyOverride"/>, or 32
-        /// random bytes.</summary>
-        protected byte[] NewEcSrp5PrivateKey()
-        {
-            if (EcSrp5PrivateKeyOverride != null) return EcSrp5PrivateKeyOverride;
-            byte[] privA = new byte[32];
-            using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
-            return privA;
-        }
-
         // Shared EC-SRP5 completion: compute shared secret, send CTRL_PASSWORD, wait for END_AUTH.
-        private void FinishAuth(string user, string pass,
-            byte[] privA, byte[] xWA, byte[] xWB, int parityB, byte[] salt)
+        private void FinishAuth(string user, string pass, EcSrp5Client client, byte[] challenge)
         {
-            byte[] valPriv  = EcSrp5.GenPasswordValidatorPriv(user, pass, salt);
-            var (xGamma, _) = EcSrp5.GenPublicKey(valPriv);
-            ECPoint v       = EcSrp5.Redp1(xGamma, 1);
-            ECPoint wB      = EcSrp5.LiftX(EcSrp5.BEToBI(xWB), parityB);
-            ECPoint sum     = EcSrp5.ECAdd(wB, v);
+            // MAC-Telnet builds the validator from the whole login name, options included; the WinBox carriers use the
+            // account name alone (EcSrp5.AccountName).
+            EcSrp5Proof proof = client.Answer(challenge, pass, user);
 
-            byte[]    j    = EcSrp5.Sha256(xWA.Concat(xWB).ToArray());
-            var       vh   = (EcSrp5.BEToBI(valPriv) * EcSrp5.BEToBI(j) % EcSrp5.R + EcSrp5.BEToBI(privA)) % EcSrp5.R;
-            ECPoint   zPt  = EcSrp5.ECScalarMul(vh, sum);
-            var (zMont, _) = EcSrp5.ToMontgomery(zPt);
-            byte[]    Cc   = EcSrp5.Sha256(j.Concat(zMont).ToArray());
-
-            byte[] secret = EcSrp5.Sha256(zMont);
-            WinboxStreamCrypto.DeriveStreamKeys(false, secret,
+            WinboxStreamCrypto.DeriveStreamKeys(false, proof.Secret,
                 out _sendAesKey, out _receiveAesKey, out _sendHmacKey, out _receiveHmacKey);
 
             // The terminal's user name carries the console flags every PTY login uses (+c: no colour), while the
@@ -967,7 +938,7 @@ namespace tik4net.MacTelnet
             // router's MAC-Telnet server retransmits packets we had acknowledged and then drops its own output —
             // 21 of 425 reads of a one-session entity sweep stalled for 30 s at 19 KB. With +c: none (6.49.13).
             Send(PKT_DATA,
-                BuildCtrl(CTRL_PASSWORD,     Cc)
+                BuildCtrl(CTRL_PASSWORD,     proof.ClientConfirmation)
                 .Concat(BuildCtrl(CTRL_USERNAME,    Encoding.UTF8.GetBytes(user + tik4net.Cli.RouterOsCliLogin.TerminalLoginFlags)))
                 .Concat(BuildCtrl(CTRL_TERM_TYPE,   Encoding.ASCII.GetBytes("vt102")))
                 .Concat(BuildCtrl(CTRL_TERM_WIDTH,  BitConverter.GetBytes((ushort)80)))

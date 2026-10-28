@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading;
 using tik4net.Crypto;
 using tik4net.Diagnostics;
-using ECPoint = tik4net.Crypto.ECPoint;
 
 namespace tik4net.Winbox
 {
@@ -236,18 +235,8 @@ namespace tik4net.Winbox
 
         private void EcSrp5Auth(string user, string pass, int probeTimeoutMs)
         {
-            byte[]? privA = EcSrp5PrivateKeyOverride;
-            if (privA == null)
-            {
-                privA = new byte[32];
-                using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
-            }
-
-            var (xWA, parityA) = EcSrp5.GenPublicKey(privA);
-            byte[] userBytes = Encoding.UTF8.GetBytes(user);
-            byte[] payload = userBytes.Concat(new byte[] { 0 }).Concat(xWA)
-                .Concat(new byte[] { (byte)parityA }).ToArray();
-            SendHandshake(payload, "client public key");
+            var client = new EcSrp5Client(user, EcSrp5PrivateKeyOverride);
+            SendHandshake(client.Hello, "client public key");
 
             // A server without EC-SRP5 support simply stays silent here, so this window is the whole
             // basis for the legacy fallback — see the remarks on Authenticate for why it is not 3 s flat.
@@ -265,36 +254,17 @@ namespace tik4net.Winbox
                     $"the challenge frame carried tag 0x{respTag:x2}, not 0x{WinboxChunkFraming.EncryptedTag:x2}");
             // Not an "unsupported" verdict: a router that answers on the right tag with the wrong size
             // does speak EC-SRP5 and something else went wrong, so retrying with MD5 would only hide it.
-            if (respLen != 49)
+            if (respLen != EcSrp5Client.ChallengeLength)
                 throw new InvalidOperationException(
-                    $"WinBox EC-SRP5 handshake: challenge frame is {respLen} B, expected 49.");
+                    $"WinBox EC-SRP5 handshake: challenge frame is {respLen} B, expected {EcSrp5Client.ChallengeLength}.");
 
             byte[] challenge = _transport.ReadExact(respLen);
             TraceHandshake(TikWireDir.Recv, challenge, "challenge");
-            byte[] xWB   = challenge.Take(32).ToArray();
-            int parityB  = challenge[32];
-            byte[] salt  = challenge.Skip(33).Take(16).ToArray();
 
             // RouterOS hashes only the account name into the validator: login options after '+' (WinBox's "user+r" to a
             // RoMON agent) travel in the name sent above but not here (Docs/findings-romon.md, "Agent login").
-            byte[] valPriv  = EcSrp5.GenPasswordValidatorPriv(EcSrp5.AccountName(user), pass, salt);
-            var (xGamma, _) = EcSrp5.GenPublicKey(valPriv);
-            ECPoint v   = EcSrp5.Redp1(xGamma, 1);
-            ECPoint wB  = EcSrp5.LiftX(EcSrp5.BEToBI(xWB), parityB);
-            ECPoint sum = EcSrp5.ECAdd(wB, v);
-
-            byte[] j   = EcSrp5.Sha256(xWA.Concat(xWB).ToArray());
-            var iInt   = EcSrp5.BEToBI(valPriv);
-            var jInt   = EcSrp5.BEToBI(j);
-            var aInt   = EcSrp5.BEToBI(privA);
-            var vh     = (iInt * jInt % EcSrp5.R + aInt) % EcSrp5.R;
-
-            ECPoint zPt = EcSrp5.ECScalarMul(vh, sum);
-            var (zMont, _) = EcSrp5.ToMontgomery(zPt);
-            byte[] secret = EcSrp5.Sha256(zMont);
-
-            byte[] clientCc = EcSrp5.Sha256(j.Concat(zMont).ToArray());
-            SendHandshake(clientCc, "client confirmation");
+            EcSrp5Proof proof = client.Answer(challenge, pass, EcSrp5.AccountName(user));
+            SendHandshake(proof.ClientConfirmation, "client confirmation");
 
             byte[] srvHdr = _transport.ReadExact(2);
             if (srvHdr[1] != WinboxChunkFraming.EncryptedTag)
@@ -307,13 +277,9 @@ namespace tik4net.Winbox
             // Where the confirmation digest belongs, the router may instead put a refusal in plain words.
             // Reading it beats inferring one: "invalid user name or password (6)" is the router's own
             // account of what happened, and it is not always true — see TikConnectionLoginRefusedException.
-            WinboxHandshakeReply.ThrowIfRouterMessage(serverCc, ConfirmationLength);
+            proof.Verify(serverCc, ConfirmationLength);
 
-            byte[] expectedCc = EcSrp5.Sha256(j.Concat(clientCc).Concat(zMont).ToArray());
-            if (!serverCc.SequenceEqual(expectedCc))
-                throw new UnauthorizedAccessException("Wrong username or password");
-
-            WinboxStreamCrypto.DeriveStreamKeys(false, secret,
+            WinboxStreamCrypto.DeriveStreamKeys(false, proof.Secret,
                 out _sendAesKey, out _receiveAesKey,
                 out _sendHmacKey, out _receiveHmacKey);
         }

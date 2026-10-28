@@ -7,7 +7,6 @@ using System.Threading;
 using tik4net.Connection;
 using tik4net.Crypto;
 using tik4net.MacTelnet;
-using ECPoint = tik4net.Crypto.ECPoint;
 
 namespace tik4net.Winbox
 {
@@ -159,39 +158,19 @@ namespace tik4net.Winbox
         {
             StartSession();
 
-            byte[] privA = NewEcSrp5PrivateKey();
-            var (xWA, parityA) = EcSrp5.GenPublicKey(privA);
-
-            byte[] payload = Encoding.UTF8.GetBytes(user)
-                .Concat(new byte[] { 0 }).Concat(xWA).Concat(new byte[] { (byte)parityA }).ToArray();
-            SendHandshakeFrame(payload);
+            var client = new EcSrp5Client(user, EcSrp5PrivateKeyOverride);
+            SendHandshakeFrame(client.Hello);
 
             // Challenge frame: [len=49][0x06][32B xWB][1B parityB][16B salt] — same as WinBox TCP.
             byte[]? challenge = RecvFrame(timeoutMs);
-            if (challenge == null || challenge.Length != 49)
+            if (challenge == null || challenge.Length != EcSrp5Client.ChallengeLength)
                 throw new InvalidOperationException(
                     $"MAC-WinBox: bad challenge ({(challenge == null ? "none" : challenge.Length + "B")})");
 
-            byte[] xWB   = challenge.Take(32).ToArray();
-            int parityB  = challenge[32];
-            byte[] salt  = challenge.Skip(33).Take(16).ToArray();
-
             // RouterOS hashes only the account name into the validator: login options after '+' (WinBox's "user+r" to a
             // RoMON agent) travel in the name sent above but not here (Docs/findings-romon.md, "Agent login").
-            byte[] valPriv  = EcSrp5.GenPasswordValidatorPriv(EcSrp5.AccountName(user), pass, salt);
-            var (xGamma, _) = EcSrp5.GenPublicKey(valPriv);
-            ECPoint v   = EcSrp5.Redp1(xGamma, 1);
-            ECPoint wB  = EcSrp5.LiftX(EcSrp5.BEToBI(xWB), parityB);
-            ECPoint sum = EcSrp5.ECAdd(wB, v);
-
-            byte[] j   = EcSrp5.Sha256(xWA.Concat(xWB).ToArray());
-            var vh     = (EcSrp5.BEToBI(valPriv) * EcSrp5.BEToBI(j) % EcSrp5.R + EcSrp5.BEToBI(privA)) % EcSrp5.R;
-            ECPoint zPt = EcSrp5.ECScalarMul(vh, sum);
-            var (zMont, _) = EcSrp5.ToMontgomery(zPt);
-            byte[] secret = EcSrp5.Sha256(zMont);
-
-            byte[] clientCc = EcSrp5.Sha256(j.Concat(zMont).ToArray());
-            SendHandshakeFrame(clientCc);
+            EcSrp5Proof proof = client.Answer(challenge, pass, EcSrp5.AccountName(user));
+            SendHandshakeFrame(proof.ClientConfirmation);
 
             // Establish what actually arrived before reading anything into it. Folding "no frame" into
             // the digest comparison made a lost or late UDP reply indistinguishable from a rejected
@@ -203,13 +182,9 @@ namespace tik4net.Winbox
                     "complete; this says nothing about the credentials.");
             // Same reply shapes as TCP — the MAC layer carries the identical WinBox handshake, refusal
             // text included.
-            WinboxHandshakeReply.ThrowIfRouterMessage(serverCc, 32);
+            proof.Verify(serverCc, 32);
 
-            byte[] expectedCc = EcSrp5.Sha256(j.Concat(clientCc).Concat(zMont).ToArray());
-            if (!serverCc.SequenceEqual(expectedCc))
-                throw new UnauthorizedAccessException("Wrong username or password");
-
-            WinboxStreamCrypto.DeriveStreamKeys(false, secret,
+            WinboxStreamCrypto.DeriveStreamKeys(false, proof.Secret,
                 out _sendAesKey, out _receiveAesKey, out _sendHmacKey, out _receiveHmacKey);
         }
 
