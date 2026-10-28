@@ -152,6 +152,19 @@ namespace tik4net.Winbox
         public void SetReceiveTimeout(int ms) => _tcp.ReceiveTimeout = ms;
         public int  GetReceiveTimeout()       => _tcp.ReceiveTimeout;
 
+        /// <summary>
+        /// Runs <paramref name="read"/> with the socket's receive timeout (SO_RCVTIMEO) set to
+        /// <paramref name="timeoutMs"/>, and puts the previous timeout back afterwards, whatever <paramref name="read"/>
+        /// does.
+        /// </summary>
+        internal T WithReceiveTimeout<T>(int timeoutMs, Func<T> read)
+        {
+            int old = _tcp.ReceiveTimeout;
+            _tcp.ReceiveTimeout = timeoutMs;
+            try { return read(); }
+            finally { _tcp.ReceiveTimeout = old; }
+        }
+
         public void Dispose()
         {
             _ns?.Dispose();

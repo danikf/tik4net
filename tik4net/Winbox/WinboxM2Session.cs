@@ -140,14 +140,8 @@ namespace tik4net.Winbox
         {
             if (_encrypted) return RecvAndDecrypt(timeoutMs);
 
-            int old = _transport.GetReceiveTimeout();
-            _transport.SetReceiveTimeout(timeoutMs);
-            try
-            {
-                byte[] assembled = _transport.RecvChunked(WinboxChunkFraming.RawTag);
-                return WinboxChunkFraming.StripRawLength(assembled);
-            }
-            finally { _transport.SetReceiveTimeout(old); }
+            return _transport.WithReceiveTimeout(timeoutMs,
+                () => WinboxChunkFraming.StripRawLength(_transport.RecvChunked(WinboxChunkFraming.RawTag)));
         }
 
         /// <summary>Builds the next request-id system field (key 0xFF0006), incrementing the counter.</summary>
@@ -199,15 +193,8 @@ namespace tik4net.Winbox
         }
 
         private byte[] RecvAndDecrypt(int timeoutMs)
-        {
-            int old = _transport.GetReceiveTimeout();
-            _transport.SetReceiveTimeout(timeoutMs);
-            try
-            {
-                return DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _receiveAesKey);
-            }
-            finally { _transport.SetReceiveTimeout(old); }
-        }
+            => _transport.WithReceiveTimeout(timeoutMs,
+                () => DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _receiveAesKey));
 
         /// <summary>
         /// Decrypts one assembled frame, or throws naming what happened.
@@ -236,14 +223,8 @@ namespace tik4net.Winbox
         private byte[] SendRecvRaw(byte[] m2, int timeoutMs)
         {
             _transport.SendRaw(m2);
-            int old = _transport.GetReceiveTimeout();
-            _transport.SetReceiveTimeout(timeoutMs);
-            try
-            {
-                byte[] assembled = _transport.RecvChunked(WinboxChunkFraming.RawTag);
-                return WinboxChunkFraming.StripRawLength(assembled);
-            }
-            finally { _transport.SetReceiveTimeout(old); }
+            return _transport.WithReceiveTimeout(timeoutMs,
+                () => WinboxChunkFraming.StripRawLength(_transport.RecvChunked(WinboxChunkFraming.RawTag)));
         }
 
         // ── EC-SRP5 authentication ────────────────────────────────────────────
@@ -271,21 +252,14 @@ namespace tik4net.Winbox
 
             // A server without EC-SRP5 support simply stays silent here, so this window is the whole
             // basis for the legacy fallback — see the remarks on Authenticate for why it is not 3 s flat.
-            int ioTimeout = _transport.GetReceiveTimeout();
-            _transport.SetReceiveTimeout(probeTimeoutMs);
-            byte respLen, respTag;
-            try
-            {
-                byte[] hdr = _transport.ReadExact(2);
-                respLen = hdr[0];
-                respTag = hdr[1];
-            }
+            byte[] hdr;
+            try { hdr = _transport.WithReceiveTimeout(probeTimeoutMs, () => _transport.ReadExact(2)); }
             catch (IOException ex)
             {
                 throw new WinboxEcSrp5UnsupportedException(
                     $"the router sent nothing within {probeTimeoutMs} ms of the client public key", ex);
             }
-            finally { _transport.SetReceiveTimeout(ioTimeout); }
+            byte respLen = hdr[0], respTag = hdr[1];
 
             if (respTag != WinboxChunkFraming.EncryptedTag)
                 throw new WinboxEcSrp5UnsupportedException(
@@ -412,15 +386,16 @@ namespace tik4net.Winbox
 
         private void DrainSocket(int timeoutMs)
         {
-            int old = _transport.GetReceiveTimeout();
-            _transport.SetReceiveTimeout(timeoutMs);
             try
             {
-                byte[] buf = new byte[4096];
-                while (_transport.DataAvailable) _transport.Stream.Read(buf, 0, buf.Length);
+                _transport.WithReceiveTimeout(timeoutMs, () =>
+                {
+                    byte[] buf = new byte[4096];
+                    while (_transport.DataAvailable) _transport.Stream.Read(buf, 0, buf.Length);
+                    return 0;
+                });
             }
             catch (IOException) { }
-            finally { _transport.SetReceiveTimeout(old); }
         }
 
         public void Dispose() => _transport.Dispose();
