@@ -1,0 +1,57 @@
+# T5 - what each receive loop does with each packet type: what it sends back, and the state left
+# X7: the DrainSync rows for ACK and END are TODAY's behaviour (review item X7, fixed in Phase 2)
+== SESSIONSTART
+  WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  WinboxMac.Receive frame=null sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.pump sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+== DATA
+  WinboxMac.DataAvailable available=False sent-back 010202000000000102000000000212340F9000000005 | haveAck=False highestAck=0 inCounter=5 rxBuf=5 bytesReceived=5
+  WinboxMac.Receive frame=null sent-back 010202000000000102000000000212340F9000000005 | haveAck=False highestAck=0 inCounter=5 rxBuf=5 bytesReceived=5
+  MacTelnet.DrainSync sent-back 01020200000000010200000000021234001500000005 | haveAck=False highestAck=0 inCounter=5 rx='' routerEnded=False
+  MacTelnet.pump sent-back 01020200000000010200000000021234001500000005 | haveAck=False highestAck=0 inCounter=5 rx='hello' routerEnded=False
+== DATA control
+  WinboxMac.DataAvailable available=False sent-back 010202000000000102000000000212340F9000000009 | haveAck=False highestAck=0 inCounter=9 rxBuf=0 bytesReceived=0
+  WinboxMac.Receive frame=null sent-back 010202000000000102000000000212340F9000000009 | haveAck=False highestAck=0 inCounter=9 rxBuf=0 bytesReceived=0
+  MacTelnet.DrainSync sent-back 01020200000000010200000000021234001500000009 | haveAck=False highestAck=0 inCounter=9 rx='' routerEnded=False
+  MacTelnet.pump sent-back 01020200000000010200000000021234001500000009 | haveAck=False highestAck=0 inCounter=9 rx='' routerEnded=False
+== DATA duplicate
+  WinboxMac.DataAvailable available=False sent-back 010202000000000102000000000212340F9000000005 010202000000000102000000000212340F9000000005 | haveAck=False highestAck=0 inCounter=5 rxBuf=5 bytesReceived=5
+  WinboxMac.Receive frame=null sent-back 010202000000000102000000000212340F9000000005 010202000000000102000000000212340F9000000005 | haveAck=False highestAck=0 inCounter=5 rxBuf=5 bytesReceived=5
+  MacTelnet.DrainSync sent-back 01020200000000010200000000021234001500000005 01020200000000010200000000021234001500000005 | haveAck=False highestAck=0 inCounter=5 rx='' routerEnded=False
+  MacTelnet.pump sent-back 01020200000000010200000000021234001500000005 01020200000000010200000000021234001500000005 | haveAck=False highestAck=0 inCounter=5 rx='hello' routerEnded=False
+== DATA past a hole
+  WinboxMac.DataAvailable available=False sent-back 010202000000000102000000000212340F9000000005 010202000000000102000000000212340F9000000005 | haveAck=False highestAck=0 inCounter=5 rxBuf=5 bytesReceived=5
+  WinboxMac.Receive frame=null sent-back 010202000000000102000000000212340F9000000005 010202000000000102000000000212340F9000000005 | haveAck=False highestAck=0 inCounter=5 rxBuf=5 bytesReceived=5
+  MacTelnet.DrainSync sent-back 01020200000000010200000000021234001500000005 01020200000000010200000000021234001500000005 | haveAck=False highestAck=0 inCounter=5 rx='' routerEnded=False
+  MacTelnet.pump sent-back 01020200000000010200000000021234001500000005 01020200000000010200000000021234001500000005 | haveAck=False highestAck=0 inCounter=5 rx='hello' routerEnded=False
+== ACK
+  WinboxMac.DataAvailable available=False sent-back nothing | haveAck=True highestAck=7 inCounter=0 rxBuf=0 bytesReceived=0
+  WinboxMac.Receive frame=null sent-back nothing | haveAck=True highestAck=7 inCounter=0 rxBuf=0 bytesReceived=0
+  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.pump sent-back nothing | haveAck=True highestAck=7 inCounter=0 rx='' routerEnded=False
+== PING
+  WinboxMac.DataAvailable available=False sent-back 010502000000000102000000000212340F9000000009 | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  WinboxMac.Receive frame=null sent-back 010502000000000102000000000212340F9000000009 | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  MacTelnet.DrainSync sent-back 01050200000000010200000000021234001500000009 | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.pump sent-back 01050200000000010200000000021234001500000009 | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+== PONG
+  WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  WinboxMac.Receive frame=null sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.pump sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+== END
+  WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  WinboxMac.Receive frame=null sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.pump sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=True
+== own echo DATA
+  WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  WinboxMac.Receive frame=null sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.pump sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+== short datagram
+  WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  WinboxMac.Receive frame=null sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
+  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.pump sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
