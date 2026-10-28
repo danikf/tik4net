@@ -23,9 +23,6 @@ namespace tik4net.Winbox
     /// </remarks>
     internal sealed class WinboxM2Session : IWinboxM2Channel
     {
-        private const byte EncryptedTag = 0x06;
-        private const byte RawTag        = 0x01;
-
         /// <summary>Floor under the wait for the EC-SRP5 challenge — see <see cref="Authenticate"/>.</summary>
         private const int MinEcSrp5ProbeMs = 3000;
 
@@ -147,8 +144,8 @@ namespace tik4net.Winbox
             _transport.SetReceiveTimeout(timeoutMs);
             try
             {
-                byte[] assembled = _transport.RecvChunked(RawTag);
-                return assembled.Length >= 2 ? assembled.Skip(2).ToArray() : assembled;
+                byte[] assembled = _transport.RecvChunked(WinboxChunkFraming.RawTag);
+                return WinboxChunkFraming.StripRawLength(assembled);
             }
             finally { _transport.SetReceiveTimeout(old); }
         }
@@ -184,10 +181,10 @@ namespace tik4net.Winbox
                 // annotations, so the contract is expressed here rather than in the signature. A frame that
                 // does not decrypt must NOT take that path — see DecryptOrThrow.
                 if (_encrypted)
-                    return DecryptOrThrow(_transport.RecvChunked(EncryptedTag), _receiveAesKey);
+                    return DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _receiveAesKey);
 
-                byte[] assembled = _transport.RecvChunked(RawTag);
-                return assembled.Length >= 2 ? assembled.Skip(2).ToArray() : assembled;
+                byte[] assembled = _transport.RecvChunked(WinboxChunkFraming.RawTag);
+                return WinboxChunkFraming.StripRawLength(assembled);
             }
             catch (IOException)          { return null!; }   // socket closed under us — normal shutdown
             catch (ObjectDisposedException) { return null!; }
@@ -198,7 +195,7 @@ namespace tik4net.Winbox
         private void EncryptAndSend(byte[] msg)
         {
             byte[] full = WinboxStreamCrypto.Encrypt(msg, _sendAesKey, _sendHmacKey);
-            _transport.SendChunked(full, EncryptedTag);
+            _transport.SendChunked(full, WinboxChunkFraming.EncryptedTag);
         }
 
         private byte[] RecvAndDecrypt(int timeoutMs)
@@ -207,7 +204,7 @@ namespace tik4net.Winbox
             _transport.SetReceiveTimeout(timeoutMs);
             try
             {
-                return DecryptOrThrow(_transport.RecvChunked(EncryptedTag), _receiveAesKey);
+                return DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _receiveAesKey);
             }
             finally { _transport.SetReceiveTimeout(old); }
         }
@@ -243,8 +240,8 @@ namespace tik4net.Winbox
             _transport.SetReceiveTimeout(timeoutMs);
             try
             {
-                byte[] assembled = _transport.RecvChunked(RawTag);
-                return assembled.Length >= 2 ? assembled.Skip(2).ToArray() : assembled;
+                byte[] assembled = _transport.RecvChunked(WinboxChunkFraming.RawTag);
+                return WinboxChunkFraming.StripRawLength(assembled);
             }
             finally { _transport.SetReceiveTimeout(old); }
         }
@@ -290,9 +287,9 @@ namespace tik4net.Winbox
             }
             finally { _transport.SetReceiveTimeout(ioTimeout); }
 
-            if (respTag != EncryptedTag)
+            if (respTag != WinboxChunkFraming.EncryptedTag)
                 throw new WinboxEcSrp5UnsupportedException(
-                    $"the challenge frame carried tag 0x{respTag:x2}, not 0x{EncryptedTag:x2}");
+                    $"the challenge frame carried tag 0x{respTag:x2}, not 0x{WinboxChunkFraming.EncryptedTag:x2}");
             // Not an "unsupported" verdict: a router that answers on the right tag with the wrong size
             // does speak EC-SRP5 and something else went wrong, so retrying with MD5 would only hide it.
             if (respLen != 49)
@@ -327,10 +324,10 @@ namespace tik4net.Winbox
             SendHandshake(clientCc, "client confirmation");
 
             byte[] srvHdr = _transport.ReadExact(2);
-            if (srvHdr[1] != EncryptedTag)
+            if (srvHdr[1] != WinboxChunkFraming.EncryptedTag)
                 throw new InvalidOperationException(
                     $"WinBox EC-SRP5 handshake: server confirmation carried tag 0x{srvHdr[1]:x2}, " +
-                    $"not 0x{EncryptedTag:x2}. The handshake did not complete.");
+                    $"not 0x{WinboxChunkFraming.EncryptedTag:x2}. The handshake did not complete.");
 
             byte[] serverCc = _transport.ReadExact(srvHdr[0]);
             TraceHandshake(TikWireDir.Recv, serverCc, "server confirmation");
@@ -350,7 +347,7 @@ namespace tik4net.Winbox
 
         private void SendHandshake(byte[] payload, string what)
         {
-            byte[] frame = new byte[] { (byte)payload.Length, EncryptedTag }.Concat(payload).ToArray();
+            byte[] frame = new byte[] { (byte)payload.Length, WinboxChunkFraming.EncryptedTag }.Concat(payload).ToArray();
             TraceHandshake(TikWireDir.Send, payload, what);
             _transport.Stream.Write(frame, 0, frame.Length);
         }

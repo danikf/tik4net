@@ -21,7 +21,7 @@ using System.Threading;
 using tik4net.Crypto;
 using tik4net.Winbox;
 using M2 = tik4net.Winbox.M2Message;
-using Tcp = tik4net.Winbox.WinboxTcpTransport;
+using Tcp = tik4net.Winbox.WinboxChunkFraming;
 using ECPoint = tik4net.Crypto.ECPoint;
 
 namespace tik4net.integrationtests

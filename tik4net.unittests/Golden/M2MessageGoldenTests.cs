@@ -258,19 +258,19 @@ namespace tik4net.unittests.Golden
             foreach (int n in new[] { 0, 1, 254, 255, 256, 509, 510, 511, 3570 })
             {
                 byte[] data = Data(n);
-                byte[] chunked = WinboxTcpTransport.Chunk(data, 0x06);
+                byte[] chunked = WinboxChunkFraming.Chunk(data, 0x06);
                 lines.Add("Chunk(" + n + ",0x06) " + Bytes(chunked));
-                if (n <= 600) lines.Add("BuildRawFrame(" + n + ") " + Bytes(WinboxTcpTransport.BuildRawFrame(data)));
+                if (n <= 600) lines.Add("BuildRawFrame(" + n + ") " + Bytes(WinboxChunkFraming.BuildRawFrame(data)));
 
                 int pos = 0;
-                byte[] back = WinboxTcpTransport.ReadChunkedFrame(k => { byte[] r = chunked.Skip(pos).Take(k).ToArray(); pos += k; return r; }, 0x06, encrypted: false);
+                byte[] back = WinboxChunkFraming.ReadChunkedFrame(k => { byte[] r = chunked.Skip(pos).Take(k).ToArray(); pos += k; return r; }, 0x06, encrypted: false);
                 lines.Add("ReadChunkedFrame(" + n + ") " + (back.SequenceEqual(data) ? "round-trips" : "DIFFERS " + Bytes(back)) + ", consumed " + pos + " of " + chunked.Length);
 
                 var buffer = chunked.ToList();
-                byte[]? taken = WinboxTcpTransport.TryTakeChunkedFrame(buffer, encrypted: false);
+                byte[]? taken = WinboxChunkFraming.TryTakeChunkedFrame(buffer, encrypted: false);
                 lines.Add("TryTakeChunkedFrame(" + n + ") " + (taken != null && taken.SequenceEqual(data) ? "round-trips" : Bytes(taken)) + ", left " + buffer.Count);
                 var partial = chunked.Take(chunked.Length - 1).ToList();
-                lines.Add("TryTakeChunkedFrame(" + n + " less one byte) " + Bytes(WinboxTcpTransport.TryTakeChunkedFrame(partial, encrypted: false)) + ", left " + partial.Count);
+                lines.Add("TryTakeChunkedFrame(" + n + " less one byte) " + Bytes(WinboxChunkFraming.TryTakeChunkedFrame(partial, encrypted: false)) + ", left " + partial.Count);
             }
 
             // An encrypted frame of exactly 14 full chunks (3570 B) ends at its declared length with no terminator,
@@ -278,24 +278,24 @@ namespace tik4net.unittests.Golden
             byte[] enc = new byte[3570];
             const int declared = 3570 - 18;
             enc[0] = declared >> 8; enc[1] = declared & 0xFF;
-            byte[] encChunks = WinboxTcpTransport.Chunk(enc, 0x06);
+            byte[] encChunks = WinboxChunkFraming.Chunk(enc, 0x06);
             byte[] noTerminator = encChunks.Take(encChunks.Length - 2).ToArray();
-            byte[] next = WinboxTcpTransport.Chunk(Data(3), 0x06);
+            byte[] next = WinboxChunkFraming.Chunk(Data(3), 0x06);
             var stream = noTerminator.Concat(next).ToList();
-            lines.Add("encrypted-3570 TryTake first " + (WinboxTcpTransport.TryTakeChunkedFrame(stream, encrypted: true)?.Length.ToString() ?? "null") + ", left " + stream.Count);
-            lines.Add("encrypted-3570 TryTake second " + Bytes(WinboxTcpTransport.TryTakeChunkedFrame(stream, encrypted: true)) + ", left " + stream.Count);
+            lines.Add("encrypted-3570 TryTake first " + (WinboxChunkFraming.TryTakeChunkedFrame(stream, encrypted: true)?.Length.ToString() ?? "null") + ", left " + stream.Count);
+            lines.Add("encrypted-3570 TryTake second " + Bytes(WinboxChunkFraming.TryTakeChunkedFrame(stream, encrypted: true)) + ", left " + stream.Count);
             var terminated = new List<byte> { 0, 0xFF };
             terminated.AddRange(next);
-            lines.Add("leading-terminator TryTake " + Bytes(WinboxTcpTransport.TryTakeChunkedFrame(terminated, encrypted: true)) + ", left " + terminated.Count);
+            lines.Add("leading-terminator TryTake " + Bytes(WinboxChunkFraming.TryTakeChunkedFrame(terminated, encrypted: true)) + ", left " + terminated.Count);
             int p2 = 0;
             byte[] read2 = new byte[] { 0, 0xFF }.Concat(next).ToArray();
-            lines.Add("leading-terminator ReadChunkedFrame " + Bytes(WinboxTcpTransport.ReadChunkedFrame(k => { byte[] r = read2.Skip(p2).Take(k).ToArray(); p2 += k; return r; }, 0x06, encrypted: true)));
+            lines.Add("leading-terminator ReadChunkedFrame " + Bytes(WinboxChunkFraming.ReadChunkedFrame(k => { byte[] r = read2.Skip(p2).Take(k).ToArray(); p2 += k; return r; }, 0x06, encrypted: true)));
             int p3 = 0;
-            lines.Add("wrong-tag ReadChunkedFrame " + Try(() => Bytes(WinboxTcpTransport.ReadChunkedFrame(k => { byte[] r = next.Skip(p3).Take(k).ToArray(); p3 += k; return r; }, 0x01, encrypted: false))));
-            lines.Add("BuildRawFrame(65536) " + Try(() => Bytes(WinboxTcpTransport.BuildRawFrame(new byte[65536]))));
-            lines.Add("constants EncryptedFrameTag=0x" + WinboxTcpTransport.EncryptedFrameTag.ToString("X2")
-                + " ContinuationTag=0x" + WinboxTcpTransport.ContinuationTag.ToString("X2")
-                + " EncryptedFrameOverhead=" + WinboxTcpTransport.EncryptedFrameOverhead);
+            lines.Add("wrong-tag ReadChunkedFrame " + Try(() => Bytes(WinboxChunkFraming.ReadChunkedFrame(k => { byte[] r = next.Skip(p3).Take(k).ToArray(); p3 += k; return r; }, 0x01, encrypted: false))));
+            lines.Add("BuildRawFrame(65536) " + Try(() => Bytes(WinboxChunkFraming.BuildRawFrame(new byte[65536]))));
+            lines.Add("constants EncryptedFrameTag=0x" + WinboxChunkFraming.EncryptedTag.ToString("X2")
+                + " ContinuationTag=0x" + WinboxChunkFraming.ContinuationTag.ToString("X2")
+                + " EncryptedFrameOverhead=" + WinboxChunkFraming.EncryptedFrameOverhead);
 
             GoldenFile.AssertMatches("m2-framing.txt", lines);
         }

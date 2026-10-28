@@ -75,7 +75,7 @@ namespace tik4net.unittests.Winbox
             {
                 byte[] m2 = Enumerable.Range(0, n).Select(i => (byte)(i % 251)).ToArray();
 
-                byte[] body = ReadChunked(WinboxTcpTransport.BuildRawFrame(m2), 0x01);
+                byte[] body = ReadChunked(WinboxChunkFraming.BuildRawFrame(m2), 0x01);
 
                 Assert.IsTrue(body.Length >= 2, $"A {n}-byte message must keep its 2-byte inner length.");
                 Assert.AreEqual(n, (body[0] << 8) | body[1],
@@ -96,7 +96,7 @@ namespace tik4net.unittests.Winbox
             {
                 byte[] data = Enumerable.Range(0, n).Select(i => (byte)(i % 251)).ToArray();
 
-                CollectionAssert.AreEqual(data, ReadChunked(WinboxTcpTransport.Chunk(data, 0x06), 0x06),
+                CollectionAssert.AreEqual(data, ReadChunked(WinboxChunkFraming.Chunk(data, 0x06), 0x06),
                     $"A {n}-byte encrypted body must survive its own framing byte-for-byte.");
             }
         }
@@ -110,7 +110,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void Chunk_EndsAnExactMultipleOf255_WithAnEmptyFinalChunk()
         {
-            byte[] frame = WinboxTcpTransport.Chunk(new byte[255], 0x06);
+            byte[] frame = WinboxChunkFraming.Chunk(new byte[255], 0x06);
 
             Assert.AreEqual(255 + 4, frame.Length, "255 bytes is one full chunk plus an empty terminator.");
             Assert.AreEqual((byte)0x00, frame[frame.Length - 2], "The final chunk must declare zero bytes.");

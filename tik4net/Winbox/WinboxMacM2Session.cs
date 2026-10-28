@@ -216,7 +216,7 @@ namespace tik4net.Winbox
         }
 
         private void SendHandshakeFrame(byte[] payload)
-            => Send(PKT_DATA, ChunkWrap(payload, 0x06));
+            => Send(PKT_DATA, WinboxChunkFraming.Chunk(payload, WinboxChunkFraming.EncryptedTag));
 
         // Receives the next DATA packet payload (acking, ponging; skipping control packets), or null on timeout.
         private byte[]? RecvDataPayload(int timeoutMs)
@@ -409,7 +409,8 @@ namespace tik4net.Winbox
         // MAC DATA packets — NOT a bare encrypted blob. The encrypted frame is chunk-wrapped on send and
         // reassembled on receive before AES decryption.
         public void Send(byte[] m2)
-            => Send(PKT_DATA, ChunkWrap(WinboxStreamCrypto.Encrypt(m2, _sendAesKey, _sendHmacKey), 0x06));
+            => Send(PKT_DATA, WinboxChunkFraming.Chunk(WinboxStreamCrypto.Encrypt(m2, _sendAesKey, _sendHmacKey),
+                WinboxChunkFraming.EncryptedTag));
 
         public byte[] SendReceive(byte[] m2, int timeoutMs)
         {
@@ -427,7 +428,7 @@ namespace tik4net.Winbox
             catch { return null!; }   // not a clean M2 frame
         }
 
-        // ── Chunk framing (same wire format as WinboxTcpTransport, carried in DATA payloads) ──
+        // ── Chunk framing (WinboxChunkFraming, as on TCP, carried in DATA payloads) ──
 
         // Reassembles one complete chunked frame ([chunkLen][tag][data], chunkLen=0xFF = continuation),
         // reading further DATA packets as needed. Returns the concatenated chunk data, or null on timeout.
@@ -466,34 +467,9 @@ namespace tik4net.Winbox
         // the buffer does not yet hold a full frame. Once the stream keys exist every frame is encrypted and
         // ends at its declared length — the router sends no short final chunk after a 3570-byte frame, and
         // waiting for one merged it with the next frame and stalled the terminal (see
-        // WinboxTcpTransport.ReadChunkedFrame). The handshake frames before that declare no length.
+        // WinboxChunkFraming.ReadChunkedFrame). The handshake frames before that declare no length.
         private byte[]? TryExtractFrame()
-            => WinboxTcpTransport.TryTakeChunkedFrame(_rxBuf, encrypted: _receiveAesKey != null);
-
-        private static byte[] ChunkWrap(byte[] data, byte firstTag)
-        {
-            var outBuf = new List<byte>(data.Length + 4);
-            byte tag = firstTag;
-            int pos = 0;
-            while (true)
-            {
-                int rem = data.Length - pos;
-                if (rem >= 0xFF)
-                {
-                    outBuf.Add(0xFF); outBuf.Add(tag);
-                    outBuf.AddRange(data.Skip(pos).Take(0xFF));
-                    pos += 0xFF;
-                    tag = 0xFF;
-                }
-                else
-                {
-                    outBuf.Add((byte)rem); outBuf.Add(tag);
-                    outBuf.AddRange(data.Skip(pos).Take(rem));
-                    break;
-                }
-            }
-            return outBuf.ToArray();
-        }
+            => WinboxChunkFraming.TryTakeChunkedFrame(_rxBuf, encrypted: _receiveAesKey != null);
 
         /// <summary>
         /// Tells the router the session is over before the socket goes away, by sending the MAC-layer

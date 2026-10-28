@@ -26,7 +26,8 @@ checking who cites it.
 tik4net/Winbox/                shared session/crypto layer + native M2 protocol constants and codec
 ├── M2Message.cs                   M2 TLV parse/build
 ├── WinboxM2Protocol.cs            protocol constants: SysKey/RecordKey/Command/Error/Mproxy/SysInfo/LegacyAuth/Mepty
-├── WinboxTcpTransport.cs          chunked AES framing over TCP
+├── WinboxChunkFraming.cs          the chunk framing both carriers share
+├── WinboxTcpTransport.cs          the TCP socket carrying it
 ├── WinboxM2Session.cs             EC-SRP5 / legacy MD5 auth + frame I/O + generic Send/Receive/SendReceive
 ├── WinboxMacM2Session.cs          the same M2 session carried over MacLayerTransport
 ├── IWinboxM2Channel.cs            channel abstraction shared by the mepty and native transports
@@ -168,7 +169,7 @@ uses, rather than reusing MAC-Telnet's own auth or framing:
    salt]`.
 2. **Encrypted M2 uses the same chunk framing as TCP** — `[chunkLen 1B][tag][data]…` (`0xFF` =
    continuation) — carried inside DATA packets, not a bare `Encrypt(m2)` payload. `Send` chunk-wraps
-   (`ChunkWrap`); `Receive` reassembles via an `_rxBuf` buffer (a chunk can cross a DATA packet
+   (`WinboxChunkFraming.Chunk`, the same writer as TCP); `Receive` reassembles via an `_rxBuf` buffer (a chunk can cross a DATA packet
    boundary) before `WinboxStreamCrypto.Decrypt` runs. An encrypted frame ends at the length it
    declares, not only at a short chunk (§21).
 
@@ -658,7 +659,7 @@ A reader that waits for a short chunk takes the next frame's first chunk as its 
 Which read meets it depends only on where the output falls into frames, so it looks tied to one table size
 or one window and is not ([history](findings-winbox-history.md#a-3570-byte-frame--read-as-a-last-window-hang-in-one-table-21)).
 
-`WinboxTcpTransport.ReadChunkedFrame` (TCP) and `TryTakeChunkedFrame` (the MAC datagram buffer) end an
+`WinboxChunkFraming.ReadChunkedFrame` (TCP) and `TryTakeChunkedFrame` (the MAC datagram buffer) end an
 encrypted frame at its declared length, and skip a zero-length continuation chunk where a frame should
 start. The router **accepts** such a terminator from us — `Chunk` still writes one after an exact multiple
 of 255, and 3570-byte frames of terminal input go through with it — so the send side is unchanged. The

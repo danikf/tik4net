@@ -120,11 +120,11 @@ namespace tik4net.unittests.Golden
                     lines.Add("server-confirmation " + GoldenFile.Hex(serverCc));
                     Write(s, new byte[] { 32, 0x06 }.Concat(serverCc).ToArray());
 
-                    byte[] frame = WinboxTcpTransport.ReadChunkedFrame(n => ReadExact(s, n), 0x06, encrypted: true);
+                    byte[] frame = WinboxChunkFraming.ReadChunkedFrame(n => ReadExact(s, n), 0x06, encrypted: true);
                     peer.AssertDecryptsToMessage(frame);
                     byte[] reply = WinboxStreamCrypto.Encrypt(Reply(), peer.SendAes, peer.SendHmac, ReplyIv);
                     lines.Add("server-frame " + GoldenFile.Hex(reply));
-                    Write(s, WinboxTcpTransport.Chunk(reply, 0x06));
+                    Write(s, WinboxChunkFraming.Chunk(reply, 0x06));
                     lines.Add("secret " + GoldenFile.Hex(peer.Secret));
                 }
             });
@@ -164,28 +164,28 @@ namespace tik4net.unittests.Golden
                 router.OnData = payload =>
                 {
                     rx.AddRange(payload);
-                    byte[]? frame = WinboxTcpTransport.TryTakeChunkedFrame(rx, encrypted: peer.Secret != null);
+                    byte[]? frame = WinboxChunkFraming.TryTakeChunkedFrame(rx, encrypted: peer.Secret != null);
                     if (frame == null) return;
                     if (peer.Challenged == false)
                     {
                         lines.Add("hello " + GoldenFile.Hex(frame));
                         byte[] challenge = peer.Challenge(frame);
                         lines.Add("challenge " + GoldenFile.Hex(challenge));
-                        router.SendData(WinboxTcpTransport.Chunk(challenge, 0x06));
+                        router.SendData(WinboxChunkFraming.Chunk(challenge, 0x06));
                     }
                     else if (peer.Secret == null)
                     {
                         lines.Add("client-confirmation " + GoldenFile.Hex(frame));
                         byte[] serverCc = peer.Confirm(frame);
                         lines.Add("server-confirmation " + GoldenFile.Hex(serverCc));
-                        router.SendData(WinboxTcpTransport.Chunk(serverCc, 0x06));
+                        router.SendData(WinboxChunkFraming.Chunk(serverCc, 0x06));
                     }
                     else
                     {
                         peer.AssertDecryptsToMessage(frame);
                         byte[] reply = WinboxStreamCrypto.Encrypt(Reply(), peer.SendAes, peer.SendHmac, ReplyIv);
                         lines.Add("server-frame " + GoldenFile.Hex(reply));
-                        router.SendData(WinboxTcpTransport.Chunk(reply, 0x06));
+                        router.SendData(WinboxChunkFraming.Chunk(reply, 0x06));
                     }
                 };
                 router.Start();

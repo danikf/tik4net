@@ -19,7 +19,7 @@ namespace tik4net.unittests.Winbox
     /// Waiting for the short chunk there merges the frame with the next one: over TCP the merged blob fails to
     /// decrypt and the session dies; over the MAC layer both frames are dropped, the terminal's byte
     /// acknowledgement stops moving and the router stops sending — a whole-table read hung in its last window.
-    /// The router-side framing is built here by hand rather than with <c>WinboxTcpTransport.Chunk</c>, which
+    /// The router-side framing is built here by hand rather than with <c>WinboxChunkFraming.Chunk</c>, which
     /// adds the terminator the router leaves out.
     /// </remarks>
     [TestClass]
@@ -39,7 +39,7 @@ namespace tik4net.unittests.Winbox
         {
             // The ciphertext is msg + 20-byte HMAC + 1..16 pad bytes, so a message 21 short of the ciphertext
             // fills it exactly.
-            int ciphertext = frameLength - WinboxTcpTransport.EncryptedFrameOverhead;
+            int ciphertext = frameLength - WinboxChunkFraming.EncryptedFrameOverhead;
             Assert.AreEqual(0, ciphertext % 16, "an encrypted frame is 18 bytes plus whole AES blocks");
             byte[] frame = WinboxStreamCrypto.Encrypt(Enumerable.Repeat(fill, ciphertext - 21).ToArray(), AesKey, HmacKey);
             Assert.AreEqual(frameLength, frame.Length);
@@ -54,7 +54,7 @@ namespace tik4net.unittests.Winbox
             {
                 int take = Math.Min(0xFF, frame.Length - pos);
                 wire.Add((byte)take);
-                wire.Add(pos == 0 ? WinboxTcpTransport.EncryptedFrameTag : WinboxTcpTransport.ContinuationTag);
+                wire.Add(pos == 0 ? WinboxChunkFraming.EncryptedTag : WinboxChunkFraming.ContinuationTag);
                 wire.AddRange(frame.Skip(pos).Take(take));
             }
             return wire.ToArray();
@@ -88,8 +88,8 @@ namespace tik4net.unittests.Winbox
                 byte[] big = EncryptedFrame(size, 0x41), next = EncryptedFrame(162, 0x42);
                 var read = Reader(RouterChunked(big).Concat(RouterChunked(next)).ToArray());
 
-                CollectionAssert.AreEqual(big, WinboxTcpTransport.ReadChunkedFrame(read, 0x06, encrypted: true), "size " + size);
-                CollectionAssert.AreEqual(next, WinboxTcpTransport.ReadChunkedFrame(read, 0x06, encrypted: true), "after size " + size);
+                CollectionAssert.AreEqual(big, WinboxChunkFraming.ReadChunkedFrame(read, 0x06, encrypted: true), "size " + size);
+                CollectionAssert.AreEqual(next, WinboxChunkFraming.ReadChunkedFrame(read, 0x06, encrypted: true), "after size " + size);
             }
         }
 
@@ -106,31 +106,31 @@ namespace tik4net.unittests.Winbox
                 byte[] wire = RouterChunked(big);
                 for (int pos = 0; pos < wire.Length; pos += 1450)
                 {
-                    Assert.IsNull(WinboxTcpTransport.TryTakeChunkedFrame(buffer, encrypted: true), "size " + size + " taken early");
+                    Assert.IsNull(WinboxChunkFraming.TryTakeChunkedFrame(buffer, encrypted: true), "size " + size + " taken early");
                     buffer.AddRange(wire.Skip(pos).Take(1450));
                 }
-                CollectionAssert.AreEqual(big, WinboxTcpTransport.TryTakeChunkedFrame(buffer, encrypted: true), "size " + size);
+                CollectionAssert.AreEqual(big, WinboxChunkFraming.TryTakeChunkedFrame(buffer, encrypted: true), "size " + size);
                 Assert.AreEqual(0, buffer.Count);
 
                 buffer.AddRange(RouterChunked(next));
-                CollectionAssert.AreEqual(next, WinboxTcpTransport.TryTakeChunkedFrame(buffer, encrypted: true), "after size " + size);
+                CollectionAssert.AreEqual(next, WinboxChunkFraming.TryTakeChunkedFrame(buffer, encrypted: true), "after size " + size);
             }
         }
 
         [TestMethod]
         public void AnEmptyTerminatorAfterAFullChunkIsSkipped()
         {
-            // What we send ourselves (WinboxTcpTransport.Chunk), and what a router that did write it would send.
+            // What we send ourselves (WinboxChunkFraming.Chunk), and what a router that did write it would send.
             byte[] big = EncryptedFrame(3570, 0x41), next = EncryptedFrame(162, 0x42);
-            byte[] wire = WinboxTcpTransport.Chunk(big, 0x06).Concat(RouterChunked(next)).ToArray();
+            byte[] wire = WinboxChunkFraming.Chunk(big, 0x06).Concat(RouterChunked(next)).ToArray();
 
             var read = Reader(wire);
-            CollectionAssert.AreEqual(big, WinboxTcpTransport.ReadChunkedFrame(read, 0x06, encrypted: true));
-            CollectionAssert.AreEqual(next, WinboxTcpTransport.ReadChunkedFrame(read, 0x06, encrypted: true));
+            CollectionAssert.AreEqual(big, WinboxChunkFraming.ReadChunkedFrame(read, 0x06, encrypted: true));
+            CollectionAssert.AreEqual(next, WinboxChunkFraming.ReadChunkedFrame(read, 0x06, encrypted: true));
 
             var buffer = new List<byte>(wire);
-            CollectionAssert.AreEqual(big, WinboxTcpTransport.TryTakeChunkedFrame(buffer, encrypted: true));
-            CollectionAssert.AreEqual(next, WinboxTcpTransport.TryTakeChunkedFrame(buffer, encrypted: true));
+            CollectionAssert.AreEqual(big, WinboxChunkFraming.TryTakeChunkedFrame(buffer, encrypted: true));
+            CollectionAssert.AreEqual(next, WinboxChunkFraming.TryTakeChunkedFrame(buffer, encrypted: true));
             Assert.AreEqual(0, buffer.Count);
         }
 
@@ -141,14 +141,14 @@ namespace tik4net.unittests.Winbox
             // length. These two happen to "declare" 255 bytes — the frame must not stop there.
             byte[] payload = new byte[300];
             payload[0] = 0x00; payload[1] = 0xFF - 18;
-            byte[] wire = WinboxTcpTransport.Chunk(payload, 0x06);
+            byte[] wire = WinboxChunkFraming.Chunk(payload, 0x06);
 
             var buffer = new List<byte>(wire.Take(257));
-            Assert.IsNull(WinboxTcpTransport.TryTakeChunkedFrame(buffer, encrypted: false));
+            Assert.IsNull(WinboxChunkFraming.TryTakeChunkedFrame(buffer, encrypted: false));
             buffer.AddRange(wire.Skip(257));
-            CollectionAssert.AreEqual(payload, WinboxTcpTransport.TryTakeChunkedFrame(buffer, encrypted: false));
+            CollectionAssert.AreEqual(payload, WinboxChunkFraming.TryTakeChunkedFrame(buffer, encrypted: false));
 
-            CollectionAssert.AreEqual(payload, WinboxTcpTransport.ReadChunkedFrame(Reader(wire), 0x06, encrypted: false));
+            CollectionAssert.AreEqual(payload, WinboxChunkFraming.ReadChunkedFrame(Reader(wire), 0x06, encrypted: false));
         }
     }
 }
