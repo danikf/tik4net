@@ -479,7 +479,11 @@ namespace tik4net.WinboxNative
             fields.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.NextId, anchor));
         }
 
-        // Resolve the move destination (next-id) from a NameValue "destination"/"move-before" parameter.
+        // Resolve the move destination (next-id) from a NameValue "destination"/"move-before" parameter. No
+        // destination moves the row to the end. A "*HEX" handle goes through as it is: an unknown one moving the row
+        // to the end is the router's own answer, on the API and the CLI alike. A NAME is resolved here, where the API
+        // and the CLI have the router resolve it — and they trap 'no such item' when it names nothing, so an
+        // unresolved name is refused as that, as place-before's anchor is, rather than read as "move to end".
         private async Task<int> ResolveMoveDestAsync(int[] handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
@@ -491,7 +495,9 @@ namespace tik4net.WinboxNative
                 return hexId;
             int byName = await _host.IdResolver
                 .FindIdByNameAsync(handler, resolver, dest, cancellationToken).ConfigureAwait(false);
-            return byName; // -1 if not found → move to end
+            if (byName >= 0) return byName;
+            throw new TikNoSuchItemException(_host.CommandFor(descriptor.CommandText), new TikTrapSentenceResult(
+                $"no such item: could not resolve move destination '{dest}' on '{descriptor.CommandText}'."));
         }
     }
 }
