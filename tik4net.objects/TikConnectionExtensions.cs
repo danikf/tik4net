@@ -521,6 +521,13 @@ namespace tik4net.Objects
         /// Behavior of save is modified via <see cref="TikPropertyAttribute"/> on properties.
         /// See <see cref="TikPropertyAttribute.DefaultValue"/>, <see cref="TikPropertyAttribute.UnsetOnDefault"/>.
         /// <para>
+        /// A <see cref="TikField{T}"/> says by its state what an update does with it: <see cref="TikField{T}.Absent"/> is
+        /// never sent, even where the load read a value; an assigned <c>null</c> is unset (a <c>comment</c> is cleared
+        /// with <c>comment=""</c>), whether or not this connection loaded the entity, unless the load read the field as not
+        /// printed; a value is set when it differs from the load. After a partial <c>.proplist</c> load, a field outside
+        /// the list that the caller assigned is sent as well.
+        /// </para>
+        /// <para>
         /// <b>Load and save an entity on the SAME connection.</b> The change tracker is scoped to the
         /// <see cref="ITikConnection"/> it was loaded on, so an entity loaded on one connection and saved on
         /// another has no snapshot on the saving connection — and under
@@ -596,16 +603,20 @@ namespace tik4net.Objects
         // — and a second copy of them would be a second set of rules the moment either is touched.
 
         /// <summary>
-        /// The nullable fields this entity was <b>loaded with a value</b> and now holds <c>null</c> for —
-        /// i.e. the caller cleared them, and an update should <c>/unset</c> them on the router.
+        /// The nullable fields the caller cleared, which an update should <c>/unset</c> on the router: a
+        /// <see cref="TikField{T}"/> holding an assigned <c>null</c>, unless the load saw the field unprinted; a plain
+        /// nullable property loaded with a value and now <c>null</c>.
         /// </summary>
         /// <remarks>
-        /// The snapshot is what makes this answerable, and it is the only thing that does. Null on its own is
-        /// ambiguous: on an entity that was never loaded it means "nothing was said", and treating that as a
-        /// clearing would delete router state on the strength of silence — including every field a partial
-        /// <c>.proplist</c> load never populated. Against a snapshot the two separate cleanly, so a clearing
-        /// is recognised only where there is evidence of something to clear. An untracked entity yields
-        /// nothing here, which leaves those fields skipped as before.
+        /// A <see cref="TikField{T}"/> says by its state what the caller meant: <see cref="TikFieldState.Absent"/> is
+        /// nothing said, an assigned <c>null</c> is an unset. It is an unset without a snapshot (an entity this
+        /// connection never loaded) and outside a partial <c>.proplist</c> too, where nothing says whether the router
+        /// holds a value — the caller asked for it, and the router takes an unset of an unset field. Only a field the
+        /// load read as unprinted is left alone, since there is evidence that there is nothing to clear.
+        /// <para>
+        /// A plain nullable property cannot tell the two apart: its <c>null</c> is a clearing only against a snapshot
+        /// that holds a value, and silence everywhere else.
+        /// </para>
         /// </remarks>
         internal static ISet<string> ResolveClearedFields<TEntity>(ITikConnection connection, TEntity entity,
             TikEntityMetadata metadata)
@@ -613,14 +624,19 @@ namespace tik4net.Objects
             var cleared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var snapshot = TikChangeTracker.For(connection).GetSnapshot(entity!);
-            if (snapshot == null)
-                return cleared;
 
             foreach (var property in metadata.Properties)
             {
                 if (property.IsReadOnly || !property.IsNullable)
                     continue;
-                if (property.GetEntityValue(entity!) != null)
+                if (property.GetEntityValue(entity!) != null || property.IsAbsent(entity!))
+                    continue;
+                if (property.IsWrapped && (snapshot == null || !snapshot.IsTracked(property.FieldName)))
+                {
+                    cleared.Add(property.FieldName);
+                    continue;
+                }
+                if (snapshot == null)
                     continue;
                 if (!snapshot.IsTracked(property.FieldName))
                     continue;   // never loaded, so nothing is known to have been cleared

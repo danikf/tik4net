@@ -67,10 +67,33 @@ namespace tik4net.Objects.Tracking
         /// Resets the snapshot to the current entity state, preserving the original set of
         /// tracked fields. Call this after a successful save to mark the entity clean.
         /// </summary>
+        /// <remarks>
+        /// A field the entity holds as <see cref="TikFieldState.Absent"/> keeps its previous snapshot value: a save sends
+        /// nothing for it, so the router still holds what was loaded, and a later assigned <c>null</c> must still unset it.
+        /// </remarks>
         public void ResetSnapshot<TEntity>(TEntity entity, TikEntityMetadata metadata)
         {
             var existing = GetSnapshot(entity!);
-            TakeSnapshot(entity, metadata, existing?.TrackedFields);
+            if (existing == null)
+            {
+                TakeSnapshot(entity, metadata);
+                return;
+            }
+
+            // A field outside a partial load that the save sent is known from now on.
+            var tracked = metadata.Properties
+                .Where(p => existing.IsTracked(p.FieldName) || (p.IsWrapped && !p.IsAbsent(entity!)))
+                .ToList();
+            var values = tracked.Select(p => new KeyValuePair<string, string?>(p.FieldName,
+                p.IsAbsent(entity!) && existing.TryGetValue(p.FieldName, out string? kept) ? kept : p.GetEntityValue(entity!)));
+            var snapshot = new TikSnapshot(values,
+                existing.TrackedFields == null ? null : tracked.Select(p => p.FieldName));
+
+            lock (_lock)
+            {
+                _snapshots.Remove(entity!);
+                _snapshots.Add(entity!, snapshot);
+            }
         }
 
         /// <summary>Returns the snapshot for <paramref name="entity"/>, or <c>null</c> if not tracked.</summary>
@@ -106,9 +129,14 @@ namespace tik4net.Objects.Tracking
 
         /// <summary>
         /// Returns the changed writable fields as a dictionary of field-name → (oldValue, newValue).
-        /// Only fields that are tracked (present in the snapshot) are included.
         /// Returns an empty dictionary when no snapshot exists or when nothing changed.
         /// </summary>
+        /// <remarks>
+        /// A <see cref="TikField{T}"/> that is <see cref="TikFieldState.Absent"/> is never a change: Absent says nothing,
+        /// even where the load saw a value. One outside a partial <c>.proplist</c> load that the caller assigned — a value,
+        /// or <c>null</c> — is always a change, with <c>Old</c> <c>null</c>: the load did not read it, so there is nothing
+        /// to compare with. A plain property outside the list cannot say whether it was assigned and is skipped.
+        /// </remarks>
         public IReadOnlyDictionary<string, (string? Old, string? New)> GetChanges<TEntity>(
             TEntity entity, TikEntityMetadata metadata)
         {
@@ -119,8 +147,14 @@ namespace tik4net.Objects.Tracking
             var result = new Dictionary<string, (string?, string?)>();
             foreach (var prop in metadata.Properties)
             {
-                if (prop.IsReadOnly || !snapshot.IsTracked(prop.FieldName))
+                if (prop.IsReadOnly || prop.IsAbsent(entity!))
                     continue;
+                if (!snapshot.IsTracked(prop.FieldName))
+                {
+                    if (prop.IsWrapped)
+                        result[prop.FieldName] = (null, prop.GetEntityValue(entity!));
+                    continue;
+                }
 
                 string? current = prop.GetEntityValue(entity!);
                 if (snapshot.TryGetValue(prop.FieldName, out string? old) && old != current)

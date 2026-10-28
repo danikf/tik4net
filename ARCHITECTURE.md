@@ -459,7 +459,11 @@ it back). Consequences the rest of the layer relies on:
   default and has no runtime effect; `IsMandatory` and `UnsetOnDefault` are refused on one (metadata build),
   and assigning `null` unsets the field.
 - **Change detection is by canonical snapshot** (`TikChangeTracker`): the wire form a loaded value would write,
-  compared with the one taken at load.
+  compared with the one taken at load. The wire form of `Absent` and of an assigned `null` is the same `null`, so
+  the update rules ask the field's state as well: `Absent` is never sent (and keeps its snapshot value across a
+  save), an assigned `null` is an unset unless the load read the field as not printed — also without a snapshot
+  and outside a partial `.proplist` — and an assigned field outside that list is a change. The merge, whose rule
+  is that an `Absent` expected value unsets, writes it onto a row that holds a value as an assigned `null`.
 - **Merge** compares wrapped fields by wire form, treats "no value" states alike, and takes a per-field rule
   (`Field(x => x.F, (expected, current) => …)`, helpers `IfAbsent` / `IfPrintedIn`).
 

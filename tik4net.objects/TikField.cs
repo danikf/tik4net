@@ -109,6 +109,10 @@ namespace tik4net.Objects
         public bool IsPresent => State == TikFieldState.Present;
 
         /// <summary>The field was not printed or not loaded (the <c>default</c>).</summary>
+        /// <remarks>
+        /// On a write it says nothing: a save never sends an absent field, even one the load read a value for, so
+        /// setting a field back to <c>Absent</c> leaves the router's value as it is. An assigned <c>null</c> is what unsets.
+        /// </remarks>
         public static TikField<T> Absent => default;
 
         /// <summary><see cref="Value"/> when present, <paramref name="fallback"/> when absent or unparsed.</summary>

@@ -394,6 +394,10 @@ namespace tik4net.unittests.Objects
         private sealed class ValidatingConnection : TikCommandConnectionBase, ITikMenuSchemaConnection
         {
             public readonly List<string> Calls = new List<string>();
+            private readonly string[] _unsetFields;
+
+            /// <param name="unsetFields">When given, the menu has an <c>unset</c> that clears only these fields.</param>
+            public ValidatingConnection(string[] unsetFields = null) { _unsetFields = unsetFields; }
 
             public override TikConnectionCapability Capabilities
                 => TikConnectionCapability.Crud | TikConnectionCapability.AsyncCommands | TikConnectionCapability.MenuSchema;
@@ -401,10 +405,11 @@ namespace tik4net.unittests.Objects
             bool ITikMenuSchemaConnection.ValidateWrites { get => true; set { } }
 
             public TikMenuSchema DescribeMenu(string path, string winboxLabels)
-                => new TikMenuSchema(path, TikMenuSchemaSource.ConsoleInspect, new[] { "add", "set", "remove" },
+                => new TikMenuSchema(path, TikMenuSchemaSource.ConsoleInspect,
+                    _unsetFields == null ? new[] { "add", "set", "remove" } : new[] { "add", "set", "remove", "unset" },
                     new[] { "comment", "name" },
                     new[] { "numbers", "comment", "name", "refused" },
-                    new[] { ".id", "comment", "name", "refused" }, null);
+                    new[] { ".id", "comment", "name", "refused" }, null, unsetFields: _unsetFields);
 
             private void Record(string hook, TikCommandDescriptor d) => Calls.Add(hook + " " + d.CommandText);
 
@@ -473,5 +478,39 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual(0, connection.Calls.Count, "sent: " + string.Join(" / ", connection.Calls));
             Assert.AreEqual("x", original[0].Name, "the update was checked on a copy: the caller's row is unchanged");
         }
+
+#nullable enable
+        /// <summary><see cref="ValidatedRow"/> with a <see cref="TikField{T}"/> name, which an Absent expected value unsets.</summary>
+        [TikEntity("/probe/validated")]
+        public class ValidatedFieldRow
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string? Id { get; set; }
+
+            [TikProperty("comment")]
+            public TikField<string?> Comment { get; set; }
+
+            [TikProperty("name")]
+            public TikField<string?> Name { get; set; }
+        }
+
+        [TestMethod]
+        public void WithValidateWritesAMergeChecksAClearedFieldAsTheUnsetItIs()
+        {
+            // The menu's unset clears comment only. The merge's update of A unsets name (expected Absent, the row has
+            // "x"), and it is checked on the copy as an unset - a set of name would have passed.
+            var connection = new ValidatingConnection(unsetFields: new[] { "comment" });
+            var original = new List<ValidatedFieldRow> { new ValidatedFieldRow { Id = "*1", Comment = "A", Name = "x" } };
+            var expected = new List<ValidatedFieldRow> { new ValidatedFieldRow { Comment = "A" } };
+
+            var ex = Assert.ThrowsException<TikUnknownFieldException>(() =>
+                connection.CreateMerge(expected, original).WithKey(r => r.Comment.ToString()).Field(r => r.Name).Save());
+
+            Assert.AreEqual(TikUnknownFieldUse.Unset, ex.Use);
+            CollectionAssert.AreEqual(new[] { "name" }, ex.Fields.ToArray());
+            Assert.AreEqual(0, connection.Calls.Count, "sent: " + string.Join(" / ", connection.Calls));
+            Assert.IsTrue(original[0].Name == "x", "the update was checked on a copy: the caller's row is unchanged");
+        }
+#nullable restore
     }
 }

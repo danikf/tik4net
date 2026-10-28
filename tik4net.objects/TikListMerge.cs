@@ -190,7 +190,14 @@ namespace tik4net.Objects
             foreach (var field in _fields)
             {
                 PropertyInfo propInfo = ((PropertyInfo)field.Member);
-                propInfo.SetValue(destination, MergedValue(propInfo, destination, source));
+                object? merged = MergedValue(propInfo, destination, source);
+                // The merge's rule is that an Absent expected value unsets the field, while Save leaves an Absent one
+                // alone - so it is written as the assigned null it means here. Onto a row that does not print the field
+                // it stays Absent: there is nothing to unset, and IfPrintedIn's "does not apply to this row" says so.
+                if (merged is ITikField wrapped && wrapped.State == TikFieldState.Absent
+                    && propInfo.GetValue(destination) is ITikField current && current.State != TikFieldState.Absent)
+                    merged = WrappedAccessor(propInfo).AssignedNull();
+                propInfo.SetValue(destination, merged);
             }
         }
 

@@ -493,6 +493,16 @@ namespace tik4net.Objects
             return wrapped.IsNegated ? "!" + text : text;
         }
 
+        /// <summary>
+        /// True when this is a wrapped property and its field is <see cref="TikFieldState.Absent"/> on <paramref name="entity"/>:
+        /// nothing was said about it, which a write leaves out. Its wire form is <c>null</c>, as an assigned <c>null</c>'s is.
+        /// </summary>
+        internal bool IsAbsent(object entity)
+            => IsWrapped && ((ITikField)GetWrapped(entity)).State == TikFieldState.Absent;
+
+        /// <summary>An assigned <c>null</c> of this wrapped property, boxed: the intent to unset.</summary>
+        internal object AssignedNull() => _wrapPresent!(null, false);
+
         /// <summary>The <see cref="TikField{T}"/> itself, boxed — only for a wrapped property.</summary>
         internal object GetWrapped(object entity)
             => (_getter != null ? _getter(entity) : PropertyInfo.GetValue(entity))!;
