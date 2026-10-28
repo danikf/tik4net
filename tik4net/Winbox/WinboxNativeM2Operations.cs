@@ -177,8 +177,8 @@ namespace tik4net.Winbox
             // replies echo it; stray async frames do not. Use the short drain timeout for the re-read so a
             // transport that can desync without a recoverable next frame cannot stall for the full command
             // timeout on every operation.
-            int expected = RequestIdOf(request);
-            for (int skip = 0; expected >= 0 && skip < 16 && RequestIdOf(response) != expected; skip++)
+            int expected = M2Message.ParseSysReqId(request) ?? -1;
+            for (int skip = 0; expected >= 0 && skip < 16 && (M2Message.ParseSysReqId(response) ?? -1) != expected; skip++)
             {
                 try { response = _channel.Receive(DrainTimeoutMs); }
                 catch { break; } // no further frame available — surface what we have
@@ -219,15 +219,6 @@ namespace tik4net.Winbox
         }
 
         private const int DrainTimeoutMs = 250;
-
-        // Extracts the M2 request-id (sys key 0xFF0006) echoed in a built request or a reply, or -1 when absent.
-        private static int RequestIdOf(byte[]? m2)
-        {
-            if (m2 == null) return -1;
-            var fields = M2Message.ParseAllFields(m2);
-            return fields.TryGetValue(WinboxM2Protocol.SysKey.RequestId, out var t) && t.Item2 != null
-                ? Convert.ToInt32(t.Item2) : -1;
-        }
 
         /// <summary>
         /// Sends <c>getall</c> to <paramref name="handler"/> and returns every record's decoded
@@ -298,13 +289,7 @@ namespace tik4net.Winbox
                         innerException: ex);
                 }
 
-                int status = M2Message.ParseSysStatus(resp);
-                if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
-                {
-                    var ef = M2Message.ParseAllFields(resp);
-                    string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                    throw new WinboxM2OperationException(status, errStr, "getall", handler);
-                }
+                int status = ThrowOnStatus(resp, "getall", handler, endOfTableIsOk: true);
 
                 records.AddRange(M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records));
 
@@ -418,7 +403,7 @@ namespace tik4net.Winbox
         /// falls back to the top-level fields when the handler answers inline.
         /// </summary>
         internal Dictionary<int, Tuple<string, object>> GetOne(int[] handler, int id)
-            => InterpretRecord(SendReceive(BuildGetOne(handler, id)));
+            => Sync(GetOneAsync(handler, id, CancellationToken.None));
 
         /// <inheritdoc cref="GetOne"/>
         internal async Task<Dictionary<int, Tuple<string, object>>> GetOneAsync(
@@ -450,7 +435,7 @@ namespace tik4net.Winbox
         /// </param>
         internal Dictionary<int, Tuple<string, object>> GetSingleton(
             int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int? command = null)
-            => InterpretSingleton(SendReceive(BuildGetSingleton(handler, flags, command)), handler);
+            => Sync(GetSingletonAsync(handler, CancellationToken.None, flags, command));
 
         /// <inheritdoc cref="GetSingleton"/>
         internal async Task<Dictionary<int, Tuple<string, object>>> GetSingletonAsync(
@@ -466,13 +451,7 @@ namespace tik4net.Winbox
 
         private static Dictionary<int, Tuple<string, object>> InterpretSingleton(byte[] resp, int[] handler)
         {
-            int status = M2Message.ParseSysStatus(resp);
-            if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
-            {
-                var ef = M2Message.ParseAllFields(resp);
-                string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                throw new WinboxM2OperationException(status, errStr, "get-singleton", handler);
-            }
+            ThrowOnStatus(resp, "get-singleton", handler, endOfTableIsOk: true);
             return InterpretRecord(resp);
         }
 
@@ -485,7 +464,7 @@ namespace tik4net.Winbox
         /// router reports a non-zero status.
         /// </summary>
         internal void Set(int[] handler, int id, IList<byte[]> fields)
-            => ThrowOnStatus(SendReceive(BuildSet(handler, id, fields)), "set", handler);
+            => Sync(SetAsync(handler, id, fields, CancellationToken.None));
 
         /// <inheritdoc cref="Set"/>
         internal async Task SetAsync(int[] handler, int id, IList<byte[]> fields, CancellationToken cancellationToken)
@@ -511,7 +490,7 @@ namespace tik4net.Winbox
         /// The window's own write command (<c>.jg</c> <c>setcmd</c>), or <c>null</c> for set-singleton.
         /// </param>
         internal void SetSingleton(int[] handler, IList<byte[]> fields, int id = -1, int? command = null)
-            => ThrowOnStatus(SendReceive(BuildSetSingleton(handler, fields, id, command)), "set-singleton", handler);
+            => Sync(SetSingletonAsync(handler, fields, id, CancellationToken.None, command));
 
         /// <inheritdoc cref="SetSingleton"/>
         internal async Task SetSingletonAsync(int[] handler, IList<byte[]> fields, int id,
@@ -531,7 +510,7 @@ namespace tik4net.Winbox
         /// route's is <c>*80000019</c> on RouterOS 7, which no <c>int</c> holds as a value.
         /// </summary>
         internal int? Add(int[] handler, IList<byte[]> fields)
-            => InterpretAdd(SendReceive(BuildAdd(handler, fields)), handler);
+            => Sync(AddAsync(handler, fields, CancellationToken.None));
 
         /// <inheritdoc cref="Add"/>
         internal async Task<int?> AddAsync(int[] handler, IList<byte[]> fields, CancellationToken cancellationToken)
@@ -545,10 +524,8 @@ namespace tik4net.Winbox
         internal static int? InterpretAdd(byte[] resp, int[] handler)
         {
             ThrowOnStatus(resp, "add", handler);
-            var f = M2Message.ParseAllFields(resp);
-            return f.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null
-                ? unchecked((int)Convert.ToUInt32(t.Item2))
-                : (int?)null;
+            uint? id = ReadRecordId(resp);
+            return id.HasValue ? unchecked((int)id.Value) : (int?)null;
         }
 
         /// <summary>
@@ -556,7 +533,7 @@ namespace tik4net.Winbox
         /// <see cref="WinboxM2Protocol.RecordKey.Id"/>=<paramref name="id"/>).
         /// </summary>
         internal void Remove(int[] handler, int id)
-            => ThrowOnStatus(SendReceive(BuildRemove(handler, id)), "remove", handler);
+            => Sync(RemoveAsync(handler, id, CancellationToken.None));
 
         /// <inheritdoc cref="Remove"/>
         internal async Task RemoveAsync(int[] handler, int id, CancellationToken cancellationToken)
@@ -574,7 +551,7 @@ namespace tik4net.Winbox
         /// <paramref name="destNextId"/> (move to end) omits the next-id field.
         /// </summary>
         internal void Move(int[] handler, int id, int destNextId)
-            => ThrowOnStatus(SendReceive(BuildMove(handler, id, destNextId)), "move", handler);
+            => Sync(MoveAsync(handler, id, destNextId, CancellationToken.None));
 
         /// <inheritdoc cref="Move"/>
         internal async Task MoveAsync(int[] handler, int id, int destNextId, CancellationToken cancellationToken)
@@ -594,11 +571,11 @@ namespace tik4net.Winbox
         /// </summary>
         internal Dictionary<int, Tuple<string, object>> InvokeAction(int[] handler, int cmd, int id,
             IList<byte[]>? fields = null)
-            => InterpretAction(SendReceive(BuildAction(handler, cmd, id, fields)), handler);
+            => Sync(InvokeActionAsync(handler, cmd, id, fields, CancellationToken.None));
 
         /// <inheritdoc cref="InvokeAction"/>
         internal async Task<Dictionary<int, Tuple<string, object>>> InvokeActionAsync(
-            int[] handler, int cmd, int id, IList<byte[]> fields, CancellationToken cancellationToken)
+            int[] handler, int cmd, int id, IList<byte[]>? fields, CancellationToken cancellationToken)
             => InterpretAction(
                 await SendReceiveAsync(BuildAction(handler, cmd, id, fields), cancellationToken).ConfigureAwait(false),
                 handler);
@@ -627,9 +604,7 @@ namespace tik4net.Winbox
             byte[] msg = Request(WinboxM2Protocol.SafeMode.Handler, WinboxM2Protocol.SafeMode.Take);
             byte[] resp = SendReceive(msg);
             ThrowOnStatus(resp, "safe-mode-take", WinboxM2Protocol.SafeMode.Handler);
-            var f = M2Message.ParseAllFields(resp);
-            return f.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null
-                ? Convert.ToUInt32(t.Item2) : 0u;
+            return ReadRecordId(resp) ?? 0u;
         }
 
         /// <summary>
@@ -656,7 +631,7 @@ namespace tik4net.Winbox
         /// or <c>null</c> when the reply carries no id (a path-scoped monitor polled without an id).
         /// </summary>
         internal uint? StartMonitor(int[] handler, int startCmd, IList<byte[]> requestFields)
-            => InterpretMonitorStart(SendReceive(BuildMonitorStart(handler, startCmd, requestFields)), handler);
+            => Sync(StartMonitorAsync(handler, startCmd, requestFields, CancellationToken.None));
 
         /// <inheritdoc cref="StartMonitor"/>
         internal async Task<uint?> StartMonitorAsync(int[] handler, int startCmd, IList<byte[]> requestFields,
@@ -671,9 +646,7 @@ namespace tik4net.Winbox
         private static uint? InterpretMonitorStart(byte[] resp, int[] handler)
         {
             ThrowOnStatus(resp, "monitor-start", handler);
-            var f = M2Message.ParseAllFields(resp);
-            return f.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null
-                ? (uint?)Convert.ToUInt32(t.Item2) : null;
+            return ReadRecordId(resp);
         }
 
         /// <summary>
@@ -709,8 +682,7 @@ namespace tik4net.Winbox
         internal (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation) PollMonitorRound(
             int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
             int flags = WinboxM2Protocol.GetAllFlags)
-            => InterpretMonitorRound(
-                SendReceive(BuildMonitorRound(handler, pollCmd, id, isQuery, contToken, flags)), handler, isQuery);
+            => Sync(PollMonitorRoundAsync(handler, pollCmd, id, isQuery, contToken, CancellationToken.None, flags));
 
         /// <inheritdoc cref="PollMonitorRound"/>
         internal async Task<(List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation)> PollMonitorRoundAsync(
@@ -733,13 +705,7 @@ namespace tik4net.Winbox
         private static (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation) InterpretMonitorRound(
             byte[] resp, int[] handler, bool isQuery)
         {
-            int status = M2Message.ParseSysStatus(resp);
-            if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
-            {
-                var ef = M2Message.ParseAllFields(resp);
-                string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                throw new WinboxM2OperationException(status, errStr, "monitor-poll", handler);
-            }
+            int status = ThrowOnStatus(resp, "monitor-poll", handler, endOfTableIsOk: true);
 
             var fields = M2Message.ParseAllFields(resp);
             var records = isQuery
@@ -771,14 +737,41 @@ namespace tik4net.Winbox
             catch { /* cancel is best-effort */ }
         }
 
-        private static void ThrowOnStatus(byte[] resp, string op, int[] handler)
+        /// <summary>
+        /// The one status rule: a reply whose error code (<see cref="WinboxM2Protocol.SysKey.ErrorCode"/>) is not
+        /// <see cref="WinboxM2Protocol.Error.None"/> throws <see cref="WinboxM2OperationException"/> with the
+        /// router's error string. Returns the status.
+        /// </summary>
+        /// <param name="resp">The reply.</param>
+        /// <param name="op">The operation, for the message.</param>
+        /// <param name="handler">The handler the request went to, for the message.</param>
+        /// <param name="endOfTableIsOk">
+        /// <see cref="WinboxM2Protocol.Error.ObjectNonexistent"/> is the "no more rows" terminator of a getall, a
+        /// get-singleton and a monitor round, not a failure; true for those.
+        /// </param>
+        private static int ThrowOnStatus(byte[] resp, string op, int[] handler, bool endOfTableIsOk = false)
         {
             int status = M2Message.ParseSysStatus(resp);
-            if (status == WinboxM2Protocol.Error.None) return;
+            if (status == WinboxM2Protocol.Error.None
+                || (endOfTableIsOk && status == WinboxM2Protocol.Error.ObjectNonexistent))
+                return status;
             var fields = M2Message.ParseAllFields(resp);
             string? errStr = fields.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es)
                 ? es.Item2?.ToString() : null;
             throw new WinboxM2OperationException(status, errStr, op, handler);
         }
+
+        // The id a reply hands back in RecordKey.Id (a new record's, a Safe Mode's, a monitor's), or null.
+        private static uint? ReadRecordId(byte[] resp)
+            => M2Message.ParseAllFields(resp).TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null
+                ? Convert.ToUInt32(t.Item2)
+                : (uint?)null;
+
+        // The synchronous form of an operation blocks on its asynchronous one, as GetAll does: one implementation
+        // per operation, so the two cannot come to answer differently. Before the multiplexer takes over the round
+        // trip completes synchronously; after it, WinboxM2Multiplexer.SendReceive is the same block on the same task.
+        private static T Sync<T>(Task<T> operation) => operation.GetAwaiter().GetResult();
+
+        private static void Sync(Task operation) => operation.GetAwaiter().GetResult();
     }
 }

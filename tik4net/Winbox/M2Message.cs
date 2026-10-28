@@ -787,7 +787,7 @@ namespace tik4net.Winbox
         /// whole session while this value tracks the request (§12.2). u8 in practice (NextReqIdField emits
         /// U8Sys); u32 accepted for symmetry with SESSION_ID.
         /// </remarks>
-        internal static int? ParseSysReqId(byte[] m2) => ReadU8OrU32(m2, WinboxM2Protocol.SysKey.RequestId);
+        internal static int? ParseSysReqId(byte[]? m2) => ReadU8OrU32(m2, WinboxM2Protocol.SysKey.RequestId);
 
         /// <summary>
         /// Reads a top-level u8/u32 system field (such as <c>SYS_CMD</c>, <c>0xFF0007</c>), or <c>null</c> when it is
