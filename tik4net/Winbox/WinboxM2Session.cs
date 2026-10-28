@@ -17,8 +17,9 @@ namespace tik4net.Winbox
     /// </summary>
     /// <remarks>
     /// Shared by both WinBox modes over TCP: the CLI/terminal mode (<c>tik4net.WinboxCli</c>, which
-    /// builds mepty messages on top of <see cref="Send"/>/<see cref="Receive"/>) and the future native
-    /// M2 mode. Keep it free of mode-specific message building so both can reuse it.
+    /// builds mepty messages on top of <see cref="Send"/>/<see cref="Receive"/>) and the native M2 mode
+    /// (<c>tik4net.WinboxNative</c>). It builds no message of either mode; the only M2 messages it builds are the
+    /// legacy MD5 login's (<see cref="LegacyMd5Auth"/>), which is part of authenticating.
     /// </remarks>
     internal sealed class WinboxM2Session : IWinboxM2Channel
     {
