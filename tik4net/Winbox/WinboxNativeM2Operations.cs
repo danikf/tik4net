@@ -372,17 +372,25 @@ namespace tik4net.Winbox
 
         private byte[] BuildGetAll(int[] handler, int flags, int maxObjs, WinboxM2Continuation? cont)
         {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true),
-                NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetAll),
-                M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags),
-            };
-            if (maxObjs > 0) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.MaxObjs, maxObjs));
-            if (cont != null) cont.AppendTo(head);
-            return M2Message.BuildM2(head.ToArray());
+            var fields = new List<byte[]> { M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags) };
+            if (maxObjs > 0) fields.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.MaxObjs, maxObjs));
+            cont?.AppendTo(fields);
+            return Request(handler, WinboxM2Protocol.Command.GetAll, fields);
+        }
+
+        // M2Message.Request with the next request id.
+        private byte[] Request(int[] handler, int command, IEnumerable<byte[]?> fields)
+            => M2Message.Request(handler, command, NextReqIdField(), fields);
+
+        private byte[] Request(int[] handler, int command, params byte[]?[] fields)
+            => M2Message.Request(handler, command, NextReqIdField(), fields);
+
+        // An operation's own fields after an optional leading one (the record id).
+        private static IEnumerable<byte[]?> After(byte[]? first, IEnumerable<byte[]>? fields)
+        {
+            yield return first;
+            if (fields == null) yield break;
+            foreach (var f in fields) yield return f;
         }
 
         /// <summary>
@@ -418,11 +426,7 @@ namespace tik4net.Winbox
             => InterpretRecord(await SendReceiveAsync(BuildGetOne(handler, id), cancellationToken).ConfigureAwait(false));
 
         private byte[] BuildGetOne(int[] handler, int id)
-            => M2Message.BuildM2(
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetOne),
-                M2Message.SessionIdField(id));
+            => Request(handler, WinboxM2Protocol.Command.GetOne, M2Message.SessionIdField(id));
 
         // Records arrive under RecordKey.Records; fall back to the top-level fields when the handler
         // answers inline. Shared by get-one and get-singleton.
@@ -457,10 +461,7 @@ namespace tik4net.Winbox
                 handler);
 
         internal byte[] BuildGetSingleton(int[] handler, int flags, int? command = null)
-            => M2Message.BuildM2(
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, command ?? WinboxM2Protocol.Command.GetSingleton),
+            => Request(handler, command ?? WinboxM2Protocol.Command.GetSingleton,
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
 
         private static Dictionary<int, Tuple<string, object>> InterpretSingleton(byte[] resp, int[] handler)
@@ -493,17 +494,7 @@ namespace tik4net.Winbox
                 "set", handler);
 
         private byte[] BuildSet(int[] handler, int id, IList<byte[]> fields)
-        {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Set),
-                M2Message.SessionIdField(id),
-            };
-            if (fields != null) head.AddRange(fields);
-            return M2Message.BuildM2(head.ToArray());
-        }
+            => Request(handler, WinboxM2Protocol.Command.Set, After(M2Message.SessionIdField(id), fields));
 
         /// <summary>
         /// Sends <c>set-singleton</c> (<see cref="WinboxM2Protocol.Command.SetSingleton"/> + changed fields)
@@ -530,17 +521,8 @@ namespace tik4net.Winbox
                 "set-singleton", handler);
 
         internal byte[] BuildSetSingleton(int[] handler, IList<byte[]> fields, int id, int? command = null)
-        {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, command ?? WinboxM2Protocol.Command.SetSingleton),
-            };
-            if (id >= 0) head.Add(M2Message.SessionIdField(id));
-            if (fields != null) head.AddRange(fields);
-            return M2Message.BuildM2(head.ToArray());
-        }
+            => Request(handler, command ?? WinboxM2Protocol.Command.SetSingleton,
+                After(id >= 0 ? M2Message.SessionIdField(id) : null, fields));
 
         /// <summary>
         /// Sends <c>add</c> (<see cref="WinboxM2Protocol.Command.Add"/> + fields, no .id) and returns the
@@ -558,16 +540,7 @@ namespace tik4net.Winbox
                 handler);
 
         private byte[] BuildAdd(int[] handler, IList<byte[]> fields)
-        {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Add),
-            };
-            if (fields != null) head.AddRange(fields);
-            return M2Message.BuildM2(head.ToArray());
-        }
+            => Request(handler, WinboxM2Protocol.Command.Add, After(null, fields));
 
         internal static int? InterpretAdd(byte[] resp, int[] handler)
         {
@@ -592,11 +565,7 @@ namespace tik4net.Winbox
                 "remove", handler);
 
         private byte[] BuildRemove(int[] handler, int id)
-            => M2Message.BuildM2(
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Remove),
-                M2Message.SessionIdField(id));
+            => Request(handler, WinboxM2Protocol.Command.Remove, M2Message.SessionIdField(id));
 
         /// <summary>
         /// Sends <c>move</c> (<see cref="WinboxM2Protocol.Command.Move"/> +
@@ -614,17 +583,8 @@ namespace tik4net.Winbox
                 "move", handler);
 
         private byte[] BuildMove(int[] handler, int id, int destNextId)
-        {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Move),
-                M2Message.SessionIdField(id),
-            };
-            if (destNextId >= 0) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.NextId, destNextId));
-            return M2Message.BuildM2(head.ToArray());
-        }
+            => Request(handler, WinboxM2Protocol.Command.Move, M2Message.SessionIdField(id),
+                destNextId >= 0 ? M2Message.U32Sys(WinboxM2Protocol.RecordKey.NextId, destNextId) : null);
 
         /// <summary>
         /// Invokes a per-record action verb (<paramref name="cmd"/>, a <c>.jg</c> doit/action SYS_CMD such as
@@ -643,20 +603,10 @@ namespace tik4net.Winbox
                 await SendReceiveAsync(BuildAction(handler, cmd, id, fields), cancellationToken).ConfigureAwait(false),
                 handler);
 
+        // A standalone action window (e.g. Wake on LAN) carries its inputs as ordinary record fields on the action
+        // message itself — there is no record to attach them to.
         private byte[] BuildAction(int[] handler, int cmd, int id, IList<byte[]>? fields)
-        {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, cmd),
-            };
-            if (id >= 0) head.Add(M2Message.SessionIdField(id));
-            // A standalone action window (e.g. Wake on LAN) carries its inputs as ordinary record fields on
-            // the action message itself — there is no record to attach them to.
-            if (fields != null) head.AddRange(fields);
-            return M2Message.BuildM2(head.ToArray());
-        }
+            => Request(handler, cmd, After(id >= 0 ? M2Message.SessionIdField(id) : null, fields));
 
         private static Dictionary<int, Tuple<string, object>> InterpretAction(byte[] resp, int[] handler)
         {
@@ -674,10 +624,7 @@ namespace tik4net.Winbox
         /// </summary>
         internal uint SafeModeTake()
         {
-            byte[] msg = M2Message.BuildM2(
-                M2Message.SysToArr(WinboxM2Protocol.SafeMode.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SafeMode.Take));
+            byte[] msg = Request(WinboxM2Protocol.SafeMode.Handler, WinboxM2Protocol.SafeMode.Take);
             byte[] resp = SendReceive(msg);
             ThrowOnStatus(resp, "safe-mode-take", WinboxM2Protocol.SafeMode.Handler);
             var f = M2Message.ParseAllFields(resp);
@@ -692,10 +639,7 @@ namespace tik4net.Winbox
         /// </summary>
         internal void SafeModeRelease(uint safeModeId)
         {
-            byte[] msg = M2Message.BuildM2(
-                M2Message.SysToArr(WinboxM2Protocol.SafeMode.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SafeMode.Release),
+            byte[] msg = Request(WinboxM2Protocol.SafeMode.Handler, WinboxM2Protocol.SafeMode.Release,
                 M2Message.SessionIdField(safeModeId));
             byte[] resp = SendReceive(msg);
             ThrowOnStatus(resp, "safe-mode-release", WinboxM2Protocol.SafeMode.Handler);
@@ -722,16 +666,7 @@ namespace tik4net.Winbox
                 handler);
 
         private byte[] BuildMonitorStart(int[] handler, int startCmd, IList<byte[]> requestFields)
-        {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, startCmd),
-            };
-            if (requestFields != null) head.AddRange(requestFields);
-            return M2Message.BuildM2(head.ToArray());
-        }
+            => Request(handler, startCmd, After(null, requestFields));
 
         private static uint? InterpretMonitorStart(byte[] resp, int[] handler)
         {
@@ -788,16 +723,11 @@ namespace tik4net.Winbox
         private byte[] BuildMonitorRound(int[] handler, int pollCmd, uint? id, bool isQuery,
             WinboxM2Continuation? contToken, int flags)
         {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, pollCmd),
-            };
-            if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));
-            if (isQuery) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
-            if (contToken != null) contToken.AppendTo(head);
-            return M2Message.BuildM2(head.ToArray());
+            var fields = new List<byte[]>();
+            if (id.HasValue) fields.Add(M2Message.SessionIdField(id.Value));
+            if (isQuery) fields.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
+            contToken?.AppendTo(fields);
+            return Request(handler, pollCmd, fields);
         }
 
         private static (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation) InterpretMonitorRound(
@@ -836,14 +766,8 @@ namespace tik4net.Winbox
         /// </summary>
         internal void CancelMonitor(int[] handler, int cancelCmd, uint? id)
         {
-            var head = new List<byte[]>
-            {
-                M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, cancelCmd),
-            };
-            if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));
-            try { SendReceive(M2Message.BuildM2(head.ToArray())); }
+            byte[] msg = Request(handler, cancelCmd, id.HasValue ? M2Message.SessionIdField(id.Value) : null);
+            try { SendReceive(msg); }
             catch { /* cancel is best-effort */ }
         }
 

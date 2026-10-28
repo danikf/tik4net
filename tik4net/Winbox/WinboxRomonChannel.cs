@@ -82,11 +82,9 @@ namespace tik4net.Winbox
         {
             try
             {
-                AgentRequest(M2Message.BuildM2(
-                    M2Message.SysToArr(new[] { ProxyHandler, _link }.Concat(WinboxM2Protocol.SysInfo.Handler).ToArray()),
-                    M2Message.SysFrom(),
-                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _agent.NextReqIdField(),
-                    M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SysInfo.Command)),
+                AgentRequest(M2Message.Request(
+                    new[] { ProxyHandler, _link }.Concat(WinboxM2Protocol.SysInfo.Handler).ToArray(),
+                    WinboxM2Protocol.SysInfo.Command, _agent.NextReqIdField()),
                     timeoutMs, host, "first request through the link to " + _target.RomonId);
             }
             catch (TikConnectionReceiveTimeoutException ex)
@@ -101,10 +99,8 @@ namespace tik4net.Winbox
 
         private string ReadAgentRomonId(string host, int timeoutMs)
         {
-            byte[] reply = AgentRequest(M2Message.BuildM2(
-                M2Message.SysToArr(RomonSettingsHandler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _agent.NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton),
+            byte[] reply = AgentRequest(M2Message.Request(
+                RomonSettingsHandler, WinboxM2Protocol.Command.GetSingleton, _agent.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, WinboxM2Protocol.GetAllFlags)), timeoutMs, host, "read of its RoMON settings");
             var fields = M2Message.ParseAllFields(reply);
             bool enabled = fields.TryGetValue(KeySettingsEnabled, out var e) && e.Item2 is bool b && b;
@@ -118,10 +114,8 @@ namespace tik4net.Winbox
 
         private int Connect(string host, int timeoutMs)
         {
-            byte[] reply = AgentRequest(M2Message.BuildM2(
-                M2Message.SysToArr(ProxyHandler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _agent.NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, ConnectCommand),
+            byte[] reply = AgentRequest(M2Message.Request(
+                new[] { ProxyHandler }, ConnectCommand, _agent.NextReqIdField(),
                 M2Message.BoolSys(KeyConnectFlag, true),
                 M2Message.StringUser(KeyTargetPassword, _target.Password),
                 M2Message.StringUser(KeyTargetUser, _target.User),

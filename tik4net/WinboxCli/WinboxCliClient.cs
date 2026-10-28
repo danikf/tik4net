@@ -241,11 +241,8 @@ namespace tik4net.WinboxCli
                     "WinBox terminal (mepty) is only supported over the encrypted EC-SRP5 channel " +
                     "(RouterOS 6.43+). The legacy MD5 path does not carry an encrypted terminal session.");
 
-            byte[] msg = M2Message.BuildM2(
-                M2Message.SysToArr(WinboxM2Protocol.Mepty.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true),
-                _session.NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Login),
+            byte[] msg = M2Message.Request(
+                WinboxM2Protocol.Mepty.Handler, WinboxM2Protocol.Mepty.Login, _session.NextReqIdField(),
                 M2Message.StringUser(WinboxM2Protocol.Mepty.Key.Password, password),
                 M2Message.StringUser(WinboxM2Protocol.Mepty.Key.Input, terminalType),
                 M2Message.U32User(WinboxM2Protocol.Mepty.Key.Cols, cols),
