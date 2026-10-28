@@ -1,0 +1,106 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using tik4net.Diagnostics;
+
+namespace tik4net.Winbox
+{
+    internal sealed partial class WinboxJgCatalog
+    {
+        // ── mproxy .jg fetch (gzip <name>.jg.gz over [2,2] cmd=3) ──────────────
+
+        // `uniqueName` must be the version-stamped name from the mproxy "list" catalog
+        // ("roteros-33a7039ff432.jg"), never the stable plugin name. The stable name is a trap: mproxy
+        // *opens* "roteros.jg.gz" and even reports the right size, but the subsequent read never answers
+        // and takes the whole M2 channel down with it, so every later plugin fails too.
+        private static string? FetchJg(WinboxNativeM2Operations ops, string uniqueName)
+        {
+            // The on-disk file in /home/web/webfig/ is "<unique>.gz" (gzip), served by the mproxy static
+            // handler via cmd=7 (NOT cmd=3 = /var/pckg, which CHR denies). A refused open is harmless —
+            // it is a clean error reply and the channel survives it.
+            int handle = MproxyOpen(ops, uniqueName + ".gz", WinboxM2Protocol.Mproxy.OpenStatic);
+            if (handle < 0) handle = MproxyOpen(ops, uniqueName, WinboxM2Protocol.Mproxy.OpenStatic);
+            if (handle < 0) return null;
+
+            byte[]? raw = MproxyRead(ops, handle);
+            if (raw == null || raw.Length == 0) return null;
+
+            // .jg.gz is gzip; a plain .jg is already text. Detect the gzip magic.
+            if (raw.Length > 2 && raw[0] == 0x1F && raw[1] == 0x8B)
+                raw = GzipDecompress(raw);
+            return Encoding.UTF8.GetString(raw);
+        }
+
+        private static int MproxyOpen(WinboxNativeM2Operations ops, string filename, int openCmd)
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ops.NextReqIdField(),
+                M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, (byte)openCmd),  // OpenStatic(7) / OpenVarPkg(3)
+                M2Message.StringUser(WinboxM2Protocol.Mproxy.Key.FileName, filename));
+            byte[] resp = ops.SendReceive(msg);
+            try { return M2Message.ParseSessionId(resp); }
+            catch { return -1; }
+        }
+
+        private const int MproxyChunk = WinboxM2Protocol.Mproxy.ChunkSize;
+
+        private static byte[]? MproxyRead(WinboxNativeM2Operations ops, int handle)
+        {
+            var all = new List<byte>();
+            for (int guard = 0; guard < 256; guard++)
+            {
+                byte[] msg = M2Message.BuildM2(
+                    M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
+                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ops.NextReqIdField(),
+                    M2Message.SessionIdField(handle),
+                    M2Message.U32User(WinboxM2Protocol.Mproxy.Key.MaxChunk, MproxyChunk),
+                    M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mproxy.Read));  // read chunk
+                byte[]? resp = ops.SendReceive(msg);
+                byte[]? chunk = ExtractMproxyChunk(resp);
+                if (chunk == null || chunk.Length == 0) break;
+                all.AddRange(chunk);
+                if (chunk.Length < MproxyChunk) break;
+            }
+            return all.Count > 0 ? all.ToArray() : null;
+        }
+
+        // Pull the raw/string file-content field (user namespace) out of a read response.
+        private static byte[]? ExtractMproxyChunk(byte[]? resp)
+        {
+            if (resp == null || resp.Length < 2 || resp[0] != 'M' || resp[1] != '2') return resp;
+            int pos = 2;
+            while (pos + 4 <= resp.Length)
+            {
+                int ns = resp[pos + 2], type = resp[pos + 3];
+                pos += 4;
+                if (ns == 0x00 && (type == 0x31 || type == 0x30 || type == 0x21 || type == 0x20))
+                {
+                    int len = (type == 0x31 || type == 0x21)
+                        ? resp[pos++]
+                        : (int)BitConverter.ToUInt16(resp, (pos += 2) - 2);
+                    if (len > 0 && pos + len <= resp.Length)
+                        return resp.Skip(pos).Take(len).ToArray();
+                }
+                pos += M2Message.SkipTypeBytes(type, resp, pos);
+            }
+            return null;
+        }
+
+        private static byte[] GzipDecompress(byte[] compressed)
+        {
+            using (var ms = new MemoryStream(compressed))
+            using (var gz = new GZipStream(ms, CompressionMode.Decompress))
+            using (var outMs = new MemoryStream())
+            {
+                gz.CopyTo(outMs);
+                return outMs.ToArray();
+            }
+        }
+    }
+}
