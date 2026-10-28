@@ -120,7 +120,7 @@ namespace tik4net.WinboxCli
                 // Open one mepty terminal and keep it for the whole connection. The password is supplied
                 // here (not via a Login:/Password: prompt) — auth already happened at the M2 layer, so the
                 // session starts directly at the RouterOS shell (or the change-password nag). The login
-                // size hint stays at the PoC-proven 80x25 (RouterOS rejects oversized values with an
+                // size hint stays at 80x25, the size measured to work (RouterOS rejects oversized values with an
                 // error response carrying no SESSION_ID); the real width comes from the VT100 cursor-probe
                 // answered by the wide _vt100 below.
                 _sessionId = OpenTerminalSession(terminalPassword ?? pass, "vt102", 80, 25);

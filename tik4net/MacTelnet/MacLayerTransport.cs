@@ -923,8 +923,10 @@ namespace tik4net.MacTelnet
         // ── EC-SRP5 authentication ───────────────────────────────────────────────
 
         /// <summary>
-        /// Performs EC-SRP5 authentication over the MAC layer.
-        /// Synchronous version (used by WinBox MAC PoC subclasses).
+        /// Performs MAC-Telnet's EC-SRP5 authentication over control packets (<c>CTRL_PASSSALT</c> /
+        /// <c>CTRL_PASSWORD</c>, then <c>CTRL_END_AUTH</c>), synchronously. Used by <c>MacTelnetUdpClient</c> and by the
+        /// integration suite's reference client <c>WinboxMacClient</c>; the WinBox-over-MAC carrier
+        /// (<c>WinboxMacM2Session</c>) runs the WinBox handshake instead.
         /// </summary>
         protected void Authenticate(string user, string pass)
         {

@@ -24,7 +24,7 @@ namespace tik4net.MacTelnet
     {
         private const ushort CLIENT_TYPE = 0x0015;
         private const int    SettleMs    = 150;
-        // Poll interval for UdpClient.Receive timeout (ms). Matches PoC.
+        // Poll interval for UdpClient.Receive timeout (ms) in the login-screen loop.
         private const int    PollMs      = 500;
         // How long the pump blocks on one receive. Short so that stopping it is prompt and so that an idle
         // session still gets its RetransmitIfUnacked tick; the cost when nothing arrives is one syscall.
