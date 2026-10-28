@@ -163,7 +163,7 @@ namespace tik4net.WinboxNative
 
         // _session, _ops, _codec, _idResolver are assigned in Open (not the constructor).
         private IWinboxM2Channel _session = null!;
-        private WinboxM2Multiplexer? _mux;   // null on transports that cannot run a reader loop (MAC)
+        private WinboxM2Multiplexer? _mux;   // null until open starts the reader loop (every carrier runs one, MAC included)
         private WinboxNativeM2Operations _ops = null!;
         private WinboxRecordCodec _codec = null!;   // M2 record → API field decoder (see WinboxRecordCodec)
         // The WinBox labels the O/R mapper sent with the command being run (TikSpecialProperties.WinboxLabels).
@@ -582,8 +582,8 @@ namespace tik4net.WinboxNative
             int generation = _sessionGeneration;
             try
             {
-                // Gate the M2 channel (see EnterCommand): a no-op when multiplexed, a real lock on the lockstep
-                // MAC path, where a concurrent CRUD call or monitor poll would otherwise interleave with ours.
+                // Gate the M2 channel (see EnterCommand): a no-op when multiplexed, a real lock only on a channel left
+                // on the lockstep path, where a concurrent CRUD call or monitor poll would otherwise interleave with ours.
                 // Background workers enter the gate themselves and call RunPrintCore directly (not reentrant).
                 using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
                 {

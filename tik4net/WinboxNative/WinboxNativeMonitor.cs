@@ -33,8 +33,9 @@ namespace tik4net.WinboxNative
         /// when the worker stops (cancelled, the router's "finished" flag, or an error — reported via
         /// <paramref name="onError"/>). Request parameters (NameValue) are encoded as the monitor's request fields.
         /// </summary>
-        /// <remarks>The worker owns the M2 channel while polling; issuing concurrent CRUD on the same connection
-        /// from another thread while a native monitor is active is not supported (the transport is request/reply).</remarks>
+        /// <remarks>The worker polls over the connection's multiplexed M2 channel one round at a time, each round its own
+        /// request (see <c>WinboxNativeM2Operations.PollMonitorRound</c>), so CRUD on the same connection from other
+        /// threads runs alongside an active monitor.</remarks>
         internal TikMonitorHandle RunMonitorAsync(TikCommandDescriptor descriptor,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
         {
