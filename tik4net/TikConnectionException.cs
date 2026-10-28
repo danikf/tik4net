@@ -314,7 +314,7 @@ namespace tik4net
     /// ended the session, or a frame broke off part-way. The message then says so and how long the read ran, rather
     /// than that the deadline passed, and the connection is closed: there is nothing left to bring back in step.
     /// When the connection had closed before the command could be written, the message says the command did not run,
-    /// and <see cref="Exception.InnerException"/> is the carrier's own refusal.
+    /// and <see cref="Exception.InnerException"/>, when there is one, is the carrier's own refusal.
     /// </para>
     /// </remarks>
     public class TikConnectionReceiveTimeoutException : TikConnectionException

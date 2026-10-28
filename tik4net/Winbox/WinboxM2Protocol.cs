@@ -371,6 +371,11 @@
             internal const int Login = 0x0A0065;
             /// <summary>send keystrokes / pull terminal output. cmd=0x0A0067 (meptyData).</summary>
             internal const int Data = 0x0A0067;
+            /// <summary>
+            /// close the terminal session. cmd=0x0A0066: webfig sends it to close one, and the router sends it to the
+            /// client when the console ends (<c>/quit</c> typed, the console logged out).
+            /// </summary>
+            internal const int Close = 0x0A0066;
 
             /// <summary>
             /// mepty user-namespace (0x00) field keys. NOTE the <see cref="Login"/>/<see cref="Data"/>

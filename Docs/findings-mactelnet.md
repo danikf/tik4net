@@ -201,9 +201,12 @@ Four consequences for the code:
 
 1. **The refusal cannot be detected inside the EC-SRP5 exchange**, which correctly ends at
    `CTRL_END_AUTH`. It has to be recognised by the code waiting for the prompt.
-2. **`PKT_END` arrives when the router ends the session itself:** after a refused login, and after `/quit` (the Safe Mode
-   close waits for it in `MacTelnetUdpClient.TryCloseSession`). RouterOS does *not* send it when logging an
-   idle console out, so nothing but those two waits relies on it.
+2. **`PKT_END` arrives when the router ends the session itself:** after a refused login, and after `/quit` — about
+   100 ms after the `interrupted` line on 7.25 (the Safe Mode close waits for it in `MacTelnetUdpClient.TryCloseSession`).
+   A command read under way when it arrives ends at once with the closed connection (`CliReadTimeout.CreateClosed`),
+   and anything sent to a direct session after it is refused before it is written, so neither the read nor the
+   resynchronisation after it waits out the receive deadline. RouterOS does *not* send it when logging an idle
+   console out.
 3. **A refusal says nothing about the credentials.** It is transient.
 4. **An empty screen at `PKT_END` is a refusal whose text was lost** (`MacTelnetLoginClosedSilentlyException`, an
    internal `TikConnectionSessionClosedException`), and is retried as a refusal. A closure with other text on

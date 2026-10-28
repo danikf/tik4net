@@ -120,14 +120,15 @@ namespace tik4net.Cli
         /// <param name="transport">Short transport name, e.g. <c>"SSH"</c>.</param>
         /// <param name="timeoutMs">The configured receive timeout.</param>
         /// <param name="sentCommand">The command that was to be sent.</param>
-        /// <param name="cause">The carrier's own exception.</param>
+        /// <param name="cause">The carrier's own exception, or <c>null</c> when the router's end of the session was
+        /// already known and nothing was written.</param>
         internal static TikConnectionReceiveTimeoutException CreateClosedBeforeWrite(
-            string transport, int timeoutMs, string sentCommand, Exception cause)
+            string transport, int timeoutMs, string sentCommand, Exception? cause)
         {
             string message =
-                transport + ": the router closed the connection before the command could be written — "
-                + cause.GetType().Name + ": " + cause.Message + ". Command: '" + sentCommand.Trim() + "'. "
-                + "It was not sent, so it did not run.";
+                transport + ": the router closed the connection before the command could be written"
+                + (cause == null ? "" : " — " + cause.GetType().Name + ": " + cause.Message)
+                + ". Command: '" + sentCommand.Trim() + "'. It was not sent, so it did not run.";
 
             return new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs), message, null, cause);
         }

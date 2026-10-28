@@ -8,6 +8,7 @@
 // script line, an /export, a menu tik4net has no entity for. So the assertions below deliberately use
 // shapes that no ITikCommand could produce.
 
+using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net;
@@ -124,6 +125,30 @@ namespace tik4net.integrationtests
                 Assert.Inconclusive("this RouterOS does not accept a slash-separated menu path in its terminal: " + text.Trim());
             StringAssert.Contains(text, "ether1",
                 "the answer is the terminal's own output, handed back whole");
+        }
+
+        /// <summary>
+        /// <c>/quit</c> typed at the terminal makes the router end the session. The command reports the connection the
+        /// router closed, as soon as it closes, rather than waiting the receive deadline out and reporting that nothing
+        /// was received.
+        /// </summary>
+        [TestMethod]
+        public void QuitEndsTheSession_AndIsReportedAsAClosedConnection()
+        {
+            EnsureRawDialectIsCliText("CallCommandSync with CLI text");
+
+            using (var victim = OpenSecondaryConnection())
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => ((ITikRawSentenceConnection)victim).CallCommandSync("/quit").ToList());
+                sw.Stop();
+
+                StringAssert.Contains(ex.Message, "closed the connection");
+                Assert.IsTrue(sw.Elapsed < TimeSpan.FromTicks(victim.ReceiveTimeout.Ticks / 2),
+                    $"the close was reported after {sw.ElapsedMilliseconds} ms of a {victim.ReceiveTimeout.TotalMilliseconds} ms deadline");
+                Assert.IsFalse(victim.IsOpened, "a connection the router closed is closed");
+            }
         }
     }
 }

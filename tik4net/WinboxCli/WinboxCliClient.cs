@@ -161,6 +161,7 @@ namespace tik4net.WinboxCli
                 await DrainAsync(SettleMs).ConfigureAwait(false);
 
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
+            ThrowIfTerminalClosed(cmd);
             SendInput(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
             return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
@@ -173,6 +174,7 @@ namespace tik4net.WinboxCli
         public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            ThrowIfTerminalClosed(KeyName(raw));
             SendInput(raw);
             // null → tolerant; a control key need not be answered with a prompt.
             return VtStripper.StripAnsi(await ReadCommandResponseAsync(null, ct).ConfigureAwait(false));
@@ -188,6 +190,7 @@ namespace tik4net.WinboxCli
         public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            ThrowIfTerminalClosed(KeyName(raw));
             SendInput(raw);
             return await ReadUntilQuietAsync(quietMs).ConfigureAwait(false);
         }
@@ -380,6 +383,9 @@ namespace tik4net.WinboxCli
                 return null;
             }
 
+            if (M2Message.ParseSysU32(resp, WinboxM2Protocol.SysKey.Command) == WinboxM2Protocol.Mepty.Close)
+                _terminalClosed = true;
+
             byte[]? payload = M2Message.ParseUserBytes(resp, WinboxM2Protocol.Mepty.Key.Input);
 
             // Acknowledge what we consumed — every subsequent Data frame reports this total and that is what
@@ -388,6 +394,8 @@ namespace tik4net.WinboxCli
 
             if (payload != null && TikWireTrace.Enabled)
                 TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Recv, payload, 0, payload.Length);
+            else if (TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, "frame without terminal output: " + M2Message.Describe(resp));
 
             return payload;
         }
@@ -448,6 +456,20 @@ namespace tik4net.WinboxCli
 
         private static void TraceNote(string note) => TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, note);
 
+        // The router closed this terminal (Mepty.Close): the console has ended, and keystrokes sent into it are never
+        // answered, so a read after them would only run the deadline out.
+        private volatile bool _terminalClosed;
+
+        private void ThrowIfTerminalClosed(string what)
+        {
+            if (_terminalClosed)
+                throw Cli.CliReadTimeout.CreateClosedBeforeWrite("WinBox CLI", ReceiveTimeoutMs, what, null);
+        }
+
+        // How raw bytes are named in a message: printable text as itself, a control key as ^X.
+        private string KeyName(byte[] raw)
+            => raw.Length == 1 && raw[0] < 0x20 ? "^" + (char)(raw[0] + 0x40) : _encoding.GetString(raw);
+
         private static TikConnectionSessionClosedException SessionClosed(string? sentCommand)
             => new TikConnectionSessionClosedException(
                 "WinBox CLI: the router stopped acknowledging this session — it did not take the bytes of "
@@ -487,6 +509,7 @@ namespace tik4net.WinboxCli
             var settle = new Cli.CliPromptSettle(sentCommand, SettleMs, TikWireTrace.Enabled ? TraceNote : (Action<string>?)null);
             var streamer = new Cli.CliLineStreamer(onLine);
             long lastPullMs = -1;   // -1 = a pull is due now (fire immediately)
+            bool closedBefore = _terminalClosed;   // only a close that arrives during this read is this read's
 
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
@@ -563,6 +586,14 @@ namespace tik4net.WinboxCli
 
                 string stripped = VtStripper.StripAnsi(sb.ToString());
                 streamer.Feed(stripped);
+
+                // The router closed the terminal: no prompt will follow.
+                if (_terminalClosed && !closedBefore)
+                {
+                    if (sentCommand == null)
+                        return stripped;
+                    throw Cli.CliReadTimeout.CreateClosed("WinBox CLI", ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, stripped);
+                }
 
                 // The read ends when the prompt is still last after the settle window (CliPromptSettle). RouterOS
                 // writes nothing after a command's completion prompt over mepty (Docs/findings-cli.md §4); a Safe

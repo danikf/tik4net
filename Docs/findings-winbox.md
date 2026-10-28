@@ -667,6 +667,19 @@ EC-SRP5 handshake frames are tagged `0x06` too but declare no length; over TCP t
 the short-chunk rule. `WinboxChunkReassemblyTests` pins the reader and `TerminalFrameBoundaryTest` the
 router's framing.
 
+## 22. The router closes a mepty terminal with `0x0A0066`
+
+When the console behind a mepty terminal ends (`/quit` typed), the router writes `interrupted` and a cursor
+save/restore, then sends the client a frame from the mepty handler `[76]` with `SYS_CMD = 0x0A0066` and the
+terminal's session id, and no terminal output. It is the same command webfig sends to close a terminal
+(`Terminal.prototype.close` in `master*.js`). Measured on 7.25, over TCP and MAC, about 100 ms after the
+`interrupted` line. After it the router answers no pull and no keystroke.
+
+`WinboxCliClient.ReceiveTerminalChunk` notes the frame (`WinboxM2Protocol.Mepty.Close`). A command read under way
+ends at once with the closed connection (`CliReadTimeout.CreateClosed`), and anything sent after it is refused
+before it is written. `RawCliDialectTest.QuitEndsTheSession_AndIsReportedAsAClosedConnection` covers it, along
+with the other four terminal transports.
+
 ---
 
 ## Settled questions — do not re-investigate

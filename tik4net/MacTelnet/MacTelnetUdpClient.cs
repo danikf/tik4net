@@ -202,6 +202,7 @@ namespace tik4net.MacTelnet
             // What the pump collected while the connection was idle is discarded below — but a relay that ended
             // in that time means the agent's session is gone, and this command must not be sent into it.
             RouterOsCliLogin.ThrowIfRomonRelayEnded("MAC-Telnet", _romonTarget, cmd, Snapshot(out _), commandSent: false);
+            ThrowIfRouterEnded(cmd);
             ResetReadBuffer();
             ResetDataHoles();
             SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
@@ -267,6 +268,7 @@ namespace tik4net.MacTelnet
         public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            ThrowIfRouterEnded(KeyName(raw));
             ResetReadBuffer();
             SendTerminalBytes(raw);
             // null -> tolerant; a control key need not be answered with a prompt.
@@ -283,6 +285,7 @@ namespace tik4net.MacTelnet
         public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            ThrowIfRouterEnded(KeyName(raw));
             ResetReadBuffer();
             SendTerminalBytes(raw);
             await ReadUntilQuietAsync(quietMs, ct: ct).ConfigureAwait(false);
@@ -460,6 +463,18 @@ namespace tik4net.MacTelnet
                 + "30 s (its own log records it as a normal logout), and the UDP socket stays open, so the "
                 + "session goes silent rather than reporting an error.");
 
+        // A direct session the router has ended (PKT_END) takes nothing more: what is sent into it is never
+        // acknowledged, so a read after it would only run the deadline out. A relay's end is the relay's to report.
+        private void ThrowIfRouterEnded(string what)
+        {
+            if (_routerEnded && _romonTarget == null)
+                throw CliReadTimeout.CreateClosedBeforeWrite("MAC-Telnet", ReceiveTimeoutMs, what, null);
+        }
+
+        // How raw bytes are named in a message: printable text as itself, a control key as ^X.
+        private string KeyName(byte[] raw)
+            => raw.Length == 1 && raw[0] < 0x20 ? "^" + (char)(raw[0] + 0x40) : _encoding.GetString(raw);
+
         // The pump's failure is rethrown as-is, with its original stack. Inventing a wrapper type here
         // would trade the one thing that identifies the fault (a SocketException, say, with its error
         // code) for a generic "transport failed", and a read that then reports "nothing was received"
@@ -527,6 +542,13 @@ namespace tik4net.MacTelnet
                 // is a datagram the router can drop, the end is not. Waiting would only run the deadline out.
                 if (_routerEnded && !endedBefore && _romonTarget != null)
                     throw RouterOsCliLogin.RomonRelayEndedWithTheSession("MAC-Telnet", _romonTarget, sentCommand, stripped);
+                // The router ended a direct session (/quit typed, the console logged out): no prompt will follow.
+                if (_routerEnded && !endedBefore)
+                {
+                    if (sentCommand == null)
+                        return stripped;
+                    throw CliReadTimeout.CreateClosed("MAC-Telnet", ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, stripped);
+                }
 
                 switch (settle.Observe(stripped, newData, sw.ElapsedMilliseconds, length))
                 {
