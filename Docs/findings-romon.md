@@ -120,9 +120,19 @@ relay takes a second or more.
 `/tool romon ssh` and the target's login: about 1.2 s over MAC-Telnet, 1.5 s over SSH, 1.9 s over Telnet on the
 lab pair (a first open to a cold agent takes twice that). A cancel anywhere in it ends the open with
 `OperationCanceledException` within about 0.1 s — except inside the MAC-layer login to the agent, which is synchronous
-and finishes first (~0.7 s) — and leaves nothing behind: `/user active` on both routers is back to what it was
-within seconds, and the next open works. An open relay is one row on each: the agent's by its transport, the
-target's `via=ssh` by RoMON.
+and finishes first (~0.7 s), and while the agent connects to the target (below) — and leaves nothing behind:
+`/user active` on both routers is back to what it was within seconds, and the next open works. An open relay is one
+row on each: the agent's by its transport, the target's `via=ssh` by RoMON.
+
+**A cancel while the agent connects to the target.** Between the agent's echo of `/tool romon ssh …` and the target's
+first byte (its VT100 probe, ~150 ms later), the agent's SSH client is still connecting. Ending the agent's console
+then leaves the target a session that finishes its login a moment later and is never ended: measured with a 7.25
+agent and a 7.21.5 target, cancelling every 60 ms across an open, exactly the one point in that window left a
+`by-romon` row, still there after 30 minutes. A cancel from the target's first byte on is cleaned up by the agent
+with its console. So `RouterOsCliLogin.RomonSshLoginAsync` lets a cancel in that step wait for the target's answer
+(its login prompt, the nag, or the relay's end), up to 3 s, before throwing — the cancel then returns 0.1–0.4 s late.
+The wait relies on the VT100 replies going out whole: `CliPtySession` sends them without the caller's token, since a
+cancel between the device-attributes reply and the cursor-position reply leaves the target waiting for the second.
 
 **A cancel during the target's login, through an agent before 7.20.** The terminal's `/quit` on close is what
 ends the target's session, and it only works once the target's shell is reading: a cancel that lands between the

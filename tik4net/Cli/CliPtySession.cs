@@ -183,7 +183,7 @@ namespace tik4net.Cli
                 {
                     int n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
                     if (n <= 0) { closed = true; break; }
-                    accumulated.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
+                    accumulated.Append(await ProcessChunkAsync(buffer, n).ConfigureAwait(false));
                     gotData = true;
                 }
 
@@ -233,7 +233,7 @@ namespace tik4net.Cli
                         break;
                     }
 
-                    accumulated.Append(await ProcessChunkAsync(buffer, available, ct).ConfigureAwait(false));
+                    accumulated.Append(await ProcessChunkAsync(buffer, available).ConfigureAwait(false));
                 }
                 connectionClosed |= _stream.ClosedAndDrained;
 
@@ -286,7 +286,7 @@ namespace tik4net.Cli
                     int n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
                     if (n <= 0) { closed = true; break; }
 
-                    accumulated.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
+                    accumulated.Append(await ProcessChunkAsync(buffer, n).ConfigureAwait(false));
                     gotData = true;
                 }
 
@@ -347,7 +347,7 @@ namespace tik4net.Cli
                         break; // connection closed
 
                     // Discard the text but still answer negotiation + VT100 probes so the link stays sane.
-                    drained.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
+                    drained.Append(await ProcessChunkAsync(buffer, n).ConfigureAwait(false));
 
                     // Reset the quiet window — keep draining as long as data keeps arriving.
                     quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
@@ -367,7 +367,10 @@ namespace tik4net.Cli
         /// is on screen: <see cref="CliPasswordPromptGuard"/>), and returns the decoded text to append to the caller's
         /// accumulator.
         /// </summary>
-        private async Task<string> ProcessChunkAsync(byte[] buffer, int count, CancellationToken ct)
+        /// <remarks>The replies are not the caller's to cancel: the bytes they answer are consumed, so a cancel between
+        /// two of them would leave the router waiting for the second (a cursor-position reply) with nothing to resend
+        /// it.</remarks>
+        private async Task<string> ProcessChunkAsync(byte[] buffer, int count)
         {
             byte[] chunk = new byte[count];
             Array.Copy(buffer, 0, chunk, 0, count);
@@ -379,7 +382,7 @@ namespace tik4net.Cli
             {
                 chunk = _inboundFilter(chunk, out byte[] reply);
                 if (reply.Length > 0)
-                    await SendBytesAsync(reply, ct).ConfigureAwait(false);
+                    await SendBytesAsync(reply, CancellationToken.None).ConfigureAwait(false);
             }
 
             string text = _encoding.GetString(chunk);
@@ -388,7 +391,7 @@ namespace tik4net.Cli
             var vtReplies = _vt100.Process(text);
             if (_passwordPrompt.MayAnswer(text))
                 foreach (string vtReply in vtReplies)
-                    await SendBytesAsync(_encoding.GetBytes(vtReply), ct).ConfigureAwait(false);
+                    await SendBytesAsync(_encoding.GetBytes(vtReply), CancellationToken.None).ConfigureAwait(false);
 
             return text;
         }

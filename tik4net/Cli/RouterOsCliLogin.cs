@@ -377,6 +377,11 @@ namespace tik4net.Cli
             }
         }
 
+        // How long a cancel that lands while the agent connects to the target waits for the target's answer
+        // (RomonSshLoginCoreAsync, step 1). The agent answers within about 0.2 s; an unreachable id takes ~5 s to end
+        // the relay, and the cancel does not wait for that.
+        private const int RelayCancelGraceMs = 3000;
+
         // Each step of the relay login is one read, and the connection's ReceiveTimeout is its deadline.
         private const string WithinReceiveTimeout =
             "before the read gave up (each step of the relay login waits up to the connection's ReceiveTimeout; "
@@ -421,10 +426,26 @@ namespace tik4net.Cli
             //    every log line it writes into the session, and under load those come often (another session's
             //    login failure) — taken for the end, it read as "could not reach" while the agent's discover listed
             //    the target at one hop (2026-10-02).
-            string opened = await readUntil(
-                    s => IsPasswordPrompt(s) || IsChangePasswordNag(s) || IsRomonRelayEnd(s)
-                         || (IsShellPrompt(s) && CliOutputHelper.CleanOutput(s, relayCommand).Length > 0), ct)
-                .ConfigureAwait(false);
+            Func<string, bool> relayAnswered = s => IsPasswordPrompt(s) || IsChangePasswordNag(s) || IsRomonRelayEnd(s)
+                                                    || (IsShellPrompt(s) && CliOutputHelper.CleanOutput(s, relayCommand).Length > 0);
+            string opened;
+            try
+            {
+                opened = await readUntil(relayAnswered, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancelled while the agent is still connecting to the target. Closing the agent's console now leaves
+                // the target a session that finishes its login a moment later and that nothing ever ends (a 7.25
+                // agent and a 7.21.5 target, measured: findings-romon.md §4). Once the target has answered, the agent
+                // ends that session with its console, so the cancel waits for the answer, within a bound.
+                using (var grace = new CancellationTokenSource(RelayCancelGraceMs))
+                {
+                    try { await readUntil(relayAnswered, grace.Token).ConfigureAwait(false); }
+                    catch { /* the bound, or a failed read: the caller's cancel is reported either way */ }
+                }
+                throw;
+            }
             bool loggedInWithoutPassword = !IsPasswordPrompt(opened) && IsChangePasswordNag(opened) && !IsRomonRelayEnd(opened);
             if (!IsPasswordPrompt(opened) && !loggedInWithoutPassword)
             {
