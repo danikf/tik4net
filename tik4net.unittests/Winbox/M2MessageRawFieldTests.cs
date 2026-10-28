@@ -125,5 +125,22 @@ namespace tik4net.unittests.Winbox
                 "A field behind a long-form value must still be found — otherwise the walk misaligned.");
             Assert.AreEqual(265, sessionId);
         }
+
+        /// <summary>
+        /// A type byte no ftype covers has no known length, so nothing after its header can be told apart from its
+        /// value. The walk stops there: the fields before it are read, and no key is invented from the value's bytes.
+        /// </summary>
+        [TestMethod]
+        public void Walk_StopsAtATypeByteWithNoFtype()
+        {
+            byte[] unknown = { 0x05, 0x00, 0xFE, 0x50, 0xDE, 0xAD, 0x01, 0x00, 0xFE, 0x01 };
+            byte[] m2 = M2Message.BuildM2(M2Message.U8Sys(0xFF0006, 7), unknown);
+
+            var fields = M2Message.ParseAllFields(m2);
+
+            CollectionAssert.AreEquivalent(new[] { 0xFF0006 }, fields.Keys.ToArray(),
+                "Only the field before the unknown type is read; its value bytes must not become keys.");
+            Assert.IsNull(M2Message.ExtractRawField(m2, 0xFE0005), "The unknown field's extent is unknown, so it is not sliced.");
+        }
     }
 }

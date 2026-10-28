@@ -345,8 +345,8 @@ namespace tik4net.Winbox
         // Length/count encoding (webfig readLen): always 1 byte; +1 if NOT short; +2 more if long.
         //   → normal=2B, short=1B, long=4B.
         internal static int FType(int type) => type >> 3;
-        private static bool IsShort(int type) => (type & 0x01) != 0;
-        private static bool IsLong(int type) => (type & 0x02) != 0;
+        private static bool IsShort(int type) => (type & TypeByte.Short) != 0;
+        private static bool IsLong(int type) => (type & TypeByte.Long) != 0;
 
         // Read a length/count using the type's size flags; advances pos.
         private static int ReadLen(int type, byte[] d, ref int pos)
@@ -357,6 +357,85 @@ namespace tik4net.Winbox
             return len;
         }
 
+        private static bool IsM2(byte[]? m2) => m2 != null && m2.Length >= 2 && m2[0] == 'M' && m2[1] == '2';
+
+        /// <summary>
+        /// One top-level TLV field as <see cref="Walk"/> found it: the full key and type byte from its header, where
+        /// the field starts (its header) and where it ends.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="End"/> is where the field's declared length says it ends, so it lies past the end of the
+        /// message when the field is truncated — always the last field walked.
+        /// </remarks>
+        internal readonly struct M2Field
+        {
+            internal M2Field(int key, int type, int start, int end)
+            {
+                Key = key;
+                Type = type;
+                Start = start;
+                End = end;
+            }
+
+            internal int Key { get; }
+            internal int Type { get; }
+            internal int Start { get; }
+            internal int ValueStart => Start + 4;
+            internal int End { get; }
+        }
+
+        /// <summary>
+        /// The one TLV walk every parser here uses: the top-level fields of <paramref name="m2"/> in wire order, from
+        /// offset 2 (after the <c>'M2'</c> magic, which it does not check).
+        /// </summary>
+        /// <remarks>
+        /// Each field is skipped by <see cref="SkipTypeBytes"/>'s rule, so a nested message holding the same key is
+        /// never seen. The walk ends at the end of the message, after a truncated field, and at a type byte no
+        /// ftype covers: such a field's length is unknown, so the bytes after its header could be its value or the
+        /// next field, and reading them as a field would invent a key. Nothing after it is reported.
+        /// </remarks>
+        internal static IEnumerable<M2Field> Walk(byte[]? m2)
+        {
+            if (m2 == null) yield break;
+            int pos = 2;
+            while (pos + 4 <= m2.Length)
+            {
+                int key = (m2[pos + 2] << 16) | (m2[pos + 1] << 8) | m2[pos];
+                int type = m2[pos + 3];
+                int? size = ValueBytes(type, m2, pos + 4);
+                if (size == null) yield break;
+                int end = pos + 4 + size.Value;
+                yield return new M2Field(key, type, pos, end);
+                pos = end;
+            }
+        }
+
+        /// <summary>The first top-level field with <paramref name="fullKey"/>, by <see cref="Walk"/>.</summary>
+        internal static bool TryFindField(byte[]? m2, int fullKey, out M2Field field)
+        {
+            foreach (var f in Walk(m2))
+            {
+                if (f.Key != fullKey) continue;
+                field = f;
+                return true;
+            }
+            field = default;
+            return false;
+        }
+
+        // A u8 or u32 value (RouterOS sends small numbers in the short form), or null for any other type or a value
+        // cut off by the end of the message.
+        private static int? ReadU8OrU32(byte[] m2, M2Field f)
+        {
+            if (f.Type == TypeByte.U8 && f.ValueStart < m2.Length) return m2[f.ValueStart];
+            if (f.Type == TypeByte.U32 && f.ValueStart + 4 <= m2.Length) return (int)BitConverter.ToUInt32(m2, f.ValueStart);
+            return null;
+        }
+
+        // The first top-level field with fullKey read as a u8 or u32; null when it is absent or of another type.
+        private static int? ReadU8OrU32(byte[]? m2, int fullKey)
+            => TryFindField(m2, fullKey, out var f) ? ReadU8OrU32(m2!, f) : null;
+
         // Parse a message-array field (ftype 21) into a list of record field-dicts.
         // Each element on the wire is a full submessage ('M2' + TLVs). Returns the records
         // found under <paramref name="fullKey"/>, or an empty list if not present / wrong type.
@@ -364,26 +443,20 @@ namespace tik4net.Winbox
         internal static List<Dictionary<int, Tuple<string, object>>> ParseRecords(byte[] m2, int fullKey)
         {
             var records = new List<Dictionary<int, Tuple<string, object>>>();
-            if (m2 == null || m2.Length < 2 || m2[0] != 'M' || m2[1] != '2') return records;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
+            if (!IsM2(m2)) return records;
+            foreach (var f in Walk(m2))
             {
-                int kl = m2[pos], kh = m2[pos + 1], ns = m2[pos + 2], type = m2[pos + 3];
-                int key = (ns << 16) | (kh << 8) | kl;
-                pos += 4;
-                if (key == fullKey && FType(type) == 21)
+                if (f.Key != fullKey || FType(f.Type) != FType(TypeByte.MessageArray)) continue;
+                int pos = f.ValueStart;
+                int cnt = ReadLen(f.Type, m2, ref pos);
+                for (int i = 0; i < cnt && pos < m2.Length; i++)
                 {
-                    int cnt = ReadLen(type, m2, ref pos);
-                    for (int i = 0; i < cnt && pos < m2.Length; i++)
-                    {
-                        int elen = ReadLen(type, m2, ref pos);
-                        if (pos + elen > m2.Length) break;
-                        records.Add(ParseAllFields(m2.Skip(pos).Take(elen).ToArray()));
-                        pos += elen;
-                    }
-                    return records;
+                    int elen = ReadLen(f.Type, m2, ref pos);
+                    if (pos + elen > m2.Length) break;
+                    records.Add(ParseAllFields(m2.Skip(pos).Take(elen).ToArray()));
+                    pos += elen;
                 }
-                pos += SkipTypeBytes(type, m2, pos);
+                return records;
             }
             return records;
         }
@@ -394,34 +467,31 @@ namespace tik4net.Winbox
         internal static Dictionary<int, Tuple<string, object>> ParseAllFields(byte[] m2)
         {
             var result = new Dictionary<int, Tuple<string, object>>();
-            if (m2 == null || m2.Length < 2 || m2[0] != 'M' || m2[1] != '2') return result;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
+            if (!IsM2(m2)) return result;
+            foreach (var f in Walk(m2))
             {
-                int kl = m2[pos], kh = m2[pos + 1], ns = m2[pos + 2], type = m2[pos + 3];
-                int fullKey = (ns << 16) | (kh << 8) | kl;
-                pos += 4;
+                int fullKey = f.Key, type = f.Type, pos = f.ValueStart;
                 // The dictionary value type is object (not object?) for every consumer of ParseAllFields across the
                 // translation layer. When a field's declared length runs past the
                 // end of a truncated frame, the branches below leave val at this placeholder instead of a real
                 // decoded value; the suppression documents that rather than widening the shared contract.
                 object val = null!;
-                string typeName = "?";
+                string typeName;
                 switch (type)
                 {
-                    case 0x00: typeName = "bool"; val = false; break;
-                    case 0x01: typeName = "bool"; val = true; break;
-                    case 0x09:
-                        typeName = "u8"; val = pos < m2.Length ? (object)m2[pos] : null!; pos += 1; break;
-                    case 0x08:
+                    case TypeByte.False: typeName = "bool"; val = false; break;
+                    case TypeByte.True: typeName = "bool"; val = true; break;
+                    case TypeByte.U8:
+                        typeName = "u8"; val = pos < m2.Length ? (object)m2[pos] : null!; break;
+                    case TypeByte.U32:
                         typeName = "u32";
-                        if (pos + 4 <= m2.Length) { val = BitConverter.ToUInt32(m2, pos); pos += 4; }
+                        if (pos + 4 <= m2.Length) val = BitConverter.ToUInt32(m2, pos);
                         break;
-                    case 0x10:
+                    case TypeByte.U64:
                         typeName = "u64";
-                        if (pos + 8 <= m2.Length) { val = BitConverter.ToUInt64(m2, pos); pos += 8; }
+                        if (pos + 8 <= m2.Length) val = BitConverter.ToUInt64(m2, pos);
                         break;
-                    case 0x88:
+                    case TypeByte.U32Array:
                         typeName = "u32[]";
                         if (pos + 2 <= m2.Length)
                         {
@@ -432,7 +502,7 @@ namespace tik4net.Winbox
                             val = "[" + string.Join(",", arr) + "]";
                         }
                         break;
-                    case 0x90: case 0x91: case 0x92:
+                    case TypeByte.U64Array: case TypeByte.U64Array | TypeByte.Short: case TypeByte.U64Array | TypeByte.Long:
                     {
                         // FT_U64_ARRAY (ftype 18): count, then eight bytes per element and no per-element
                         // length — the same counted-array shape u32[] has, one width wider. Rendered as the
@@ -450,28 +520,28 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", nums) + "]";
                         break;
                     }
-                    case 0x18:
+                    case TypeByte.Addr6:
                         // FT_ADDR6: 16 raw bytes, no length prefix (see Addr6Sys).
                         typeName = "ip6";
-                        if (pos + 16 <= m2.Length) { val = m2.Skip(pos).Take(16).ToArray(); pos += 16; }
+                        if (pos + 16 <= m2.Length) val = m2.Skip(pos).Take(16).ToArray();
                         break;
-                    case 0x21:
+                    case TypeByte.String | TypeByte.Short:
                         typeName = "str";
-                        if (pos < m2.Length) { int l = m2[pos++]; val = Encoding.UTF8.GetString(m2, pos, Math.Min(l, m2.Length - pos)); pos += l; }
+                        if (pos < m2.Length) { int l = m2[pos++]; val = Encoding.UTF8.GetString(m2, pos, Math.Min(l, m2.Length - pos)); }
                         break;
-                    case 0x20:
+                    case TypeByte.String:
                         typeName = "str_l";
-                        if (pos + 2 <= m2.Length) { int l = BitConverter.ToUInt16(m2, pos); pos += 2; val = Encoding.UTF8.GetString(m2, pos, Math.Min(l, m2.Length - pos)); pos += l; }
+                        if (pos + 2 <= m2.Length) { int l = BitConverter.ToUInt16(m2, pos); pos += 2; val = Encoding.UTF8.GetString(m2, pos, Math.Min(l, m2.Length - pos)); }
                         break;
-                    case 0x31:
+                    case TypeByte.Raw | TypeByte.Short:
                         typeName = "raw";
-                        if (pos < m2.Length) { int l = m2[pos++]; val = BitConverter.ToString(m2, pos, Math.Min(l, m2.Length - pos)).Replace("-", ""); pos += l; }
+                        if (pos < m2.Length) { int l = m2[pos++]; val = BitConverter.ToString(m2, pos, Math.Min(l, m2.Length - pos)).Replace("-", ""); }
                         break;
-                    case 0x30:
+                    case TypeByte.Raw:
                         typeName = "raw_l";
-                        if (pos + 2 <= m2.Length) { int l = BitConverter.ToUInt16(m2, pos); pos += 2; val = $"[{l}B]"; pos += l; }
+                        if (pos + 2 <= m2.Length) { int l = BitConverter.ToUInt16(m2, pos); val = $"[{l}B]"; }
                         break;
-                    case 0xA0:
+                    case TypeByte.StringArray:
                         // str_array: 2B count + (2B len + data) per entry
                         typeName = "str[]";
                         if (pos + 1 < m2.Length)
@@ -490,7 +560,7 @@ namespace tik4net.Winbox
                             val = "[" + string.Join(",", strs) + "]";
                         }
                         break;
-                    case 0x98:
+                    case TypeByte.Addr6Array:
                     {
                         // addr6[] (ftype 19): count + 16 fixed bytes per element, no per-element length.
                         // Rendered like every other scalar array, one element per comma, so the codec's
@@ -503,7 +573,7 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", addrs) + "]";
                         break;
                     }
-                    case 0xB0: case 0xB1: case 0xB2:
+                    case TypeByte.RawArray: case TypeByte.RawArray | TypeByte.Short: case TypeByte.RawArray | TypeByte.Long:
                     {
                         // raw[] (ftype 22): count + (len + bytes) per element, each element rendered as the
                         // same hex text a scalar raw is. Without this case the whole field was skipped, so
@@ -521,19 +591,16 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", blobs) + "]";
                         break;
                     }
-                    case 0x28: case 0x29: case 0x2A:
+                    case TypeByte.Message: case TypeByte.Message | TypeByte.Short: case TypeByte.Message | TypeByte.Long:
                     {
                         // message (ftype 5): length via size flags, body is a submessage.
                         typeName = "msg";
                         int len = ReadLen(type, m2, ref pos);
                         if (pos + len <= m2.Length)
-                        {
                             val = ParseAllFields(m2.Skip(pos).Take(len).ToArray());
-                            pos += len;
-                        }
                         break;
                     }
-                    case 0xA8: case 0xA9: case 0xAA:
+                    case TypeByte.MessageArray: case TypeByte.MessageArray | TypeByte.Short: case TypeByte.MessageArray | TypeByte.Long:
                     {
                         // message-array (ftype 21): count + (len + submessage) per element.
                         typeName = "msg[]";
@@ -550,8 +617,7 @@ namespace tik4net.Winbox
                         break;
                     }
                     default:
-                        pos += SkipTypeBytes(type, m2, pos);
-                        continue;
+                        continue;   // a type the walker can step over but this decoder does not read (X5)
                 }
                 if (!result.ContainsKey(fullKey))
                 {
@@ -623,21 +689,15 @@ namespace tik4net.Winbox
         internal static bool TryParseSessionId(byte[] m2, out int sessionId)
         {
             sessionId = -1;
-            if (m2 == null || m2.Length < 4 || m2[0] != 'M' || m2[1] != '2')
+            if (m2 == null || m2.Length < 4 || !IsM2(m2))
                 return false;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
+            // mepty returns the session id as u8 (0x09) for small ids and u32 (0x08) for ids > 255. Unlike the
+            // other u8-or-u32 readers, a .id of another type does not end the search.
+            foreach (var f in Walk(m2))
             {
-                int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
-                int fullKey = (ns << 16) | (kh << 8) | kl;
-                pos += 4;
-                if (fullKey == WinboxM2Protocol.RecordKey.Id)
-                {
-                    // mepty returns the session id as u8 (0x09) for small ids and u32 (0x08) for ids > 255.
-                    if (type == 0x09 && pos < m2.Length)         { sessionId = m2[pos]; return true; }
-                    if (type == 0x08 && pos + 4 <= m2.Length)    { sessionId = (int)BitConverter.ToUInt32(m2, pos); return true; }
-                }
-                pos += SkipTypeBytes(type, m2, pos);
+                if (f.Key != WinboxM2Protocol.RecordKey.Id) continue;
+                int? id = ReadU8OrU32(m2, f);
+                if (id != null) { sessionId = id.Value; return true; }
             }
             return false;
         }
@@ -654,52 +714,35 @@ namespace tik4net.Winbox
         /// </remarks>
         internal static byte[]? ExtractRawField(byte[] m2, int fullKey)
         {
-            if (m2 == null || m2.Length < 2 || m2[0] != 'M' || m2[1] != '2') return null;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
-            {
-                int key = (m2[pos + 2] << 16) | (m2[pos + 1] << 8) | m2[pos];
-                int type = m2[pos + 3];
-                int start = pos;
-                pos += 4;
-                pos += SkipTypeBytes(type, m2, pos);
-                if (key != fullKey) continue;
-                // A field whose declared length runs past the end of the frame is truncated: echoing a
-                // malformed cursor would make the next request the router's problem to reject. Drop it and
-                // let the caller treat the page as the last one.
-                if (pos > m2.Length) return null;
-                var slice = new byte[pos - start];
-                Buffer.BlockCopy(m2, start, slice, 0, slice.Length);
-                return slice;
-            }
-            return null;
+            if (!IsM2(m2) || !TryFindField(m2, fullKey, out var f)) return null;
+            // A field whose declared length runs past the end of the frame is truncated: echoing a
+            // malformed cursor would make the next request the router's problem to reject. Drop it and
+            // let the caller treat the page as the last one.
+            if (f.End > m2.Length) return null;
+            var slice = new byte[f.End - f.Start];
+            Buffer.BlockCopy(m2, f.Start, slice, 0, slice.Length);
+            return slice;
         }
 
         // Parses the bytes of a user-namespace field; handles raw_s/raw_l and string_s/string_l.
         internal static byte[]? ParseUserBytes(byte[] m2, int keyId)
         {
             if (m2 == null || m2.Length < 4) return null;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
+            foreach (var f in Walk(m2))
             {
-                int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
-                int userKey = kl | (kh << 8);
-                pos += 4;
-                if (ns == 0x00 && userKey == keyId)
+                if (f.Key >> 16 != 0 || (f.Key & 0xFFFF) != keyId) continue;
+                int pos = f.ValueStart;
+                if (f.Type == (TypeByte.Raw | TypeByte.Short) || f.Type == (TypeByte.String | TypeByte.Short))
                 {
-                    if (type == 0x31 || type == 0x21)
-                    {
-                        int len = m2[pos++];
-                        return m2.Skip(pos).Take(len).ToArray();
-                    }
-                    if (type == 0x30 || type == 0x20)
-                    {
-                        if (pos + 2 > m2.Length) return null;
-                        int len = BitConverter.ToUInt16(m2, pos); pos += 2;
-                        return m2.Skip(pos).Take(len).ToArray();
-                    }
+                    int len = m2[pos++];
+                    return m2.Skip(pos).Take(len).ToArray();
                 }
-                pos += SkipTypeBytes(type, m2, pos);
+                if (f.Type == TypeByte.Raw || f.Type == TypeByte.String)
+                {
+                    if (pos + 2 > m2.Length) return null;
+                    int len = BitConverter.ToUInt16(m2, pos); pos += 2;
+                    return m2.Skip(pos).Take(len).ToArray();
+                }
             }
             return null;
         }
@@ -707,41 +750,18 @@ namespace tik4net.Winbox
         internal static byte[]? ParseRawUser(byte[] m2, int keyId)
         {
             if (m2 == null || m2.Length < 2) return null;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
+            foreach (var f in Walk(m2))
             {
-                int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
-                pos += 4;
-                int userKey = kl | (kh << 8);
-                if (ns == 0x00 && userKey == keyId && (type == 0x31 || type == 0x30))
-                {
-                    int len = (type == 0x31) ? m2[pos++] : (int)BitConverter.ToUInt16(m2, (pos += 2) - 2);
-                    return m2.Skip(pos).Take(len).ToArray();
-                }
-                pos += SkipTypeBytes(type, m2, pos);
+                if (f.Key >> 16 != 0 || (f.Key & 0xFFFF) != keyId) continue;
+                if (f.Type != (TypeByte.Raw | TypeByte.Short) && f.Type != TypeByte.Raw) continue;
+                int pos = f.ValueStart;
+                int len = f.Type == (TypeByte.Raw | TypeByte.Short) ? m2[pos++] : (int)BitConverter.ToUInt16(m2, (pos += 2) - 2);
+                return m2.Skip(pos).Take(len).ToArray();
             }
             return null;
         }
 
-        internal static int ParseSysStatus(byte[] m2)
-        {
-            if (m2 == null || m2.Length < 2) return 0;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
-            {
-                int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
-                int fullKey = (ns << 16) | (kh << 8) | kl;
-                pos += 4;
-                if (fullKey == WinboxM2Protocol.SysKey.ErrorCode)
-                {
-                    if (type == 0x09 && pos < m2.Length) return m2[pos];
-                    if (type == 0x08 && pos + 4 <= m2.Length) return (int)BitConverter.ToUInt32(m2, pos);
-                    return 0;
-                }
-                pos += SkipTypeBytes(type, m2, pos);
-            }
-            return 0;
-        }
+        internal static int ParseSysStatus(byte[] m2) => ReadU8OrU32(m2, WinboxM2Protocol.SysKey.ErrorCode) ?? 0;
 
         /// <summary>
         /// Reads the request id (<c>0xFF0006</c>) from an M2 message, or <c>null</c> when the field is absent.
@@ -751,52 +771,16 @@ namespace tik4net.Winbox
         /// dispatching replies to concurrent in-flight requests (verified live — see
         /// <c>Docs/findings-winbox.md §12.1</c>). Note that <c>0xFF0003</c> is <b>not</b> a
         /// correlation field despite looking like one in a single-exchange trace: it stays constant for the
-        /// whole session while this value tracks the request (§12.2).
+        /// whole session while this value tracks the request (§12.2). u8 in practice (NextReqIdField emits
+        /// U8Sys); u32 accepted for symmetry with SESSION_ID.
         /// </remarks>
-        internal static int? ParseSysReqId(byte[] m2)
-        {
-            if (m2 == null || m2.Length < 2) return null;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
-            {
-                int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
-                int fullKey = (ns << 16) | (kh << 8) | kl;
-                pos += 4;
-                if (fullKey == WinboxM2Protocol.SysKey.RequestId)
-                {
-                    // u8 in practice (NextReqIdField emits U8Sys); u32 accepted for symmetry with SESSION_ID.
-                    if (type == 0x09 && pos < m2.Length) return m2[pos];
-                    if (type == 0x08 && pos + 4 <= m2.Length) return (int)BitConverter.ToUInt32(m2, pos);
-                    return null;
-                }
-                pos += SkipTypeBytes(type, m2, pos);
-            }
-            return null;
-        }
+        internal static int? ParseSysReqId(byte[] m2) => ReadU8OrU32(m2, WinboxM2Protocol.SysKey.RequestId);
 
         /// <summary>
         /// Reads a top-level u8/u32 system field (such as <c>SYS_CMD</c>, <c>0xFF0007</c>), or <c>null</c> when it is
         /// absent.
         /// </summary>
-        internal static int? ParseSysU32(byte[] m2, int fullKey)
-        {
-            if (m2 == null || m2.Length < 2) return null;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
-            {
-                int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
-                int key = (ns << 16) | (kh << 8) | kl;
-                pos += 4;
-                if (key == fullKey)
-                {
-                    if (type == 0x09 && pos < m2.Length) return m2[pos];
-                    if (type == 0x08 && pos + 4 <= m2.Length) return (int)BitConverter.ToUInt32(m2, pos);
-                    return null;
-                }
-                pos += SkipTypeBytes(type, m2, pos);
-            }
-            return null;
-        }
+        internal static int? ParseSysU32(byte[] m2, int fullKey) => ReadU8OrU32(m2, fullKey);
 
         /// <summary>
         /// Reads a top-level u32-array field (such as <c>SYS_FROM</c>), or <c>null</c> when it is absent.
@@ -815,51 +799,45 @@ namespace tik4net.Winbox
         /// </summary>
         /// <remarks>
         /// What the RoMON relay uses to put a link's <c>[2, link]</c> in front of <c>SYS_TO</c> and take it off
-        /// <c>SYS_FROM</c> (<c>Docs/findings-romon.md</c> §5). Only the top level is walked, by the same skip rule
-        /// every parser here uses, so a nested message holding the same key is never touched.
+        /// <c>SYS_FROM</c> (<c>Docs/findings-romon.md</c> §5). Only the top level is walked (<see cref="Walk"/>), so a
+        /// nested message holding the same key is never touched.
         /// </remarks>
         internal static byte[] RewriteU32ArrayField(byte[] m2, int fullKey, Func<int[], int[]> rewrite)
         {
-            if (m2 == null || m2.Length < 2 || m2[0] != 'M' || m2[1] != '2') return m2!;
-            int pos = 2;
-            while (pos + 4 <= m2.Length)
+            if (!IsM2(m2)) return m2!;
+            foreach (var f in Walk(m2))
             {
-                int start = pos;
-                int kl = m2[pos], kh = m2[pos + 1], ns = m2[pos + 2], type = m2[pos + 3];
-                int key = (ns << 16) | (kh << 8) | kl;
-                pos += 4;
-                int size = SkipTypeBytes(type, m2, pos);
-                if (key == fullKey && (type == 0x88 || type == 0x89 || type == 0x8A))
-                {
-                    int p = pos;
-                    int count = ReadCounter(m2, ref p, LenWidth(type));
-                    var values = new int[count];
-                    for (int i = 0; i < count; i++) values[i] = (int)BitConverter.ToUInt32(m2, p + 4 * i);
-                    byte[] field = U32ArraySys(fullKey, rewrite(values));
-                    var result = new byte[m2.Length - (pos + size - start) + field.Length];
-                    Buffer.BlockCopy(m2, 0, result, 0, start);
-                    Buffer.BlockCopy(field, 0, result, start, field.Length);
-                    Buffer.BlockCopy(m2, pos + size, result, start + field.Length, m2.Length - pos - size);
-                    return result;
-                }
-                if (size == 0 && type != 0x00 && type != 0x01) return m2;   // unknown type: cannot walk further
-                pos += size;
+                if (f.Key != fullKey || FType(f.Type) != FType(TypeByte.U32Array)) continue;
+                int p = f.ValueStart;
+                int count = ReadCounter(m2, ref p, LenWidth(f.Type));
+                var values = new int[count];
+                for (int i = 0; i < count; i++) values[i] = (int)BitConverter.ToUInt32(m2, p + 4 * i);
+                byte[] field = U32ArraySys(fullKey, rewrite(values));
+                var result = new byte[m2.Length - (f.End - f.Start) + field.Length];
+                Buffer.BlockCopy(m2, 0, result, 0, f.Start);
+                Buffer.BlockCopy(field, 0, result, f.Start, field.Length);
+                Buffer.BlockCopy(m2, f.End, result, f.Start + field.Length, m2.Length - f.End);
+                return result;
             }
             return m2;
         }
 
-        // Returns number of bytes to skip for a given TLV type byte (not counting the type byte itself).
-        // The 0xA0 str_array case MUST be kept — RouterOS 7.21.4 sends it in mepty responses
-        // (e.g. "msg-proxy-7.21.4"); without it the parser walks into the payload and misaligns.
+        // Returns number of bytes to skip for a given TLV type byte (not counting the type byte itself), and 0 for
+        // a type byte no ftype covers — which Walk does not step over (see ValueBytes).
+        internal static int SkipTypeBytes(int type, byte[] data, int pos) => ValueBytes(type, data, pos) ?? 0;
+
+        // The length of a field's value: the one skip rule. The 0xA0 str_array case MUST be kept — RouterOS 7.21.4
+        // sends it in mepty responses (e.g. "msg-proxy-7.21.4"); without it the parser walks into the payload and
+        // misaligns.
         //
         // The type byte is (ftype << 3) | size-flags (short=1, long=2), and the ftype table is in master*.js:
         // 0 bool, 1 u32, 2 u64, 3 addr6, 4 string, 5 message, 6 raw, and the same +16 for the array forms.
         // EVERY ftype must have a case here even when ParseAllFields has no decoder for it: an unhandled type
-        // falls to `default: return 0`, after which the parser reads the value's own bytes as the next key and
-        // type, and the rest of the message decodes into garbage keys — silently. That is how the 0xA0
-        // str_array bug behaved before it was found, and 0x18 (addr6) was the same trap waiting on any handler
-        // with an IPv6 field.
-        internal static int SkipTypeBytes(int type, byte[] data, int pos)
+        // is null, and Walk stops there — the rest of the message is lost rather than decoded into garbage keys,
+        // which is what an unhandled type did while the walkers stepped over it as if it had no value. That is how
+        // the 0xA0 str_array bug behaved before it was found, and 0x18 (addr6) was the same trap waiting on any
+        // handler with an IPv6 field.
+        private static int? ValueBytes(int type, byte[] data, int pos)
         {
             switch (type)
             {
@@ -877,8 +855,8 @@ namespace tik4net.Winbox
                 case 0x30: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) : 2;
                 // string long / raw long: a 4-byte length, the third size flag ReadLen already reads and the
                 // one this switch was missing. Nothing we send uses it and no reply has been seen carrying
-                // one, which is precisely why it had to be here: an unhandled type does not fail, it walks
-                // into the payload and turns every field after it into a garbage key.
+                // one, which is precisely why it had to be here: an unhandled type does not fail, it ends the
+                // walk and every field after it is lost.
                 case 0x22: return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) : 4;
                 case 0x32: return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) : 4;
                 case 0x29: return pos < data.Length ? 1 + data[pos] : 1;             // message short
@@ -903,7 +881,7 @@ namespace tik4net.Winbox
                     }
                     return p - pos;
                 }
-                default: return 0;  // unknown type — stop parsing
+                default: return null;  // unknown type — its length is unknown, so the walk stops
             }
         }
 

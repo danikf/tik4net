@@ -725,10 +725,10 @@
 0xB2 as-0xFF0006 ParseSysReqId null
 0x50 frame 4D320500FE50DEAD0600FF092A
 0x50 SkipTypeBytes 0 (value is 2 B)
-0x50 ParseAllFields {0x6ADDE=bool:False}
-0x50 Describe M2[13B] 0x6ADDE=bool:False
+0x50 ParseAllFields {}
+0x50 Describe M2[13B]
 0x50 ParseRecords(0xFE0005) []
-0x50 ExtractRawField(0xFE0005) 0500FE50
+0x50 ExtractRawField(0xFE0005) null
 0x50 ExtractRawField(sentinel) null
 0x50 ParseSysReqId null
 0x50 ParseSysU32(0xFE0005) null
@@ -736,11 +736,11 @@
 0x50 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE50DEAD0600FF092A
 0x50 user-key-5 ParseUserBytes null
 0x50 user-key-5 ParseRawUser null
-0x50 user-key-5 ParseAllFields {0x6ADDE=bool:False}
+0x50 user-key-5 ParseAllFields {}
 0x50 as-0xFE0001 TryParseSessionId False -1
-0x50 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[13B] 0x6ADDE=bool:False
+0x50 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[13B]
 0x50 as-0xFF0008 ParseSysStatus 0
-0x50 as-0xFF0008 DescribeSysError and no error field either; the reply was M2[13B] 0x6ADDE=bool:False
+0x50 as-0xFF0008 DescribeSysError and no error field either; the reply was M2[13B]
 0x50 as-0xFE0002 ParseRecords []
 0x50 as-0xFF0006 ParseSysReqId null
 qualified-keys ParseAllFields {0x1000C=u32:3 0x1001F=bool:True 0x101000C=u32[]:'[4,5]' 0x201001F=u32:9}
