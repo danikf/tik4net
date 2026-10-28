@@ -106,16 +106,6 @@ namespace tik4net.Objects.Interface
         [TikProperty("flow-control-rx")]
         public TikField<YesNoOptions?> FlowControlRx { get; set; }
 
-        ///// <summary>
-        ///// flow-control-auto
-        ///// </summary>
-        //[TikProperty("flow-control-auto")]
-        /// <summary>
-        /// flow-control-auto: obsolete, removed from RouterOS. Kept only so old code referencing it still compiles.
-        /// </summary>
-        [Obsolete("Removed from mikrotik", true)]
-        public YesNoOptions/*yes | no | auto*/ FlowControlAuto { get; set; }
-
         /// <summary>
         /// full-duplex: Defines whether the transmission of data appears in two directions simultaneously
         /// </summary>
