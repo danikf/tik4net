@@ -264,5 +264,126 @@ namespace tik4net.unittests.Api
 
             Assert.IsTrue(serverTask.Wait(6000));
         }
+
+        /// <summary>
+        /// The socket closes in the middle of a sentence: the waiting caller is told the connection was lost, and the
+        /// half-read sentence is not handed to anyone.
+        /// </summary>
+        // How the router ends a session itself: `/quit` is answered with an untagged `!fatal session terminated on
+        // request` (7.24.2, raw socket). A !fatal is connection-wide whatever tag it carries, or none, so a tagged
+        // command waiting for its own answer ends with the router's reason, not with the EOF that follows.
+        [DataTestMethod]
+        [DataRow("untagged")]
+        [DataRow("another-tag")]
+        public void ARouterFatal_EndsATaggedCommandWithTheRoutersReason(string kind)
+        {
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                server.AcceptClient();
+                server.ReadSentence();                       // login
+                server.WriteSentence("!done");
+                string tag = ExtractTag(server.ReadSentence());
+                server.WriteSentence("!re", $"{TikSpecialProperties.Tag}={tag}", "=rx=1");
+                if (kind == "untagged")
+                    server.WriteSentence("!fatal", "router going down");
+                else
+                    server.WriteSentence("!fatal", "router going down", $"{TikSpecialProperties.Tag}=another-{tag}");
+                server.CloseClientConnection();
+            });
+
+            using (var connection = new ApiConnection(false))
+            {
+                connection.ReceiveTimeout = 10000;
+                connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                // 4.0's bounded read reports a !fatal as IOException("Connection has been closed: <reason>"); the defect
+                // was the reason itself, replaced by the EOF's "connection lost: TikEofException".
+                var ex = Assert.ThrowsException<System.IO.IOException>(
+                    () => connection.CreateCommand("/tool/torch").ExecuteListUntilDone(10).ToList());
+                StringAssert.Contains(ex.Message, "router going down");
+            }
+
+            Assert.IsTrue(serverTask.Wait(5000));
+        }
+
+        [TestMethod]
+        public void ASocketClosedMidSentence_IsALostConnection()
+        {
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                server.AcceptClient();
+                server.ReadSentence();                       // login
+                server.WriteSentence("!done");
+                server.ReadSentence();                       // command
+                server.WriteSentence("!re", "=name=ether1");
+                server.WriteWordLengthOnly(64);              // the next word announced, then cut off
+                server.WriteRawByte((byte)'!');
+                server.CloseClientConnection();
+            });
+
+            using (var connection = new ApiConnection(false))
+            {
+                connection.ReceiveTimeout = 10000;
+                connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                var ex = Assert.ThrowsException<TikCommandFatalException>(
+                    () => connection.CreateCommand("/interface/print").ExecuteList());
+                StringAssert.Contains(ex.Message, "connection lost");
+                Assert.IsFalse(connection.IsOpened);
+            }
+
+            Assert.IsTrue(serverTask.Wait(5000));
+        }
+
+        /// <summary>
+        /// A reply that arrives after its caller gave up is not reported, at the next caller's timeout, as an answer
+        /// this client failed to pair.
+        /// </summary>
+        /// <remarks>
+        /// The dispatcher keeps every sentence until someone claims it, and <c>DescribeUnclaimed</c> reads a held
+        /// sentence as "the router answered and the reply was not paired" — a fault in this client. A late reply for a
+        /// tag whose caller timed out is neither: its caller is gone, and nobody will ever claim it.
+        /// </remarks>
+        [TestMethod]
+        [Ignore("Defect, handed to the maintainer (5.0-todo, Bugs): a late reply to an abandoned tag is held for good "
+            + "and the next receive timeout blames it on pairing.")]
+        public void ALateReplyToAnAbandonedTag_IsNotReportedAsUnpaired()
+        {
+            const int receiveTimeoutMs = 600;
+
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                server.AcceptClient();
+                server.ReadSentence();                       // login
+                server.WriteSentence("!done");
+                server.EchoTags = false;
+
+                string abandoned = ExtractTag(server.ReadSentence());     // /one/print — answered too late
+                Thread.Sleep(receiveTimeoutMs * 2);
+                server.WriteSentence("!done", $"{TikSpecialProperties.Tag}={abandoned}");
+
+                while (server.ReadSentence()[0] != "/two/print") { }       // a /cancel may come first
+                Thread.Sleep(receiveTimeoutMs * 3);                        // the second is never answered
+            });
+
+            using (var connection = new ApiConnection(false))
+            {
+                connection.ReceiveTimeout = receiveTimeoutMs;
+                connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => connection.CreateCommand("/one/print").ExecuteList());
+                Thread.Sleep(receiveTimeoutMs * 2);          // the late reply arrives
+
+                var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => connection.CreateCommand("/two/print").ExecuteList());
+                StringAssert.Contains(ex.Message, "no unclaimed sentences");
+            }
+
+            Assert.IsTrue(serverTask.Wait(8000));
+        }
     }
 }

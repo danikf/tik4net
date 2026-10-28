@@ -155,7 +155,9 @@ Implemented by `ApiCommand` only, the same transport that implements the synchro
 `Microsoft.Bcl.AsyncInterfaces`, including the ones who never call it.
 
 Response sentences: `ITikReSentence` (`!re`), `ITikDoneSentence` (`!done`),
-`ITikTrapSentence` (`!trap`), `ITikFatalSentence` (`!fatal`).
+`ITikTrapSentence` (`!trap`), `ITikFatalSentence` (`!fatal`). On the binary API a `!fatal` is connection-wide whatever tag it carries — the
+router sends it untagged when it ends the session itself (the answer to `/quit`) — so it ends every
+command in flight with the router's reason; the EOF that follows does not replace it.
 
 ### Capabilities — the key cross-transport pattern
 
@@ -563,7 +565,10 @@ NuGet outputs. Warnings are errors in CI only; `.editorconfig` raises the doc wa
   reverses in place and returns `void`) rather than `Enumerable.Reverse`, under the solution's current
   `LangVersion`. `EcSrp5.cs` and `WinboxStreamCrypto.cs` spell it out as `Enumerable.Reverse(x)` for this
   reason — a discarded return value there would corrupt a buffer silently instead of failing to compile.
-- `ApiConnection`'s reader/tag multiplexing is the most subtle code in the repo and is likewise
-  only exercised against real hardware.
+- `ApiConnection`'s reader/tag multiplexing (`ApiSentenceDispatcher`, `TagSequence`) is the most subtle
+  code in the repo. Its reader states — per-caller deadlines, a lost peer, a `!fatal` with or without a tag,
+  a socket closed mid-sentence, read-stall attribution — are covered against `FakeRouterServer` in
+  `tik4net.unittests/Api/`; a change there starts as a red test in that folder and still needs live
+  verification.
 - `TikChangeTracker` and the `Save` default-vs-unset rules encode non-obvious semantics; a
   "cleanup" there will change observable behaviour.
