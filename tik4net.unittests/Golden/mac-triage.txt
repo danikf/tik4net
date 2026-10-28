@@ -1,5 +1,5 @@
 # T5 - what each receive loop does with each packet type: what it sends back, and the state left
-# X7: the DrainSync rows for ACK and END are TODAY's behaviour (review item X7, fixed in Phase 2)
+# X7: the DrainSync rows for ACK and END match the pump's (the login drain notes the ACK and sees END)
 == SESSIONSTART
   WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
   WinboxMac.Receive frame=null sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
@@ -28,7 +28,7 @@
 == ACK
   WinboxMac.DataAvailable available=False sent-back nothing | haveAck=True highestAck=7 inCounter=0 rxBuf=0 bytesReceived=0
   WinboxMac.Receive frame=null sent-back nothing | haveAck=True highestAck=7 inCounter=0 rxBuf=0 bytesReceived=0
-  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.DrainSync sent-back nothing | haveAck=True highestAck=7 inCounter=0 rx='' routerEnded=False
   MacTelnet.pump sent-back nothing | haveAck=True highestAck=7 inCounter=0 rx='' routerEnded=False
 == PING
   WinboxMac.DataAvailable available=False sent-back 010502000000000102000000000212340F9000000009 | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
@@ -43,7 +43,7 @@
 == END
   WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
   WinboxMac.Receive frame=null sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0
-  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
+  MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=True
   MacTelnet.pump sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=True
 == own echo DATA
   WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0

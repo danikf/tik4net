@@ -26,9 +26,8 @@ namespace tik4net.unittests.Golden
     /// and <c>Golden/mac-triage.txt</c> are what check it. The triage is driven over loopback UDP through the real loops
     /// — WinBox-MAC's poll (<c>DataAvailable</c>) and read (<c>Receive</c>), MAC-Telnet's login drain (<c>DrainSync</c>)
     /// and its pump — and pinned as what the client sends back plus the state it is left in.
-    /// <para><b>X7.</b> The <c>DrainSync</c> rows for ACK and END show today's behaviour: the login drain notes no ACK
-    /// and does not see END, unlike the pump. That is review item X7's defect, fixed in Phase 2 with C6/C7 — those rows
-    /// change then, on purpose.</para>
+    /// <para><b>X7.</b> The <c>DrainSync</c> rows for ACK and END match the pump's: the login drain notes the ACK and
+    /// sees END (<see cref="LoginDrain_NotesAnAck_AndSeesEnd"/>).</para>
     /// </remarks>
     [TestClass]
     [DoNotParallelize]
@@ -231,7 +230,7 @@ namespace tik4net.unittests.Golden
         public void TriageOfEachPacketType_MatchesTheGoldenFile()
         {
             var lines = new List<string> { "# T5 - what each receive loop does with each packet type: what it sends back, and the state left",
-                "# X7: the DrainSync rows for ACK and END are TODAY's behaviour (review item X7, fixed in Phase 2)" };
+                "# X7: the DrainSync rows for ACK and END match the pump's (the login drain notes the ACK and sees END)" };
 
             foreach (var (name, packets) in Inbound())
             {
@@ -253,6 +252,22 @@ namespace tik4net.unittests.Golden
             }
 
             GoldenFile.AssertMatches("mac-triage.txt", lines);
+        }
+
+        /// <summary>
+        /// X7: MAC-Telnet's login drain handles ACK and END as its pump does — an ACK is noted, so the retransmit
+        /// queue can retire what the router took, and END marks the session over instead of one command later.
+        /// </summary>
+        [TestMethod]
+        public void LoginDrain_NotesAnAck_AndSeesEnd()
+        {
+            Func<MacTelnetUdpClient, string> drain = c =>
+            {
+                typeof(MacTelnetUdpClient).GetMethod("DrainSync", Inst)!.Invoke(c, new object[] { 150 });
+                return "";
+            };
+            StringAssert.Contains(RunMacTelnet(new[] { FromRouter(2, 7) }, drain), "haveAck=True highestAck=7");
+            StringAssert.Contains(RunMacTelnet(new[] { FromRouter(255, 0) }, drain), "routerEnded=True");
         }
 
         private static string RunWinboxMac(byte[][] packets, Func<WinboxMacM2Session, string> act)

@@ -718,19 +718,16 @@ namespace tik4net.MacTelnet
                 {
                     if (!TryReceive(50, out byte type, out uint counter, out byte[] payload))
                         continue;
-                    if (type == PKT_DATA)
+                    // The router ending the session ends the drain; the next read reports it, as after the pump.
+                    if (type == PKT_END) { _routerEnded = true; _rxSignal.Set(); break; }
+                    if (TryAcceptData(type, payload, counter) && !IsControlPacket(payload))
                     {
-                        bool fresh = AckData(counter, payload.Length);
-                        if (fresh && !IsControlPacket(payload))
-                        {
-                            string text = _encoding.GetString(payload);
-                            var replies = _vt100.Process(text);
-                            if (_passwordPrompt.MayAnswer(text))
-                                foreach (string reply in replies)
-                                    SendTerminalBytes(_encoding.GetBytes(reply));
-                        }
+                        string text = _encoding.GetString(payload);
+                        var replies = _vt100.Process(text);
+                        if (_passwordPrompt.MayAnswer(text))
+                            foreach (string reply in replies)
+                                SendTerminalBytes(_encoding.GetBytes(reply));
                     }
-                    else if (type == PKT_PING) { SendPong(counter); }
                     // Reset quiet window — keep draining while data arrives.
                     quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
                 }
