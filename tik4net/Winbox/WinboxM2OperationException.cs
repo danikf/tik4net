@@ -16,16 +16,16 @@ namespace tik4net.Winbox
         internal int Code { get; }
 
         /// <summary>Router-supplied error string from <c>sff0009</c> (may be <c>null</c>).</summary>
-        internal string ErrorText { get; }
+        internal string? ErrorText { get; }
 
-        internal WinboxM2OperationException(int code, string errorText, string op, int[] handler)
+        internal WinboxM2OperationException(int code, string? errorText, string op, int[] handler)
             : base(BuildMessage(code, errorText, op, handler))
         {
             Code = code;
             ErrorText = errorText;
         }
 
-        private static string BuildMessage(int code, string errorText, string op, int[] handler)
+        private static string BuildMessage(int code, string? errorText, string op, int[] handler)
         {
             string detail = string.IsNullOrEmpty(errorText) ? "" : $" '{errorText}'";
             return $"WinBox native {op} returned error 0x{code:X}{detail} on handler [{string.Join(",", handler)}].";

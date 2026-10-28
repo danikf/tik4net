@@ -334,7 +334,7 @@ namespace tik4net.Winbox
         /// information needed to debug the native field mapping. Non-M2 / empty buffers are reported as
         /// a short hex preview.
         /// </summary>
-        internal static string Describe(byte[] m2)
+        internal static string Describe(byte[]? m2)
         {
             if (m2 == null) return "(null)";
             if (m2.Length < 2 || m2[0] != 'M' || m2[1] != '2')
@@ -469,8 +469,8 @@ namespace tik4net.Winbox
                 int kl = m2[pos], kh = m2[pos + 1], ns = m2[pos + 2], type = m2[pos + 3];
                 int fullKey = (ns << 16) | (kh << 8) | kl;
                 pos += 4;
-                // The dictionary value type is object (not object?) across every consumer of ParseAllFields,
-                // several of which are out of this file's scope. When a field's declared length runs past the
+                // The dictionary value type is object (not object?) for every consumer of ParseAllFields across the
+                // translation layer. When a field's declared length runs past the
                 // end of a truncated frame, the branches below leave val at this placeholder instead of a real
                 // decoded value; the suppression documents that rather than widening the shared contract.
                 object val = null!;

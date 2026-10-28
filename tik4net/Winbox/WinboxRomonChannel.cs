@@ -194,8 +194,8 @@ namespace tik4net.Winbox
             => M2Message.RewriteU32ArrayField(m2, WinboxM2Protocol.SysKey.To,
                 path => new[] { ProxyHandler, _link }.Concat(path).ToArray());
 
-        private byte[] Unroute(byte[] m2)
-            => m2 == null ? m2! : M2Message.RewriteU32ArrayField(m2, WinboxM2Protocol.SysKey.From,
+        private byte[]? Unroute(byte[]? m2)
+            => m2 == null ? null : M2Message.RewriteU32ArrayField(m2, WinboxM2Protocol.SysKey.From,
                 path => path.Length >= 2 && path[0] == ProxyHandler && path[1] == _link ? path.Skip(2).ToArray() : path);
 
         public void Send(byte[] m2)
@@ -204,15 +204,15 @@ namespace tik4net.Winbox
             _agent.Send(Outbound(m2));
         }
 
-        public byte[] Receive(int timeoutMs) => Inbound(_agent.Receive(timeoutMs));
+        public byte[]? Receive(int timeoutMs) => Inbound(_agent.Receive(timeoutMs));
 
-        public byte[] SendReceive(byte[] m2, int timeoutMs)
+        public byte[]? SendReceive(byte[] m2, int timeoutMs)
         {
             if (_ended) throw RelayEnded(commandMayHaveRun: false);
             return Inbound(_agent.SendReceive(Outbound(m2), timeoutMs));
         }
 
-        public byte[] ReceiveNextFrame() => Inbound(_agent.ReceiveNextFrame());
+        public byte[]? ReceiveNextFrame() => Inbound(_agent.ReceiveNextFrame());
 
         // ── the link ending ──
 
@@ -233,7 +233,7 @@ namespace tik4net.Winbox
             return Route(m2);
         }
 
-        private byte[] Inbound(byte[] m2)
+        private byte[]? Inbound(byte[]? m2)
         {
             if (m2 != null && Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit("wbx.romon", Diagnostics.TikWireDir.Recv,
@@ -243,7 +243,7 @@ namespace tik4net.Winbox
                 _ended = true;
                 throw RelayEnded(commandMayHaveRun: true);
             }
-            return Unroute(m2!);
+            return Unroute(m2);
         }
 
         // Only the logout naming this link ends it. The agent pushes a logout for every session of the user that ends

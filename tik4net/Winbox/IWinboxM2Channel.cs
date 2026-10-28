@@ -111,10 +111,13 @@ namespace tik4net.Winbox
         void Send(byte[] m2);
 
         /// <summary>Receives and decodes one inbound M2 message, or <c>null</c> on timeout / non-data frame.</summary>
-        byte[] Receive(int timeoutMs);
+        byte[]? Receive(int timeoutMs);
 
-        /// <summary>Sends one M2 message and reads one response.</summary>
-        byte[] SendReceive(byte[] m2, int timeoutMs);
+        /// <summary>
+        /// Sends one M2 message and reads one response — <c>null</c> when the carrier heard nothing within the timeout
+        /// (the MAC carrier; the TCP one throws instead, the asymmetry review item X8 names).
+        /// </summary>
+        byte[]? SendReceive(byte[] m2, int timeoutMs);
 
         /// <summary>
         /// True when the channel can hand its read side to a <see cref="WinboxM2Multiplexer"/> reader loop
@@ -134,7 +137,7 @@ namespace tik4net.Winbox
         /// <exception cref="NotSupportedException">
         /// <see cref="SupportsReaderLoop"/> is <c>false</c>.
         /// </exception>
-        byte[] ReceiveNextFrame();
+        byte[]? ReceiveNextFrame();
 
         /// <summary>
         /// Asks the channel to keep servicing its inbound side <b>between</b> commands, for consumers that

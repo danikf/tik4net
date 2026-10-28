@@ -1307,14 +1307,10 @@ namespace tik4net.WinboxNative
         // unchanged for every other path (and when no singleton health window exists in the catalog).
         private int[] PreferSingletonHealthHandler(string apiPath, int[] handler)
         {
-            // handler's declared type is non-nullable, but this defensive check predates nullable annotations
-            // and some resolver paths do pass a null handler through; preserved as-is (no behaviour change).
-            if (handler == null) return handler!;
             if (_catalog.IsSingletonHandler(handler)) return handler;
             if (!string.Equals(WinboxHandlerMap.Normalize(apiPath), "/system/health", StringComparison.OrdinalIgnoreCase))
                 return handler;
-            // handler is non-null here (the guard on the first line already returned for a null one).
-            return _catalog.FindSingletonHandlerByLeaf("health") ?? handler!;
+            return _catalog.FindSingletonHandlerByLeaf("health") ?? handler;
         }
 
         // "/interface/print" → "/interface": strips ONLY a trailing read verb segment (print/getall/get),

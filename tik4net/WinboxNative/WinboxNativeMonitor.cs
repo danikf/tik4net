@@ -184,10 +184,8 @@ namespace tik4net.WinboxNative
                 WinboxM2Continuation? continuation = null;
                 while (true)
                 {
-                    // contToken's parameter type isn't annotated nullable — PollMonitorRoundAsync lives in
-                    // Winbox/, out of scope here — but null is its documented first-round value.
                     var (records, done, next) = await _host.Ops
-                        .PollMonitorRoundAsync(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation!, cancellationToken)
+                        .PollMonitorRoundAsync(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation, cancellationToken)
                         .ConfigureAwait(false);
                     continuation = next;
 
@@ -269,11 +267,9 @@ namespace tik4net.WinboxNative
                         List<Dictionary<int, Tuple<string, object>>> records;
                         // Gated per ROUND, not per pass: on a multiplexed connection this is a no-op, but a
                         // 30-second ping must not hold the lockstep gate for its whole duration (design §2).
-                        // contToken's parameter type isn't annotated nullable (PollMonitorRound is out of scope
-                        // here), but null is its documented first-round value.
                         using (_host.EnterCommand())
                             (records, done, continuation) =
-                                _host.Ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation!);
+                                _host.Ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation);
 
                         // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
                         // as the router produces it instead of in a lump when the pass ends.

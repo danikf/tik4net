@@ -39,7 +39,7 @@ namespace tik4net.Winbox
         /// </summary>
         private readonly object _rxGate = new object();
 
-        internal WinboxMacM2Session(string routerMac)
+        internal WinboxMacM2Session(string? routerMac)
         {
             RouterMacOverride = routerMac;
         }
@@ -265,7 +265,7 @@ namespace tik4net.Winbox
         private bool _readerLoopHandover;
 
         /// <inheritdoc/>
-        public byte[] ReceiveNextFrame()
+        public byte[]? ReceiveNextFrame()
         {
             // One-time handover from the lockstep path (the MAC counterpart of the TCP channel's one-time
             // switch to an infinite socket timeout). Anything still in the reassembly buffer was left by an
@@ -292,10 +292,9 @@ namespace tik4net.Winbox
                 {
                     frame = RecvFrame(ReaderPollSliceMs);
                 }
-                // The interface documents null as "channel closed"; its return type predates nullable
-                // annotations, so the contract is expressed here rather than in the signature.
-                catch (ObjectDisposedException) { return null!; }   // socket closed under us — normal shutdown
-                catch (System.Net.Sockets.SocketException) { return null!; }
+                // Null is the interface's "channel closed".
+                catch (ObjectDisposedException) { return null; }   // socket closed under us — normal shutdown
+                catch (System.Net.Sockets.SocketException) { return null; }
 
                 // A slice that expires is not an error and must not surface as one: partial chunks stay in
                 // the receive buffer and the next slice resumes reassembly where this one stopped.
@@ -327,7 +326,7 @@ namespace tik4net.Winbox
                     tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
                         $"undecryptable {frame.Length}B frame dropped: {dropped}");
             }
-            return null!;
+            return null;
         }
 
         // ── Idle servicing ────────────────────────────────────────────────────
@@ -412,20 +411,18 @@ namespace tik4net.Winbox
             => Send(PKT_DATA, WinboxChunkFraming.Chunk(WinboxStreamCrypto.Encrypt(m2, _sendAesKey, _sendHmacKey),
                 WinboxChunkFraming.EncryptedTag));
 
-        public byte[] SendReceive(byte[] m2, int timeoutMs)
+        public byte[]? SendReceive(byte[] m2, int timeoutMs)
         {
             Send(m2);
             return Receive(timeoutMs);
         }
 
-        public byte[] Receive(int timeoutMs)
+        public byte[]? Receive(int timeoutMs)
         {
-            // The interface documents null as "timeout / non-data frame"; its return type predates
-            // nullable annotations, so the contract is expressed here rather than in the signature.
-            byte[]? frame = RecvFrame(timeoutMs);
-            if (frame == null) return null!;
-            try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey)!; }
-            catch { return null!; }   // not a clean M2 frame
+            byte[]? frame = RecvFrame(timeoutMs);   // null: nothing within the timeout
+            if (frame == null) return null;
+            try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey); }
+            catch { return null; }   // not a clean M2 frame
         }
 
         // ── Chunk framing (WinboxChunkFraming, as on TCP, carried in DATA payloads) ──

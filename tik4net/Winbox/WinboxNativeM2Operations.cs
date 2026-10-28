@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -83,7 +83,7 @@ namespace tik4net.Winbox
         internal Action<byte[]>? OnRequest { get; set; }
 
         /// <inheritdoc cref="OnRequest"/>
-        internal Action<byte[]>? OnResponse { get; set; }
+        internal Action<byte[]?>? OnResponse { get; set; }
 
         /// <summary>
         /// Invoked, before the exception propagates, when a round trip fails with
@@ -170,7 +170,7 @@ namespace tik4net.Winbox
             DrainStaleFrames();
 
             OnRequest?.Invoke(request);
-            byte[] response = _channel.SendReceive(request, _timeoutMs);
+            byte[]? response = _channel.SendReceive(request, _timeoutMs);
 
             // Secondary guard: if a stale frame still slips in (raced in after the drain, or on a transport
             // where draining is disabled), skip it by the echoed request-id (sys key 0xFF0006). Synchronous
@@ -185,7 +185,9 @@ namespace tik4net.Winbox
             }
 
             OnResponse?.Invoke(response);
-            return response;
+            // Null when the carrier heard nothing (the MAC one; X8). The interpreters read it as an empty reply,
+            // which is what this path has always handed them; D9 settles what "no frame" means.
+            return response!;
         }
 
         /// <summary>
@@ -208,7 +210,7 @@ namespace tik4net.Winbox
                 // the full command timeout.
                 for (int i = 0; i < 64 && _channel.DataAvailable; i++)
                 {
-                    byte[] stale = _channel.Receive(DrainTimeoutMs);
+                    byte[]? stale = _channel.Receive(DrainTimeoutMs);
                     OnResponse?.Invoke(stale); // keep the diagnostics trace honest about discarded frames
                     if (stale == null) break;
                 }
@@ -219,7 +221,7 @@ namespace tik4net.Winbox
         private const int DrainTimeoutMs = 250;
 
         // Extracts the M2 request-id (sys key 0xFF0006) echoed in a built request or a reply, or -1 when absent.
-        private static int RequestIdOf(byte[] m2)
+        private static int RequestIdOf(byte[]? m2)
         {
             if (m2 == null) return -1;
             var fields = M2Message.ParseAllFields(m2);
@@ -301,9 +303,7 @@ namespace tik4net.Winbox
                 {
                     var ef = M2Message.ParseAllFields(resp);
                     string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                    // WinboxM2OperationException.ErrorText is documented as "may be null" even though its
-                    // constructor parameter predates nullable annotations.
-                    throw new WinboxM2OperationException(status, errStr!, "getall", handler);
+                    throw new WinboxM2OperationException(status, errStr, "getall", handler);
                 }
 
                 records.AddRange(M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records));
@@ -470,9 +470,7 @@ namespace tik4net.Winbox
             {
                 var ef = M2Message.ParseAllFields(resp);
                 string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                // WinboxM2OperationException.ErrorText is documented as "may be null" even though its
-                // constructor parameter predates nullable annotations.
-                throw new WinboxM2OperationException(status, errStr!, "get-singleton", handler);
+                throw new WinboxM2OperationException(status, errStr, "get-singleton", handler);
             }
             return InterpretRecord(resp);
         }
@@ -810,9 +808,7 @@ namespace tik4net.Winbox
             {
                 var ef = M2Message.ParseAllFields(resp);
                 string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                // WinboxM2OperationException.ErrorText is documented as "may be null" even though its
-                // constructor parameter predates nullable annotations.
-                throw new WinboxM2OperationException(status, errStr!, "monitor-poll", handler);
+                throw new WinboxM2OperationException(status, errStr, "monitor-poll", handler);
             }
 
             var fields = M2Message.ParseAllFields(resp);
@@ -858,9 +854,7 @@ namespace tik4net.Winbox
             var fields = M2Message.ParseAllFields(resp);
             string? errStr = fields.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es)
                 ? es.Item2?.ToString() : null;
-            // WinboxM2OperationException.ErrorText is documented as "may be null" even though its
-            // constructor parameter predates nullable annotations.
-            throw new WinboxM2OperationException(status, errStr!, op, handler);
+            throw new WinboxM2OperationException(status, errStr, op, handler);
         }
     }
 }

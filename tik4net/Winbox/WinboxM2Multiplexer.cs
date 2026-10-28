@@ -363,7 +363,7 @@ namespace tik4net.Winbox
             {
                 while (!_disposed)
                 {
-                    byte[] m2 = _channel.ReceiveNextFrame();
+                    byte[]? m2 = _channel.ReceiveNextFrame();
                     if (m2 == null) break;                       // channel closed
 
                     _framesRead++;

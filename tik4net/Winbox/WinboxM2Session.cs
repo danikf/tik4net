@@ -158,7 +158,7 @@ namespace tik4net.Winbox
         public bool SupportsReaderLoop => true;
 
         /// <inheritdoc/>
-        public byte[] ReceiveNextFrame()
+        public byte[]? ReceiveNextFrame()
         {
             // The reader loop owns the socket, so the receive timeout goes to infinite once and stays there:
             // a socket-level deadline can fire between two chunks of one frame and leave the stream
@@ -171,17 +171,16 @@ namespace tik4net.Winbox
 
             try
             {
-                // The interface documents null as "channel closed"; its return type predates nullable
-                // annotations, so the contract is expressed here rather than in the signature. A frame that
-                // does not decrypt must NOT take that path — see DecryptOrThrow.
+                // Null is the interface's "channel closed". A frame that does not decrypt must NOT take that
+                // path — see DecryptOrThrow.
                 if (_encrypted)
                     return DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _receiveAesKey);
 
                 byte[] assembled = _transport.RecvChunked(WinboxChunkFraming.RawTag);
                 return WinboxChunkFraming.StripRawLength(assembled);
             }
-            catch (IOException)          { return null!; }   // socket closed under us — normal shutdown
-            catch (ObjectDisposedException) { return null!; }
+            catch (IOException)          { return null; }   // socket closed under us — normal shutdown
+            catch (ObjectDisposedException) { return null; }
         }
 
         // ── Encrypted / raw frame primitives ──────────────────────────────────
