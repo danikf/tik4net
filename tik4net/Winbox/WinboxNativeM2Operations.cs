@@ -34,7 +34,8 @@ namespace tik4net.Winbox
         private int _timeoutMs => _timeout();
         private WinboxM2Multiplexer? _mux;
 
-        internal WinboxNativeM2Operations(IWinboxM2Channel channel, int timeoutMs = 5000)
+        // A fixed timeout: the unit tests' seam. The connection passes its live ReceiveTimeout (the overload below).
+        internal WinboxNativeM2Operations(IWinboxM2Channel channel, int timeoutMs)
             : this(channel, () => timeoutMs) { }
 
         internal WinboxNativeM2Operations(IWinboxM2Channel channel, Func<int> timeoutMs)

@@ -256,7 +256,7 @@ namespace tik4net.unittests.Winbox
             var parent = new WinboxJgField("parent", 0x1, "u32", false, uiType: "enm",
                 refHandler: new[] { 20, 0 }, refHandlers: new[] { new[] { 20, 0 }, new[] { 20, 12 } });
             var channel = new CountingChannel();
-            new WinboxRecordCodec(new WinboxNativeM2Operations(channel), null).PrimeReferencesAsync(
+            new WinboxRecordCodec(new WinboxNativeM2Operations(channel, 5000), null).PrimeReferencesAsync(
                     new List<Dictionary<int, Tuple<string, object>>>
                     {
                         new Dictionary<int, Tuple<string, object>> { [0x1] = Tuple.Create("u32", (object)0x10002C1u) },

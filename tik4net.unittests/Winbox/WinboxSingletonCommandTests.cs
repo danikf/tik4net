@@ -68,7 +68,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void TheReadCarriesTheWindowsCommand_OrGetSingleton()
         {
-            var ops = new WinboxNativeM2Operations(new NoChannel());
+            var ops = new WinboxNativeM2Operations(new NoChannel(), 5000);
 
             Assert.AreEqual(2L, Command(ops.BuildGetSingleton(new[] { 46 }, WinboxM2Protocol.GetAllFlags, 2)));
             Assert.AreEqual((long)WinboxM2Protocol.Command.GetSingleton,
@@ -78,7 +78,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void TheWriteCarriesTheWindowsCommand_OrSetSingleton()
         {
-            var ops = new WinboxNativeM2Operations(new NoChannel());
+            var ops = new WinboxNativeM2Operations(new NoChannel(), 5000);
 
             Assert.AreEqual(1L, Command(ops.BuildSetSingleton(new[] { 46 }, new List<byte[]>(), -1, 1)));
             Assert.AreEqual((long)WinboxM2Protocol.Command.SetSingleton,

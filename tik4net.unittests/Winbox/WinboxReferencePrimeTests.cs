@@ -38,7 +38,7 @@ namespace tik4net.unittests.Winbox
         private static int RoundTripsToPrime(WinboxJgField field, object value)
         {
             var channel = new CountingChannel();
-            var codec = new WinboxRecordCodec(new WinboxNativeM2Operations(channel), null);
+            var codec = new WinboxRecordCodec(new WinboxNativeM2Operations(channel, 5000), null);
             codec.PrimeReferencesAsync(
                     new List<Dictionary<int, Tuple<string, object>>> { Row(value) },
                     new Dictionary<int, string> { [RefKey] = field.ApiName },
