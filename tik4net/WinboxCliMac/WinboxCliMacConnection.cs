@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Cli;
+using tik4net.MacTelnet;
 using tik4net.Winbox;
 using tik4net.WinboxCli;
 
@@ -46,7 +47,7 @@ namespace tik4net.WinboxCliMac
             => CliReadPageSize = TikConnectionSetup.DefaultCliReadPageSize;
 
         /// <summary>MAC-layer WinBox UDP port (informational — the transport is fixed to UDP 20561).</summary>
-        public const int DefaultPort = 20561;
+        public const int DefaultPort = MacLayerPacket.Port;
 
         /// <inheritdoc/>
         public string? RouterMac { get; set; }

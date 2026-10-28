@@ -1,4 +1,5 @@
 ﻿using tik4net.Winbox;
+using tik4net.MacTelnet;
 using tik4net.WinboxNative;
 
 namespace tik4net.WinboxNativeMac
@@ -44,7 +45,7 @@ namespace tik4net.WinboxNativeMac
         /// MAC-layer WinBox UDP port (informational — <see cref="WinboxMacM2Session"/> ignores the forwarded
         /// port and always uses UDP 20561). It hides <see cref="WinboxNativeConnection.DefaultPort"/>, the TCP port.
         /// </summary>
-        public new const int DefaultPort = 20561;
+        public new const int DefaultPort = MacLayerPacket.Port;
 
         /// <inheritdoc/>
         // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of

@@ -445,7 +445,7 @@ namespace tik4net.MacTelnet
                 {
                     Udp        = udp,
                     LocalMac   = nic.Mac ?? GetLocalMac(null),
-                    Broadcast  = new IPEndPoint(nic.Broadcast ?? IPAddress.Broadcast, 20561),
+                    Broadcast  = new IPEndPoint(nic.Broadcast ?? IPAddress.Broadcast, MacLayerPacket.Port),
                     NicName    = nic.Name,
                     SessionKey = BitConverter.ToUInt16(kb, 0),
                     Trace      = Diagnostics.TikWireTrace.Enabled
@@ -560,12 +560,12 @@ namespace tik4net.MacTelnet
             // client's behaviour; what the router actually sends is what is written here.)
             IPAddress broadcastAddr = nic.Broadcast
                 ?? (string.IsNullOrEmpty(host) ? IPAddress.Broadcast : GetBroadcastAddress(host!));
-            _routerEp        = new IPEndPoint(broadcastAddr, 20561);
+            _routerEp        = new IPEndPoint(broadcastAddr, MacLayerPacket.Port);
 
             // A host name that is not an IP literal leaves it null: there is nothing to put in an
             // IPEndPoint, and broadcast is the correct fallback rather than a reason to fail the open.
             _routerUnicastEp = !string.IsNullOrEmpty(host) && IPAddress.TryParse(host, out var routerIp)
-                ? new IPEndPoint(routerIp, 20561)
+                ? new IPEndPoint(routerIp, MacLayerPacket.Port)
                 : null;
             _outCounter = 0;
             _inCounter  = 0;
@@ -1155,7 +1155,7 @@ namespace tik4net.MacTelnet
             if (from == null || from.Address == null) return;
             if (from.Address.Equals(IPAddress.Any) || from.Address.Equals(IPAddress.Broadcast)) return;
 
-            _routerUnicastEp = new IPEndPoint(from.Address, 20561);
+            _routerUnicastEp = new IPEndPoint(from.Address, MacLayerPacket.Port);
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
                     "UNICAST LATCH " + _routerUnicastEp + TraceTag);

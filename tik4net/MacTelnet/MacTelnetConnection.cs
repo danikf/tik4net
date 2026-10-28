@@ -59,7 +59,7 @@ namespace tik4net.MacTelnet
             => CliReadPageSize = TikConnectionSetup.DefaultCliReadPageSize;
 
         /// <summary>Default MAC-Telnet UDP port.</summary>
-        public const int DefaultPort = 20561;
+        public const int DefaultPort = MacLayerPacket.Port;
 
         /// <inheritdoc/>
         public string? RouterMac { get; set; }
