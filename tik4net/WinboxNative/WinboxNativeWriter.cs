@@ -38,12 +38,7 @@ namespace tik4net.WinboxNative
                     var (handler, resolver) = _host.ResolveHandlerAndFields(apiPath);
                     var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
                         cancellationToken).ConfigureAwait(false);
-                    // An interface SUBTYPE path shares the generic [20,0] handler, and the discriminator that
-                    // filters a read is the same field that says what to CREATE. Without it the router has
-                    // only a name to go on and answers 'unsupported device type' — every
-                    // /interface/<kind>/add over native, eleven paths, refused outright.
-                    if (_host.HandlerMap.TryResolveSubtypeFilter(apiPath, out int addTypeKey, out int addTypeValue))
-                        fields.Add(M2Message.U32Sys(addTypeKey, addTypeValue));
+                    AddSubtypeDiscriminator(apiPath, fields);
                     await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
                     int? newId = await _host.Ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
                     // A new row is a name the reference cache has never seen (see ForgetReferenceNames).
@@ -99,6 +94,7 @@ namespace tik4net.WinboxNative
                     // /path/add invoked via ExecuteNonQuery (the new id, if any, is discarded here).
                     var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
                         cancellationToken).ConfigureAwait(false);
+                    AddSubtypeDiscriminator(apiPath, fields);
                     await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
                     await _host.Ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
                     _host.Codec.ForgetReferenceNames();
@@ -452,6 +448,16 @@ namespace tik4net.WinboxNative
                     $"no such item: could not resolve record .id '{idParam}' on '{descriptor.CommandText}'."));
             }
             return -1;
+        }
+
+        // An interface SUBTYPE path shares the generic [20,0] handler, and the discriminator that filters a read is
+        // the same field that says what to CREATE. Without it the router has only a name to go on and answers
+        // 'unsupported device type' — every /interface/<kind>/add over native, eleven paths, refused outright. Both
+        // adds take it: ExecuteScalar's (RunAddAsync) and ExecuteNonQuery's (RunVerbAsync).
+        private void AddSubtypeDiscriminator(string apiPath, List<byte[]> fields)
+        {
+            if (_host.HandlerMap.TryResolveSubtypeFilter(apiPath, out int typeKey, out int typeValue))
+                fields.Add(M2Message.U32Sys(typeKey, typeValue));
         }
 
         // The API's add argument that creates a row in place on an ordered menu, instead of appended.

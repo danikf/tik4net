@@ -40,5 +40,32 @@ namespace tik4net.integrationtests
 
             Connection.Delete(loaded);
         }
+
+        /// <summary>
+        /// The same subtype add through <c>ExecuteNonQuery</c>, which reaches another branch of the native writer than
+        /// the mapper's <c>ExecuteScalar</c> (review X1: it omitted the interface-type discriminator, so the router
+        /// refused it as 'unsupported device type').
+        /// </summary>
+        [TestMethod]
+        public void AddEoipThroughExecuteNonQueryWillNotFail()
+        {
+            EnsureCommandAvailable("/interface/eoip");
+            string marker = Guid.NewGuid().ToString();
+            const string name = "test-eoip-nq";
+            try
+            {
+                Connection.CreateCommandAndParameters("/interface/eoip/add",
+                    "name", name, "remote-address", "192.0.2.2", "tunnel-id", "43", "comment", marker).ExecuteNonQuery();
+
+                var loaded = Connection.LoadSingle<InterfaceEoip>(Connection.CreateParameter("name", name));
+                Assert.AreEqual(marker, loaded.Comment);
+                Assert.AreEqual(43, loaded.TunnelId);
+            }
+            finally
+            {
+                foreach (var row in Connection.LoadList<InterfaceEoip>(Connection.CreateParameter("name", name)))
+                    Connection.Delete(row);
+            }
+        }
     }
 }
