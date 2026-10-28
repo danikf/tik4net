@@ -169,7 +169,7 @@ namespace tik4net.Winbox
             SendHandshakeFrame(payload);
 
             // Challenge frame: [len=49][0x06][32B xWB][1B parityB][16B salt] — same as WinBox TCP.
-            byte[]? challenge = RecvHandshakeFrame(timeoutMs);
+            byte[]? challenge = RecvFrame(timeoutMs);
             if (challenge == null || challenge.Length != 49)
                 throw new InvalidOperationException(
                     $"MAC-WinBox: bad challenge ({(challenge == null ? "none" : challenge.Length + "B")})");
@@ -198,7 +198,7 @@ namespace tik4net.Winbox
             // Establish what actually arrived before reading anything into it. Folding "no frame" into
             // the digest comparison made a lost or late UDP reply indistinguishable from a rejected
             // password — and over the MAC layer a lost reply is by far the likelier of the two.
-            byte[]? serverCc = RecvHandshakeFrame(timeoutMs);
+            byte[]? serverCc = RecvFrame(timeoutMs);
             if (serverCc == null)
                 throw new InvalidOperationException(
                     $"MAC-WinBox: no server confirmation within {timeoutMs} ms. The handshake did not " +
@@ -217,9 +217,6 @@ namespace tik4net.Winbox
 
         private void SendHandshakeFrame(byte[] payload)
             => Send(PKT_DATA, ChunkWrap(payload, 0x06));
-
-        // Reads one chunked handshake frame ([len][0x06]…) reassembled from MAC DATA packets.
-        private byte[]? RecvHandshakeFrame(int timeoutMs) => RecvFrame(timeoutMs);
 
         // Receives the next DATA packet payload (acking, ponging; skipping control packets), or null on timeout.
         private byte[]? RecvDataPayload(int timeoutMs)

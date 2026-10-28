@@ -976,10 +976,10 @@ namespace tik4net.Winbox
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ops.NextCorrelatedReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ops.NextReqIdField(),
                 M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, (byte)openCmd),  // OpenStatic(7) / OpenVarPkg(3)
                 M2Message.StringUser(WinboxM2Protocol.Mproxy.Key.FileName, filename));
-            byte[] resp = ops.SendReceiveCorrelated(msg);
+            byte[] resp = ops.SendReceive(msg);
             try { return M2Message.ParseSessionId(resp); }
             catch { return -1; }
         }
@@ -993,11 +993,11 @@ namespace tik4net.Winbox
             {
                 byte[] msg = M2Message.BuildM2(
                     M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
-                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ops.NextCorrelatedReqIdField(),
+                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ops.NextReqIdField(),
                     M2Message.SessionIdField(handle),
                     M2Message.U32User(WinboxM2Protocol.Mproxy.Key.MaxChunk, MproxyChunk),
                     M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mproxy.Read));  // read chunk
-                byte[]? resp = ops.SendReceiveCorrelated(msg);
+                byte[]? resp = ops.SendReceive(msg);
                 byte[]? chunk = ExtractMproxyChunk(resp);
                 if (chunk == null || chunk.Length == 0) break;
                 all.AddRange(chunk);
