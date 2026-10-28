@@ -1176,7 +1176,7 @@ namespace tik4net.WinboxNative
                 || t.Contains("already have") || t.Contains("already exists"))
                 return TikTrapKind.AlreadyHaveSuchItem;
 
-            if (ex.Code == WinboxM2Protocol.Error.ObjectNonexistent || ex.Code == 0xFE0011
+            if (ex.Code == WinboxM2Protocol.Error.ObjectNonexistent || ex.Code == WinboxM2Protocol.Error.ObjectNonexistent2
                 || t.Contains("no such") || t.Contains("not found")
                 || t.Contains("does not exist") || t.Contains("doesn't exist"))
                 return TikTrapKind.NoSuchItem;

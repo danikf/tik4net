@@ -699,7 +699,7 @@ namespace tik4net.Winbox
                 int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
                 int fullKey = (ns << 16) | (kh << 8) | kl;
                 pos += 4;
-                if (fullKey == 0xFE0001)
+                if (fullKey == WinboxM2Protocol.RecordKey.Id)
                 {
                     // mepty returns the session id as u8 (0x09) for small ids and u32 (0x08) for ids > 255.
                     if (type == 0x09 && pos < m2.Length)         { sessionId = m2[pos]; return true; }
@@ -800,7 +800,7 @@ namespace tik4net.Winbox
                 int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
                 int fullKey = (ns << 16) | (kh << 8) | kl;
                 pos += 4;
-                if (fullKey == 0xFF0008)
+                if (fullKey == WinboxM2Protocol.SysKey.ErrorCode)
                 {
                     if (type == 0x09 && pos < m2.Length) return m2[pos];
                     if (type == 0x08 && pos + 4 <= m2.Length) return (int)BitConverter.ToUInt32(m2, pos);
