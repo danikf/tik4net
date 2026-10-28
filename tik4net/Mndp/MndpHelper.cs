@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.Mndp
 {
@@ -244,7 +245,7 @@ namespace tik4net.Mndp
         /// </remarks>
         private static IEnumerable<KeyValuePair<IPAddress, IPAddress>> EnumerateBroadcastNics()
         {
-            foreach (var ni in GetEligibleInterfaces())
+            foreach (var ni in TikLocalNics.Eligible())
             {
                 foreach (var ua in ni.GetIPProperties().UnicastAddresses)
                 {
@@ -269,39 +270,12 @@ namespace tik4net.Mndp
         /// <param name="address">The local address the socket will be bound to.</param>
         /// <param name="mask">The subnet mask reported for it, if any.</param>
         internal static IPAddress SolicitationTarget(IPAddress? address, IPAddress? mask)
-            => SubnetBroadcast(address, mask) ?? IPAddress.Broadcast;
-
-        /// <summary>
-        /// The directed (subnet) broadcast address for an IPv4 address and its mask — the host bits set —
-        /// or <c>null</c> when the pair does not describe a subnet a broadcast could be addressed to.
-        /// </summary>
-        /// <remarks>
-        /// A mask of all zeroes is rejected rather than turned into 255.255.255.255: that is the limited
-        /// broadcast, which is exactly the address whose routing this method exists to avoid depending on.
-        /// </remarks>
-        /// <param name="address">The interface's own IPv4 address.</param>
-        /// <param name="mask">The subnet mask reported for that address.</param>
-        internal static IPAddress? SubnetBroadcast(IPAddress? address, IPAddress? mask)
-        {
-            if (address == null || mask == null) return null;
-            if (address.AddressFamily != AddressFamily.InterNetwork) return null;
-
-            byte[] a = address.GetAddressBytes();
-            byte[] m = mask.GetAddressBytes();
-            if (a.Length != 4 || m.Length != 4) return null;
-            if (m.All(b => b == 0)) return null;   // no usable subnet
-
-            var broadcast = new byte[4];
-            for (int i = 0; i < 4; i++)
-                broadcast[i] = (byte)(a[i] | ~m[i]);
-
-            return new IPAddress(broadcast);
-        }
+            => TikLocalNics.SubnetBroadcast(address, mask) ?? IPAddress.Broadcast;
 
         /// <summary>The interface index of every eligible interface that has IPv6 enabled.</summary>
         private static IEnumerable<int> EnumerateIPv6InterfaceIndexes()
         {
-            foreach (var ni in GetEligibleInterfaces())
+            foreach (var ni in TikLocalNics.Eligible())
             {
                 int index;
                 try { index = ni.GetIPProperties().GetIPv6Properties().Index; }
@@ -309,23 +283,6 @@ namespace tik4net.Mndp
                 catch (PlatformNotSupportedException) { continue; }
 
                 yield return index;
-            }
-        }
-
-        /// <summary>Up, not loopback, not a tunnel — the interfaces a solicitation is worth sending from.</summary>
-        private static IEnumerable<NetworkInterface> GetEligibleInterfaces()
-        {
-            NetworkInterface[] all;
-            try { all = NetworkInterface.GetAllNetworkInterfaces(); }
-            catch (NetworkInformationException) { yield break; }
-
-            foreach (var ni in all)
-            {
-                if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
-
-                yield return ni;
             }
         }
 

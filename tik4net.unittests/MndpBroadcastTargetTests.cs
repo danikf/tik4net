@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.Mndp;
 
 namespace tik4net.unittests
@@ -23,7 +24,7 @@ namespace tik4net.unittests
         public void AByteAlignedMaskSetsTheHostBits()
         {
             Assert.AreEqual("192.168.4.255",
-                MndpHelper.SubnetBroadcast(IPAddress.Parse("192.168.4.31"),
+                TikLocalNics.SubnetBroadcast(IPAddress.Parse("192.168.4.31"),
                                            IPAddress.Parse("255.255.255.0"))?.ToString());
         }
 
@@ -33,7 +34,7 @@ namespace tik4net.unittests
             // /20, the width Hyper-V's default switch hands out. Rounding this to /16 or /24 addresses a
             // segment the interface is not on, which is silent: nothing answers and nothing complains.
             Assert.AreEqual("172.24.79.255",
-                MndpHelper.SubnetBroadcast(IPAddress.Parse("172.24.64.1"),
+                TikLocalNics.SubnetBroadcast(IPAddress.Parse("172.24.64.1"),
                                            IPAddress.Parse("255.255.240.0"))?.ToString());
         }
 
@@ -43,7 +44,7 @@ namespace tik4net.unittests
             // /32 has no host bits, so the "broadcast" is the address. Worth pinning because it is the case
             // an implementation is most likely to special-case into something else.
             Assert.AreEqual("10.0.0.7",
-                MndpHelper.SubnetBroadcast(IPAddress.Parse("10.0.0.7"),
+                TikLocalNics.SubnetBroadcast(IPAddress.Parse("10.0.0.7"),
                                            IPAddress.Parse("255.255.255.255"))?.ToString());
         }
 
@@ -52,7 +53,7 @@ namespace tik4net.unittests
         {
             // 0.0.0.0 would yield 255.255.255.255 — the limited broadcast, whose routing is the very thing
             // binding per interface exists to stop depending on. Refusing the interface is the honest answer.
-            Assert.IsNull(MndpHelper.SubnetBroadcast(IPAddress.Parse("192.168.4.31"),
+            Assert.IsNull(TikLocalNics.SubnetBroadcast(IPAddress.Parse("192.168.4.31"),
                                                      IPAddress.Parse("0.0.0.0")));
         }
 
@@ -79,7 +80,7 @@ namespace tik4net.unittests
         [TestMethod]
         public void AnIpv6AddressHasNoIpv4Broadcast()
         {
-            Assert.IsNull(MndpHelper.SubnetBroadcast(IPAddress.Parse("fe80::215:5dff:fe04:1f03"),
+            Assert.IsNull(TikLocalNics.SubnetBroadcast(IPAddress.Parse("fe80::215:5dff:fe04:1f03"),
                                                      IPAddress.Parse("255.255.255.0")));
         }
 
@@ -88,8 +89,8 @@ namespace tik4net.unittests
         {
             // GetIPProperties() reports interfaces whose IPv4Mask is null; that is a NIC to skip, not a crash
             // in the middle of enumerating the others.
-            Assert.IsNull(MndpHelper.SubnetBroadcast(IPAddress.Parse("192.168.4.31"), null));
-            Assert.IsNull(MndpHelper.SubnetBroadcast(null, IPAddress.Parse("255.255.255.0")));
+            Assert.IsNull(TikLocalNics.SubnetBroadcast(IPAddress.Parse("192.168.4.31"), null));
+            Assert.IsNull(TikLocalNics.SubnetBroadcast(null, IPAddress.Parse("255.255.255.0")));
         }
     }
 }

@@ -16,6 +16,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 using tik4net.Crypto;
 using tik4net.Mndp;
 using ECPoint = tik4net.Crypto.ECPoint;
@@ -450,33 +451,21 @@ namespace tik4net.MacTelnet
             var physical = new List<LocalNic>();
             var virt     = new List<LocalNic>();
 
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            foreach (var ni in TikLocalNics.Eligible())
             {
-                if (ni.OperationalStatus != OperationalStatus.Up)             continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)   continue;
+                byte[]? mac = TikLocalNics.MacOf(ni);
+                if (mac == null) continue;
 
-                byte[] mac = ni.GetPhysicalAddress().GetAddressBytes();
-                if (mac.Length != 6 || !mac.Any(b => b != 0)) continue;
+                // One address per NIC is enough to bind and broadcast from.
+                var ua = TikLocalNics.IPv4Addresses(ni).FirstOrDefault();
+                if (ua == null) continue;
 
-                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                var nic = new LocalNic
                 {
-                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-
-                    IPAddress? bcast = null;
-                    if (ua.IPv4Mask != null)
-                    {
-                        byte[] lb = ua.Address.GetAddressBytes();
-                        byte[] mb = ua.IPv4Mask.GetAddressBytes();
-                        byte[] b  = new byte[4];
-                        for (int i = 0; i < 4; i++) b[i] = (byte)(lb[i] | ~mb[i]);
-                        bcast = new IPAddress(b);
-                    }
-
-                    var nic = new LocalNic { Mac = mac, LocalIp = ua.Address, Broadcast = bcast, Name = DescribeNic(ni) };
-                    (IsProbablyVirtual(ni) ? virt : physical).Add(nic);
-                    break;   // one address per NIC is enough to bind and broadcast from
-                }
+                    Mac = mac, LocalIp = ua.Address, Name = DescribeNic(ni),
+                    Broadcast = TikLocalNics.SubnetBroadcast(ua.Address, ua.IPv4Mask),
+                };
+                (IsProbablyVirtual(ni) ? virt : physical).Add(nic);
             }
 
             physical.AddRange(virt);
@@ -848,36 +837,19 @@ namespace tik4net.MacTelnet
 
             IPAddress target;
             try { target = IPAddress.Parse(host); } catch { return result; }
-            byte[] tb = target.GetAddressBytes();
 
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            foreach (var ni in TikLocalNics.Eligible())
             {
-                if (ni.OperationalStatus != OperationalStatus.Up)             continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)   continue;
+                byte[]? mac = TikLocalNics.MacOf(ni);
+                if (mac == null) continue;
 
-                byte[] mac = ni.GetPhysicalAddress().GetAddressBytes();
-                if (mac.Length != 6 || !mac.Any(b => b != 0)) continue;
-
-                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                foreach (var ua in TikLocalNics.IPv4Addresses(ni))
                 {
-                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    if (ua.IPv4Mask == null) continue;
-
-                    byte[] lb = ua.Address.GetAddressBytes();
-                    byte[] mb = ua.IPv4Mask.GetAddressBytes();
-
-                    bool same = true;
-                    for (int i = 0; i < 4; i++)
-                        if ((lb[i] & mb[i]) != (tb[i] & mb[i])) { same = false; break; }
-                    if (!same) continue;
-
-                    byte[] bcast = new byte[4];
-                    for (int i = 0; i < 4; i++) bcast[i] = (byte)(tb[i] | ~mb[i]);
+                    if (!TikLocalNics.InSubnet(ua, target)) continue;
 
                     result.Mac       = mac;
                     result.LocalIp   = ua.Address;
-                    result.Broadcast = new IPAddress(bcast);
+                    result.Broadcast = TikLocalNics.SubnetBroadcast(target, ua.IPv4Mask) ?? IPAddress.Broadcast;
                     result.Name      = DescribeNic(ni);
                     return result;
                 }
@@ -888,28 +860,18 @@ namespace tik4net.MacTelnet
 
         // Derives subnet broadcast for the subnet containing host.
         private static IPAddress GetBroadcastAddress(string host)
+            => BroadcastFor(IPAddress.Parse(host), TikLocalNics.Eligible().SelectMany(TikLocalNics.IPv4Addresses));
+
+        /// <summary>
+        /// The broadcast of the first of <paramref name="addresses"/> whose subnet holds <paramref name="target"/>,
+        /// or the target's /24 broadcast when none does. An address with no mask cannot say, and is stepped over.
+        /// </summary>
+        internal static IPAddress BroadcastFor(IPAddress target, IEnumerable<UnicastIPAddressInformation> addresses)
         {
-            IPAddress target = IPAddress.Parse(host);
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
-                {
-                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    byte[] lb = ua.Address.GetAddressBytes();
-                    byte[] mb = ua.IPv4Mask.GetAddressBytes();
-                    byte[] tb = target.GetAddressBytes();
-                    if ((lb[0] & mb[0]) == (tb[0] & mb[0]) &&
-                        (lb[1] & mb[1]) == (tb[1] & mb[1]) &&
-                        (lb[2] & mb[2]) == (tb[2] & mb[2]) &&
-                        (lb[3] & mb[3]) == (tb[3] & mb[3]))
-                    {
-                        byte[] bcast = new byte[4];
-                        for (int i = 0; i < 4; i++) bcast[i] = (byte)(tb[i] | ~mb[i]);
-                        return new IPAddress(bcast);
-                    }
-                }
-            }
+            foreach (var ua in addresses)
+                if (ua.Address.AddressFamily == AddressFamily.InterNetwork && TikLocalNics.InSubnet(ua, target))
+                    return TikLocalNics.SubnetBroadcast(target, ua.IPv4Mask) ?? IPAddress.Broadcast;
+
             // Fallback: /24 broadcast
             var x = target.GetAddressBytes();
             return new IPAddress(new byte[] { x[0], x[1], x[2], 255 });
@@ -1448,36 +1410,18 @@ namespace tik4net.MacTelnet
 
             // Prefer NIC on same subnet as the router (avoids Hyper-V/VPN virtual adapters).
             if (target != null)
-            {
-                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                foreach (var ni in TikLocalNics.Eligible())
                 {
-                    if (ni.OperationalStatus != OperationalStatus.Up)            continue;
-                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)   continue;
-                    var mac = ni.GetPhysicalAddress().GetAddressBytes();
-                    if (mac.Length != 6 || !mac.Any(b => b != 0)) continue;
-                    foreach (var ua in ni.GetIPProperties().UnicastAddresses)
-                    {
-                        if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                        byte[] lb = ua.Address.GetAddressBytes();
-                        byte[] mb = ua.IPv4Mask.GetAddressBytes();
-                        byte[] tb = target.GetAddressBytes();
-                        bool same = true;
-                        for (int i = 0; i < 4; i++)
-                            if ((lb[i] & mb[i]) != (tb[i] & mb[i])) { same = false; break; }
-                        if (same) return mac;
-                    }
+                    byte[]? mac = TikLocalNics.MacOf(ni);
+                    if (mac != null && TikLocalNics.IPv4Addresses(ni).Any(ua => TikLocalNics.InSubnet(ua, target)))
+                        return mac;
                 }
-            }
 
             // Fallback: first active non-loopback non-tunnel NIC.
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            foreach (var ni in TikLocalNics.Eligible())
             {
-                if (ni.OperationalStatus != OperationalStatus.Up)            continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)   continue;
-                var mac = ni.GetPhysicalAddress().GetAddressBytes();
-                if (mac.Length == 6 && mac.Any(b => b != 0)) return mac;
+                byte[]? mac = TikLocalNics.MacOf(ni);
+                if (mac != null) return mac;
             }
 
             byte[] rand = new byte[6];
