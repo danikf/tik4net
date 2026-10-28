@@ -151,12 +151,6 @@ namespace tik4net.MacTelnet
         /// </summary>
         protected readonly object SendGate = new object();
 
-        // ── AES / HMAC stream keys (derived after EC-SRP5, used by WinBox MAC) ──
-        // Assigned in FinishAuth (post-construction, post-BaseConnect), not the constructor.
-        /// <summary>Stream cipher and MAC keys derived from the EC-SRP5 exchange, used by the WinBox MAC
-        /// transport. Assigned in <c>FinishAuth</c> — after construction and after <c>BaseConnect</c>.</summary>
-        protected byte[] _sendAesKey = null!, _receiveAesKey = null!, _sendHmacKey = null!, _receiveHmacKey = null!;
-
         // ── Optional router MAC override ──────────────────────────────────────────
 
         /// <summary>
@@ -884,7 +878,11 @@ namespace tik4net.MacTelnet
         /// integration suite's reference client <c>WinboxMacClient</c>; the WinBox-over-MAC carrier
         /// (<c>WinboxMacM2Session</c>) runs the WinBox handshake instead.
         /// </summary>
-        protected void Authenticate(string user, string pass)
+        /// <returns>
+        /// The proof, whose secret derives the stream keys (<see cref="WinboxStreamKeys.Derive"/>). MAC-Telnet's
+        /// terminal is not encrypted and has no use for them; the reference client derives them from this.
+        /// </returns>
+        protected EcSrp5Proof Authenticate(string user, string pass)
         {
             var client = new EcSrp5Client(user, EcSrp5PrivateKeyOverride);
 
@@ -913,7 +911,7 @@ namespace tik4net.MacTelnet
             });
             if (challenge == null) throw new InvalidOperationException("No server PASSSALT received (auth failed)");
 
-            FinishAuth(user, pass, client, challenge);
+            return FinishAuth(user, pass, client, challenge);
         }
 
         /// <summary>
@@ -923,14 +921,11 @@ namespace tik4net.MacTelnet
         internal byte[]? EcSrp5PrivateKeyOverride { get; set; }
 
         // Shared EC-SRP5 completion: compute shared secret, send CTRL_PASSWORD, wait for END_AUTH.
-        private void FinishAuth(string user, string pass, EcSrp5Client client, byte[] challenge)
+        private EcSrp5Proof FinishAuth(string user, string pass, EcSrp5Client client, byte[] challenge)
         {
             // MAC-Telnet builds the validator from the whole login name, options included; the WinBox carriers use the
             // account name alone (EcSrp5.AccountName).
             EcSrp5Proof proof = client.Answer(challenge, pass, user);
-
-            WinboxStreamCrypto.DeriveStreamKeys(false, proof.Secret,
-                out _sendAesKey, out _receiveAesKey, out _sendHmacKey, out _receiveHmacKey);
 
             // The terminal's user name carries the console flags every PTY login uses (+c: no colour), while the
             // EC-SRP5 exchange above keeps the bare name. Without it RouterOS 6 colours its per-character repaint
@@ -952,6 +947,7 @@ namespace tik4net.MacTelnet
                     if (ctype == CTRL_END_AUTH) return true;
                 return false;
             });
+            return proof;
         }
 
         /// <summary>

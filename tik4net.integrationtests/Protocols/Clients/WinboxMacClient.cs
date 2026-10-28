@@ -28,18 +28,19 @@ namespace tik4net.integrationtests
         private const int    SRC_ID      = 8;
         private int          _reqId;
         private string       _pass;
+        private WinboxStreamKeys _keys;
 
         public void Connect(string host, string user, string pass)
         {
             _pass = pass;
             BaseConnect(host, CLIENT_TYPE);
-            Authenticate(user, pass);
+            _keys = WinboxStreamKeys.Derive(Authenticate(user, pass).Secret);
         }
 
         // ── Encrypted M2 send / receive ──────────────────────────────────────────
         private byte[] SendRecvM2(byte[] m2, int timeoutMs = 5000)
         {
-            byte[] frame = WinboxStreamCrypto.Encrypt(m2, _sendAesKey, _sendHmacKey);
+            byte[] frame = _keys.Encrypt(m2);
             Send(PKT_DATA, frame);
 
             byte[] result = null;
@@ -60,13 +61,13 @@ namespace tik4net.integrationtests
 
         private void SendM2(byte[] m2)
         {
-            byte[] frame = WinboxStreamCrypto.Encrypt(m2, _sendAesKey, _sendHmacKey);
+            byte[] frame = _keys.Encrypt(m2);
             Send(PKT_DATA, frame);
         }
 
         private byte[] TryDecrypt(byte[] payload)
         {
-            try { return WinboxStreamCrypto.Decrypt(payload, _receiveAesKey); }
+            try { return _keys.Decrypt(payload); }
             catch { return null; }
         }
 
