@@ -15,7 +15,6 @@
 0x00 ParseU32ArrayField(0xFE0005) null
 0x00 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE000600FF092A
 0x00 user-key-5 ParseUserBytes null
-0x00 user-key-5 ParseRawUser null
 0x00 user-key-5 ParseAllFields {0x5=bool:False 0xFF0006=u8:42}
 0x00 as-0xFE0001 TryParseSessionId False -1
 0x00 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[11B] 0xFE0001=bool:False 0xFF0006=u8:42
@@ -35,7 +34,6 @@
 0x01 ParseU32ArrayField(0xFE0005) null
 0x01 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE010600FF092A
 0x01 user-key-5 ParseUserBytes null
-0x01 user-key-5 ParseRawUser null
 0x01 user-key-5 ParseAllFields {0x5=bool:True 0xFF0006=u8:42}
 0x01 as-0xFE0001 TryParseSessionId False -1
 0x01 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[11B] 0xFE0001=bool:True 0xFF0006=u8:42
@@ -55,7 +53,6 @@
 0x08 ParseU32ArrayField(0xFE0005) null
 0x08 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE08040302010600FF092A
 0x08 user-key-5 ParseUserBytes null
-0x08 user-key-5 ParseRawUser null
 0x08 user-key-5 ParseAllFields {0x5=u32:16909060 0xFF0006=u8:42}
 0x08 as-0xFE0001 TryParseSessionId True 16909060
 0x08 as-0xFE0001 ParseSessionId 16909060
@@ -75,7 +72,6 @@
 0x09 ParseU32ArrayField(0xFE0005) null
 0x09 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE09C80600FF092A
 0x09 user-key-5 ParseUserBytes null
-0x09 user-key-5 ParseRawUser null
 0x09 user-key-5 ParseAllFields {0x5=u8:200 0xFF0006=u8:42}
 0x09 as-0xFE0001 TryParseSessionId True 200
 0x09 as-0xFE0001 ParseSessionId 200
@@ -95,7 +91,6 @@
 0x10 ParseU32ArrayField(0xFE0005) null
 0x10 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE1008070605040302010600FF092A
 0x10 user-key-5 ParseUserBytes null
-0x10 user-key-5 ParseRawUser null
 0x10 user-key-5 ParseAllFields {0x5=u64:72623859790382856 0xFF0006=u8:42}
 0x10 as-0xFE0001 TryParseSessionId False -1
 0x10 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[19B] 0xFE0001=u64:72623859790382856 0xFF0006=u8:42
@@ -115,7 +110,6 @@
 0x18 ParseU32ArrayField(0xFE0005) null
 0x18 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE18000D1A2734414E5B6875828F9CA9B6C30600FF092A
 0x18 user-key-5 ParseUserBytes null
-0x18 user-key-5 ParseRawUser null
 0x18 user-key-5 ParseAllFields {0x5=ip6:bytes:000D1A2734414E5B6875828F9CA9B6C3 0xFF0006=u8:42}
 0x18 as-0xFE0001 TryParseSessionId False -1
 0x18 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[27B] 0xFE0001=ip6:000D1A2734414E5B6875828F9CA9B6C3 0xFF0006=u8:42
@@ -135,7 +129,6 @@
 0x20 ParseU32ArrayField(0xFE0005) null
 0x20 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE202C016162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E0600FF092A
 0x20 user-key-5 ParseUserBytes 6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E
-0x20 user-key-5 ParseRawUser null
 0x20 user-key-5 ParseAllFields {0x5=str_l:'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr…(300)' 0xFF0006=u8:42}
 0x20 as-0xFE0001 TryParseSessionId False -1
 0x20 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[313B] 0xFE0001=str_l:abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmn 0xFF0006=u8:42
@@ -155,7 +148,6 @@
 0x21 ParseU32ArrayField(0xFE0005) null
 0x21 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE210573686F72740600FF092A
 0x21 user-key-5 ParseUserBytes 73686F7274
-0x21 user-key-5 ParseRawUser null
 0x21 user-key-5 ParseAllFields {0x5=str:'short' 0xFF0006=u8:42}
 0x21 as-0xFE0001 TryParseSessionId False -1
 0x21 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[17B] 0xFE0001=str:short 0xFF0006=u8:42
@@ -175,7 +167,6 @@
 0x22 ParseU32ArrayField(0xFE0005) null
 0x22 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE222C0100006162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E6F707172737475767778797A6162636465666768696A6B6C6D6E0600FF092A
 0x22 user-key-5 ParseUserBytes null
-0x22 user-key-5 ParseRawUser null
 0x22 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x22 as-0xFE0001 TryParseSessionId False -1
 0x22 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[315B] 0xFF0006=u8:42
@@ -195,7 +186,6 @@
 0x28 ParseU32ArrayField(0xFE0005) null
 0x28 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE280E004D3201000009090200002102696E0600FF092A
 0x28 user-key-5 ParseUserBytes null
-0x28 user-key-5 ParseRawUser null
 0x28 user-key-5 ParseAllFields {0x5=msg:{0x1=u8:9 0x2=str:'in'} 0xFF0006=u8:42}
 0x28 as-0xFE0001 TryParseSessionId False -1
 0x28 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[27B] 0xFE0001=msg:{0x1=9,0x2=in} 0xFF0006=u8:42
@@ -215,7 +205,6 @@
 0x29 ParseU32ArrayField(0xFE0005) null
 0x29 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE290E4D3201000009090200002102696E0600FF092A
 0x29 user-key-5 ParseUserBytes null
-0x29 user-key-5 ParseRawUser null
 0x29 user-key-5 ParseAllFields {0x5=msg:{0x1=u8:9 0x2=str:'in'} 0xFF0006=u8:42}
 0x29 as-0xFE0001 TryParseSessionId False -1
 0x29 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[26B] 0xFE0001=msg:{0x1=9,0x2=in} 0xFF0006=u8:42
@@ -235,7 +224,6 @@
 0x2A ParseU32ArrayField(0xFE0005) null
 0x2A RewriteU32ArrayField(0xFE0005,+99) 4D320500FE2A0E0000004D3201000009090200002102696E0600FF092A
 0x2A user-key-5 ParseUserBytes null
-0x2A user-key-5 ParseRawUser null
 0x2A user-key-5 ParseAllFields {0x5=msg:{0x1=u8:9 0x2=str:'in'} 0xFF0006=u8:42}
 0x2A as-0xFE0001 TryParseSessionId False -1
 0x2A as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[29B] 0xFE0001=msg:{0x1=9,0x2=in} 0xFF0006=u8:42
@@ -255,7 +243,6 @@
 0x30 ParseU32ArrayField(0xFE0005) null
 0x30 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE302C01000D1A2734414E5B6875828F9CA9B6C3D0DDEAF704111E2B3845525F6C798693A0ADBAC7D4E1EEFB0815222F3C495663707D8A97A4B1BECBD8E5F2FF0C192633404D5A6774818E9BA8B5C2CFDCE9F603101D2A3744515E6B7885929FACB9C6D3E0EDFA0714212E3B4855626F7C8996A3B0BDCAD7E4F1FE0B1825323F4C596673808D9AA7B4C1CEDBE8F5020F1C293643505D6A7784919EABB8C5D2DFECF90613202D3A4754616E7B8895A2AFBCC9D6E3F0FD0A1724313E4B5865727F8C99A6B3C0CDDAE7F4010E1B2835424F5C697683909DAAB7C4D1DEEBF805121F2C394653606D7A8794A1AEBBC8D5E2EFFC091623303D4A5764717E8B98A5B2BFCCD9E6F3000D1A2734414E5B6875828F9CA9B6C3D0DDEAF704111E2B3845525F6C798693A0ADBAC7D4E1EEFB0815222F0600FF092A
 0x30 user-key-5 ParseUserBytes 000D1A2734414E5B6875828F9CA9B6C3D0DDEAF704111E2B3845525F6C798693A0ADBAC7D4E1EEFB0815222F3C495663707D8A97A4B1BECBD8E5F2FF0C192633404D5A6774818E9BA8B5C2CFDCE9F603101D2A3744515E6B7885929FACB9C6D3E0EDFA0714212E3B4855626F7C8996A3B0BDCAD7E4F1FE0B1825323F4C596673808D9AA7B4C1CEDBE8F5020F1C293643505D6A7784919EABB8C5D2DFECF90613202D3A4754616E7B8895A2AFBCC9D6E3F0FD0A1724313E4B5865727F8C99A6B3C0CDDAE7F4010E1B2835424F5C697683909DAAB7C4D1DEEBF805121F2C394653606D7A8794A1AEBBC8D5E2EFFC091623303D4A5764717E8B98A5B2BFCCD9E6F3000D1A2734414E5B6875828F9CA9B6C3D0DDEAF704111E2B3845525F6C798693A0ADBAC7D4E1EEFB0815222F
-0x30 user-key-5 ParseRawUser 000D1A2734414E5B6875828F9CA9B6C3D0DDEAF704111E2B3845525F6C798693A0ADBAC7D4E1EEFB0815222F3C495663707D8A97A4B1BECBD8E5F2FF0C192633404D5A6774818E9BA8B5C2CFDCE9F603101D2A3744515E6B7885929FACB9C6D3E0EDFA0714212E3B4855626F7C8996A3B0BDCAD7E4F1FE0B1825323F4C596673808D9AA7B4C1CEDBE8F5020F1C293643505D6A7784919EABB8C5D2DFECF90613202D3A4754616E7B8895A2AFBCC9D6E3F0FD0A1724313E4B5865727F8C99A6B3C0CDDAE7F4010E1B2835424F5C697683909DAAB7C4D1DEEBF805121F2C394653606D7A8794A1AEBBC8D5E2EFFC091623303D4A5764717E8B98A5B2BFCCD9E6F3000D1A2734414E5B6875828F9CA9B6C3D0DDEAF704111E2B3845525F6C798693A0ADBAC7D4E1EEFB0815222F
 0x30 user-key-5 ParseAllFields {0x5=raw_l:'[300B]' 0xFF0006=u8:42}
 0x30 as-0xFE0001 TryParseSessionId False -1
 0x30 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[313B] 0xFE0001=raw_l:[300B] 0xFF0006=u8:42
@@ -275,7 +262,6 @@
 0x31 ParseU32ArrayField(0xFE0005) null
 0x31 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE3105000D1A27340600FF092A
 0x31 user-key-5 ParseUserBytes 000D1A2734
-0x31 user-key-5 ParseRawUser 000D1A2734
 0x31 user-key-5 ParseAllFields {0x5=raw:'000D1A2734' 0xFF0006=u8:42}
 0x31 as-0xFE0001 TryParseSessionId False -1
 0x31 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[17B] 0xFE0001=raw:000D1A2734 0xFF0006=u8:42
@@ -295,7 +281,6 @@
 0x32 ParseU32ArrayField(0xFE0005) null
 0x32 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE322C010000000D1A2734414E5B6875828F9CA9B6C3D0DDEAF704111E2B3845525F6C798693A0ADBAC7D4E1EEFB0815222F3C495663707D8A97A4B1BECBD8E5F2FF0C192633404D5A6774818E9BA8B5C2CFDCE9F603101D2A3744515E6B7885929FACB9C6D3E0EDFA0714212E3B4855626F7C8996A3B0BDCAD7E4F1FE0B1825323F4C596673808D9AA7B4C1CEDBE8F5020F1C293643505D6A7784919EABB8C5D2DFECF90613202D3A4754616E7B8895A2AFBCC9D6E3F0FD0A1724313E4B5865727F8C99A6B3C0CDDAE7F4010E1B2835424F5C697683909DAAB7C4D1DEEBF805121F2C394653606D7A8794A1AEBBC8D5E2EFFC091623303D4A5764717E8B98A5B2BFCCD9E6F3000D1A2734414E5B6875828F9CA9B6C3D0DDEAF704111E2B3845525F6C798693A0ADBAC7D4E1EEFB0815222F0600FF092A
 0x32 user-key-5 ParseUserBytes null
-0x32 user-key-5 ParseRawUser null
 0x32 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x32 as-0xFE0001 TryParseSessionId False -1
 0x32 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[315B] 0xFF0006=u8:42
@@ -315,7 +300,6 @@
 0x80 ParseU32ArrayField(0xFE0005) null
 0x80 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE80020001000600FF092A
 0x80 user-key-5 ParseUserBytes null
-0x80 user-key-5 ParseRawUser null
 0x80 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x80 as-0xFE0001 TryParseSessionId False -1
 0x80 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[15B] 0xFF0006=u8:42
@@ -335,7 +319,6 @@
 0x81 ParseU32ArrayField(0xFE0005) null
 0x81 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE810201000600FF092A
 0x81 user-key-5 ParseUserBytes null
-0x81 user-key-5 ParseRawUser null
 0x81 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x81 as-0xFE0001 TryParseSessionId False -1
 0x81 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[14B] 0xFF0006=u8:42
@@ -355,7 +338,6 @@
 0x82 ParseU32ArrayField(0xFE0005) null
 0x82 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE820200000001000600FF092A
 0x82 user-key-5 ParseUserBytes null
-0x82 user-key-5 ParseRawUser null
 0x82 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x82 as-0xFE0001 TryParseSessionId False -1
 0x82 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[17B] 0xFF0006=u8:42
@@ -375,7 +357,6 @@
 0x88 ParseU32ArrayField(0xFE0005) [7,-1]
 0x88 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE88030007000000FFFFFFFF630000000600FF092A
 0x88 user-key-5 ParseUserBytes null
-0x88 user-key-5 ParseRawUser null
 0x88 user-key-5 ParseAllFields {0x5=u32[]:'[7,4294967295]' 0xFF0006=u8:42}
 0x88 as-0xFE0001 TryParseSessionId False -1
 0x88 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[21B] 0xFE0001=u32[]:[7,4294967295] 0xFF0006=u8:42
@@ -395,7 +376,6 @@
 0x89 ParseU32ArrayField(0xFE0005) [7,-1]
 0x89 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE88030007000000FFFFFFFF630000000600FF092A
 0x89 user-key-5 ParseUserBytes null
-0x89 user-key-5 ParseRawUser null
 0x89 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x89 as-0xFE0001 TryParseSessionId False -1
 0x89 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[20B] 0xFF0006=u8:42
@@ -415,7 +395,6 @@
 0x8A ParseU32ArrayField(0xFE0005) [7,-1]
 0x8A RewriteU32ArrayField(0xFE0005,+99) 4D320500FE88030007000000FFFFFFFF630000000600FF092A
 0x8A user-key-5 ParseUserBytes null
-0x8A user-key-5 ParseRawUser null
 0x8A user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x8A as-0xFE0001 TryParseSessionId False -1
 0x8A as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[23B] 0xFF0006=u8:42
@@ -435,7 +414,6 @@
 0x90 ParseU32ArrayField(0xFE0005) null
 0x90 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE9002000700000000000000FFFFFFFFFFFFFFFF0600FF092A
 0x90 user-key-5 ParseUserBytes null
-0x90 user-key-5 ParseRawUser null
 0x90 user-key-5 ParseAllFields {0x5=u64[]:'[7,18446744073709551615]' 0xFF0006=u8:42}
 0x90 as-0xFE0001 TryParseSessionId False -1
 0x90 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[29B] 0xFE0001=u64[]:[7,18446744073709551615] 0xFF0006=u8:42
@@ -455,7 +433,6 @@
 0x91 ParseU32ArrayField(0xFE0005) null
 0x91 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE91020700000000000000FFFFFFFFFFFFFFFF0600FF092A
 0x91 user-key-5 ParseUserBytes null
-0x91 user-key-5 ParseRawUser null
 0x91 user-key-5 ParseAllFields {0x5=u64[]:'[7,18446744073709551615]' 0xFF0006=u8:42}
 0x91 as-0xFE0001 TryParseSessionId False -1
 0x91 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[28B] 0xFE0001=u64[]:[7,18446744073709551615] 0xFF0006=u8:42
@@ -475,7 +452,6 @@
 0x92 ParseU32ArrayField(0xFE0005) null
 0x92 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE92020000000700000000000000FFFFFFFFFFFFFFFF0600FF092A
 0x92 user-key-5 ParseUserBytes null
-0x92 user-key-5 ParseRawUser null
 0x92 user-key-5 ParseAllFields {0x5=u64[]:'[7,18446744073709551615]' 0xFF0006=u8:42}
 0x92 as-0xFE0001 TryParseSessionId False -1
 0x92 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[31B] 0xFE0001=u64[]:[7,18446744073709551615] 0xFF0006=u8:42
@@ -495,7 +471,6 @@
 0x98 ParseU32ArrayField(0xFE0005) null
 0x98 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE980200000D1A2734414E5B6875828F9CA9B6C303101D2A3744515E6B7885929FACB9C60600FF092A
 0x98 user-key-5 ParseUserBytes null
-0x98 user-key-5 ParseRawUser null
 0x98 user-key-5 ParseAllFields {0x5=ip6[]:'[000D1A2734414E5B6875828F9CA9B6C3,03101D2A3744515E6B7885929FACB9C6]' 0xFF0006=u8:42}
 0x98 as-0xFE0001 TryParseSessionId False -1
 0x98 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[45B] 0xFE0001=ip6[]:[000D1A2734414E5B6875828F9CA9B6C3,03101D2A3744515E6B7885929FACB9C6] 0xFF0006=u8:42
@@ -515,7 +490,6 @@
 0x99 ParseU32ArrayField(0xFE0005) null
 0x99 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE9902000D1A2734414E5B6875828F9CA9B6C303101D2A3744515E6B7885929FACB9C60600FF092A
 0x99 user-key-5 ParseUserBytes null
-0x99 user-key-5 ParseRawUser null
 0x99 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x99 as-0xFE0001 TryParseSessionId False -1
 0x99 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[44B] 0xFF0006=u8:42
@@ -535,7 +509,6 @@
 0x9A ParseU32ArrayField(0xFE0005) null
 0x9A RewriteU32ArrayField(0xFE0005,+99) 4D320500FE9A02000000000D1A2734414E5B6875828F9CA9B6C303101D2A3744515E6B7885929FACB9C60600FF092A
 0x9A user-key-5 ParseUserBytes null
-0x9A user-key-5 ParseRawUser null
 0x9A user-key-5 ParseAllFields {0xFF0006=u8:42}
 0x9A as-0xFE0001 TryParseSessionId False -1
 0x9A as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[47B] 0xFF0006=u8:42
@@ -555,7 +528,6 @@
 0xA0 ParseU32ArrayField(0xFE0005) null
 0xA0 RewriteU32ArrayField(0xFE0005,+99) 4D320500FEA0020003006F6E65030074776F0600FF092A
 0xA0 user-key-5 ParseUserBytes null
-0xA0 user-key-5 ParseRawUser null
 0xA0 user-key-5 ParseAllFields {0x5=str[]:'[one,two]' 0xFF0006=u8:42}
 0xA0 as-0xFE0001 TryParseSessionId False -1
 0xA0 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[23B] 0xFE0001=str[]:[one,two] 0xFF0006=u8:42
@@ -575,7 +547,6 @@
 0xA1 ParseU32ArrayField(0xFE0005) null
 0xA1 RewriteU32ArrayField(0xFE0005,+99) 4D320500FEA102036F6E650374776F0600FF092A
 0xA1 user-key-5 ParseUserBytes null
-0xA1 user-key-5 ParseRawUser null
 0xA1 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0xA1 as-0xFE0001 TryParseSessionId False -1
 0xA1 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[20B] 0xFF0006=u8:42
@@ -595,7 +566,6 @@
 0xA2 ParseU32ArrayField(0xFE0005) null
 0xA2 RewriteU32ArrayField(0xFE0005,+99) 4D320500FEA202000000030000006F6E650300000074776F0600FF092A
 0xA2 user-key-5 ParseUserBytes null
-0xA2 user-key-5 ParseRawUser null
 0xA2 user-key-5 ParseAllFields {0xFF0006=u8:42}
 0xA2 as-0xFE0001 TryParseSessionId False -1
 0xA2 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[29B] 0xFF0006=u8:42
@@ -615,7 +585,6 @@
 0xA8 ParseU32ArrayField(0xFE0005) null
 0xA8 RewriteU32ArrayField(0xFE0005,+99) 4D320500FEA802000E004D3201000009090200002102696E07004D320100FE09040600FF092A
 0xA8 user-key-5 ParseUserBytes null
-0xA8 user-key-5 ParseRawUser null
 0xA8 user-key-5 ParseAllFields {0x5=msg[]:[{0x1=u8:9 0x2=str:'in'},{0xFE0001=u8:4}] 0xFF0006=u8:42}
 0xA8 as-0xFE0001 TryParseSessionId False -1
 0xA8 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[38B] 0xFE0001=msg[]:[{0x1=9,0x2=in},{0xFE0001=4}] 0xFF0006=u8:42
@@ -635,7 +604,6 @@
 0xA9 ParseU32ArrayField(0xFE0005) null
 0xA9 RewriteU32ArrayField(0xFE0005,+99) 4D320500FEA9020E4D3201000009090200002102696E074D320100FE09040600FF092A
 0xA9 user-key-5 ParseUserBytes null
-0xA9 user-key-5 ParseRawUser null
 0xA9 user-key-5 ParseAllFields {0x5=msg[]:[{0x1=u8:9 0x2=str:'in'},{0xFE0001=u8:4}] 0xFF0006=u8:42}
 0xA9 as-0xFE0001 TryParseSessionId False -1
 0xA9 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[35B] 0xFE0001=msg[]:[{0x1=9,0x2=in},{0xFE0001=4}] 0xFF0006=u8:42
@@ -655,7 +623,6 @@
 0xAA ParseU32ArrayField(0xFE0005) null
 0xAA RewriteU32ArrayField(0xFE0005,+99) 4D320500FEAA020000000E0000004D3201000009090200002102696E070000004D320100FE09040600FF092A
 0xAA user-key-5 ParseUserBytes null
-0xAA user-key-5 ParseRawUser null
 0xAA user-key-5 ParseAllFields {0x5=msg[]:[{0x1=u8:9 0x2=str:'in'},{0xFE0001=u8:4}] 0xFF0006=u8:42}
 0xAA as-0xFE0001 TryParseSessionId False -1
 0xAA as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[44B] 0xFE0001=msg[]:[{0x1=9,0x2=in},{0xFE0001=4}] 0xFF0006=u8:42
@@ -675,7 +642,6 @@
 0xB0 ParseU32ArrayField(0xFE0005) null
 0xB0 RewriteU32ArrayField(0xFE0005,+99) 4D320500FEB002000300000D1A020005120600FF092A
 0xB0 user-key-5 ParseUserBytes null
-0xB0 user-key-5 ParseRawUser null
 0xB0 user-key-5 ParseAllFields {0x5=raw[]:'[000D1A,0512]' 0xFF0006=u8:42}
 0xB0 as-0xFE0001 TryParseSessionId False -1
 0xB0 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[22B] 0xFE0001=raw[]:[000D1A,0512] 0xFF0006=u8:42
@@ -695,7 +661,6 @@
 0xB1 ParseU32ArrayField(0xFE0005) null
 0xB1 RewriteU32ArrayField(0xFE0005,+99) 4D320500FEB10203000D1A0205120600FF092A
 0xB1 user-key-5 ParseUserBytes null
-0xB1 user-key-5 ParseRawUser null
 0xB1 user-key-5 ParseAllFields {0x5=raw[]:'[000D1A,0512]' 0xFF0006=u8:42}
 0xB1 as-0xFE0001 TryParseSessionId False -1
 0xB1 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[19B] 0xFE0001=raw[]:[000D1A,0512] 0xFF0006=u8:42
@@ -715,7 +680,6 @@
 0xB2 ParseU32ArrayField(0xFE0005) null
 0xB2 RewriteU32ArrayField(0xFE0005,+99) 4D320500FEB20200000003000000000D1A0200000005120600FF092A
 0xB2 user-key-5 ParseUserBytes null
-0xB2 user-key-5 ParseRawUser null
 0xB2 user-key-5 ParseAllFields {0x5=raw[]:'[000D1A,0512]' 0xFF0006=u8:42}
 0xB2 as-0xFE0001 TryParseSessionId False -1
 0xB2 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[28B] 0xFE0001=raw[]:[000D1A,0512] 0xFF0006=u8:42
@@ -735,7 +699,6 @@
 0x50 ParseU32ArrayField(0xFE0005) null
 0x50 RewriteU32ArrayField(0xFE0005,+99) 4D320500FE50DEAD0600FF092A
 0x50 user-key-5 ParseUserBytes null
-0x50 user-key-5 ParseRawUser null
 0x50 user-key-5 ParseAllFields {}
 0x50 as-0xFE0001 TryParseSessionId False -1
 0x50 as-0xFE0001 ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — and no error field either; the reply was M2[13B]
@@ -751,8 +714,7 @@ null Describe (null)
 empty ParseSysStatus 0
 truncated-u32 ParseAllFields {0xFE0005=u32:null}
 truncated-str ParseAllFields {0xFE0005=str:'A'}
-truncated-raw ParseUserBytes throws IndexOutOfRangeException
-truncated-raw ParseRawUser throws IndexOutOfRangeException
+truncated-raw ParseUserBytes null
 truncated-raw ExtractRawField null
 error+string DescribeSysError router said error 0xFE0006 'timeout'
 error+string ParseSessionId throws InvalidOperationException: No SESSION_ID in M2 response — router said error 0xFE0006 'timeout'

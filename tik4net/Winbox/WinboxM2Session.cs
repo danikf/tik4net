@@ -360,7 +360,7 @@ namespace tik4net.Winbox
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.LegacyAuth.GetSalt),
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(), M2Message.SessionIdField(sessionId));
             byte[] saltResp = SendRecvRaw(saltMsg, 5000);
-            byte[]? salt = M2Message.ParseRawUser(saltResp, WinboxM2Protocol.LegacyAuth.Key.Salt);
+            byte[]? salt = M2Message.ParseUserBytes(saltResp, WinboxM2Protocol.LegacyAuth.Key.Salt);
             if (salt == null)
                 throw new InvalidOperationException("No salt in challenge response");
 

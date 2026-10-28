@@ -128,7 +128,7 @@ namespace tik4net.unittests.Winbox
 
                     byte[] response = session.SendReceive(request, IoTimeoutMs);
 
-                    CollectionAssert.AreEqual(payload, M2Message.ParseRawUser(response, 0x0C),
+                    CollectionAssert.AreEqual(payload, M2Message.ParseUserBytes(response, 0x0C),
                         "A multi-chunk response must reassemble byte-for-byte.");
                 });
         }
@@ -197,7 +197,7 @@ namespace tik4net.unittests.Winbox
 
                     byte[] response = session.SendReceive(request, IoTimeoutMs);
 
-                    CollectionAssert.AreEqual(payload, M2Message.ParseRawUser(response, 0x0C));
+                    CollectionAssert.AreEqual(payload, M2Message.ParseUserBytes(response, 0x0C));
                 });
         }
 

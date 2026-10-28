@@ -205,7 +205,6 @@ namespace tik4net.unittests.Golden
 
                 byte[] user = M2Message.BuildM2(Field(5, type, value), tail);
                 lines.Add(t + " user-key-5 ParseUserBytes " + Try(() => Bytes(M2Message.ParseUserBytes(user, 5))));
-                lines.Add(t + " user-key-5 ParseRawUser " + Try(() => Bytes(M2Message.ParseRawUser(user, 5))));
                 lines.Add(t + " user-key-5 ParseAllFields " + Try(() => Fields(M2Message.ParseAllFields(user))));
 
                 byte[] id = M2Message.BuildM2(Field(WinboxM2Protocol.RecordKey.Id, type, value), tail);
@@ -235,7 +234,6 @@ namespace tik4net.unittests.Golden
             lines.Add("truncated-u32 ParseAllFields " + Fields(M2Message.ParseAllFields(new byte[] { (byte)'M', (byte)'2', 5, 0, 0xFE, 0x08, 1, 2 })));
             lines.Add("truncated-str ParseAllFields " + Fields(M2Message.ParseAllFields(new byte[] { (byte)'M', (byte)'2', 5, 0, 0xFE, 0x21, 9, 0x41 })));
             lines.Add("truncated-raw ParseUserBytes " + Try(() => Bytes(M2Message.ParseUserBytes(new byte[] { (byte)'M', (byte)'2', 5, 0, 0, 0x31 }, 5))));
-            lines.Add("truncated-raw ParseRawUser " + Try(() => Bytes(M2Message.ParseRawUser(new byte[] { (byte)'M', (byte)'2', 5, 0, 0, 0x31 }, 5))));
             lines.Add("truncated-raw ExtractRawField " + Try(() => Bytes(M2Message.ExtractRawField(new byte[] { (byte)'M', (byte)'2', 5, 0, 0xFE, 0x31, 9, 1 }, 0xFE0005))));
             byte[] errored = M2Message.BuildM2(M2Message.U32Sys(WinboxM2Protocol.SysKey.ErrorCode, 0xFE0006),
                 M2Message.StringSys(WinboxM2Protocol.SysKey.ErrorString, "timeout"));

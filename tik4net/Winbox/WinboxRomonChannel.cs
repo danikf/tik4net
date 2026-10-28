@@ -108,7 +108,7 @@ namespace tik4net.Winbox
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, WinboxM2Protocol.GetAllFlags)), timeoutMs, host, "read of its RoMON settings");
             var fields = M2Message.ParseAllFields(reply);
             bool enabled = fields.TryGetValue(KeySettingsEnabled, out var e) && e.Item2 is bool b && b;
-            byte[]? id = M2Message.ParseRawUser(reply, KeySettingsCurrentId);
+            byte[]? id = M2Message.ParseUserBytes(reply, KeySettingsCurrentId);
             if (!enabled || id == null || id.Length != 6)
                 throw new TikRomonRelayException(TikRomonRelayFailure.RomonNotEnabledOnAgent,
                     "RoMON is not enabled on the agent " + host + " (/tool romon set enabled=yes), so it cannot reach "

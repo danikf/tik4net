@@ -724,7 +724,8 @@ namespace tik4net.Winbox
             return slice;
         }
 
-        // Parses the bytes of a user-namespace field; handles raw_s/raw_l and string_s/string_l.
+        // The bytes of the first user-namespace field with keyId that is a string or a raw, in either size form;
+        // null when there is none or its length is cut off.
         internal static byte[]? ParseUserBytes(byte[] m2, int keyId)
         {
             if (m2 == null || m2.Length < 4) return null;
@@ -734,6 +735,7 @@ namespace tik4net.Winbox
                 int pos = f.ValueStart;
                 if (f.Type == (TypeByte.Raw | TypeByte.Short) || f.Type == (TypeByte.String | TypeByte.Short))
                 {
+                    if (pos >= m2.Length) return null;
                     int len = m2[pos++];
                     return m2.Skip(pos).Take(len).ToArray();
                 }
@@ -743,20 +745,6 @@ namespace tik4net.Winbox
                     int len = BitConverter.ToUInt16(m2, pos); pos += 2;
                     return m2.Skip(pos).Take(len).ToArray();
                 }
-            }
-            return null;
-        }
-
-        internal static byte[]? ParseRawUser(byte[] m2, int keyId)
-        {
-            if (m2 == null || m2.Length < 2) return null;
-            foreach (var f in Walk(m2))
-            {
-                if (f.Key >> 16 != 0 || (f.Key & 0xFFFF) != keyId) continue;
-                if (f.Type != (TypeByte.Raw | TypeByte.Short) && f.Type != TypeByte.Raw) continue;
-                int pos = f.ValueStart;
-                int len = f.Type == (TypeByte.Raw | TypeByte.Short) ? m2[pos++] : (int)BitConverter.ToUInt16(m2, (pos += 2) - 2);
-                return m2.Skip(pos).Take(len).ToArray();
             }
             return null;
         }
