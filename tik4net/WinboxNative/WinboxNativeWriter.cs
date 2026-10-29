@@ -45,7 +45,7 @@ namespace tik4net.WinboxNative
                     _host.References.Forget();
                     if (!newId.HasValue)
                         throw TikAddIdNotRead.Create(_host.CommandFor(descriptor), null);
-                    return "*" + unchecked((uint)newId.Value).ToString("X");
+                    return WinboxRecordId.Format(unchecked((uint)newId.Value));
                 }
             }
             catch (WinboxM2OperationException ex) { throw _host.TranslateM2Error(ex, descriptor.CommandText); }
@@ -400,13 +400,8 @@ namespace tik4net.WinboxNative
         // list to answer. Returns -1 (send no .id) otherwise, which is the normal case.
         private static int SingletonIdOf(TikCommandDescriptor descriptor)
         {
-            string? idParam = WinboxNativeConnection.FindParam(descriptor, TikSpecialProperties.Id);
-            // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
-            if (!string.IsNullOrEmpty(idParam) && idParam!.StartsWith("*")
-                && int.TryParse(idParam.Substring(1), System.Globalization.NumberStyles.HexNumber,
-                    System.Globalization.CultureInfo.InvariantCulture, out int hexId))
-                return hexId;
-            return -1;
+            return WinboxRecordId.TryParse(WinboxNativeConnection.FindParam(descriptor, TikSpecialProperties.Id), out int hexId)
+                ? hexId : -1;
         }
 
         // Resolve the M2 numeric record id from the command's .id parameter. The .id may be the RouterOS
@@ -428,14 +423,12 @@ namespace tik4net.WinboxNative
                 idParam = WinboxNativeConnection.FindParam(descriptor, TikSpecialProperties.Id);
             if (!string.IsNullOrEmpty(idParam))
             {
-                if (idParam!.StartsWith("*") &&
-                    int.TryParse(idParam.Substring(1), System.Globalization.NumberStyles.HexNumber,
-                        System.Globalization.CultureInfo.InvariantCulture, out int hexId))
+                if (WinboxRecordId.TryParse(idParam, out int hexId))
                     return hexId;
 
                 // Friendly name (or a where-style key): match against the record 'name' field via getall.
                 int? byName = await _host.References
-                    .FindIdByNameAsync(handler, resolver, idParam, cancellationToken).ConfigureAwait(false);
+                    .FindIdByNameAsync(handler, resolver, idParam!, cancellationToken).ConfigureAwait(false);
                 if (byName.HasValue) return byName.Value;
             }
 
@@ -489,12 +482,10 @@ namespace tik4net.WinboxNative
         {
             string? dest = WinboxNativeConnection.FindParam(descriptor, "destination") ?? WinboxNativeConnection.FindParam(descriptor, "move-before");
             if (string.IsNullOrEmpty(dest)) return -1; // move to end
-            if (dest!.StartsWith("*") &&
-                int.TryParse(dest.Substring(1), System.Globalization.NumberStyles.HexNumber,
-                    System.Globalization.CultureInfo.InvariantCulture, out int hexId))
+            if (WinboxRecordId.TryParse(dest, out int hexId))
                 return hexId;
             int? byName = await _host.References
-                .FindIdByNameAsync(handler, resolver, dest, cancellationToken).ConfigureAwait(false);
+                .FindIdByNameAsync(handler, resolver, dest!, cancellationToken).ConfigureAwait(false);
             if (byName.HasValue) return byName.Value;
             throw new TikNoSuchItemException(_host.CommandFor(descriptor.CommandText), new TikTrapSentenceResult(
                 $"no such item: could not resolve move destination '{dest}' on '{descriptor.CommandText}'."));

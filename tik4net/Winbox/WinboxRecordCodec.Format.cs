@@ -1373,7 +1373,7 @@ namespace tik4net.Winbox
         {
             if (value == null) return "*0";
             if (WinboxFieldResolver.TryToInt64(value, out long id) && id >= 0)
-                return "*" + ((ulong)id).ToString("X");
+                return WinboxRecordId.Format((ulong)id);
             // Handing back the raw text produces an .id that is not a RouterOS handle at all, so every
             // later set/remove addressed by it will fail — noisily, but a long way from here. Trace it.
             TraceNonNumeric(".id", value);
