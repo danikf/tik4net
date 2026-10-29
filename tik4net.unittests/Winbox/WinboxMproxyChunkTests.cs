@@ -17,9 +17,7 @@ namespace tik4net.unittests.Winbox
     public class WinboxMproxyChunkTests
     {
         private static byte[]? Extract(byte[] reply)
-            => (byte[]?)typeof(WinboxJgCatalog)
-                .GetMethod("ExtractMproxyChunk", BindingFlags.Static | BindingFlags.NonPublic)!
-                .Invoke(null, new object[] { reply });
+            => WinboxMproxyClient.ExtractChunk(reply);
 
         private static readonly byte[] Chunk = Enumerable.Range(0, 40).Select(i => (byte)(i + 1)).ToArray();
 

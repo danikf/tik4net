@@ -237,19 +237,16 @@ namespace tik4net.unittests.Golden
             // ── catalog: mproxy open (both commands) and a two-chunk read ──
             var cat = new RecordingChannel();
             var ops = new WinboxNativeM2Operations(cat, 5000);
-            var sflags = BindingFlags.NonPublic | BindingFlags.Static;
-            var open = typeof(WinboxJgCatalog).GetMethod("MproxyOpen", sflags)!;
-            var read = typeof(WinboxJgCatalog).GetMethod("MproxyRead", sflags)!;
             cat.Answer = req => ReplyTo(req, M2Message.SessionIdField(19));
-            lines.Add("mproxy open(OpenStatic) returns " + open.Invoke(null, new object[] { ops, "roteros.jg.gz", WinboxM2Protocol.Mproxy.OpenStatic }));
-            lines.Add("mproxy open(OpenVarPkg) returns " + open.Invoke(null, new object[] { ops, "wlan6.jg", WinboxM2Protocol.Mproxy.OpenVarPkg }));
+            lines.Add("mproxy open(OpenStatic) returns " + WinboxMproxyClient.Open(ops, "roteros.jg.gz", WinboxM2Protocol.Mproxy.OpenStatic));
+            lines.Add("mproxy open(OpenVarPkg) returns " + WinboxMproxyClient.Open(ops, "wlan6.jg", WinboxM2Protocol.Mproxy.OpenVarPkg));
             lines.Add("mproxy open sent " + cat.Take());
             cat.Answer = req => ReplyTo(req, M2Message.U32Sys(WinboxM2Protocol.SysKey.ErrorCode, 0xFE0006));
-            lines.Add("mproxy open(refused) returns " + open.Invoke(null, new object[] { ops, "missing.jg", WinboxM2Protocol.Mproxy.OpenStatic }));
+            lines.Add("mproxy open(refused) returns " + WinboxMproxyClient.Open(ops, "missing.jg", WinboxM2Protocol.Mproxy.OpenStatic));
             cat.Take();
             int chunk = 0;
             cat.Answer = req => ReplyTo(req, M2Message.RawUser(3, chunk++ == 0 ? Enumerable.Repeat((byte)0x41, WinboxM2Protocol.Mproxy.ChunkSize).ToArray() : new byte[] { 0x42, 0x43 }));
-            lines.Add("mproxy read returns " + Bytes((byte[])read.Invoke(null, new object[] { ops, 19 })!));
+            lines.Add("mproxy read returns " + Bytes(WinboxMproxyClient.Read(ops, 19)!));
             lines.Add("mproxy read sent " + cat.Take());
 
             // ── legacy MD5 (pre-6.43): the four requests of the login, as FakeWinboxServer receives them ──

@@ -1568,7 +1568,7 @@ namespace tik4net.Winbox
             return long.TryParse(inside, out _) ? label.Substring(0, open - 1) : label;
         }
 
-        // A .jg number too large for int stays a string token after parsing (JgParser.Scalar), so a `def` or
+        // A .jg number too large for int stays a string token after parsing (WinboxJgParser.Scalar), so a `def` or
         // `defid` of 4294967295 arrives as text. Read both forms.
         private static bool TryToLong(object v, out long result)
         {

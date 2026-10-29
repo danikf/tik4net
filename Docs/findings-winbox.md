@@ -34,9 +34,15 @@ tik4net/Winbox/                shared session/crypto layer + native M2 protocol 
 ├── WinboxM2Multiplexer.cs         request/reply correlation for concurrent M2 operations (§12)
 ├── WinboxNativeM2Operations.cs    CRUD/monitor operations: getall/get-one/set/add/remove/move/singleton
 ├── WinboxM2Continuation.cs        getall/monitor pagination cursor (§12.7.1)
-├── WinboxJgCatalog*.cs / WinboxJgField.cs  the `.jg` catalog model (query surface; load, walk, parser, mproxy parts)
+├── WinboxJgCatalog*.cs / WinboxJgField.cs  the `.jg` catalog model (query surface; load and walk parts)
+├── WinboxJgParser.cs              the JS-literal parser the catalog reads a `.jg` with
+├── WinboxMproxyClient.cs          the mproxy [2,2] file transfer the catalog loads through
 ├── WinboxFieldResolver*.cs        field name/type resolution between the API and `.jg` labels (aliases, encode, values parts)
-└── WinboxRecordCodec*.cs          record decode (format and router-clock parts)
+├── WinboxValueFormat.cs           value formats both directions share (addresses, MACs, ranges, durations, numbers)
+├── WinboxDecodePlan.cs            the resolver's maps for one command's decode
+├── WinboxRecordCodec*.cs          record decode (format and router-clock parts)
+├── WinboxReferenceTables.cs       name ↔ id of referenced tables, both directions, and bit-set member maps
+└── WinboxRecordId.cs              the `*HEX` record handle
 
 tik4net/Connection/TikOpenRetry.cs   bounded retry over a transient login refusal (§13), shared by every transport
 

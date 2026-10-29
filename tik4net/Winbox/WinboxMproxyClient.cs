@@ -10,24 +10,28 @@ using tik4net.Diagnostics;
 
 namespace tik4net.Winbox
 {
-    internal sealed partial class WinboxJgCatalog
+    /// <summary>
+    /// The file transfer the catalog loads through: the mproxy handler <c>[2,2]</c>'s open and chunked read of a
+    /// router file (the plugin <c>list</c>, a <c>&lt;name&gt;.jg.gz</c>), over the native connection's M2 operations.
+    /// </summary>
+    internal static class WinboxMproxyClient
     {
-        // ── mproxy .jg fetch (gzip <name>.jg.gz over [2,2] cmd=3) ──────────────
+        // ── mproxy .jg fetch (gzip <name>.jg.gz over [2,2] cmd=7) ──────────────
 
         // `uniqueName` must be the version-stamped name from the mproxy "list" catalog
         // ("roteros-33a7039ff432.jg"), never the stable plugin name. The stable name is a trap: mproxy
         // *opens* "roteros.jg.gz" and even reports the right size, but the subsequent read never answers
         // and takes the whole M2 channel down with it, so every later plugin fails too.
-        private static string? FetchJg(WinboxNativeM2Operations ops, string uniqueName)
+        internal static string? FetchJg(WinboxNativeM2Operations ops, string uniqueName)
         {
             // The on-disk file in /home/web/webfig/ is "<unique>.gz" (gzip), served by the mproxy static
             // handler via cmd=7 (NOT cmd=3 = /var/pckg, which CHR denies). A refused open is harmless —
             // it is a clean error reply and the channel survives it.
-            int handle = MproxyOpen(ops, uniqueName + ".gz", WinboxM2Protocol.Mproxy.OpenStatic);
-            if (handle < 0) handle = MproxyOpen(ops, uniqueName, WinboxM2Protocol.Mproxy.OpenStatic);
+            int handle = Open(ops, uniqueName + ".gz", WinboxM2Protocol.Mproxy.OpenStatic);
+            if (handle < 0) handle = Open(ops, uniqueName, WinboxM2Protocol.Mproxy.OpenStatic);
             if (handle < 0) return null;
 
-            byte[]? raw = MproxyRead(ops, handle);
+            byte[]? raw = Read(ops, handle);
             if (raw == null || raw.Length == 0) return null;
 
             // .jg.gz is gzip; a plain .jg is already text. Detect the gzip magic.
@@ -36,7 +40,7 @@ namespace tik4net.Winbox
             return Encoding.UTF8.GetString(raw);
         }
 
-        private static int MproxyOpen(WinboxNativeM2Operations ops, string filename, int openCmd)
+        internal static int Open(WinboxNativeM2Operations ops, string filename, int openCmd)
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
@@ -50,7 +54,7 @@ namespace tik4net.Winbox
 
         private const int MproxyChunk = WinboxM2Protocol.Mproxy.ChunkSize;
 
-        private static byte[]? MproxyRead(WinboxNativeM2Operations ops, int handle)
+        internal static byte[]? Read(WinboxNativeM2Operations ops, int handle)
         {
             var all = new List<byte>();
             for (int guard = 0; guard < 256; guard++)
@@ -62,7 +66,7 @@ namespace tik4net.Winbox
                     M2Message.U32User(WinboxM2Protocol.Mproxy.Key.MaxChunk, MproxyChunk),
                     M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mproxy.Read));  // read chunk
                 byte[]? resp = ops.SendReceive(msg);
-                byte[]? chunk = ExtractMproxyChunk(resp);
+                byte[]? chunk = ExtractChunk(resp);
                 if (chunk == null || chunk.Length == 0) break;
                 all.AddRange(chunk);
                 if (chunk.Length < MproxyChunk) break;
@@ -74,7 +78,7 @@ namespace tik4net.Winbox
         // one TLV walk (M2Message.Walk) finds whole. An empty or cut-off field is stepped over by the walk's own rule —
         // a hand-written walk here once skipped an empty field from past its length and read the next field's first
         // byte as a length.
-        private static byte[]? ExtractMproxyChunk(byte[]? resp)
+        internal static byte[]? ExtractChunk(byte[]? resp)
         {
             if (resp == null || resp.Length < 2 || resp[0] != 'M' || resp[1] != '2') return resp;
             foreach (var f in M2Message.Walk(resp))

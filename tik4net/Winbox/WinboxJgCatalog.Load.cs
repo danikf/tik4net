@@ -45,9 +45,9 @@ namespace tik4net.Winbox
         {
             var result = new List<PluginEntry>();
 
-            int handle = MproxyOpen(ops, "list", WinboxM2Protocol.Mproxy.OpenStatic);
+            int handle = WinboxMproxyClient.Open(ops, "list", WinboxM2Protocol.Mproxy.OpenStatic);
             if (handle < 0) return result;
-            byte[]? raw = MproxyRead(ops, handle);
+            byte[]? raw = WinboxMproxyClient.Read(ops, handle);
             if (raw == null || raw.Length == 0) return result;
 
             return ParsePluginList(Encoding.UTF8.GetString(raw));
@@ -254,7 +254,7 @@ namespace tik4net.Winbox
             var catalog = Assemble(
                 plugins.OrderByDescending(p => string.Equals(p.Name, "roteros.jg", StringComparison.OrdinalIgnoreCase)),
                 plugin => ReadCached(plugin, cacheDir),
-                plugin => FetchJg(ops, plugin.Unique),
+                plugin => WinboxMproxyClient.FetchJg(ops, plugin.Unique),
                 (plugin, text) => StoreCached(plugin, cacheDir, text),
                 plugin => EvictCached(plugin, cacheDir),
                 out bool complete);
@@ -379,7 +379,7 @@ namespace tik4net.Winbox
         {
             try
             {
-                object tree = new JgParser(text).Parse();
+                object tree = new WinboxJgParser(text).Parse();
                 Walk(tree, null, new List<string>());
                 SettleTitleNames();
                 ResolveConditions();
