@@ -378,6 +378,13 @@ namespace tik4net.Cli
         TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         /// <summary>
+        /// The RoMON agent as a message names it: its host, or — a MAC-layer agent given by MAC alone has none — its
+        /// <paramref name="routerMac"/>. Shared by MAC-Telnet and the WinBox relay (<see cref="Winbox.WinboxRomonChannel"/>).
+        /// </summary>
+        internal static string AgentName(string? host, string? routerMac)
+            => !string.IsNullOrEmpty(host) ? host! : !string.IsNullOrEmpty(routerMac) ? routerMac! : "(unnamed)";
+
+        /// <summary>
         /// A failed login to the RoMON agent, said to be the agent's: otherwise the message reads as if the
         /// target had refused, and the target's credentials are the first thing a reader would doubt. Only for
         /// an agent that answered and refused — an agent port that refuses the connection is a

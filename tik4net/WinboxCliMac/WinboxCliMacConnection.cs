@@ -79,6 +79,6 @@ namespace tik4net.WinboxCliMac
         private CliTerminalOpen Session(string host, int port, string user, string password)
             => WinboxCliSession.Open(() => new WinboxMacM2Session(RouterMac), RomonTarget, Encoding, ClientTimeouts,
                 host, port, user, password,
-                agentRomonId => RomonEntered(host, user, agentRomonId, TikRomonRelay.Winbox));
+                agentRomonId => RomonEntered(host, user, agentRomonId, TikRomonRelay.Winbox), RouterMac);
     }
 }

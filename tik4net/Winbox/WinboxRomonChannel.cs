@@ -43,12 +43,20 @@ namespace tik4net.Winbox
 
         private readonly IWinboxM2Channel _agent;
         private readonly RomonRelayTarget _target;
+        private readonly string? _agentMac;
         private int _link;
 
-        internal WinboxRomonChannel(IWinboxM2Channel agent, RomonRelayTarget target)
+        /// <param name="agent">The carrier to the agent.</param>
+        /// <param name="target">The router to relay to.</param>
+        /// <param name="agentMac">
+        /// The agent's MAC on a MAC-layer carrier, which names an agent opened by MAC alone in the relay's messages
+        /// (<see cref="CliConnectionBase.AgentName"/>); <c>null</c> on TCP.
+        /// </param>
+        internal WinboxRomonChannel(IWinboxM2Channel agent, RomonRelayTarget target, string? agentMac = null)
         {
             _agent = agent ?? throw new ArgumentNullException(nameof(agent));
             _target = target ?? throw new ArgumentNullException(nameof(target));
+            _agentMac = agentMac;
         }
 
         /// <summary>The agent's own RoMON id, read when the channel opened; <c>null</c> before.</summary>
@@ -64,13 +72,15 @@ namespace tik4net.Winbox
         public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs,
             int sendTimeoutMs = 0)
         {
+            // The agent as the messages below name it: a MAC-layer agent opened by MAC alone has no host.
+            string agentName = CliConnectionBase.AgentName(host, _agentMac);
             try { _agent.Open(host, port, user, password, connectTimeoutMs, ioTimeoutMs, sendTimeoutMs); }
-            catch (TikConnectionLoginException ex) { throw CliConnectionBase.AgentLoginFailed(host, ex); }
-            _agentHost = host;
+            catch (TikConnectionLoginException ex) { throw CliConnectionBase.AgentLoginFailed(agentName, ex); }
+            _agentHost = agentName;
 
-            AgentRomonId = ReadAgentRomonId(host, ioTimeoutMs);
-            _link = Connect(host, Math.Max(ioTimeoutMs, ConnectWaitMs));
-            CheckLinkAnswers(host, Math.Min(ioTimeoutMs > 0 ? ioTimeoutMs : LinkAnswerWaitMs, LinkAnswerWaitMs));
+            AgentRomonId = ReadAgentRomonId(agentName, ioTimeoutMs);
+            _link = Connect(agentName, Math.Max(ioTimeoutMs, ConnectWaitMs));
+            CheckLinkAnswers(agentName, Math.Min(ioTimeoutMs > 0 ? ioTimeoutMs : LinkAnswerWaitMs, LinkAnswerWaitMs));
         }
 
         // A link the agent has just opened is now and then silent for good — it happens while /tool romon ssh relays

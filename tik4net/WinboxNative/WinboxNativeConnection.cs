@@ -317,10 +317,15 @@ namespace tik4net.WinboxNative
         /// </summary>
         private protected virtual IWinboxM2Channel CreateCarrier() => new WinboxM2Session();
 
+        /// <summary>
+        /// The router's MAC on a MAC-layer carrier, which names a RoMON agent opened by MAC alone; <c>null</c> on TCP.
+        /// </summary>
+        private protected virtual string? CarrierRouterMac => null;
+
         // Through a RoMON agent the carrier goes to the agent, and the relay channel routes every message on to the
         // target (Docs/findings-romon.md §5).
         private IWinboxM2Channel CreateChannel()
-            => RomonTarget == null ? CreateCarrier() : new WinboxRomonChannel(CreateCarrier(), RomonTarget);
+            => RomonTarget == null ? CreateCarrier() : new WinboxRomonChannel(CreateCarrier(), RomonTarget, CarrierRouterMac);
 
         /// <summary>
         /// When set before <c>Open</c>, the host, user and password given to <c>Open</c> are the AGENT's, and the

@@ -65,7 +65,7 @@ namespace tik4net.MacTelnet
         public string? RouterMac { get; set; }
 
         // The agent as a message names it: a MAC-layer agent may have been given by MAC alone.
-        private string AgentName(string host) => !string.IsNullOrEmpty(host) ? host : RouterMac ?? "(unnamed)";
+        private string AgentName(string host) => CliConnectionBase.AgentName(host, RouterMac);
 
         // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 

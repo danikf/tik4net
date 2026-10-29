@@ -15,10 +15,10 @@ namespace tik4net.WinboxCli
         /// </summary>
         internal static CliConnectionBase.CliTerminalOpen Open(Func<IWinboxM2Channel> newCarrier, RomonRelayTarget? target,
             Encoding encoding, CliClientTimeouts timeouts, string host, int port, string user, string password,
-            Action<string> romonEntered)
+            Action<string> romonEntered, string? agentMac = null)
         {
             var carrier = newCarrier();
-            var relay = target == null ? null : new WinboxRomonChannel(carrier, target);
+            var relay = target == null ? null : new WinboxRomonChannel(carrier, target, agentMac);
             var client = new WinboxCliClient(relay ?? carrier, encoding, timeouts);
             // A direct login asks for a console without colours (+c), as every terminal login does: RouterOS strips the
             // options before checking the password, and without them it repaints every prompt and echoed keystroke in
