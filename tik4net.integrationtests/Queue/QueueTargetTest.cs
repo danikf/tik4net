@@ -80,5 +80,27 @@ namespace tik4net.integrationtests.Queue
             using (var api = OpenSideApi())
                 Assert.AreEqual("lo", TestQueue(api).Target.ToString(), "as the API reads it after the write");
         }
+
+        /// <summary>
+        /// The queue type is a reference to /queue/type, whose rows are named by their window's nameval ('Type Name')
+        /// and whose built-in rows have ids at the top of the u32 range (pcq-upload-default is *FFFFFFFA). WinBox
+        /// native read the value and could not write it back (WinBox + MAC review, §5 X3).
+        /// </summary>
+        [TestMethod]
+        public void AQueueTypeIsWrittenByTheNameItReadsAs()
+        {
+            const string queueTypes = "pcq-upload-default/pcq-download-default";
+            Connection.Save(new QueueSimple
+            {
+                Name = QueueName,
+                Target = new TikValueList<string>(TestSubnet),
+                MaxLimit = (TikRatePair)"1M/2M",
+                Queue = queueTypes,
+            });
+
+            using (var api = OpenSideApi())
+                Assert.AreEqual(queueTypes, TestQueue(api).Queue.Value, "as the API reads it after the write");
+            Assert.AreEqual(queueTypes, TestQueue(Connection).Queue.Value, "as the transport under test reads it back");
+        }
     }
 }

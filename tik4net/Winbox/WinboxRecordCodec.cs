@@ -495,11 +495,20 @@ namespace tik4net.Winbox
         /// read <c>nameval</c>.
         /// </remarks>
         internal static (int nameKey, int nameValKey) RefNameKeys(WinboxJgCatalog catalog, int[] refHandler)
+            => NameKeysOf(catalog, refHandler,
+                new WinboxFieldResolver(null, refHandler, catalog, EmptyOverrides).BuildKeyToApiName());
+
+        /// <summary>
+        /// <see cref="RefNameKeys"/> over a key map the caller already holds — the one rule for which keys name a row,
+        /// used by id → name (<see cref="BuildRefNameMap"/>) and name → id (<c>WinboxIdResolver</c>) alike, so a
+        /// reference that reads back as a name can be written with that name.
+        /// </summary>
+        internal static (int nameKey, int nameValKey) NameKeysOf(WinboxJgCatalog catalog, int[] handler,
+            IReadOnlyDictionary<int, string> keyToApiName)
         {
-            var keyToApiName = new WinboxFieldResolver(null, refHandler, catalog, EmptyOverrides).BuildKeyToApiName();
             int nameKey = NameKeyOf(keyToApiName);
             int nameValKey = -1;
-            string? nameVal = catalog.GetNameValField(refHandler);
+            string? nameVal = catalog.GetNameValField(handler);
             if (nameVal != null)
                 foreach (var kv in keyToApiName)
                     if (string.Equals(kv.Value, nameVal, StringComparison.OrdinalIgnoreCase)

@@ -434,9 +434,9 @@ namespace tik4net.WinboxNative
                     return hexId;
 
                 // Friendly name (or a where-style key): match against the record 'name' field via getall.
-                int byName = await _host.IdResolver
+                int? byName = await _host.IdResolver
                     .FindIdByNameAsync(handler, resolver, idParam, cancellationToken).ConfigureAwait(false);
-                if (byName >= 0) return byName;
+                if (byName.HasValue) return byName.Value;
             }
 
             if (required)
@@ -493,9 +493,9 @@ namespace tik4net.WinboxNative
                 int.TryParse(dest.Substring(1), System.Globalization.NumberStyles.HexNumber,
                     System.Globalization.CultureInfo.InvariantCulture, out int hexId))
                 return hexId;
-            int byName = await _host.IdResolver
+            int? byName = await _host.IdResolver
                 .FindIdByNameAsync(handler, resolver, dest, cancellationToken).ConfigureAwait(false);
-            if (byName >= 0) return byName;
+            if (byName.HasValue) return byName.Value;
             throw new TikNoSuchItemException(_host.CommandFor(descriptor.CommandText), new TikTrapSentenceResult(
                 $"no such item: could not resolve move destination '{dest}' on '{descriptor.CommandText}'."));
         }

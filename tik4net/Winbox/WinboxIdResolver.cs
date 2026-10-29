@@ -42,8 +42,7 @@ namespace tik4net.Winbox
         internal int? ResolveReference(int[] refHandler, string name)
         {
             var refResolver = new WinboxFieldResolver(null, refHandler, _catalog, EmptyOverrides);
-            int id = FindIdByName(refHandler, refResolver, name);
-            return id >= 0 ? (int?)id : null;
+            return FindIdByName(refHandler, refResolver, name);
         }
 
         /// <summary>
@@ -84,8 +83,7 @@ namespace tik4net.Winbox
                 var records = await _ops.GetAllAsync(handler, cancellationToken).ConfigureAwait(false);
                 foreach (string name in names[kv.Key])
                 {
-                    int id = MatchIdByName(records, keyToName, name);
-                    resolved[kv.Key + "\0" + name] = id >= 0 ? (int?)id : null;
+                    resolved[kv.Key + "\0" + name] = MatchIdByName(records, handler, keyToName, name);
                 }
             }
 
@@ -149,10 +147,12 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// Looks up the M2 numeric record id whose <c>name</c> field equals <paramref name="name"/> on the given
-        /// handler's table (used to map friendly names like <c>ether1</c> to a record id). Returns -1 when not found.
+        /// handler's table (used to map friendly names like <c>ether1</c> to a record id). Returns <c>null</c> when not
+        /// found — not -1: a record id is a u32 and the router's built-in rows sit at the top of its range
+        /// (<c>/queue/type</c>'s pcq-upload-default is <c>*FFFFFFFA</c>), so every int is an id some row can have.
         /// </summary>
-        internal int FindIdByName(int[] handler, WinboxFieldResolver resolver, string name)
-            => MatchIdByName(_ops.GetAll(handler), resolver.BuildKeyToApiName(), name);
+        internal int? FindIdByName(int[] handler, WinboxFieldResolver resolver, string name)
+            => MatchIdByName(_ops.GetAll(handler), handler, resolver.BuildKeyToApiName(), name);
 
         /// <inheritdoc cref="FindIdByName"/>
         /// <remarks>
@@ -160,27 +160,29 @@ namespace tik4net.Winbox
         /// is deliberately NOT cached: a name must resolve against the router's current table, or a record added
         /// moments earlier by the same caller would be invisible to the next command.
         /// </remarks>
-        internal async Task<int> FindIdByNameAsync(int[] handler, WinboxFieldResolver resolver, string name,
+        internal async Task<int?> FindIdByNameAsync(int[] handler, WinboxFieldResolver resolver, string name,
             CancellationToken cancellationToken)
             => MatchIdByName(
                 await _ops.GetAllAsync(handler, cancellationToken).ConfigureAwait(false),
-                resolver.BuildKeyToApiName(), name);
+                handler, resolver.BuildKeyToApiName(), name);
 
         // The match itself, over records someone else fetched — the one place that decides what "this row is
         // called <name>" means, so the sync, async and batch lookups cannot answer it differently. Reads the
         // name and id keys straight off the row (see WinboxRecordCodec.TryReadIdAndName): decoding the whole
         // record would pull in the referenced-table lookups of every other field on it, for two values that
-        // need no decoding at all.
-        private static int MatchIdByName(
-            IEnumerable<Dictionary<int, Tuple<string, object>>> records,
+        // need no decoding at all. A row's name sits where id → name reads it (WinboxRecordCodec.NameKeysOf): the
+        // table's 'name' key, else the key its window declares as nameval — /queue/type's rows carry only the latter.
+        private int? MatchIdByName(
+            IEnumerable<Dictionary<int, Tuple<string, object>>> records, int[] handler,
             IReadOnlyDictionary<int, string> keyToName, string name)
         {
-            int nameKey = WinboxRecordCodec.NameKeyOf(keyToName);
+            var (nameKey, nameValKey) = WinboxRecordCodec.NameKeysOf(_catalog, handler, keyToName);
             foreach (var rec in records)
-                if (WinboxRecordCodec.TryReadIdAndName(rec, nameKey, out int id, out string? rowName)
+                if ((WinboxRecordCodec.TryReadIdAndName(rec, nameKey, out int id, out string? rowName)
+                     || WinboxRecordCodec.TryReadIdAndName(rec, nameValKey, out id, out rowName))
                     && string.Equals(rowName, name, StringComparison.Ordinal))
                     return id;
-            return -1;
+            return null;
         }
 
         private static string HandlerKey(int[] handler) => string.Join(",", handler);
