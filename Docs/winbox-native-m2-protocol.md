@@ -378,12 +378,16 @@ The ftype table from `master*.js` (`msg2buffer`), where the type byte = `ftype <
 Sending IPv6 as `raw` puts a length byte where the address's first byte belongs, so the router ignores
 the field.
 
-**Every ftype must have a case in `SkipTypeBytes`, even when there's no decoder for it.** A missing
-case is not "unsupported type" — the parser falls into `default: return 0`, so the value's bytes get
-misread as the next key+type and the rest of the message scrambles into nonsense keys, silently. An
-empty-looking `0x1=[{}]` on traceroute was exactly this: a hop is `union{ip6addr a1 allowipv4,
-string s2}` inside a `multi`, and the parser was skipping its 16 bytes as zero. The same trap applies
-to the `0xA0` string-array type and to any future ftype the table doesn't yet cover.
+**Every ftype must have a case in the walker (`M2Message.Walk`, through `SkipTypeBytes`' length rule).** A
+type byte no ftype covers has an unknown length, so the walk stops there and nothing after it is reported —
+stepping over it as if it had no value would read the value's bytes as the next key+type and scramble the rest
+of the message into nonsense keys, silently. An empty-looking `0x1=[{}]` on traceroute was exactly this: a hop
+is `union{ip6addr a1 allowipv4, string s2}` inside a `multi`, and its 16 bytes were skipped as zero.
+
+**`ParseAllFields` decodes by the same rule**: by ftype, with every length and count read under the type's size
+flags (short = 1 byte, normal = 2, long = 4). So every type byte the walker steps over is decoded — every size
+class of a string, raw and array, and `bool[]` — and a raw longer than 255 bytes (the RSA key blob at key `0x2`
+of `/user/ssh-keys`, 279 bytes for a 2048-bit key on 7.25) is its hex like any other raw.
 
 ### 23.3 `/interface/monitor-traffic` is live fields on the interface list window, not a monitor window
 

@@ -382,6 +382,9 @@ namespace tik4net.Winbox
             return len;
         }
 
+        private static string Hex(byte[] d, int pos, int len)
+            => len <= 0 ? "" : BitConverter.ToString(d, pos, len).Replace("-", "");
+
         private static bool IsM2(byte[]? m2) => m2 != null && m2.Length >= 2 && m2[0] == 'M' && m2[1] == '2';
 
         /// <summary>
@@ -502,41 +505,77 @@ namespace tik4net.Winbox
                 // decoded value; the suppression documents that rather than widening the shared contract.
                 object val = null!;
                 string typeName;
-                switch (type)
+                // Decoded by ftype, with every length and count read under the type's size flags (ReadLen) - the
+                // rule Walk (ValueBytes) steps over the field by, so a type the walker knows is a type this reads. A
+                // switch on exact type bytes skipped the size variants it did not list (u32[] short/long, string[]
+                // short/long, string and raw long, every bool[]) and read a normal-length raw as the text "[nB]".
+                switch (FType(type))
                 {
-                    case TypeByte.False: typeName = "bool"; val = false; break;
-                    case TypeByte.True: typeName = "bool"; val = true; break;
-                    case TypeByte.U8:
-                        typeName = "u8"; val = pos < m2.Length ? (object)m2[pos] : null!; break;
-                    case TypeByte.U32:
-                        typeName = "u32";
-                        if (pos + 4 <= m2.Length) val = BitConverter.ToUInt32(m2, pos);
+                    case 0:   // bool: the value is the short flag itself
+                        typeName = "bool"; val = type == TypeByte.True; break;
+                    case 1:   // u32, or u8 in the short form
+                        if (type == TypeByte.U8) { typeName = "u8"; val = pos < m2.Length ? (object)m2[pos] : null!; }
+                        else { typeName = "u32"; if (pos + 4 <= m2.Length) val = BitConverter.ToUInt32(m2, pos); }
                         break;
-                    case TypeByte.U64:
+                    case 2:
                         typeName = "u64";
                         if (pos + 8 <= m2.Length) val = BitConverter.ToUInt64(m2, pos);
                         break;
-                    case TypeByte.U32Array:
-                        typeName = "u32[]";
-                        if (pos + 2 <= m2.Length)
-                        {
-                            int cnt = BitConverter.ToUInt16(m2, pos); pos += 2;
-                            var arr = new uint[cnt];
-                            for (int i = 0; i < cnt && pos + 4 <= m2.Length; i++, pos += 4)
-                                arr[i] = BitConverter.ToUInt32(m2, pos);
-                            val = "[" + string.Join(",", arr) + "]";
-                        }
+                    case 3:
+                        // FT_ADDR6: 16 raw bytes, no length prefix (see Addr6Sys).
+                        typeName = "ip6";
+                        if (pos + 16 <= m2.Length) val = m2.Skip(pos).Take(16).ToArray();
                         break;
-                    case TypeByte.U64Array: case TypeByte.U64Array | TypeByte.Short: case TypeByte.U64Array | TypeByte.Long:
+                    case 4:
                     {
-                        // FT_U64_ARRAY (ftype 18): count, then eight bytes per element and no per-element
-                        // length — the same counted-array shape u32[] has, one width wider. Rendered as the
-                        // same "[a,b,…]" text every other scalar array is, so the codec's list formatter
-                        // reads it without a case of its own.
-                        //
-                        // Without this case the field fell to `default:` and was SKIPPED. SkipTypeBytes has
-                        // always known the layout (0x90/0x91/0x92 → CountedArrayBytes(…, 8)), so the frame
-                        // stayed in sync and nothing looked wrong; the value simply never reached anyone.
+                        typeName = IsShort(type) ? "str" : "str_l";
+                        int len = ReadLen(type, m2, ref pos);
+                        if (pos < m2.Length || len == 0) val = Encoding.UTF8.GetString(m2, pos, Math.Max(0, Math.Min(len, m2.Length - pos)));
+                        break;
+                    }
+                    case 5:
+                    {
+                        // message: length via size flags, body is a submessage.
+                        typeName = "msg";
+                        int len = ReadLen(type, m2, ref pos);
+                        if (pos + len <= m2.Length)
+                            val = ParseAllFields(m2.Skip(pos).Take(len).ToArray());
+                        break;
+                    }
+                    case 6:
+                    {
+                        // raw: hex text, whatever its length class - a raw past 255 bytes (an SSH public key, a
+                        // certificate blob) is a value like any other, not a size.
+                        typeName = IsShort(type) ? "raw" : "raw_l";
+                        int len = ReadLen(type, m2, ref pos);
+                        if (pos < m2.Length || len == 0) val = Hex(m2, pos, Math.Min(len, m2.Length - pos));
+                        break;
+                    }
+                    case 16:
+                    {
+                        // bool[]: count + one byte per element, rendered as the scalar bool renders.
+                        typeName = "bool[]";
+                        int cnt = ReadLen(type, m2, ref pos);
+                        var items = new List<string>();
+                        for (int i = 0; i < cnt && pos < m2.Length; i++, pos++)
+                            items.Add(m2[pos] != 0 ? "true" : "false");
+                        val = "[" + string.Join(",", items) + "]";
+                        break;
+                    }
+                    case 17:
+                    {
+                        typeName = "u32[]";
+                        int cnt = ReadLen(type, m2, ref pos);
+                        var nums = new List<uint>();
+                        for (int i = 0; i < cnt && pos + 4 <= m2.Length; i++, pos += 4)
+                            nums.Add(BitConverter.ToUInt32(m2, pos));
+                        val = "[" + string.Join(",", nums) + "]";
+                        break;
+                    }
+                    case 18:
+                    {
+                        // u64[]: the counted-array shape u32[] has, one width wider; rendered as the same "[a,b,...]"
+                        // text, so the codec's list formatter reads it without a case of its own.
                         typeName = "u64[]";
                         int cnt = ReadLen(type, m2, ref pos);
                         var nums = new List<ulong>();
@@ -545,89 +584,37 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", nums) + "]";
                         break;
                     }
-                    case TypeByte.Addr6:
-                        // FT_ADDR6: 16 raw bytes, no length prefix (see Addr6Sys).
-                        typeName = "ip6";
-                        if (pos + 16 <= m2.Length) val = m2.Skip(pos).Take(16).ToArray();
-                        break;
-                    case TypeByte.String | TypeByte.Short:
-                        typeName = "str";
-                        if (pos < m2.Length) { int l = m2[pos++]; val = Encoding.UTF8.GetString(m2, pos, Math.Min(l, m2.Length - pos)); }
-                        break;
-                    case TypeByte.String:
-                        typeName = "str_l";
-                        if (pos + 2 <= m2.Length) { int l = BitConverter.ToUInt16(m2, pos); pos += 2; val = Encoding.UTF8.GetString(m2, pos, Math.Min(l, m2.Length - pos)); }
-                        break;
-                    case TypeByte.Raw | TypeByte.Short:
-                        typeName = "raw";
-                        if (pos < m2.Length) { int l = m2[pos++]; val = BitConverter.ToString(m2, pos, Math.Min(l, m2.Length - pos)).Replace("-", ""); }
-                        break;
-                    case TypeByte.Raw:
-                        typeName = "raw_l";
-                        if (pos + 2 <= m2.Length) { int l = BitConverter.ToUInt16(m2, pos); val = $"[{l}B]"; }
-                        break;
-                    case TypeByte.StringArray:
-                        // str_array: 2B count + (2B len + data) per entry
-                        typeName = "str[]";
-                        if (pos + 1 < m2.Length)
-                        {
-                            int cnt = BitConverter.ToUInt16(m2, pos); pos += 2;
-                            var strs = new List<string>();
-                            for (int i = 0; i < cnt && pos + 1 < m2.Length; i++)
-                            {
-                                int slen = BitConverter.ToUInt16(m2, pos); pos += 2;
-                                if (pos + slen <= m2.Length)
-                                {
-                                    strs.Add(Encoding.UTF8.GetString(m2, pos, slen));
-                                    pos += slen;
-                                }
-                            }
-                            val = "[" + string.Join(",", strs) + "]";
-                        }
-                        break;
-                    case TypeByte.Addr6Array:
+                    case 19:
                     {
-                        // addr6[] (ftype 19): count + 16 fixed bytes per element, no per-element length.
-                        // Rendered like every other scalar array, one element per comma, so the codec's
-                        // list formatter can hand each 16-byte address to the ip6 element formatter.
+                        // addr6[]: count + 16 fixed bytes per element; each element hex, so the codec's list
+                        // formatter can hand it to the ip6 element formatter.
                         typeName = "ip6[]";
                         int cnt = ReadLen(type, m2, ref pos);
                         var addrs = new List<string>();
                         for (int i = 0; i < cnt && pos + 16 <= m2.Length; i++, pos += 16)
-                            addrs.Add(BitConverter.ToString(m2, pos, 16).Replace("-", ""));
+                            addrs.Add(Hex(m2, pos, 16));
                         val = "[" + string.Join(",", addrs) + "]";
                         break;
                     }
-                    case TypeByte.RawArray: case TypeByte.RawArray | TypeByte.Short: case TypeByte.RawArray | TypeByte.Long:
+                    case 20:
                     {
-                        // raw[] (ftype 22): count + (len + bytes) per element, each element rendered as the
-                        // same hex text a scalar raw is. Without this case the whole field was skipped, so
-                        // /ip/dhcp-server/alert's valid-servers and RoMON's path read as nothing at all.
-                        typeName = "raw[]";
+                        // string[]: count + (len + bytes) per element.
+                        typeName = "str[]";
                         int cnt = ReadLen(type, m2, ref pos);
-                        var blobs = new List<string>();
+                        var strs = new List<string>();
                         for (int i = 0; i < cnt && pos < m2.Length; i++)
                         {
                             int elen = ReadLen(type, m2, ref pos);
                             if (pos + elen > m2.Length) break;
-                            blobs.Add(BitConverter.ToString(m2, pos, elen).Replace("-", ""));
+                            strs.Add(Encoding.UTF8.GetString(m2, pos, elen));
                             pos += elen;
                         }
-                        val = "[" + string.Join(",", blobs) + "]";
+                        val = "[" + string.Join(",", strs) + "]";
                         break;
                     }
-                    case TypeByte.Message: case TypeByte.Message | TypeByte.Short: case TypeByte.Message | TypeByte.Long:
+                    case 21:
                     {
-                        // message (ftype 5): length via size flags, body is a submessage.
-                        typeName = "msg";
-                        int len = ReadLen(type, m2, ref pos);
-                        if (pos + len <= m2.Length)
-                            val = ParseAllFields(m2.Skip(pos).Take(len).ToArray());
-                        break;
-                    }
-                    case TypeByte.MessageArray: case TypeByte.MessageArray | TypeByte.Short: case TypeByte.MessageArray | TypeByte.Long:
-                    {
-                        // message-array (ftype 21): count + (len + submessage) per element.
+                        // message[]: count + (len + submessage) per element.
                         typeName = "msg[]";
                         int cnt = ReadLen(type, m2, ref pos);
                         var list = new List<Dictionary<int, Tuple<string, object>>>();
@@ -641,8 +628,24 @@ namespace tik4net.Winbox
                         val = list;
                         break;
                     }
+                    case 22:
+                    {
+                        // raw[]: count + (len + bytes) per element, each the hex text a scalar raw is.
+                        typeName = "raw[]";
+                        int cnt = ReadLen(type, m2, ref pos);
+                        var blobs = new List<string>();
+                        for (int i = 0; i < cnt && pos < m2.Length; i++)
+                        {
+                            int elen = ReadLen(type, m2, ref pos);
+                            if (pos + elen > m2.Length) break;
+                            blobs.Add(Hex(m2, pos, elen));
+                            pos += elen;
+                        }
+                        val = "[" + string.Join(",", blobs) + "]";
+                        break;
+                    }
                     default:
-                        continue;   // a type the walker can step over but this decoder does not read (X5)
+                        continue;   // unreachable: Walk stops at a type byte no ftype covers
                 }
                 if (!result.ContainsKey(fullKey))
                 {

@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -18,11 +18,10 @@ namespace tik4net.unittests.Golden
     /// C10/C11 rewrite the builders over one field writer and the parsers over one TLV walker, and C3 moves the chunk
     /// framing; those commits claim byte-identical output and this is what checks the claim. The tracked results are
     /// <c>Golden/m2-builders.txt</c>, <c>Golden/m2-parsers.txt</c> and <c>Golden/m2-framing.txt</c>.
-    /// <para><b>X5.</b> The parser rows for type bytes <c>0x30</c> (raw, 2-byte length — decoded as the text
-    /// <c>"[nB]"</c>), <c>0x22</c>/<c>0x32</c> (4-byte length), <c>0x89</c>/<c>0x8A</c>, <c>0xA1</c>/<c>0xA2</c>,
-    /// <c>0x80</c>–<c>0x82</c> and <c>0x99</c>/<c>0x9A</c> (skipped by <c>ParseAllFields</c> although
-    /// <c>SkipTypeBytes</c> knows them) assert TODAY's behaviour, which is review item X5's defect. Phase 3 fixes X5 and
-    /// changes exactly those lines, on purpose.</para>
+    /// <para><b>X5.</b> <c>ParseAllFields</c> decodes by ftype and size flags, so every type byte the walker steps over
+    /// is read: the rows for <c>0x30</c> (raw, 2-byte length — read as the text <c>"[nB]"</c> before), <c>0x22</c>/<c>0x32</c>
+    /// (4-byte length), <c>0x89</c>/<c>0x8A</c>, <c>0xA1</c>/<c>0xA2</c>, <c>0x80</c>–<c>0x82</c> and <c>0x99</c>/<c>0x9A</c>
+    /// (skipped before) changed on purpose with that fix (review item X5, Phase 3).</para>
     /// </remarks>
     [TestClass]
     public class M2MessageGoldenTests
@@ -181,8 +180,8 @@ namespace tik4net.unittests.Golden
             var lines = new List<string> { "# T2 - M2Message parsers, one hand-built frame per type byte.",
                 "# Each frame: the field under key 0xFE0005 (or user key 5 / 0xFE0001 / 0xFE0002 / 0xFF0008 / 0xFF0006 where",
                 "# noted), then the sentinel u8 0xFF0006=0x2A that shows whether the walk stayed in step.",
-                "# X5: the 0x22 0x30 0x32 0x80-0x82 0x89 0x8A 0x99 0x9A 0xA1 0xA2 rows assert TODAY's ParseAllFields behaviour",
-                "# (review item X5, a defect Phase 3 fixes deliberately)." };
+                "# X5: ParseAllFields decodes by ftype and size flags; the 0x22 0x30 0x32 0x80-0x82 0x89 0x8A 0x99 0x9A 0xA1 0xA2",
+                "# rows changed on purpose with that fix (review item X5, Phase 3)." };
 
             foreach (int type in TypeBytes)
             {
