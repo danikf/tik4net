@@ -21,7 +21,7 @@ namespace tik4net.Winbox
 
         /// <summary>The dropdown an <c>addr</c>'s <c>%iface</c> qualifier names — the generic interface
         /// table, the same [20,0] every <c>type:'enm'</c> interface reference resolves against.</summary>
-        internal static readonly int[] AddrIfaceRefHandler = { 20, 0 };
+        internal static readonly WinboxHandler AddrIfaceRefHandler = new WinboxHandler(20, 0);
 
         private  const int AddrVrfSubKey    = 0xFEFF23;   // ufeff23 — '@vrf' suffix (dropdown id)
         internal const int AddrPrefixSubKey = 0xFEFF25;   // ufeff25 — '/len' prefix length, u32

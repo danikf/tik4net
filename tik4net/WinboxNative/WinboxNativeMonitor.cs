@@ -67,7 +67,7 @@ namespace tik4net.WinboxNative
                     handle => PollingMonitorEngine.SnapshotLoop(_host, descriptor, SnapshotMonitorIntervalMs, handle, onRow, onError, onDone));
 
             // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, …).
-            WinboxMonitorSpec? spec = ResolveMonitorWindow(descriptor.CommandText, out string apiPath, out int[]? handler);
+            WinboxMonitorSpec? spec = ResolveMonitorWindow(descriptor.CommandText, out string apiPath, out WinboxHandler? handler);
             if (spec == null)
             {
                 var cmd = _host.CommandFor(descriptor.CommandText);
@@ -78,7 +78,7 @@ namespace tik4net.WinboxNative
 
             // handler is non-null here: ResolveMonitorWindow assigns it whenever it returns a spec,
             // and the no-spec case threw above.
-            var resolver = _host.MakeResolver(apiPath, handler!);
+            var resolver = _host.MakeResolver(apiPath, handler!.Value);
             return PollingMonitorEngine.StartWorker("winbox-native-monitor",
                 handle => MonitorLoop(spec, descriptor, resolver, handle, onRow, onError, onDone));
         }
@@ -93,7 +93,7 @@ namespace tik4net.WinboxNative
         /// a command means, or the same command answers differently depending on the method used to call it —
         /// a defect nothing in the result can reveal.
         /// </remarks>
-        private WinboxMonitorSpec? ResolveMonitorWindow(string commandText, out string apiPath, out int[]? handler)
+        private WinboxMonitorSpec? ResolveMonitorWindow(string commandText, out string apiPath, out WinboxHandler? handler)
         {
             apiPath = WinboxNativeConnection.ApiPathOf(commandText);
             handler = _host.HandlerMap.Resolve(apiPath);
@@ -101,7 +101,7 @@ namespace tik4net.WinboxNative
             if (spec != null) return spec;
 
             string parent = TikPath.Parent(commandText);
-            int[]? ph = _host.HandlerMap.Resolve(parent);
+            WinboxHandler? ph = _host.HandlerMap.Resolve(parent);
             var pspec = _host.Catalog.GetMonitorByHandler(ph);
             if (pspec == null) return null;
 
@@ -140,7 +140,7 @@ namespace tik4net.WinboxNative
         /// </para>
         /// </remarks>
         internal async Task<IList<TikRecordSentence>> RunMonitorWindowAsync(
-            WinboxMonitorSpec spec, string apiPath, int[] handler, TikCommandDescriptor descriptor,
+            WinboxMonitorSpec spec, string apiPath, WinboxHandler handler, TikCommandDescriptor descriptor,
             CancellationToken cancellationToken)
         {
             var rows = new List<TikRecordSentence>();
@@ -293,8 +293,7 @@ namespace tik4net.WinboxNative
         private HashSet<string> ReadOnlyFieldNames(string apiPath)
         {
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            int[]? handler = _host.HandlerMap.Resolve(apiPath);
-            if (handler == null) return set;
+            if (!(_host.HandlerMap.Resolve(apiPath) is WinboxHandler handler)) return set;
             var plan = _host.MakeResolver(apiPath, handler).DecodePlan();
             foreach (var kv in plan.KeyToField)
                 if (kv.Value != null && kv.Value.ReadOnly && plan.KeyToName.TryGetValue(kv.Key, out var n))
@@ -334,8 +333,7 @@ namespace tik4net.WinboxNative
                 return null;
 
             string parentPath = TikPath.Parent(descriptor.CommandText);
-            int[]? handler = _host.HandlerMap.Resolve(parentPath);
-            if (handler == null) return null;
+            if (!(_host.HandlerMap.Resolve(parentPath) is WinboxHandler handler)) return null;
 
             // The interface is named via 'numbers' (RouterOS monitor convention), or 'interface'/'.id'.
             string? target = WinboxNativeConnection.FindParam(descriptor, "numbers")

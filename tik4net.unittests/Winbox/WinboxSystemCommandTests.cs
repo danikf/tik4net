@@ -34,8 +34,8 @@ namespace tik4net.unittests.Winbox
         {
             var (_, map) = Load();
 
-            CollectionAssert.AreEqual(new[] { 24 }, map.Resolve("/system/reboot"));
-            CollectionAssert.AreEqual(new[] { 24 }, map.Resolve("/system/shutdown"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(24), map.Resolve("/system/reboot"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(24), map.Resolve("/system/shutdown"));
         }
 
         [TestMethod]

@@ -62,7 +62,7 @@ namespace tik4net.unittests.Winbox
         {
             var (ids, _, _) = Setup();
             var resolve = ids.ResolveReferencesAsync(
-                    new[] { new KeyValuePair<int[], string>(QueueTypeHandler, "pcq-upload-default") }, CancellationToken.None)
+                    new[] { new KeyValuePair<WinboxHandler, string>(QueueTypeHandler, "pcq-upload-default") }, CancellationToken.None)
                 .GetAwaiter().GetResult();
             Assert.AreEqual(unchecked((int)0xFFFFFFFA), resolve(QueueTypeHandler, "pcq-upload-default"));
         }

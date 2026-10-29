@@ -66,8 +66,8 @@ namespace tik4net.Winbox
         /// resolves a dynamic enum reference (handler, name) → numeric id. Throws
         /// <see cref="WinboxFieldResolutionException"/> when the name cannot be resolved.
         /// </summary>
-        internal List<byte[]> EncodeField(string apiName, string value, Func<int[], string, int?>? resolveRef = null,
-            bool allowReadOnly = false, Func<int[], IReadOnlyDictionary<int, string>?>? resolveRefTable = null)
+        internal List<byte[]> EncodeField(string apiName, string value, Func<WinboxHandler, string, int?>? resolveRef = null,
+            bool allowReadOnly = false, Func<WinboxHandler, IReadOnlyDictionary<int, string>?>? resolveRefTable = null)
         {
             // Normalize a GUI-styled name to its canonical API name up front so both ResolveKey and the typed
             // .jg lookup below agree on it (otherwise a GUI label would resolve a key but miss its typed field).
@@ -603,7 +603,7 @@ namespace tik4net.Winbox
 
         // The typed encoder of "multibits" / "set" (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
-        private bool EncodeBitSet(int key, string value, WinboxJgField? jg, string apiName, Func<int[], IReadOnlyDictionary<int, string>?>? resolveRefTable, List<byte[]> result)
+        private bool EncodeBitSet(int key, string value, WinboxJgField? jg, string apiName, Func<WinboxHandler, IReadOnlyDictionary<int, string>?>? resolveRefTable, List<byte[]> result)
         {
             // Bitmask flag set (e.g. connection-state "established,related"). Empty → unset (send nothing).
             // The value rides as a u32 of OR'd (1<<bitIndex) per the .jg bit map; the opt/not flags and
@@ -618,11 +618,11 @@ namespace tik4net.Winbox
             IReadOnlyDictionary<int, string>? memberMap = jg!.EnumMap;
             if (memberMap == null && jg.RefHandler != null)
             {
-                memberMap = resolveRefTable?.Invoke(jg.RefHandler);
+                memberMap = resolveRefTable?.Invoke(jg.RefHandler.Value);
                 if (memberMap == null)
                     throw new WinboxFieldResolutionException(
                         $"WinBox native: field '{apiName}' on '{_apiPath}' is a bit set whose members "
-                        + $"live in table [{string.Join(",", jg.RefHandler)}], which could not be read, "
+                        + $"live in table {jg.RefHandler}, which could not be read, "
                         + "so the value cannot be encoded without silently clearing the field.");
             }
 
@@ -682,7 +682,7 @@ namespace tik4net.Winbox
 
         // The typed encoder of "enm" (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
-        private bool EncodeReference(int key, string value, WinboxJgField? jg, Func<int[], string, int?>? resolveRef, ref bool unresolvedReference, List<byte[]> result)
+        private bool EncodeReference(int key, string value, WinboxJgField? jg, Func<WinboxHandler, string, int?>? resolveRef, ref bool unresolvedReference, List<byte[]> result)
         {
             // dynamic dropdown → referenced object's .id; resolve the name against that table.
             // jg non-null: uiType == "enm" only when jg.UiType produced it.
@@ -691,7 +691,7 @@ namespace tik4net.Winbox
             {
                 // Every table the dropdown draws from, in the order webfig's enm.pair tries them — a
                 // queue tree's parent is an interface OR another queue, and only the first was searched.
-                foreach (int[] table in jg.RefHandlers ?? new[] { jg.RefHandler })
+                foreach (WinboxHandler table in jg.RefHandlers ?? new[] { jg.RefHandler.Value })
                 {
                     int? id = resolveRef(table, value);
                     if (id.HasValue) { result.Add(EncodeU32(key, (uint)id.Value)); return true; }
@@ -744,7 +744,7 @@ namespace tik4net.Winbox
 
         // The typed encoder of "multinumber" (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
-        private bool EncodeNumberList(int key, string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
+        private bool EncodeNumberList(int key, string value, WinboxJgField? jg, string apiName, Func<WinboxHandler, string, int?>? resolveRef, List<byte[]> result)
         {
             // A list whose ELEMENTS are what the scalar encoders handle one at a time: bridge-vlan
             // 'tagged'/'untagged' (interface references), the log rule's 'topics' (a static enum),
@@ -780,7 +780,7 @@ namespace tik4net.Winbox
 
         // The typed encoder of "multi" when jg?.WireType == M2Type.MessageArray (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
-        private bool EncodeMessageList(int key, string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
+        private bool EncodeMessageList(int key, string value, WinboxJgField? jg, string apiName, Func<WinboxHandler, string, int?>? resolveRef, List<byte[]> result)
         {
             // A list whose elements are whole SUBMESSAGES. What one element is varies — an `addr`
             // compound (/ip/dns servers), a single addressable leaf (/snmp trap-interfaces, one
@@ -920,7 +920,7 @@ namespace tik4net.Winbox
 
         // The typed encoder of "multitristate" (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
-        private bool EncodeTriStateList(int key, ref string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
+        private bool EncodeTriStateList(int key, ref string value, WinboxJgField? jg, string apiName, Func<WinboxHandler, string, int?>? resolveRef, List<byte[]> result)
         {
             // A bitmask whose members can each be negated, with the negated ones in a SECOND key:
             // types.multitristate.put ORs the plain members into `id` and the '!' ones into `maskid`
@@ -965,7 +965,7 @@ namespace tik4net.Winbox
 
         // The typed encoder of "multitristatearray" (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
-        private bool EncodeTriStateArrayList(int key, string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
+        private bool EncodeTriStateArrayList(int key, string value, WinboxJgField? jg, string apiName, Func<WinboxHandler, string, int?>? resolveRef, List<byte[]> result)
         {
             // A list whose elements may each be negated — /system/logging 'topics', where the API
             // writes "info,!debug". webfig types.multitristatearray.put splits the one list into TWO
@@ -1172,7 +1172,7 @@ namespace tik4net.Winbox
         /// under an opt and a not.
         /// </summary>
         private static WinboxJgField FirewallBridgePort(string apiName, int key, int optKey, int notKey)
-            => new WinboxJgField(apiName, key, M2Type.U32, false, uiType: "enm", refHandler: new[] { 20, 0 },
+            => new WinboxJgField(apiName, key, M2Type.U32, false, uiType: "enm", refHandler: new WinboxHandler(20, 0),
                 optKey: optKey, notKey: notKey,
                 enumMap: new Dictionary<int, string>
                 {
@@ -1255,11 +1255,11 @@ namespace tik4net.Winbox
         /// refuses for the same reason.
         /// </remarks>
         private int EncodeListElement(WinboxJgField jg, string token, string apiName,
-            Func<int[], string, int?>? resolveRef)
+            Func<WinboxHandler, string, int?>? resolveRef)
         {
             if (jg.RefHandler != null && resolveRef != null && !long.TryParse(token, out _))
             {
-                int? id = resolveRef(jg.RefHandler, token);
+                int? id = resolveRef(jg.RefHandler.Value, token);
                 if (id.HasValue) return id.Value;
             }
             if (jg.EnumMap != null)
@@ -1285,7 +1285,7 @@ namespace tik4net.Winbox
         /// field it accepts and ignores.
         /// </remarks>
         private byte[][] EncodeMessageElement(WinboxJgField jg, string element, string apiName,
-            Func<int[], string, int?>? resolveRef)
+            Func<WinboxHandler, string, int?>? resolveRef)
         {
             var fields = new List<byte[]>();
 
@@ -1347,7 +1347,7 @@ namespace tik4net.Winbox
         /// scalar encoders above apply to a field of that type.
         /// </summary>
         private List<byte[]> EncodeElementPart(WinboxJgElementPart part, string value, string apiName,
-            Func<int[], string, int?>? resolveRef)
+            Func<WinboxHandler, string, int?>? resolveRef)
         {
             var fields = new List<byte[]>();
 
@@ -1376,7 +1376,7 @@ namespace tik4net.Winbox
                     }
             if (part.RefHandler != null && resolveRef != null && !long.TryParse(value, out _))
             {
-                int? id = resolveRef(part.RefHandler, value);
+                int? id = resolveRef(part.RefHandler.Value, value);
                 if (id == null)
                     throw new WinboxFieldValueException(
                         $"input does not match any value of {apiName} (element '{value}')");
@@ -1482,7 +1482,7 @@ namespace tik4net.Winbox
         /// not a table-backed bit set. Lets a caller read that table before encoding instead of blocking
         /// inside the encoder (see <c>WinboxReferenceTables.PrimeMemberTableAsync</c>).
         /// </summary>
-        internal int[]? BitSetMemberTable(string apiName)
+        internal WinboxHandler? BitSetMemberTable(string apiName)
         {
             if (JgFields == null) return null;
             if (!JgFields.TryGetValue(AliasToJg(CanonicalInputName(apiName)), out var jg) || jg == null)

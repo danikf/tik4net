@@ -48,7 +48,7 @@ namespace tik4net.unittests.Golden
                                        .OrderBy(f => f.Name, StringComparer.Ordinal))
                 {
                     object? value = f.GetValue(null);
-                    if (value is IDictionary || value is IEnumerable && !(value is string))
+                    if (value is IDictionary || value is WinboxHandler || value is IEnumerable && !(value is string))
                         lines.Add(type.Name + "." + f.Name + " = " + Render(value, 0));
                 }
 
@@ -66,6 +66,7 @@ namespace tik4net.unittests.Golden
                 case string s: return "'" + s + "'";
                 case bool b: return b ? "true" : "false";
                 case M2Type m2: return "'" + M2Types.JgName(m2) + "'";   // the catalog's spelling, as the pin has it
+                case WinboxHandler h: return h.ToString();                 // "[20,0]", as the int[] path rendered
                 case Enum e: return e.ToString();
                 case IFormattable f: return f.ToString(null, CultureInfo.InvariantCulture);
                 case IDictionary d:

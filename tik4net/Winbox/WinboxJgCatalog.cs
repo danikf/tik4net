@@ -30,9 +30,9 @@ namespace tik4net.Winbox
     /// </remarks>
     internal sealed partial class WinboxJgCatalog
     {
-        // handler-path-string ("20,0") → (apiName → field)
-        private readonly Dictionary<string, Dictionary<string, WinboxJgField>> _byHandler =
-            new Dictionary<string, Dictionary<string, WinboxJgField>>(StringComparer.Ordinal);
+        // owner (a handler, one of its windows, or one of its actions — see JgOwner) → (apiName → field)
+        private readonly Dictionary<JgOwner, Dictionary<string, WinboxJgField>> _byHandler =
+            new Dictionary<JgOwner, Dictionary<string, WinboxJgField>>();
 
         // derived menu-label path (e.g. "/ip/firewall/connection", "/ip/dns/dns-static-entry") → handler
         // array, harvested from the menu tree: every WINDOW node (type map/query/item/doit/action with a
@@ -40,18 +40,17 @@ namespace tik4net.Winbox
         // group+name chain + node name). First window wins for a given derived path. These keys reflect the
         // WinBox *menu labels*, which often differ from the RouterOS API leaf — WinboxHandlerMap bridges
         // apiPath → menu-label path via a curated alias tail for the irregular cases.
-        private readonly Dictionary<string, int[]> _derivedPaths =
-            new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, WinboxHandler> _derivedPaths =
+            new Dictionary<string, WinboxHandler>(StringComparer.OrdinalIgnoreCase);
 
-        // handler-path-string → the label of the field a WINDOW declares as the row's display name
+        // handler → the label of the field a WINDOW declares as the row's display name
         // (`nameval:'Alias'`). That is what WinBox shows for a row in a dropdown, and it is not always the
         // field called 'Name': the policy table [13,3] names its rows by 'Alias' ('read', 'write'), while
         // its 'Name' holds the sentence 'read router configuration'.
-        private readonly Dictionary<string, string> _nameValByHandler =
-            new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<WinboxHandler, string> _nameValByHandler = new Dictionary<WinboxHandler, string>();
 
         // Handlers backed by a singleton window (type:'item') — read via get-singleton, not getall.
-        private readonly HashSet<string> _singletonHandlers = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<WinboxHandler> _singletonHandlers = new HashSet<WinboxHandler>();
 
         // The same, but per WINDOW rather than per handler: derived menu-label path → is that window a
         // singleton. One handler routinely hosts both kinds — [28,0] is 'UPnP Settings' (item) AND the 'UPnP
@@ -71,7 +70,7 @@ namespace tik4net.Winbox
 
         // Window field maps are keyed by WindowKey(derivedPath); these two remember what a window key MEANS.
         //
-        // _windowHandlerKey: window key → the handler key that window reads. An action declared inside a window
+        // _windowHandlerKey: window owner → the handler owner that window reads. An action declared inside a window
         // is still keyed by its HANDLER (GetActionFields is asked by handler), so the walk needs the way back.
         //
         // _handlerBackedWindows: the windows whose fields also belong in their handler's own map. That is every
@@ -79,26 +78,25 @@ namespace tik4net.Winbox
         // top. It is NOT the interface subtype windows: those disagree about keys under identical labels
         // ('Remote Address' is 0x7E1 on EoIP and 0x7E5 on GRE), so merging them into [20,0] would hand every
         // subtype but the first-parsed one a key belonging to another interface kind.
-        private readonly Dictionary<string, string> _windowHandlerKey =
-            new Dictionary<string, string>(StringComparer.Ordinal);
-        private readonly HashSet<string> _handlerBackedWindows = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Dictionary<JgOwner, JgOwner> _windowHandlerKey = new Dictionary<JgOwner, JgOwner>();
+        private readonly HashSet<JgOwner> _handlerBackedWindows = new HashSet<JgOwner>();
 
         // Handlers that appear behind an action window (type:'doit'/'action') and, separately, behind a
         // record-listing window (map/query/item). A handler in the first set but NOT the second is a
         // standalone action — invoking it is the only thing it can do, there are no records to read.
-        private readonly HashSet<string> _actionWindowHandlers = new HashSet<string>(StringComparer.Ordinal);
-        private readonly HashSet<string> _recordWindowHandlers = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<WinboxHandler> _actionWindowHandlers = new HashSet<WinboxHandler>();
+        private readonly HashSet<WinboxHandler> _recordWindowHandlers = new HashSet<WinboxHandler>();
 
         // Handlers whose window carries live/dynamic data (the .jg marks it with `autorefresh:<ms>`), e.g. the
         // firewall rule list with its bytes/packets counters. getall on these must OR the stats flag bit so the
         // router includes the runtime counter fields (matching what RouterOS `print` returns).
-        private readonly HashSet<string> _dynamicHandlers = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<WinboxHandler> _dynamicHandlers = new HashSet<WinboxHandler>();
 
         // The flag bits a handler's windows ask a read for: `refreshfilter` and `refetchonopen`, OR'd across every
         // window on the handler. webfig sends `base | refetchonopen | refreshfilter` on getall and get-singleton
         // alike; without the window's bits a read can be a sketch of the list columns — RouterOS 6.49's route
         // window (refreshfilter:131072) leaves out scope, target-scope, routing-mark and vrf-interface.
-        private readonly Dictionary<string, int> _readFlagsByHandler = new Dictionary<string, int>(StringComparer.Ordinal);
+        private readonly Dictionary<WinboxHandler, int> _readFlagsByHandler = new Dictionary<WinboxHandler, int>();
 
         // Interface subtype filters. RouterOS interface subtypes (bridge, vlan, eoip, …) are NOT separate M2
         // handlers — they all live in the generic interface table (the `generic:'iface'` window, [20,0]) and are
@@ -108,7 +106,7 @@ namespace tik4net.Winbox
         // menu-label path → (typeKey, typeValue); _genericIfaceHandler/_ifaceTypeKey capture the base window.
         private readonly Dictionary<string, Tuple<int, int>> _subtypeFilters =
             new Dictionary<string, Tuple<int, int>>(StringComparer.OrdinalIgnoreCase);
-        private int[]? _genericIfaceHandler;
+        private WinboxHandler? _genericIfaceHandler;
         private int _ifaceTypeKey;
 
         // The same shape outside the interface family: a `generic:'X'` base window that HAS a handler of its
@@ -116,8 +114,8 @@ namespace tik4net.Winbox
         // the base's table rather than tables of their own. `generic:'route'` ([44,21], typeon:'rtype') is the
         // live case — IPv4 routes are rtype 2 and IPv6 routes rtype 3 in ONE table, so a read of /ip/route
         // that does not filter answers with the IPv6 routes too. Keyed generic name → (handler, typeKey).
-        private readonly Dictionary<string, Tuple<int[], int>> _genericBases =
-            new Dictionary<string, Tuple<int[], int>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Tuple<WinboxHandler, int>> _genericBases =
+            new Dictionary<string, Tuple<WinboxHandler, int>>(StringComparer.Ordinal);
 
         // Windows that declare `generic:'<name>'` — the bases other windows extend with `inherit:'<name>'`.
         // The interface subtype tree is NOT one level deep: the PPP tunnel windows inherit a `generic:'ppp'`
@@ -133,14 +131,14 @@ namespace tik4net.Winbox
         // "Run Script" doit cmd:1). These are NOT CRUD — they invoke a command on the owning handler targeting
         // a record .id. Keyed handler-path → (normalized action label → SYS_CMD). The RouterOS API verb
         // (/system/script/run) is matched to the label by its first token ("run" ↔ "run-script").
-        private readonly Dictionary<string, Dictionary<string, int>> _actionsByHandler =
-            new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        private readonly Dictionary<JgOwner, Dictionary<string, int>> _actionsByHandler =
+            new Dictionary<JgOwner, Dictionary<string, int>>();
 
         // Streaming-monitor windows (.jg type:'query', or type:'action' with a pollcmd): start → poll → cancel
         // over the normal request/reply channel (NOT a server push — the client re-polls every autorefresh ms;
         // see Docs/winbox-native-m2-protocol.md §20). Keyed handler-path → spec (start/poll/cancel cmd + interval).
-        private readonly Dictionary<string, WinboxMonitorSpec> _monitorsByHandler =
-            new Dictionary<string, WinboxMonitorSpec>(StringComparer.Ordinal);
+        private readonly Dictionary<WinboxHandler, WinboxMonitorSpec> _monitorsByHandler =
+            new Dictionary<WinboxHandler, WinboxMonitorSpec>();
 
         /// <summary>True once at least one <c>.jg</c> window has been parsed into the catalog.</summary>
         internal bool HasData => _byHandler.Count > 0;
@@ -149,9 +147,9 @@ namespace tik4net.Winbox
         /// Returns the field map for <paramref name="handler"/> as <c>apiName → field</c>, or <c>null</c>
         /// when no window targeting that handler was found in the catalog.
         /// </summary>
-        internal IReadOnlyDictionary<string, WinboxJgField>? GetHandlerFields(int[] handler)
+        internal IReadOnlyDictionary<string, WinboxJgField>? GetHandlerFields(WinboxHandler handler)
         {
-            return _byHandler.TryGetValue(HandlerKey(handler), out var map) ? map : null;
+            return _byHandler.TryGetValue(JgOwner.Of(handler), out var map) ? map : null;
         }
 
         /// <summary>
@@ -166,11 +164,11 @@ namespace tik4net.Winbox
         /// maps. Window members overlay the handler's, as <see cref="GetWindowFields"/> does.
         /// </remarks>
         internal IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? GetNumFlags(
-            int[] handler, string? derivedPath)
+            WinboxHandler handler, string? derivedPath)
         {
-            _numFlags.TryGetValue(HandlerKey(handler), out var byHandler);
+            _numFlags.TryGetValue(JgOwner.Of(handler), out var byHandler);
             IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? byWindow = null;
-            if (derivedPath != null && _numFlags.TryGetValue(WindowKey(derivedPath), out var w)) byWindow = w;
+            if (derivedPath != null && _numFlags.TryGetValue(JgOwner.Window(derivedPath), out var w)) byWindow = w;
             if (byHandler == null) return byWindow;
             if (byWindow == null) return byHandler;
             var merged = new Dictionary<int, IReadOnlyDictionary<int, string>>(byHandler);
@@ -178,13 +176,13 @@ namespace tik4net.Winbox
             return merged;
         }
 
-        // owner (handler or window key) → key → value → flag name.
-        private readonly Dictionary<string, Dictionary<int, IReadOnlyDictionary<int, string>>> _numFlags =
-            new Dictionary<string, Dictionary<int, IReadOnlyDictionary<int, string>>>(StringComparer.Ordinal);
+        // owner (handler or window) → key → value → flag name.
+        private readonly Dictionary<JgOwner, Dictionary<int, IReadOnlyDictionary<int, string>>> _numFlags =
+            new Dictionary<JgOwner, Dictionary<int, IReadOnlyDictionary<int, string>>>();
 
         // {type:'numflag',id:'u7',c:{2:[ 'connected','C' ],…}} — the member list is a map from the key's value
         // to [name, one-letter flag]; only the name is kept.
-        private void AddNumFlag(string owner, string idStr, Dictionary<string, object> dict)
+        private void AddNumFlag(JgOwner owner, string idStr, Dictionary<string, object> dict)
         {
             var dec = DecodeId(idStr);
             if (dec == null || !dict.TryGetValue("c", out var cv) || !(cv is Dictionary<string, object> members))
@@ -201,10 +199,10 @@ namespace tik4net.Winbox
             // Also under the owning HANDLER, the way AddField registers a handler-backed window's fields: a
             // caller addressing the handler rather than this window still reads the flags. First wins, so a
             // second window on the same handler does not rename another's flags at handler level.
-            string? handlerOfWindow = IsWindowKey(owner) ? HandlerOfOwner(owner) : null;
+            JgOwner? handlerOfWindow = owner.IsWindow ? HandlerOfOwner(owner) : null;
             if (handlerOfWindow != null) Register(handlerOfWindow);
 
-            void Register(string key)
+            void Register(JgOwner key)
             {
                 if (!_numFlags.TryGetValue(key, out var forOwner))
                     _numFlags[key] = forOwner = new Dictionary<int, IReadOnlyDictionary<int, string>>();
@@ -212,32 +210,62 @@ namespace tik4net.Winbox
             }
         }
 
-        // Field maps of a WINDOW rather than of a handler live in the same dictionary under a key that
-        // cannot collide with a handler key ("20,0").
-        private static string WindowKey(string derivedPath) => "win:" + derivedPath;
-
-        // The same trick for the ARGUMENTS of one action window (a .jg doit/action with a cmd): its fields are
-        // kept under their own key as well as merged into the owning handler's map, so a caller invoking the
-        // action can be given the action's own vocabulary. See GetActionFields.
-        private static string ActionKey(string handlerKey, string normalizedLabel)
-            => "act:" + handlerKey + "|" + normalizedLabel;
-
-        private static bool IsActionKey(string? key) => key != null && key.StartsWith("act:", StringComparison.Ordinal);
-
-        private static bool IsWindowKey(string? key) => key != null && key.StartsWith("win:", StringComparison.Ordinal);
-
-        // The handler a walk owner ultimately reads: identity for a handler key, the owning handler for a
-        // window key. Actions are keyed by handler even when declared inside a window, because that is how
-        // GetActionFields asks for them.
-        private string? HandlerOfOwner(string? owner)
-            => IsWindowKey(owner) && owner != null && _windowHandlerKey.TryGetValue(owner, out var h) ? h : owner;
-
-        // "act:85,5|generate-key" → "85,5"
-        private static string HandlerOfActionKey(string actionKey)
+        /// <summary>
+        /// Whom the walk files a field under: a handler; one WINDOW, by its derived path, whose map overlays its
+        /// handler's (see <see cref="GetWindowFields"/>); or the ARGUMENTS of one action window (a <c>.jg</c>
+        /// doit/action with a cmd), by the owner the action was declared under and its normalized label, kept as
+        /// well as merged into that owner's map so a caller invoking the action can be given the action's own
+        /// vocabulary (see <see cref="GetActionFields"/>). Equal when the parts are.
+        /// </summary>
+        private sealed class JgOwner : IEquatable<JgOwner>
         {
-            int bar = actionKey.IndexOf('|');
-            return actionKey.Substring(4, bar - 4);
+            private readonly WinboxHandler _handler;
+            private readonly string? _window;
+            private readonly JgOwner? _actionOf;
+            private readonly string? _action;
+
+            private JgOwner(WinboxHandler handler, string? window, JgOwner? actionOf, string? action)
+            {
+                _handler = handler; _window = window; _actionOf = actionOf; _action = action;
+            }
+
+            internal static JgOwner Of(WinboxHandler handler) => new JgOwner(handler, null, null, null);
+
+            internal static JgOwner Window(string derivedPath) => new JgOwner(default, derivedPath, null, null);
+
+            internal static JgOwner Action(JgOwner owner, string normalizedLabel) => new JgOwner(default, null, owner, normalizedLabel);
+
+            internal bool IsWindow => _window != null;
+
+            internal bool IsAction => _action != null;
+
+            /// <summary>The owner an action was declared under (<c>null</c> unless <see cref="IsAction"/>).</summary>
+            internal JgOwner? ActionOf => _actionOf;
+
+            public bool Equals(JgOwner? other)
+                => other != null && _handler == other._handler
+                   && string.Equals(_window, other._window, StringComparison.Ordinal)
+                   && Equals(_actionOf, other._actionOf)
+                   && string.Equals(_action, other._action, StringComparison.Ordinal);
+
+            public override bool Equals(object? obj) => Equals(obj as JgOwner);
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = _handler.GetHashCode();
+                    hash = hash * 31 + (_window == null ? 0 : StringComparer.Ordinal.GetHashCode(_window));
+                    hash = hash * 31 + (_actionOf?.GetHashCode() ?? 0);
+                    return hash * 31 + (_action == null ? 0 : StringComparer.Ordinal.GetHashCode(_action));
+                }
+            }
         }
+
+        // The owner a walk owner ultimately reads: itself for a handler, the owning handler for a window. Actions
+        // are keyed by handler even when declared inside a window, because that is how GetActionFields asks for them.
+        private JgOwner HandlerOfOwner(JgOwner owner)
+            => owner.IsWindow && _windowHandlerKey.TryGetValue(owner, out var h) ? h : owner;
 
         /// <summary>
         /// The argument fields declared by ONE action window (<c>type:'doit'/'action'</c> with a <c>cmd</c>),
@@ -252,9 +280,9 @@ namespace tik4net.Winbox
         /// the read-only column wins (first label wins), so the argument encoded to nothing and the router
         /// generated a default 1024-bit key while the caller was told it had asked for 2048.
         /// </remarks>
-        internal IReadOnlyDictionary<string, WinboxJgField>? GetActionFields(int[] handler, string? normalizedLabel)
-            => handler != null && normalizedLabel != null
-               && _byHandler.TryGetValue(ActionKey(HandlerKey(handler), normalizedLabel), out var map)
+        internal IReadOnlyDictionary<string, WinboxJgField>? GetActionFields(WinboxHandler handler, string? normalizedLabel)
+            => normalizedLabel != null
+               && _byHandler.TryGetValue(JgOwner.Action(JgOwner.Of(handler), normalizedLabel), out var map)
                 ? map : null;
 
         /// <summary>
@@ -272,7 +300,7 @@ namespace tik4net.Winbox
         /// </remarks>
         internal IReadOnlyDictionary<string, WinboxJgField>? GetWindowFields(string? derivedPath)
         {
-            return derivedPath != null && _byHandler.TryGetValue(WindowKey(derivedPath), out var map) ? map : null;
+            return derivedPath != null && _byHandler.TryGetValue(JgOwner.Window(derivedPath), out var map) ? map : null;
         }
 
         /// <summary>
@@ -285,10 +313,10 @@ namespace tik4net.Winbox
         /// The API name of the field a handler's window declares as the row's display name
         /// (<c>nameval</c>), or <c>null</c> when it declares none.
         /// </summary>
-        internal string? GetNameValField(int[] handler)
-            => _nameValByHandler.TryGetValue(HandlerKey(handler), out var label) ? label : null;
+        internal string? GetNameValField(WinboxHandler handler)
+            => _nameValByHandler.TryGetValue(handler, out var label) ? label : null;
 
-        internal IReadOnlyDictionary<string, int[]> GetDerivedPaths() => _derivedPaths;
+        internal IReadOnlyDictionary<string, WinboxHandler> GetDerivedPaths() => _derivedPaths;
 
         /// <summary>
         /// Interface subtype filters: <c>derivedApiPath → (typeKey, typeValue)</c>. For a subtype path
@@ -303,8 +331,8 @@ namespace tik4net.Winbox
         /// (from <c>type:'doit'/'action'</c> nodes with a <c>cmd</c>), or <c>null</c> when the handler exposes
         /// no actions. Used to dispatch non-CRUD verbs such as <c>/system/script/run</c>.
         /// </summary>
-        internal IReadOnlyDictionary<string, int>? GetHandlerActions(int[] handler)
-            => handler != null && _actionsByHandler.TryGetValue(HandlerKey(handler), out var m) ? m : null;
+        internal IReadOnlyDictionary<string, int>? GetHandlerActions(WinboxHandler handler)
+            => _actionsByHandler.TryGetValue(JgOwner.Of(handler), out var m) ? m : null;
 
         /// <summary>
         /// Whether the window behind a specific derived menu-label path is a singleton (<c>type:'item'</c>,
@@ -341,8 +369,8 @@ namespace tik4net.Winbox
         /// window — its sole record is read via get-singleton rather than getall. Handler-level, so it
         /// answers <c>true</c> for a handler that ALSO hosts a list window; prefer
         /// <see cref="TryIsSingletonPath"/> when the path is known.</summary>
-        internal bool IsSingletonHandler(int[] handler) =>
-            handler != null && _singletonHandlers.Contains(HandlerKey(handler));
+        internal bool IsSingletonHandler(WinboxHandler handler) =>
+            _singletonHandlers.Contains(handler);
 
         /// <summary>
         /// True when <paramref name="handler"/> is backed <b>only</b> by action windows
@@ -355,11 +383,9 @@ namespace tik4net.Winbox
         /// 'Send SMS' <c>doit</c>; treating it as action-only would break reading SMS messages. So a handler
         /// qualifies only when no record window anywhere in the catalog claims it.
         /// </remarks>
-        internal bool IsActionOnlyHandler(int[]? handler)
+        internal bool IsActionOnlyHandler(WinboxHandler? handler)
         {
-            if (handler == null) return false;
-            string key = HandlerKey(handler);
-            return _actionWindowHandlers.Contains(key) && !_recordWindowHandlers.Contains(key);
+            return handler is WinboxHandler h && _actionWindowHandlers.Contains(h) && !_recordWindowHandlers.Contains(h);
         }
 
         /// <summary>
@@ -368,7 +394,7 @@ namespace tik4net.Winbox
         /// <paramref name="label"/> receives the action's normalized label, which
         /// <see cref="GetActionFields"/> keys its arguments by.
         /// </summary>
-        internal int GetSoleActionCmd(int[] handler, out string? label)
+        internal int GetSoleActionCmd(WinboxHandler handler, out string? label)
         {
             label = null;
             var actions = GetHandlerActions(handler);
@@ -383,7 +409,7 @@ namespace tik4net.Winbox
         /// Shutdown (6), Reset Configuration (7) and a package downgrade (9), one window each (6.49.13, 7.24.4), so
         /// <c>/system/reboot</c> is cmd 5. <c>-1</c> when neither rule names exactly one action.
         /// </summary>
-        internal int GetActionCmd(int[] handler, string lastSegment, out string? label)
+        internal int GetActionCmd(WinboxHandler handler, string lastSegment, out string? label)
         {
             int sole = GetSoleActionCmd(handler, out label);
             if (sole >= 0) return sole;
@@ -408,12 +434,12 @@ namespace tik4net.Winbox
         /// the map handler — which answers getall with <c>NotImplemented</c> on x86/CHR (verified live). The
         /// handler number is taken live from the <c>.jg</c>, so this stays version-portable (no hardcoded path).
         /// </remarks>
-        internal int[]? FindSingletonHandlerByLeaf(string leaf)
+        internal WinboxHandler? FindSingletonHandlerByLeaf(string leaf)
         {
             if (string.IsNullOrEmpty(leaf)) return null;
             foreach (var kv in _derivedPaths)
             {
-                if (!_singletonHandlers.Contains(HandlerKey(kv.Value))) continue;
+                if (!_singletonHandlers.Contains(kv.Value)) continue;
                 int slash = kv.Key.LastIndexOf('/');
                 string l = slash >= 0 ? kv.Key.Substring(slash + 1) : kv.Key;
                 if (l.IndexOf(leaf, StringComparison.OrdinalIgnoreCase) >= 0) return kv.Value;
@@ -423,29 +449,29 @@ namespace tik4net.Winbox
 
         /// <summary>Returns the streaming-monitor spec for <paramref name="handler"/> (a <c>type:'query'</c>
         /// or poll-action window), or <c>null</c> when the handler is not a monitor window.</summary>
-        internal WinboxMonitorSpec? GetMonitorByHandler(int[]? handler) =>
-            handler != null && _monitorsByHandler.TryGetValue(HandlerKey(handler), out var spec) ? spec : null;
+        internal WinboxMonitorSpec? GetMonitorByHandler(WinboxHandler? handler) =>
+            handler is WinboxHandler h && _monitorsByHandler.TryGetValue(h, out var spec) ? spec : null;
 
         /// <summary>True when <paramref name="handler"/>'s window is marked <c>autorefresh</c> in the
         /// <c>.jg</c> — it carries runtime/dynamic fields (e.g. firewall counters) that getall only returns
         /// when the stats flag bit is set.</summary>
-        internal bool HasDynamicFields(int[] handler) =>
-            handler != null && _dynamicHandlers.Contains(HandlerKey(handler));
+        internal bool HasDynamicFields(WinboxHandler handler) =>
+            _dynamicHandlers.Contains(handler);
 
         /// <summary>The flag word (<c>ufe000c</c>) a getall or get-singleton on <paramref name="handler"/> sends:
         /// <see cref="WinboxM2Protocol.GetAllFlags"/>, OR the bits its windows declare as <c>refreshfilter</c> and
         /// <c>refetchonopen</c> (what webfig sends), OR <see cref="WinboxM2Protocol.GetAllStatsFlag"/> when a window
         /// is <c>autorefresh</c> (<see cref="HasDynamicFields"/>) — a bit webfig sends only where the window's
         /// <c>refreshfilter</c> carries it, kept because the counters this transport returns depend on it.</summary>
-        internal int GetReadFlags(int[] handler)
+        internal int GetReadFlags(WinboxHandler handler)
             => WinboxM2Protocol.GetAllFlags | GetWindowReadFlags(handler)
                | (HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
 
         /// <summary>The <c>refreshfilter | refetchonopen</c> bits <paramref name="handler"/>'s windows declare, or
         /// <c>0</c>. A get-singleton sends <see cref="WinboxM2Protocol.GetAllFlags"/> OR these, as webfig's
         /// <c>ObjectHolder.fetch</c> does.</summary>
-        internal int GetWindowReadFlags(int[] handler)
-            => handler != null && _readFlagsByHandler.TryGetValue(HandlerKey(handler), out int flags) ? flags : 0;
+        internal int GetWindowReadFlags(WinboxHandler handler)
+            => _readFlagsByHandler.TryGetValue(handler, out int flags) ? flags : 0;
 
         /// <summary>Number of field maps this catalog holds. <c>0</c> means the <c>.jg</c> load produced
         /// nothing and every lookup will fall back to the seed table — see

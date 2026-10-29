@@ -75,9 +75,9 @@ namespace tik4net.unittests.Golden
                 {
                     string path = (string)e.Key;
                     string? windowKey = map.ResolveDerivedKey(path);
-                    int[]? handler = map.Resolve(path);
+                    WinboxHandler? handler = map.Resolve(path);
                     var window = catalog.GetWindowFields(windowKey);
-                    var handlerFields = handler != null ? catalog.GetHandlerFields(handler) : null;
+                    var handlerFields = handler != null ? catalog.GetHandlerFields(handler.Value) : null;
                     WinboxJgField? Find(string n)
                     {
                         string k = WinboxFieldResolver.NormalizeLabel(n);
@@ -121,16 +121,17 @@ namespace tik4net.unittests.Golden
             if (!string.IsNullOrEmpty(output)) File.WriteAllLines(output, report);
         }
 
-        private static string PathVerdict(IReadOnlyDictionary<string, int[]> derived, string apiPath, string[] targets)
+        private static string PathVerdict(IReadOnlyDictionary<string, WinboxHandler> derived, string apiPath, string[] targets)
         {
-            int[]? viaAlias = targets.Select(t => derived.TryGetValue(t, out var h) ? h : null).FirstOrDefault(h => h != null);
-            bool verbatim = derived.TryGetValue(apiPath, out int[]? direct);
+            WinboxHandler? viaAlias = targets.Select(t => derived.TryGetValue(t, out var h) ? h : (WinboxHandler?)null)
+                .FirstOrDefault(h => h != null);
+            bool verbatim = derived.TryGetValue(apiPath, out WinboxHandler direct);
             if (viaAlias == null) return verbatim ? "target-absent, verbatim-resolves" : "inert (target absent)";
             if (!verbatim) return "needed";
-            return direct!.SequenceEqual(viaAlias) ? "redundant" : "needed (verbatim path is another window)";
+            return direct == viaAlias ? "redundant" : "needed (verbatim path is another window)";
         }
 
-        private static string FieldVerdict(int[]? handler, WinboxJgField? viaLabel, WinboxJgField? verbatim)
+        private static string FieldVerdict(WinboxHandler? handler, WinboxJgField? viaLabel, WinboxJgField? verbatim)
         {
             if (handler == null) return "no-handler";
             if (viaLabel == null) return verbatim == null ? "inert (neither name in catalog)" : "label-absent, api-name-present";

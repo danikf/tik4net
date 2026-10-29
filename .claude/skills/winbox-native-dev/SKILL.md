@@ -131,6 +131,7 @@ each M2 request via `M2Message.Describe` (top-level keys `0xKEY=type:value`).
 | CRUD dispatch (read/write/monitor/safe-mode), path resolution | `tik4net/WinboxNative/WinboxNativeConnection.cs` | `RunPrintCore`, `RunAdd`, `RunVerb`, `PreferSingletonHealthHandler`, `PathOverride`, `FieldOverride` |
 | Raw M2 ops (the verbs) | `tik4net/Winbox/WinboxNativeM2Operations.cs` | `GetAll`, `GetSingleton`, `GetOne`, `Add`, `Set`, `Remove`, `Move`, `InvokeAction`, `StartMonitor`/`PollMonitor`/`CancelMonitor` |
 | TLV build/parse + field encoders | `tik4net/Winbox/M2Message.cs` | `BuildM2`, `U32Sys`/`U8Sys`/`BoolSys`/`StringSys`/`RawSys`/`MessageSys`/`U32ArraySys`, `ParseAllFields`, `ParseRecords`, `Describe` |
+| Field type, decoded record, handler | `tik4net/Winbox/M2Type.cs`, `M2Value.cs`, `WinboxHandler.cs` | `M2Type` (`FromTypeByte`, `TryFromJgPrefix`), `M2Value`, `M2Record`, `WinboxHandler` |
 | Protocol constants (commands, keys, errors) | `tik4net/Winbox/WinboxM2Protocol.cs` | `Command.*`, `RecordKey.*`, `SysKey.*`, `Error.*`, `GetAllFlags` |
 | `.jg` parse → catalog | `tik4net/Winbox/WinboxJgCatalog.cs` (query surface; `.Load`, `.Walk` partials), `WinboxJgParser.cs`, `WinboxMproxyClient.cs` | `GetHandlerFields`, `GetDerivedPaths`, `IsSingletonHandler`, `FindSingletonHandlerByLeaf`, `GetHandlerActions`, `GetMonitorByHandler`, `HasDynamicFields` |
 | One field's metadata | `tik4net/Winbox/WinboxJgField.cs` | `Key`, `WireType`, `UiType`, `ReadOnly`, `EnumMap`, `MaskKey`, `IsRange`, `RefHandler`, `OptKey`, `NotKey` |

@@ -101,7 +101,7 @@ namespace tik4net.Winbox
         /// The header order is what the native operations, RoMON and the mepty login send. The legacy MD5 login sends
         /// <c>SYS_CMD</c> before reply-expected, and mproxy sends <c>SYS_CMD</c> as a u8, so neither is built here.
         /// </remarks>
-        internal static byte[] Request(int[] handler, int command, byte[] reqIdField, IEnumerable<byte[]?> fields)
+        internal static byte[] Request(WinboxHandler handler, int command, byte[] reqIdField, IEnumerable<byte[]?> fields)
         {
             var all = new List<byte[]>
             {
@@ -112,12 +112,15 @@ namespace tik4net.Winbox
             return BuildM2(all.ToArray());
         }
 
-        /// <inheritdoc cref="Request(int[], int, byte[], IEnumerable{byte[]})"/>
-        internal static byte[] Request(int[] handler, int command, byte[] reqIdField, params byte[]?[] fields)
+        /// <inheritdoc cref="Request(WinboxHandler, int, byte[], IEnumerable{byte[]})"/>
+        internal static byte[] Request(WinboxHandler handler, int command, byte[] reqIdField, params byte[]?[] fields)
             => Request(handler, command, reqIdField, (IEnumerable<byte[]?>)fields);
 
         // SYS_TO u32_array: key=(0x01,0x00,0xFF)
         internal static byte[] SysToArr(params int[] ids) => U32ArraySys(WinboxM2Protocol.SysKey.To, ids);
+
+        /// <summary><c>SYS_TO</c> = <paramref name="handler"/>'s path.</summary>
+        internal static byte[] SysToArr(WinboxHandler handler) => SysToArr(handler.ToArray());
 
         // SYS_FROM u32_array [0, srcId]: key=(0x02,0x00,0xFF)
         internal static byte[] SysFrom(int srcId = 8) => U32ArraySys(WinboxM2Protocol.SysKey.From, 0, srcId);

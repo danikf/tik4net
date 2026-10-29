@@ -35,7 +35,7 @@ namespace tik4net.Winbox
         /// is a list whose element is one such dropdown, and the API prints <c>ether1</c> where the element
         /// carries the interface's numeric id.
         /// </summary>
-        internal int[]? RefHandler { get; }
+        internal WinboxHandler? RefHandler { get; }
 
         /// <summary>The text of a <c>type:'prefix'</c> wrapper around the part (<c>'via '</c>), printed in front of it
         /// when the element carries it. Set only on <see cref="WinboxJgField.ElementStatusParts"/>.</summary>
@@ -48,7 +48,7 @@ namespace tik4net.Winbox
         internal WinboxJgElementPart(int key, string uiType, int maskKey,
             IReadOnlyList<WinboxJgElementPart>? alternatives = null,
             IReadOnlyDictionary<int, string>? enumMap = null,
-            int[]? refHandler = null, int radix = 0, string? prefix = null, bool continues = false)
+            WinboxHandler? refHandler = null, int radix = 0, string? prefix = null, bool continues = false)
         {
             Key = key; UiType = uiType; MaskKey = maskKey; Alternatives = alternatives; EnumMap = enumMap;
             RefHandler = refHandler; Radix = radix; Prefix = prefix; Continues = continues;
@@ -118,7 +118,7 @@ namespace tik4net.Winbox
         /// the referenced table — the value is resolved by matching a name against that table's records and
         /// sending the referenced object's <c>.id</c>. <c>null</c> for non-reference fields.
         /// </summary>
-        internal int[]? RefHandler { get; }
+        internal WinboxHandler? RefHandler { get; }
 
         /// <summary>
         /// For <c>type:'addr'</c> fields, the <c>allow</c> mask that says which address FORMS the field accepts
@@ -414,7 +414,7 @@ namespace tik4net.Winbox
 
         internal WinboxJgField(string apiName, int key, M2Type wireType, bool readOnly,
             IReadOnlyDictionary<int, string>? enumMap = null, string? uiType = null, int maskKey = 0,
-            int[]? refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
+            WinboxHandler? refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
             string? allow = null, long? def = null,
             string? paneKind = null, int paneSelectorKey = 0, int[]? paneValues = null, int offKey = 0,
             bool isOptional = false, string? elementUiType = null, int scale = 1,
@@ -423,10 +423,10 @@ namespace tik4net.Winbox
             int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
             long min = 0, int radix = 0, string? prefix = null, int elementScale = 1,
-            bool relative = false, IReadOnlyList<int[]>? refHandlers = null)
+            bool relative = false, IReadOnlyList<WinboxHandler>? refHandlers = null)
         {
             RefHandlers = refHandlers != null && refHandlers.Count > 0 ? refHandlers
-                        : refHandler != null ? new[] { refHandler } : null;
+                        : refHandler != null ? new[] { refHandler.Value } : null;
             Relative = relative;
             ElementScale = elementScale < 1 ? 1 : elementScale;
             Radix = radix;
@@ -552,7 +552,7 @@ namespace tik4net.Winbox
         /// <c>pair{pair{static global, dynamic [20,0]}, dynamic [20,12]}</c> — an interface or another queue —
         /// and with only the first table searched, a queue parent read back as its raw id <c>*10002C1</c>.
         /// </remarks>
-        internal IReadOnlyList<int[]>? RefHandlers { get; }
+        internal IReadOnlyList<WinboxHandler>? RefHandlers { get; }
 
         /// <summary>
         /// For a text field that names a record's KIND: the key whose number names the same kind, or <c>0</c>.

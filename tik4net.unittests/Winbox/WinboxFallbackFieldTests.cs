@@ -33,7 +33,7 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual("vrf-interface", resolver.BuildKeyToApiName()[0x3C]);
             var field = resolver.BuildKeyToField()[0x3C];
-            CollectionAssert.AreEqual(new[] { 20, 0 }, field.RefHandler, "an interface id, printed as the interface's name");
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 0), field.RefHandler, "an interface id, printed as the interface's name");
             Assert.IsTrue(field.ReadOnly, "a native write of it has not been measured");
         }
 

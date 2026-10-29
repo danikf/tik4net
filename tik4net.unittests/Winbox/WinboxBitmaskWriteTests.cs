@@ -223,7 +223,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ATableBackedSetIsRecognizedAndItsTableNamed()
         {
-            CollectionAssert.AreEqual(new[] { 13, 3 }, GroupResolver().BitSetMemberTable("policy"),
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(13, 3), GroupResolver().BitSetMemberTable("policy"),
                 "the caller has to know which table to read before encoding");
         }
 

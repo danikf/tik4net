@@ -479,9 +479,9 @@ namespace tik4net.Winbox
             return primary;
         }
 
-        private IReadOnlyDictionary<string, int[]>? _derivedPaths;
+        private IReadOnlyDictionary<string, WinboxHandler>? _derivedPaths;
         private IReadOnlyDictionary<string, Tuple<int, int>>? _subtypeFilters;
-        private readonly Dictionary<string, int[]> _overrides = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, WinboxHandler> _overrides = new Dictionary<string, WinboxHandler>(StringComparer.OrdinalIgnoreCase);
         // Session text alias apiPath → menu-label path; same role as ShippedAlias, resolved just before it.
         private readonly Dictionary<string, string> _aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -496,7 +496,7 @@ namespace tik4net.Winbox
         /// Supplies the <c>.jg</c>-derived <c>menu-label path → handler</c> map (from
         /// <see cref="WinboxJgCatalog.GetDerivedPaths"/>). Consulted after session overrides.
         /// </summary>
-        internal void SetDerivedPaths(IReadOnlyDictionary<string, int[]> derived)
+        internal void SetDerivedPaths(IReadOnlyDictionary<string, WinboxHandler> derived)
         {
             _derivedPaths = derived;
         }
@@ -561,7 +561,7 @@ namespace tik4net.Winbox
         }
 
         /// <summary>Registers a session override <c>apiPath → handler</c> (highest priority).</summary>
-        internal void AddOverride(string apiPath, int[] handler)
+        internal void AddOverride(string apiPath, WinboxHandler handler)
         {
             _overrides[Normalize(apiPath)] = handler;
         }
@@ -578,10 +578,10 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
-        /// Resolves an API path to its handler array, or <c>null</c> when no session override, direct
+        /// Resolves an API path to its handler, or <c>null</c> when no session override, direct
         /// .jg-derived entry, or shipped alias matches.
         /// </summary>
-        internal int[]? Resolve(string apiPath)
+        internal WinboxHandler? Resolve(string apiPath)
         {
             string key = Normalize(apiPath);
             if (TryResolve(key, out var handler)) return handler;
@@ -652,7 +652,7 @@ namespace tik4net.Winbox
 
         // Single resolution attempt for an already-normalized path key: session override → direct .jg-derived
         // entry → shipped apiPath→menu-label alias against the same derived map. False when none match.
-        private bool TryResolve(string key, out int[]? handler)
+        private bool TryResolve(string key, out WinboxHandler handler)
         {
             if (_overrides.TryGetValue(key, out handler)) return true;
             if (_derivedPaths != null)
@@ -667,7 +667,7 @@ namespace tik4net.Winbox
                 string? menuPath = ShippedMenuPath(key);
                 if (menuPath != null && _derivedPaths.TryGetValue(menuPath, out handler)) return true;
             }
-            handler = null;
+            handler = default;
             return false;
         }
 

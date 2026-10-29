@@ -133,7 +133,7 @@ namespace tik4net.unittests.Winbox
 
             var list = Resolver(catalog, "/ip/upnp/interfaces", UpnpHandler, "/ip/upnp/upnp").BuildKeyToField();
             Assert.AreEqual("enm", list[0x1].UiType);
-            CollectionAssert.AreEqual(new[] { 20, 0 }, list[0x1].RefHandler);
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 0), list[0x1].RefHandler);
 
             var settings = Resolver(catalog, "/ip/upnp", UpnpHandler, "/ip/upnp/upnp-settings").BuildKeyToField();
             Assert.AreEqual("bool", settings[0x1].UiType);
@@ -281,7 +281,7 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual(0x1, topics.Key);
             Assert.AreEqual(0x2, topics.OffKey);
-            CollectionAssert.AreEqual(new[] { 3, 3 }, topics.RefHandler,
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(3, 3), topics.RefHandler,
                 "the element type is a tristate onto the log-topic table");
         }
     }

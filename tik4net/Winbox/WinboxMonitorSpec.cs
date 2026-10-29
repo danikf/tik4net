@@ -15,7 +15,7 @@ namespace tik4net.Winbox
     /// </summary>
     internal sealed class WinboxMonitorSpec
     {
-        internal int[] Handler { get; }
+        internal WinboxHandler Handler { get; }
 
         /// <summary>SYS_CMD that starts the monitor; its reply returns the monitor <c>.id</c>.</summary>
         internal int StartCmd { get; }
@@ -34,7 +34,7 @@ namespace tik4net.Winbox
         /// poll-action (a single status record per poll).</summary>
         internal bool IsQuery { get; }
 
-        internal WinboxMonitorSpec(int[] handler, int startCmd, int pollCmd, int cancelCmd, int autorefreshMs, bool isQuery)
+        internal WinboxMonitorSpec(WinboxHandler handler, int startCmd, int pollCmd, int cancelCmd, int autorefreshMs, bool isQuery)
         {
             Handler = handler;
             StartCmd = startCmd;

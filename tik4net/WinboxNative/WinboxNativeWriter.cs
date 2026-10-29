@@ -54,12 +54,12 @@ namespace tik4net.WinboxNative
             // these windows are addressed — the path IS the operation.
             // (ExecuteNonQuery on such a path is legitimate too — the caller simply discards the row the read
             // path would have produced.)
-            int[]? actionHandler = _host.HandlerMap.Resolve(WinboxNativeConnection.ApiPathOf(descriptor.CommandText));
+            WinboxHandler? actionHandler = _host.HandlerMap.Resolve(WinboxNativeConnection.ApiPathOf(descriptor.CommandText));
             if (_host.Catalog.IsActionOnlyHandler(actionHandler))
             {
                 using (await _host.EnterCommandAsync(cancellationToken).ConfigureAwait(false))
                     // actionHandler is non-null here: IsActionOnlyHandler answers false for a null handler.
-                    await _host.RunActionWindowAsync(WinboxNativeConnection.ApiPathOf(descriptor.CommandText), actionHandler!, descriptor, cancellationToken)
+                    await _host.RunActionWindowAsync(WinboxNativeConnection.ApiPathOf(descriptor.CommandText), actionHandler!.Value, descriptor, cancellationToken)
                         .ConfigureAwait(false);
                 return;
             }
@@ -78,7 +78,7 @@ namespace tik4net.WinboxNative
             catch (WinboxM2OperationException ex) { throw _host.TranslateM2Error(ex, descriptor.CommandText); }
         }
 
-        private async Task RunVerbAsync(string verb, string apiPath, int[] handler, WinboxFieldResolver resolver,
+        private async Task RunVerbAsync(string verb, string apiPath, WinboxHandler handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             switch (verb)
@@ -155,7 +155,7 @@ namespace tik4net.WinboxNative
         // The one add, for ExecuteScalar's RunAddAsync and ExecuteNonQuery's RunVerbAsync alike: encode, the subtype
         // discriminator, place-before, add, forget the reference names. Two copies of this had already drifted once
         // (X1: the non-query add lost the discriminator). Returns the new row's id, if the router sent one.
-        private async Task<int?> AddRowAsync(int[] handler, string apiPath, WinboxFieldResolver resolver,
+        private async Task<int?> AddRowAsync(WinboxHandler handler, string apiPath, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
@@ -185,7 +185,7 @@ namespace tik4net.WinboxNative
         /// through 1000 lines of reverse-engineered encoder that no deterministic test covers.</para>
         /// </remarks>
         internal async Task<List<byte[]>> EncodeNameValueFieldsAsync(
-            int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
+            WinboxHandler handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
             CancellationToken cancellationToken, bool allowReadOnly = false, bool includeFilters = false,
             bool skipSnapshotModifier = false)
         {
@@ -194,7 +194,7 @@ namespace tik4net.WinboxNative
             // members there is no value to encode and the encoder refuses rather than writing a clean zero.
             await PrimeBitSetMemberTablesAsync(descriptor, resolver, cancellationToken).ConfigureAwait(false);
 
-            var requests = new List<KeyValuePair<int[], string>>();
+            var requests = new List<KeyValuePair<WinboxHandler, string>>();
             var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId, ReferenceCollector(requests),
                 allowReadOnly, includeFilters, skipSnapshotModifier);
             if (requests.Count == 0) return fields;
@@ -206,10 +206,10 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc cref="EncodeUnsetFields"/>
         private async Task<List<byte[]>> EncodeUnsetFieldsAsync(
-            int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
+            WinboxHandler handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
             CancellationToken cancellationToken)
         {
-            var requests = new List<KeyValuePair<int[], string>>();
+            var requests = new List<KeyValuePair<WinboxHandler, string>>();
             var fields = EncodeUnsetFields(handler, descriptor, resolver, ReferenceCollector(requests));
             if (requests.Count == 0) return fields;
 
@@ -221,10 +221,10 @@ namespace tik4net.WinboxNative
         // encoder asks for and answers with a placeholder id so the pass runs to the end and the questions are
         // complete. The bytes it produces are discarded — only a pass that collected nothing is kept, and that
         // pass never called this at all.
-        private static Func<int[], string, int?> ReferenceCollector(List<KeyValuePair<int[], string>> into)
+        private static Func<WinboxHandler, string, int?> ReferenceCollector(List<KeyValuePair<WinboxHandler, string>> into)
             => (refHandler, name) =>
             {
-                into.Add(new KeyValuePair<int[], string>(refHandler, name));
+                into.Add(new KeyValuePair<WinboxHandler, string>(refHandler, name));
                 return 0;
             };
 
@@ -232,8 +232,8 @@ namespace tik4net.WinboxNative
         // Read-only fields (per .jg) are skipped by the encoder (returns no bytes). A network field expands
         // to two entries (address + mask); a dynamic enum reference is resolved name→id by resolveRef.
         internal List<byte[]> EncodeNameValueFields(
-            int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
-            Func<int[], string, int?> resolveRef,
+            WinboxHandler handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
+            Func<WinboxHandler, string, int?> resolveRef,
             bool allowReadOnly = false, bool includeFilters = false, bool skipSnapshotModifier = false)
         {
             var fields = new List<byte[]>();
@@ -271,7 +271,7 @@ namespace tik4net.WinboxNative
 
         // The delegate EncodeField asks for a bit set's member table. Cached per connection by the id
         // resolver, so the awaited path (which primes it first) never blocks here.
-        private IReadOnlyDictionary<int, string>? MemberTableReader(int[] handler)
+        private IReadOnlyDictionary<int, string>? MemberTableReader(WinboxHandler handler)
             => _host.References.ReadMemberTable(handler);
 
         // Reads, under await, the member table of every table-backed bit set the command writes. Which
@@ -279,17 +279,16 @@ namespace tik4net.WinboxNative
         private async Task PrimeBitSetMemberTablesAsync(TikCommandDescriptor descriptor,
             WinboxFieldResolver resolver, CancellationToken cancellationToken)
         {
-            List<int[]>? wanted = null;
+            List<WinboxHandler>? wanted = null;
             foreach (var p in descriptor.Parameters)
             {
                 if (p.Name.StartsWith(".")) continue;
-                int[]? table = resolver.BitSetMemberTable(p.Name);
-                if (table == null) continue;
-                wanted = wanted ?? new List<int[]>();
-                if (!wanted.Any(h => h.SequenceEqual(table))) wanted.Add(table);
+                if (!(resolver.BitSetMemberTable(p.Name) is WinboxHandler table)) continue;
+                wanted = wanted ?? new List<WinboxHandler>();
+                if (!wanted.Contains(table)) wanted.Add(table);
             }
             if (wanted == null) return;
-            foreach (int[] table in wanted)
+            foreach (WinboxHandler table in wanted)
                 await _host.References.PrimeMemberTableAsync(table, cancellationToken).ConfigureAwait(false);
         }
 
@@ -320,8 +319,8 @@ namespace tik4net.WinboxNative
         // written back as empty. The parameter's own name is NOT a router field, so it must never reach the
         // resolver — its VALUE is the field name and the new value is the empty string.
         private List<byte[]> EncodeUnsetFields(
-            int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
-            Func<int[], string, int?> resolveRef)
+            WinboxHandler handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
+            Func<WinboxHandler, string, int?> resolveRef)
         {
             var fields = new List<byte[]>();
             var unsetIds = new List<int>();
@@ -373,7 +372,7 @@ namespace tik4net.WinboxNative
         // IsSingleton entity was saveable at all — the suite only ever read them, so it went unnoticed.
         // <paramref name="encodeFields"/> is deferred so the .id still resolves before the fields
         // are encoded, keeping "no such item" the error a caller sees when both are wrong.
-        private async Task WriteFieldsAsync(int[] handler, WinboxFieldResolver resolver, TikCommandDescriptor descriptor,
+        private async Task WriteFieldsAsync(WinboxHandler handler, WinboxFieldResolver resolver, TikCommandDescriptor descriptor,
             Func<Task<List<byte[]>>> encodeFields, CancellationToken cancellationToken)
         {
             if (_host.IsSingletonWindow(WinboxNativeConnection.ApiPathOf(descriptor.CommandText), handler))
@@ -412,7 +411,7 @@ namespace tik4net.WinboxNative
         // (Prose kept as a plain comment: a private method with a lone <param> tag is an incomplete XML doc
         // comment — CS1573 for every other parameter — and the mapper's Move<TEntity> is in tik4net.objects,
         // which this assembly does not reference, so the cref could not resolve either (CS1574).)
-        internal async Task<int> ResolveRecordIdAsync(int[] handler, WinboxFieldResolver resolver,
+        internal async Task<int> ResolveRecordIdAsync(WinboxHandler handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, bool required, CancellationToken cancellationToken,
             string? alternateIdParam = null)
         {
@@ -460,7 +459,7 @@ namespace tik4net.WinboxNative
         // a path the GUI exercises — measured on 7.24 (Docs/winbox-native-m2-protocol.md, command catalog).
         // An anchor that does not resolve is refused as "no such item", as over the API: silently appending
         // would put the row somewhere the caller did not ask for, on a menu where position is behaviour.
-        private async Task AddPlaceBeforeAsync(int[] handler, WinboxFieldResolver resolver,
+        private async Task AddPlaceBeforeAsync(WinboxHandler handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, List<byte[]> fields, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(WinboxNativeConnection.FindParam(descriptor, PlaceBeforeParam)))
@@ -475,7 +474,7 @@ namespace tik4net.WinboxNative
         // to the end is the router's own answer, on the API and the CLI alike. A NAME is resolved here, where the API
         // and the CLI have the router resolve it — and they trap 'no such item' when it names nothing, so an
         // unresolved name is refused as that, as place-before's anchor is, rather than read as "move to end".
-        private async Task<int> ResolveMoveDestAsync(int[] handler, WinboxFieldResolver resolver,
+        private async Task<int> ResolveMoveDestAsync(WinboxHandler handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             string? dest = WinboxNativeConnection.FindParam(descriptor, "destination") ?? WinboxNativeConnection.FindParam(descriptor, "move-before");

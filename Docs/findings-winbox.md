@@ -25,6 +25,8 @@ checking who cites it.
 ```
 tik4net/Winbox/                shared session/crypto layer + native M2 protocol constants and codec
 ├── M2Message.cs                   M2 TLV parse/build
+├── M2Type.cs / M2Value.cs        the field type (ftype, from a type byte or a `.jg` letter) and a decoded record
+├── WinboxHandler.cs               a handler path (`[20,0]`) as a value
 ├── WinboxM2Protocol.cs            protocol constants: SysKey/RecordKey/Command/Error/Mproxy/SysInfo/LegacyAuth/Mepty
 ├── WinboxChunkFraming.cs          the chunk framing both carriers share
 ├── WinboxTcpTransport.cs          the TCP socket carrying it

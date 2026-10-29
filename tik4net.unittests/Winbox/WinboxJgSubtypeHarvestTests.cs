@@ -37,7 +37,7 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Parse(IfaceBase);
 
-            CollectionAssert.AreEqual(new[] { 20, 0 }, (System.Array)catalog.GetDerivedPaths()["/interfaces/eoip-tunnel"],
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 0), catalog.GetDerivedPaths()["/interfaces/eoip-tunnel"],
                 "a subtype window reads the generic interface handler");
             var filter = catalog.GetSubtypeFilters()["/interfaces/eoip-tunnel"];
             Assert.AreEqual(0x10001, filter.Item1, "filtered on the base window's `type` field key");
@@ -56,7 +56,7 @@ namespace tik4net.unittests.Winbox
 
             var derived = catalog.GetDerivedPaths();
             Assert.IsTrue(derived.ContainsKey("/ppp/l2tp-client"), "the client window is reachable through the chain");
-            CollectionAssert.AreEqual(new[] { 20, 0 }, (System.Array)derived["/ppp/l2tp-client"]);
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 0), derived["/ppp/l2tp-client"]);
             Assert.AreEqual(34, catalog.GetSubtypeFilters()["/ppp/l2tp-client"].Item2);
         }
 
@@ -104,7 +104,7 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(RouteBase);
 
             var derived = catalog.GetDerivedPaths();
-            CollectionAssert.AreEqual(new[] { 44, 21 }, (System.Array)derived["/ip/routes/routes"],
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(44, 21), derived["/ip/routes/routes"],
                 "the IPv4 window reads the shared routes table");
             var filter = catalog.GetSubtypeFilters()["/ip/routes/routes"];
             Assert.AreEqual(0x81, filter.Item1, "filtered on the base window's own `rtype` key, not on `type`");
@@ -123,8 +123,8 @@ namespace tik4net.unittests.Winbox
                 "[{name:'Routes',title:'Routes',group:'IPv6',c:[{title:'Routes6',type:'map'," +
                 "inherit:'route',typevalue:3,c:[{name:'Distance',type:'number',id:'u107'}]}]}]"));
 
-            CollectionAssert.AreEqual(new[] { 44, 21 },
-                (System.Array)catalog.GetDerivedPaths()["/ipv6/routes/routes6"]);
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(44, 21),
+                catalog.GetDerivedPaths()["/ipv6/routes/routes6"]);
             Assert.AreEqual(3, catalog.GetSubtypeFilters()["/ipv6/routes/routes6"].Item2,
                 "the IPv6 window filters the same table on the other rtype");
         }
@@ -165,7 +165,7 @@ namespace tik4net.unittests.Winbox
         public void HandlerMap_ResolveDerivedKey_NamesTheWindowBehindAnAliasedPath()
         {
             var map = new WinboxHandlerMap();
-            map.SetDerivedPaths(new Dictionary<string, int[]>(System.StringComparer.OrdinalIgnoreCase)
+            map.SetDerivedPaths(new Dictionary<string, WinboxHandler>(System.StringComparer.OrdinalIgnoreCase)
             {
                 ["/ip/upnp/upnp-settings"] = new[] { 28, 0 },
                 ["/ip/upnp/upnp"] = new[] { 28, 0 },

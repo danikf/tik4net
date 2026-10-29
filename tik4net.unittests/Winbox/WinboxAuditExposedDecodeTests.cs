@@ -243,9 +243,9 @@ namespace tik4net.unittests.Winbox
             Assert.IsTrue(catalog.TryParseInto(Window));
             var parent = catalog.GetHandlerFields(Handler).Values.Single(f => f.Key == 0x1);
 
-            CollectionAssert.AreEqual(new[] { 20, 0 }, parent.RefHandler, "the first source stays the RefHandler");
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 0), parent.RefHandler, "the first source stays the RefHandler");
             Assert.AreEqual(2, parent.RefHandlers!.Count);
-            CollectionAssert.AreEqual(new[] { 20, 12 }, parent.RefHandlers[1], "and the queue table is kept after it");
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 12), parent.RefHandlers[1], "and the queue table is kept after it");
         }
 
         [TestMethod]
@@ -254,7 +254,7 @@ namespace tik4net.unittests.Winbox
             // A queue's id is not in the interface table, so the decode will ask the queue table too — and
             // the prefetch must read both, or the second lookup blocks the decoding thread.
             var parent = new WinboxJgField("parent", 0x1, M2Type.U32, false, uiType: "enm",
-                refHandler: new[] { 20, 0 }, refHandlers: new[] { new[] { 20, 0 }, new[] { 20, 12 } });
+                refHandler: new[] { 20, 0 }, refHandlers: new[] { new WinboxHandler(20, 0), new WinboxHandler(20, 12) });
             var channel = new CountingChannel();
             new WinboxRecordCodec(new WinboxNativeM2Operations(channel, 5000), null).PrimeReferencesAsync(
                     new List<M2Record>

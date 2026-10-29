@@ -20,7 +20,7 @@ namespace tik4net.unittests
         // router's version-matched .jg menu tree.
         private static WinboxHandlerMap MapWithDerived(params (string menuPath, int[] handler)[] entries)
         {
-            var derived = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+            var derived = new Dictionary<string, WinboxHandler>(StringComparer.OrdinalIgnoreCase);
             foreach (var (menuPath, handler) in entries)
                 derived[menuPath] = handler;
 
@@ -42,7 +42,7 @@ namespace tik4net.unittests
                 var map = (WinboxHandlerMap)typeof(tik4net.WinboxNative.WinboxNativeConnection)
                     .GetField("_handlerMap", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
                     .GetValue(connection)!;
-                CollectionAssert.AreEqual(new[] { 27, 101 }, map.Resolve("/tool/sniffer"));
+                Assert.AreEqual<WinboxHandler?>(new WinboxHandler(27, 101), map.Resolve("/tool/sniffer"));
             }
         }
 
@@ -74,7 +74,7 @@ namespace tik4net.unittests
 
             map.AddAlias("/ppp/secret", "/ppp/secrets/ppp-secret");
 
-            CollectionAssert.AreEqual(new[] { 20, 12 }, map.Resolve("/ppp/secret"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 12), map.Resolve("/ppp/secret"));
         }
 
         [TestMethod]
@@ -84,8 +84,8 @@ namespace tik4net.unittests
             // Leading/trailing slash noise and case are folded on registration and on lookup.
             map.AddAlias("ppp/secret/", "/PPP/Secrets/PPP-Secret");
 
-            CollectionAssert.AreEqual(new[] { 20, 12 }, map.Resolve("/ppp/secret"));
-            CollectionAssert.AreEqual(new[] { 20, 12 }, map.Resolve("/PPP/Secret"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 12), map.Resolve("/ppp/secret"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 12), map.Resolve("/PPP/Secret"));
         }
 
         [TestMethod]
@@ -95,13 +95,13 @@ namespace tik4net.unittests
             // because only the label path is pinned — re-supplying the derived map is enough.
             var map = MapWithDerived(("/ppp/secrets/ppp-secret", new[] { 20, 12 }));
             map.AddAlias("/ppp/secret", "/ppp/secrets/ppp-secret");
-            CollectionAssert.AreEqual(new[] { 20, 12 }, map.Resolve("/ppp/secret"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 12), map.Resolve("/ppp/secret"));
 
-            map.SetDerivedPaths(new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase)
+            map.SetDerivedPaths(new Dictionary<string, WinboxHandler>(StringComparer.OrdinalIgnoreCase)
             {
                 ["/ppp/secrets/ppp-secret"] = new[] { 20, 44 },
             });
-            CollectionAssert.AreEqual(new[] { 20, 44 }, map.Resolve("/ppp/secret"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 44), map.Resolve("/ppp/secret"));
         }
 
         [TestMethod]
@@ -121,7 +121,7 @@ namespace tik4net.unittests
             map.AddAlias("/ppp/secret", "/ppp/secrets/ppp-secret");
             map.AddOverride("/ppp/secret", new[] { 27, 101 });
 
-            CollectionAssert.AreEqual(new[] { 27, 101 }, map.Resolve("/ppp/secret"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(27, 101), map.Resolve("/ppp/secret"));
         }
 
         [TestMethod]
@@ -133,10 +133,10 @@ namespace tik4net.unittests
                 ("/interfaces/interface-list", new[] { 20, 5 }),
                 ("/interfaces/renamed-list", new[] { 20, 9 }));
 
-            CollectionAssert.AreEqual(new[] { 20, 5 }, map.Resolve("/interface/list"), "shipped alias baseline");
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 5), map.Resolve("/interface/list"), "shipped alias baseline");
 
             map.AddAlias("/interface/list", "/interfaces/renamed-list");
-            CollectionAssert.AreEqual(new[] { 20, 9 }, map.Resolve("/interface/list"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 9), map.Resolve("/interface/list"));
         }
 
         [TestMethod]
@@ -148,8 +148,8 @@ namespace tik4net.unittests
             map.AddAlias("/ppp/secret", "/ppp/secrets/ppp-secret");
             map.UseGuiNames = true;
 
-            CollectionAssert.AreEqual(new[] { 20, 12 }, map.Resolve("/PPP/Secret"));
-            CollectionAssert.AreEqual(new[] { 20, 12 }, map.Resolve("/ppp/secrets/PPP Secret"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 12), map.Resolve("/PPP/Secret"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 12), map.Resolve("/ppp/secrets/PPP Secret"));
         }
 
         [TestMethod]
@@ -181,7 +181,7 @@ namespace tik4net.unittests
         {
             var map = MapWithDerived(("/ip/routes/route", new[] { 44, 1 }));
 
-            CollectionAssert.AreEqual(new[] { 44, 1 }, map.Resolve("/ip/route"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(44, 1), map.Resolve("/ip/route"));
             Assert.AreEqual("/ip/routes/route", map.ResolveDerivedKey("/ip/route"));
         }
 
@@ -190,7 +190,7 @@ namespace tik4net.unittests
         {
             var map = MapWithDerived(("/ipv6/routes/ipv6-route", new[] { 44, 12 }));
 
-            CollectionAssert.AreEqual(new[] { 44, 12 }, map.Resolve("/ipv6/route"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(44, 12), map.Resolve("/ipv6/route"));
         }
 
         [TestMethod]
@@ -210,7 +210,7 @@ namespace tik4net.unittests
             // the older label.
             var map = MapWithDerived(("/routing/bgp/bgp-instance", new[] { 44, 101 }));
 
-            CollectionAssert.AreEqual(new[] { 44, 101 }, map.Resolve("/routing/bgp/instance"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(44, 101), map.Resolve("/routing/bgp/instance"));
         }
 
         [TestMethod]
@@ -221,7 +221,7 @@ namespace tik4net.unittests
             var map = MapWithDerived(("/wireless/capsman/caps-channel", new[] { 88, 57 }),
                                      ("/capsman/caps-channel", new[] { 88, 157 }));
 
-            CollectionAssert.AreEqual(new[] { 88, 57 }, map.Resolve("/caps-man/channel"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(88, 57), map.Resolve("/caps-man/channel"));
         }
 
         [TestMethod]
@@ -236,7 +236,7 @@ namespace tik4net.unittests
                 ["/wireless/wireless"] = Tuple.Create(0x10001, 35),
             });
 
-            CollectionAssert.AreEqual(new[] { 20, 0 }, map.Resolve("/interface/wireless"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 0), map.Resolve("/interface/wireless"));
             Assert.IsTrue(map.TryResolveSubtypeFilter("/interface/wireless", out int typeKey, out int typeValue));
             Assert.AreEqual(0x10001, typeKey);
             Assert.AreEqual(35, typeValue);
@@ -252,8 +252,8 @@ namespace tik4net.unittests
             var map = MapWithDerived(("/ppp/ppp-authentication-&-accounting", new[] { 27, 104 }),
                                      ("/system/users/login-authentication-&-accounting", new[] { 13, 5 }));
 
-            CollectionAssert.AreEqual(new[] { 27, 104 }, map.Resolve("/ppp/aaa"));
-            CollectionAssert.AreEqual(new[] { 13, 5 }, map.Resolve("/user/aaa"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(27, 104), map.Resolve("/ppp/aaa"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(13, 5), map.Resolve("/user/aaa"));
         }
 
         [TestMethod]
@@ -262,8 +262,8 @@ namespace tik4net.unittests
             var map = MapWithDerived(("/ppp/ppp-authentication&accounting", new[] { 27, 104 }),
                                      ("/system/users/login-authentication&accounting", new[] { 13, 5 }));
 
-            CollectionAssert.AreEqual(new[] { 27, 104 }, map.Resolve("/ppp/aaa"));
-            CollectionAssert.AreEqual(new[] { 13, 5 }, map.Resolve("/user/aaa"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(27, 104), map.Resolve("/ppp/aaa"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(13, 5), map.Resolve("/user/aaa"));
         }
 
         [TestMethod]

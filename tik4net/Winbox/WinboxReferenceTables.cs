@@ -14,7 +14,7 @@ namespace tik4net.Winbox
     /// </summary>
     /// <remarks>
     /// <para><b>One name-key rule.</b> A row's name sits at the table's <c>name</c> key, else at the key its window
-    /// declares as <c>nameval</c> (<see cref="NameKeysOf(int[])"/>) — tried in that order per row, by id → name and
+    /// declares as <c>nameval</c> (<see cref="NameKeysOf(WinboxHandler)"/>) — tried in that order per row, by id → name and
     /// name → id alike, so a reference that reads back as a name can be written with that name. A bit set's member is
     /// the other way round: the <c>nameval</c> key when the window declares one (for the policy table [13,3] 'Name' is
     /// the sentence "read router configuration" and 'Alias' the word the API prints, <c>read</c>), else <c>name</c>.</para>
@@ -36,21 +36,15 @@ namespace tik4net.Winbox
         // Guards the three caches: a multiplexed connection can decode two commands' rows at once, and the awaited
         // prime writes while a synchronous decode may be reading.
         private readonly object _lock = new object();
-        // handler key → id → name, dropped on every write.
-        private readonly Dictionary<string, Dictionary<int, string>> _names =
-            new Dictionary<string, Dictionary<int, string>>(StringComparer.Ordinal);
-        // handler key → bit index → member name, kept for the connection.
-        private readonly Dictionary<string, IReadOnlyDictionary<int, string>> _members =
-            new Dictionary<string, IReadOnlyDictionary<int, string>>(StringComparer.Ordinal);
-        // handler key → the table's (name, nameval) keys, from the catalog alone.
-        private readonly Dictionary<string, (int NameKey, int NameValKey)> _nameKeys =
-            new Dictionary<string, (int NameKey, int NameValKey)>(StringComparer.Ordinal);
-
-        /// <summary>
-        /// The suffix under which a collecting decode notes a table's MEMBER map, next to the id → name map of the same
-        /// table (see <see cref="PrimeAsync"/>).
-        /// </summary>
-        internal const string MemberMapSuffix = "|members";
+        // table → id → name, dropped on every write.
+        private readonly Dictionary<WinboxHandler, Dictionary<int, string>> _names =
+            new Dictionary<WinboxHandler, Dictionary<int, string>>();
+        // table → bit index → member name, kept for the connection.
+        private readonly Dictionary<WinboxHandler, IReadOnlyDictionary<int, string>> _members =
+            new Dictionary<WinboxHandler, IReadOnlyDictionary<int, string>>();
+        // table → the table's (name, nameval) keys, from the catalog alone.
+        private readonly Dictionary<WinboxHandler, (int NameKey, int NameValKey)> _nameKeys =
+            new Dictionary<WinboxHandler, (int NameKey, int NameValKey)>();
 
         internal WinboxReferenceTables(WinboxNativeM2Operations ops, WinboxJgCatalog catalog)
         {
@@ -70,25 +64,24 @@ namespace tik4net.Winbox
         /// 'Type Name' at <c>0x16</c>, and <c>/queue/simple</c>'s queue read back as <c>*FFFFFFFA</c> where the API says
         /// pcq-upload-default (7.24.2).
         /// </remarks>
-        internal (int NameKey, int NameValKey) NameKeysOf(int[] table)
+        internal (int NameKey, int NameValKey) NameKeysOf(WinboxHandler table)
         {
-            string key = WinboxJgCatalog.HandlerKey(table);
             lock (_lock)
-                if (_nameKeys.TryGetValue(key, out var cached)) return cached;
+                if (_nameKeys.TryGetValue(table, out var cached)) return cached;
             var keys = RefNameKeys(_catalog, table);
-            lock (_lock) _nameKeys[key] = keys;
+            lock (_lock) _nameKeys[table] = keys;
             return keys;
         }
 
-        /// <summary><see cref="NameKeysOf(int[])"/>, uncached, for a catalog and table.</summary>
-        internal static (int nameKey, int nameValKey) RefNameKeys(WinboxJgCatalog catalog, int[] table)
+        /// <summary><see cref="NameKeysOf(WinboxHandler)"/>, uncached, for a catalog and table.</summary>
+        internal static (int nameKey, int nameValKey) RefNameKeys(WinboxJgCatalog catalog, WinboxHandler table)
             => NameKeysOf(catalog, table, new WinboxFieldResolver(null, table, catalog, EmptyOverrides).BuildKeyToApiName());
 
         /// <summary>
         /// <see cref="RefNameKeys"/> over a key map the caller already holds — a command path's own resolver, whose
         /// session overrides and label hints the lookup of its <c>.id</c> honours.
         /// </summary>
-        internal static (int nameKey, int nameValKey) NameKeysOf(WinboxJgCatalog catalog, int[] handler,
+        internal static (int nameKey, int nameValKey) NameKeysOf(WinboxJgCatalog catalog, WinboxHandler handler,
             IReadOnlyDictionary<int, string> keyToApiName)
         {
             int nameKey = NameKeyOf(keyToApiName);
@@ -164,14 +157,13 @@ namespace tik4net.Winbox
         /// <c>null</c>. That is the ONLY place that decides a reference needs its table read, so the awaited prefetch and
         /// the decode cannot disagree about which tables those are.
         /// </remarks>
-        internal string? NameOf(int[] table, int id, Dictionary<string, int[]>? collect)
+        internal string? NameOf(WinboxHandler table, int id, HashSet<(WinboxHandler Table, bool Members)>? collect)
         {
-            string key = WinboxJgCatalog.HandlerKey(table);
             Dictionary<int, string>? map;
-            lock (_lock) _names.TryGetValue(key, out map);
+            lock (_lock) _names.TryGetValue(table, out map);
             if (collect != null)
             {
-                if (map == null) collect[key] = table;
+                if (map == null) collect.Add((table, false));
                 return null;
             }
             if (map == null)
@@ -181,10 +173,10 @@ namespace tik4net.Winbox
                 {
                     // The lookup falls back to the numeric id, which reads as a plausible value rather than as an
                     // error — so a single transient getall failure must not be memoized.
-                    TraceUnreadable(key, ex);
+                    TraceUnreadable(table, false, ex);
                     return null;
                 }
-                lock (_lock) _names[key] = map;
+                lock (_lock) _names[table] = map;
             }
             return map.TryGetValue(id, out var n) ? n : null;
         }
@@ -194,24 +186,24 @@ namespace tik4net.Winbox
         /// (<c>/user/group</c> policies, a script's or scheduler entry's policy): <c>bit index → member name</c>. The same
         /// collect / cached / blocking structure as <see cref="NameOf"/>.
         /// </summary>
-        internal IReadOnlyDictionary<int, string>? MembersOf(int[] table, Dictionary<string, int[]>? collect)
+        internal IReadOnlyDictionary<int, string>? MembersOf(WinboxHandler table,
+            HashSet<(WinboxHandler Table, bool Members)>? collect)
         {
-            string key = WinboxJgCatalog.HandlerKey(table);
             IReadOnlyDictionary<int, string>? map;
-            lock (_lock) _members.TryGetValue(key, out map);
+            lock (_lock) _members.TryGetValue(table, out map);
             if (collect != null)
             {
-                if (map == null) collect[key + MemberMapSuffix] = table;
+                if (map == null) collect.Add((table, true));
                 return null;
             }
             if (map != null) return map;
             try { map = BuildMemberMap(table, _ops.GetAll(table)); }
             catch (Exception ex)
             {
-                TraceUnreadable(key + MemberMapSuffix, ex);
+                TraceUnreadable(table, true, ex);
                 return null;   // not memoized: the encoder refuses loudly rather than guessing
             }
-            lock (_lock) _members[key] = map;
+            lock (_lock) _members[table] = map;
             return map;
         }
 
@@ -225,39 +217,38 @@ namespace tik4net.Winbox
                 foreach (var jf in fields)
                 {
                     if (jf?.RefHandler == null) continue;
-                    foreach (int[] table in jf.RefHandlers ?? new[] { jf.RefHandler })
-                        if (!_names.ContainsKey(WinboxJgCatalog.HandlerKey(table))) return true;
+                    foreach (WinboxHandler table in jf.RefHandlers ?? new[] { jf.RefHandler.Value })
+                        if (!_names.ContainsKey(table)) return true;
                 }
             return false;
         }
 
         /// <summary>
         /// Reads, under await, every table a collecting decode noted (<see cref="NameOf"/> / <see cref="MembersOf"/> with
-        /// <c>collect</c>), as the map its key asks for — a dropdown's names or a bit set's members.
+        /// <c>collect</c>), as the map it asks for — a dropdown's names or a bit set's members.
         /// </summary>
-        internal async Task PrimeAsync(Dictionary<string, int[]> wanted, CancellationToken cancellationToken)
+        internal async Task PrimeAsync(IEnumerable<(WinboxHandler Table, bool Members)> wanted,
+            CancellationToken cancellationToken)
         {
-            foreach (var kv in wanted)
+            foreach (var (table, members) in wanted)
             {
-                bool members = kv.Key.EndsWith(MemberMapSuffix, StringComparison.Ordinal);
                 try
                 {
-                    var rows = await _ops.GetAllAsync(kv.Value, cancellationToken).ConfigureAwait(false);
-                    string key = WinboxJgCatalog.HandlerKey(kv.Value);
+                    var rows = await _ops.GetAllAsync(table, cancellationToken).ConfigureAwait(false);
                     if (members)
                     {
-                        var map = BuildMemberMap(kv.Value, rows);
-                        lock (_lock) _members[key] = map;
+                        var map = BuildMemberMap(table, rows);
+                        lock (_lock) _members[table] = map;
                     }
                     else
                     {
-                        var map = BuildNameMap(kv.Value, rows);
-                        lock (_lock) _names[key] = map;
+                        var map = BuildNameMap(table, rows);
+                        lock (_lock) _names[table] = map;
                     }
                 }
                 catch (Exception ex)
                 {
-                    TraceUnreadable(kv.Key, ex);   // not memoized — the decode falls back to the blocking lookup
+                    TraceUnreadable(table, members, ex);   // not memoized — the decode falls back to the blocking lookup
                 }
             }
         }
@@ -272,7 +263,7 @@ namespace tik4net.Winbox
         }
 
         // Build the id → name map of a referenced table from its rows.
-        private Dictionary<int, string> BuildNameMap(int[] table, IEnumerable<M2Record> rows)
+        private Dictionary<int, string> BuildNameMap(WinboxHandler table, IEnumerable<M2Record> rows)
         {
             var keys = NameKeysOf(table);
             var map = new Dictionary<int, string>();
@@ -285,13 +276,13 @@ namespace tik4net.Winbox
 
         // Build the member map of a bit set's referenced table: bit index → member name, where the bit index IS the
         // referenced record's id (webfig's SetView keys its checkboxes by obj.ufe0001 and ORs 1<<id).
-        private IReadOnlyDictionary<int, string> BuildMemberMap(int[] table, IEnumerable<M2Record> rows)
+        private IReadOnlyDictionary<int, string> BuildMemberMap(WinboxHandler table, IEnumerable<M2Record> rows)
             => BuildMemberMap(NameKeysOf(table), rows);
 
         /// <summary>
         /// The member map of a bit set's referenced table from its rows, for a catalog: <c>bit index → member name</c>.
         /// </summary>
-        internal static Dictionary<int, string> BuildMemberMap(WinboxJgCatalog catalog, int[] table,
+        internal static Dictionary<int, string> BuildMemberMap(WinboxJgCatalog catalog, WinboxHandler table,
             IEnumerable<M2Record> rows)
             => BuildMemberMap(RefNameKeys(catalog, table), rows);
 
@@ -306,11 +297,12 @@ namespace tik4net.Winbox
             return map;
         }
 
-        private static void TraceUnreadable(string key, Exception ex)
+        private static void TraceUnreadable(WinboxHandler table, bool members, Exception ex)
         {
             if (TikWireTrace.Enabled)
                 TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
-                    "reference table [" + key + "] unreadable, values stay numeric: " + ex.Message);
+                    "reference table " + table + (members ? " members" : "") + " unreadable, values stay numeric: "
+                    + ex.Message);
         }
 
         // ── name → id (the encoder and the command paths) ──────────────────────
@@ -324,7 +316,7 @@ namespace tik4net.Winbox
         /// Blocking: the getall runs synchronously because the encoder that asks for it is synchronous. Awaited callers
         /// do not reach this — they pre-resolve with <see cref="ResolveReferencesAsync"/>.
         /// </remarks>
-        internal int? ResolveReference(int[] table, string name)
+        internal int? ResolveReference(WinboxHandler table, string name)
             => MatchIdByName(_ops.GetAll(table), NameKeysOf(table), name);
 
         /// <summary>
@@ -337,32 +329,29 @@ namespace tik4net.Winbox
         /// absent" is an answer the encoder must get here rather than by a blocking lookup that would only reach the same
         /// conclusion one round trip later (a typo'd interface name is that case, and it ends in a trap the caller sees).
         /// </remarks>
-        internal async Task<Func<int[], string, int?>> ResolveReferencesAsync(
-            IEnumerable<KeyValuePair<int[], string>> requests, CancellationToken cancellationToken)
+        internal async Task<Func<WinboxHandler, string, int?>> ResolveReferencesAsync(
+            IEnumerable<KeyValuePair<WinboxHandler, string>> requests, CancellationToken cancellationToken)
         {
-            var tables = new Dictionary<string, int[]>(StringComparer.Ordinal);
-            var names = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            var names = new Dictionary<WinboxHandler, HashSet<string>>();
             foreach (var req in requests)
             {
-                string hk = WinboxJgCatalog.HandlerKey(req.Key);
-                tables[hk] = req.Key;
-                if (!names.TryGetValue(hk, out var set))
-                    names[hk] = set = new HashSet<string>(StringComparer.Ordinal);
+                if (!names.TryGetValue(req.Key, out var set))
+                    names[req.Key] = set = new HashSet<string>(StringComparer.Ordinal);
                 set.Add(req.Value);
             }
 
-            var resolved = new Dictionary<string, int?>(StringComparer.Ordinal);
-            foreach (var kv in tables)
+            var resolved = new Dictionary<(WinboxHandler, string), int?>();
+            foreach (var kv in names)
             {
-                var keys = NameKeysOf(kv.Value);
-                var records = await _ops.GetAllAsync(kv.Value, cancellationToken).ConfigureAwait(false);
-                foreach (string name in names[kv.Key])
-                    resolved[kv.Key + "\0" + name] = MatchIdByName(records, keys, name);
+                var keys = NameKeysOf(kv.Key);
+                var records = await _ops.GetAllAsync(kv.Key, cancellationToken).ConfigureAwait(false);
+                foreach (string name in kv.Value)
+                    resolved[(kv.Key, name)] = MatchIdByName(records, keys, name);
             }
 
             return (h, n) =>
             {
-                if (resolved.TryGetValue(WinboxJgCatalog.HandlerKey(h) + "\0" + n, out int? id)) return id;
+                if (resolved.TryGetValue((h, n), out int? id)) return id;
                 // Unreachable while the collecting pass and the encoding pass see the same fields and values — they run
                 // the same encoder over the same descriptor. Kept as the blocking lookup rather than a null so that if
                 // that ever stops holding, the result is a slow encode and not a reference silently dropped.
@@ -377,7 +366,7 @@ namespace tik4net.Winbox
         /// the top of its range (<c>/queue/type</c>'s pcq-upload-default is <c>*FFFFFFFA</c>), so every int is an id some
         /// row can have.
         /// </summary>
-        internal async Task<int?> FindIdByNameAsync(int[] handler, WinboxFieldResolver resolver, string name,
+        internal async Task<int?> FindIdByNameAsync(WinboxHandler handler, WinboxFieldResolver resolver, string name,
             CancellationToken cancellationToken)
             => MatchIdByName(
                 await _ops.GetAllAsync(handler, cancellationToken).ConfigureAwait(false),
@@ -388,19 +377,17 @@ namespace tik4net.Winbox
         /// <c>null</c> when the table cannot be read, which the encoder turns into a refusal rather than a write that
         /// silently clears the field.
         /// </summary>
-        internal IReadOnlyDictionary<int, string>? ReadMemberTable(int[] table) => MembersOf(table, null);
+        internal IReadOnlyDictionary<int, string>? ReadMemberTable(WinboxHandler table) => MembersOf(table, null);
 
         /// <summary>
         /// Awaited form of <see cref="ReadMemberTable"/>, so a command that writes such a field does its table read under
         /// <c>await</c> and the encoder then only reads the cache.
         /// </summary>
-        internal async Task PrimeMemberTableAsync(int[] table, CancellationToken cancellationToken)
+        internal async Task PrimeMemberTableAsync(WinboxHandler table, CancellationToken cancellationToken)
         {
-            string key = WinboxJgCatalog.HandlerKey(table);
             lock (_lock)
-                if (_members.ContainsKey(key)) return;
-            await PrimeAsync(new Dictionary<string, int[]> { [key + MemberMapSuffix] = table }, cancellationToken)
-                .ConfigureAwait(false);
+                if (_members.ContainsKey(table)) return;
+            await PrimeAsync(new[] { (table, true) }, cancellationToken).ConfigureAwait(false);
         }
 
         // The match itself, over records someone else fetched — the one place that decides what "this row is called

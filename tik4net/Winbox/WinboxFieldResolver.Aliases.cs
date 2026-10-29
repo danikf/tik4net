@@ -371,7 +371,7 @@ namespace tik4net.Winbox
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["interface"] = new WinboxJgField("interface", 0x13, M2Type.U32Array, true,
-                                                          uiType: "multinumber", refHandler: new[] { 20, 0 }),
+                                                          uiType: "multinumber", refHandler: new WinboxHandler(20, 0)),
                     },
                     // A neighbour heard only over IPv6 has no IPv4 key, and the API's `address` is then its IPv6
                     // address: 6.49.13 prints address=address6=fe80::… for CHR3 on ether2. Reported under both names
@@ -619,7 +619,7 @@ namespace tik4net.Winbox
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["actual-interface"] = new WinboxJgField("actual-interface", 0x5, M2Type.U32, true,
-                                                                 uiType: "enm", refHandler: new[] { 20, 0 }),
+                                                                 uiType: "enm", refHandler: new WinboxHandler(20, 0)),
                     }),
 
                 // /caps-man/provisioning: the window's singular 'Slave Configuration' (U500c) is the API's plural
@@ -640,7 +640,7 @@ namespace tik4net.Winbox
                     // the same u6). A reference into this very table.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["bundle"] = new WinboxJgField("bundle", 0x6, M2Type.U32, true, uiType: "enm", refHandler: new[] { 24, 23 }),
+                        ["bundle"] = new WinboxJgField("bundle", 0x6, M2Type.U32, true, uiType: "enm", refHandler: new WinboxHandler(24, 23)),
                     }),
 
                 // /ip/firewall/mangle: action=route's destination is u3f4, labelled 'Route Dst.' on 7.x but
@@ -703,9 +703,9 @@ namespace tik4net.Winbox
                         ["in-bridge-port"] = FirewallBridgePort("in-bridge-port", 0x54, 0x1B0, 0xD1),
                         ["out-bridge-port"] = FirewallBridgePort("out-bridge-port", 0x55, 0x1B1, 0xD2),
                         ["in-bridge-port-list"] = new WinboxJgField("in-bridge-port-list", 0x44C, M2Type.U32, false,
-                            uiType: "enm", refHandler: new[] { 20, 90 }, optKey: 0xBB8, notKey: 0x7D0),
+                            uiType: "enm", refHandler: new WinboxHandler(20, 90), optKey: 0xBB8, notKey: 0x7D0),
                         ["out-bridge-port-list"] = new WinboxJgField("out-bridge-port-list", 0x44D, M2Type.U32, false,
-                            uiType: "enm", refHandler: new[] { 20, 90 }, optKey: 0xBB9, notKey: 0x7D1),
+                            uiType: "enm", refHandler: new WinboxHandler(20, 90), optKey: 0xBB9, notKey: 0x7D1),
                     }),
 
                 // /ip/firewall/connection: 'helper used' is the API's uses-helper, and the GRE key is a key the
@@ -833,7 +833,7 @@ namespace tik4net.Winbox
                     fallbackFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["vrf-interface"] = new WinboxJgField("vrf-interface", 0x3C, M2Type.U32, true,
-                                                              uiType: "enm", refHandler: new[] { 20, 0 }),
+                                                              uiType: "enm", refHandler: new WinboxHandler(20, 0)),
                     }),
 
                 // /system/history: 'undoable' is a numflag member (u4=0), and the API prints undoable=true on

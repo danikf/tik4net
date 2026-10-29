@@ -94,27 +94,27 @@ namespace tik4net.WinboxNative
         ITikCommand IWinboxNativeHost.CommandFor(TikCommandDescriptor descriptor) => CommandFor(descriptor);
         TikCommandException IWinboxNativeHost.TranslateM2Error(WinboxM2OperationException ex, string commandText)
             => TranslateM2Error(ex, commandText);
-        WinboxFieldResolver IWinboxNativeHost.MakeResolver(string apiPath, int[] handler, string? actionLabel, string? windowPath)
+        WinboxFieldResolver IWinboxNativeHost.MakeResolver(string apiPath, WinboxHandler handler, string? actionLabel, string? windowPath)
             => MakeResolver(apiPath, handler, actionLabel, windowPath);
         TikCommandException IWinboxNativeHost.TrapFor(string commandText, string message)
             => TrapFor(CommandFor(commandText), message);
         TikCommandException IWinboxNativeHost.TrapFor(TikCommandDescriptor descriptor, string message)
             => TrapFor(CommandFor(descriptor), message);
         CommandGate IWinboxNativeHost.EnterCommand() => EnterCommand();
-        Task<List<byte[]>> IWinboxNativeHost.EncodeNameValueFieldsAsync(int[] handler, TikCommandDescriptor descriptor,
+        Task<List<byte[]>> IWinboxNativeHost.EncodeNameValueFieldsAsync(WinboxHandler handler, TikCommandDescriptor descriptor,
             WinboxFieldResolver resolver, bool skipId, CancellationToken cancellationToken, bool allowReadOnly,
             bool includeFilters, bool skipSnapshotModifier)
             => _writer.EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId, cancellationToken, allowReadOnly,
                 includeFilters, skipSnapshotModifier);
         void IWinboxNativeHost.TakeLabelHints(TikCommandDescriptor descriptor) => TakeLabelHints(descriptor);
         Task<CommandGate> IWinboxNativeHost.EnterCommandAsync(CancellationToken cancellationToken) => EnterCommandAsync(cancellationToken);
-        (int[] handler, WinboxFieldResolver resolver) IWinboxNativeHost.ResolveHandlerAndFields(string apiPath)
+        (WinboxHandler handler, WinboxFieldResolver resolver) IWinboxNativeHost.ResolveHandlerAndFields(string apiPath)
             => ResolveHandlerAndFields(apiPath);
-        bool IWinboxNativeHost.IsSingletonWindow(string apiPath, int[] handler) => IsSingletonWindow(apiPath, handler);
-        Task<IList<TikRecordSentence>> IWinboxNativeHost.RunActionWindowAsync(string apiPath, int[] handler,
+        bool IWinboxNativeHost.IsSingletonWindow(string apiPath, WinboxHandler handler) => IsSingletonWindow(apiPath, handler);
+        Task<IList<TikRecordSentence>> IWinboxNativeHost.RunActionWindowAsync(string apiPath, WinboxHandler handler,
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => RunActionWindowAsync(apiPath, handler, descriptor, cancellationToken);
-        Task IWinboxNativeHost.DispatchActionVerbAsync(string verb, string apiPath, int[] handler,
+        Task IWinboxNativeHost.DispatchActionVerbAsync(string verb, string apiPath, WinboxHandler handler,
             WinboxFieldResolver resolver, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => DispatchActionVerbAsync(verb, apiPath, handler, resolver, descriptor, cancellationToken);
 
@@ -202,8 +202,7 @@ namespace tik4net.WinboxNative
             if (_useGuiNames && parameters.Any(p => p.ParameterFormat == TikCommandParameterFormat.Filter))
             {
                 string resolvePath = apiPath ?? path;
-                int[]? handler = _handlerMap.Resolve(resolvePath);
-                if (handler != null)
+                if (_handlerMap.Resolve(resolvePath) is WinboxHandler handler)
                 {
                     var resolver = MakeResolver(resolvePath, handler);
                     parameters = parameters.Select(p => p.ParameterFormat == TikCommandParameterFormat.Filter
@@ -268,7 +267,7 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public void PathOverride(string apiPath, int[] handler)
         {
-            _handlerMap.AddOverride(apiPath, handler);
+            _handlerMap.AddOverride(apiPath, handler);   // the caller's path becomes a WinboxHandler here
         }
 
         private bool _useGuiNames;
@@ -658,8 +657,7 @@ namespace tik4net.WinboxNative
             EnsureNativeOpen();
 
             string apiPath = ApiPathOf(descriptor.CommandText);
-            int[]? handler = _handlerMap.Resolve(apiPath);
-            if (handler == null)
+            if (!(_handlerMap.Resolve(apiPath) is WinboxHandler handler))
             {
                 // A "monitor once" snapshot (e.g. /interface/ethernet/monitor numbers=ether1): the live
                 // values are read-only fields on the parent interface record, so a getall + name filter gives
@@ -812,12 +810,12 @@ namespace tik4net.WinboxNative
         // misuse; the non-query path dispatches the SYS_CMD via DispatchActionVerb.
         private bool IsActionVerbPath(TikCommandDescriptor descriptor)
         {
-            int[]? handler = _handlerMap.Resolve(TikPath.Parent(descriptor.CommandText));
-            return handler != null && TryFindAction(handler, TikPath.Verb(descriptor.CommandText), out _, out _);
+            WinboxHandler? handler = _handlerMap.Resolve(TikPath.Parent(descriptor.CommandText));
+            return handler != null && TryFindAction(handler.Value, TikPath.Verb(descriptor.CommandText), out _, out _);
         }
 
         // The .jg action of a handler that a command verb names (see ActionMatchesVerb): its SYS_CMD and its label.
-        private bool TryFindAction(int[] handler, string verb, out int cmd, out string actionLabel)
+        private bool TryFindAction(WinboxHandler handler, string verb, out int cmd, out string actionLabel)
         {
             var actions = _catalog.GetHandlerActions(handler);
             if (actions != null)
@@ -839,7 +837,7 @@ namespace tik4net.WinboxNative
         /// <c>/ip/ipsec/key/rsa/generate-key name=x key-size=2048</c> reached the router as a bare "generate a
         /// key" and produced an unnamed 1024-bit one, reported back as success.
         /// </remarks>
-        private async Task DispatchActionVerbAsync(string verb, string apiPath, int[] handler,
+        private async Task DispatchActionVerbAsync(string verb, string apiPath, WinboxHandler handler,
             WinboxFieldResolver resolver, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             if (!TryFindAction(handler, verb, out int cmd, out string actionLabel))
@@ -903,7 +901,7 @@ namespace tik4net.WinboxNative
         /// Wake on LAN's MAC address is one.
         /// </remarks>
         private async Task<IList<TikRecordSentence>> RunActionWindowAsync(
-            string apiPath, int[] handler, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            string apiPath, WinboxHandler handler, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             int cmd = _catalog.GetActionCmd(handler, TikPath.Verb(apiPath), out string? actionLabel);
             if (cmd < 0)
@@ -1016,7 +1014,7 @@ namespace tik4net.WinboxNative
                 // described after an entity read got that entity's names, and one described first did not.
                 var previous = _labelHints.Value;
                 _labelHints.Value = WinboxFieldResolver.ParseLabelHints(winboxLabels);
-                int[] handler;
+                WinboxHandler handler;
                 WinboxFieldResolver resolver;
                 try { (handler, resolver) = ResolveHandlerAndFields(p); }
                 finally { _labelHints.Value = previous; }
@@ -1136,10 +1134,9 @@ namespace tik4net.WinboxNative
 
         // ── Handler resolution and M2 errors ───────────────────────────────────
 
-        private (int[] handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath)
+        private (WinboxHandler handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath)
         {
-            int[]? handler = _handlerMap.Resolve(apiPath);
-            if (handler == null)
+            if (!(_handlerMap.Resolve(apiPath) is WinboxHandler handler))
             {
                 // Surface an unmapped write path exactly as reads do, so callers get one exception type
                 // across read and write — and one that says plainly this is our mapping gap, not a router
@@ -1223,8 +1220,7 @@ namespace tik4net.WinboxNative
         /// </summary>
         internal IReadOnlyList<(string ApiName, WinboxJgField Field, Func<object, string?> Render)>? DescribeFields(string apiPath)
         {
-            int[]? handler = _handlerMap.Resolve(apiPath);
-            if (handler == null)
+            if (!(_handlerMap.Resolve(apiPath) is WinboxHandler handler))
                 return null;
             var plan = MakeResolver(apiPath, handler).DecodePlan();
             var names = plan.KeyToName;
@@ -1262,7 +1258,7 @@ namespace tik4net.WinboxNative
         /// <see cref="WinboxJgCatalog.GetActionFields"/>).</param>
         /// <param name="windowPath">The path whose window and session overrides hold the keys, when that is not
         /// <paramref name="apiPath"/>: a snapshot monitor reads its parent's record under its own names.</param>
-        private WinboxFieldResolver MakeResolver(string apiPath, int[] handler, string? actionLabel = null,
+        private WinboxFieldResolver MakeResolver(string apiPath, WinboxHandler handler, string? actionLabel = null,
             string? windowPath = null)
         {
             string window = windowPath ?? apiPath;
@@ -1289,7 +1285,7 @@ namespace tik4net.WinboxNative
         /// the handler-level answer for paths reached by a raw <see cref="PathOverride"/>, where there is no
         /// window to ask about.
         /// </summary>
-        private bool IsSingletonWindow(string apiPath, int[] handler)
+        private bool IsSingletonWindow(string apiPath, WinboxHandler handler)
         {
             // Only when the window the path resolves to is the one actually being read. A caller may hand us
             // a DIFFERENT handler than the path resolves to — PreferSingletonHealthHandler swaps
@@ -1297,17 +1293,10 @@ namespace tik4net.WinboxNative
             // "that window is a list" about a handler it no longer describes turns a get-singleton into a
             // getall the router rejects (0xFE0003, measured live on 7.23.2).
             string? derivedKey = _handlerMap.ResolveDerivedKey(apiPath);
-            if (derivedKey != null && SameHandler(_handlerMap.Resolve(apiPath), handler)
+            if (derivedKey != null && _handlerMap.Resolve(apiPath) == handler
                 && _catalog.TryIsSingletonPath(derivedKey, out bool singleton))
                 return singleton;
             return _catalog.IsSingletonHandler(handler);
-        }
-
-        private static bool SameHandler(int[]? a, int[]? b)
-        {
-            if (a == null || b == null || a.Length != b.Length) return false;
-            for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
-            return true;
         }
 
         // Board-gated singleton recovery for /system/health. The WinBox menu has a name/value 'map' window
@@ -1317,7 +1306,7 @@ namespace tik4net.WinboxNative
         // catalog's singleton health window (read via get-singleton) — the one webfig opens on x86. The handler
         // number is read live from the .jg, so this stays version-portable. Returns the original handler
         // unchanged for every other path (and when no singleton health window exists in the catalog).
-        private int[] PreferSingletonHealthHandler(string apiPath, int[] handler)
+        private WinboxHandler PreferSingletonHealthHandler(string apiPath, WinboxHandler handler)
         {
             if (_catalog.IsSingletonHandler(handler)) return handler;
             if (!string.Equals(WinboxHandlerMap.Normalize(apiPath), "/system/health", StringComparison.OrdinalIgnoreCase))

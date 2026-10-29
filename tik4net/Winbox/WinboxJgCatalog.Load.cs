@@ -395,14 +395,14 @@ namespace tik4net.Winbox
         // .jg nodes that are another field's flag and not a field themselves (AddOptionField's InvertSibling).
         private readonly HashSet<Dictionary<string, object>> _flagOnlyNodes = new HashSet<Dictionary<string, object>>();
 
-        // The type:'cond' nodes of each window (owner key -> name -> node), every field of it by its raw .jg label
+        // The type:'cond' nodes of each window (owner -> name -> node), every field of it by its raw .jg label
         // (a condition's `on` names one, nonpublic ones included), and the fields waiting for their condition.
-        private readonly Dictionary<string, Dictionary<string, Dictionary<string, object>>> _condNodes =
-            new Dictionary<string, Dictionary<string, Dictionary<string, object>>>(StringComparer.Ordinal);
-        private readonly Dictionary<string, Dictionary<string, WinboxJgField>> _fieldsByLabel =
-            new Dictionary<string, Dictionary<string, WinboxJgField>>(StringComparer.Ordinal);
-        private readonly List<Tuple<WinboxJgField, string, string>> _pendingConditions =
-            new List<Tuple<WinboxJgField, string, string>>();
+        private readonly Dictionary<JgOwner, Dictionary<string, Dictionary<string, object>>> _condNodes =
+            new Dictionary<JgOwner, Dictionary<string, Dictionary<string, object>>>();
+        private readonly Dictionary<JgOwner, Dictionary<string, WinboxJgField>> _fieldsByLabel =
+            new Dictionary<JgOwner, Dictionary<string, WinboxJgField>>();
+        private readonly List<Tuple<WinboxJgField, JgOwner, string>> _pendingConditions =
+            new List<Tuple<WinboxJgField, JgOwner, string>>();
         private string? _currentOn;
 
         /// <summary>
@@ -412,16 +412,16 @@ namespace tik4net.Winbox
         /// </summary>
         private void ResolveConditions()
         {
-            var built = new Dictionary<string, WinboxJgCondition?>(StringComparer.Ordinal);
+            var built = new Dictionary<(JgOwner, string), WinboxJgCondition?>();
             foreach (var pending in _pendingConditions)
                 pending.Item1.Condition = ConditionOf(pending.Item2, pending.Item3, built, 0);
             _pendingConditions.Clear();
         }
 
-        private WinboxJgCondition? ConditionOf(string owner, string name,
-            Dictionary<string, WinboxJgCondition?> built, int depth)
+        private WinboxJgCondition? ConditionOf(JgOwner owner, string name,
+            Dictionary<(JgOwner, string), WinboxJgCondition?> built, int depth)
         {
-            string id = owner + "|" + name;
+            var id = (owner, name);
             if (built.TryGetValue(id, out var known)) return known;
             built[id] = null;   // an oron cycle resolves to "no fallback" rather than recursing
             if (!(_condNodes.TryGetValue(owner, out var conds) && conds.TryGetValue(name, out var node))) return null;

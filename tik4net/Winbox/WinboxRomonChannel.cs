@@ -31,7 +31,7 @@ namespace tik4net.Winbox
         private const int KeyTargetPassword = 8;
 
         // [127,2] is the agent's RoMON settings singleton: 0x1 enabled, 0x65 its current-id (absent when disabled).
-        private static readonly int[] RomonSettingsHandler = { 127, 2 };
+        private static readonly WinboxHandler RomonSettingsHandler = new WinboxHandler(127, 2);
         private const int KeySettingsEnabled = 0x1;
         private const int KeySettingsCurrentId = 0x65;
 
@@ -93,7 +93,7 @@ namespace tik4net.Winbox
             try
             {
                 AgentRequest(M2Message.Request(
-                    new[] { ProxyHandler, _link }.Concat(WinboxM2Protocol.SysInfo.Handler).ToArray(),
+                    new WinboxHandler(new[] { ProxyHandler, _link }.Concat(WinboxM2Protocol.SysInfo.Handler.ToArray()).ToArray()),
                     WinboxM2Protocol.SysInfo.Command, _agent.NextReqIdField()),
                     timeoutMs, host, "first request through the link to " + _target.RomonId);
             }
@@ -125,7 +125,7 @@ namespace tik4net.Winbox
         private int Connect(string host, int timeoutMs)
         {
             byte[] reply = AgentRequest(M2Message.Request(
-                new[] { ProxyHandler }, ConnectCommand, _agent.NextReqIdField(),
+                new WinboxHandler(ProxyHandler), ConnectCommand, _agent.NextReqIdField(),
                 M2Message.BoolSys(KeyConnectFlag, true),
                 M2Message.StringUser(KeyTargetPassword, _target.Password),
                 M2Message.StringUser(KeyTargetUser, _target.User),

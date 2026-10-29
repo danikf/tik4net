@@ -18,7 +18,7 @@ namespace tik4net.Winbox
         // from raw bytes, static enums back to their string label, dynamic enum references back to the
         // referenced record's name. Falls back to the wire-type formatter.
         private string FormatTyped(WinboxJgField? jf, M2Type wireType, object value,
-            M2Record rec, Dictionary<string, int[]>? collectRefTables)
+            M2Record rec, HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             if (jf != null && value != null)
             {
@@ -379,7 +379,7 @@ namespace tik4net.Winbox
                         var members = jf.EnumMap;
                         if (members == null && jf.RefHandler != null)
                         {
-                            members = ResolveMemberMap(jf.RefHandler, collectRefTables);
+                            members = ResolveMemberMap(jf.RefHandler.Value, collectRefTables);
                             if (members != null) return FormatBitSet(jf, value, members, rec);
                         }
                         if (jf.EnumMap == null) break;
@@ -425,7 +425,7 @@ namespace tik4net.Winbox
                 // referenced table cannot be read, exactly as the scalar case does.
                 if (jf.RefHandler != null && IsMultiNumberList(jf.UiType))
                 {
-                    string? joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
+                    string? joined = ResolveRefNameList(jf.RefHandler.Value, value, collectRefTables);
                     if (joined != null) return joined;
                 }
                 // The same list shape with LITERAL elements — a number (/ip/proxy 'Port' u32[8080] → "8080")
@@ -456,7 +456,7 @@ namespace tik4net.Winbox
                     // Each table the dropdown draws from, in order (webfig enm.pair.toString). In the collecting
                     // pass every lookup answers null, so the loop notes down all of them.
                     string? name = null;
-                    foreach (int[] table in jf.RefHandlers ?? new[] { jf.RefHandler })
+                    foreach (WinboxHandler table in jf.RefHandlers ?? new[] { jf.RefHandler.Value })
                     {
                         name = ResolveRefName(table, value, collectRefTables);
                         if (name != null) break;
@@ -856,7 +856,7 @@ namespace tik4net.Winbox
         /// (<c>16908480,124007366,…</c>).
         /// </remarks>
         private string FormatMultiList(WinboxJgField jf, object value,
-            Dictionary<string, int[]>? collectRefTables)
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             // A message array (webfig `multi`): each element is a submessage of the element's own type.
             if (value is List<M2Record> msgs)
@@ -956,7 +956,7 @@ namespace tik4net.Winbox
         /// <c>{u7f = 1, u7d = 3959728320}</c> which it prints <c>IP:192.168.4.236</c>.
         /// </remarks>
         private string FormatCompoundElement(WinboxJgField jf, M2Record element,
-            Dictionary<string, int[]>? collectRefTables)
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             var rendered = new List<string>();
             // Only called when jf.ElementParts != null (see FormatMultiList's caller check).
@@ -982,7 +982,7 @@ namespace tik4net.Winbox
         // for {u1, u5=1, U8=[1]} (no U6: the via-addresses are empty, the interfaces are not) and
         // "ether1 reachable" for a connected route's {u3, u5=1}, which has neither.
         private string FormatElementStatus(IReadOnlyList<WinboxJgElementPart> parts,
-            M2Record element, Dictionary<string, int[]>? collectRefTables)
+            M2Record element, HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             var tokens = new List<string>();
             for (int i = 0; i < parts.Count; i++)
@@ -1009,13 +1009,13 @@ namespace tik4net.Winbox
             return tokens.Count == 0 ? "" : " " + string.Join(" ", tokens);
         }
 
-        private string FormatStatusWord(WinboxJgElementPart part, string word, Dictionary<string, int[]>? collectRefTables)
+        private string FormatStatusWord(WinboxJgElementPart part, string word, HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             if (part.EnumMap != null && WinboxValueFormat.TryToInt64(word, out long ev)
                 && part.EnumMap.TryGetValue(unchecked((int)ev), out var label))
                 return label;
             if (part.RefHandler != null)
-                return ResolveRefName(part.RefHandler, word, collectRefTables) ?? word;
+                return ResolveRefName(part.RefHandler.Value, word, collectRefTables) ?? word;
             if (string.Equals(part.UiType, "multiipaddr", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(part.UiType, "ipaddr", StringComparison.OrdinalIgnoreCase))
                 return WinboxValueFormat.IpFromU32(word);
@@ -1023,7 +1023,7 @@ namespace tik4net.Winbox
         }
 
         private string FormatElementPart(WinboxJgElementPart part, M2Record element,
-            Dictionary<string, int[]>? collectRefTables)
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             if (part.Alternatives != null)
             {
@@ -1044,7 +1044,7 @@ namespace tik4net.Winbox
             // is a list whose element is one interface id, which the API prints as the interface's name.
             if (part.RefHandler != null)
             {
-                string? refName = ResolveRefName(part.RefHandler, v.Value, collectRefTables);
+                string? refName = ResolveRefName(part.RefHandler.Value, v.Value, collectRefTables);
                 if (refName != null) return refName;
             }
             // A hex part renders its digits bare: the 0x in front of an STP identifier belongs to the
@@ -1210,12 +1210,12 @@ namespace tik4net.Winbox
         // One half of a tri-state list, rendered by the same rules a multinumber element is: a reference
         // resolves to the referenced record's name, a static map to its label, anything else to the number.
         private string FormatListElements(WinboxJgField jf, object? value,
-            Dictionary<string, int[]>? collectRefTables)
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             if (value == null) return "";
             if (jf.RefHandler != null)
             {
-                string? joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
+                string? joined = ResolveRefNameList(jf.RefHandler.Value, value, collectRefTables);
                 if (joined != null) return joined;
             }
             return FormatNumberList(value, jf.EnumMap);
@@ -1224,8 +1224,8 @@ namespace tik4net.Winbox
         // Resolve a u32[] of referenced ids (rendered by M2Message as "[a,b,…]") to comma-joined names.
         // Returns null when nothing resolved, so the caller can fall back to the raw text rather than
         // hand back an empty string that reads like "no topics".
-        private string? ResolveRefNameList(int[] refHandler, object? value,
-            Dictionary<string, int[]>? collectRefTables)
+        private string? ResolveRefNameList(WinboxHandler refHandler, object? value,
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             var names = new List<string>();
             foreach (System.Text.RegularExpressions.Match m in
@@ -1289,7 +1289,7 @@ namespace tik4net.Winbox
         /// the DNS name, then the MAC, with the <c>/prefix</c> appended.
         /// </summary>
         private string FormatAddr(M2Record addr,
-            Dictionary<string, int[]>? collectRefTables)
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             object? Get(int subKey) =>
                 addr.TryGetValue(subKey, out var t) ? t.Value : null;

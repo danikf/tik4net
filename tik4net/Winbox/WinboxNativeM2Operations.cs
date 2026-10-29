@@ -227,7 +227,7 @@ namespace tik4net.Winbox
         /// <see cref="WinboxM2Protocol.Error.ObjectNonexistent"/>.
         /// </summary>
         internal List<M2Record> GetAll(
-            int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int? budgetMs = null)
+            WinboxHandler handler, int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int? budgetMs = null)
             => GetAllAsync(handler, CancellationToken.None, flags, maxObjs, budgetMs).GetAwaiter().GetResult();
 
         /// <inheritdoc cref="GetAll"/>
@@ -249,7 +249,7 @@ namespace tik4net.Winbox
         /// would be a short list indistinguishable from a router that has that many rows.</para>
         /// </remarks>
         internal async Task<List<M2Record>> GetAllAsync(
-            int[] handler, CancellationToken cancellationToken,
+            WinboxHandler handler, CancellationToken cancellationToken,
             int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int? budgetMs = null)
         {
             int budget = budgetMs ?? PagedReadBudget(_timeoutMs);
@@ -282,7 +282,7 @@ namespace tik4net.Winbox
                     // router-side over another transport); nothing read at all on the first page means the
                     // request never got going.
                     throw new TikConnectionReceiveTimeoutException(ex.Timeout,
-                        $"WinBox M2 getall on handler [{string.Join(",", handler)}] timed out after "
+                        $"WinBox M2 getall on handler {handler} timed out after "
                         + $"{sw.ElapsedMilliseconds} ms with {records.Count} row(s) from {round} completed "
                         + $"page(s). {ex.Message}",
                         partialResponse: $"{records.Count} row(s) from {round} completed page(s)",
@@ -345,17 +345,17 @@ namespace tik4net.Winbox
         /// says out loud what stopped it and how far it got.
         /// </summary>
         private static TikConnectionReceiveTimeoutException Truncated(
-            int[] handler, Stopwatch sw, int rows, int pages, string why)
+            WinboxHandler handler, Stopwatch sw, int rows, int pages, string why)
             => new TikConnectionReceiveTimeoutException(
                 sw.Elapsed,
-                $"WinBox M2 getall on handler [{string.Join(",", handler)}] could not read the whole table: {why}. "
+                $"WinBox M2 getall on handler {handler} could not read the whole table: {why}. "
                 + $"{rows} row(s) from {pages} completed page(s) in {sw.ElapsedMilliseconds} ms are discarded rather "
                 + "than returned as a complete answer. A native read is proportional to the TABLE, not to the "
                 + "answer — there is no server-side filtering in M2 and the router picks the page size — so "
                 + "raise ReceiveTimeout, or read a table this size over a transport that can filter on the router.",
                 partialResponse: $"{rows} row(s) from {pages} completed page(s)");
 
-        private byte[] BuildGetAll(int[] handler, int flags, int maxObjs, WinboxM2Continuation? cont)
+        private byte[] BuildGetAll(WinboxHandler handler, int flags, int maxObjs, WinboxM2Continuation? cont)
         {
             var fields = new List<byte[]> { M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags) };
             if (maxObjs > 0) fields.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.MaxObjs, maxObjs));
@@ -364,10 +364,10 @@ namespace tik4net.Winbox
         }
 
         // M2Message.Request with the next request id.
-        private byte[] Request(int[] handler, int command, IEnumerable<byte[]?> fields)
+        private byte[] Request(WinboxHandler handler, int command, IEnumerable<byte[]?> fields)
             => M2Message.Request(handler, command, NextReqIdField(), fields);
 
-        private byte[] Request(int[] handler, int command, params byte[]?[] fields)
+        private byte[] Request(WinboxHandler handler, int command, params byte[]?[] fields)
             => M2Message.Request(handler, command, NextReqIdField(), fields);
 
         // An operation's own fields after an optional leading one (the record id).
@@ -393,7 +393,7 @@ namespace tik4net.Winbox
             return fields != null && fields.TryGetValue(BoardInfoVersionKey, out var t) ? t.Value?.ToString() : null;
         }
 
-        private static readonly int[] BoardInfoHandler = { 24, 2 };
+        private static readonly WinboxHandler BoardInfoHandler = new WinboxHandler(24, 2);
         private const int BoardInfoVersionKey = 0x16;
 
         /// <summary>
@@ -402,15 +402,15 @@ namespace tik4net.Winbox
         /// decoded field dictionary. Records arrive under <see cref="WinboxM2Protocol.RecordKey.Records"/>;
         /// falls back to the top-level fields when the handler answers inline.
         /// </summary>
-        internal M2Record GetOne(int[] handler, int id)
+        internal M2Record GetOne(WinboxHandler handler, int id)
             => Sync(GetOneAsync(handler, id, CancellationToken.None));
 
         /// <inheritdoc cref="GetOne"/>
         internal async Task<M2Record> GetOneAsync(
-            int[] handler, int id, CancellationToken cancellationToken)
+            WinboxHandler handler, int id, CancellationToken cancellationToken)
             => InterpretRecord(await SendReceiveAsync(BuildGetOne(handler, id), cancellationToken).ConfigureAwait(false));
 
-        private byte[] BuildGetOne(int[] handler, int id)
+        private byte[] BuildGetOne(WinboxHandler handler, int id)
             => Request(handler, WinboxM2Protocol.Command.GetOne, M2Message.SessionIdField(id));
 
         // Records arrive under RecordKey.Records; fall back to the top-level fields when the handler
@@ -434,22 +434,22 @@ namespace tik4net.Winbox
         /// <c>ObjectHolder.fetch</c> sends <c>getcmd || 0xfe000d</c> and nothing else differs.
         /// </param>
         internal M2Record GetSingleton(
-            int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int? command = null)
+            WinboxHandler handler, int flags = WinboxM2Protocol.GetAllFlags, int? command = null)
             => Sync(GetSingletonAsync(handler, CancellationToken.None, flags, command));
 
         /// <inheritdoc cref="GetSingleton"/>
         internal async Task<M2Record> GetSingletonAsync(
-            int[] handler, CancellationToken cancellationToken, int flags = WinboxM2Protocol.GetAllFlags,
+            WinboxHandler handler, CancellationToken cancellationToken, int flags = WinboxM2Protocol.GetAllFlags,
             int? command = null)
             => InterpretSingleton(
                 await SendReceiveAsync(BuildGetSingleton(handler, flags, command), cancellationToken).ConfigureAwait(false),
                 handler);
 
-        internal byte[] BuildGetSingleton(int[] handler, int flags, int? command = null)
+        internal byte[] BuildGetSingleton(WinboxHandler handler, int flags, int? command = null)
             => Request(handler, command ?? WinboxM2Protocol.Command.GetSingleton,
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
 
-        private static M2Record InterpretSingleton(byte[] resp, int[] handler)
+        private static M2Record InterpretSingleton(byte[] resp, WinboxHandler handler)
         {
             ThrowOnStatus(resp, "get-singleton", handler, endOfTableIsOk: true);
             return InterpretRecord(resp);
@@ -463,16 +463,16 @@ namespace tik4net.Winbox
         /// Mirrors webfig <c>ObjectMap.setObject</c> ("edit = .id + changed fields"). Throws when the
         /// router reports a non-zero status.
         /// </summary>
-        internal void Set(int[] handler, int id, IList<byte[]> fields)
+        internal void Set(WinboxHandler handler, int id, IList<byte[]> fields)
             => Sync(SetAsync(handler, id, fields, CancellationToken.None));
 
         /// <inheritdoc cref="Set"/>
-        internal async Task SetAsync(int[] handler, int id, IList<byte[]> fields, CancellationToken cancellationToken)
+        internal async Task SetAsync(WinboxHandler handler, int id, IList<byte[]> fields, CancellationToken cancellationToken)
             => ThrowOnStatus(
                 await SendReceiveAsync(BuildSet(handler, id, fields), cancellationToken).ConfigureAwait(false),
                 "set", handler);
 
-        private byte[] BuildSet(int[] handler, int id, IList<byte[]> fields)
+        private byte[] BuildSet(WinboxHandler handler, int id, IList<byte[]> fields)
             => Request(handler, WinboxM2Protocol.Command.Set, After(M2Message.SessionIdField(id), fields));
 
         /// <summary>
@@ -489,17 +489,17 @@ namespace tik4net.Winbox
         /// <param name="command">
         /// The window's own write command (<c>.jg</c> <c>setcmd</c>), or <c>null</c> for set-singleton.
         /// </param>
-        internal void SetSingleton(int[] handler, IList<byte[]> fields, int id = -1, int? command = null)
+        internal void SetSingleton(WinboxHandler handler, IList<byte[]> fields, int id = -1, int? command = null)
             => Sync(SetSingletonAsync(handler, fields, id, CancellationToken.None, command));
 
         /// <inheritdoc cref="SetSingleton"/>
-        internal async Task SetSingletonAsync(int[] handler, IList<byte[]> fields, int id,
+        internal async Task SetSingletonAsync(WinboxHandler handler, IList<byte[]> fields, int id,
             CancellationToken cancellationToken, int? command = null)
             => ThrowOnStatus(
                 await SendReceiveAsync(BuildSetSingleton(handler, fields, id, command), cancellationToken).ConfigureAwait(false),
                 "set-singleton", handler);
 
-        internal byte[] BuildSetSingleton(int[] handler, IList<byte[]> fields, int id, int? command = null)
+        internal byte[] BuildSetSingleton(WinboxHandler handler, IList<byte[]> fields, int id, int? command = null)
             => Request(handler, command ?? WinboxM2Protocol.Command.SetSingleton,
                 After(id >= 0 ? M2Message.SessionIdField(id) : null, fields));
 
@@ -509,19 +509,19 @@ namespace tik4net.Winbox
         /// the reply carries no id. The id is a u32 held in an <c>int</c> by its bits, as every id here is: a
         /// route's is <c>*80000019</c> on RouterOS 7, which no <c>int</c> holds as a value.
         /// </summary>
-        internal int? Add(int[] handler, IList<byte[]> fields)
+        internal int? Add(WinboxHandler handler, IList<byte[]> fields)
             => Sync(AddAsync(handler, fields, CancellationToken.None));
 
         /// <inheritdoc cref="Add"/>
-        internal async Task<int?> AddAsync(int[] handler, IList<byte[]> fields, CancellationToken cancellationToken)
+        internal async Task<int?> AddAsync(WinboxHandler handler, IList<byte[]> fields, CancellationToken cancellationToken)
             => InterpretAdd(
                 await SendReceiveAsync(BuildAdd(handler, fields), cancellationToken).ConfigureAwait(false),
                 handler);
 
-        private byte[] BuildAdd(int[] handler, IList<byte[]> fields)
+        private byte[] BuildAdd(WinboxHandler handler, IList<byte[]> fields)
             => Request(handler, WinboxM2Protocol.Command.Add, After(null, fields));
 
-        internal static int? InterpretAdd(byte[] resp, int[] handler)
+        internal static int? InterpretAdd(byte[] resp, WinboxHandler handler)
         {
             ThrowOnStatus(resp, "add", handler);
             uint? id = ReadRecordId(resp);
@@ -532,16 +532,16 @@ namespace tik4net.Winbox
         /// Sends <c>remove</c> (<see cref="WinboxM2Protocol.Command.Remove"/> +
         /// <see cref="WinboxM2Protocol.RecordKey.Id"/>=<paramref name="id"/>).
         /// </summary>
-        internal void Remove(int[] handler, int id)
+        internal void Remove(WinboxHandler handler, int id)
             => Sync(RemoveAsync(handler, id, CancellationToken.None));
 
         /// <inheritdoc cref="Remove"/>
-        internal async Task RemoveAsync(int[] handler, int id, CancellationToken cancellationToken)
+        internal async Task RemoveAsync(WinboxHandler handler, int id, CancellationToken cancellationToken)
             => ThrowOnStatus(
                 await SendReceiveAsync(BuildRemove(handler, id), cancellationToken).ConfigureAwait(false),
                 "remove", handler);
 
-        private byte[] BuildRemove(int[] handler, int id)
+        private byte[] BuildRemove(WinboxHandler handler, int id)
             => Request(handler, WinboxM2Protocol.Command.Remove, M2Message.SessionIdField(id));
 
         /// <summary>
@@ -550,16 +550,16 @@ namespace tik4net.Winbox
         /// <see cref="WinboxM2Protocol.RecordKey.NextId"/>=<paramref name="destNextId"/>). A negative
         /// <paramref name="destNextId"/> (move to end) omits the next-id field.
         /// </summary>
-        internal void Move(int[] handler, int id, int destNextId)
+        internal void Move(WinboxHandler handler, int id, int destNextId)
             => Sync(MoveAsync(handler, id, destNextId, CancellationToken.None));
 
         /// <inheritdoc cref="Move"/>
-        internal async Task MoveAsync(int[] handler, int id, int destNextId, CancellationToken cancellationToken)
+        internal async Task MoveAsync(WinboxHandler handler, int id, int destNextId, CancellationToken cancellationToken)
             => ThrowOnStatus(
                 await SendReceiveAsync(BuildMove(handler, id, destNextId), cancellationToken).ConfigureAwait(false),
                 "move", handler);
 
-        private byte[] BuildMove(int[] handler, int id, int destNextId)
+        private byte[] BuildMove(WinboxHandler handler, int id, int destNextId)
             => Request(handler, WinboxM2Protocol.Command.Move, M2Message.SessionIdField(id),
                 destNextId >= 0 ? M2Message.U32Sys(WinboxM2Protocol.RecordKey.NextId, destNextId) : null);
 
@@ -569,23 +569,23 @@ namespace tik4net.Winbox
         /// <paramref name="id"/> (omitted when negative). Returns the reply's top-level fields. Throws on a
         /// non-zero router status.
         /// </summary>
-        internal M2Record InvokeAction(int[] handler, int cmd, int id,
+        internal M2Record InvokeAction(WinboxHandler handler, int cmd, int id,
             IList<byte[]>? fields = null)
             => Sync(InvokeActionAsync(handler, cmd, id, fields, CancellationToken.None));
 
         /// <inheritdoc cref="InvokeAction"/>
         internal async Task<M2Record> InvokeActionAsync(
-            int[] handler, int cmd, int id, IList<byte[]>? fields, CancellationToken cancellationToken)
+            WinboxHandler handler, int cmd, int id, IList<byte[]>? fields, CancellationToken cancellationToken)
             => InterpretAction(
                 await SendReceiveAsync(BuildAction(handler, cmd, id, fields), cancellationToken).ConfigureAwait(false),
                 handler);
 
         // A standalone action window (e.g. Wake on LAN) carries its inputs as ordinary record fields on the action
         // message itself — there is no record to attach them to.
-        private byte[] BuildAction(int[] handler, int cmd, int id, IList<byte[]>? fields)
+        private byte[] BuildAction(WinboxHandler handler, int cmd, int id, IList<byte[]>? fields)
             => Request(handler, cmd, After(id >= 0 ? M2Message.SessionIdField(id) : null, fields));
 
-        private static M2Record InterpretAction(byte[] resp, int[] handler)
+        private static M2Record InterpretAction(byte[] resp, WinboxHandler handler)
         {
             ThrowOnStatus(resp, "action", handler);
             return M2Message.ParseAllFields(resp);
@@ -630,20 +630,20 @@ namespace tik4net.Winbox
         /// — it is a true u32 and can exceed <see cref="int.MaxValue"/> (the Profile monitor echoes 0xFFFFFFFD) —
         /// or <c>null</c> when the reply carries no id (a path-scoped monitor polled without an id).
         /// </summary>
-        internal uint? StartMonitor(int[] handler, int startCmd, IList<byte[]> requestFields)
+        internal uint? StartMonitor(WinboxHandler handler, int startCmd, IList<byte[]> requestFields)
             => Sync(StartMonitorAsync(handler, startCmd, requestFields, CancellationToken.None));
 
         /// <inheritdoc cref="StartMonitor"/>
-        internal async Task<uint?> StartMonitorAsync(int[] handler, int startCmd, IList<byte[]> requestFields,
+        internal async Task<uint?> StartMonitorAsync(WinboxHandler handler, int startCmd, IList<byte[]> requestFields,
             CancellationToken cancellationToken)
             => InterpretMonitorStart(
                 await SendReceiveAsync(BuildMonitorStart(handler, startCmd, requestFields), cancellationToken).ConfigureAwait(false),
                 handler);
 
-        private byte[] BuildMonitorStart(int[] handler, int startCmd, IList<byte[]> requestFields)
+        private byte[] BuildMonitorStart(WinboxHandler handler, int startCmd, IList<byte[]> requestFields)
             => Request(handler, startCmd, After(null, requestFields));
 
-        private static uint? InterpretMonitorStart(byte[] resp, int[] handler)
+        private static uint? InterpretMonitorStart(byte[] resp, WinboxHandler handler)
         {
             ThrowOnStatus(resp, "monitor-start", handler);
             return ReadRecordId(resp);
@@ -680,19 +680,19 @@ namespace tik4net.Winbox
         /// </para>
         /// </remarks>
         internal (List<M2Record> records, bool done, WinboxM2Continuation? continuation) PollMonitorRound(
-            int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
+            WinboxHandler handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
             int flags = WinboxM2Protocol.GetAllFlags)
             => Sync(PollMonitorRoundAsync(handler, pollCmd, id, isQuery, contToken, CancellationToken.None, flags));
 
         /// <inheritdoc cref="PollMonitorRound"/>
         internal async Task<(List<M2Record> records, bool done, WinboxM2Continuation? continuation)> PollMonitorRoundAsync(
-            int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
+            WinboxHandler handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
             CancellationToken cancellationToken, int flags = WinboxM2Protocol.GetAllFlags)
             => InterpretMonitorRound(
                 await SendReceiveAsync(BuildMonitorRound(handler, pollCmd, id, isQuery, contToken, flags), cancellationToken).ConfigureAwait(false),
                 handler, isQuery);
 
-        private byte[] BuildMonitorRound(int[] handler, int pollCmd, uint? id, bool isQuery,
+        private byte[] BuildMonitorRound(WinboxHandler handler, int pollCmd, uint? id, bool isQuery,
             WinboxM2Continuation? contToken, int flags)
         {
             var fields = new List<byte[]>();
@@ -703,7 +703,7 @@ namespace tik4net.Winbox
         }
 
         private static (List<M2Record> records, bool done, WinboxM2Continuation? continuation) InterpretMonitorRound(
-            byte[] resp, int[] handler, bool isQuery)
+            byte[] resp, WinboxHandler handler, bool isQuery)
         {
             int status = ThrowOnStatus(resp, "monitor-poll", handler, endOfTableIsOk: true);
 
@@ -730,7 +730,7 @@ namespace tik4net.Winbox
         /// Cancels a monitor: SYS_CMD <paramref name="cancelCmd"/> (+ the <paramref name="id"/> when ≥ 0).
         /// Best-effort — a failed cancel (the monitor already ended) is swallowed.
         /// </summary>
-        internal void CancelMonitor(int[] handler, int cancelCmd, uint? id)
+        internal void CancelMonitor(WinboxHandler handler, int cancelCmd, uint? id)
         {
             byte[] msg = Request(handler, cancelCmd, id.HasValue ? M2Message.SessionIdField(id.Value) : null);
             try { SendReceive(msg); }
@@ -749,7 +749,7 @@ namespace tik4net.Winbox
         /// <see cref="WinboxM2Protocol.Error.ObjectNonexistent"/> is the "no more rows" terminator of a getall, a
         /// get-singleton and a monitor round, not a failure; true for those.
         /// </param>
-        private static int ThrowOnStatus(byte[] resp, string op, int[] handler, bool endOfTableIsOk = false)
+        private static int ThrowOnStatus(byte[] resp, string op, WinboxHandler handler, bool endOfTableIsOk = false)
         {
             int status = M2Message.ParseSysStatus(resp);
             if (status == WinboxM2Protocol.Error.None

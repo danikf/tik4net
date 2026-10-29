@@ -20,7 +20,7 @@ namespace tik4net.Winbox
     /// </remarks>
     internal sealed partial class WinboxFieldResolver
     {
-        private readonly int[] _handler;
+        private readonly WinboxHandler _handler;
         private readonly string? _apiPath;
         private readonly WinboxJgCatalog _catalog;
         // session overrides apiName → key (highest priority)
@@ -43,7 +43,7 @@ namespace tik4net.Winbox
         // before every heuristic; a label this version's catalog does not have is ignored.
         private readonly IReadOnlyDictionary<string, string>? _labelHints;
 
-        internal WinboxFieldResolver(string? apiPath, int[] handler, WinboxJgCatalog catalog,
+        internal WinboxFieldResolver(string? apiPath, WinboxHandler handler, WinboxJgCatalog catalog,
             IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string? windowKey = null,
             IReadOnlyDictionary<string, WinboxJgField>? actionFields = null,
             IReadOnlyDictionary<string, string>? labelHints = null)
@@ -388,7 +388,7 @@ namespace tik4net.Winbox
             get { ResolveAliases(); return _fallback; }
         }
 
-        private static readonly int[] GenericInterfaceHandler = { 20, 0 };
+        private static readonly WinboxHandler GenericInterfaceHandler = new WinboxHandler(20, 0);
         private bool _aliasesResolved;
         private FieldAliasSet? _aliases;
         private IReadOnlyDictionary<string, WinboxJgField>? _ownSynthetic;
@@ -423,7 +423,7 @@ namespace tik4net.Winbox
             FieldAliasSet? baseSet = null;
             if (exact && !string.Equals(norm, "/interface", StringComparison.OrdinalIgnoreCase)
                 && norm.StartsWith("/interface/", StringComparison.OrdinalIgnoreCase)
-                && _handler != null && _handler.SequenceEqual(GenericInterfaceHandler))
+                && _handler == GenericInterfaceHandler)
                 ShippedFieldAliases.TryGetValue("/interface", out baseSet);
 
             _aliases = baseSet == null ? found : MergeAliases(found, baseSet);
@@ -565,7 +565,7 @@ namespace tik4net.Winbox
         {
             var printed = Aliases?.NumFlagMembers;
             if (printed == null || printed.Count == 0) return null;
-            var raw = _handler == null ? null : _catalog?.GetNumFlags(_handler, _windowKey);
+            var raw = _catalog?.GetNumFlags(_handler, _windowKey);
             if (raw == null || raw.Count == 0) return null;
             var result = new Dictionary<int, IReadOnlyDictionary<int, string>>();
             foreach (var byKey in raw)

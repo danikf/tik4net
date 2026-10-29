@@ -61,7 +61,7 @@ namespace tik4net.WinboxNative
         /// <paramref name="actionLabel"/> names one, the window and overrides of <paramref name="windowPath"/> when the
         /// values live in another path's window (a snapshot monitor reads its parent's record).
         /// </summary>
-        WinboxFieldResolver MakeResolver(string apiPath, int[] handler, string? actionLabel = null, string? windowPath = null);
+        WinboxFieldResolver MakeResolver(string apiPath, WinboxHandler handler, string? actionLabel = null, string? windowPath = null);
 
         /// <summary>
         /// A refusal the client makes before sending anything, as the trap the router would raise over the API. The one
@@ -76,7 +76,7 @@ namespace tik4net.WinboxNative
         WinboxNativeConnection.CommandGate EnterCommand();
 
         /// <summary>Encodes the command's name=value parameters as M2 fields, references resolved under await.</summary>
-        Task<List<byte[]>> EncodeNameValueFieldsAsync(int[] handler, TikCommandDescriptor descriptor,
+        Task<List<byte[]>> EncodeNameValueFieldsAsync(WinboxHandler handler, TikCommandDescriptor descriptor,
             WinboxFieldResolver resolver, bool skipId, CancellationToken cancellationToken, bool allowReadOnly = false,
             bool includeFilters = false, bool skipSnapshotModifier = false);
 
@@ -87,17 +87,17 @@ namespace tik4net.WinboxNative
         Task<WinboxNativeConnection.CommandGate> EnterCommandAsync(CancellationToken cancellationToken);
 
         /// <summary>The handler and field resolver of a write path; an unmapped path throws as reads do.</summary>
-        (int[] handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath);
+        (WinboxHandler handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath);
 
         /// <summary>Whether the window a path resolves to is a singleton (get-singleton / set-singleton).</summary>
-        bool IsSingletonWindow(string apiPath, int[] handler);
+        bool IsSingletonWindow(string apiPath, WinboxHandler handler);
 
         /// <summary>Invokes a standalone action window (<c>/tool/wol</c>) and returns the API's one empty row.</summary>
-        Task<IList<TikRecordSentence>> RunActionWindowAsync(string apiPath, int[] handler, TikCommandDescriptor descriptor,
+        Task<IList<TikRecordSentence>> RunActionWindowAsync(string apiPath, WinboxHandler handler, TikCommandDescriptor descriptor,
             CancellationToken cancellationToken);
 
         /// <summary>Invokes an action verb's <c>.jg</c> doit on its parent handler (<c>/system/script/run</c>).</summary>
-        Task DispatchActionVerbAsync(string verb, string apiPath, int[] handler, WinboxFieldResolver resolver,
+        Task DispatchActionVerbAsync(string verb, string apiPath, WinboxHandler handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, CancellationToken cancellationToken);
     }
 }

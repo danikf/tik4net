@@ -309,7 +309,7 @@
         internal static class SafeMode
         {
             /// <summary>Safe-mode system handler path: <c>[17]</c> (webfig <c>Uff0001:[17]</c>).</summary>
-            internal static readonly int[] Handler = { 17 };
+            internal static readonly WinboxHandler Handler = new WinboxHandler(17);
             /// <summary>take/enable safe mode. webfig <c>uff0007:0x80003</c>; reply returns the id in <see cref="RecordKey.Id"/>.</summary>
             internal const int Take = 0x80003;
             /// <summary>release/commit safe mode. webfig <c>uff0007:0x80005</c> + the held id in <see cref="RecordKey.Id"/>.</summary>
@@ -323,7 +323,7 @@
         internal static class Mproxy
         {
             /// <summary>mproxy file handler path: <c>[2,2]</c>.</summary>
-            internal static readonly int[] Handler = { 2, 2 };
+            internal static readonly WinboxHandler Handler = new WinboxHandler(2, 2);
 
             /// <summary>open a static file under <c>/home/web/webfig/</c> (e.g. <c>list</c>, <c>&lt;name&gt;.jg.gz</c>). cmd=7.</summary>
             internal const int OpenStatic = 7;
@@ -358,7 +358,7 @@
         internal static class Mepty
         {
             /// <summary>mepty (terminal PTY) handler path: <c>[76]</c>.</summary>
-            internal static readonly int[] Handler = { 76 };
+            internal static readonly WinboxHandler Handler = new WinboxHandler(76);
 
             /// <summary>open a terminal session and authenticate. cmd=0x0A0065 (meptyLogin).</summary>
             internal const int Login = 0x0A0065;
@@ -425,7 +425,7 @@
         internal static class SysInfo
         {
             /// <summary>System-info singleton handler path: <c>[13,4]</c>.</summary>
-            internal static readonly int[] Handler = { 13, 4 };
+            internal static readonly WinboxHandler Handler = new WinboxHandler(13, 4);
 
             /// <summary>read the system-info singleton (version/board/arch/identity). cmd=7.</summary>
             internal const int Command = 7;

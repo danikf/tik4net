@@ -71,7 +71,7 @@ namespace tik4net.unittests
         private static WinboxHandlerMap MapWithDerived(params (string path, int[] handler)[] entries)
         {
             var map = new WinboxHandlerMap();
-            var derived = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+            var derived = new Dictionary<string, WinboxHandler>(StringComparer.OrdinalIgnoreCase);
             foreach (var (path, handler) in entries)
                 derived[path] = handler;
             map.SetDerivedPaths(derived);
@@ -83,9 +83,9 @@ namespace tik4net.unittests
         {
             var map = MapWithDerived(("/interfaces/interface-list", new[] { 20, 5 }));
 
-            CollectionAssert.AreEqual(new[] { 20, 5 }, map.Resolve("/interfaces/interface-list"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 5), map.Resolve("/interfaces/interface-list"));
             // A pure case difference already resolves (the derived map is case-insensitive)…
-            CollectionAssert.AreEqual(new[] { 20, 5 }, map.Resolve("/Interfaces/Interface-List"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 5), map.Resolve("/Interfaces/Interface-List"));
             // …but an underscore/space inside a segment does NOT, while GUI-names is off (strict, default).
             Assert.IsNull(map.Resolve("/interfaces/interface_list"));
             Assert.IsNull(map.Resolve("/interfaces/interface list"));
@@ -97,8 +97,8 @@ namespace tik4net.unittests
             var map = MapWithDerived(("/interfaces/interface-list", new[] { 20, 5 }));
             map.UseGuiNames = true;
 
-            CollectionAssert.AreEqual(new[] { 20, 5 }, map.Resolve("/Interfaces/Interface_List"));
-            CollectionAssert.AreEqual(new[] { 20, 5 }, map.Resolve("/interfaces/interface list"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 5), map.Resolve("/Interfaces/Interface_List"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 5), map.Resolve("/interfaces/interface list"));
             // Still null for a genuinely unknown path.
             Assert.IsNull(map.Resolve("/interfaces/does-not-exist"));
         }
@@ -111,8 +111,8 @@ namespace tik4net.unittests
             map.UseGuiNames = true;
 
             // /interface/list → (alias) → /interfaces/interface-list, both spellings route through the alias.
-            CollectionAssert.AreEqual(new[] { 20, 5 }, map.Resolve("/interface/list"));
-            CollectionAssert.AreEqual(new[] { 20, 5 }, map.Resolve("/Interface/List"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 5), map.Resolve("/interface/list"));
+            Assert.AreEqual<WinboxHandler?>(new WinboxHandler(20, 5), map.Resolve("/Interface/List"));
         }
 
         // ── B. WinBox field-resolver GUI-name field resolution (seed-only, no catalog) ──

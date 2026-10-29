@@ -27,7 +27,7 @@ namespace tik4net.Winbox
 
         // The router's uptime clock, the origin every `age` value counts from. Handler and key are webfig's
         // own (fetchBoardInfo posts a get-singleton to [24,2] and reads u1).
-        private static readonly int[] BoardInfoHandler = { 24, 2 };
+        private static readonly WinboxHandler BoardInfoHandler = new WinboxHandler(24, 2);
         private const int BoardUptimeKey = 0x1;
         // The same singleton's hundredths counter - see RouterBootEpochHundredths.
         private const int BoardJiffiesKey = 0x2E;
@@ -36,7 +36,7 @@ namespace tik4net.Winbox
         // at key 0x7, already in the router's timezone - the same frame every absolute dateandtime on the
         // wire rides in. Read from the ROUTER rather than taken from the local machine on purpose: a client
         // whose clock is wrong would otherwise date every relative field by its own error.
-        private static readonly int[] ClockHandler = { 24, 0 };
+        private static readonly WinboxHandler ClockHandler = new WinboxHandler(24, 0);
         private const int ClockNowKey = 0x7;
 
         private readonly object _uptimeLock = new object();
@@ -118,7 +118,7 @@ namespace tik4net.Winbox
         private Dictionary<string, string> DecodeRecord(
             M2Record rec, IReadOnlyDictionary<int, string> keyToName,
             IReadOnlyDictionary<int, WinboxJgField> keyToField,
-            Dictionary<string, int[]>? collectRefTables,
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables,
             IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null,
             IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? numFlags = null,
             IReadOnlyDictionary<string, string[]>? extraSpellings = null)
@@ -394,7 +394,7 @@ namespace tik4net.Winbox
 
         // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name. With
         // collectRefTables set, notes the table down instead (see WinboxReferenceTables.NameOf).
-        private string? ResolveRefName(int[] refHandler, object idValue, Dictionary<string, int[]>? collectRefTables)
+        private string? ResolveRefName(WinboxHandler refHandler, object idValue, HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
         {
             if (!WinboxValueFormat.TryToInt64(idValue, out long idl))
             {
@@ -430,7 +430,7 @@ namespace tik4net.Winbox
             // table it could reference is cached already. Both are the steady state, and neither needs a pass.
             if (!_refs.AnyUncached(keyToField.Values)) return;
 
-            var wanted = new Dictionary<string, int[]>(StringComparer.Ordinal);
+            var wanted = new HashSet<(WinboxHandler Table, bool Members)>();
             foreach (var rec in records)
                 DecodeRecord(rec, keyToName, keyToField, wanted);   // result discarded; only the questions matter
 
@@ -439,8 +439,8 @@ namespace tik4net.Winbox
 
         // The member map of a bit set whose members come from a TABLE rather than a static .jg map (/user/group
         // policies, a script's or scheduler entry's policy); see WinboxReferenceTables.MembersOf.
-        private IReadOnlyDictionary<int, string>? ResolveMemberMap(int[] refHandler,
-            Dictionary<string, int[]>? collectRefTables)
+        private IReadOnlyDictionary<int, string>? ResolveMemberMap(WinboxHandler refHandler,
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
             => _refs.MembersOf(refHandler, collectRefTables);
     }
 }
