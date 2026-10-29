@@ -77,9 +77,9 @@ namespace tik4net.unittests.Winbox
             var fields = M2Message.ParseAllFields(m2);
 
             Assert.IsTrue(fields.ContainsKey(0x480), "the field must reach the caller at all");
-            Assert.AreEqual("u64[]", fields[0x480].Item1);
-            Assert.AreEqual("[1,2,3]", fields[0x480].Item2.ToString());
-            Assert.AreEqual(7u, fields[0x12].Item2,
+            Assert.AreEqual("u64[]", fields[0x480].TraceName);
+            Assert.AreEqual("[1,2,3]", fields[0x480].Value.ToString());
+            Assert.AreEqual(7u, fields[0x12].Value,
                 "and the field after it still reads — the frame stayed in sync either way");
         }
 
@@ -93,7 +93,7 @@ namespace tik4net.unittests.Winbox
                 U64Array(0x480, 4294967296UL, ulong.MaxValue));
 
             var fields = M2Message.ParseAllFields(m2);
-            Assert.AreEqual("[4294967296,18446744073709551615]", fields[0x480].Item2.ToString());
+            Assert.AreEqual("[4294967296,18446744073709551615]", fields[0x480].Value.ToString());
         }
 
         [TestMethod]
@@ -103,7 +103,7 @@ namespace tik4net.unittests.Winbox
                 M2Message.BuildM2(M2Message.SysFrom(), U64Array(0x480)));
 
             Assert.IsTrue(fields.ContainsKey(0x480));
-            Assert.AreEqual("[]", fields[0x480].Item2.ToString());
+            Assert.AreEqual("[]", fields[0x480].Value.ToString());
         }
 
         [TestMethod]
@@ -116,10 +116,10 @@ namespace tik4net.unittests.Winbox
             // take what is present and stop rather than walk off the end — and one byte less than that leaves
             // the second element incomplete, so it stops one element earlier again.
             var fields = M2Message.ParseAllFields(m2.Take(m2.Length - 8).ToArray());
-            Assert.AreEqual("[1,2]", fields[0x480].Item2.ToString());
+            Assert.AreEqual("[1,2]", fields[0x480].Value.ToString());
 
             var shorter = M2Message.ParseAllFields(m2.Take(m2.Length - 9).ToArray());
-            Assert.AreEqual("[1]", shorter[0x480].Item2.ToString());
+            Assert.AreEqual("[1]", shorter[0x480].Value.ToString());
         }
 
         // ── the catalog ───────────────────────────────────────────────────────────────────────────────────
@@ -144,10 +144,10 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Parse(Window);
             var resolver = Resolver(catalog);
-            var rec = new Dictionary<int, Tuple<string, object>>
+            var rec = new M2Record
             {
-                [0xFE0001] = Tuple.Create("u32", (object)1u),
-                [0x480] = Tuple.Create("u64[]", (object)"[10,4294967296,0]"),
+                [0xFE0001] = new M2Value(M2Type.U32, 1u),
+                [0x480] = new M2Value(M2Type.U64Array, "[10,4294967296,0]"),
             };
 
             var decoded = new WinboxRecordCodec(null, catalog)
@@ -169,8 +169,8 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(1, written.Count, "one field, one array — types.multinumber stores it flat");
 
             var back = M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(), written[0]));
-            Assert.AreEqual("u64[]", back[0x36].Item1, "and at the u64 width, not the u32 one");
-            Assert.AreEqual("[10,4294967296]", back[0x36].Item2.ToString());
+            Assert.AreEqual("u64[]", back[0x36].TraceName, "and at the u64 width, not the u32 one");
+            Assert.AreEqual("[10,4294967296]", back[0x36].Value.ToString());
         }
 
         [TestMethod]
@@ -182,7 +182,7 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(1, written.Count);
 
             var back = M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(), written[0]));
-            Assert.AreEqual("[]", back[0x36].Item2.ToString());
+            Assert.AreEqual("[]", back[0x36].Value.ToString());
         }
 
         [TestMethod]

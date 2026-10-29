@@ -305,7 +305,7 @@ namespace tik4net.Winbox
             sb.Append("M2[").Append(m2.Length).Append("B]");
             foreach (var kv in ParseAllFields(m2))
                 sb.Append(' ').Append(RenderTraceKey(kv.Key)).Append('=')
-                  .Append(kv.Value.Item1).Append(':').Append(RenderTraceValue(kv.Value.Item2));
+                  .Append(kv.Value.TraceName).Append(':').Append(RenderTraceValue(kv.Value.Value));
             return sb.ToString();
         }
 
@@ -321,13 +321,13 @@ namespace tik4net.Winbox
 
         // Compact renderer for a decoded M2 value: nested record dicts → {0xKEY=…,…}, record arrays →
         // [{…},{…}], scalars → ToString(). Depth-capped to keep trace lines bounded.
-        private static string RenderTraceValue(object value, int depth = 0)
+        private static string RenderTraceValue(object? value, int depth = 0)
         {
             switch (value)
             {
                 case null:
                     return "";
-                case Dictionary<int, Tuple<string, object>> rec:
+                case M2Record rec:
                 {
                     if (depth >= 3) return "{…}";
                     var sb = new StringBuilder("{");
@@ -337,11 +337,11 @@ namespace tik4net.Winbox
                         if (!first) sb.Append(',');
                         first = false;
                         sb.Append(RenderTraceKey(kv.Key)).Append('=')
-                          .Append(RenderTraceValue(kv.Value.Item2, depth + 1));
+                          .Append(RenderTraceValue(kv.Value.Value, depth + 1));
                     }
                     return sb.Append('}').ToString();
                 }
-                case List<Dictionary<int, Tuple<string, object>>> list:
+                case List<M2Record> list:
                 {
                     if (depth >= 3) return $"[{list.Count} rec]";
                     var sb = new StringBuilder("[");
@@ -468,9 +468,9 @@ namespace tik4net.Winbox
         // Each element on the wire is a full submessage ('M2' + TLVs). Returns the records
         // found under <paramref name="fullKey"/>, or an empty list if not present / wrong type.
         // This is the critical "records under 0xFE0002 (Mfe0002)" path used by getall/get-one.
-        internal static List<Dictionary<int, Tuple<string, object>>> ParseRecords(byte[] m2, int fullKey)
+        internal static List<M2Record> ParseRecords(byte[] m2, int fullKey)
         {
-            var records = new List<Dictionary<int, Tuple<string, object>>>();
+            var records = new List<M2Record>();
             if (!IsM2(m2)) return records;
             foreach (var f in Walk(m2))
             {
@@ -489,72 +489,62 @@ namespace tik4net.Winbox
             return records;
         }
 
-        // Parse all TLV fields from an M2 message into a dict keyed by full_key.
-        // Values: bool→bool, u8→byte, u32→uint, u64→ulong, str/str_l→string, raw→hex string,
-        //   str[]→"[a,b,…]" string, message→nested dict, message-array→List&lt;dict&gt;.
-        internal static Dictionary<int, Tuple<string, object>> ParseAllFields(byte[] m2)
+        // Parse all TLV fields from an M2 message into a record keyed by full_key; the values by type are listed on
+        // M2Value.
+        internal static M2Record ParseAllFields(byte[] m2)
         {
-            var result = new Dictionary<int, Tuple<string, object>>();
+            var result = new M2Record();
             if (!IsM2(m2)) return result;
             foreach (var f in Walk(m2))
             {
                 int fullKey = f.Key, type = f.Type, pos = f.ValueStart;
-                // The dictionary value type is object (not object?) for every consumer of ParseAllFields across the
-                // translation layer. When a field's declared length runs past the
-                // end of a truncated frame, the branches below leave val at this placeholder instead of a real
-                // decoded value; the suppression documents that rather than widening the shared contract.
-                object val = null!;
-                string typeName;
+                if (!(M2Types.FromTypeByte(type) is M2Type ftype)) continue;   // unreachable: Walk stops at a type byte no ftype covers
+                // Left null when a field's declared length runs past the end of a truncated frame.
+                object? val = null;
                 // Decoded by ftype, with every length and count read under the type's size flags (ReadLen) - the
                 // rule Walk (ValueBytes) steps over the field by, so a type the walker knows is a type this reads. A
                 // switch on exact type bytes skipped the size variants it did not list (u32[] short/long, string[]
                 // short/long, string and raw long, every bool[]) and read a normal-length raw as the text "[nB]".
-                switch (FType(type))
+                switch (ftype)
                 {
-                    case 0:   // bool: the value is the short flag itself
-                        typeName = "bool"; val = type == TypeByte.True; break;
-                    case 1:   // u32, or u8 in the short form
-                        if (type == TypeByte.U8) { typeName = "u8"; val = pos < m2.Length ? (object)m2[pos] : null!; }
-                        else { typeName = "u32"; if (pos + 4 <= m2.Length) val = BitConverter.ToUInt32(m2, pos); }
+                    case M2Type.Bool:   // the value is the short flag itself
+                        val = type == TypeByte.True; break;
+                    case M2Type.U32:   // or u8 in the short form
+                        if (type == TypeByte.U8) { if (pos < m2.Length) val = m2[pos]; }
+                        else if (pos + 4 <= m2.Length) val = BitConverter.ToUInt32(m2, pos);
                         break;
-                    case 2:
-                        typeName = "u64";
+                    case M2Type.U64:
                         if (pos + 8 <= m2.Length) val = BitConverter.ToUInt64(m2, pos);
                         break;
-                    case 3:
+                    case M2Type.Addr6:
                         // FT_ADDR6: 16 raw bytes, no length prefix (see Addr6Sys).
-                        typeName = "ip6";
                         if (pos + 16 <= m2.Length) val = m2.Skip(pos).Take(16).ToArray();
                         break;
-                    case 4:
+                    case M2Type.String:
                     {
-                        typeName = IsShort(type) ? "str" : "str_l";
                         int len = ReadLen(type, m2, ref pos);
                         if (pos < m2.Length || len == 0) val = Encoding.UTF8.GetString(m2, pos, Math.Max(0, Math.Min(len, m2.Length - pos)));
                         break;
                     }
-                    case 5:
+                    case M2Type.Message:
                     {
-                        // message: length via size flags, body is a submessage.
-                        typeName = "msg";
+                        // length via size flags, body is a submessage.
                         int len = ReadLen(type, m2, ref pos);
                         if (pos + len <= m2.Length)
                             val = ParseAllFields(m2.Skip(pos).Take(len).ToArray());
                         break;
                     }
-                    case 6:
+                    case M2Type.Raw:
                     {
-                        // raw: hex text, whatever its length class - a raw past 255 bytes (an SSH public key, a
+                        // hex text, whatever its length class - a raw past 255 bytes (an SSH public key, a
                         // certificate blob) is a value like any other, not a size.
-                        typeName = IsShort(type) ? "raw" : "raw_l";
                         int len = ReadLen(type, m2, ref pos);
                         if (pos < m2.Length || len == 0) val = Hex(m2, pos, Math.Min(len, m2.Length - pos));
                         break;
                     }
-                    case 16:
+                    case M2Type.BoolArray:
                     {
-                        // bool[]: count + one byte per element, rendered as the scalar bool renders.
-                        typeName = "bool[]";
+                        // count + one byte per element, rendered as the scalar bool renders.
                         int cnt = ReadLen(type, m2, ref pos);
                         var items = new List<string>();
                         for (int i = 0; i < cnt && pos < m2.Length; i++, pos++)
@@ -562,9 +552,8 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", items) + "]";
                         break;
                     }
-                    case 17:
+                    case M2Type.U32Array:
                     {
-                        typeName = "u32[]";
                         int cnt = ReadLen(type, m2, ref pos);
                         var nums = new List<uint>();
                         for (int i = 0; i < cnt && pos + 4 <= m2.Length; i++, pos += 4)
@@ -572,11 +561,10 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", nums) + "]";
                         break;
                     }
-                    case 18:
+                    case M2Type.U64Array:
                     {
-                        // u64[]: the counted-array shape u32[] has, one width wider; rendered as the same "[a,b,...]"
+                        // the counted-array shape u32[] has, one width wider; rendered as the same "[a,b,...]"
                         // text, so the codec's list formatter reads it without a case of its own.
-                        typeName = "u64[]";
                         int cnt = ReadLen(type, m2, ref pos);
                         var nums = new List<ulong>();
                         for (int i = 0; i < cnt && pos + 8 <= m2.Length; i++, pos += 8)
@@ -584,11 +572,10 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", nums) + "]";
                         break;
                     }
-                    case 19:
+                    case M2Type.Addr6Array:
                     {
-                        // addr6[]: count + 16 fixed bytes per element; each element hex, so the codec's list
+                        // count + 16 fixed bytes per element; each element hex, so the codec's list
                         // formatter can hand it to the ip6 element formatter.
-                        typeName = "ip6[]";
                         int cnt = ReadLen(type, m2, ref pos);
                         var addrs = new List<string>();
                         for (int i = 0; i < cnt && pos + 16 <= m2.Length; i++, pos += 16)
@@ -596,10 +583,9 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", addrs) + "]";
                         break;
                     }
-                    case 20:
+                    case M2Type.StringArray:
                     {
-                        // string[]: count + (len + bytes) per element.
-                        typeName = "str[]";
+                        // count + (len + bytes) per element.
                         int cnt = ReadLen(type, m2, ref pos);
                         var strs = new List<string>();
                         for (int i = 0; i < cnt && pos < m2.Length; i++)
@@ -612,12 +598,11 @@ namespace tik4net.Winbox
                         val = "[" + string.Join(",", strs) + "]";
                         break;
                     }
-                    case 21:
+                    case M2Type.MessageArray:
                     {
-                        // message[]: count + (len + submessage) per element.
-                        typeName = "msg[]";
+                        // count + (len + submessage) per element.
                         int cnt = ReadLen(type, m2, ref pos);
-                        var list = new List<Dictionary<int, Tuple<string, object>>>();
+                        var list = new List<M2Record>();
                         for (int i = 0; i < cnt && pos < m2.Length; i++)
                         {
                             int elen = ReadLen(type, m2, ref pos);
@@ -628,10 +613,9 @@ namespace tik4net.Winbox
                         val = list;
                         break;
                     }
-                    case 22:
+                    case M2Type.RawArray:
                     {
-                        // raw[]: count + (len + bytes) per element, each the hex text a scalar raw is.
-                        typeName = "raw[]";
+                        // count + (len + bytes) per element, each the hex text a scalar raw is.
                         int cnt = ReadLen(type, m2, ref pos);
                         var blobs = new List<string>();
                         for (int i = 0; i < cnt && pos < m2.Length; i++)
@@ -647,12 +631,12 @@ namespace tik4net.Winbox
                     default:
                         continue;   // unreachable: Walk stops at a type byte no ftype covers
                 }
+                var value = new M2Value(ftype, val, IsShort(type));
                 if (!result.ContainsKey(fullKey))
                 {
-                    result[fullKey] = Tuple.Create(typeName, val);
+                    result[fullKey] = value;
                 }
-                else if (WinboxM2Protocol.TypedKey.KindOf(result[fullKey].Item1)
-                         != WinboxM2Protocol.TypedKey.KindOf(typeName))
+                else if (WinboxM2Protocol.TypedKey.KindOf(result[fullKey].Type) != WinboxM2Protocol.TypedKey.KindOf(ftype))
                 {
                     // ONE record, ONE key, TWO fields. The .jg declares both — /ip/dhcp-client's window has
                     // 'Add Default Route' as u12 (a scalar enum) and 'DHCP Options' as U12 (a u32[]) — and the
@@ -664,8 +648,7 @@ namespace tik4net.Winbox
                     // 'Hw. Offload' flag on b1f and the original packet count on q1f, and one record carries both
                     // (7.24.2). A duplicate of the SAME kind is still first-wins — that is the .jg's
                     // own 'freq'/'CPU Frequency' kind of alias, two names for one value.
-                    result[WinboxM2Protocol.TypedKey.Qualify(fullKey, typeName)]
-                        = Tuple.Create(typeName, val);
+                    result[WinboxM2Protocol.TypedKey.Qualify(fullKey, ftype)] = value;
                 }
             }
             return result;
@@ -695,7 +678,7 @@ namespace tik4net.Winbox
             {
                 var fields = ParseAllFields(m2);
                 string? err = fields.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es)
-                    ? es.Item2?.ToString() : null;
+                    ? es.Value?.ToString() : null;
                 int code = ParseSysStatus(m2);
                 if (code != 0 || !string.IsNullOrEmpty(err))
                     return "router said error 0x" + code.ToString("X") +

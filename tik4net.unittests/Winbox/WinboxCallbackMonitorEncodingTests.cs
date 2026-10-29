@@ -28,7 +28,7 @@ namespace tik4net.unittests.Winbox
             + ",cancelcmd:" + CancelCmd + ",autorefresh:1000,c:[" +
             "{name:'Address',type:'string',id:'s1',ro:1},{name:'Count',type:'number',id:'u2',ro:1}]}]}]}]";
 
-        private static System.Collections.Generic.Dictionary<int, Tuple<string, object>> RunCallback(
+        private static M2Record RunCallback(
             params ITikCommandParameter[] parameters)
         {
             using (var h = new NativeConnectionHarness(PingWindow))
@@ -44,11 +44,11 @@ namespace tik4net.unittests.Winbox
                     var cmd = h.Connection.CreateCommand("/ping", parameters);
                     // An error ends the run without onDone (D21), so either ending releases the wait.
                     cmd.ExecuteWithCallback(_ => { }, error => { trap = error; done.Set(); }, () => done.Set());
-                    Assert.IsTrue(done.Wait(5000), "the monitor must end on the router's Finished; sent " + string.Join(" / ", h.Requests.Select(r => string.Join(",", r.Select(kv => kv.Key.ToString("X") + "=" + kv.Value.Item2)))));
+                    Assert.IsTrue(done.Wait(5000), "the monitor must end on the router's Finished; sent " + string.Join(" / ", h.Requests.Select(r => string.Join(",", r.Select(kv => kv.Key.ToString("X") + "=" + kv.Value.Value)))));
                 }
                 Assert.IsNull(trap, "the callback monitor must not fail: " + trap?.Message);
                 return h.Requests.Single(r => r.TryGetValue(WinboxM2Protocol.SysKey.Command, out var c)
-                                              && Convert.ToInt64(c.Item2) == StartCmd);
+                                              && Convert.ToInt64(c.Value) == StartCmd);
             }
         }
 
@@ -60,8 +60,8 @@ namespace tik4net.unittests.Winbox
                 new TikCommandParameter("count", "3"),
                 new TikCommandParameter("duration", "5"));
 
-            Assert.AreEqual("192.168.4.1", start[0x1].Item2);
-            Assert.AreEqual(3L, Convert.ToInt64(start[0x2].Item2));
+            Assert.AreEqual("192.168.4.1", start[0x1].Value);
+            Assert.AreEqual(3L, Convert.ToInt64(start[0x2].Value));
             Assert.AreEqual(2, start.Keys.Count(k => k < 0x10000), "address and count, nothing for duration");
         }
 
@@ -72,7 +72,7 @@ namespace tik4net.unittests.Winbox
                 new TikCommandParameter("address", "192.168.4.1", TikCommandParameterFormat.Filter),
                 new TikCommandParameter("count", "3"));
 
-            Assert.AreEqual("192.168.4.1", start[0x1].Item2, "a Filter-format input is the monitor's input, as on the read path");
+            Assert.AreEqual("192.168.4.1", start[0x1].Value, "a Filter-format input is the monitor's input, as on the read path");
         }
     }
 }

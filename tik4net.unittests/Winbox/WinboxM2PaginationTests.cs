@@ -73,12 +73,12 @@ namespace tik4net.unittests.Winbox
         private static int RequestIdOf(byte[] m2)
         {
             var fields = M2Message.ParseAllFields(m2);
-            return fields.TryGetValue(WinboxM2Protocol.SysKey.RequestId, out var t) && t.Item2 != null
-                ? Convert.ToInt32(t.Item2) : -1;
+            return fields.TryGetValue(WinboxM2Protocol.SysKey.RequestId, out var t) && t.Value != null
+                ? Convert.ToInt32(t.Value) : -1;
         }
 
-        private static string NameOf(Dictionary<int, Tuple<string, object>> record)
-            => record.TryGetValue(NameKey, out var t) ? t.Item2 as string : null;
+        private static string NameOf(M2Record record)
+            => record.TryGetValue(NameKey, out var t) ? t.Value as string : null;
 
         /// <summary>Logs in, then hands the test a live operations layer over the scripted server.</summary>
         private static async Task WithOperations(Action<FakeWinboxServer> serverScript,
@@ -152,7 +152,7 @@ namespace tik4net.unittests.Winbox
 
                     byte[] second = server.ReadRawFrame();
                     Assert.AreEqual(7u,
-                        M2Message.ParseAllFields(second)[WinboxM2Protocol.RecordKey.Continuation].Item2,
+                        M2Message.ParseAllFields(second)[WinboxM2Protocol.RecordKey.Continuation].Value,
                         "The u32 cursor must be carried back on the follow-up request.");
                     server.SendRawFrame(Page(RequestIdOf(second), "page2"));
                 },
@@ -179,7 +179,7 @@ namespace tik4net.unittests.Winbox
 
                     byte[] second = server.ReadRawFrame();
                     Assert.AreEqual(0x80000001u,
-                        M2Message.ParseAllFields(second)[WinboxM2Protocol.RecordKey.Continuation].Item2);
+                        M2Message.ParseAllFields(second)[WinboxM2Protocol.RecordKey.Continuation].Value);
                     server.SendRawFrame(Page(RequestIdOf(second), "page2"));
                 },
                 (ops, server) =>
@@ -202,7 +202,7 @@ namespace tik4net.unittests.Winbox
 
                     byte[] second = server.ReadRawFrame();
                     var fields = M2Message.ParseAllFields(second);
-                    Assert.AreEqual(3u, fields[WinboxM2Protocol.RecordKey.Continuation].Item2);
+                    Assert.AreEqual(3u, fields[WinboxM2Protocol.RecordKey.Continuation].Value);
                     CollectionAssert.AreEqual(cursor,
                         M2Message.ExtractRawField(second, WinboxM2Protocol.RecordKey.ContinuationRaw));
                     server.SendRawFrame(Page(RequestIdOf(second), "page2"));

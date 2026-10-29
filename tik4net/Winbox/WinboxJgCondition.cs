@@ -113,10 +113,10 @@ namespace tik4net.Winbox
         /// True only when the record DEFINITELY fails the condition — see the remarks on the class for why an
         /// unknown answer does not count.
         /// </summary>
-        internal bool IsFalseOn(IReadOnlyDictionary<int, Tuple<string, object>> rec)
+        internal bool IsFalseOn(M2Record rec)
             => Evaluate(rec, 0) == false;
 
-        private bool? Evaluate(IReadOnlyDictionary<int, Tuple<string, object>> rec, int depth)
+        private bool? Evaluate(M2Record rec, int depth)
         {
             bool? own = true;
             foreach (var c in _clauses)
@@ -126,7 +126,7 @@ namespace tik4net.Winbox
                 else if (!c.HasOn) r = IsTrue(c.Pred, NoValue);
                 else
                 {
-                    object? val = rec.TryGetValue(c.Key, out var t) && t?.Item2 != null ? t.Item2
+                    object? val = rec.TryGetValue(c.Key, out var t) && t.Value != null ? t.Value
                                 : c.Def.HasValue ? c.Def.Value : null;
                     r = IsTrue(c.Pred, val);
                 }

@@ -61,14 +61,14 @@ namespace tik4net.unittests.Winbox
                                            new Dictionary<string, int>());
         }
 
-        private static Dictionary<string, string> Decode(params (int key, string type, object val)[] fields)
+        private static Dictionary<string, string> Decode(params (int key, M2Type type, object val)[] fields)
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(Window));
             var resolver = new WinboxFieldResolver("/ip/ipsec/policy", Handler, catalog,
                                                    new Dictionary<string, int>());
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
@@ -90,14 +90,14 @@ namespace tik4net.unittests.Winbox
             // than being sent on the wrong key.
             Assert.AreEqual(0x1, Resolver().ResolveKey("src-address"));
 
-            var fields = Decode((0x1, "u32", 0x0100000AU), (0x2, "u32", 0xFFFFFF00U));
+            var fields = Decode((0x1, M2Type.U32, 0x0100000AU), (0x2, M2Type.U32, 0xFFFFFF00U));
             Assert.AreEqual("10.0.0.1/24", fields["src-address"]);
         }
 
         [TestMethod]
         public void TheOtherFamilyAnswersToTheSameNameAtItsOwnKey()
         {
-            var fields = Decode((0x15, "ip6", V6(0x20, 0x01, 0x0d, 0xb8)), (0x16, "u32", 32U));
+            var fields = Decode((0x15, M2Type.Addr6, V6(0x20, 0x01, 0x0d, 0xb8)), (0x16, M2Type.U32, 32U));
 
             Assert.IsTrue(fields.ContainsKey("src-address"),
                 "a row in the second address family must report the field at all");
@@ -110,7 +110,7 @@ namespace tik4net.unittests.Winbox
             // The sibling of a network6 holds the PREFIX LENGTH, that of a network a NETMASK. Typing the v6
             // family by the v4 member's rules would read the 0 as a mask and print /0 for every length —
             // right by accident on ::/0, wrong on everything else, which is why the length here is not 0.
-            var fields = Decode((0x15, "ip6", V6(0xfe, 0x80)), (0x16, "u32", 64U));
+            var fields = Decode((0x15, M2Type.Addr6, V6(0xfe, 0x80)), (0x16, M2Type.U32, 64U));
 
             Assert.AreEqual("fe80::/64", fields["src-address"]);
         }
@@ -118,7 +118,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AFamilyWithNoLengthIsTheBareAddress()
         {
-            var fields = Decode((0x15, "ip6", V6(0xfe, 0x80)));
+            var fields = Decode((0x15, M2Type.Addr6, V6(0xfe, 0x80)));
 
             Assert.AreEqual("fe80::", fields["src-address"]);
         }
@@ -128,7 +128,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ATupleIsJoinedByItsOwnSeparator()
         {
-            var fields = Decode((0xd, "ip6", V6(0x20, 0x01)), (0xe, "u32", 65504U));
+            var fields = Decode((0xd, M2Type.Addr6, V6(0x20, 0x01)), (0xe, M2Type.U32, 65504U));
 
             Assert.AreEqual("2001::" + ":" + "65504", fields["remote"]);
         }
@@ -139,8 +139,8 @@ namespace tik4net.unittests.Winbox
             // The decode walks the record's keys in whatever order they arrived, so both part keys have to
             // name the same field and render the same text — otherwise the value would depend on the order
             // the router happened to put its fields in.
-            var forward = Decode((0xd, "ip6", V6(0x20, 0x01)), (0xe, "u32", 1U));
-            var reverse = Decode((0xe, "u32", 1U), (0xd, "ip6", V6(0x20, 0x01)));
+            var forward = Decode((0xd, M2Type.Addr6, V6(0x20, 0x01)), (0xe, M2Type.U32, 1U));
+            var reverse = Decode((0xe, M2Type.U32, 1U), (0xd, M2Type.Addr6, V6(0x20, 0x01)));
 
             Assert.AreEqual(forward["remote"], reverse["remote"]);
             Assert.AreEqual(1, CountKeysStartingWith(forward, "remote"),
@@ -165,13 +165,13 @@ namespace tik4net.unittests.Winbox
         public void ATupleOfNumbersIsWrittenPartByPart()
         {
             // Numbers cannot hold the separator, so the split is exact — the tunnels' keepalive=10s,10 is this shape.
-            var back = new Dictionary<int, Tuple<string, object>>();
+            var back = new M2Record();
             foreach (var piece in Resolver().EncodeField("datapath-id", "7/9"))
                 foreach (var kv in M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(), piece)))
                     back[kv.Key] = kv.Value;
 
-            Assert.AreEqual("7", back[0x40].Item2.ToString());
-            Assert.AreEqual("9", back[0x41].Item2.ToString());
+            Assert.AreEqual("7", back[0x40].Value.ToString());
+            Assert.AreEqual("9", back[0x41].Value.ToString());
         }
 
         [TestMethod]
@@ -200,7 +200,7 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(0x20, r.ResolveKey("upload-max-limit"));
             Assert.AreEqual(0x21, r.ResolveKey("download-max-limit"));
 
-            var fields = Decode((0x20, "u32", 1000000U), (0x21, "u32", 2000000U));
+            var fields = Decode((0x20, M2Type.U32, 1000000U), (0x21, M2Type.U32, 2000000U));
             Assert.IsFalse(fields.ContainsKey("max-limit"),
                 "'separate:1' is webfig saying the parts are boxes of their own");
             Assert.AreEqual("1000000", fields["upload-max-limit"]);
@@ -210,7 +210,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ATupleWhoseChildrenAreNamedLeavesThemAloneToo()
         {
-            var fields = Decode((0x30, "u32", 8U), (0x31, "u32", 8U));
+            var fields = Decode((0x30, M2Type.U32, 8U), (0x31, M2Type.U32, 8U));
 
             Assert.IsFalse(fields.ContainsKey("priority"),
                 "a child with a label of its own is a field in its own right whatever the tuple says");

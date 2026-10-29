@@ -23,19 +23,19 @@ namespace tik4net.unittests.Winbox
         }
 
         private static Dictionary<string, string> Decode(string catalogText, string apiPath, int[] handler,
-            params (int key, string wire, object value)[] fields)
+            params (int key, M2Type wire, object value)[] fields)
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(catalogText), "the trimmed catalog must parse");
             var resolver = new WinboxFieldResolver(apiPath, handler, catalog, new Dictionary<string, int>());
-            var rec = fields.ToDictionary(f => f.key, f => Tuple.Create(f.wire, f.value));
+            var rec = fields.ToM2Record(f => f.key, f => new M2Value(f.wire, f.value));
             return new WinboxRecordCodec(null, catalog).DecodeRecord(rec, resolver.BuildKeyToApiName(),
                 resolver.BuildKeyToField(), resolver.DerivedBoolFields);
         }
 
-        private static Dictionary<int, Tuple<string, object>> Written(WinboxFieldResolver resolver, string name, string value)
+        private static M2Record Written(WinboxFieldResolver resolver, string name, string value)
         {
-            var back = new Dictionary<int, Tuple<string, object>>();
+            var back = new M2Record();
             foreach (var piece in resolver.EncodeField(name, value))
                 foreach (var kv in M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(), piece)))
                     back[kv.Key] = kv.Value;
@@ -45,20 +45,20 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void KeysNoWindowDeclaresReadAsTheApiNamesThem()
         {
-            Assert.AreEqual("short", Decode("[]", "/interface/ethernet", new[] { 20, 0 }, (0x3F5, "u32", (object)0u))["cable-settings"]);
+            Assert.AreEqual("short", Decode("[]", "/interface/ethernet", new[] { 20, 0 }, (0x3F5, M2Type.U32, (object)0u))["cable-settings"]);
 
             var l2tp = Decode("[]", "/interface/l2tp-server/server", new[] { 27, 31 },
-                (0xDF, "u32", (object)2u), (0xDE, "u32", (object)5u));
+                (0xDF, M2Type.U32, (object)2u), (0xDE, M2Type.U32, (object)5u));
             Assert.AreEqual("l2tpv2", l2tp["accept-proto-version"]);
             Assert.AreEqual("ether", l2tp["accept-pseudowire-type"]);
 
-            Assert.AreEqual("false", Decode("[]", "/interface/bridge", new[] { 20, 0 }, (0x65, "bool", (object)false))["auto-mac"]);
-            Assert.AreEqual("0x1818", Decode("[]", "/ip/settings", new[] { 20, 17 }, (0x1C, "u32", (object)6168u))["icmp-rate-mask"]);
-            Assert.AreEqual("true", Decode("[]", "/ip/firewall/connection/tracking", new[] { 20, 17 }, (0x2F, "bool", (object)true))["active-ipv6"]);
-            Assert.AreEqual("true", Decode("[]", "/ip/ipsec/peer", new[] { 85, 4 }, (0xE, "bool", (object)true))["responder"]);
+            Assert.AreEqual("false", Decode("[]", "/interface/bridge", new[] { 20, 0 }, (0x65, M2Type.Bool, (object)false))["auto-mac"]);
+            Assert.AreEqual("0x1818", Decode("[]", "/ip/settings", new[] { 20, 17 }, (0x1C, M2Type.U32, (object)6168u))["icmp-rate-mask"]);
+            Assert.AreEqual("true", Decode("[]", "/ip/firewall/connection/tracking", new[] { 20, 17 }, (0x2F, M2Type.Bool, (object)true))["active-ipv6"]);
+            Assert.AreEqual("true", Decode("[]", "/ip/ipsec/peer", new[] { 85, 4 }, (0xE, M2Type.Bool, (object)true))["responder"]);
 
             var peer = Decode("[]", "/interface/wireguard/peers", new[] { 20, 110 },
-                (0x3F3, "u64", (object)1234ul), (0x3F4, "u64", (object)5678ul));
+                (0x3F3, M2Type.U64, (object)1234ul), (0x3F4, M2Type.U64, (object)5678ul));
             Assert.AreEqual("1234", peer["rx"]);
             Assert.AreEqual("5678", peer["tx"]);
 
@@ -88,10 +88,10 @@ namespace tik4net.unittests.Winbox
         public void TheKeysThatAreWritableWriteBackTheValueTheyRead()
         {
             var ether = Written(Resolver("[]", "/interface/ethernet", new[] { 20, 0 }), "cable-settings", "standard");
-            Assert.AreEqual("1", ether[0x3F5].Item2.ToString());
+            Assert.AreEqual("1", ether[0x3F5].Value.ToString());
 
             var mask = Written(Resolver("[]", "/ip/settings", new[] { 20, 17 }), "icmp-rate-mask", "0x1819");
-            Assert.AreEqual("6169", mask[0x1C].Item2.ToString(), "the API's own hex spelling is what a caller hands back");
+            Assert.AreEqual("6169", mask[0x1C].Value.ToString(), "the API's own hex spelling is what a caller hands back");
         }
 
         [TestMethod]
@@ -131,12 +131,12 @@ namespace tik4net.unittests.Winbox
                 "{name:'Responder',type:'flag',id:'b5',hint:'R'}]}]}]";
 
             var initiator = Decode(peers, "/ip/ipsec/active-peers", new[] { 85, 9 },
-                (0x5, "bool", (object)false), (0x15, "string", (object)"ef035cfdda65233b"), (0x16, "string", (object)"0000000000000000"));
+                (0x5, M2Type.Bool, (object)false), (0x15, M2Type.String, (object)"ef035cfdda65233b"), (0x16, M2Type.String, (object)"0000000000000000"));
             Assert.AreEqual("false", initiator["responder"]);
             Assert.AreEqual("ef035cfdda65233b", initiator["spii"]);
             Assert.AreEqual("0000000000000000", initiator["spir"]);
 
-            var responder = Decode(peers, "/ip/ipsec/active-peers", new[] { 85, 9 }, (0x5, "bool", (object)true));
+            var responder = Decode(peers, "/ip/ipsec/active-peers", new[] { 85, 9 }, (0x5, M2Type.Bool, (object)true));
             Assert.AreEqual("true", responder["responder"]);
         }
 
@@ -160,7 +160,7 @@ namespace tik4net.unittests.Winbox
             Assert.IsFalse(row.ContainsKey("conn-tracking-mode"), "the window's own spelling is not an API field");
 
             var written = Written(resolver, "connection-tracking-mode", "passive-active");
-            Assert.AreEqual("0", written[0x17].Item2.ToString());
+            Assert.AreEqual("0", written[0x17].Value.ToString());
         }
 
         [TestMethod]
@@ -169,17 +169,17 @@ namespace tik4net.unittests.Winbox
             const string package =
                 "[{name:'System',c:[{name:'Package',title:'Packages',type:'map',path:[ 24,23 ],c:[" +
                 "{name:'Installed',type:'bool',id:'bb'},{name:'available',type:'flag',id:'bb',hint:'A',inv:1}]}]}]";
-            Assert.AreEqual("false", Decode(package, "/system/package", new[] { 24, 23 }, (0xB, "bool", (object)true))["available"]);
-            Assert.AreEqual("true", Decode(package, "/system/package", new[] { 24, 23 }, (0xB, "bool", (object)false))["available"]);
+            Assert.AreEqual("false", Decode(package, "/system/package", new[] { 24, 23 }, (0xB, M2Type.Bool, (object)true))["available"]);
+            Assert.AreEqual("true", Decode(package, "/system/package", new[] { 24, 23 }, (0xB, M2Type.Bool, (object)false))["available"]);
         }
 
         [TestMethod]
         public void TheRowsNoteIsItsAbout()
         {
-            var noted = Decode("[]", "/ip/dhcp-server", new[] { 23, 0 }, (0xFE001C, "str[]", (object)"[No IP address on interface]"));
+            var noted = Decode("[]", "/ip/dhcp-server", new[] { 23, 0 }, (0xFE001C, M2Type.StringArray, (object)"[No IP address on interface]"));
             Assert.AreEqual("No IP address on interface", noted[".about"]);
 
-            var silent = Decode("[]", "/ip/dhcp-server", new[] { 23, 0 }, (0xFE001C, "str[]", (object)"[]"));
+            var silent = Decode("[]", "/ip/dhcp-server", new[] { 23, 0 }, (0xFE001C, M2Type.StringArray, (object)"[]"));
             Assert.IsFalse(silent.ContainsKey(".about"), "an empty note is no .about at all");
         }
 
@@ -189,14 +189,14 @@ namespace tik4net.unittests.Winbox
             const string manager =
                 "[{name:'CAPsMAN',c:[{name:'Manager',title:'Manager',type:'item',path:[ 88,155 ],c:[" +
                 "{name:'Certificate',type:'enm',id:'u2',def:4294967295,opt:1,values:{type:'defenum',defid:0,defname:'auto',values:{type:'dynamic',path:[ 19,1 ]}}}]}]}]";
-            Assert.AreEqual("none", Decode(manager, "/caps-man/manager", new[] { 88, 155 }, (0x2, "u32", (object)4294967295u))["certificate"]);
+            Assert.AreEqual("none", Decode(manager, "/caps-man/manager", new[] { 88, 155 }, (0x2, M2Type.U32, (object)4294967295u))["certificate"]);
             var written = Written(Resolver(manager, "/caps-man/manager", new[] { 88, 155 }), "certificate", "none");
-            Assert.AreEqual("4294967295", written[0x2].Item2.ToString());
+            Assert.AreEqual("4294967295", written[0x2].Value.ToString());
 
             const string certificates =
                 "[{name:'System',c:[{name:'Certificates',title:'Certificates',type:'map',path:[ 19,1 ],c:[" +
                 "{name:'Trust Store',type:'set',id:'u2d',def:4294967295,values:{type:'static',map:{1:'ipsec',2:'wpa-eap'}}}]}]}]";
-            Assert.AreEqual("all", Decode(certificates, "/certificate", new[] { 19, 1 }, (0x2D, "u32", (object)4294967295u))["trust-store"]);
+            Assert.AreEqual("all", Decode(certificates, "/certificate", new[] { 19, 1 }, (0x2D, M2Type.U32, (object)4294967295u))["trust-store"]);
         }
     }
 }

@@ -24,7 +24,7 @@ namespace tik4net.unittests.Winbox
         }
 
         private static Dictionary<string, string> Decode(
-            WinboxJgCatalog catalog, int[] handler, Dictionary<int, Tuple<string, object>> rec,
+            WinboxJgCatalog catalog, int[] handler, M2Record rec,
             string apiPath = null, string windowKey = null)
         {
             var resolver = new WinboxFieldResolver(apiPath, handler, catalog,
@@ -33,14 +33,14 @@ namespace tik4net.unittests.Winbox
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
-        private static Dictionary<int, Tuple<string, object>> Rec(params (int key, string type, object val)[] fields)
+        private static M2Record Rec(params (int key, M2Type type, object val)[] fields)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return rec;
         }
 
-        private static Dictionary<int, Tuple<string, object>> Sub(params (int key, string type, object val)[] fields)
+        private static M2Record Sub(params (int key, M2Type type, object val)[] fields)
             => Rec(fields);
 
         // ── one key, two fields ────────────────────────────────────────────────
@@ -98,9 +98,9 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AUnionElementKeepsThePrefixLengthOfTheMemberItCarries()
         {
-            var v6 = Sub((0x16, "ip6", new byte[16]), (0x17, "u32", (uint)0));
-            var v4 = Sub((0x8, "u32", 0xEC04A8C0u), (0x9, "u32", 0x00FFFFFFu));   // 192.168.4.236 / 255.255.255.0
-            var rec = Rec((0x1B, "msg[]", new List<Dictionary<int, Tuple<string, object>>> { v6, v4 }));
+            var v6 = Sub((0x16, M2Type.Addr6, new byte[16]), (0x17, M2Type.U32, (uint)0));
+            var v4 = Sub((0x8, M2Type.U32, 0xEC04A8C0u), (0x9, M2Type.U32, 0x00FFFFFFu));   // 192.168.4.236 / 255.255.255.0
+            var rec = Rec((0x1B, M2Type.MessageArray, new List<M2Record> { v6, v4 }));
 
             var fields = Decode(Parse(SnmpCommunityWindow), new[] { 34, 1 }, rec);
 
@@ -121,8 +121,8 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ATupleElementJoinsItsPartsWithTheDeclaredSeparator()
         {
-            var alt = Sub((0x7F, "u32", (uint)1), (0x7D, "u32", 0x0A0200C0u));
-            var rec = Rec((0x84, "msg[]", new List<Dictionary<int, Tuple<string, object>>> { alt }));
+            var alt = Sub((0x7F, M2Type.U32, (uint)1), (0x7D, M2Type.U32, 0x0A0200C0u));
+            var rec = Rec((0x84, M2Type.MessageArray, new List<M2Record> { alt }));
 
             var fields = Decode(Parse(CertificateWindow), new[] { 9, 1 }, rec);
 
@@ -144,10 +144,10 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AMultibitsOfZeroIsNoFlagsAndNotTheMembersAtIndexZero()
         {
-            var none = Decode(Parse(NeighborWindow), new[] { 33, 1 }, Rec((0x11, "u32", (uint)0)));
+            var none = Decode(Parse(NeighborWindow), new[] { 33, 1 }, Rec((0x11, M2Type.U32, (uint)0)));
             Assert.AreEqual("", none["system-caps"], "0 is an EMPTY set; 'other' is the member at BIT 0");
 
-            var some = Decode(Parse(NeighborWindow), new[] { 33, 1 }, Rec((0x11, "u32", (uint)0b10101)));
+            var some = Decode(Parse(NeighborWindow), new[] { 33, 1 }, Rec((0x11, M2Type.U32, (uint)0b10101)));
             Assert.AreEqual("other,bridge,router", some["system-caps"]);
         }
 
@@ -165,11 +165,11 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Parse(IpsecProfileWindow);
 
-            Assert.AreEqual("8s", Decode(catalog, new[] { 85, 6 }, Rec((0x8, "u32", (uint)8)))["dpd-interval"],
+            Assert.AreEqual("8s", Decode(catalog, new[] { 85, 6 }, Rec((0x8, M2Type.U32, (uint)8)))["dpd-interval"],
                 "webfig paints the unit beside the box; the API puts it in the value");
-            Assert.AreEqual("2m", Decode(catalog, new[] { 85, 6 }, Rec((0x8, "u32", (uint)120)))["dpd-interval"]);
+            Assert.AreEqual("2m", Decode(catalog, new[] { 85, 6 }, Rec((0x8, M2Type.U32, (uint)120)))["dpd-interval"]);
             Assert.AreEqual("disable-dpd",
-                Decode(catalog, new[] { 85, 6 }, Rec((0x8, "u32", (uint)0)))["dpd-interval"],
+                Decode(catalog, new[] { 85, 6 }, Rec((0x8, M2Type.U32, (uint)0)))["dpd-interval"],
                 "a value the map DOES name is not a number, so the postfix has nothing to say about it");
         }
 
@@ -199,21 +199,21 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Parse(ConnectionsWindow649);
 
-            var udp = Decode(catalog, new[] { 20, 32 }, Rec((0x7, "u32", 3959728320u), (0x8, "u32", 4294967295u),
-                (0x9, "u32", (uint)5678), (0xA, "u32", (uint)5678)));
+            var udp = Decode(catalog, new[] { 20, 32 }, Rec((0x7, M2Type.U32, 3959728320u), (0x8, M2Type.U32, 4294967295u),
+                (0x9, M2Type.U32, (uint)5678), (0xA, M2Type.U32, (uint)5678)));
             Assert.AreEqual("192.168.4.236:5678", udp["src-address"]);
             Assert.AreEqual("255.255.255.255:5678", udp["dst-address"]);
             Assert.IsFalse(udp.ContainsKey("src-port") || udp.Count > 2,
                 "the port is half of one API field: " + string.Join(", ", udp.Keys));
 
-            var ipencap = Decode(catalog, new[] { 20, 32 }, Rec((0x7, "u32", 3976505536u), (0x8, "u32", 67134218u)));
+            var ipencap = Decode(catalog, new[] { 20, 32 }, Rec((0x7, M2Type.U32, 3976505536u), (0x8, M2Type.U32, 67134218u)));
             Assert.AreEqual("192.168.4.237", ipencap["src-address"], "no port on the wire, no ':0'");
         }
 
         [TestMethod]
         public void TheApiPrintsTheHotspotProxyAsAddressAndPortInOneField()
         {
-            var rec = Rec((0x83, "u32", 0x0100007Fu), (0x84, "u32", (uint)3128), (0x87, "u32", (uint)0));
+            var rec = Rec((0x83, M2Type.U32, 0x0100007Fu), (0x84, M2Type.U32, (uint)3128), (0x87, M2Type.U32, (uint)0));
 
             var fields = Decode(Parse(HotspotProfileWindow), new[] { 55, 2 }, rec, "/ip/hotspot/profile");
 
@@ -241,8 +241,8 @@ namespace tik4net.unittests.Winbox
         public void TheWindowAPathResolvesToOwnsTheNamesItClaims()
         {
             var catalog = Parse(NtpWindows);
-            var rec = Rec((0x4, "bool", true), (0x6, "bool", false),
-                          (0x1, "u32", (uint)0), (0x7, "bool", false));
+            var rec = Rec((0x4, M2Type.Bool, true), (0x6, M2Type.Bool, false),
+                          (0x1, M2Type.U32, (uint)0), (0x7, M2Type.Bool, false));
 
             var server = Decode(catalog, new[] { 47, 1 }, rec,
                 "/system/ntp/server", "/system/ntp-server/ntp-server");

@@ -83,7 +83,7 @@ namespace tik4net.unittests.Winbox
             var msg = new[] { (byte)'M', (byte)'2' }.Concat(extra.SelectMany(f => f)).ToArray();
             var fields = M2Message.ParseAllFields(msg);
             Assert.IsTrue(fields.ContainsKey(0x7f), "the wrapper's flag key must be written");
-            Assert.AreEqual(false, fields[0x7f].Item2, "…and written down, not up");
+            Assert.AreEqual(false, fields[0x7f].Value, "…and written down, not up");
         }
 
         /// <summary>

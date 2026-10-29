@@ -55,13 +55,13 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>Every request sent, parsed into key → (type, value).</summary>
-        internal List<Dictionary<int, Tuple<string, object>>> Requests
+        internal List<M2Record> Requests
             => Channel.Sent.Select(M2Message.ParseAllFields).ToList();
 
         /// <summary>The requests whose <c>SYS_CMD</c> is <paramref name="command"/>.</summary>
-        internal List<Dictionary<int, Tuple<string, object>>> RequestsWithCommand(int command)
+        internal List<M2Record> RequestsWithCommand(int command)
             => Requests.Where(r => r.TryGetValue(WinboxM2Protocol.SysKey.Command, out var c)
-                                   && Convert.ToInt64(c.Item2) == command).ToList();
+                                   && Convert.ToInt64(c.Value) == command).ToList();
 
         /// <summary>A reply to <paramref name="request"/> carrying its request id and <paramref name="fields"/>.</summary>
         internal static byte[] ReplyTo(byte[] request, params byte[][] fields)
@@ -80,7 +80,7 @@ namespace tik4net.unittests.Winbox
         internal static int CommandOf(byte[] request)
         {
             var all = M2Message.ParseAllFields(request);
-            return all.TryGetValue(WinboxM2Protocol.SysKey.Command, out var c) ? (int)Convert.ToInt64(c.Item2) : -1;
+            return all.TryGetValue(WinboxM2Protocol.SysKey.Command, out var c) ? (int)Convert.ToInt64(c.Value) : -1;
         }
 
         private FieldInfo Field(string name)

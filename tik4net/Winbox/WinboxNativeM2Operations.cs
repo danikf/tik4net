@@ -226,7 +226,7 @@ namespace tik4net.Winbox
         /// signals "no more" — either by omitting both continuation keys or by answering
         /// <see cref="WinboxM2Protocol.Error.ObjectNonexistent"/>.
         /// </summary>
-        internal List<Dictionary<int, Tuple<string, object>>> GetAll(
+        internal List<M2Record> GetAll(
             int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int? budgetMs = null)
             => GetAllAsync(handler, CancellationToken.None, flags, maxObjs, budgetMs).GetAwaiter().GetResult();
 
@@ -248,12 +248,12 @@ namespace tik4net.Winbox
         /// a native read is proportional to the TABLE, not to the answer, so returning the pages that fit
         /// would be a short list indistinguishable from a router that has that many rows.</para>
         /// </remarks>
-        internal async Task<List<Dictionary<int, Tuple<string, object>>>> GetAllAsync(
+        internal async Task<List<M2Record>> GetAllAsync(
             int[] handler, CancellationToken cancellationToken,
             int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int? budgetMs = null)
         {
             int budget = budgetMs ?? PagedReadBudget(_timeoutMs);
-            var records = new List<Dictionary<int, Tuple<string, object>>>();
+            var records = new List<M2Record>();
             WinboxM2Continuation? cont = null; // cursor carried back verbatim on the next request
             var sw = Stopwatch.StartNew();
             for (int round = 0; ; round++)
@@ -390,7 +390,7 @@ namespace tik4net.Winbox
         internal string? GetRouterVersion()
         {
             var fields = GetSingleton(BoardInfoHandler);
-            return fields != null && fields.TryGetValue(BoardInfoVersionKey, out var t) ? t.Item2?.ToString() : null;
+            return fields != null && fields.TryGetValue(BoardInfoVersionKey, out var t) ? t.Value?.ToString() : null;
         }
 
         private static readonly int[] BoardInfoHandler = { 24, 2 };
@@ -402,11 +402,11 @@ namespace tik4net.Winbox
         /// decoded field dictionary. Records arrive under <see cref="WinboxM2Protocol.RecordKey.Records"/>;
         /// falls back to the top-level fields when the handler answers inline.
         /// </summary>
-        internal Dictionary<int, Tuple<string, object>> GetOne(int[] handler, int id)
+        internal M2Record GetOne(int[] handler, int id)
             => Sync(GetOneAsync(handler, id, CancellationToken.None));
 
         /// <inheritdoc cref="GetOne"/>
-        internal async Task<Dictionary<int, Tuple<string, object>>> GetOneAsync(
+        internal async Task<M2Record> GetOneAsync(
             int[] handler, int id, CancellationToken cancellationToken)
             => InterpretRecord(await SendReceiveAsync(BuildGetOne(handler, id), cancellationToken).ConfigureAwait(false));
 
@@ -415,7 +415,7 @@ namespace tik4net.Winbox
 
         // Records arrive under RecordKey.Records; fall back to the top-level fields when the handler
         // answers inline. Shared by get-one and get-singleton.
-        private static Dictionary<int, Tuple<string, object>> InterpretRecord(byte[] resp)
+        private static M2Record InterpretRecord(byte[] resp)
         {
             var recs = M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records);
             return recs.Count > 0 ? recs[0] : M2Message.ParseAllFields(resp);
@@ -433,12 +433,12 @@ namespace tik4net.Winbox
         /// The window's own read command (<c>.jg</c> <c>getcmd</c>), or <c>null</c> for get-singleton — webfig's
         /// <c>ObjectHolder.fetch</c> sends <c>getcmd || 0xfe000d</c> and nothing else differs.
         /// </param>
-        internal Dictionary<int, Tuple<string, object>> GetSingleton(
+        internal M2Record GetSingleton(
             int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int? command = null)
             => Sync(GetSingletonAsync(handler, CancellationToken.None, flags, command));
 
         /// <inheritdoc cref="GetSingleton"/>
-        internal async Task<Dictionary<int, Tuple<string, object>>> GetSingletonAsync(
+        internal async Task<M2Record> GetSingletonAsync(
             int[] handler, CancellationToken cancellationToken, int flags = WinboxM2Protocol.GetAllFlags,
             int? command = null)
             => InterpretSingleton(
@@ -449,7 +449,7 @@ namespace tik4net.Winbox
             => Request(handler, command ?? WinboxM2Protocol.Command.GetSingleton,
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
 
-        private static Dictionary<int, Tuple<string, object>> InterpretSingleton(byte[] resp, int[] handler)
+        private static M2Record InterpretSingleton(byte[] resp, int[] handler)
         {
             ThrowOnStatus(resp, "get-singleton", handler, endOfTableIsOk: true);
             return InterpretRecord(resp);
@@ -569,12 +569,12 @@ namespace tik4net.Winbox
         /// <paramref name="id"/> (omitted when negative). Returns the reply's top-level fields. Throws on a
         /// non-zero router status.
         /// </summary>
-        internal Dictionary<int, Tuple<string, object>> InvokeAction(int[] handler, int cmd, int id,
+        internal M2Record InvokeAction(int[] handler, int cmd, int id,
             IList<byte[]>? fields = null)
             => Sync(InvokeActionAsync(handler, cmd, id, fields, CancellationToken.None));
 
         /// <inheritdoc cref="InvokeAction"/>
-        internal async Task<Dictionary<int, Tuple<string, object>>> InvokeActionAsync(
+        internal async Task<M2Record> InvokeActionAsync(
             int[] handler, int cmd, int id, IList<byte[]>? fields, CancellationToken cancellationToken)
             => InterpretAction(
                 await SendReceiveAsync(BuildAction(handler, cmd, id, fields), cancellationToken).ConfigureAwait(false),
@@ -585,7 +585,7 @@ namespace tik4net.Winbox
         private byte[] BuildAction(int[] handler, int cmd, int id, IList<byte[]>? fields)
             => Request(handler, cmd, After(id >= 0 ? M2Message.SessionIdField(id) : null, fields));
 
-        private static Dictionary<int, Tuple<string, object>> InterpretAction(byte[] resp, int[] handler)
+        private static M2Record InterpretAction(byte[] resp, int[] handler)
         {
             ThrowOnStatus(resp, "action", handler);
             return M2Message.ParseAllFields(resp);
@@ -679,13 +679,13 @@ namespace tik4net.Winbox
         /// which is what makes a long monitor coexist with CRUD on other threads.
         /// </para>
         /// </remarks>
-        internal (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation) PollMonitorRound(
+        internal (List<M2Record> records, bool done, WinboxM2Continuation? continuation) PollMonitorRound(
             int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
             int flags = WinboxM2Protocol.GetAllFlags)
             => Sync(PollMonitorRoundAsync(handler, pollCmd, id, isQuery, contToken, CancellationToken.None, flags));
 
         /// <inheritdoc cref="PollMonitorRound"/>
-        internal async Task<(List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation)> PollMonitorRoundAsync(
+        internal async Task<(List<M2Record> records, bool done, WinboxM2Continuation? continuation)> PollMonitorRoundAsync(
             int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
             CancellationToken cancellationToken, int flags = WinboxM2Protocol.GetAllFlags)
             => InterpretMonitorRound(
@@ -702,7 +702,7 @@ namespace tik4net.Winbox
             return Request(handler, pollCmd, fields);
         }
 
-        private static (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation) InterpretMonitorRound(
+        private static (List<M2Record> records, bool done, WinboxM2Continuation? continuation) InterpretMonitorRound(
             byte[] resp, int[] handler, bool isQuery)
         {
             int status = ThrowOnStatus(resp, "monitor-poll", handler, endOfTableIsOk: true);
@@ -710,10 +710,10 @@ namespace tik4net.Winbox
             var fields = M2Message.ParseAllFields(resp);
             var records = isQuery
                 ? M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records)
-                : new List<Dictionary<int, Tuple<string, object>>> { fields }; // poll-action: the reply's top-level fields ARE the status record
+                : new List<M2Record> { fields }; // poll-action: the reply's top-level fields ARE the status record
 
             bool done = fields.TryGetValue(WinboxM2Protocol.RecordKey.Finished, out var dt)
-                        && dt.Item2 is bool db && db;
+                        && dt.Value is bool db && db;
 
             // Pagination is a getall concept: only a query window continues a pass. A poll-action's reply is
             // one status record and webfig's ObjectAction never continues it — following a token there would
@@ -757,14 +757,14 @@ namespace tik4net.Winbox
                 return status;
             var fields = M2Message.ParseAllFields(resp);
             string? errStr = fields.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es)
-                ? es.Item2?.ToString() : null;
+                ? es.Value?.ToString() : null;
             throw new WinboxM2OperationException(status, errStr, op, handler);
         }
 
         // The id a reply hands back in RecordKey.Id (a new record's, a Safe Mode's, a monitor's), or null.
         private static uint? ReadRecordId(byte[] resp)
-            => M2Message.ParseAllFields(resp).TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null
-                ? Convert.ToUInt32(t.Item2)
+            => M2Message.ParseAllFields(resp).TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Value != null
+                ? Convert.ToUInt32(t.Value)
                 : (uint?)null;
 
         // The synchronous form of an operation blocks on its asynchronous one, as GetAll does: one implementation

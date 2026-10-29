@@ -42,10 +42,10 @@ namespace tik4net.unittests.Connection
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(ListWindow));
             var resolver = new WinboxFieldResolver(null, new[] { 24, 1 }, catalog, new Dictionary<string, int>());
-            var rec = new Dictionary<int, Tuple<string, object>>
+            var rec = new M2Record
             {
-                [0xFE0010] = Tuple.Create("str", (object)"t4n"),
-                [0xFE0009] = Tuple.Create("str", (object)comment),
+                [0xFE0010] = new M2Value(M2Type.String, "t4n"),
+                [0xFE0009] = new M2Value(M2Type.String, comment),
             };
             return new WinboxRecordCodec(null, catalog).DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }

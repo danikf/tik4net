@@ -25,7 +25,7 @@ namespace tik4net.unittests.Winbox
         {
             yield return new byte[] { 1, 2, 3, 4 };
             yield return "ether1";
-            yield return new Dictionary<int, Tuple<string, object>>();
+            yield return new M2Record();
             yield return null;
         }
 
@@ -99,7 +99,7 @@ namespace tik4net.unittests.Winbox
         private static Dictionary<string, string> Decode(WinboxJgField field, object value)
         {
             var codec = new WinboxRecordCodec(null, null);
-            var rec = new Dictionary<int, Tuple<string, object>> { [field.Key] = Tuple.Create("u32", value) };
+            var rec = new M2Record { [field.Key] = new M2Value(M2Type.U32, value) };
             return codec.DecodeRecord(rec,
                 new Dictionary<int, string> { [field.Key] = field.ApiName },
                 new Dictionary<int, WinboxJgField> { [field.Key] = field });
@@ -137,14 +137,14 @@ namespace tik4net.unittests.Winbox
             var keyToName = new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Id] = TikSpecialProperties.Id };
 
             var decoded = codec.DecodeRecord(
-                new Dictionary<int, Tuple<string, object>>
-                { [WinboxM2Protocol.RecordKey.Id] = Tuple.Create("raw", (object)new byte[] { 9 }) },
+                new M2Record
+                { [WinboxM2Protocol.RecordKey.Id] = new M2Value(M2Type.Raw, new byte[] { 9 }) },
                 keyToName, null);
             Assert.AreNotEqual("*0", decoded[TikSpecialProperties.Id]);
 
             var ok = codec.DecodeRecord(
-                new Dictionary<int, Tuple<string, object>>
-                { [WinboxM2Protocol.RecordKey.Id] = Tuple.Create("u32", (object)26u) },
+                new M2Record
+                { [WinboxM2Protocol.RecordKey.Id] = new M2Value(M2Type.U32, 26u) },
                 keyToName, null);
             Assert.AreEqual("*1A", ok[TikSpecialProperties.Id]);
         }

@@ -36,11 +36,11 @@ namespace tik4net.unittests.Winbox
             return new WinboxFieldResolver("/file", Handler, catalog, new Dictionary<string, int>());
         }
 
-        private static Dictionary<string, string> Decode(params (int key, string type, object val)[] fields)
+        private static Dictionary<string, string> Decode(params (int key, M2Type type, object val)[] fields)
         {
             var resolver = Resolver();
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(Window));
             return new WinboxRecordCodec(null, catalog)
@@ -50,7 +50,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void TheVisibleFieldKeepsTheNameTheInvisibleOneAlsoClaims()
         {
-            var fields = Decode((0x3, "u32", 5U), (0x7, "str", "directory"));
+            var fields = Decode((0x3, M2Type.U32, 5U), (0x7, M2Type.String, "directory"));
 
             Assert.AreEqual("directory", fields["type"],
                 "'type' is the text WinBox shows, not the internal number beside it");
@@ -59,7 +59,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void TheInvisibleOneIsNotReportedUnderAnotherNameEither()
         {
-            var fields = Decode((0x3, "u32", 5U), (0x7, "str", "directory"));
+            var fields = Decode((0x3, M2Type.U32, 5U), (0x7, M2Type.String, "directory"));
 
             foreach (var kv in fields)
                 Assert.AreNotEqual("5", kv.Value,
@@ -71,7 +71,7 @@ namespace tik4net.unittests.Winbox
         {
             // The point of demoting rather than dropping: /file's own container/family/basename are all
             // nonpublic and are the only declaration of their key.
-            var fields = Decode((0x5, "u32", 134348884U));
+            var fields = Decode((0x5, M2Type.U32, 134348884U));
 
             Assert.AreEqual("134348884", fields["container"]);
         }
@@ -79,8 +79,8 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void TheVisibleFieldWinsWhicheverOrderTheRouterSends()
         {
-            var forward = Decode((0x3, "u32", 0U), (0x7, "str", ".js file"));
-            var reverse = Decode((0x7, "str", ".js file"), (0x3, "u32", 0U));
+            var forward = Decode((0x3, M2Type.U32, 0U), (0x7, M2Type.String, ".js file"));
+            var reverse = Decode((0x7, M2Type.String, ".js file"), (0x3, M2Type.U32, 0U));
 
             Assert.AreEqual(".js file", forward["type"]);
             Assert.AreEqual(forward["type"], reverse["type"]);

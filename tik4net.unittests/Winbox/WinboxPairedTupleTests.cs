@@ -39,8 +39,8 @@ namespace tik4net.unittests.Winbox
             var rec = M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(),
                 M2Message.BoolSys(0x1F, false), M2Message.U64Sys(0x1F, 76)));
 
-            Assert.IsTrue(rec.Values.Any(v => v.Item1 == "bool"), "the flag");
-            Assert.IsTrue(rec.Values.Any(v => v.Item2?.ToString() == "76"), "and the packet count beside it");
+            Assert.IsTrue(rec.Values.Any(v => v.TraceName == "bool"), "the flag");
+            Assert.IsTrue(rec.Values.Any(v => v.Value?.ToString() == "76"), "and the packet count beside it");
         }
 
         [TestMethod]

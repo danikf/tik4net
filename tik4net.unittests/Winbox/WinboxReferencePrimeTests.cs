@@ -32,15 +32,15 @@ namespace tik4net.unittests.Winbox
         private static WinboxJgField ReferenceField(string uiType)
             => new WinboxJgField("list", RefKey, "u32", false, uiType: uiType, refHandler: RefHandler);
 
-        private static Dictionary<int, Tuple<string, object>> Row(object value)
-            => new Dictionary<int, Tuple<string, object>> { [RefKey] = Tuple.Create("u32", value) };
+        private static M2Record Row(object value)
+            => new M2Record { [RefKey] = new M2Value(M2Type.U32, value) };
 
         private static int RoundTripsToPrime(WinboxJgField field, object value)
         {
             var channel = new CountingChannel();
             var codec = new WinboxRecordCodec(new WinboxNativeM2Operations(channel, 5000), null);
             codec.PrimeReferencesAsync(
-                    new List<Dictionary<int, Tuple<string, object>>> { Row(value) },
+                    new List<M2Record> { Row(value) },
                     new Dictionary<int, string> { [RefKey] = field.ApiName },
                     new Dictionary<int, WinboxJgField> { [RefKey] = field },
                     CancellationToken.None)

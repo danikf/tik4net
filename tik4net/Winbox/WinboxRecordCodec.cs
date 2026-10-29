@@ -78,7 +78,7 @@ namespace tik4net.Winbox
         /// the RouterOS <c>*HEX</c> handle form so it round-trips through the O/R mapper.
         /// </summary>
         internal Dictionary<string, string> DecodeRecord(
-            Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
+            M2Record rec, IReadOnlyDictionary<int, string> keyToName,
             IReadOnlyDictionary<int, WinboxJgField> keyToField,
             IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null,
             IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? numFlags = null,
@@ -88,7 +88,7 @@ namespace tik4net.Winbox
         /// <summary>
         /// Translates a decoded M2 record by a command's <see cref="WinboxDecodePlan"/> — every map the plan carries.
         /// </summary>
-        internal Dictionary<string, string> DecodeRecord(Dictionary<int, Tuple<string, object>> rec, WinboxDecodePlan plan)
+        internal Dictionary<string, string> DecodeRecord(M2Record rec, WinboxDecodePlan plan)
             => DecodeRecord(rec, plan.KeyToName, plan.KeyToField, null, plan.DerivedBools, plan.NumFlags, plan.ExtraSpellings);
 
         /// <summary>
@@ -104,7 +104,7 @@ namespace tik4net.Winbox
         /// decoded, as a table read does, so an enslaved interface is named by its kind even when its peers come later.</para>
         /// </remarks>
         internal async Task<IEnumerable<Dictionary<string, string>>> DecodeRowsAsync(
-            IReadOnlyCollection<Dictionary<int, Tuple<string, object>>> records, WinboxDecodePlan plan,
+            IReadOnlyCollection<M2Record> records, WinboxDecodePlan plan,
             CancellationToken cancellationToken, bool learnKindWords = false)
         {
             await PrimeReferencesAsync(records, plan.KeyToName, plan.KeyToField, cancellationToken).ConfigureAwait(false);
@@ -116,7 +116,7 @@ namespace tik4net.Winbox
         // looked up, the tables they would have needed are noted instead, and the fields it returns are
         // thrown away. See PrimeReferencesAsync — that mode is how the awaited path learns what to fetch.
         private Dictionary<string, string> DecodeRecord(
-            Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
+            M2Record rec, IReadOnlyDictionary<int, string> keyToName,
             IReadOnlyDictionary<int, WinboxJgField> keyToField,
             Dictionary<string, int[]>? collectRefTables,
             IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null,
@@ -170,7 +170,7 @@ namespace tik4net.Winbox
                 // is the normal path: a window with no such collision registers no qualified key, and a router
                 // that sends a field with the arrayness the .jg did NOT predict still decodes as it always did.
                 int wireKey = WinboxM2Protocol.TypedKey.WireKeyOf(kv.Key);
-                int typedKey = WinboxM2Protocol.TypedKey.Qualify(wireKey, kv.Value.Item1);
+                int typedKey = WinboxM2Protocol.TypedKey.Qualify(wireKey, kv.Value.TraceName);
                 if (consumedKeys.Contains(wireKey)) continue;
                 if (!keyToName.TryGetValue(typedKey, out var apiName)
                     && !keyToName.TryGetValue(wireKey, out apiName)) continue;
@@ -178,7 +178,7 @@ namespace tik4net.Winbox
 
                 if (apiName == TikSpecialProperties.Id)
                 {
-                    fields[apiName] = FormatId(kv.Value.Item2);
+                    fields[apiName] = FormatId(kv.Value.Value);
                     continue;
                 }
 
@@ -188,10 +188,10 @@ namespace tik4net.Winbox
                 // One key, two kinds, and this entry is not the kind the field is: the other entry, filed under its
                 // qualified key, is the field's value. /interface/vrrp sends a bool and the connection-tracking-mode
                 // u32 both on 0x17, and which one the parser meets first depends on the frame.
-                if (jf != null && WinboxM2Protocol.TypedKey.KindOf(jf.WireType) != WinboxM2Protocol.TypedKey.KindOf(kv.Value.Item1)
+                if (jf != null && WinboxM2Protocol.TypedKey.KindOf(jf.WireType) != WinboxM2Protocol.TypedKey.KindOf(kv.Value.TraceName)
                     && kv.Key == wireKey && rec.ContainsKey(WinboxM2Protocol.TypedKey.Qualify(wireKey, jf.WireType)))
                     continue;
-                if (IsUnsetField(jf, kv.Value.Item2, rec)) continue;
+                if (IsUnsetField(jf, kv.Value.Value!, rec)) continue;
                 // A key the router filled with a different KIND of value is not this field on this row.
                 // /interface's 0x1001E carries the type NAME as a string on almost every row — and on an
                 // ENSLAVED one it carries its master's numeric id instead, because WinBox nests a slave
@@ -199,14 +199,14 @@ namespace tik4net.Winbox
                 // `eoip`. A row whose value contradicts the field's declared wire type gets no value at
                 // all, which is the honest answer: we do not know this row's type, and saying nothing is
                 // not the same as saying a number.
-                if (IsWireKindContradiction(jf, kv.Value.Item1))
+                if (IsWireKindContradiction(jf, kv.Value.TraceName))
                 {
                     if (TryLearnedKindWord(jf!, rec, out string? kindWord)) { fields[apiName] = kindWord!; continue; }
-                    TraceWireKindContradiction(jf!, kv.Value.Item1);
+                    TraceWireKindContradiction(jf!, kv.Value.TraceName);
                     continue;
                 }
-                if (jf != null && jf.KindIdKey != 0) Learn(jf, rec, kv.Value.Item2);
-                fields[apiName] = Negated(jf, rec, FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables));
+                if (jf != null && jf.KindIdKey != 0) Learn(jf, rec, kv.Value.Value);
+                fields[apiName] = Negated(jf, rec, FormatTyped(jf, kv.Value.TraceName, kv.Value.Value!, rec, collectRefTables));
             }
 
             // The comment key rides every record, empty on a row with no comment, where the API prints nothing.
@@ -217,7 +217,7 @@ namespace tik4net.Winbox
             // whose interface has none, 7.24.2). It rides every record as the string list 0xFE001C, empty on a
             // row with nothing to say, and no window names it.
             if (!fields.ContainsKey(AboutField) && rec.TryGetValue(AboutKey, out var about)
-                && about.Item2 is string aboutText)
+                && about.Value is string aboutText)
             {
                 string note = aboutText.StartsWith("[", StringComparison.Ordinal) && aboutText.EndsWith("]", StringComparison.Ordinal)
                     ? aboutText.Substring(1, aboutText.Length - 2) : aboutText;
@@ -237,7 +237,7 @@ namespace tik4net.Winbox
                 foreach (var nf in numFlags)
                 {
                     if (!rec.TryGetValue(nf.Key, out var flagVal)) continue;
-                    if (!WinboxValueFormat.TryToInt64(flagVal.Item2, out long n)) continue;
+                    if (!WinboxValueFormat.TryToInt64(flagVal.Value, out long n)) continue;
                     if (n < int.MinValue || n > int.MaxValue) continue;
                     if (!nf.Value.TryGetValue((int)n, out string? flagName)) continue;
                     if (!fields.ContainsKey(flagName)) fields[flagName] = "true";
@@ -253,7 +253,7 @@ namespace tik4net.Winbox
                     string statusName = listName + "-status";
                     if (fields.ContainsKey(statusName)) continue;
                     if (!rec.TryGetValue(kf.Key, out var listVal)
-                        || !(listVal.Item2 is List<Dictionary<int, Tuple<string, object>>> elements)) continue;
+                        || !(listVal.Value is List<M2Record> elements)) continue;
                     fields[statusName] = string.Join(",", elements.Select(m =>
                         FormatCompoundElement(kf.Value, m, collectRefTables)
                         + FormatElementStatus(kf.Value.ElementStatusParts, m, collectRefTables)));
@@ -320,10 +320,10 @@ namespace tik4net.Winbox
         // number-list cases rendered it, so every negated address, interface or list name read back as its
         // opposite. A per-member list carries its '!'s on the members instead, and a value that already starts
         // with one was negated by its own case.
-        private static string Negated(WinboxJgField? jf, Dictionary<int, Tuple<string, object>> rec, string text)
+        private static string Negated(WinboxJgField? jf, M2Record rec, string text)
             => jf != null && jf.NotKey != 0 && text.Length > 0 && !text.StartsWith("!", StringComparison.Ordinal)
                && !WinboxFieldResolver.IsPerMemberNegatedList(jf.UiType)
-               && rec.TryGetValue(jf.NotKey, out var flag) && flag.Item2 is bool negated && negated
+               && rec.TryGetValue(jf.NotKey, out var flag) && flag.Value is bool negated && negated
                 ? "!" + text : text;
 
         /// <summary>
@@ -349,11 +349,11 @@ namespace tik4net.Winbox
         }
 
         private static bool IsUnsetField(WinboxJgField? jf, object value,
-            Dictionary<int, Tuple<string, object>> rec)
+            M2Record rec)
         {
             if (jf == null) return false;
             if (jf.OptKey != 0 && rec.TryGetValue(jf.OptKey, out var opt)
-                && opt?.Item2 is bool present && !present)
+                && opt.Value is bool present && !present)
                 return true;
             if (IsAnotherKindsField(jf, rec)) return true;
             if (jf.Condition != null && jf.Condition.IsFalseOn(rec)) return true;
@@ -384,11 +384,11 @@ namespace tik4net.Winbox
         /// its M2 record carries the key. A selector that is present but not a number is left alone — there is
         /// no honest way to say which pane it selects.</para>
         /// </remarks>
-        private static bool IsAnotherKindsField(WinboxJgField jf, Dictionary<int, Tuple<string, object>> rec)
+        private static bool IsAnotherKindsField(WinboxJgField jf, M2Record rec)
         {
             if (jf.PaneSelectorKey == 0 || jf.PaneValues == null || jf.PaneValues.Length == 0) return false;
-            if (!rec.TryGetValue(jf.PaneSelectorKey, out var sel) || sel?.Item2 == null) return true;
-            if (!WinboxValueFormat.TryToInt64(sel.Item2, out long kind)) return false;
+            if (!rec.TryGetValue(jf.PaneSelectorKey, out var sel) || sel.Value == null) return true;
+            if (!WinboxValueFormat.TryToInt64(sel.Value, out long kind)) return false;
             return jf.IsForeignPane(kind);
         }
 
@@ -420,7 +420,7 @@ namespace tik4net.Winbox
         /// transient failure is retried rather than memoized.</para>
         /// </remarks>
         internal async Task PrimeReferencesAsync(
-            IEnumerable<Dictionary<int, Tuple<string, object>>> records,
+            IEnumerable<M2Record> records,
             IReadOnlyDictionary<int, string> keyToName, IReadOnlyDictionary<int, WinboxJgField> keyToField,
             CancellationToken cancellationToken)
         {

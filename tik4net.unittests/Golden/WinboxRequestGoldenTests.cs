@@ -180,7 +180,7 @@ namespace tik4net.unittests.Golden
             GoldenFile.AssertMatches("winbox-requests.txt", lines);
         }
 
-        private static string Round((List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation) r)
+        private static string Round((List<M2Record> records, bool done, WinboxM2Continuation? continuation) r)
         {
             var head = new List<byte[]>();
             r.continuation?.AppendTo(head);

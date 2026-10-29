@@ -52,13 +52,13 @@ namespace tik4net.unittests.Winbox
         private static Dictionary<int, object> Decoded(IList<byte[]> encoded)
         {
             var msg = new[] { (byte)'M', (byte)'2' }.Concat(encoded.SelectMany(f => f)).ToArray();
-            return M2Message.ParseAllFields(msg).ToDictionary(kv => kv.Key, kv => kv.Value.Item2);
+            return M2Message.ParseAllFields(msg).ToDictionary(kv => kv.Key, kv => kv.Value.Value);
         }
 
         private static long Num(object wireValue) => Convert.ToInt64(wireValue);
 
         private static Dictionary<string, string> Decode(WinboxJgCatalog catalog,
-            Dictionary<int, Tuple<string, object>> rec)
+            M2Record rec)
         {
             var resolver = new WinboxFieldResolver(null, FilterHandler, catalog, new Dictionary<string, int>());
             return new WinboxRecordCodec(null, catalog)
@@ -83,10 +83,10 @@ namespace tik4net.unittests.Winbox
         public void ATriStateReadsItsNegatedMembersFromTheMaskKey()
         {
             // The live rule the API prints as tcp-flags="syn,!ack": bit 1 in the field, bit 4 in the mask.
-            var fields = Decode(Parse(FilterWindow), new Dictionary<int, Tuple<string, object>>
+            var fields = Decode(Parse(FilterWindow), new M2Record
             {
-                [0x56] = Tuple.Create("u32", (object)2u),
-                [0x57] = Tuple.Create("u32", (object)16u),
+                [0x56] = new M2Value(M2Type.U32, 2u),
+                [0x57] = new M2Value(M2Type.U32, 16u),
             });
 
             Assert.AreEqual("syn,!ack", fields["tcp-flags"]);
@@ -96,10 +96,10 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ATriStateWithNoNegatedMemberReadsAsAPlainList()
         {
-            var fields = Decode(Parse(FilterWindow), new Dictionary<int, Tuple<string, object>>
+            var fields = Decode(Parse(FilterWindow), new M2Record
             {
-                [0x56] = Tuple.Create("u32", (object)6u),   // syn|rst
-                [0x57] = Tuple.Create("u32", (object)0u),
+                [0x56] = new M2Value(M2Type.U32, 6u),   // syn|rst
+                [0x57] = new M2Value(M2Type.U32, 0u),
             });
 
             Assert.AreEqual("syn,rst", fields["tcp-flags"]);
@@ -147,11 +147,11 @@ namespace tik4net.unittests.Winbox
         public void ATriStateWithItsNotFlag_ReadsTheBareLeadingBang()
         {
             // Maintainer's WinBox row: the API prints tcp-flags="!,ack,!syn" for 0xD3=true, ack plain, syn negated.
-            var fields = Decode(Parse(FilterWindow), new Dictionary<int, Tuple<string, object>>
+            var fields = Decode(Parse(FilterWindow), new M2Record
             {
-                [0xD3] = Tuple.Create("bool", (object)true),
-                [0x56] = Tuple.Create("u32", (object)16u),
-                [0x57] = Tuple.Create("u32", (object)2u),
+                [0xD3] = new M2Value(M2Type.Bool, true),
+                [0x56] = new M2Value(M2Type.U32, 16u),
+                [0x57] = new M2Value(M2Type.U32, 2u),
             });
 
             Assert.AreEqual("!,ack,!syn", fields["tcp-flags"]);
@@ -161,10 +161,10 @@ namespace tik4net.unittests.Winbox
         public void AMemberInBothHalves_ReadsAsBoth_AsTheApiPrintsIt()
         {
             // syn,!ack + set !syn left u56=2 and u57=2; the API prints "syn,!syn". Native read "syn" and dropped one.
-            var fields = Decode(Parse(FilterWindow), new Dictionary<int, Tuple<string, object>>
+            var fields = Decode(Parse(FilterWindow), new M2Record
             {
-                [0x56] = Tuple.Create("u32", (object)2u),
-                [0x57] = Tuple.Create("u32", (object)2u),
+                [0x56] = new M2Value(M2Type.U32, 2u),
+                [0x57] = new M2Value(M2Type.U32, 2u),
             });
 
             Assert.AreEqual("syn,!syn", fields["tcp-flags"]);
@@ -269,13 +269,13 @@ namespace tik4net.unittests.Winbox
         public void ABitSetsMembersAreNamedByTheWindowsNameval()
         {
             // The policy table's rows are 'read'/'write' (Alias), not "read router configuration" (Name).
-            var rows = new List<Dictionary<int, Tuple<string, object>>>
+            var rows = new List<M2Record>
             {
-                new Dictionary<int, Tuple<string, object>>
+                new M2Record
                 {
-                    [0xFE0001] = Tuple.Create("u32", (object)6u),
-                    [0x1] = Tuple.Create("str", (object)"read router configuration"),
-                    [0x2] = Tuple.Create("str", (object)"read"),
+                    [0xFE0001] = new M2Value(M2Type.U32, 6u),
+                    [0x1] = new M2Value(M2Type.String, "read router configuration"),
+                    [0x2] = new M2Value(M2Type.String, "read"),
                 },
             };
 
@@ -317,7 +317,7 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(0x1AA, fields["src-address-type"].OptKey);
             Assert.IsFalse(fields.ContainsKey("invert"), "6.49.13 read an 'invert' field the API does not have");
 
-            var read = Decode(catalog, Rec((0x1AA, "bool", true), (0xCC, "bool", true), (0x49, "u32", 4L)));
+            var read = Decode(catalog, Rec((0x1AA, M2Type.Bool, true), (0xCC, M2Type.Bool, true), (0x49, M2Type.U32, 4L)));
             Assert.AreEqual("!local", read["src-address-type"]);
             Assert.IsFalse(read.ContainsKey("invert"));
 
@@ -326,10 +326,10 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(4L, Num(written[0x49]));
         }
 
-        private static Dictionary<int, Tuple<string, object>> Rec(params (int key, string type, object val)[] fields)
+        private static M2Record Rec(params (int key, M2Type type, object val)[] fields)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return rec;
         }
 
@@ -350,8 +350,8 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(PacketSizeWindow);
 
             Assert.AreEqual("!100-200", Decode(catalog,
-                Rec((0x1AF, "bool", true), (0xD0, "bool", true), (0x50, "u32", 100L), (0x51, "u32", 200L)))["packet-size"]);
-            var single = Decode(catalog, Rec((0x1AF, "bool", true), (0xD0, "bool", false), (0x50, "u32", 300L), (0x51, "u32", 300L)));
+                Rec((0x1AF, M2Type.Bool, true), (0xD0, M2Type.Bool, true), (0x50, M2Type.U32, 100L), (0x51, M2Type.U32, 200L)))["packet-size"]);
+            var single = Decode(catalog, Rec((0x1AF, M2Type.Bool, true), (0xD0, M2Type.Bool, false), (0x50, M2Type.U32, 300L), (0x51, M2Type.U32, 300L)));
             Assert.AreEqual("300", single["packet-size"], "both ends equal read as one number, as webfig's tostr does");
             Assert.AreEqual(1, single.Count, "the high end is not a field of its own");
 
@@ -392,7 +392,7 @@ namespace tik4net.unittests.Winbox
             // (6.49.13), or nothing at all (7.24.4).
             var catalog = Parse(window);
 
-            var read = Decode(catalog, Rec((0x19F, "bool", true), (0x2A, "bool", true), (0x2B, "u32", 10L), (0x2C, "u32", 0x00FFFFFFL)));
+            var read = Decode(catalog, Rec((0x19F, M2Type.Bool, true), (0x2A, M2Type.Bool, true), (0x2B, M2Type.U32, 10L), (0x2C, M2Type.U32, 0x00FFFFFFL)));
             Assert.AreEqual("!10,24", read["connection-limit"]);
             Assert.IsFalse(read.ContainsKey("netmask"));
 

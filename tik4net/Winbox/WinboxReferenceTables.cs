@@ -129,25 +129,25 @@ namespace tik4net.Winbox
         /// and invisible.</para>
         /// </remarks>
         internal static bool TryReadIdAndName(
-            Dictionary<int, Tuple<string, object>> row, int nameKey, out int id, out string? name)
+            M2Record row, int nameKey, out int id, out string? name)
         {
             id = 0;
             name = null;
             if (nameKey < 0 || row == null) return false;
-            if (!row.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var idt) || idt.Item2 == null) return false;
-            if (!row.TryGetValue(nameKey, out var nt) || nt.Item2 == null) return false;
-            if (!WinboxValueFormat.TryToInt64(idt.Item2, out long rowId))
+            if (!row.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var idt) || idt.Value == null) return false;
+            if (!row.TryGetValue(nameKey, out var nt) || nt.Value == null) return false;
+            if (!WinboxValueFormat.TryToInt64(idt.Value, out long rowId))
             {
-                WinboxRecordCodec.TraceNonNumeric("reference table id", idt.Item2);
+                WinboxRecordCodec.TraceNonNumeric("reference table id", idt.Value);
                 return false;
             }
             id = unchecked((int)rowId);
-            name = nt.Item2.ToString();
+            name = nt.Value.ToString();
             return true;
         }
 
         // A row's name under the rule: the name key, else the nameval key.
-        private static bool TryReadName((int NameKey, int NameValKey) keys, Dictionary<int, Tuple<string, object>> row,
+        private static bool TryReadName((int NameKey, int NameValKey) keys, M2Record row,
             out int id, out string? name)
             => TryReadIdAndName(row, keys.NameKey, out id, out name)
                || TryReadIdAndName(row, keys.NameValKey, out id, out name);
@@ -272,7 +272,7 @@ namespace tik4net.Winbox
         }
 
         // Build the id → name map of a referenced table from its rows.
-        private Dictionary<int, string> BuildNameMap(int[] table, IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
+        private Dictionary<int, string> BuildNameMap(int[] table, IEnumerable<M2Record> rows)
         {
             var keys = NameKeysOf(table);
             var map = new Dictionary<int, string>();
@@ -285,18 +285,18 @@ namespace tik4net.Winbox
 
         // Build the member map of a bit set's referenced table: bit index → member name, where the bit index IS the
         // referenced record's id (webfig's SetView keys its checkboxes by obj.ufe0001 and ORs 1<<id).
-        private IReadOnlyDictionary<int, string> BuildMemberMap(int[] table, IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
+        private IReadOnlyDictionary<int, string> BuildMemberMap(int[] table, IEnumerable<M2Record> rows)
             => BuildMemberMap(NameKeysOf(table), rows);
 
         /// <summary>
         /// The member map of a bit set's referenced table from its rows, for a catalog: <c>bit index → member name</c>.
         /// </summary>
         internal static Dictionary<int, string> BuildMemberMap(WinboxJgCatalog catalog, int[] table,
-            IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
+            IEnumerable<M2Record> rows)
             => BuildMemberMap(RefNameKeys(catalog, table), rows);
 
         private static Dictionary<int, string> BuildMemberMap((int NameKey, int NameValKey) keys,
-            IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
+            IEnumerable<M2Record> rows)
         {
             int memberKey = keys.NameValKey >= 0 ? keys.NameValKey : keys.NameKey;
             var map = new Dictionary<int, string>();
@@ -405,7 +405,7 @@ namespace tik4net.Winbox
 
         // The match itself, over records someone else fetched — the one place that decides what "this row is called
         // <name>" means, so the blocking, batch and command lookups cannot answer it differently.
-        private static int? MatchIdByName(IEnumerable<Dictionary<int, Tuple<string, object>>> records,
+        private static int? MatchIdByName(IEnumerable<M2Record> records,
             (int NameKey, int NameValKey) keys, string name)
         {
             foreach (var rec in records)

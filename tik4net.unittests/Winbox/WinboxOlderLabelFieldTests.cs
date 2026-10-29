@@ -36,11 +36,11 @@ namespace tik4net.unittests.Winbox
 
         private static Dictionary<string, string> Decode(WinboxFieldResolver resolver, WinboxJgCatalog catalog)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>
+            var rec = new M2Record
             {
-                [0xFE0001] = Tuple.Create("u32", (object)1u),
-                [ListKey] = Tuple.Create("str", (object)"blocked"),
-                [0x8] = Tuple.Create("str", (object)"example.com"),
+                [0xFE0001] = new M2Value(M2Type.U32, 1u),
+                [ListKey] = new M2Value(M2Type.String, "blocked"),
+                [0x8] = new M2Value(M2Type.String, "example.com"),
             };
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField(),
@@ -79,13 +79,13 @@ namespace tik4net.unittests.Winbox
         // ── The other 6.49.13 labels and keys (Docs/findings-routeros-6.md, 1b) ──
 
         private static Dictionary<string, string> DecodeOne(string apiPath, int[] handler, string window,
-            params (int key, string type, object val)[] fields)
+            params (int key, M2Type type, object val)[] fields)
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto("[{name:'M',title:'M',group:'M',c:[" + window + "]}]"), "window must parse");
             var resolver = new WinboxFieldResolver(apiPath, handler, catalog, new Dictionary<string, int>());
-            var rec = new Dictionary<int, Tuple<string, object>> { [0xFE0001] = Tuple.Create("u32", (object)1u) };
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record { [0xFE0001] = new M2Value(M2Type.U32, 1u) };
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField(),
                     resolver.DerivedBoolFields);
@@ -96,7 +96,7 @@ namespace tik4net.unittests.Winbox
         {
             var row = DecodeOne("/routing/ospf/area", new[] { 44, 122 },
                 "{name:'OSPF Area',title:'Areas',type:'map',path:[ 44,122 ],c:[{name:'Area Name',type:'string',id:'s2'}]}",
-                (0x2, "str", "backbone"));
+                (0x2, M2Type.String, "backbone"));
 
             Assert.AreEqual("backbone", row["name"]);
         }
@@ -106,7 +106,7 @@ namespace tik4net.unittests.Winbox
         {
             var row = DecodeOne("/routing/ospf/area", new[] { 44, 113 },
                 "{name:'OSPF Area',title:'Areas',type:'map',path:[ 44,113 ],c:[{name:'Name',type:'string',id:'sfe0010'}]}",
-                (0xFE0010, "str", "backbone"));
+                (0xFE0010, M2Type.String, "backbone"));
 
             Assert.AreEqual("backbone", row["name"]);
         }
@@ -130,7 +130,7 @@ namespace tik4net.unittests.Winbox
         {
             var row = DecodeOne("/ip/route", new[] { 44, 1 },
                 "{name:'Route',title:'Routes',type:'map',path:[ 44,1 ],c:[{name:'Pref. Source',type:'opt',id:'b3eb',c:[{type:'ipaddr',id:'u3'}]}]}",
-                (0x3EB, "bool", true), (0x3, "u32", 0x0100000Au));
+                (0x3EB, M2Type.Bool, true), (0x3, M2Type.U32, 0x0100000Au));
 
             Assert.AreEqual("10.0.0.1", row["pref-src"]);
             Assert.IsFalse(row.ContainsKey("pref-source"));
@@ -142,7 +142,7 @@ namespace tik4net.unittests.Winbox
             // The 6.49.13 Tracking window has Max Entries (ue) and nothing at uf; the router sends uf anyway.
             var row = DecodeOne("/ip/firewall/connection/tracking", new[] { 20, 17 },
                 "{name:'Connection Tracking',title:'Tracking',type:'item',path:[ 20,17 ],c:[{name:'Max Entries',type:'number',id:'ue'}]}",
-                (0xE, "u32", 1048576u), (0xF, "u32", 9u));
+                (0xE, M2Type.U32, 1048576u), (0xF, M2Type.U32, 9u));
 
             Assert.AreEqual("9", row["total-entries"]);
         }
@@ -152,7 +152,7 @@ namespace tik4net.unittests.Winbox
         {
             var row = DecodeOne("/interface", new[] { 20, 0 },
                 "{name:'Interface',title:'Interface',type:'map',path:[ 20,0 ],c:[{name:'Name',type:'string',id:'s10006'}]}",
-                (0x10006, "str", "wan"), (0x10031, "str", "ether1"));
+                (0x10006, M2Type.String, "wan"), (0x10031, M2Type.String, "ether1"));
 
             Assert.AreEqual("ether1", row["default-name"]);
         }

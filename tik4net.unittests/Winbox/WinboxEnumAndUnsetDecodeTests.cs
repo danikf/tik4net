@@ -25,17 +25,17 @@ namespace tik4net.unittests.Winbox
         // Decode one record the way the connection does: resolver → key maps → codec. `ops` is null because
         // none of these fields is a dynamic reference, so nothing is ever read from a router.
         private static Dictionary<string, string> Decode(
-            WinboxJgCatalog catalog, int[] handler, Dictionary<int, Tuple<string, object>> rec)
+            WinboxJgCatalog catalog, int[] handler, M2Record rec)
         {
             var resolver = new WinboxFieldResolver(null, handler, catalog, new Dictionary<string, int>());
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
-        private static Dictionary<int, Tuple<string, object>> Rec(params (int key, string type, object val)[] fields)
+        private static M2Record Rec(params (int key, M2Type type, object val)[] fields)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return rec;
         }
 
@@ -84,7 +84,7 @@ namespace tik4net.unittests.Winbox
         public void PfsGroupDecodesToTheApiValue()
         {
             var decoded = Decode(Parse(IpsecProposalWindow), new[] { 85, 7 },
-                Rec((0x4, "u32", (uint)2), (0xFE0010, "str", "default")));
+                Rec((0x4, M2Type.U32, (uint)2), (0xFE0010, M2Type.String, "default")));
 
             Assert.AreEqual("modp1024", decoded["pfs-group"], "the API prints pfs-group=modp1024 for this row");
         }
@@ -96,7 +96,7 @@ namespace tik4net.unittests.Winbox
             // the API prints lifetime=30m for a row carrying exactly that — dropping every value that equals
             // its default would empty half of every record.
             var decoded = Decode(Parse(IpsecProposalWindow), new[] { 85, 7 },
-                Rec((0x2, "u32", (uint)1800)));
+                Rec((0x2, M2Type.U32, (uint)1800)));
 
             Assert.IsTrue(decoded.ContainsKey("lifetime"));
             // 30m, not 1800 — this test asserted the raw second count until the interval decoder existed,
@@ -122,10 +122,10 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(PortAndCiphers);
 
             Assert.AreEqual("8080",
-                Decode(catalog, new[] { 96, 1 }, Rec((0x2, "u32[]", "[8080]")))["port"],
+                Decode(catalog, new[] { 96, 1 }, Rec((0x2, M2Type.U32Array, "[8080]")))["port"],
                 "the API prints port=8080, not the wire form [8080]");
             Assert.AreEqual("8080,3128",
-                Decode(catalog, new[] { 96, 1 }, Rec((0x2, "u32[]", "[8080,3128]")))["port"]);
+                Decode(catalog, new[] { 96, 1 }, Rec((0x2, M2Type.U32Array, "[8080,3128]")))["port"]);
         }
 
         [TestMethod]
@@ -134,10 +134,10 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(PortAndCiphers);
 
             Assert.AreEqual("auto",
-                Decode(catalog, new[] { 8, 2 }, Rec((0xB, "u32[]", "[0]")))["ciphers"],
+                Decode(catalog, new[] { 8, 2 }, Rec((0xB, M2Type.U32Array, "[0]")))["ciphers"],
                 "the API prints ciphers=auto for this row");
             Assert.AreEqual("aes-gcm,aes-ctr",
-                Decode(catalog, new[] { 8, 2 }, Rec((0xB, "u32[]", "[1,2]")))["ciphers"]);
+                Decode(catalog, new[] { 8, 2 }, Rec((0xB, M2Type.U32Array, "[1,2]")))["ciphers"]);
         }
 
         [TestMethod]
@@ -145,7 +145,7 @@ namespace tik4net.unittests.Winbox
         {
             // A shorter list would read as "the router has fewer of these" — the value must stay visible.
             Assert.AreEqual("auto,9",
-                Decode(Parse(PortAndCiphers), new[] { 8, 2 }, Rec((0xB, "u32[]", "[0,9]")))["ciphers"]);
+                Decode(Parse(PortAndCiphers), new[] { 8, 2 }, Rec((0xB, M2Type.U32Array, "[0,9]")))["ciphers"]);
         }
 
         // ── "not set" is not a value ───────────────────────────────────────────
@@ -164,13 +164,13 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(ProxyRuleWindow);
 
             var unset = Decode(catalog, new[] { 96, 3 },
-                Rec((0xBC1, "str", ""), (0xC86, "bool", false), (0xBC6, "u32", (uint)1)));
+                Rec((0xBC1, M2Type.String, ""), (0xC86, M2Type.Bool, false), (0xBC6, M2Type.U32, (uint)1)));
             Assert.IsFalse(unset.ContainsKey("method"),
                 "the API leaves 'method' out of a rule that does not match on it — an empty string is not the same answer");
             Assert.AreEqual("deny", unset["action"], "the rest of the row is unaffected");
 
             var set = Decode(catalog, new[] { 96, 3 },
-                Rec((0xBC1, "str", "GET"), (0xC86, "bool", true), (0xBC6, "u32", (uint)1)));
+                Rec((0xBC1, M2Type.String, "GET"), (0xC86, M2Type.Bool, true), (0xBC6, M2Type.U32, (uint)1)));
             Assert.AreEqual("GET", set["method"], "with the flag up it is a value like any other");
         }
 
@@ -187,13 +187,13 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(NegatedScalarWindow);
 
             var negated = Decode(catalog, new[] { 9, 8 }, Rec(
-                (0xCF, "bool", true), (0x10, "bool", true), (0x6, "u32", (uint)0x0000000A), (0x7, "u32", 0x000000FFu),
-                (0xD1, "bool", true), (0x12, "bool", true), (0x13, "str", "t4nlist")));
+                (0xCF, M2Type.Bool, true), (0x10, M2Type.Bool, true), (0x6, M2Type.U32, (uint)0x0000000A), (0x7, M2Type.U32, 0x000000FFu),
+                (0xD1, M2Type.Bool, true), (0x12, M2Type.Bool, true), (0x13, M2Type.String, "t4nlist")));
             Assert.AreEqual("!10.0.0.0/8", negated["src-address"], "reading the value alone turns the matcher into its opposite");
             Assert.AreEqual("!t4nlist", negated["src-address-list"]);
 
             var plain = Decode(catalog, new[] { 9, 8 }, Rec(
-                (0xCF, "bool", true), (0x10, "bool", false), (0x6, "u32", (uint)0x0000000A), (0x7, "u32", 0x000000FFu)));
+                (0xCF, M2Type.Bool, true), (0x10, M2Type.Bool, false), (0x6, M2Type.U32, (uint)0x0000000A), (0x7, M2Type.U32, 0x000000FFu)));
             Assert.AreEqual("10.0.0.0/8", plain["src-address"]);
         }
 
@@ -211,7 +211,7 @@ namespace tik4net.unittests.Winbox
         public void TheU32UnsetMarkerIsNotReportedAsANumber()
         {
             var decoded = Decode(Parse(SentinelWindow), new[] { 3, 1 },
-                Rec((0xE, "u32", 4294967295u), (0x1, "str", "remote")));
+                Rec((0xE, M2Type.U32, 4294967295u), (0x1, M2Type.String, "remote")));
 
             // Never the raw number, which is the point of the marker rule. This field is one of the few the
             // marker is a WORD for: the API prints the stock remote action's as `auto` — 6.49.13 always, 7.24
@@ -223,7 +223,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ASetSeverityIsReportedNormally()
         {
-            var decoded = Decode(Parse(SentinelWindow), new[] { 3, 1 }, Rec((0xE, "u32", (uint)3)));
+            var decoded = Decode(Parse(SentinelWindow), new[] { 3, 1 }, Rec((0xE, M2Type.U32, (uint)3)));
 
             Assert.AreEqual("error", decoded["syslog-severity"]);
         }
@@ -233,7 +233,7 @@ namespace tik4net.unittests.Winbox
         {
             // /ip/proxy max-cache-size=unlimited IS 4294967295 on the wire, and the API prints it. The
             // sentinel rule must not swallow a value the catalog names.
-            var decoded = Decode(Parse(SentinelWindow), new[] { 3, 1 }, Rec((0xB, "u32", 4294967295u)));
+            var decoded = Decode(Parse(SentinelWindow), new[] { 3, 1 }, Rec((0xB, M2Type.U32, 4294967295u)));
 
             Assert.AreEqual("unlimited", decoded["max-cache-size"]);
         }
@@ -260,7 +260,7 @@ namespace tik4net.unittests.Winbox
             // handed a '0' it cannot convert (which is how this surfaced: a certificate created without a
             // digest-algorithm failed to load back over native).
             var decoded = Decode(Parse(CertificateWindow), new[] { 19, 1 },
-                Rec((0x85, "u8", (byte)0), (0x87, "u8", (byte)1), (0xFE0010, "str", "unsigned-cert")));
+                Rec((0x85, M2Type.U32, (byte)0), (0x87, M2Type.U32, (byte)1), (0xFE0010, M2Type.String, "unsigned-cert")));
 
             Assert.IsFalse(decoded.ContainsKey("digest-algorithm"),
                 "0 is not a member of this enum, and the field is opt — the API prints no digest-algorithm");
@@ -273,7 +273,7 @@ namespace tik4net.unittests.Winbox
             // The signed certificates on the same table carry u85=672, and the API prints sha256. The rule
             // must key on the value being outside the map, not on the field being optional.
             var decoded = Decode(Parse(CertificateWindow), new[] { 19, 1 },
-                Rec((0x85, "u32", 672u), (0xFE0010, "str", "ca")));
+                Rec((0x85, M2Type.U32, 672u), (0xFE0010, M2Type.String, "ca")));
 
             Assert.AreEqual("sha256", decoded["digest-algorithm"]);
         }
@@ -284,7 +284,7 @@ namespace tik4net.unittests.Winbox
             // Without opt, webfig renders the literal 'unknown' — it is not saying "not set", it is saying
             // the catalog and the router disagree. Dropping the field here would hide a stale .jg after a
             // RouterOS upgrade, so the raw text survives (and the codec traces it).
-            var decoded = Decode(Parse(CertificateWindow), new[] { 19, 1 }, Rec((0x25, "u32", 9u)));
+            var decoded = Decode(Parse(CertificateWindow), new[] { 19, 1 }, Rec((0x25, M2Type.U32, 9u)));
 
             Assert.AreEqual("9", decoded["trust-store"]);
         }
@@ -306,7 +306,7 @@ namespace tik4net.unittests.Winbox
         public void AnEmptyListIsEmpty()
         {
             var decoded = Decode(Parse(ListFamilyWindow), new[] { 70, 1 },
-                Rec((0x1E, "str[]", "[]"), (0xA, "u32[]", "[]")));
+                Rec((0x1E, M2Type.StringArray, "[]"), (0xA, M2Type.U32Array, "[]")));
 
             Assert.AreEqual("", decoded["address-list"], "the API prints address-list= for a profile with none");
             Assert.AreEqual("", decoded["broadcast-addresses"]);
@@ -319,7 +319,7 @@ namespace tik4net.unittests.Winbox
             // multistring already carries text, so it must not be run through reference resolution the way
             // the log's topics (a multinumber of ids) is.
             var decoded = Decode(Parse(ListFamilyWindow), new[] { 70, 1 },
-                Rec((0x1E, "str[]", "[allowed,blocked]")));
+                Rec((0x1E, M2Type.StringArray, "[allowed,blocked]")));
 
             Assert.AreEqual("allowed,blocked", decoded["address-list"]);
         }
@@ -330,7 +330,7 @@ namespace tik4net.unittests.Winbox
             // 17082560 == 0x0104A8C0, whose bytes ARE the quad in order — the same wire form a scalar ipaddr
             // uses, and the number the live audit captured for /ip/dns's first dynamic server.
             var decoded = Decode(Parse(ListFamilyWindow), new[] { 70, 1 },
-                Rec((0xA, "u32[]", "[17082560]")));
+                Rec((0xA, M2Type.U32Array, "[17082560]")));
 
             Assert.AreEqual("192.168.4.1", decoded["broadcast-addresses"]);
         }
@@ -341,13 +341,13 @@ namespace tik4net.unittests.Winbox
             // types.multi.tostr hands each element to the CHILD's tostr — here types.addr.tostr, which reads
             // the compound by sub-key. Rendering the submessage generically gave the raw u32 instead
             // (/ip/dns dynamic-servers read '17082560,3445500682' where the API says the addresses).
-            var elements = new List<Dictionary<int, Tuple<string, object>>>
+            var elements = new List<M2Record>
             {
-                new Dictionary<int, Tuple<string, object>> { [0xFEFF20] = Tuple.Create("u32", (object)17082560u) },
-                new Dictionary<int, Tuple<string, object>> { [0xFEFF20] = Tuple.Create("u32", (object)33859776u) },
+                new M2Record { [0xFEFF20] = new M2Value(M2Type.U32, 17082560u) },
+                new M2Record { [0xFEFF20] = new M2Value(M2Type.U32, 33859776u) },
             };
             var decoded = Decode(Parse(ListFamilyWindow), new[] { 70, 1 },
-                Rec((0xB, "msg[]", elements)));
+                Rec((0xB, M2Type.MessageArray, elements)));
 
             Assert.AreEqual("192.168.4.1,192.168.4.2", decoded["dynamic-servers"]);
         }
@@ -366,7 +366,7 @@ namespace tik4net.unittests.Winbox
             // macaddr case had a decoder that no live value ever reached, and /interface/ethernet, /ip/arp,
             // /ip/neighbor and /tool/romon all reported one 12-digit run.
             var decoded = Decode(Parse(MacWindow), new[] { 20, 5 },
-                Rec((0x2, "raw", "AABBCCDDEEFF")));
+                Rec((0x2, M2Type.Raw, "AABBCCDDEEFF")));
 
             Assert.AreEqual("AA:BB:CC:DD:EE:FF", decoded["mac-address"]);
         }
@@ -375,7 +375,7 @@ namespace tik4net.unittests.Winbox
         public void AnAlreadySeparatedMacIsLeftAlone()
         {
             var decoded = Decode(Parse(MacWindow), new[] { 20, 5 },
-                Rec((0x2, "raw", "AA:BB:CC:DD:EE:FF")));
+                Rec((0x2, M2Type.Raw, "AA:BB:CC:DD:EE:FF")));
 
             Assert.AreEqual("AA:BB:CC:DD:EE:FF", decoded["mac-address"]);
         }
@@ -387,7 +387,7 @@ namespace tik4net.unittests.Winbox
             // tunnel's u32 0 (7.24.4), and the API prints no mac-address on either row. A value that is not
             // six bytes is the router saying the field does not apply — never sliced into pairs, never shown.
             var decoded = Decode(Parse(MacWindow), new[] { 20, 5 },
-                Rec((0x2, "raw", "unknown")));
+                Rec((0x2, M2Type.Raw, "unknown")));
 
             Assert.IsFalse(decoded.ContainsKey("mac-address"));
         }
@@ -396,7 +396,7 @@ namespace tik4net.unittests.Winbox
         public void AZeroUnderAMacKeyIsNotReported()
         {
             // A GRE or IPIP tunnel's row carries u32 0 under the generic /interface window's MAC key (7.24.4).
-            var decoded = Decode(Parse(MacWindow), new[] { 20, 5 }, Rec((0x2, "u32", (uint)0)));
+            var decoded = Decode(Parse(MacWindow), new[] { 20, 5 }, Rec((0x2, M2Type.U32, (uint)0)));
 
             Assert.IsFalse(decoded.ContainsKey("mac-address"));
         }
@@ -414,7 +414,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AQuantityMemberKeepsItsSuffixCase()
         {
-            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x2, "u32", (uint)2)));
+            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x2, M2Type.U32, (uint)2)));
 
             Assert.AreEqual("1M", decoded["cache-entries"], "1m is not 1M");
         }
@@ -422,7 +422,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ARouterTokenVocabularyKeepsItsCase()
         {
-            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x3, "u32", (uint)0)));
+            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x3, M2Type.U32, (uint)0)));
 
             Assert.AreEqual("MD5", decoded["authentication-protocol"]);
         }
@@ -431,7 +431,7 @@ namespace tik4net.unittests.Winbox
         public void AnyOtherMemberIsStillNormalized()
         {
             // Upper case alone is no rule: RouterOS prints most of the catalog's all-caps members lower-cased.
-            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x4, "u32", (uint)0)));
+            var decoded = Decode(Parse(CaseWindow), new[] { 20, 6 }, Rec((0x4, M2Type.U32, (uint)0)));
 
             Assert.AreEqual("tkip", decoded["mode"]);
         }
@@ -451,7 +451,7 @@ namespace tik4net.unittests.Winbox
         public void AnEnumMemberAboveIntMaxValueIsFoundInAList()
         {
             var decoded = Decode(Parse(BigMemberWindow), new[] { 88, 1 },
-                Rec((0x16, "u32[]", "[4294967295]")));
+                Rec((0x16, M2Type.U32Array, "[4294967295]")));
 
             Assert.AreEqual("passthrough", decoded["eap-methods"],
                 "the API prints eap-methods=passthrough for this row");
@@ -461,7 +461,7 @@ namespace tik4net.unittests.Winbox
         public void OrdinaryMembersOfTheSameListStillResolve()
         {
             var decoded = Decode(Parse(BigMemberWindow), new[] { 88, 1 },
-                Rec((0x16, "u32[]", "[13,25]")));
+                Rec((0x16, M2Type.U32Array, "[13,25]")));
 
             Assert.AreEqual("eap-tls,peap", decoded["eap-methods"]);
         }
@@ -504,9 +504,9 @@ namespace tik4net.unittests.Winbox
             long allFive = (1L << 1) | (1L << 2) | (1L << 14) | (1L << 19) | (1L << 22);
 
             Assert.AreEqual("x25519,ecp256,modp2048,modp1024,modp768",
-                Decode(catalog, new[] { 70, 9 }, Rec((0x3, "u32", (uint)allFive)))["dh-group"]);
+                Decode(catalog, new[] { 70, 9 }, Rec((0x3, M2Type.U32, (uint)allFive)))["dh-group"]);
             Assert.AreEqual("pap,chap,mschap1,mschap2",
-                Decode(catalog, new[] { 70, 9 }, Rec((0x6, "u32", 30u)))["authentication"],
+                Decode(catalog, new[] { 70, 9 }, Rec((0x6, M2Type.U32, 30u)))["authentication"],
                 "bits 1..4 are mschap2..pap, and the API prints them the other way round");
         }
 
@@ -519,7 +519,7 @@ namespace tik4net.unittests.Winbox
             long all = 1L | (1L << 1) | (1L << 2) | (1L << 3) | (1L << 8);
 
             Assert.AreEqual("invalid,established,related,new,untracked",
-                Decode(Parse(SetOrderWindow), new[] { 70, 9 }, Rec((0x81, "u32", (uint)all)))["connection-state"]);
+                Decode(Parse(SetOrderWindow), new[] { 70, 9 }, Rec((0x81, M2Type.U32, (uint)all)))["connection-state"]);
         }
 
         [TestMethod]
@@ -533,7 +533,7 @@ namespace tik4net.unittests.Winbox
                 "{name:'Expires After',type:'age',id:'u6c',opt:1,ro:1}]}]");
 
             Assert.AreEqual("313530770",
-                Decode(catalog, new[] { 19, 1 }, Rec((0x6C, "u32", 313530770u)))["expires-after"],
+                Decode(catalog, new[] { 19, 1 }, Rec((0x6C, M2Type.U32, 313530770u)))["expires-after"],
                 "no uptime available — the raw value, not a fabricated duration");
         }
 
@@ -553,10 +553,10 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(NtpClientWindow);
 
             Assert.AreEqual("-20",
-                Decode(catalog, new[] { 24, 9 }, Rec((0x67, "u32", 4294967276u)))["system-offset"],
+                Decode(catalog, new[] { 24, 9 }, Rec((0x67, M2Type.U32, 4294967276u)))["system-offset"],
                 "num2int: v >= 0x80000000 is v - 0x100000000");
             Assert.AreEqual("41",
-                Decode(catalog, new[] { 24, 9 }, Rec((0x67, "u32", 41u)))["system-offset"],
+                Decode(catalog, new[] { 24, 9 }, Rec((0x67, M2Type.U32, 41u)))["system-offset"],
                 "a value below the halfway mark is untouched");
         }
 
@@ -565,10 +565,10 @@ namespace tik4net.unittests.Winbox
         {
             // 4294925573 is -41723 thousandths, and the API prints freq-drift=-41.723 for exactly this row.
             Assert.AreEqual("-41.723",
-                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 4294925573u)))["freq-drift"]);
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, M2Type.U32, 4294925573u)))["freq-drift"]);
             // fraction2string pads to the scale's digit count, so a small remainder keeps its LEADING zeros.
             Assert.AreEqual("2.005",
-                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 2005u)))["freq-drift"]);
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, M2Type.U32, 2005u)))["freq-drift"]);
         }
 
         /// <summary>
@@ -587,16 +587,16 @@ namespace tik4net.unittests.Winbox
         {
             // The live pair this was found on: 4294927566 is -39730 thousandths, and the API says -39.73.
             Assert.AreEqual("-39.73",
-                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 4294927566u)))["freq-drift"]);
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, M2Type.U32, 4294927566u)))["freq-drift"]);
             // Two trailing zeros go too, and leading ones inside the fraction still do not.
             Assert.AreEqual("2.5",
-                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 2500u)))["freq-drift"]);
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, M2Type.U32, 2500u)))["freq-drift"]);
             Assert.AreEqual("0.05",
-                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 50u)))["freq-drift"]);
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, M2Type.U32, 50u)))["freq-drift"]);
             // A fraction that trims away entirely takes the decimal point with it — RouterOS prints a whole
             // number as a whole number, not as '41.000'.
             Assert.AreEqual("41",
-                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 41000u)))["freq-drift"]);
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, M2Type.U32, 41000u)))["freq-drift"]);
         }
 
         [TestMethod]
@@ -605,7 +605,7 @@ namespace tik4net.unittests.Winbox
             // Only the types whose own get/tostr call num2int are signed — widening it to every number would
             // turn a legitimately large u32 negative.
             Assert.AreEqual("4294967276",
-                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0x5, "u32", 4294967276u)))["poll-interval"]);
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0x5, M2Type.U32, 4294967276u)))["poll-interval"]);
         }
 
         // ── epochs and offsets ────────────────────────────────────────────────
@@ -625,9 +625,9 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(ClockWindow);
 
             Assert.AreEqual("2026-07-25 10:24:52",
-                Decode(catalog, new[] { 24, 1 }, Rec((0x88, "u32", 1784975092u)))["invalid-before"]);
+                Decode(catalog, new[] { 24, 1 }, Rec((0x88, M2Type.U32, 1784975092u)))["invalid-before"]);
             Assert.AreEqual("2026-08-16",
-                Decode(catalog, new[] { 24, 1 }, Rec((0x1F, "u32", 1786838400u)))["date"],
+                Decode(catalog, new[] { 24, 1 }, Rec((0x1F, M2Type.U32, 1786838400u)))["date"],
                 "a clockdate is the same epoch printed as a date alone");
         }
 
@@ -637,11 +637,11 @@ namespace tik4net.unittests.Winbox
             var catalog = Parse(ClockWindow);
 
             Assert.AreEqual("+02:00",
-                Decode(catalog, new[] { 24, 1 }, Rec((0x1B, "u32", 7200u)))["gmt-offset"]);
+                Decode(catalog, new[] { 24, 1 }, Rec((0x1B, M2Type.U32, 7200u)))["gmt-offset"]);
             // A negative offset arrives wrapped, the wire being unsigned; -04:30 is the Newfoundland-shaped
             // case that catches a sign-only implementation.
             Assert.AreEqual("-04:30",
-                Decode(catalog, new[] { 24, 1 }, Rec((0x1B, "u32", unchecked((uint)(-16200))))) ["gmt-offset"]);
+                Decode(catalog, new[] { 24, 1 }, Rec((0x1B, M2Type.U32, unchecked((uint)(-16200))))) ["gmt-offset"]);
         }
 
         // ── a zero RouterOS spells as a word ──────────────────────────────────
@@ -659,7 +659,7 @@ namespace tik4net.unittests.Winbox
         public void AZeroRouterOsSpellsAsAWordGetsTheWord()
         {
             var decoded = Decode(Parse(ZeroWordWindow), new[] { 70, 9 },
-                Rec((0xA, "u32", 0u), (0x10, "u32", 0u), (0x2, "u32", 0u)));
+                Rec((0xA, M2Type.U32, 0u), (0x10, M2Type.U32, 0u), (0x2, M2Type.U32, 0u)));
 
             Assert.AreEqual("disabled", decoded["mrru"]);
             Assert.AreEqual("unlimited", decoded["max-sessions"]);
@@ -672,7 +672,7 @@ namespace tik4net.unittests.Winbox
             // The rule keys on the value being exactly zero, so a configured MRRU or session cap is reported
             // as the number it is.
             var decoded = Decode(Parse(ZeroWordWindow), new[] { 70, 9 },
-                Rec((0xA, "u32", 1600u), (0x10, "u32", 25u)));
+                Rec((0xA, M2Type.U32, 1600u), (0x10, M2Type.U32, 25u)));
 
             Assert.AreEqual("1600", decoded["mrru"]);
             Assert.AreEqual("25", decoded["max-sessions"]);
@@ -683,7 +683,7 @@ namespace tik4net.unittests.Winbox
         {
             // The table is the router's vocabulary for named fields, not a blanket "0 means off" rule —
             // that would rewrite every zero counter in the tree.
-            var decoded = Decode(Parse(ZeroWordWindow), new[] { 70, 9 }, Rec((0x9, "u32", 0u)));
+            var decoded = Decode(Parse(ZeroWordWindow), new[] { 70, 9 }, Rec((0x9, M2Type.U32, 0u)));
 
             Assert.AreEqual("0", decoded["keepalive-timeout"]);
         }
@@ -704,11 +704,11 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Parse(IntervalWindow);
 
-            Assert.AreEqual("1w", Decode(catalog, new[] { 22, 1 }, Rec((0x6, "u32", 604800u)))["cache-max-ttl"],
+            Assert.AreEqual("1w", Decode(catalog, new[] { 22, 1 }, Rec((0x6, M2Type.U32, 604800u)))["cache-max-ttl"],
                 "the API prints cache-max-ttl=1w, not the second count");
-            Assert.AreEqual("5m", Decode(catalog, new[] { 22, 1 }, Rec((0x6, "u32", 300u)))["cache-max-ttl"]);
+            Assert.AreEqual("5m", Decode(catalog, new[] { 22, 1 }, Rec((0x6, M2Type.U32, 300u)))["cache-max-ttl"]);
             Assert.AreEqual("2d17h30m3s",
-                Decode(catalog, new[] { 22, 1 }, Rec((0x6, "u32", 235803u)))["cache-max-ttl"],
+                Decode(catalog, new[] { 22, 1 }, Rec((0x6, M2Type.U32, 235803u)))["cache-max-ttl"],
                 "only the non-zero units, largest first, no separators");
         }
 
@@ -718,7 +718,7 @@ namespace tik4net.unittests.Winbox
             // /ppp/aaa and /ip/dhcp-server/config both print interim-update=0s. Rendering the empty string
             // would read as "the field is not set", which is a different statement.
             Assert.AreEqual("0s",
-                Decode(Parse(IntervalWindow), new[] { 22, 1 }, Rec((0x6, "u32", 0u)))["cache-max-ttl"]);
+                Decode(Parse(IntervalWindow), new[] { 22, 1 }, Rec((0x6, M2Type.U32, 0u)))["cache-max-ttl"]);
         }
 
         [TestMethod]
@@ -729,7 +729,7 @@ namespace tik4net.unittests.Winbox
             // which is the worst kind.
             Assert.AreEqual("5m",
                 Decode(Parse(IntervalWindow), new[] { 22, 1 },
-                       Rec((0x4, "u32", 30000u)))["ping-start-after-boot"]);
+                       Rec((0x4, M2Type.U32, 30000u)))["ping-start-after-boot"]);
         }
 
         [TestMethod]
@@ -738,7 +738,7 @@ namespace tik4net.unittests.Winbox
             // types.interval.tostr tries enum2string BEFORE formatting, so a field that names its zero keeps
             // the name. This is the same precedence the sentinel rules use, not a special case.
             Assert.AreEqual("disabled",
-                Decode(Parse(IntervalWindow), new[] { 22, 1 }, Rec((0x3, "u32", 0u)))["interim-update"]);
+                Decode(Parse(IntervalWindow), new[] { 22, 1 }, Rec((0x3, M2Type.U32, 0u)))["interim-update"]);
         }
     }
 }

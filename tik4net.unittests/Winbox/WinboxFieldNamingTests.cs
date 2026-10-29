@@ -54,10 +54,10 @@ namespace tik4net.unittests.Winbox
 
         private static Dictionary<string, string> Decode(
             WinboxFieldResolver resolver, WinboxJgCatalog catalog,
-            params (int key, string type, object val)[] fields)
+            params (int key, M2Type type, object val)[] fields)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
@@ -67,7 +67,7 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Parse(TwinWindow);
             var decoded = Decode(Resolver(catalog), catalog,
-                (0xFE0001, "u32", 1u), (0xE, "str", "web-proxy"));
+                (0xFE0001, M2Type.U32, 1u), (0xE, M2Type.String, "web-proxy"));
 
             Assert.AreEqual("web-proxy", decoded["cache-path"]);
             Assert.IsFalse(decoded.ContainsKey("old-cache-path"), "not under both names at once");
@@ -95,7 +95,7 @@ namespace tik4net.unittests.Winbox
             // second declaration on the key, the label keeps the name it has always had.
             var catalog = Parse(LoneWindow);
             var decoded = Decode(Resolver(catalog), catalog,
-                (0xFE0001, "u32", 1u), (0xE, "str", "memory"));
+                (0xFE0001, M2Type.U32, 1u), (0xE, M2Type.String, "memory"));
 
             Assert.AreEqual("memory", decoded["type"]);
             Assert.IsFalse(decoded.ContainsKey("target"), "the title alone does not rename anything");
@@ -120,7 +120,7 @@ namespace tik4net.unittests.Winbox
             var resolver = new WinboxFieldResolver("/queue/type", new[] { 20, 10 }, catalog,
                                                    new Dictionary<string, int>());
             var decoded = Decode(resolver, catalog,
-                (0x1FC, "u32", 4294967295u), (0x1F8, "u32", 2000u));
+                (0x1FC, M2Type.U32, 4294967295u), (0x1F8, M2Type.U32, 2000u));
 
             Assert.AreEqual("32", decoded["src-address-mask"],
                 "the LENGTH, as types.netmask.tostr and RouterOS both give it");
@@ -139,7 +139,7 @@ namespace tik4net.unittests.Winbox
             var resolver = new WinboxFieldResolver("/queue/type", new[] { 20, 10 }, catalog,
                                                    new Dictionary<string, int>());
 
-            Assert.AreEqual("24", Decode(resolver, catalog, (0x1FC, "u32", 0xFFFFFF00u))["src-address-mask"]);
+            Assert.AreEqual("24", Decode(resolver, catalog, (0x1FC, M2Type.U32, 0xFFFFFF00u))["src-address-mask"]);
 
             // And the write side takes the same spelling back — plus the dotted one, as
             // types.netmask.fromstr does.
@@ -166,7 +166,7 @@ namespace tik4net.unittests.Winbox
             // field, and the unit under test here is the kbytes conversion, not the alias table.
             var resolver = new WinboxFieldResolver("/x", new[] { 24, 3 }, catalog,
                                                    new Dictionary<string, int>());
-            var decoded = Decode(resolver, catalog, (0xA, "u32", 91372u), (0x18, "u32", 16u));
+            var decoded = Decode(resolver, catalog, (0xA, M2Type.U32, 91372u), (0x18, M2Type.U32, 16u));
 
             Assert.AreEqual("93564928", decoded["total-hdd-size"]);
             Assert.AreEqual("16", decoded["cpu-count"], "and a plain number is still a plain number");

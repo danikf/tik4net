@@ -81,7 +81,7 @@ namespace tik4net.unittests.Winbox
             var msg = new[] { (byte)'M', (byte)'2' }.Concat(encoded[0]).ToArray();
             var fields = M2Message.ParseAllFields(msg);
             Assert.AreEqual(1, fields.Count);
-            foreach (var kv in fields) return new KeyValuePair<int, object>(kv.Key, kv.Value.Item2);
+            foreach (var kv in fields) return new KeyValuePair<int, object>(kv.Key, kv.Value.Value);
             return default(KeyValuePair<int, object>);
         }
 

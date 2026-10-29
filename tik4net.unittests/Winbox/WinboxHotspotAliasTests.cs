@@ -35,10 +35,10 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Catalog();
             var resolver = Resolver(catalog);
-            var rec = new Dictionary<int, Tuple<string, object>>
+            var rec = new M2Record
             {
-                [0x1] = Tuple.Create("str", (object)"t4n"),
-                [0x17] = Tuple.Create("str", (object)"1M/2M"),
+                [0x1] = new M2Value(M2Type.String, "t4n"),
+                [0x17] = new M2Value(M2Type.String, "1M/2M"),
             };
 
             var decoded = new WinboxRecordCodec(null, catalog)
@@ -54,10 +54,10 @@ namespace tik4net.unittests.Winbox
             // The alias set replaced the path's plain HotspotDefault(); `default` must still come from the *0 id.
             var catalog = Catalog();
             var resolver = Resolver(catalog);
-            var rec = new Dictionary<int, Tuple<string, object>>
+            var rec = new M2Record
             {
-                [0xFE0001] = Tuple.Create("u32", (object)0u),
-                [0x1] = Tuple.Create("str", (object)"default"),
+                [0xFE0001] = new M2Value(M2Type.U32, 0u),
+                [0x1] = new M2Value(M2Type.String, "default"),
             };
 
             var decoded = new WinboxRecordCodec(null, catalog)

@@ -77,15 +77,15 @@ namespace tik4net.unittests.Winbox
 
         private static Dictionary<int, object> Fields(IList<byte[]> encoded)
             => M2Message.ParseAllFields(M2Message.BuildM2(encoded.ToArray()))
-                        .ToDictionary(kv => kv.Key, kv => kv.Value.Item2);
+                        .ToDictionary(kv => kv.Key, kv => kv.Value.Value);
 
         private static List<Dictionary<int, object>> Elements(IList<byte[]> encoded, int expectedKey)
         {
             var fields = M2Message.ParseAllFields(M2Message.BuildM2(encoded.ToArray()));
             Assert.IsTrue(fields.ContainsKey(expectedKey), "the list field itself");
-            Assert.AreEqual("msg[]", fields[expectedKey].Item1);
-            return ((List<Dictionary<int, Tuple<string, object>>>)fields[expectedKey].Item2)
-                .Select(e => e.ToDictionary(kv => kv.Key, kv => kv.Value.Item2))
+            Assert.AreEqual("msg[]", fields[expectedKey].TraceName);
+            return ((List<M2Record>)fields[expectedKey].Value)
+                .Select(e => e.ToDictionary(kv => kv.Key, kv => kv.Value.Value))
                 .ToList();
         }
 
@@ -93,20 +93,20 @@ namespace tik4net.unittests.Winbox
 
         private static Dictionary<string, string> Decode(
             WinboxJgCatalog catalog, string apiPath, int[] handler,
-            params (int key, string type, object val)[] fields)
+            params (int key, M2Type type, object val)[] fields)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             var resolver = new WinboxFieldResolver(apiPath, handler, catalog, new Dictionary<string, int>());
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
-        private static Dictionary<int, Tuple<string, object>> Sub(
-            params (int key, string type, object val)[] fields)
+        private static M2Record Sub(
+            params (int key, M2Type type, object val)[] fields)
         {
-            var sub = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) sub[f.key] = Tuple.Create(f.type, f.val);
+            var sub = new M2Record();
+            foreach (var f in fields) sub[f.key] = new M2Value(f.type, f.val);
             return sub;
         }
 
@@ -183,10 +183,10 @@ namespace tik4net.unittests.Winbox
         public void ANegatedElementReadsBackWithItsPrefixAndItsValue()
         {
             var decoded = Decode(Parse(SnifferWindow), "/tool/sniffer", SnifferHandler,
-                (0xCC, "msg[]", new List<Dictionary<int, Tuple<string, object>>>
+                (0xCC, M2Type.MessageArray, new List<M2Record>
                 {
-                    Sub((0x1, "bool", true), (0x2, "u32", 16492736u), (0x3, "u32", 16777215u)),
-                    Sub((0x1, "bool", false), (0x2, "u32", 16777226u), (0x3, "u32", 4294967295u)),
+                    Sub((0x1, M2Type.Bool, true), (0x2, M2Type.U32, 16492736u), (0x3, M2Type.U32, 16777215u)),
+                    Sub((0x1, M2Type.Bool, false), (0x2, M2Type.U32, 16777226u), (0x3, M2Type.U32, 4294967295u)),
                 }));
 
             Assert.AreEqual("!192.168.251.0/24,10.0.0.1/32", decoded["filter-ip-address"]);
@@ -197,9 +197,9 @@ namespace tik4net.unittests.Winbox
         {
             // RouterOS prints the mask even when it is the all-ones one, where webfig's own tostr hides it.
             var decoded = Decode(Parse(SnifferWindow), "/tool/sniffer", SnifferHandler,
-                (0xC9, "msg[]", new List<Dictionary<int, Tuple<string, object>>>
+                (0xC9, M2Type.MessageArray, new List<M2Record>
                 {
-                    Sub((0x1, "bool", true), (0x2, "raw", "AABBCCDDEEFF"), (0x3, "raw", "FFFFFFFFFFFF")),
+                    Sub((0x1, M2Type.Bool, true), (0x2, M2Type.Raw, "AABBCCDDEEFF"), (0x3, M2Type.Raw, "FFFFFFFFFFFF")),
                 }));
 
             Assert.AreEqual("!AA:BB:CC:DD:EE:FF/FF:FF:FF:FF:FF:FF", decoded["filter-mac-address"]);
@@ -253,8 +253,8 @@ namespace tik4net.unittests.Winbox
         public void PairsReadBackThroughTheElementsOwnRangeRule()
         {
             var decoded = Decode(Parse(PoolWindow), "/ip/pool", PoolHandler,
-                (0xA, "string", "tik4net-test-pool"),
-                (0xB, "u32[]", "[184264896,352037056,100444352,100444352,16623808,4294813888]"));
+                (0xA, M2Type.String, "tik4net-test-pool"),
+                (0xB, M2Type.U32Array, "[184264896,352037056,100444352,100444352,16623808,4294813888]"));
 
             Assert.AreEqual("192.168.251.10-192.168.251.20,192.168.252.5,192.168.253.0/24",
                 decoded["ranges"], "and the API's own name for the field");
@@ -300,7 +300,7 @@ namespace tik4net.unittests.Winbox
             // It holds the second half of every element of the ONE list the API prints.
             var decoded = Decode(Parse(TemplateWindow), "/tool/traffic-generator/packet-template",
                 TemplateHandler,
-                (0xD3, "u32[]", "[184264896]"), (0xDE, "u32[]", "[352037056]"));
+                (0xD3, M2Type.U32Array, "[184264896]"), (0xDE, M2Type.U32Array, "[352037056]"));
 
             Assert.AreEqual("192.168.251.10-192.168.251.20", decoded["src"]);
             Assert.IsFalse(decoded.Keys.Any(k => k != "src"), "no second field for the ends");

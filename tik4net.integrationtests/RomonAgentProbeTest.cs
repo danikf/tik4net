@@ -576,9 +576,9 @@ namespace tik4net.integrationtests
                     Log("record:");
                     foreach (var kv in rec)
                     {
-                        object v = kv.Value.Item2;
+                        object v = kv.Value.Value;
                         string text = v is byte[] b ? BitConverter.ToString(b) : Convert.ToString(v, System.Globalization.CultureInfo.InvariantCulture);
-                        Log($"    0x{kv.Key:X} {kv.Value.Item1} = {text}");
+                        Log($"    0x{kv.Key:X} {kv.Value.TraceName} = {text}");
                     }
                 }
                 s.SendReceive(M2.BuildM2(M2.SysToArr(127, 2), M2.SysFrom(),
@@ -635,7 +635,7 @@ namespace tik4net.integrationtests
                             M2.SessionIdField(id), M2.U32Sys(WinboxM2Protocol.RecordKey.Flags, WinboxM2Protocol.GetAllFlags)), 3000);
                         foreach (var rec in M2.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records))
                         {
-                            string status = rec.TryGetValue(0x65, out var st) ? Convert.ToString(st.Item2) : "";
+                            string status = rec.TryGetValue(0x65, out var st) ? Convert.ToString(st.Value) : "";
                             if (status == "timeout") timeouts++; else answered++;
                         }
                         s.SendReceive(M2.BuildM2(M2.SysToArr(127, 2), M2.SysFrom(),

@@ -51,7 +51,7 @@ namespace tik4net.unittests.Winbox
         }
 
         private static Dictionary<string, string> Decode(
-            WinboxJgCatalog catalog, int[] handler, Dictionary<int, Tuple<string, object>> rec,
+            WinboxJgCatalog catalog, int[] handler, M2Record rec,
             long? bootEpoch = null)
         {
             var resolver = new WinboxFieldResolver(null, handler, catalog, new Dictionary<string, int>());
@@ -60,10 +60,10 @@ namespace tik4net.unittests.Winbox
             return codec.DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
-        private static Dictionary<int, Tuple<string, object>> Rec(params (int key, string type, object val)[] fields)
+        private static M2Record Rec(params (int key, M2Type type, object val)[] fields)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return rec;
         }
 
@@ -71,7 +71,7 @@ namespace tik4net.unittests.Winbox
         public void ARelativeDateAndTimeIsCountedFromBootAndNotFromTheEpoch()
         {
             var decoded = Decode(Parse(InterfaceWindow), new[] { 20, 0 },
-                Rec((0x10038, "u32", (uint)LastLinkUpWire), (0x10037, "u32", (uint)LastLinkDownWire)),
+                Rec((0x10038, M2Type.U32, (uint)LastLinkUpWire), (0x10037, M2Type.U32, (uint)LastLinkDownWire)),
                 bootEpoch: BootEpoch);
 
             // The two timestamps the API prints for exactly this record.
@@ -86,11 +86,11 @@ namespace tik4net.unittests.Winbox
             // arithmetic, and 200 wire units are the API's two seconds only if the scale is honoured.
             var up = DateTime.ParseExact(
                 Decode(Parse(InterfaceWindow), new[] { 20, 0 },
-                       Rec((0x10038, "u32", (uint)LastLinkUpWire)), BootEpoch)["last-link-up-time"],
+                       Rec((0x10038, M2Type.U32, (uint)LastLinkUpWire)), BootEpoch)["last-link-up-time"],
                 "yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
             var down = DateTime.ParseExact(
                 Decode(Parse(InterfaceWindow), new[] { 20, 0 },
-                       Rec((0x10037, "u32", (uint)LastLinkDownWire)), BootEpoch)["last-link-down-time"],
+                       Rec((0x10037, M2Type.U32, (uint)LastLinkDownWire)), BootEpoch)["last-link-down-time"],
                 "yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
 
             Assert.AreEqual(TimeSpan.FromSeconds(2), down - up);
@@ -104,7 +104,7 @@ namespace tik4net.unittests.Winbox
             // the path-map audit nor an eyeball on the field name catches it. An `age` already answers this
             // way for the same reason.
             var decoded = Decode(Parse(InterfaceWindow), new[] { 20, 0 },
-                Rec((0x10038, "u32", (uint)LastLinkUpWire)));
+                Rec((0x10038, M2Type.U32, (uint)LastLinkUpWire)));
 
             Assert.AreEqual(LastLinkUpWire.ToString(), decoded["last-link-up-time"],
                 "no boot moment available — the raw value, never a date computed from a guessed origin");
@@ -118,7 +118,7 @@ namespace tik4net.unittests.Winbox
             // changes. 1784975092 is the API's 2026-07-25 10:24:52 for the lab's own certificate.
             Assert.AreEqual("2026-07-25 10:24:52",
                 Decode(Parse(CertificateWindow), new[] { 19, 1 },
-                       Rec((0x11, "u32", 1784975092u)), BootEpoch)["invalid-after"],
+                       Rec((0x11, M2Type.U32, 1784975092u)), BootEpoch)["invalid-after"],
                 "a declaration without `relative` is unaffected, seeded clock or not");
         }
     }

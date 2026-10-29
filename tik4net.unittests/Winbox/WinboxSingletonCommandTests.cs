@@ -86,7 +86,7 @@ namespace tik4net.unittests.Winbox
         }
 
         private static long Command(byte[] message)
-            => Convert.ToInt64(M2Message.ParseAllFields(message)[WinboxM2Protocol.SysKey.Command].Item2);
+            => Convert.ToInt64(M2Message.ParseAllFields(message)[WinboxM2Protocol.SysKey.Command].Value);
 
         /// <summary>Only builds messages here; nothing is ever sent.</summary>
         private sealed class NoChannel : IWinboxM2Channel

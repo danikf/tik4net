@@ -48,13 +48,13 @@ namespace tik4net.unittests.Winbox
         private static readonly int[] LogAction = { 3, 1 };
 
         private static Dictionary<string, string> Decode(string window, string apiPath, int[] handler,
-            params (int key, string type, object val)[] fields)
+            params (int key, M2Type type, object val)[] fields)
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(window), "the trimmed window must parse");
             var resolver = new WinboxFieldResolver(apiPath, handler, catalog, new Dictionary<string, int>());
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
@@ -63,7 +63,7 @@ namespace tik4net.unittests.Winbox
         public void AFieldItsConditionSwitchesOffIsNotReported()
         {
             var decoded = Decode(HotspotProfileWindow, "/ip/hotspot/profile", HotspotProfile,
-                (0x1, "str", "default"), (0x8C, "bool", false), (0x90, "u32", (uint)19), (0x92, "str", ""));
+                (0x1, M2Type.String, "default"), (0x8C, M2Type.Bool, false), (0x90, M2Type.U32, (uint)19), (0x92, M2Type.String, ""));
 
             Assert.AreEqual("false", decoded["use-radius"], "the controlling field itself is always reported");
             Assert.IsFalse(decoded.ContainsKey("nas-port-type"));
@@ -74,7 +74,7 @@ namespace tik4net.unittests.Winbox
         public void AFieldItsConditionSwitchesOnIsReportedEmptyOrNot()
         {
             var decoded = Decode(HotspotProfileWindow, "/ip/hotspot/profile", HotspotProfile,
-                (0x1, "str", "t4n"), (0x8C, "bool", true), (0x90, "u32", (uint)19), (0x92, "str", ""));
+                (0x1, M2Type.String, "t4n"), (0x8C, M2Type.Bool, true), (0x90, M2Type.U32, (uint)19), (0x92, M2Type.String, ""));
 
             Assert.IsTrue(decoded.ContainsKey("nas-port-type"));
             Assert.AreEqual("", decoded["radius-default-domain"], "the API prints it empty once use-radius=yes");
@@ -85,7 +85,7 @@ namespace tik4net.unittests.Winbox
         {
             // l2tp-server's ipsec-secret is printed with use-ipsec=no; the .jg cannot tell it from use-radius.
             var decoded = Decode(HotspotProfileWindow, "/ip/hotspot/profile", HotspotProfile,
-                (0x1, "str", "default"), (0x9A, "bool", false), (0x9B, "str", "secret"));
+                (0x1, M2Type.String, "default"), (0x9A, M2Type.Bool, false), (0x9B, M2Type.String, "secret"));
 
             Assert.AreEqual("secret", decoded["ipsec-secret"]);
         }
@@ -95,9 +95,9 @@ namespace tik4net.unittests.Winbox
         {
             // login-by without trial (bit 6) hides trial-*; with it, they are reported.
             var without = Decode(HotspotProfileWindow, "/ip/hotspot/profile", HotspotProfile,
-                (0x1, "str", "default"), (0x5, "u32", (uint)0x6), (0x97, "u32", (uint)1800));
+                (0x1, M2Type.String, "default"), (0x5, M2Type.U32, (uint)0x6), (0x97, M2Type.U32, (uint)1800));
             var with = Decode(HotspotProfileWindow, "/ip/hotspot/profile", HotspotProfile,
-                (0x1, "str", "t4n"), (0x5, "u32", (uint)0x45), (0x97, "u32", (uint)1800));
+                (0x1, M2Type.String, "t4n"), (0x5, M2Type.U32, (uint)0x45), (0x97, M2Type.U32, (uint)1800));
 
             Assert.IsFalse(without.ContainsKey("trial-uptime-limit"));
             Assert.IsTrue(with.ContainsKey("trial-uptime-limit"));
@@ -107,9 +107,9 @@ namespace tik4net.unittests.Winbox
         public void ANumberConditionPicksTheFieldsOfTheSelectedFormat()
         {
             var syslog = Decode(LogActionWindow, "/system/logging/action", LogAction,
-                (0x1, "str", "t4n"), (0x15, "u32", (uint)1), (0xD, "u32", (uint)3), (0x16, "str", "\r\n"));
+                (0x1, M2Type.String, "t4n"), (0x15, M2Type.U32, (uint)1), (0xD, M2Type.U32, (uint)3), (0x16, M2Type.String, "\r\n"));
             var byDefault = Decode(LogActionWindow, "/system/logging/action", LogAction,
-                (0x1, "str", "remote"), (0x15, "u32", (uint)0), (0xD, "u32", (uint)3), (0x16, "str", "\r\n"));
+                (0x1, M2Type.String, "remote"), (0x15, M2Type.U32, (uint)0), (0xD, M2Type.U32, (uint)3), (0x16, M2Type.String, "\r\n"));
 
             Assert.IsTrue(syslog.ContainsKey("syslog-facility"));
             Assert.IsFalse(syslog.ContainsKey("cef-event-delimiter"));
@@ -137,8 +137,8 @@ namespace tik4net.unittests.Winbox
             // A t4n action with remote-log-format=syslog over the API (7.24.4): remote-log-format=syslog,
             // syslog-time-format=bsd-syslog, add-topics-string=false, and no check-certificate over UDP.
             var decoded = Decode(RemoteLogActionWindow, "/system/logging/action", LogAction,
-                (0x1, "str", "t4n"), (0x14, "u32", (uint)1), (0x15, "u32", (uint)0), (0x23, "bool", false),
-                (0x13, "u32", (uint)0), (0x24, "bool", false));
+                (0x1, M2Type.String, "t4n"), (0x14, M2Type.U32, (uint)1), (0x15, M2Type.U32, (uint)0), (0x23, M2Type.Bool, false),
+                (0x13, M2Type.U32, (uint)0), (0x24, M2Type.Bool, false));
 
             Assert.AreEqual("syslog", decoded["remote-log-format"]);
             Assert.AreEqual("bsd-syslog", decoded["syslog-time-format"]);
@@ -150,8 +150,8 @@ namespace tik4net.unittests.Winbox
         public void ADefaultFormatActionHasNoSyslogFields()
         {
             var decoded = Decode(RemoteLogActionWindow, "/system/logging/action", LogAction,
-                (0x1, "str", "remote"), (0x14, "u32", (uint)0), (0x15, "u32", (uint)2), (0x23, "bool", false),
-                (0x13, "u32", (uint)0), (0x24, "bool", false));
+                (0x1, M2Type.String, "remote"), (0x14, M2Type.U32, (uint)0), (0x15, M2Type.U32, (uint)2), (0x23, M2Type.Bool, false),
+                (0x13, M2Type.U32, (uint)0), (0x24, M2Type.Bool, false));
 
             Assert.AreEqual("default", decoded["remote-log-format"]);
             Assert.IsFalse(decoded.ContainsKey("syslog-time-format"));
@@ -164,7 +164,7 @@ namespace tik4net.unittests.Winbox
         {
             // No 'Use RADIUS' key and no def on it: webfig reads undefined, i.e. false, and hides the field.
             var decoded = Decode(HotspotProfileWindow, "/ip/hotspot/profile", HotspotProfile,
-                (0x1, "str", "default"), (0x90, "u32", (uint)19));
+                (0x1, M2Type.String, "default"), (0x90, M2Type.U32, (uint)19));
 
             Assert.IsFalse(decoded.ContainsKey("nas-port-type"));
         }

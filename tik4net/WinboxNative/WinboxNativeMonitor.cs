@@ -235,7 +235,7 @@ namespace tik4net.WinboxNative
                 WinboxM2Continuation? continuation = null;
                 while (handle == null || !handle.CancelRequested)
                 {
-                    List<Dictionary<int, Tuple<string, object>>> records;
+                    List<M2Record> records;
                     bool done;
                     using (callback ? await _host.EnterCommandAsync(cancellationToken).ConfigureAwait(false) : default)
                         (records, done, continuation) = await _host.Ops
@@ -351,7 +351,7 @@ namespace tik4net.WinboxNative
                 windowPath: parentPath).DecodePlan();
             int flags = _host.Catalog.GetReadFlags(handler);
 
-            List<Dictionary<int, Tuple<string, object>>> records;
+            List<M2Record> records;
             try { records = await _host.Ops.GetAllAsync(handler, cancellationToken, flags).ConfigureAwait(false); }
             catch (WinboxM2OperationException ex) { throw _host.TranslateM2Error(ex, descriptor.CommandText); }
 

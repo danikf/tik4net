@@ -45,11 +45,11 @@ namespace tik4net.unittests.Winbox
             return new WinboxFieldResolver("/x", Handler, catalog, new Dictionary<string, int>());
         }
 
-        private static string Decode(int key, string wireType, object value)
+        private static string Decode(int key, M2Type wireType, object value)
         {
             var resolver = Resolver();
             var decoded = new WinboxRecordCodec(null, null).DecodeRecord(
-                new Dictionary<int, Tuple<string, object>> { [key] = Tuple.Create(wireType, value) },
+                new M2Record { [key] = new M2Value(wireType, value) },
                 resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
             return decoded.Values.Single();
         }
@@ -58,16 +58,16 @@ namespace tik4net.unittests.Winbox
         {
             var encoded = Resolver().EncodeField(apiName, value);
             var msg = new[] { (byte)'M', (byte)'2' }.Concat(encoded.Last()).ToArray();
-            return Convert.ToInt64(M2Message.ParseAllFields(msg).Single().Value.Item2);
+            return Convert.ToInt64(M2Message.ParseAllFields(msg).Single().Value.Value);
         }
 
         private static Dictionary<string, string> DecodeWith(string window, int[] handler, string apiPath,
-            params (int key, string wire, object value)[] fields)
+            params (int key, M2Type wire, object value)[] fields)
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(window), "the trimmed window must parse");
             var resolver = new WinboxFieldResolver(apiPath, handler, catalog, new Dictionary<string, int>());
-            var rec = fields.ToDictionary(f => f.key, f => Tuple.Create(f.wire, f.value));
+            var rec = fields.ToM2Record(f => f.key, f => new M2Value(f.wire, f.value));
             return new WinboxRecordCodec(null, catalog).DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
@@ -85,20 +85,20 @@ namespace tik4net.unittests.Winbox
             "{name:'',type:'multinumber',id:'U8',max:100,ro:1,c:[{type:'enm',values:{type:'dynamic',path:[ 20,0 ]}}]}]}]}]}" +
             "]}]}]";
 
-        private static Dictionary<int, Tuple<string, object>> Elem(params (int key, string wire, object value)[] f)
-            => f.ToDictionary(x => x.key, x => Tuple.Create(x.wire, x.value));
+        private static M2Record Elem(params (int key, M2Type wire, object value)[] f)
+            => f.ToM2Record(x => x.key, x => new M2Value(x.wire, x.value));
 
         [TestMethod]
         public void A6xGatewayStatusIsComposedFromTheElementsReadOnlyHalf()
         {
             // 6.49.13 API: gateway-status=192.168.4.1 reachable via  ether1 for {u1, u5=1, U8=[1]}, and
             // "192.168.4.1 unreachable" with nothing to go via. Without a session the interface stays its id.
-            var gw = new List<Dictionary<int, Tuple<string, object>>>
+            var gw = new List<M2Record>
             {
-                Elem((0x1, "u32", (object)17082560u), (0x5, "u8", (object)(byte)1), (0x8, "u32[]", (object)"[1]")),
-                Elem((0x1, "u32", (object)17082560u), (0x5, "u8", (object)(byte)0)),
+                Elem((0x1, M2Type.U32, (object)17082560u), (0x5, M2Type.U32, (object)(byte)1), (0x8, M2Type.U32Array, (object)"[1]")),
+                Elem((0x1, M2Type.U32, (object)17082560u), (0x5, M2Type.U32, (object)(byte)0)),
             };
-            var decoded = DecodeWith(Route6Window, new[] { 90, 6 }, "/ip/route", (0x2E, "msg[]", (object)gw));
+            var decoded = DecodeWith(Route6Window, new[] { 90, 6 }, "/ip/route", (0x2E, M2Type.MessageArray, (object)gw));
 
             Assert.AreEqual("192.168.4.1,192.168.4.1", decoded["gateway"], "the gateway itself is unchanged");
             Assert.AreEqual("192.168.4.1 reachable via  1,192.168.4.1 unreachable", decoded["gateway-status"]);
@@ -129,7 +129,7 @@ namespace tik4net.unittests.Winbox
             var decoded = DecodeWith(
                 "[{name:'X',c:[{title:'X',type:'map',path:[ 90,3 ],c:[" +
                 "{name:'Remote Checksum Offload',type:'enm',id:'u16',def:0,values:{type:'static',map:{0:'none',1:'rx',2:'tx',3:'both'}}}]}]}]",
-                new[] { 90, 3 }, "/interface/vxlan", (0x16, "u32", (object)2u));
+                new[] { 90, 3 }, "/interface/vxlan", (0x16, M2Type.U32, (object)2u));
 
             Assert.AreEqual("tx", decoded["rem-csum"], "and the field reads under the API's name");
         }
@@ -143,7 +143,7 @@ namespace tik4net.unittests.Winbox
                 "[{name:'X',c:[{title:'X',type:'map',path:[ 90,4 ],c:[" +
                 "{name:'Burst Time',type:'tuple',postfix:'s',sep:' ',separate:1,c:[" +
                 "{name:'Upload Burst Time',type:'number',id:'u43'},{name:'Download Burst Time',type:'number',id:'u4a'}]}]}]}]",
-                new[] { 90, 4 }, "/x", (0x43, "u32", (object)7u), (0x4A, "u32", (object)9u));
+                new[] { 90, 4 }, "/x", (0x43, M2Type.U32, (object)7u), (0x4A, M2Type.U32, (object)9u));
 
             Assert.AreEqual("7s", decoded["upload-burst-time"]);
             Assert.AreEqual("9s", decoded["download-burst-time"]);
@@ -157,7 +157,7 @@ namespace tik4net.unittests.Winbox
                 "[{name:'X',c:[{title:'X',type:'map',path:[ 90,5 ],c:[" +
                 "{name:'v9/IPFIX Template Refresh',type:'number',id:'u4',def:20,min:1}," +
                 "{name:'v9/IPFIX Template Timeout',type:'number',id:'u5',def:1800}]}]}]",
-                new[] { 90, 5 }, "/ip/traffic-flow/target", (0x4, "u32", (object)33u), (0x5, "u32", (object)2640u));
+                new[] { 90, 5 }, "/ip/traffic-flow/target", (0x4, M2Type.U32, (object)33u), (0x5, M2Type.U32, (object)2640u));
 
             Assert.AreEqual("33", decoded["v9-template-refresh"], "refresh is a packet count");
             Assert.AreEqual("44m", decoded["v9-template-timeout"]);
@@ -176,8 +176,8 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ANumberWithASecondsPostfixIsADuration()
         {
-            Assert.AreEqual("1m", Decode(0xC, "u32", 60u), "watchdog ping-timeout");
-            Assert.AreEqual("0s", Decode(0x43, "u32", 0u), "queue tree burst-time");
+            Assert.AreEqual("1m", Decode(0xC, M2Type.U32, 60u), "watchdog ping-timeout");
+            Assert.AreEqual("0s", Decode(0x43, M2Type.U32, 0u), "queue tree burst-time");
             Assert.AreEqual(60L, EncodedU32("ping-timeout", "1m"), "and the API's spelling writes back");
         }
 
@@ -192,7 +192,7 @@ namespace tik4net.unittests.Winbox
                 "{name:'SFQ Perturb',type:'number',id:'u191',def:5,postfix:'s'}]}]}]"));
             var resolver = new WinboxFieldResolver("/x", new[] { 90, 2 }, catalog, new Dictionary<string, int>());
             var decoded = new WinboxRecordCodec(null, null).DecodeRecord(
-                new Dictionary<int, Tuple<string, object>> { [0x191] = Tuple.Create("u32", (object)5u) },
+                new M2Record { [0x191] = new M2Value(M2Type.U32, 5u) },
                 resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
 
             Assert.AreEqual("5", decoded["sfq-perturb"]);
@@ -201,8 +201,8 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AClockTimeIsATimeOfDay()
         {
-            Assert.AreEqual("23:20:43", Decode(0x1E, "u32", 84043u));
-            Assert.AreEqual("00:00:05", Decode(0x1E, "u32", 5u));
+            Assert.AreEqual("23:20:43", Decode(0x1E, M2Type.U32, 84043u));
+            Assert.AreEqual("00:00:05", Decode(0x1E, M2Type.U32, 5u));
             Assert.AreEqual(84043L, EncodedU32("time", "23:20:43"));
         }
 
@@ -215,7 +215,7 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(nov21, EncodedU32("start-date", "2026-11-21"));
             Assert.AreEqual(nov21, EncodedU32("start-date", "nov/21/2026"));
             Assert.AreEqual(nov21, EncodedU32("start-date", "nov/21/2026 10:11:12"), "a date field drops the time");
-            Assert.AreEqual("2026-11-21", Decode(0x12F, "u32", (uint)nov21), "and it reads back");
+            Assert.AreEqual("2026-11-21", Decode(0x12F, M2Type.U32, (uint)nov21), "and it reads back");
             Assert.ThrowsException<WinboxFieldValueException>(() => Resolver().EncodeField("start-date", "someday"));
         }
 
@@ -224,14 +224,14 @@ namespace tik4net.unittests.Winbox
         {
             // The 6.x catalog's 'date' is 7.x's dateandtime: on 6.49.13 a certificate's 1789921669 is the API's
             // sep/20/2026 16:27:49.
-            Assert.AreEqual("2026-09-20 16:27:49", Decode(0x6, "u32", 1789921669u));
+            Assert.AreEqual("2026-09-20 16:27:49", Decode(0x6, M2Type.U32, 1789921669u));
         }
 
         [TestMethod]
         public void AnEnumWithAClockTimeElementIsItsWordOrATimeOfDay()
         {
-            Assert.AreEqual("23:20:32", Decode(0x12E, "u32", 84032u), "a map miss renders through the element");
-            Assert.AreEqual("startup", Decode(0x12E, "u32", 4294967295u), "the map's own member still wins");
+            Assert.AreEqual("23:20:32", Decode(0x12E, M2Type.U32, 84032u), "a map miss renders through the element");
+            Assert.AreEqual("startup", Decode(0x12E, M2Type.U32, 4294967295u), "the map's own member still wins");
             Assert.AreEqual(84032L, EncodedU32("start-time", "23:20:32"));
             Assert.AreEqual(4294967295L, EncodedU32("start-time", "startup"));
         }
@@ -257,9 +257,9 @@ namespace tik4net.unittests.Winbox
                 refHandler: new[] { 20, 0 }, refHandlers: new[] { new[] { 20, 0 }, new[] { 20, 12 } });
             var channel = new CountingChannel();
             new WinboxRecordCodec(new WinboxNativeM2Operations(channel, 5000), null).PrimeReferencesAsync(
-                    new List<Dictionary<int, Tuple<string, object>>>
+                    new List<M2Record>
                     {
-                        new Dictionary<int, Tuple<string, object>> { [0x1] = Tuple.Create("u32", (object)0x10002C1u) },
+                        new M2Record { [0x1] = new M2Value(M2Type.U32, 0x10002C1u) },
                     },
                     new Dictionary<int, string> { [0x1] = "parent" },
                     new Dictionary<int, WinboxJgField> { [0x1] = parent },

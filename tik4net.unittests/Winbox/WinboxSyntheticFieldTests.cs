@@ -52,7 +52,7 @@ namespace tik4net.unittests.Winbox
                 new Dictionary<string, int>());
         }
 
-        private static Dictionary<string, string> Decode(Dictionary<int, Tuple<string, object>> rec)
+        private static Dictionary<string, string> Decode(M2Record rec)
         {
             var resolver = Resolver();
             return new WinboxRecordCodec(null, null)
@@ -65,7 +65,7 @@ namespace tik4net.unittests.Winbox
             var msg = new[] { (byte)'M', (byte)'2' }.Concat(encoded[0]).ToArray();
             var fields = M2Message.ParseAllFields(msg);
             Assert.AreEqual(1, fields.Count);
-            foreach (var kv in fields) return new KeyValuePair<int, object>(kv.Key, kv.Value.Item2);
+            foreach (var kv in fields) return new KeyValuePair<int, object>(kv.Key, kv.Value.Value);
             return default(KeyValuePair<int, object>);
         }
 
@@ -73,11 +73,11 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AKeyNoWindowNamesIsStillDecoded()
         {
-            var decoded = Decode(new Dictionary<int, Tuple<string, object>>
+            var decoded = Decode(new M2Record
             {
-                [0x8] = Tuple.Create("bool", (object)false),
-                [0x9] = Tuple.Create("bool", (object)true),
-                [0xF] = Tuple.Create("u32", (object)0u),
+                [0x8] = new M2Value(M2Type.Bool, false),
+                [0x9] = new M2Value(M2Type.Bool, true),
+                [0xF] = new M2Value(M2Type.U32, 0u),
             });
 
             Assert.AreEqual("disabled", decoded["state"], "the live pair: 0x8=False alongside state=disabled");
@@ -166,10 +166,10 @@ namespace tik4net.unittests.Winbox
             var codec = new WinboxRecordCodec(null, null);
 
             Assert.AreEqual("auto", codec.DecodeRecord(
-                new Dictionary<int, Tuple<string, object>> { [0x1003B] = Tuple.Create("u32", (object)0u) },
+                new M2Record { [0x1003B] = new M2Value(M2Type.U32, 0u) },
                 resolver.BuildKeyToApiName(), resolver.BuildKeyToField())["arp-timeout"]);
             Assert.AreEqual("30s", codec.DecodeRecord(
-                new Dictionary<int, Tuple<string, object>> { [0x1003B] = Tuple.Create("u32", (object)30u) },
+                new M2Record { [0x1003B] = new M2Value(M2Type.U32, 30u) },
                 resolver.BuildKeyToApiName(), resolver.BuildKeyToField())["arp-timeout"]);
 
             var auto = Encoded(resolver.EncodeField("arp-timeout", "auto"));
@@ -198,10 +198,10 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(0x1000D, resolver.ResolveKey("disable-running-check"));
 
             var decoded = new WinboxRecordCodec(null, null).DecodeRecord(
-                new Dictionary<int, Tuple<string, object>>
+                new M2Record
                 {
-                    [0x1000D] = Tuple.Create("bool", (object)true),
-                    [0x3F3] = Tuple.Create("bool", (object)true),
+                    [0x1000D] = new M2Value(M2Type.Bool, true),
+                    [0x3F3] = new M2Value(M2Type.Bool, true),
                 },
                 resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
             Assert.AreEqual("true", decoded["disable-running-check"], "0x1000D=True alongside the API's true");

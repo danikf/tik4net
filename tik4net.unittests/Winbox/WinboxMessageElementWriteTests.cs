@@ -72,9 +72,9 @@ namespace tik4net.unittests.Winbox
         {
             var fields = M2Message.ParseAllFields(M2Message.BuildM2(encoded.ToArray()));
             Assert.IsTrue(fields.ContainsKey(expectedKey), "the list field itself");
-            Assert.AreEqual("msg[]", fields[expectedKey].Item1);
-            return ((List<Dictionary<int, Tuple<string, object>>>)fields[expectedKey].Item2)
-                .Select(e => e.ToDictionary(kv => kv.Key, kv => kv.Value.Item2))
+            Assert.AreEqual("msg[]", fields[expectedKey].TraceName);
+            return ((List<M2Record>)fields[expectedKey].Value)
+                .Select(e => e.ToDictionary(kv => kv.Key, kv => kv.Value.Value))
                 .ToList();
         }
 
@@ -153,7 +153,7 @@ namespace tik4net.unittests.Winbox
                 Resolver(QueueWindow, "/queue/simple", QueueHandler)
                     .EncodeField("target", "192.168.251.0/24").ToArray()));
 
-            Assert.AreEqual(true, fields[0x75].Item2);
+            Assert.AreEqual(true, fields[0x75].Value);
         }
 
         // ── tuple ──────────────────────────────────────────────────────────────

@@ -294,7 +294,7 @@ namespace tik4net.WinboxCli
                 }
 
                 bool logout = M2Message.ParseAllFields(frame).TryGetValue(WinboxM2Protocol.SysKey.Command, out var command)
-                    && command.Item2 != null && Convert.ToInt64(command.Item2) == WinboxM2Protocol.Command.Logout;
+                    && command.Value != null && Convert.ToInt64(command.Value) == WinboxM2Protocol.Command.Logout;
                 string what = (logout ? "a logout push " : "a frame ") + M2Message.Describe(frame);
                 skipped.Add(what);
                 if (TikWireTrace.Enabled)

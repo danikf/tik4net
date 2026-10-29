@@ -21,13 +21,13 @@ namespace tik4net.unittests.Winbox
         private const int SentinelKey = 0xFF0006;
 
         // 'M2' + one field (key 5, the type byte, the value bytes) + a u8 sentinel 0xFF0006 = 42.
-        private static Dictionary<int, Tuple<string, object>> Parse(byte type, params byte[] value)
+        private static M2Record Parse(byte type, params byte[] value)
         {
             var frame = new List<byte> { (byte)'M', (byte)'2', Key, 0, 0, type };
             frame.AddRange(value);
             frame.AddRange(new byte[] { 0x06, 0x00, 0xFF, 0x09, 42 });
             var fields = M2Message.ParseAllFields(frame.ToArray());
-            Assert.AreEqual((byte)42, fields[SentinelKey].Item2, "the field after must still be read");
+            Assert.AreEqual((byte)42, fields[SentinelKey].Value, "the field after must still be read");
             return fields;
         }
 
@@ -36,11 +36,11 @@ namespace tik4net.unittests.Winbox
         private static byte[] Cat(params byte[][] parts) => parts.SelectMany(p => p).ToArray();
         private static byte[] Ascii(string s) => System.Text.Encoding.ASCII.GetBytes(s);
 
-        private static void AssertField(Dictionary<int, Tuple<string, object>> fields, string type, string value)
+        private static void AssertField(M2Record fields, string type, string value)
         {
             Assert.IsTrue(fields.ContainsKey(Key), "the field was skipped");
-            Assert.AreEqual(type, fields[Key].Item1);
-            Assert.AreEqual(value, fields[Key].Item2?.ToString());
+            Assert.AreEqual(type, fields[Key].TraceName);
+            Assert.AreEqual(value, fields[Key].Value?.ToString());
         }
 
         [TestMethod]

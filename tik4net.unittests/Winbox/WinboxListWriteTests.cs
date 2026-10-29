@@ -56,7 +56,7 @@ namespace tik4net.unittests.Winbox
             => new WinboxFieldResolver(apiPath, handler, Parse(body), new Dictionary<string, int>());
 
         // The one encoded field, read back through the real M2 parser.
-        private static KeyValuePair<int, Tuple<string, object>> Decoded(IList<byte[]> encoded)
+        private static KeyValuePair<int, M2Value> Decoded(IList<byte[]> encoded)
         {
             Assert.AreEqual(1, encoded.Count, "expected exactly one encoded field");
             var fields = M2Message.ParseAllFields(M2Message.BuildM2(encoded.ToArray()));
@@ -73,9 +73,9 @@ namespace tik4net.unittests.Winbox
                 .EncodeField("doh-servers", "https://one.example/dns-query, https://two.example/dns-query"));
 
             Assert.AreEqual(0x2, doh.Key);
-            Assert.AreEqual("str[]", doh.Value.Item1, "one array field, not two string fields");
+            Assert.AreEqual("str[]", doh.Value.TraceName, "one array field, not two string fields");
             Assert.AreEqual("[https://one.example/dns-query,https://two.example/dns-query]",
-                            doh.Value.Item2.ToString());
+                            doh.Value.Value.ToString());
         }
 
         [TestMethod]
@@ -86,8 +86,8 @@ namespace tik4net.unittests.Winbox
             var doh = Decoded(Resolver(ForwarderWindow, "/ip/dns/forwarders", ForwarderHandler)
                 .EncodeField("doh-servers", ""));
 
-            Assert.AreEqual("str[]", doh.Value.Item1);
-            Assert.AreEqual("[]", doh.Value.Item2.ToString());
+            Assert.AreEqual("str[]", doh.Value.TraceName);
+            Assert.AreEqual("[]", doh.Value.Value.ToString());
         }
 
         [TestMethod]
@@ -97,9 +97,9 @@ namespace tik4net.unittests.Winbox
                 .EncodeField("dns-servers", "8.8.8.8,1.1.1.1"));
 
             Assert.AreEqual(0x4, dns.Key);
-            Assert.AreEqual("u32[]", dns.Value.Item1);
+            Assert.AreEqual("u32[]", dns.Value.TraceName);
             // Octet-LSB, the same packing a scalar ipaddr uses.
-            Assert.AreEqual("[134744072,16843009]", dns.Value.Item2.ToString());
+            Assert.AreEqual("[134744072,16843009]", dns.Value.Value.ToString());
         }
 
         [TestMethod]
@@ -109,8 +109,8 @@ namespace tik4net.unittests.Winbox
                 .EncodeField("valid-servers", "AA:BB:CC:DD:EE:FF,00:11:22:33:44:55"));
 
             Assert.AreEqual(0x2, macs.Key);
-            Assert.AreEqual("raw[]", macs.Value.Item1);
-            Assert.AreEqual("[AABBCCDDEEFF,001122334455]", macs.Value.Item2.ToString());
+            Assert.AreEqual("raw[]", macs.Value.TraceName);
+            Assert.AreEqual("[AABBCCDDEEFF,001122334455]", macs.Value.Value.ToString());
         }
 
         [TestMethod]
@@ -120,9 +120,9 @@ namespace tik4net.unittests.Winbox
                 .EncodeField("capsman-addresses", "2001:db8::1,::1"));
 
             Assert.AreEqual(0x6, addrs.Key);
-            Assert.AreEqual("ip6[]", addrs.Value.Item1);
+            Assert.AreEqual("ip6[]", addrs.Value.TraceName);
             Assert.AreEqual("[20010DB8000000000000000000000001,00000000000000000000000000000001]",
-                            addrs.Value.Item2.ToString());
+                            addrs.Value.Value.ToString());
         }
 
         [TestMethod]
@@ -145,13 +145,13 @@ namespace tik4net.unittests.Winbox
                 .EncodeField("dns-servers", "8.8.8.8,2001:db8::1"));
 
             Assert.AreEqual(0x3, servers.Key);
-            Assert.AreEqual("msg[]", servers.Value.Item1);
+            Assert.AreEqual("msg[]", servers.Value.TraceName);
 
-            var elements = (List<Dictionary<int, Tuple<string, object>>>)servers.Value.Item2;
+            var elements = (List<M2Record>)servers.Value.Value;
             Assert.AreEqual(2, elements.Count);
             // Each element is a whole submessage, with the address at the sub-key its FORM calls for.
             Assert.AreEqual(134744072L,
-                Convert.ToInt64(elements[0][WinboxFieldResolver.AddrV4SubKey].Item2), "the IPv4 sub-key");
+                Convert.ToInt64(elements[0][WinboxFieldResolver.AddrV4SubKey].Value), "the IPv4 sub-key");
             Assert.IsTrue(elements[1].ContainsKey(WinboxFieldResolver.AddrV6SubKey), "the IPv6 sub-key");
         }
 

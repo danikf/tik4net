@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
+using tik4net.Winbox;
 
 namespace tik4net.unittests.Golden
 {
@@ -21,14 +22,14 @@ namespace tik4net.unittests.Golden
         }
 
         /// <summary>A decoded M2 field dictionary, keys sorted, each value as <c>type:value</c>.</summary>
-        internal static string Fields(Dictionary<int, Tuple<string, object>>? fields)
+        internal static string Fields(M2Record? fields)
         {
             if (fields == null) return "null";
             return "{" + string.Join(" ", fields.OrderBy(kv => kv.Key)
-                .Select(kv => "0x" + kv.Key.ToString("X", CultureInfo.InvariantCulture) + "=" + kv.Value.Item1 + ":" + Value(kv.Value.Item2))) + "}";
+                .Select(kv => "0x" + kv.Key.ToString("X", CultureInfo.InvariantCulture) + "=" + kv.Value.TraceName + ":" + Value(kv.Value.Value))) + "}";
         }
 
-        internal static string Records(List<Dictionary<int, Tuple<string, object>>>? records)
+        internal static string Records(List<M2Record>? records)
             => records == null ? "null" : "[" + string.Join(",", records.Select(Fields)) + "]";
 
         internal static string Value(object? value)
@@ -37,8 +38,8 @@ namespace tik4net.unittests.Golden
             {
                 case null: return "null";
                 case byte[] b: return "bytes:" + Bytes(b);
-                case Dictionary<int, Tuple<string, object>> d: return Fields(d);
-                case List<Dictionary<int, Tuple<string, object>>> l: return Records(l);
+                case M2Record d: return Fields(d);
+                case List<M2Record> l: return Records(l);
                 case IFormattable f: return f.ToString(null, CultureInfo.InvariantCulture);
                 case string s: return "'" + (s.Length > 200 ? s.Substring(0, 200) + "…(" + s.Length + ")" : s) + "'";
                 default: return value.ToString() ?? "";

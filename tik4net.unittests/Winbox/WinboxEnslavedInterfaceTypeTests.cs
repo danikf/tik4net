@@ -24,13 +24,13 @@ namespace tik4net.unittests.Winbox
 
         private static readonly int[] Interface = { 20, 0 };
 
-        private static Dictionary<int, Tuple<string, object>> Row(uint id, string name, uint typeId, string wire, object typeKey)
-            => new Dictionary<int, Tuple<string, object>>
+        private static M2Record Row(uint id, string name, uint typeId, M2Type wire, object typeKey)
+            => new M2Record
             {
-                [0xFE0001] = Tuple.Create("u32", (object)id),
-                [0x10006] = Tuple.Create("str", (object)name),
-                [0x10001] = Tuple.Create("u32", (object)typeId),
-                [0x1001E] = Tuple.Create(wire, typeKey),
+                [0xFE0001] = new M2Value(M2Type.U32, id),
+                [0x10006] = new M2Value(M2Type.String, name),
+                [0x10001] = new M2Value(M2Type.U32, typeId),
+                [0x1001E] = new M2Value(wire, typeKey),
             };
 
         private static (WinboxRecordCodec codec, IReadOnlyDictionary<int, string> names, IReadOnlyDictionary<int, WinboxJgField> fields) Setup()
@@ -45,8 +45,8 @@ namespace tik4net.unittests.Winbox
         public void AnEnslavedInterfaceIsNamedByItsTypeIdEvenWhenItsPeerComesLater()
         {
             var (codec, names, fields) = Setup();
-            var slave = Row(3, "ether2", 1, "u32", 1840u);
-            var peer = Row(2, "ether1", 1, "str", "ether");
+            var slave = Row(3, "ether2", 1, M2Type.U32, 1840u);
+            var peer = Row(2, "ether1", 1, M2Type.String, "ether");
 
             codec.LearnKindWords(new[] { slave, peer }, fields);   // the list read learns the whole batch first
 
@@ -60,8 +60,8 @@ namespace tik4net.unittests.Winbox
             // A lone EoIP tunnel enslaved to a bond: nothing in the answer names type id 22, and the master's id
             // is not a type.
             var (codec, names, fields) = Setup();
-            var slave = Row(9, "t4n-eoip", 22, "u32", 1840u);
-            var other = Row(2, "ether1", 1, "str", "ether");
+            var slave = Row(9, "t4n-eoip", 22, M2Type.U32, 1840u);
+            var other = Row(2, "ether1", 1, M2Type.String, "ether");
 
             codec.LearnKindWords(new[] { slave, other }, fields);
 
@@ -72,9 +72,9 @@ namespace tik4net.unittests.Winbox
         public void ANameLearnedOnOneReadNamesASlaveOnTheNext()
         {
             var (codec, names, fields) = Setup();
-            codec.DecodeRecord(Row(2, "ether1", 1, "str", "ether"), names, fields);
+            codec.DecodeRecord(Row(2, "ether1", 1, M2Type.String, "ether"), names, fields);
 
-            Assert.AreEqual("ether", codec.DecodeRecord(Row(3, "ether2", 1, "u32", 1840u), names, fields)["type"]);
+            Assert.AreEqual("ether", codec.DecodeRecord(Row(3, "ether2", 1, M2Type.U32, 1840u), names, fields)["type"]);
         }
     }
 }

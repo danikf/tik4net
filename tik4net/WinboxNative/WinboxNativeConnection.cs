@@ -720,7 +720,7 @@ namespace tik4net.WinboxNative
 
             // Singleton tables (type:'item' window, e.g. /system/resource, /ip/dns) expose a single record
             // read via get-singleton; everything else lists via getall.
-            List<Dictionary<int, Tuple<string, object>>> records;
+            List<M2Record> records;
             try
             {
                 if (IsSingletonWindow(apiPath, handler))
@@ -730,8 +730,8 @@ namespace tik4net.WinboxNative
                             WinboxM2Protocol.GetAllFlags | _catalog.GetWindowReadFlags(handler), getCommand)
                         .ConfigureAwait(false);
                     records = (one != null && one.Count > 0)
-                        ? new List<Dictionary<int, Tuple<string, object>>> { one }
-                        : new List<Dictionary<int, Tuple<string, object>>>();
+                        ? new List<M2Record> { one }
+                        : new List<M2Record>();
                 }
                 else
                 {
@@ -752,11 +752,11 @@ namespace tik4net.WinboxNative
                     // is not a number is a different thing: our model of the field is wrong, and dropping the
                     // row silently shortens the result set — a missing row reads exactly like "the router has
                     // none". It is still dropped (including it would be a guess), but it says so.
-                    if (!r.TryGetValue(typeKey, out var t) || t.Item2 == null) return false;
-                    if (WinboxValueFormat.TryToInt64(t.Item2, out long tv)) return tv == typeValue;
+                    if (!r.TryGetValue(typeKey, out var t) || t.Value == null) return false;
+                    if (WinboxValueFormat.TryToInt64(t.Value, out long tv)) return tv == typeValue;
                     if (TikWireTrace.Enabled)
                         TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
-                            $"subtype key {typeKey} of {apiPath} is '{t.Item2}' ({t.Item2.GetType().Name}), " +
+                            $"subtype key {typeKey} of {apiPath} is '{t.Value}' ({t.Value.GetType().Name}), " +
                             "not a number — row dropped from the result");
                     return false;
                 }).ToList();
@@ -1238,7 +1238,7 @@ namespace tik4net.WinboxNative
                 var field = pair.Value;
                 result.Add((apiName, field, value =>
                 {
-                    var rec = new Dictionary<int, Tuple<string, object>> { [field.Key] = Tuple.Create(field.WireType, value) };
+                    var rec = new M2Record { [field.Key] = new M2Value(M2Types.FromJgName(field.WireType), value) };
                     return codec.DecodeRecord(rec, names, fields).TryGetValue(apiName, out string? text) ? text : null;
                 }));
             }

@@ -47,17 +47,17 @@ namespace tik4net.unittests.Winbox
             => new WinboxFieldResolver(apiPath, handler, catalog, new Dictionary<string, int>());
 
         private static Dictionary<string, string> Decode(
-            WinboxJgCatalog catalog, string apiPath, int[] handler, Dictionary<int, Tuple<string, object>> rec)
+            WinboxJgCatalog catalog, string apiPath, int[] handler, M2Record rec)
         {
             var resolver = Resolver(catalog, apiPath, handler);
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
-        private static Dictionary<int, Tuple<string, object>> Rec(params (int key, string type, object val)[] fields)
+        private static M2Record Rec(params (int key, M2Type type, object val)[] fields)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return rec;
         }
 
@@ -80,9 +80,9 @@ namespace tik4net.unittests.Winbox
             // prints it. Counted as mark-packet's alone, it was dropped as another kind's field.
             var catalog = Parse(MangleWindow);
             var markConnection = Decode(catalog, "/ip/firewall/mangle", new[] { 20, 7 },
-                Rec((0x28, "u32", 31L), (0x3F1, "bool", false), (0x3EC, "string", "c1")));
+                Rec((0x28, M2Type.U32, 31L), (0x3F1, M2Type.Bool, false), (0x3EC, M2Type.String, "c1")));
             var jump = Decode(catalog, "/ip/firewall/mangle", new[] { 20, 7 },
-                Rec((0x28, "u32", 1L), (0x3F1, "bool", true), (0x29, "string", "t")));
+                Rec((0x28, M2Type.U32, 1L), (0x3F1, M2Type.Bool, true), (0x29, M2Type.String, "t")));
 
             Assert.AreEqual("false", markConnection["passthrough"]);
             Assert.IsFalse(jump.ContainsKey("passthrough"), "a jump rule has no passthrough - no pane of its kind shows it");
@@ -134,9 +134,9 @@ namespace tik4net.unittests.Winbox
         {
             // target=memory (0). The API prints exactly name/target/memory-lines/memory-stop-on-full here.
             var decoded = Decode(Parse(LogActionWindow), "/system/logging/action", LogAction,
-                Rec((0x1, "str", "memory"), (0x2, "u32", (uint)0),
-                    (0x3, "u32", (uint)1000), (0x4, "bool", false),
-                    (0x10, "str", "log"), (0x5, "u32", (uint)100), (0x6, "bool", true)));
+                Rec((0x1, M2Type.String, "memory"), (0x2, M2Type.U32, (uint)0),
+                    (0x3, M2Type.U32, (uint)1000), (0x4, M2Type.Bool, false),
+                    (0x10, M2Type.String, "log"), (0x5, M2Type.U32, (uint)100), (0x6, M2Type.Bool, true)));
 
             Assert.AreEqual("1000", decoded["memory-lines"]);
             Assert.AreEqual("false", decoded["memory-stop-on-full"]);
@@ -148,9 +148,9 @@ namespace tik4net.unittests.Winbox
         {
             // The router sends the disk pane's keys on a memory row too; RouterOS's API reports none of them.
             var decoded = Decode(Parse(LogActionWindow), "/system/logging/action", LogAction,
-                Rec((0x2, "u32", (uint)0),
-                    (0x3, "u32", (uint)1000),
-                    (0x10, "str", "log"), (0x5, "u32", (uint)100), (0x6, "bool", true)));
+                Rec((0x2, M2Type.U32, (uint)0),
+                    (0x3, M2Type.U32, (uint)1000),
+                    (0x10, M2Type.String, "log"), (0x5, M2Type.U32, (uint)100), (0x6, M2Type.Bool, true)));
 
             Assert.IsFalse(decoded.ContainsKey("disk-file-name"), "a memory action has no disk settings");
             Assert.IsFalse(decoded.ContainsKey("disk-stop-on-full"));
@@ -162,9 +162,9 @@ namespace tik4net.unittests.Winbox
         public void TheDiskPaneIsReportedOnADiskRecord()
         {
             var decoded = Decode(Parse(LogActionWindow), "/system/logging/action", LogAction,
-                Rec((0x2, "u32", (uint)1),
-                    (0x3, "u32", (uint)1000), (0x4, "bool", false),
-                    (0x10, "str", "log"), (0x5, "u32", (uint)100), (0x11, "u32", (uint)2), (0x6, "bool", true)));
+                Rec((0x2, M2Type.U32, (uint)1),
+                    (0x3, M2Type.U32, (uint)1000), (0x4, M2Type.Bool, false),
+                    (0x10, M2Type.String, "log"), (0x5, M2Type.U32, (uint)100), (0x11, M2Type.U32, (uint)2), (0x6, M2Type.Bool, true)));
 
             Assert.AreEqual("log", decoded["disk-file-name"]);
             Assert.AreEqual("100", decoded["disk-lines-per-file"]);
@@ -179,7 +179,7 @@ namespace tik4net.unittests.Winbox
             // A record with no kind shows no pane: a mangle rule with no action prints no passthrough over the
             // API or the CLI (7.24.4), while its M2 record carries the key.
             var decoded = Decode(Parse(LogActionWindow), "/system/logging/action", LogAction,
-                Rec((0x3, "u32", (uint)1000), (0x10, "str", "log")));
+                Rec((0x3, M2Type.U32, (uint)1000), (0x10, M2Type.String, "log")));
 
             Assert.IsFalse(decoded.ContainsKey("memory-lines"));
             Assert.IsFalse(decoded.ContainsKey("disk-file-name"));
@@ -192,8 +192,8 @@ namespace tik4net.unittests.Winbox
             // for two of them, so a path that is not in the shipped table must decode exactly as before:
             // plain names, and the second pane's shadowed field still absent (never under the first's name).
             var decoded = Decode(Parse(LogActionWindow), "/not/shipped/here", LogAction,
-                Rec((0x2, "u32", (uint)1), (0x3, "u32", (uint)1000), (0x4, "bool", false),
-                    (0x10, "str", "log"), (0x6, "bool", true)));
+                Rec((0x2, M2Type.U32, (uint)1), (0x3, M2Type.U32, (uint)1000), (0x4, M2Type.Bool, false),
+                    (0x10, M2Type.String, "log"), (0x6, M2Type.Bool, true)));
 
             Assert.IsFalse(decoded.ContainsKey("memory-lines"), "this path is not opted in");
             Assert.AreEqual("log", decoded["file-name"], "the plain names are untouched");
@@ -229,13 +229,13 @@ namespace tik4net.unittests.Winbox
             // value field. Reporting the pane's empty string instead gave the mapper a my-id it could not
             // convert to the enum.
             var auto = Decode(catalog, "/ip/ipsec/identity", new[] { 85, 3 },
-                Rec((0xE, "u32", (uint)100), (0x11, "str", "")));
+                Rec((0xE, M2Type.U32, (uint)100), (0x11, M2Type.String, "")));
             Assert.IsFalse(auto.ContainsKey("my-id"), "no pane is live for 'auto'");
 
             // my-id-type = fqdn (1): the pane IS live, so its value is reported (under its plain name — the
             // API's composed "fqdn:host" spelling is not something this path claims to produce).
             var fqdn = Decode(catalog, "/ip/ipsec/identity", new[] { 85, 3 },
-                Rec((0xE, "u32", (uint)1), (0x11, "str", "host.example.com")));
+                Rec((0xE, M2Type.U32, (uint)1), (0x11, M2Type.String, "host.example.com")));
             Assert.AreEqual("host.example.com", fqdn["my-id"]);
         }
 
@@ -287,9 +287,9 @@ namespace tik4net.unittests.Winbox
         public void AQueueTypeRecordReportsOnlyItsOwnKind()
         {
             var decoded = Decode(Parse(QueueTypeWindow), "/queue/type", QueueTypeHandler,
-                Rec((0x16, "str", "pcq-download-default"), (0x15, "u32", (uint)5),
-                    (0x1F5, "u32", (uint)0), (0x1F6, "u32", (uint)50),
-                    (0x12D, "u32", (uint)60), (0x2BD, "u32", (uint)1000)));
+                Rec((0x16, M2Type.String, "pcq-download-default"), (0x15, M2Type.U32, (uint)5),
+                    (0x1F5, M2Type.U32, (uint)0), (0x1F6, M2Type.U32, (uint)50),
+                    (0x12D, M2Type.U32, (uint)60), (0x2BD, M2Type.U32, (uint)1000)));
 
             Assert.AreEqual("pcq-download-default", decoded["name"], "'Type Name' is the API's 'name'");
             Assert.AreEqual("pcq", decoded["kind"]);

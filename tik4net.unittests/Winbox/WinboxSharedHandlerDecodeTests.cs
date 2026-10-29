@@ -21,13 +21,13 @@ namespace tik4net.unittests.Winbox
     public class WinboxSharedHandlerDecodeTests
     {
         private static Dictionary<string, string> Decode(string catalogText, string apiPath, int[] handler,
-            string windowKey, params (int key, string wire, object value)[] fields)
+            string windowKey, params (int key, M2Type wire, object value)[] fields)
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(catalogText), "the trimmed catalog must parse");
             var resolver = new WinboxFieldResolver(apiPath, handler, catalog, new Dictionary<string, int>(),
                 windowKey: windowKey);
-            var rec = fields.ToDictionary(f => f.key, f => Tuple.Create(f.wire, f.value));
+            var rec = fields.ToM2Record(f => f.key, f => new M2Value(f.wire, f.value));
             return new WinboxRecordCodec(null, catalog).DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField(), resolver.DerivedBoolFields);
         }
 
@@ -42,7 +42,7 @@ namespace tik4net.unittests.Winbox
                 "{name:'Forced External IP',type:'opt',id:'b3',c:[{type:'ipaddr',id:'u4'}]}]}]}]";
 
             var decoded = Decode(upnp, "/ip/upnp", new[] { 28, 0 }, null,
-                (0x1, "bool", (object)true), (0x3, "bool", (object)true));
+                (0x1, M2Type.Bool, (object)true), (0x3, M2Type.Bool, (object)true));
 
             Assert.AreEqual("true", decoded["show-dummy-rule"],
                 "the interface list's opt flag is not a reason to drop the settings' own field on that key");
@@ -65,7 +65,7 @@ namespace tik4net.unittests.Winbox
             Assert.IsNotNull(windowKey, "the subtype window must be harvested under a derived path");
 
             var decoded = Decode(ipip, "/interface/ipip", new[] { 20, 0 }, windowKey,
-                (0x3E9, "u32", (object)687891210u));
+                (0x3E9, M2Type.U32, (object)687891210u));
 
             Assert.AreEqual("10.99.0.41", decoded["local-address"]);
             Assert.IsFalse(decoded.ContainsKey("mac-address"), "the key is not a MAC on an IPIP tunnel");
@@ -77,7 +77,7 @@ namespace tik4net.unittests.Winbox
             // /interface/ethernet ships a set of its own; the /interface set's by-key counter names (0x100FC is
             // rx-byte) still apply to its rows, which are rows of the generic interface table.
             var decoded = Decode("[]", "/interface/ethernet", new[] { 20, 0 }, null,
-                (0x100FC, "u64", (object)1234ul), (0x1000D, "bool", (object)false));
+                (0x100FC, M2Type.U64, (object)1234ul), (0x1000D, M2Type.Bool, (object)false));
 
             Assert.AreEqual("1234", decoded["rx-byte"]);
             Assert.AreEqual("false", decoded["disable-running-check"], "and its own synthetic still applies");
@@ -87,12 +87,12 @@ namespace tik4net.unittests.Winbox
         public void TheStateFlagIsNamedAsTheApiNamesItPerPath()
         {
             // 0xFE0008: `inactive` on the routing tables, `invalid` on a VRRP interface (7.24.2, seeded rows).
-            var rule = Decode("[]", "/routing/rule", new[] { 44, 18 }, null, (0xFE0008, "bool", (object)true));
+            var rule = Decode("[]", "/routing/rule", new[] { 44, 18 }, null, (0xFE0008, M2Type.Bool, (object)true));
             Assert.AreEqual("true", rule["inactive"]);
             Assert.IsFalse(rule.ContainsKey("invalid"));
 
             var vrrp = Decode("[]", "/interface/vrrp", new[] { 20, 0 }, null,
-                (0xFE0008, "bool", (object)true), (0x13, "string", (object)"none"));
+                (0xFE0008, M2Type.Bool, (object)true), (0x13, M2Type.String, (object)"none"));
             Assert.AreEqual("true", vrrp["invalid"]);
             Assert.AreEqual("none", vrrp["on-fail"], "a key no window declares, moved on a seeded row");
         }
@@ -100,8 +100,8 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AHotspotRowIsTheDefaultExactlyWhenItIsTheShippedRow()
         {
-            var shipped = Decode("[]", "/ip/hotspot/user/profile", new[] { 63, 3 }, null, (0xFE0001, "u32", (object)0u));
-            var added = Decode("[]", "/ip/hotspot/user/profile", new[] { 63, 3 }, null, (0xFE0001, "u32", (object)5u));
+            var shipped = Decode("[]", "/ip/hotspot/user/profile", new[] { 63, 3 }, null, (0xFE0001, M2Type.U32, (object)0u));
+            var added = Decode("[]", "/ip/hotspot/user/profile", new[] { 63, 3 }, null, (0xFE0001, M2Type.U32, (object)5u));
 
             Assert.AreEqual("true", shipped["default"]);
             Assert.AreEqual("false", added["default"]);
@@ -111,15 +111,15 @@ namespace tik4net.unittests.Winbox
         public void KeysNoWindowDeclaresAreReadUnderTheApiNames()
         {
             // Each measured on 7.24.2: the value moved on a seeded row, or the one key holding the API's value.
-            var resource = Decode("[]", "/system/resource", new[] { 24, 2 }, null, (0x1B, "string", (object)"MikroTik"));
+            var resource = Decode("[]", "/system/resource", new[] { 24, 2 }, null, (0x1B, M2Type.String, (object)"MikroTik"));
             Assert.AreEqual("MikroTik", resource["platform"]);
 
             var ether = Decode("[]", "/interface/ethernet", new[] { 20, 0 }, null,
-                (0x404, "raw", (object)new byte[] { 0x02, 0x00, 0x00, 0xAA, 0xBB, 0xCC }));
+                (0x404, M2Type.Raw, (object)new byte[] { 0x02, 0x00, 0x00, 0xAA, 0xBB, 0xCC }));
             Assert.AreEqual("02:00:00:AA:BB:CC", ether["orig-mac-address"]);
 
             var server = Decode("[]", "/ip/dhcp-server", new[] { 23, 0 }, null,
-                (0x1E, "str[]", (object)"[t4n-dsal]"));
+                (0x1E, M2Type.StringArray, (object)"[t4n-dsal]"));
             Assert.AreEqual("t4n-dsal", server["address-lists"]);
         }
 
@@ -130,8 +130,8 @@ namespace tik4net.unittests.Winbox
                 "[{name:'DHCP',c:[{title:'Leases',type:'map',path:[ 23,1 ],c:[" +
                 "{name:'Block Access',type:'bool',id:'b7e'}]}]}]";
 
-            var blocked = Decode(leases, "/ip/dhcp-server/lease", new[] { 23, 1 }, null, (0x7E, "bool", (object)true));
-            var open = Decode(leases, "/ip/dhcp-server/lease", new[] { 23, 1 }, null, (0x7E, "bool", (object)false));
+            var blocked = Decode(leases, "/ip/dhcp-server/lease", new[] { 23, 1 }, null, (0x7E, M2Type.Bool, (object)true));
+            var open = Decode(leases, "/ip/dhcp-server/lease", new[] { 23, 1 }, null, (0x7E, M2Type.Bool, (object)false));
 
             Assert.AreEqual("true", blocked["blocked"]);
             Assert.AreEqual("false", open["blocked"]);
@@ -149,11 +149,11 @@ namespace tik4net.unittests.Winbox
                 "{type:'interval',id:'u7d5',def:10,min:1},{type:'number',id:'u7d9',def:10,min:1}]}]}]}]}]";
 
             var on = Decode(eoip, "/interface/eoip", new[] { 20, 0 }, null,
-                (0x7D4, "bool", (object)true), (0x7D5, "u32", (object)7u), (0x7D9, "u32", (object)3u));
+                (0x7D4, M2Type.Bool, (object)true), (0x7D5, M2Type.U32, (object)7u), (0x7D9, M2Type.U32, (object)3u));
             Assert.AreEqual("7s,3", on["keepalive"]);
 
             var off = Decode(eoip, "/interface/eoip", new[] { 20, 0 }, null,
-                (0x7D4, "bool", (object)false), (0x7D5, "u32", (object)10u), (0x7D9, "u32", (object)10u));
+                (0x7D4, M2Type.Bool, (object)false), (0x7D5, M2Type.U32, (object)10u), (0x7D9, M2Type.U32, (object)10u));
             Assert.IsFalse(off.ContainsKey("keepalive"), "the option is off, so the API prints no keepalive");
         }
 
@@ -169,14 +169,14 @@ namespace tik4net.unittests.Winbox
             var resolver = new WinboxFieldResolver("/interface/eoip", new[] { 20, 0 }, catalog,
                 new Dictionary<string, int>());
 
-            var back = new Dictionary<int, Tuple<string, object>>();
+            var back = new M2Record();
             foreach (var piece in resolver.EncodeField("keepalive", "7s,3"))
                 foreach (var kv in M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(), piece)))
                     back[kv.Key] = kv.Value;
 
-            Assert.AreEqual(true, back[0x7D4].Item2, "the option has to be switched on or the router ignores the parts");
-            Assert.AreEqual("7", back[0x7D5].Item2.ToString());
-            Assert.AreEqual("3", back[0x7D9].Item2.ToString());
+            Assert.AreEqual(true, back[0x7D4].Value, "the option has to be switched on or the router ignores the parts");
+            Assert.AreEqual("7", back[0x7D5].Value.ToString());
+            Assert.AreEqual("3", back[0x7D9].Value.ToString());
         }
 
         [TestMethod]
@@ -189,7 +189,7 @@ namespace tik4net.unittests.Winbox
                 "{vals:[ 2 ],c:[{name:'MII Interval',type:'number',id:'u7d7',def:100,postfix:'ms'}]}],selon:'Link Monitoring'}]}]}]";
 
             var decoded = Decode(bonding, "/interface/bonding", new[] { 20, 0 }, null,
-                (0x7D4, "u32", (object)2u), (0x7D5, "u32", (object)100u), (0x7D7, "u32", (object)100u));
+                (0x7D4, M2Type.U32, (object)2u), (0x7D5, M2Type.U32, (object)100u), (0x7D7, M2Type.U32, (object)100u));
 
             Assert.AreEqual("100ms", decoded["arp-interval"], "the API prints it on a mii bond");
             Assert.AreEqual("100ms", decoded["mii-interval"]);

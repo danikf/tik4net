@@ -113,7 +113,7 @@ namespace tik4net.Winbox
                 RomonSettingsHandler, WinboxM2Protocol.Command.GetSingleton, _agent.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, WinboxM2Protocol.GetAllFlags)), timeoutMs, host, "read of its RoMON settings");
             var fields = M2Message.ParseAllFields(reply);
-            bool enabled = fields.TryGetValue(KeySettingsEnabled, out var e) && e.Item2 is bool b && b;
+            bool enabled = fields.TryGetValue(KeySettingsEnabled, out var e) && e.Value is bool b && b;
             byte[]? id = M2Message.ParseUserBytes(reply, KeySettingsCurrentId);
             if (!enabled || id == null || id.Length != 6)
                 throw new TikRomonRelayException(TikRomonRelayFailure.RomonNotEnabledOnAgent,

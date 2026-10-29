@@ -18,7 +18,7 @@ namespace tik4net.Winbox
         // from raw bytes, static enums back to their string label, dynamic enum references back to the
         // referenced record's name. Falls back to the wire-type formatter.
         private string FormatTyped(WinboxJgField? jf, string wireType, object value,
-            Dictionary<int, Tuple<string, object>> rec, Dictionary<string, int[]>? collectRefTables)
+            M2Record rec, Dictionary<string, int[]>? collectRefTables)
         {
             if (jf != null && value != null)
             {
@@ -33,7 +33,7 @@ namespace tik4net.Winbox
                     case WinboxFieldResolver.FirewallTosUiType:
                     {
                         WinboxValueFormat.TryToInt64(value, out long tos);
-                        long mask = rec.TryGetValue(0x1CA, out var mt) && WinboxValueFormat.TryToInt64(mt.Item2, out long m) ? m : 255;
+                        long mask = rec.TryGetValue(0x1CA, out var mt) && WinboxValueFormat.TryToInt64(mt.Value, out long m) ? m : 255;
                         return "0x" + tos.ToString("X", CultureInfo.InvariantCulture)
                              + (mask == 255 ? "" : "/0x" + mask.ToString("X", CultureInfo.InvariantCulture));
                     }
@@ -45,7 +45,7 @@ namespace tik4net.Winbox
                         // 'portid' (MaskKey), left out when absent or 0, as the 6.x API prints a connection.
                         string addr = WinboxValueFormat.IpFromU32(value);
                         long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
-                                    && WinboxValueFormat.TryToInt64(pt.Item2, out long p) ? p : 0;
+                                    && WinboxValueFormat.TryToInt64(pt.Value, out long p) ? p : 0;
                         return port == 0 ? addr : addr + ":" + port.ToString(CultureInfo.InvariantCulture);
                     }
                     case "netmask":
@@ -57,11 +57,11 @@ namespace tik4net.Winbox
                     case "network":
                     {
                         string addr = WinboxValueFormat.IpFromU32(value);
-                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var mt) && mt.Item2 != null)
+                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var mt) && mt.Value != null)
                         {
                             if (jf.IsRange)
-                                return WinboxValueFormat.FormatV4Range(value, mt.Item2);
-                            return addr + "/" + WinboxValueFormat.MaskToPrefix(mt.Item2);
+                                return WinboxValueFormat.FormatV4Range(value, mt.Value);
+                            return addr + "/" + WinboxValueFormat.MaskToPrefix(mt.Value);
                         }
                         return addr;
                     }
@@ -80,8 +80,8 @@ namespace tik4net.Winbox
                         // read '::' where the API says '::/0'.
                         string addr6 = value is byte[] b6
                             ? WinboxValueFormat.IpV6FromBytes(b6) : value.ToString()!;
-                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var m6) && m6.Item2 != null)
-                            return addr6 + "/" + (WinboxValueFormat.TryToInt64(m6.Item2, out long n6)
+                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var m6) && m6.Value != null)
+                            return addr6 + "/" + (WinboxValueFormat.TryToInt64(m6.Value, out long n6)
                                 ? n6 : 0).ToString(CultureInfo.InvariantCulture);
                         return addr6;
                     }
@@ -97,8 +97,8 @@ namespace tik4net.Winbox
 
                         string up = FormatTyped(upField, upField.WireType, value, rec, collectRefTables);
                         string down = "0";
-                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var other) && other.Item2 != null)
-                            down = FormatTyped(downField, downField.WireType, other.Item2, rec, collectRefTables);
+                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var other) && other.Value != null)
+                            down = FormatTyped(downField, downField.WireType, other.Value, rec, collectRefTables);
                         return up + "/" + down;
                     }
                     case WinboxFieldResolver.AddrPortUiType:
@@ -107,7 +107,7 @@ namespace tik4net.Winbox
                         // rides on MaskKey and is consumed in DecodeRecord, so it appears only here.
                         string addr = WinboxValueFormat.IpFromU32(value);
                         long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
-                                    && WinboxValueFormat.TryToInt64(pt.Item2, out long p) ? p : 0;
+                                    && WinboxValueFormat.TryToInt64(pt.Value, out long p) ? p : 0;
                         return addr + ":" + port.ToString(CultureInfo.InvariantCulture);
                     }
                     case "integer":
@@ -290,7 +290,7 @@ namespace tik4net.Winbox
                         // The compound webfig 'addr' object, read back the way types.addr.tostr renders it:
                         // by SUB-KEY, not by position. The generic nested-message fallback returns the
                         // first member, which is right only when IPv4 is the one present.
-                        if (value is Dictionary<int, Tuple<string, object>> addrMsg)
+                        if (value is M2Record addrMsg)
                             return FormatAddr(addrMsg, collectRefTables);
                         break;
                     case WinboxFieldResolver.NumberNetmaskUiType:
@@ -298,8 +298,8 @@ namespace tik4net.Winbox
                         // connection-limit=10,24: the number and the netmask's prefix length, as the API prints it.
                         if (!WinboxValueFormat.TryToInt64(value, out long number)) break;
                         string limitText = number.ToString(CultureInfo.InvariantCulture);
-                        return rec.TryGetValue(jf.MaskKey, out var mt) && mt?.Item2 != null
-                            ? limitText + "," + WinboxValueFormat.MaskToPrefix(mt.Item2).ToString(CultureInfo.InvariantCulture)
+                        return rec.TryGetValue(jf.MaskKey, out var mt) && mt.Value != null
+                            ? limitText + "," + WinboxValueFormat.MaskToPrefix(mt.Value).ToString(CultureInfo.InvariantCulture)
                             : limitText;
                     }
                     case "numberrange":
@@ -307,8 +307,8 @@ namespace tik4net.Winbox
                         // webfig types.numberrange.tostr: the low end alone when both ends agree, else low-high —
                         // the API's packet-size=100-200. The high end rides MaskKey (WinboxJgCatalog.HighKeyOf).
                         if (jf.MaskKey == 0 || !WinboxValueFormat.TryToInt64(value, out long low)) break;
-                        long high = rec.TryGetValue(jf.MaskKey, out var ht) && ht?.Item2 != null
-                                    && WinboxValueFormat.TryToInt64(ht.Item2, out long h) ? h : low;
+                        long high = rec.TryGetValue(jf.MaskKey, out var ht) && ht.Value != null
+                                    && WinboxValueFormat.TryToInt64(ht.Value, out long h) ? h : low;
                         return high == low ? low.ToString(CultureInfo.InvariantCulture)
                             : low.ToString(CultureInfo.InvariantCulture) + "-" + high.ToString(CultureInfo.InvariantCulture);
                     }
@@ -320,7 +320,7 @@ namespace tik4net.Winbox
                         // A not-wrapped field renders the RouterOS '!' negation prefix (e.g. firewall "!80").
                         string list = FormatNumberRangeList(value);
                         bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
-                            && nt.Item2 is bool nb && nb;
+                            && nt.Value is bool nb && nb;
                         return negated ? "!" + list : list;
                     }
                     // A `multitristate` is a multibits whose members can each be NEGATED, and the
@@ -337,8 +337,8 @@ namespace tik4net.Winbox
                             break;
                         }
                         long offBits = 0;
-                        if (rec.TryGetValue(jf.MaskKey, out var maskT) && maskT?.Item2 != null
-                            && WinboxValueFormat.TryToInt64(maskT.Item2, out long mb))
+                        if (rec.TryGetValue(jf.MaskKey, out var maskT) && maskT.Value != null
+                            && WinboxValueFormat.TryToInt64(maskT.Value, out long mb))
                             offBits = mb;
                         // Plain members first, then the negated ones, each in bit order — which is how the
                         // router itself prints a mixed list: tcp-flags="!fin,syn,!urg,ack" reads back
@@ -355,7 +355,7 @@ namespace tik4net.Winbox
                         // The field-wide 'not' flag is the whole-list '!', which the API spells as a bare leading
                         // element: tcp-flags="!,ack,!syn" for 0xD3=true (7.24.5). Negated() leaves per-member lists
                         // alone, so it is rendered here or not at all.
-                        bool whole = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var notT) && notT?.Item2 is bool wn && wn;
+                        bool whole = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var notT) && notT.Value is bool wn && wn;
                         return whole && members.Length > 0 ? "!," + members : members;
                     }
                     // A `multibits` is a `set` under another name: types.multibits.get is
@@ -400,7 +400,7 @@ namespace tik4net.Winbox
                             .Select(kv => kv.Value);
                         string joined = string.Join(",", labels);
                         bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
-                            && nt.Item2 is bool nb && nb;
+                            && nt.Value is bool nb && nb;
                         return negated ? "!" + joined : joined;
                     }
                 }
@@ -412,7 +412,7 @@ namespace tik4net.Winbox
                 {
                     string on = FormatListElements(jf, value, collectRefTables);
                     rec.TryGetValue(jf.OffKey, out var offT);
-                    string off = FormatListElements(jf, offT?.Item2, collectRefTables);
+                    string off = FormatListElements(jf, offT.Value, collectRefTables);
                     var parts = new List<string>();
                     if (!string.IsNullOrEmpty(on)) parts.Add(on);
                     if (!string.IsNullOrEmpty(off))
@@ -741,18 +741,18 @@ namespace tik4net.Winbox
 
         private static long KindWordKey(int nameKey, long kindId) => ((long)nameKey << 32) ^ (kindId & 0xFFFFFFFFL);
 
-        private void Learn(WinboxJgField jf, Dictionary<int, Tuple<string, object>> rec, object value)
+        private void Learn(WinboxJgField jf, M2Record rec, object? value)
         {
             if (!(value is string word) || word.Length == 0) return;
-            if (!rec.TryGetValue(jf.KindIdKey, out var id) || !WinboxValueFormat.TryToInt64(id.Item2, out long kindId)) return;
+            if (!rec.TryGetValue(jf.KindIdKey, out var id) || !WinboxValueFormat.TryToInt64(id.Value, out long kindId)) return;
             lock (_kindWordsLock) _kindWords[KindWordKey(jf.Key, kindId)] = word;
         }
 
-        private bool TryLearnedKindWord(WinboxJgField jf, Dictionary<int, Tuple<string, object>> rec, out string? word)
+        private bool TryLearnedKindWord(WinboxJgField jf, M2Record rec, out string? word)
         {
             word = null;
             if (jf.KindIdKey == 0 || !rec.TryGetValue(jf.KindIdKey, out var id)
-                || !WinboxValueFormat.TryToInt64(id.Item2, out long kindId)) return false;
+                || !WinboxValueFormat.TryToInt64(id.Value, out long kindId)) return false;
             lock (_kindWordsLock) return _kindWords.TryGetValue(KindWordKey(jf.Key, kindId), out word);
         }
 
@@ -761,7 +761,7 @@ namespace tik4net.Winbox
         /// key holds something else (an enslaved interface's master id) is named by its kind id even when its
         /// peers come later in the same answer.
         /// </summary>
-        internal void LearnKindWords(IEnumerable<Dictionary<int, Tuple<string, object>>> records,
+        internal void LearnKindWords(IEnumerable<M2Record> records,
             IReadOnlyDictionary<int, WinboxJgField>? keyToField)
         {
             if (keyToField == null) return;
@@ -771,7 +771,7 @@ namespace tik4net.Winbox
             if (kindField == null) return;
             foreach (var rec in records)
                 if (rec.TryGetValue(kindField.Key, out var v))
-                    Learn(kindField, rec, v.Item2);
+                    Learn(kindField, rec, v.Value);
         }
 
         private static bool IsWireKindContradiction(WinboxJgField? jf, string wireType)
@@ -879,7 +879,7 @@ namespace tik4net.Winbox
             Dictionary<string, int[]>? collectRefTables)
         {
             // A message array (webfig `multi`): each element is a submessage of the element's own type.
-            if (value is List<Dictionary<int, Tuple<string, object>>> msgs)
+            if (value is List<M2Record> msgs)
                 return string.Join(",", msgs.Select(m =>
                     jf.ElementParts != null
                         ? FormatCompoundElement(jf, m, collectRefTables)
@@ -918,14 +918,14 @@ namespace tik4net.Winbox
         /// <c>[184264896,352037056,…]</c>.</para>
         /// </remarks>
         private string FormatMultiNetwork(WinboxJgField jf, object value,
-            Dictionary<int, Tuple<string, object>> rec)
+            M2Record rec)
         {
             var first = SplitListElements(value);
             List<string>? second = null;
             if (jf.MaskKey != 0)
             {
-                if (!rec.TryGetValue(jf.MaskKey, out var maskT) || maskT?.Item2 == null) return "";
-                second = SplitListElements(maskT.Item2);
+                if (!rec.TryGetValue(jf.MaskKey, out var maskT) || maskT.Value == null) return "";
+                second = SplitListElements(maskT.Value);
             }
             bool isMac = string.Equals(jf.UiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase);
             bool isV6 = string.Equals(jf.UiType, "multinetwork6", StringComparison.OrdinalIgnoreCase);
@@ -975,7 +975,7 @@ namespace tik4net.Winbox
         /// <c>u17 = 0</c>) which the API prints <c>::/0</c>, and <c>/certificate</c>'s subject-alt-name is
         /// <c>{u7f = 1, u7d = 3959728320}</c> which it prints <c>IP:192.168.4.236</c>.
         /// </remarks>
-        private string FormatCompoundElement(WinboxJgField jf, Dictionary<int, Tuple<string, object>> element,
+        private string FormatCompoundElement(WinboxJgField jf, M2Record element,
             Dictionary<string, int[]>? collectRefTables)
         {
             var rendered = new List<string>();
@@ -992,7 +992,7 @@ namespace tik4net.Winbox
             // (flag ? '!' : '') + the inner type's own text, which is the '!' RouterOS prints in front of one
             // entry of /tool/sniffer's filter lists.
             string prefix = jf.ElementNotKey != 0 && element.TryGetValue(jf.ElementNotKey, out var nf)
-                            && nf?.Item2 is bool nb && nb ? "!" : "";
+                            && nf.Value is bool nb && nb ? "!" : "";
             // …and a compound's own `prefix` goes in front of the whole joined value (the STP ids' '0x').
             return prefix + (jf.Prefix ?? "") + string.Join(jf.ElementSeparator ?? "", rendered);
         }
@@ -1002,21 +1002,21 @@ namespace tik4net.Winbox
         // for {u1, u5=1, U8=[1]} (no U6: the via-addresses are empty, the interfaces are not) and
         // "ether1 reachable" for a connected route's {u3, u5=1}, which has neither.
         private string FormatElementStatus(IReadOnlyList<WinboxJgElementPart> parts,
-            Dictionary<int, Tuple<string, object>> element, Dictionary<string, int[]>? collectRefTables)
+            M2Record element, Dictionary<string, int[]>? collectRefTables)
         {
             var tokens = new List<string>();
             for (int i = 0; i < parts.Count; i++)
             {
                 var part = parts[i];
-                bool present = element.TryGetValue(part.Key, out var v) && v?.Item2 != null;
+                bool present = element.TryGetValue(part.Key, out var v) && v.Value != null;
                 string text = "";
                 if (present)
                 {
                     // A list leaf arrives as "[a,b]" — "[]" when empty, which is no word at all.
-                    var items = SplitListElements(v!.Item2);
-                    bool isList = v.Item1.EndsWith("[]", StringComparison.Ordinal)
-                        || (v.Item2 is string sv && sv.StartsWith("[", StringComparison.Ordinal));
-                    IEnumerable<string> words = items.Count > 0 || isList ? items : new List<string> { v.Item2.ToString()! };
+                    var items = SplitListElements(v.Value);
+                    bool isList = v.TraceName.EndsWith("[]", StringComparison.Ordinal)
+                        || (v.Value is string sv && sv.StartsWith("[", StringComparison.Ordinal));
+                    IEnumerable<string> words = items.Count > 0 || isList ? items : new List<string> { v.Value!.ToString()! };
                     text = string.Join(",", words.Select(w => FormatStatusWord(part, w, collectRefTables)));
                 }
                 if (part.Prefix != null)
@@ -1042,7 +1042,7 @@ namespace tik4net.Winbox
             return word;
         }
 
-        private string FormatElementPart(WinboxJgElementPart part, Dictionary<int, Tuple<string, object>> element,
+        private string FormatElementPart(WinboxJgElementPart part, M2Record element,
             Dictionary<string, int[]>? collectRefTables)
         {
             if (part.Alternatives != null)
@@ -1054,33 +1054,33 @@ namespace tik4net.Winbox
                 }
                 return "";
             }
-            if (!element.TryGetValue(part.Key, out var v) || v?.Item2 == null) return "";
-            object? mask = part.MaskKey != 0 && element.TryGetValue(part.MaskKey, out var mt) ? mt?.Item2 : null;
+            if (!element.TryGetValue(part.Key, out var v) || v.Value == null) return "";
+            object? mask = part.MaskKey != 0 && element.TryGetValue(part.MaskKey, out var mt) ? mt.Value : null;
             // A part with a static map is an enum wherever it sits — the API prints the word, not the index.
-            if (part.EnumMap != null && WinboxValueFormat.TryToInt64(v.Item2, out long ev)
+            if (part.EnumMap != null && WinboxValueFormat.TryToInt64(v.Value, out long ev)
                 && part.EnumMap.TryGetValue(unchecked((int)ev), out var label))
                 return label;
             // …and a part with a DYNAMIC dropdown is a reference wherever it sits: /snmp's trap-interfaces
             // is a list whose element is one interface id, which the API prints as the interface's name.
             if (part.RefHandler != null)
             {
-                string? refName = ResolveRefName(part.RefHandler, v.Item2, collectRefTables);
+                string? refName = ResolveRefName(part.RefHandler, v.Value, collectRefTables);
                 if (refName != null) return refName;
             }
             // A hex part renders its digits bare: the 0x in front of an STP identifier belongs to the
             // compound, and only its FIRST part is hexadecimal — port-id is 0x80.1, not 0x80.0x1.
-            if (part.Radix == 16 && WinboxValueFormat.TryToInt64(v.Item2, out long ph))
+            if (part.Radix == 16 && WinboxValueFormat.TryToInt64(v.Value, out long ph))
                 return FormatRadix(ph, part.Radix, withPrefix: false);
             switch ((part.UiType ?? "").ToLowerInvariant())
             {
                 case "interval":
                     // The wire carries a count of seconds; the API spells it "5m". A part carries no scale
                     // of its own, and no live element declares one.
-                    return WinboxValueFormat.TryToInt64(v.Item2, out long ticks)
+                    return WinboxValueFormat.TryToInt64(v.Value, out long ticks)
                         ? FormatDuration(ticks, 1)
-                        : v.Item2.ToString()!;
+                        : v.Value.ToString()!;
                 case "network":
-                    return WinboxValueFormat.IpFromU32(v.Item2)
+                    return WinboxValueFormat.IpFromU32(v.Value)
                          + (mask != null ? "/" + WinboxValueFormat.MaskToPrefix(mask) : "");
                 case "network6":
                 {
@@ -1090,27 +1090,27 @@ namespace tik4net.Winbox
                     // rule, not the API's text: a /snmp/community scoped to one host reads back
                     // "2001:db8:3::7/128" on 7.24, and this codec answers in the API's text. Same divergence
                     // as `macnetwork`, whose all-ones mask webfig hides and RouterOS prints.
-                    string addr = v.Item2 is byte[] b6 ? WinboxValueFormat.IpV6FromBytes(b6) : "::";
+                    string addr = v.Value is byte[] b6 ? WinboxValueFormat.IpV6FromBytes(b6) : "::";
                     if (mask == null) return addr;
                     long len = WinboxValueFormat.TryToInt64(mask, out long n) ? n : 0;
                     return addr + "/" + len.ToString(CultureInfo.InvariantCulture);
                 }
                 case "ipaddr":
-                    return WinboxValueFormat.IpFromU32(v.Item2);
+                    return WinboxValueFormat.IpFromU32(v.Value);
                 case "ip6addr":
-                    return v.Item2 is byte[] b ? WinboxValueFormat.IpV6FromBytes(b) : v.Item2.ToString()!; // v.Item2 != null (checked above)
+                    return v.Value is byte[] b ? WinboxValueFormat.IpV6FromBytes(b) : v.Value.ToString()!; // v.Item2 != null (checked above)
                 case "macaddr":
-                    return WinboxValueFormat.MacFromBytes(v.Item2);
+                    return WinboxValueFormat.MacFromBytes(v.Value);
                 case "macnetwork":
                     // Six address bytes and six mask bytes. RouterOS prints the mask even when it is the
                     // all-ones one (filter-mac-address reads back "AA:BB:CC:DD:EE:FF/FF:FF:FF:FF:FF:FF"),
                     // where webfig's own tostr hides it - the API text is what this codec answers in.
-                    return WinboxValueFormat.MacFromBytes(v.Item2)
+                    return WinboxValueFormat.MacFromBytes(v.Value)
                          + (mask != null ? "/" + WinboxValueFormat.MacFromBytes(mask) : "");
                 case "addr":
-                    return v.Item2 is Dictionary<int, Tuple<string, object>> a ? FormatAddr(a, collectRefTables) : v.Item2.ToString()!; // v.Item2 != null (checked above)
+                    return v.Value is M2Record a ? FormatAddr(a, collectRefTables) : v.Value.ToString()!; // v.Item2 != null (checked above)
                 default:
-                    return v.Item2.ToString()!; // v.Item2 != null (checked above)
+                    return v.Value.ToString()!; // v.Item2 != null (checked above)
             }
         }
 
@@ -1151,10 +1151,10 @@ namespace tik4net.Winbox
         /// The firewall's limit (<c>rate[/period],burst:mode</c>) or dst-limit (<c>rate[/period],burst,limit-by/expire</c>)
         /// from the boxes of its WinBox group, a box the record leaves out read as the window's default.
         /// </summary>
-        private static string FormatFirewallLimit(WinboxJgField jf, object rate, Dictionary<int, Tuple<string, object>> rec)
+        private static string FormatFirewallLimit(WinboxJgField jf, object rate, M2Record rec)
         {
             long Box(int key, long def)
-                => rec.TryGetValue(key, out var t) && WinboxValueFormat.TryToInt64(t.Item2, out long n) ? n : def;
+                => rec.TryGetValue(key, out var t) && WinboxValueFormat.TryToInt64(t.Value, out long n) ? n : def;
             bool dst = jf.UiType == WinboxFieldResolver.FirewallDstLimitUiType;
             WinboxValueFormat.TryToInt64(rate, out long r);
             long period = Box(dst ? 0x39 : 0x11, 1);
@@ -1172,7 +1172,7 @@ namespace tik4net.Winbox
 
         // "[a,b,c]" → [a,b,c]; "[]" → empty. The brackets are M2Message's rendering of an array, not part of
         // any element, and an element is never itself comma-bearing on the wire.
-        private static List<string> SplitListElements(object value)
+        private static List<string> SplitListElements(object? value)
         {
             string s = value?.ToString() ?? "";
             if (s.Length >= 2 && s[0] == '[' && s[s.Length - 1] == ']')
@@ -1193,12 +1193,12 @@ namespace tik4net.Winbox
         /// mask is not "the complement of 32 bits" but "the members this row says no to".
         /// </remarks>
         private static string FormatBitSet(WinboxJgField jf, object value,
-            IReadOnlyDictionary<int, string> members, Dictionary<int, Tuple<string, object>> rec)
+            IReadOnlyDictionary<int, string> members, M2Record rec)
         {
             if (!WinboxValueFormat.TryToInt64(value, out long onBits)) return value?.ToString() ?? "";
             long offBits = 0;
-            if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var maskT) && maskT?.Item2 != null
-                && WinboxValueFormat.TryToInt64(maskT.Item2, out long mb))
+            if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var maskT) && maskT.Value != null
+                && WinboxValueFormat.TryToInt64(maskT.Value, out long mb))
                 offBits = mb;
 
             var plain = members.Where(kv => (onBits & (1L << kv.Key)) != 0)
@@ -1259,7 +1259,7 @@ namespace tik4net.Winbox
         }
 
         // RouterOS .id is the "*HEX" handle form. The M2 record id is a numeric u8/u32.
-        private static string FormatId(object value)
+        private static string FormatId(object? value)
         {
             if (value == null) return "*0";
             if (WinboxValueFormat.TryToInt64(value, out long id) && id >= 0)
@@ -1308,11 +1308,11 @@ namespace tik4net.Winbox
         /// RouterOS text, following <c>types.addr.tostr</c>: IPv6 wins over IPv4 when both are present, then
         /// the DNS name, then the MAC, with the <c>/prefix</c> appended.
         /// </summary>
-        private string FormatAddr(Dictionary<int, Tuple<string, object>> addr,
+        private string FormatAddr(M2Record addr,
             Dictionary<string, int[]>? collectRefTables)
         {
             object? Get(int subKey) =>
-                addr.TryGetValue(subKey, out var t) ? t?.Item2 : null;
+                addr.TryGetValue(subKey, out var t) ? t.Value : null;
 
             // The '%iface' qualifier names a row of the interface table, exactly as a dynamic enum does, so
             // it is resolved the same way. It is not only a suffix: a value whose ONLY member is the
@@ -1343,8 +1343,8 @@ namespace tik4net.Winbox
             // An FT_ADDR6 value arrives as 16 bytes; without this it renders as "System.Byte[]" whenever the
             // .jg does not also give the field an ip6addr UI type.
             if (wireType == "ip6" && value is byte[] v6) return WinboxValueFormat.IpV6FromBytes(v6);
-            if (value is Dictionary<int, Tuple<string, object>> one) return FormatNestedMessage(one);
-            if (value is List<Dictionary<int, Tuple<string, object>>> many)
+            if (value is M2Record one) return FormatNestedMessage(one);
+            if (value is List<M2Record> many)
                 return string.Join(",", many.Select(FormatNestedMessage));
             return value.ToString()!; // value != null (checked above)
         }
@@ -1362,13 +1362,13 @@ namespace tik4net.Winbox
         /// the field's value — which a nested field on any handler can do, not just traceroute. An element the
         /// router sent empty renders empty, which is the honest answer.
         /// </remarks>
-        private static string FormatNestedMessage(Dictionary<int, Tuple<string, object>> msg)
+        private static string FormatNestedMessage(M2Record msg)
         {
             if (msg == null || msg.Count == 0) return "";
             foreach (var kv in msg.OrderBy(k => k.Key))
             {
-                if (kv.Value?.Item2 == null) continue;
-                return FormatValue(kv.Value.Item1, kv.Value.Item2);
+                if (kv.Value.Value == null) continue;
+                return FormatValue(kv.Value.TraceName, kv.Value.Value);
             }
             return "";
         }

@@ -15,7 +15,7 @@ namespace tik4net.unittests.Winbox
     public class WinboxRouterOs6LabelTests
     {
         private static Dictionary<string, string> Decode(string window, string apiPath, int[] handler,
-            Dictionary<int, Tuple<string, object>> record)
+            M2Record record)
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(window), "the window must parse");
@@ -50,10 +50,10 @@ namespace tik4net.unittests.Winbox
         {
             // The stock 6.49.13 instance: 0xD and 0x12 carry the marker, and the API prints metric-bgp=auto.
             var fields = Decode(OspfInstance, "/routing/ospf/instance", new[] { 44, 120 },
-                new Dictionary<int, Tuple<string, object>>
+                new M2Record
                 {
-                    [0xD] = Tuple.Create("u32", (object)4294967295u),
-                    [0x12] = Tuple.Create("u32", (object)25u),
+                    [0xD] = new M2Value(M2Type.U32, 4294967295u),
+                    [0x12] = new M2Value(M2Type.U32, 25u),
                 });
 
             Assert.AreEqual("auto", fields["metric-bgp"], Dump(fields));
@@ -66,11 +66,11 @@ namespace tik4net.unittests.Winbox
             const string config = "[{title:'DHCP Config',type:'item',path:[ 23,5 ],c:[{name:'Store Leases On Disk'," +
                 "type:'interval',id:'u1',values:{type:'static',map:{0:'immediately',4294967295:'never'}}}]}]";
             var fields = Decode(config, "/ip/dhcp-server/config", new[] { 23, 5 },
-                new Dictionary<int, Tuple<string, object>>
+                new M2Record
                 {
-                    [0x1] = Tuple.Create("u32", (object)300u),
-                    [0x2] = Tuple.Create("u32", (object)90u),
-                    [0x3] = Tuple.Create("bool", (object)false),
+                    [0x1] = new M2Value(M2Type.U32, 300u),
+                    [0x2] = new M2Value(M2Type.U32, 90u),
+                    [0x3] = new M2Value(M2Type.Bool, false),
                 });
 
             Assert.AreEqual("5m", fields["store-leases-disk"], Dump(fields));
@@ -82,14 +82,14 @@ namespace tik4net.unittests.Winbox
         public void OspfInstance_ReadsUnderTheApiNamesAndWords()
         {
             var fields = Decode(OspfInstance, "/routing/ospf/instance", new[] { 44, 120 },
-                new Dictionary<int, Tuple<string, object>>
+                new M2Record
                 {
-                    [0xFE0010] = Tuple.Create("str", (object)"default"),
-                    [0x5] = Tuple.Create("u32", (object)3u),
-                    [0x3] = Tuple.Create("u32", (object)0u),
-                    [0x2] = Tuple.Create("u32", (object)2u),
-                    [0xC] = Tuple.Create("u32", (object)1u),
-                    [0x9] = Tuple.Create("u32", (object)20u),
+                    [0xFE0010] = new M2Value(M2Type.String, "default"),
+                    [0x5] = new M2Value(M2Type.U32, 3u),
+                    [0x3] = new M2Value(M2Type.U32, 0u),
+                    [0x2] = new M2Value(M2Type.U32, 2u),
+                    [0xC] = new M2Value(M2Type.U32, 1u),
+                    [0x9] = new M2Value(M2Type.U32, 20u),
                 });
 
             Assert.AreEqual("always-as-type-1", fields["distribute-default"], Dump(fields));
@@ -163,9 +163,9 @@ namespace tik4net.unittests.Winbox
 
             // Printed slowest first, as 6.49.13's API does — not in bit order, which puts 10G (bit 12) before 2.5G.
             var fields = Decode(ether, "/interface/ethernet", new[] { 20, 0 },
-                new Dictionary<int, Tuple<string, object>>
+                new M2Record
                 {
-                    [0x409] = Tuple.Create("u32", (object)((1u << 1) | (1u << 5) | (1u << 12) | (1u << 30) | (1u << 31))),
+                    [0x409] = new M2Value(M2Type.U32, ((1u << 1) | (1u << 5) | (1u << 12) | (1u << 30) | (1u << 31))),
                 });
             Assert.AreEqual("10M-full,1000M-full,2500M-full,5000M-full,10000M-full", fields["advertise"], Dump(fields));
         }

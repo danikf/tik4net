@@ -23,7 +23,7 @@ namespace tik4net.unittests.Winbox
 
         // 'M2' + one field (key 5, the type byte, zero value bytes): a zero count, a zero length or a zero number,
         // whatever the type reads.
-        private static Dictionary<int, System.Tuple<string, object>> Parse(int typeByte)
+        private static M2Record Parse(int typeByte)
         {
             var frame = new List<byte> { (byte)'M', (byte)'2', Key, 0, 0, (byte)typeByte };
             frame.AddRange(new byte[16]);
@@ -40,9 +40,10 @@ namespace tik4net.unittests.Winbox
                 if (!fields.TryGetValue(Key, out var value)) continue;   // the walker stops at a type it cannot size
                 M2Type? type = M2Types.FromTypeByte(b);
                 Assert.IsNotNull(type, $"type byte 0x{b:X2} is walked but has no M2Type");
-                string name = value.Item1;
+                Assert.AreEqual(type.Value, value.Type, $"0x{b:X2}");
+                Assert.AreEqual((b & M2Message.TypeByte.Short) != 0, value.ShortForm, $"0x{b:X2}");
+                string name = value.TraceName;
                 Assert.AreEqual(type.Value, M2Types.FromRecordName(name), $"0x{b:X2} '{name}'");
-                Assert.AreEqual(name, M2Types.RecordName(type.Value, (b & M2Message.TypeByte.Short) != 0), $"0x{b:X2}");
                 seen.Add(type.Value);
             }
             CollectionAssert.AreEquivalent(AllTypes, seen.ToArray(), "every M2Type has a type byte the walker knows");

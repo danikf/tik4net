@@ -34,7 +34,7 @@ namespace tik4net.unittests.Winbox
 
                 var add = h.RequestsWithCommand(WinboxM2Protocol.Command.Add).Single();
                 Assert.IsTrue(add.ContainsKey(0x10001), "the add must carry the subtype discriminator (type, 0x10001)");
-                Assert.AreEqual(17L, Convert.ToInt64(add[0x10001].Item2), "EoIP is interface type 17");
+                Assert.AreEqual(17L, Convert.ToInt64(add[0x10001].Value), "EoIP is interface type 17");
             }
         }
 
@@ -51,7 +51,7 @@ namespace tik4net.unittests.Winbox
 
                 Assert.AreEqual("*2B", id);
                 var add = h.RequestsWithCommand(WinboxM2Protocol.Command.Add).Single();
-                Assert.AreEqual(17L, Convert.ToInt64(add[0x10001].Item2));
+                Assert.AreEqual(17L, Convert.ToInt64(add[0x10001].Value));
             }
         }
 
@@ -98,7 +98,7 @@ namespace tik4net.unittests.Winbox
                 h.Connection.CreateCommandAndParameters("/queue/simple/move",
                     "numbers", "x2-a", "destination", "*FFF0").ExecuteNonQuery();
                 var move = h.RequestsWithCommand(WinboxM2Protocol.Command.Move).Single();
-                Assert.AreEqual(0xFFF0L, Convert.ToInt64(move[WinboxM2Protocol.RecordKey.NextId].Item2));
+                Assert.AreEqual(0xFFF0L, Convert.ToInt64(move[WinboxM2Protocol.RecordKey.NextId].Value));
             }
         }
 
@@ -110,7 +110,7 @@ namespace tik4net.unittests.Winbox
                 h.Connection.CreateCommandAndParameters("/queue/simple/move",
                     "numbers", "x2-a", "destination", "x2-c").ExecuteNonQuery();
                 var move = h.RequestsWithCommand(WinboxM2Protocol.Command.Move).Single();
-                Assert.AreEqual(3L, Convert.ToInt64(move[WinboxM2Protocol.RecordKey.NextId].Item2));
+                Assert.AreEqual(3L, Convert.ToInt64(move[WinboxM2Protocol.RecordKey.NextId].Value));
             }
         }
     }

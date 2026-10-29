@@ -194,7 +194,7 @@ namespace tik4net.Winbox
         /// read on the decode path goes through this so the "not a number" case is a decision the caller has to
         /// take, not a value it silently inherits.
         /// </summary>
-        internal static bool TryToInt64(object value, out long result)
+        internal static bool TryToInt64(object? value, out long result)
         {
             // Convert.ToInt64(null) is 0 and does NOT throw — the one substitution the exception list below
             // would not have caught, and the one most likely to be hit (an absent field decodes to null).

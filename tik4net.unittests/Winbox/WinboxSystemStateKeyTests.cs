@@ -52,10 +52,10 @@ namespace tik4net.unittests.Winbox
 
         private static Dictionary<string, string> Decode(
             WinboxFieldResolver resolver, WinboxJgCatalog catalog,
-            params (int key, string type, object val)[] fields)
+            params (int key, M2Type type, object val)[] fields)
         {
-            var rec = new Dictionary<int, Tuple<string, object>>();
-            foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
+            var rec = new M2Record();
+            foreach (var f in fields) rec[f.key] = new M2Value(f.type, f.val);
             return new WinboxRecordCodec(null, catalog)
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
@@ -65,7 +65,7 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Parse(ArpWindow);
             var decoded = Decode(Resolver(ArpWindow, "/ip/arp", ArpHandler), catalog,
-                (0xFE0001, "u32", 1u), (0xFE0007, "bool", true), (0x1, "u32", 17082560u));
+                (0xFE0001, M2Type.U32, 1u), (0xFE0007, M2Type.Bool, true), (0x1, M2Type.U32, 17082560u));
 
             Assert.AreEqual("true", decoded["dynamic"]);
         }
@@ -77,7 +77,7 @@ namespace tik4net.unittests.Winbox
             // in the first place, on a live 7.24 ARP table holding both kinds at once.
             var catalog = Parse(ArpWindow);
             var decoded = Decode(Resolver(ArpWindow, "/ip/arp", ArpHandler), catalog,
-                (0xFE0001, "u32", 3u), (0xFE0007, "bool", false), (0x1, "u32", 17082560u));
+                (0xFE0001, M2Type.U32, 3u), (0xFE0007, M2Type.Bool, false), (0x1, M2Type.U32, 17082560u));
 
             Assert.AreEqual("false", decoded["dynamic"]);
         }
@@ -91,9 +91,9 @@ namespace tik4net.unittests.Winbox
             var resolver = Resolver(ArpWindow, "/ip/arp", ArpHandler);
 
             Assert.AreEqual("true", Decode(resolver, catalog,
-                (0xFE0001, "u32", 1u), (0xFE0008, "bool", true))["invalid"]);
+                (0xFE0001, M2Type.U32, 1u), (0xFE0008, M2Type.Bool, true))["invalid"]);
             Assert.AreEqual("false", Decode(resolver, catalog,
-                (0xFE0001, "u32", 2u), (0xFE0008, "bool", false))["invalid"]);
+                (0xFE0001, M2Type.U32, 2u), (0xFE0008, M2Type.Bool, false))["invalid"]);
         }
 
         [TestMethod]
@@ -103,8 +103,8 @@ namespace tik4net.unittests.Winbox
             // /interface/list says `builtin`, which is a key alias — and a key alias wins over the seed.
             var catalog = Parse(ListWindow);
             var decoded = Decode(Resolver(ListWindow, "/interface/list", ListHandler), catalog,
-                (0xFE0001, "u32", 33554432u), (0xFE000D, "bool", true), (0xFE0007, "bool", false),
-                (0xFE0010, "string", "all"));
+                (0xFE0001, M2Type.U32, 33554432u), (0xFE000D, M2Type.Bool, true), (0xFE0007, M2Type.Bool, false),
+                (0xFE0010, M2Type.String, "all"));
 
             Assert.AreEqual("true", decoded["builtin"]);
             Assert.IsFalse(decoded.ContainsKey("default"), "not under both names at once");
@@ -117,7 +117,7 @@ namespace tik4net.unittests.Winbox
         {
             var catalog = Parse(ArpWindow);
             var decoded = Decode(Resolver(ArpWindow, "/ip/arp", ArpHandler), catalog,
-                (0xFE0001, "u32", 1u), (0xFE000D, "bool", true));
+                (0xFE0001, M2Type.U32, 1u), (0xFE000D, M2Type.Bool, true));
 
             Assert.AreEqual("true", decoded["default"]);
         }
@@ -150,7 +150,7 @@ namespace tik4net.unittests.Winbox
                 "]}]";
             var catalog = Parse(OwnedWindow);
             var decoded = Decode(Resolver(OwnedWindow, "/x", new[] { 99, 1 }), catalog,
-                (0xFE000D, "bool", true));
+                (0xFE000D, M2Type.Bool, true));
 
             Assert.AreEqual("true", decoded["shipped"]);
             Assert.IsFalse(decoded.ContainsKey("default"), "the window's own name wins over the seed");

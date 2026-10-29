@@ -162,7 +162,7 @@ namespace tik4net.Winbox
                 case M2Type.StringArray: return "str[]";
                 case M2Type.MessageArray: return "msg[]";
                 case M2Type.RawArray: return "raw[]";
-                default: throw new ArgumentOutOfRangeException(nameof(type), type, "no record carries this type");
+                default: return "?";   // a record built from a catalog field of an unknown letter
             }
         }
 

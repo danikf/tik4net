@@ -48,10 +48,10 @@ namespace tik4net.unittests.Winbox
             var fields = M2Message.ParseAllFields(m2);
 
             Assert.AreEqual(3, fields.Count, "the field after the address must still parse");
-            Assert.AreEqual((uint)4242, fields[0x10].Item2);
-            Assert.AreEqual("ip6", fields[0x11].Item1);
-            Assert.AreEqual("2001:db8::1", WinboxValueFormat.IpV6FromBytes((byte[])fields[0x11].Item2));
-            Assert.AreEqual("after", fields[0x12].Item2);
+            Assert.AreEqual((uint)4242, fields[0x10].Value);
+            Assert.AreEqual("ip6", fields[0x11].TraceName);
+            Assert.AreEqual("2001:db8::1", WinboxValueFormat.IpV6FromBytes((byte[])fields[0x11].Value));
+            Assert.AreEqual("after", fields[0x12].Value);
         }
 
         [TestMethod]
@@ -108,7 +108,7 @@ namespace tik4net.unittests.Winbox
 
         // ── the addr compound: one sub-key per address form ────────────────────
 
-        private static System.Collections.Generic.Dictionary<int, Tuple<string, object>> EncodeAddrField(
+        private static M2Record EncodeAddrField(
             string value, string allow)
         {
             byte[] body = new[] { (byte)'M', (byte)'2' }
@@ -146,7 +146,7 @@ namespace tik4net.unittests.Winbox
             var sub = EncodeAddrField("10.0.0.0/8", "46/");
 
             Assert.IsTrue(sub.ContainsKey(0xFEFF20), "the address");
-            Assert.AreEqual((byte)8, Convert.ToByte(sub[0xFEFF25].Item2), "the /len at ufeff25");
+            Assert.AreEqual((byte)8, Convert.ToByte(sub[0xFEFF25].Value), "the /len at ufeff25");
         }
 
         [TestMethod]
