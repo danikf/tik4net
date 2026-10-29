@@ -71,41 +71,55 @@ namespace tik4net.Winbox
             get
             {
                 if (_fields != null) return _fields;
-                var handlerFields = _catalog?.GetHandlerFields(_handler);
-                var windowFields = _catalog?.GetWindowFields(_windowKey);
-                var synthetic = OwnSyntheticFields;
-                var inherited = InheritedSyntheticFields;
-                var fallback = FallbackFields;
-                bool hasWindow = windowFields != null && windowFields.Count > 0;
-                bool hasAction = _actionFields != null && _actionFields.Count > 0;
-                bool hasSynthetic = synthetic != null && synthetic.Count > 0;
-                bool hasInherited = inherited != null && inherited.Count > 0;
-                bool hasFallback = fallback != null && fallback.Count > 0;
-                if (!hasWindow && !hasAction && !hasSynthetic && !hasInherited && !hasFallback) return _fields = handlerFields;
+                var layers = LayersMostSpecificFirst().ToList();
+                var handlerFields = layers.Where(l => l.Layer == FieldLayer.Handler).Select(l => l.Fields).FirstOrDefault();
+                if (layers.All(l => l.Layer == FieldLayer.Handler || l.Fields.Count == 0)) return _fields = handlerFields;
 
+                // By name, the most specific layer has the last word: folded from the least specific up.
                 var merged = new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase);
-                // A fallback field is the lowest of all: any catalog field of the same name replaces it.
-                if (hasFallback && fallback != null)
-                    foreach (var kv in fallback) merged[kv.Key] = kv.Value;
-                if (handlerFields != null)
-                    foreach (var kv in handlerFields) merged[kv.Key] = kv.Value;
-                // A synthetic field shipped for an ANCESTOR path (the /interface set, for an interface subtype)
-                // ranks below the path's own window: that window may declare the key itself — /interface/ipip's
-                // 'Local Address' is u3e9, where the base set's synthetic calls the same key mac-address.
-                if (hasInherited && inherited != null)
-                    foreach (var kv in inherited) merged[kv.Key] = kv.Value;
-                // hasWindow/hasAction already established windowFields/_actionFields non-null; the extra
-                // null check just gives the compiler the same fact it cannot carry through the bool.
-                if (hasWindow && windowFields != null)
-                    foreach (var kv in windowFields) merged[kv.Key] = kv.Value;   // the window wins
-                if (hasAction && _actionFields != null)
-                    foreach (var kv in _actionFields) merged[kv.Key] = kv.Value;  // the action wins over both
-                // A synthetic field shipped for THIS path wins over all of them: it exists precisely because the
-                // catalog does not describe the key (or describes it wrongly for this path).
-                if (hasSynthetic && synthetic != null)
-                    foreach (var kv in synthetic) merged[kv.Key] = kv.Value;
+                for (int i = layers.Count - 1; i >= 0; i--)
+                    foreach (var kv in layers[i].Fields) merged[kv.Key] = kv.Value;
                 return _fields = merged;
             }
+        }
+
+        // Where a field map in force for a path comes from — see LayersMostSpecificFirst for the order.
+        private enum FieldLayer { OwnSynthetic, Action, Window, InheritedSynthetic, Handler, Fallback }
+
+        /// <summary>
+        /// The field maps in force for this path, MOST SPECIFIC FIRST — the one statement of their order, which
+        /// <see cref="JgFields"/> folds from the other end (by name, last wins) and
+        /// <see cref="JgFieldsSpecificFirst"/> walks as it stands (by key, first wins), so a layer cannot be added to
+        /// one direction only.
+        /// </summary>
+        /// <remarks>
+        /// <list type="number">
+        /// <item>A synthetic field shipped for THIS path: it exists precisely because the catalog does not describe
+        /// the key (or describes it wrongly for this path).</item>
+        /// <item>The invoked action's arguments: 'Key Size' is a read-only column of the IPsec 'Keys' list and a
+        /// writable enum argument of its 'Generate Key' doit.</item>
+        /// <item>The window's own fields — what makes an interface subtype addressable: every subtype reads handler
+        /// <c>[20,0]</c>, but 'Remote Address' is a different key on EoIP, GRE and IPIP.</item>
+        /// <item>A synthetic field shipped for an ANCESTOR path (the /interface set, for an interface subtype): below
+        /// the path's own window, which may declare the key itself — /interface/ipip's 'Local Address' is u3e9, where
+        /// the base set's synthetic calls the same key mac-address.</item>
+        /// <item>The handler's map.</item>
+        /// <item>A fallback field, the lowest of all: any catalog field of the same name replaces it.</item>
+        /// </list>
+        /// </remarks>
+        private IEnumerable<(FieldLayer Layer, IReadOnlyDictionary<string, WinboxJgField> Fields)> LayersMostSpecificFirst()
+        {
+            var synthetic = OwnSyntheticFields;
+            if (synthetic != null) yield return (FieldLayer.OwnSynthetic, synthetic);
+            if (_actionFields != null) yield return (FieldLayer.Action, _actionFields);
+            var windowFields = _catalog?.GetWindowFields(_windowKey);
+            if (windowFields != null) yield return (FieldLayer.Window, windowFields);
+            var inherited = InheritedSyntheticFields;
+            if (inherited != null) yield return (FieldLayer.InheritedSynthetic, inherited);
+            var handlerFields = _catalog?.GetHandlerFields(_handler);
+            if (handlerFields != null) yield return (FieldLayer.Handler, handlerFields);
+            var fallback = FallbackFields;
+            if (fallback != null) yield return (FieldLayer.Fallback, fallback);
         }
 
         /// <summary>
@@ -129,40 +143,37 @@ namespace tik4net.Winbox
                     ? source.Select(kv => new KeyValuePair<string, WinboxJgField>(kv.Key, kv.Value.WithoutPaneSelector()))
                     : source;
 
-            // Most specific of all: shipped for this path, because the catalog does not name the key (or names it
-            // wrongly here), so nothing else can.
-            var synthetic = OwnSyntheticFields;
-            if (synthetic != null)
-                foreach (var kv in synthetic) yield return kv;
+            var layers = LayersMostSpecificFirst().ToList();
+            var synthetic = layers.Where(l => l.Layer == FieldLayer.OwnSynthetic).Select(l => l.Fields).FirstOrDefault();
             // A synthetic field REPLACES the catalog's field of the same name, as it does in JgFields. By key the
             // catalog's would otherwise keep its own key under that name, and a row carrying both keys would read
             // whichever the frame happened to list first: /ip/neighbor's 'Interface' u4 holds the first element
             // of the list the synthetic 0x13 holds whole.
             bool Replaced(KeyValuePair<string, WinboxJgField> kv)
                 => synthetic != null && synthetic.TryGetValue(kv.Key, out var own) && own.Key != kv.Value.Key;
-            if (_actionFields != null)
-                foreach (var kv in Scoped(_actionFields)) if (!Replaced(kv)) yield return kv;
-            var windowFields = _catalog?.GetWindowFields(_windowKey);
-            if (windowFields != null)
-                foreach (var kv in Scoped(windowFields)) if (!Replaced(kv)) yield return kv;
-            // Shipped for an ancestor path: below the window, which may declare the key itself.
-            var inherited = InheritedSyntheticFields;
-            if (inherited != null)
-                foreach (var kv in inherited) if (!Replaced(kv)) yield return kv;
-            var handlerFields = _catalog?.GetHandlerFields(_handler);
-            if (handlerFields != null)
-                foreach (var kv in Scoped(handlerFields)) if (!Replaced(kv)) yield return kv;
-            // Last: a fallback names its key only where the catalog leaves the name to it.
-            var fallback = FallbackFields;
-            if (fallback != null)
-                foreach (var kv in fallback)
-                    if (!Replaced(kv) && !CatalogNames(kv.Key)) yield return kv;
-
+            // A fallback names its key only where the catalog leaves the name to it.
             bool CatalogNames(string apiName)
-                => (_actionFields != null && _actionFields.ContainsKey(apiName))
-                   || (windowFields != null && windowFields.ContainsKey(apiName))
-                   || (inherited != null && inherited.ContainsKey(apiName))
-                   || (handlerFields != null && handlerFields.ContainsKey(apiName));
+                => layers.Any(l => l.Layer != FieldLayer.OwnSynthetic && l.Layer != FieldLayer.Fallback
+                                   && l.Fields.ContainsKey(apiName));
+
+            foreach (var (layer, fields) in layers)
+                switch (layer)
+                {
+                    case FieldLayer.OwnSynthetic:
+                        foreach (var kv in fields) yield return kv;
+                        break;
+                    case FieldLayer.Action:
+                    case FieldLayer.Window:
+                    case FieldLayer.Handler:
+                        foreach (var kv in Scoped(fields)) if (!Replaced(kv)) yield return kv;
+                        break;
+                    case FieldLayer.InheritedSynthetic:
+                        foreach (var kv in fields) if (!Replaced(kv)) yield return kv;
+                        break;
+                    case FieldLayer.Fallback:
+                        foreach (var kv in fields) if (!Replaced(kv) && !CatalogNames(kv.Key)) yield return kv;
+                        break;
+                }
         }
 
         /// <summary>
