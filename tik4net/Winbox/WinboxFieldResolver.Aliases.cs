@@ -99,7 +99,23 @@ namespace tik4net.Winbox
             /// </remarks>
             public readonly ISet<string>? NumFlagMembers;
 
-            public FieldAliasSet(IReadOnlyDictionary<string, string> apiToJg, IReadOnlyDictionary<string, string> jgToApi,
+            /// <param name="both">API name → <c>.jg</c> label pairs that rename one value in both directions — "one name
+            /// for one value": each goes into <see cref="ApiToJg"/> as written and into <see cref="JgToApi"/> reversed.</param>
+            /// <param name="apiToJgOnly">Encode-only spellings, laid over <paramref name="both"/>: an API name a write may
+            /// use whose label decodes to another name (the ping target <c>address</c> → <c>ping-to</c>).</param>
+            /// <param name="jgToApiOnly">Decode-only names, laid over <paramref name="both"/> reversed: a label that reads as
+            /// an API name the write does not spell that way (a second label for the same field).</param>
+            /// <param name="keyToApi">See <see cref="KeyToApi"/>.</param>
+            /// <param name="keyUiType">See <see cref="KeyUiType"/>.</param>
+            /// <param name="alsoKnownAs">See <see cref="AlsoKnownAs"/>.</param>
+            /// <param name="addrPortPairs">See <see cref="AddrPortPairs"/>.</param>
+            /// <param name="derivedBools">See <see cref="DerivedBools"/>.</param>
+            /// <param name="syntheticFields">See <see cref="SyntheticFields"/>.</param>
+            /// <param name="pairedFields">See <see cref="PairedFields"/>.</param>
+            /// <param name="numFlagMembers">See <see cref="NumFlagMembers"/>.</param>
+            /// <param name="fallbackFields">See <see cref="FallbackFields"/>.</param>
+            public FieldAliasSet(IReadOnlyDictionary<string, string>? both = null,
+                IReadOnlyDictionary<string, string>? apiToJgOnly = null, IReadOnlyDictionary<string, string>? jgToApiOnly = null,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
                 IReadOnlyDictionary<string, string[]>? alsoKnownAs = null,
                 IReadOnlyDictionary<string, string>? addrPortPairs = null,
@@ -109,6 +125,12 @@ namespace tik4net.Winbox
                 IEnumerable<string>? numFlagMembers = null,
                 IReadOnlyDictionary<string, WinboxJgField>? fallbackFields = null)
             {
+                var apiToJg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var jgToApi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (both != null)
+                    foreach (var kv in both) { apiToJg[kv.Key] = kv.Value; jgToApi[kv.Value] = kv.Key; }
+                if (apiToJgOnly != null) foreach (var kv in apiToJgOnly) apiToJg[kv.Key] = kv.Value;
+                if (jgToApiOnly != null) foreach (var kv in jgToApiOnly) jgToApi[kv.Key] = kv.Value;
                 ApiToJg = apiToJg; JgToApi = jgToApi;
                 AlsoKnownAs = alsoKnownAs;
                 NumFlagMembers = numFlagMembers == null
@@ -138,13 +160,11 @@ namespace tik4net.Winbox
 
         // The routing tables' state flag, named as the API names it (see the /routing entries).
         private static FieldAliasSet RoutingInactive()
-            => new FieldAliasSet(Ci(), Ci(),
-                keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" });
+            => new FieldAliasSet(keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" });
 
         // `default` derived from the record id — the row the router ships is *0 (see the /ip/hotspot entries).
         private static FieldAliasSet HotspotDefault()
-            => new FieldAliasSet(Ci(), Ci(),
-                derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
+            => new FieldAliasSet(derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["default"] = Tuple.Create(TikSpecialProperties.Id, "*0"),
                 });
@@ -183,11 +203,9 @@ namespace tik4net.Winbox
                 // /ping (ToolPing, top-level /ping). 'address'/'host' both ride the WinBox 'ping-to' field; the
                 // result row decodes it to the API 'host'. count/size/seq/min/avg/max are likewise relabelled.
                 ["/ping"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "ping-to"), ("count", "packet-count"),
-                               ("size", "packet-size"), ("seq", "seq-#"),
-                               ("min-rtt", "min"), ("avg-rtt", "avg"), ("max-rtt", "max")),
-                    jgToApi: Ci(("packet-count", "count"), ("packet-size", "size"),
-                               ("seq-#", "seq"), ("min", "min-rtt"), ("avg", "avg-rtt"), ("max", "max-rtt")),
+                    both: Ci(("count", "packet-count"), ("size", "packet-size"), ("seq", "seq-#"), ("min-rtt", "min"),
+                             ("avg-rtt", "avg"), ("max-rtt", "max")),
+                    apiToJgOnly: Ci(("address", "ping-to")),
                     // The reply's responder address rides at key 0x1 (u32 ipaddr), which the .jg leaves unnamed —
                     // so its name and ipaddr formatting are supplied here (the value is a packed-u32 IPv4).
                     keyToApi: new Dictionary<int, string> { [0x1] = "host" },
@@ -204,10 +222,9 @@ namespace tik4net.Winbox
                 //    prints 1ms; its wire unit is milliseconds, as the statusbar's min/avg/max (postfix ms) are.
                 //  - 0x69 / 0x6A are the running sent / received counts; the .jg does not name them.
                 ["/tool/romon/ping"] = new FieldAliasSet(
-                    apiToJg: Ci(("size", "packet-size"), ("seq", "seq-#"),
-                               ("min-rtt", "min"), ("avg-rtt", "avg"), ("max-rtt", "max")),
-                    jgToApi: Ci(("packet-size", "size"), ("reply-size", "size"), ("seq-#", "seq"),
-                               ("min", "min-rtt"), ("avg", "avg-rtt"), ("max", "max-rtt")),
+                    both: Ci(("size", "packet-size"), ("seq", "seq-#"), ("min-rtt", "min"), ("avg-rtt", "avg"),
+                             ("max-rtt", "max")),
+                    jgToApiOnly: Ci(("reply-size", "size")),
                     keyToApi: new Dictionary<int, string> { [0x6b] = "packet-loss" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
@@ -221,14 +238,14 @@ namespace tik4net.Winbox
                 // 'Traceroute To' and the per-hop responder 'Host'; the API calls both 'address'.
                 // 'count'/'max-hops' need no alias — the window labels them exactly that.
                 ["/tool/traceroute"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "traceroute-to"), ("size", "packet-size")),
-                    jgToApi: Ci(("host", "address"), ("packet-size", "size"))),
+                    both: Ci(("size", "packet-size")),
+                    apiToJgOnly: Ci(("address", "traceroute-to")),
+                    jgToApiOnly: Ci(("host", "address"))),
 
                 // /tool/wol (ToolWol, standalone 'Wake on LAN' doit window): the API sends 'mac', WinBox labels
                 // the same field 'MAC Address'. 'interface' matches verbatim, so only the one alias is needed.
                 ["/tool/wol"] = new FieldAliasSet(
-                    apiToJg: Ci(("mac", "mac-address")),
-                    jgToApi: Ci(("mac-address", "mac"))),
+                    both: Ci(("mac", "mac-address"))),
 
                 // /system/identity: the singleton's one field is labelled 'Identity' in WinBox (.jg
                 // {title:'Identity',type:'item',path:[24,1],c:[{name:'Identity',id:'sc'},…]}), while the API
@@ -238,28 +255,23 @@ namespace tik4net.Winbox
                 // /tool/bandwidth-server: the window calls the two address lists Ipv4/Ipv6 Allowed Networks
                 // where the API says allowed-addresses4/6. One name for one value, both directions.
                 ["/tool/bandwidth-server"] = new FieldAliasSet(
-                    apiToJg: Ci(("allowed-addresses4", "ipv4-allowed-networks"),
-                               ("allowed-addresses6", "ipv6-allowed-networks")),
-                    jgToApi: Ci(("ipv4-allowed-networks", "allowed-addresses4"),
-                               ("ipv6-allowed-networks", "allowed-addresses6"))),
+                    both: Ci(("allowed-addresses4", "ipv4-allowed-networks"),
+                             ("allowed-addresses6", "ipv6-allowed-networks"))),
 
                 // /user/group: the window's field is 'Policies', the API's is 'policy' — one name for one
                 // value, so the alias is the whole difference. (Its members come from the policy table
                 // [13,3], not from a static map; see EncodeField's bit-set branch.)
                 ["/user/group"] = new FieldAliasSet(
-                    apiToJg: Ci(("policy", "policies")),
-                    jgToApi: Ci(("policies", "policy"))),
+                    both: Ci(("policy", "policies"))),
 
                 ["/system/identity"] = new FieldAliasSet(
-                    apiToJg: Ci(("name", "identity")),
-                    jgToApi: Ci(("identity", "name"))),
+                    both: Ci(("name", "identity"))),
 
                 // /file: the Files window labels the record's name 'File Name' (it is the window's
                 // nameval), while the API calls it 'name'. Without the alias every file row came back
                 // without a 'name' and the entity read threw "Missing field 'name'".
                 ["/file"] = new FieldAliasSet(
-                    apiToJg: Ci(("name", "file-name")),
-                    jgToApi: Ci(("file-name", "name"))),
+                    both: Ci(("name", "file-name"))),
 
                 // /system/logging/action: the window's field is {name:'Type',title:'Target'} — the API name
                 // is 'target', and 'type' is not an API field of this table at all.
@@ -269,20 +281,14 @@ namespace tik4net.Winbox
                 // — memory-lines, disk-file-count, email-cc — so only three remain, plus the echo pane's one
                 // field. Checked against `/system/logging/action add ?` on 7.23.2.
                 ["/system/logging/action"] = new FieldAliasSet(
-                    apiToJg: Ci(("target", "type"),
-                               ("remote", "remote-address"),          // remote pane, 'Remote Address'
-                               ("remote-protocol", "remote-log-protocol"),
-                               ("email-to", "email"),                 // email pane, 'Email' (already kind-named)
-                               ("remember", "save"),                  // echo pane, 'Save'
-                               ("syslog-time-format", "timestamp-format"),
-                               ("add-topics-string", "add-topics")),
-                    jgToApi: Ci(("type", "target"),
-                               ("remote-address", "remote"),
-                               ("remote-log-protocol", "remote-protocol"),
-                               ("email", "email-to"),
-                               ("save", "remember"),
-                               ("timestamp-format", "syslog-time-format"),
-                               ("add-topics", "add-topics-string"))),
+                    both: Ci(("target", "type"),
+                             // remote pane, 'Remote Address'
+                             ("remote", "remote-address"), ("remote-protocol", "remote-log-protocol"),
+                             // email pane, 'Email' (already kind-named)
+                             ("email-to", "email"),
+                             // echo pane, 'Save'
+                             ("remember", "save"), ("syslog-time-format", "timestamp-format"),
+                             ("add-topics-string", "add-topics"))),
                 // The remote pane's 'Timestamp Format' (u13) and 'Add Topics' (b23) are the API's
                 // syslog-time-format and add-topics-string. Both ride on a format condition (on:'timestamp',
                 // on:'bsd') that WinboxJgCondition honours, so they are reported exactly where the API reports
@@ -298,22 +304,10 @@ namespace tik4net.Winbox
                 // ('Type Name' is the window's nameval, the same shape as /file's 'File Name' — without it
                 // every row came back without a 'name' and the entity read threw "Missing field 'name'".)
                 ["/queue/type"] = new FieldAliasSet(
-                    apiToJg: Ci(("name", "type-name"),
-                               ("bfifo-limit", "bfifo-queue-size"),
-                               ("pfifo-limit", "pfifo-queue-size"),
-                               ("mq-pfifo-limit", "mq-pfifo-mq-queue-size"),
-                               ("red-limit", "red-queue-size"),
-                               ("red-avg-packet", "red-avg-packet-size"),
-                               ("pcq-limit", "pcq-queue-size"),
-                               ("pcq-total-limit", "pcq-total-queue-size")),
-                    jgToApi: Ci(("type-name", "name"),
-                               ("bfifo-queue-size", "bfifo-limit"),
-                               ("pfifo-queue-size", "pfifo-limit"),
-                               ("mq-pfifo-mq-queue-size", "mq-pfifo-limit"),
-                               ("red-queue-size", "red-limit"),
-                               ("red-avg-packet-size", "red-avg-packet"),
-                               ("pcq-queue-size", "pcq-limit"),
-                               ("pcq-total-queue-size", "pcq-total-limit"))),
+                    both: Ci(("name", "type-name"), ("bfifo-limit", "bfifo-queue-size"),
+                             ("pfifo-limit", "pfifo-queue-size"), ("mq-pfifo-limit", "mq-pfifo-mq-queue-size"),
+                             ("red-limit", "red-queue-size"), ("red-avg-packet", "red-avg-packet-size"),
+                             ("pcq-limit", "pcq-queue-size"), ("pcq-total-limit", "pcq-total-queue-size"))),
 
                 // /interface/ethernet: the window carries the auto-negotiation SETTING and the link's
                 // negotiation STATUS, and the .jg labels both of them 'Auto Negotiation'. The setting
@@ -345,15 +339,10 @@ namespace tik4net.Winbox
                 // choose); setting disable-running-check=yes on ether2 over the API moved 0x1000D False → True
                 // and left 0x3F4 and ether1 alone (7.24.2). Same polarity as the API's field, writable.
                 ["/interface/ethernet"] = new FieldAliasSet(
-                    apiToJg: Ci(("auto-negotiation", "autoneg"),
-                               ("loop-protect-status", "status"),
-                               ("loop-protect-send-interval", "send-interval"),
-                               ("loop-protect-disable-time", "disable-time")),
-                    jgToApi: Ci(("autoneg", "auto-negotiation"),
-                               ("auto-negotiation", "auto-negotiation-status"),
-                               ("status", "loop-protect-status"),
-                               ("send-interval", "loop-protect-send-interval"),
-                               ("disable-time", "loop-protect-disable-time")),
+                    both: Ci(("auto-negotiation", "autoneg"), ("loop-protect-status", "status"),
+                             ("loop-protect-send-interval", "send-interval"),
+                             ("loop-protect-disable-time", "disable-time")),
+                    jgToApiOnly: Ci(("auto-negotiation", "auto-negotiation-status")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["disable-running-check"] = new WinboxJgField("disable-running-check", 0x1000D, "bool", false),
@@ -370,18 +359,15 @@ namespace tik4net.Winbox
                 // the router ALSO prints `address4` for the same value and `address6` for the v6 one, so
                 // one native field answers to two API names there; `address` is the one every menu uses.
                 ["/ip/arp"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "ip-address")),
-                    jgToApi: Ci(("ip-address", "address"))),
+                    both: Ci(("address", "ip-address"))),
 
                 // `interface` is a LIST on the API — a neighbour heard on a bridge port is heard on its bridge too,
                 // `interface=ether2,t4n-prio-br` — and the window's 'Interface' (u4) holds only the first of them.
                 // The whole list rides the undeclared u32[] 0x13: [3,283] beside 0x4=3 on that row, [2] beside
                 // 0x4=2 on a neighbour heard on one interface (7.21.5, 2026-09-28).
                 ["/ip/neighbor"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "ip-address"), ("address6", "ipv6-address"),
-                               ("board", "board-name"), ("unpack", "unpacking")),
-                    jgToApi: Ci(("ip-address", "address"), ("ipv6-address", "address6"),
-                               ("board-name", "board"), ("unpacking", "unpack")),
+                    both: Ci(("address", "ip-address"), ("address6", "ipv6-address"), ("board", "board-name"),
+                             ("unpack", "unpacking")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["interface"] = new WinboxJgField("interface", 0x13, "u32[]", true,
@@ -398,27 +384,21 @@ namespace tik4net.Winbox
                 // /ip/dhcp-client: three, all moving a distinctive value in one read — the lease address
                 // (192.168.4.236/24), the reconfigure flag, and the routing-table list.
                 ["/ip/dhcp-client"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "ip-address"),
-                               ("allow-reconfigure", "allow-reconfigure-messages"),
-                               ("default-route-tables", "routing-tables")),
-                    jgToApi: Ci(("ip-address", "address"),
-                               ("allow-reconfigure-messages", "allow-reconfigure"),
-                               ("routing-tables", "default-route-tables"))),
+                    both: Ci(("address", "ip-address"), ("allow-reconfigure", "allow-reconfigure-messages"),
+                             ("default-route-tables", "routing-tables"))),
 
                 // /user: WinBox's 'Allowed Address'. Both rows of a stock router leave it EMPTY, which is
                 // why the audit could not propose it — two blanks agree vacuously. Confirmed by creating a
                 // user with address=192.168.251.0/24 and watching that one row change and the others not.
                 ["/user"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "allowed-address")),
-                    jgToApi: Ci(("allowed-address", "address"))),
+                    both: Ci(("address", "allowed-address"))),
 
                 // The rest: one WinBox label, one API name, no structure to derive it from.
                 // accounting and interim-update are 7.x's 'Accounting' (b3) and 'Interim Update' (u2); the 6.49.13
                 // window declares neither, but the router sends both keys. Confirmed by value there:
                 // accounting=no moved 0x3 True -> False, interim-update=1m30s moved 0x2 0 -> 90.
                 ["/ip/dhcp-server/config"] = new FieldAliasSet(
-                    apiToJg: Ci(("store-leases-disk", "store-leases-on-disk")),
-                    jgToApi: Ci(("store-leases-on-disk", "store-leases-disk")),
+                    both: Ci(("store-leases-disk", "store-leases-on-disk")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["accounting"] = new WinboxJgField("accounting", 0x3, "bool", false),
@@ -429,22 +409,19 @@ namespace tik4net.Winbox
                 // stock router, so the audit could not propose it; settled by setting it to ether2 and
                 // watching that name carry the value on native.
                 ["/ip/dns"] = new FieldAliasSet(
-                    apiToJg: Ci(("verify-doh-cert", "verify-doh-certificate"),
-                                ("mdns-repeat-ifaces", "mdns-repeater-interfaces")),
-                    jgToApi: Ci(("verify-doh-certificate", "verify-doh-cert"),
-                                ("mdns-repeater-interfaces", "mdns-repeat-ifaces"))),
+                    both: Ci(("verify-doh-cert", "verify-doh-certificate"),
+                             ("mdns-repeat-ifaces", "mdns-repeater-interfaces"))),
 
                 // /snmp: WinBox paints 'Contact Info' beside the box the API calls contact. Empty on a stock
                 // router; settled by writing a distinctive string and reading it back under that name.
                 ["/snmp"] = new FieldAliasSet(
-                    apiToJg: Ci(("contact", "contact-info")),
-                    jgToApi: Ci(("contact-info", "contact"))),
+                    both: Ci(("contact", "contact-info"))),
 
                 // 'Available From' is the API's available-from on 7.24 and its address on 6.49.13 — one key
                 // (0x6), one label, two API words (ftp address=10.99.0.0/24,10.98.0.1/32 arrived there on 6.x).
                 ["/ip/service"] = new FieldAliasSet(
-                    apiToJg: Ci(("proto", "protocol"), ("address", "available-from")),
-                    jgToApi: Ci(("protocol", "proto")),
+                    both: Ci(("proto", "protocol")),
+                    apiToJgOnly: Ci(("address", "available-from")),
                     alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["available-from"] = new[] { "address" },
@@ -452,37 +429,27 @@ namespace tik4net.Winbox
 
                 // The same shape: 'Server' (0x1) is the API's server on 7.24 and its address on 6.49.13.
                 ["/tool/e-mail"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "server")),
-                    jgToApi: Ci(),
+                    apiToJgOnly: Ci(("address", "server")),
                     alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["server"] = new[] { "address" },
                     }),
 
                 ["/ip/socks"] = new FieldAliasSet(
-                    apiToJg: Ci(("auth-method", "authentication-method")),
-                    jgToApi: Ci(("authentication-method", "auth-method"))),
+                    both: Ci(("auth-method", "authentication-method"))),
 
                 ["/ip/proxy"] = new FieldAliasSet(
-                    apiToJg: Ci(("cache-hit-dscp", "cache-hit-dscp-(tos)")),
-                    jgToApi: Ci(("cache-hit-dscp-(tos)", "cache-hit-dscp"))),
+                    both: Ci(("cache-hit-dscp", "cache-hit-dscp-(tos)"))),
 
                 // 7.x: 'NTP Servers'. 6.49.13 has two boxes instead, 'Primary/Secondary NTP Server' (u2, u3), and
                 // calls the API's last-update-before 'Last Update' (u6a, an age); no 7.x NTP label collides.
                 ["/system/ntp/client"] = new FieldAliasSet(
-                    apiToJg: Ci(("servers", "ntp-servers"),
-                                ("primary-ntp", "primary-ntp-server"),
-                                ("secondary-ntp", "secondary-ntp-server"),
-                                ("last-update-before", "last-update")),
-                    jgToApi: Ci(("ntp-servers", "servers"),
-                                ("primary-ntp-server", "primary-ntp"),
-                                ("secondary-ntp-server", "secondary-ntp"),
-                                ("last-update", "last-update-before"))),
+                    both: Ci(("servers", "ntp-servers"), ("primary-ntp", "primary-ntp-server"),
+                             ("secondary-ntp", "secondary-ntp-server"), ("last-update-before", "last-update"))),
 
                 // /ip/accounting (RouterOS 6 only): the window says 'Enable Accounting' (b15).
                 ["/ip/accounting"] = new FieldAliasSet(
-                    apiToJg: Ci(("enabled", "enable-accounting")),
-                    jgToApi: Ci(("enable-accounting", "enabled"))),
+                    both: Ci(("enabled", "enable-accounting"))),
 
                 // /system/resource: the window declares BOTH 'freq' and 'CPU Frequency' on u5 and first-wins
                 // took 'freq'. One key, one value, and the API's name for it is cpu-frequency.
@@ -492,14 +459,9 @@ namespace tik4net.Winbox
                 // coincidence; the .jg settles it, not the reading. The disk and sector counters pair by
                 // name alone: both sector counters read the same number on a router that has been up once.
                 ["/system/resource"] = new FieldAliasSet(
-                    apiToJg: Ci(("cpu-frequency", "freq"),
-                               ("total-hdd-space", "total-hdd-size"),
-                               ("write-sect-total", "total-sector-writes"),
-                               ("write-sect-since-reboot", "sector-writes-since-reboot")),
-                    jgToApi: Ci(("freq", "cpu-frequency"),
-                               ("total-hdd-size", "total-hdd-space"),
-                               ("total-sector-writes", "write-sect-total"),
-                               ("sector-writes-since-reboot", "write-sect-since-reboot")),
+                    both: Ci(("cpu-frequency", "freq"), ("total-hdd-space", "total-hdd-size"),
+                             ("write-sect-total", "total-sector-writes"),
+                             ("write-sect-since-reboot", "sector-writes-since-reboot")),
                     // No window declares the platform; the record carries it unnamed at 0x1B, the one key holding
                     // the API's platform=MikroTik (7.24.2). Read-only, as the API has it.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
@@ -510,25 +472,21 @@ namespace tik4net.Winbox
                 // /ip/traffic-flow: both fields read 0 on a stock router, so the audit's value match was
                 // vacuous. Confirmed by writing 13 and 27 and watching the two arrive in that order.
                 ["/ip/traffic-flow"] = new FieldAliasSet(
-                    apiToJg: Ci(("sampling-interval", "packet-sampling-interval"),
-                               ("sampling-space", "packet-sampling-space")),
-                    jgToApi: Ci(("packet-sampling-interval", "sampling-interval"),
-                               ("packet-sampling-space", "sampling-space"))),
+                    both: Ci(("sampling-interval", "packet-sampling-interval"),
+                             ("sampling-space", "packet-sampling-space"))),
 
                 // Each pairing below was confirmed by MOVING the value on a seeded row over the API and naming
                 // the one native field that changed (7.24.2) — never by the two names looking alike.
                 //
                 // /ip/dhcp-relay: 'Local Address As Source IP' is the API's local-address-as-src-ip (yes → true).
                 ["/ip/dhcp-relay"] = new FieldAliasSet(
-                    apiToJg: Ci(("local-address-as-src-ip", "local-address-as-source-ip")),
-                    jgToApi: Ci(("local-address-as-source-ip", "local-address-as-src-ip"))),
+                    both: Ci(("local-address-as-src-ip", "local-address-as-source-ip"))),
 
                 // /ip/traffic-flow/target: webfig's 'v9/IPFIX Template …' boxes. Refresh is a packet count (33
                 // moved 33). Timeout is declared a plain {number,def:1800} and the API prints it as a duration —
                 // 44m moved the key to 2640 — so it is typed here as an interval rather than aliased.
                 ["/ip/traffic-flow/target"] = new FieldAliasSet(
-                    apiToJg: Ci(("v9-template-refresh", "v9/ipfix-template-refresh")),
-                    jgToApi: Ci(("v9/ipfix-template-refresh", "v9-template-refresh")),
+                    both: Ci(("v9-template-refresh", "v9/ipfix-template-refresh")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["v9-template-timeout"] = new WinboxJgField("v9-template-timeout", 0x5, "u32", false,
@@ -540,28 +498,19 @@ namespace tik4net.Winbox
                 // …and the window's statistics 'Avg. Rate' (ucc) and 'Avg. Packet Rate' (ucd) are the API's rate and
                 // packet-rate: the only rate fields the Queue Tree window declares.
                 ["/queue/tree"] = new FieldAliasSet(
-                    apiToJg: Ci(("packet-mark", "packet-marks"),
-                                ("queue", "queue-type"),
-                                ("rate", "avg-rate"),
-                                ("packet-rate", "avg-packet-rate")),
-                    jgToApi: Ci(("packet-marks", "packet-mark"),
-                                ("queue-type", "queue"),
-                                ("avg-rate", "rate"),
-                                ("avg-packet-rate", "packet-rate"))),
+                    both: Ci(("packet-mark", "packet-marks"), ("queue", "queue-type"), ("rate", "avg-rate"),
+                             ("packet-rate", "avg-packet-rate"))),
 
                 // /interface/vxlan: 'Remote Checksum Offload' is rem-csum (tx moved it).
                 ["/interface/vxlan"] = new FieldAliasSet(
-                    apiToJg: Ci(("rem-csum", "remote-checksum-offload")),
-                    jgToApi: Ci(("remote-checksum-offload", "rem-csum"))),
+                    both: Ci(("rem-csum", "remote-checksum-offload"))),
 
                 // /ip/dhcp-server: 'DNS Entry Suffix' and 'Support The Broadband Forum TR-101'.
                 // …and address-lists is a key the DHCP window does not declare: address-lists=t4n-dsal moved 0x1E
                 // to the one-element string list [t4n-dsal].
                 ["/ip/dhcp-server"] = new FieldAliasSet(
-                    apiToJg: Ci(("add-dns-entries-suffix", "dns-entry-suffix"),
-                                ("support-broadband-tr101", "support-the-broadband-forum-tr-101")),
-                    jgToApi: Ci(("dns-entry-suffix", "add-dns-entries-suffix"),
-                                ("support-the-broadband-forum-tr-101", "support-broadband-tr101")),
+                    both: Ci(("add-dns-entries-suffix", "dns-entry-suffix"),
+                             ("support-broadband-tr101", "support-the-broadband-forum-tr-101")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["address-lists"] = new WinboxJgField("address-lists", 0x1E, "string[]", false,
@@ -575,8 +524,7 @@ namespace tik4net.Winbox
                 // …and the window's plural 'DHCP Options' (U11) is the API's singular dhcp-option: clearing it moved
                 // the list [1] → [].
                 ["/ip/dhcp-server/lease"] = new FieldAliasSet(
-                    apiToJg: Ci(("address-lists", "address-list"), ("dhcp-option", "dhcp-options")),
-                    jgToApi: Ci(("address-list", "address-lists"), ("dhcp-options", "dhcp-option")),
+                    both: Ci(("address-lists", "address-list"), ("dhcp-option", "dhcp-options")),
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["blocked"] = Tuple.Create("block-access", "true"),
@@ -591,8 +539,7 @@ namespace tik4net.Winbox
                 // the same key: connection-tracking-mode=active-active moved the number to 1 and WinBox showed
                 // active/active, while the catalog's members are spelled with a slash where the API uses a dash.
                 ["/interface/vrrp"] = new FieldAliasSet(
-                    apiToJg: Ci(("connection-tracking-port", "conn-tracking-port")),
-                    jgToApi: Ci(("conn-tracking-port", "connection-tracking-port")),
+                    both: Ci(("connection-tracking-port", "conn-tracking-port")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "invalid" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
@@ -612,8 +559,7 @@ namespace tik4net.Winbox
                 // The state flag is the API's `inactive` on 7.24 and its `invalid` on 6.49.13 — the same
                 // 0xFE0008 the other routing tables carry, so both words are reported.
                 ["/routing/ospf/area"] = new FieldAliasSet(
-                    apiToJg: Ci(("name", "area-name")),
-                    jgToApi: Ci(("area-name", "name")),
+                    both: Ci(("name", "area-name")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" },
                     alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
@@ -626,8 +572,6 @@ namespace tik4net.Winbox
                 // …and `responder`: passive=yes moved the unnamed bool 0xE False → True together with the API's
                 // responder (0x23, the Passive box, moved beside it). Read-only, as the API has it.
                 ["/ip/ipsec/peer"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["ppk-secret"] = new WinboxJgField("ppk-secret", 0x36, "string", false),
@@ -639,8 +583,7 @@ namespace tik4net.Winbox
                 // on a probe bridge (7.24.2). Merged over the base /interface set.
                 // …and the VLAN tab's 'EtherType' is one word where the API says ether-type (6.49.13, 7.21.5, 7.24.4).
                 ["/interface/bridge"] = new FieldAliasSet(
-                    apiToJg: Ci(("ether-type", "ethertype")),
-                    jgToApi: Ci(("ethertype", "ether-type")),
+                    both: Ci(("ether-type", "ethertype")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["auto-mac"] = new WinboxJgField("auto-mac", 0x65, "bool", false),
@@ -650,8 +593,6 @@ namespace tik4net.Winbox
                 // router completes was set and read back: accept-proto-version all/l2tpv2/l2tpv3 moved 0xDF to
                 // 0/2/3, accept-pseudowire-type all/ether/ppp moved 0xDE to 0/5/7 (7.24.2).
                 ["/interface/l2tp-server/server"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["accept-proto-version"] = new WinboxJgField("accept-proto-version", 0xDF, "u32", false,
@@ -664,8 +605,7 @@ namespace tik4net.Winbox
                 // probe peer's 10.99.0.20 rides m3ee). Its 'Rx'/'Tx' (q3f3/q3f4) lose their names to the interface
                 // counters' label overrides, so they are supplied by key; the API prints the byte counts bare.
                 ["/interface/wireguard/peers"] = new FieldAliasSet(
-                    apiToJg: Ci(("endpoint-address", "endpoint")),
-                    jgToApi: Ci(("endpoint", "endpoint-address")),
+                    both: Ci(("endpoint-address", "endpoint")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["rx"] = new WinboxJgField("rx", 0x3F3, "u64", true),
@@ -676,8 +616,6 @@ namespace tik4net.Winbox
                 // id on both stock rows (3 on the ether2 address, 2 on ether1's), matching the API's
                 // actual-interface=ether2/ether1. Read-only; a reference into the interface table.
                 ["/ip/address"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["actual-interface"] = new WinboxJgField("actual-interface", 0x5, "u32", true,
@@ -687,15 +625,12 @@ namespace tik4net.Winbox
                 // /caps-man/provisioning: the window's singular 'Slave Configuration' (U500c) is the API's plural
                 // slave-configurations — clearing it moved the list [77] → [].
                 ["/caps-man/provisioning"] = new FieldAliasSet(
-                    apiToJg: Ci(("slave-configurations", "slave-configuration")),
-                    jgToApi: Ci(("slave-configuration", "slave-configurations"))),
+                    both: Ci(("slave-configurations", "slave-configuration"))),
 
                 // /system/package: webfig declares `available` as an inverted flag on the Installed key
                 // ({name:'available',type:'flag',id:'bb',hint:'A',inv:1}); the key already carries `installed`, so
                 // the flag is derived from it. Every row a router lists is installed=true, available=false.
                 ["/system/package"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["available"] = Tuple.Create("installed", "false"),
@@ -721,8 +656,7 @@ namespace tik4net.Winbox
                 //    2 = decrement; the window calls the first 'change') and 'New TTL' u3ef — increment:3 is
                 //    {0x3EE=1, 0x3EF=3}. Alone, 'New TTL' read as new-ttl=3.
                 ["/ip/firewall/mangle"] = new FieldAliasSet(
-                    apiToJg: Ci(("new-dscp", "new-dscp-(tos)"), ("new-mss", "new-tcp-mss")),
-                    jgToApi: Ci(("new-dscp-(tos)", "new-dscp"), ("new-tcp-mss", "new-mss")),
+                    both: Ci(("new-dscp", "new-dscp-(tos)"), ("new-mss", "new-tcp-mss")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["route-dst"] = new WinboxJgField("route-dst", 0x3F4, "u32", false, uiType: "ipaddr"),
@@ -745,8 +679,6 @@ namespace tik4net.Winbox
                 // /ip/firewall/filter: see FirewallIpsecPolicy and FirewallLimit; realm is mangle's (in no field of the
                 // Firewall Rule window either, the same three keys: realm=!7 is 0x7E=7, 0x1C2, 0xE0=True on 7.24.5).
                 ["/ip/firewall/filter"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["ipsec-policy"] = FirewallIpsecPolicy(),
@@ -761,8 +693,6 @@ namespace tik4net.Winbox
                 // in-bridge-port-list=!all {0xBB8, 0x7D0=True, 0x44C=0x2000000}, the out- pair one key further on
                 // (7.24.5, every value moved over the API and the raw record read back).
                 ["/ip/firewall/raw"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["ipsec-policy"] = FirewallIpsecPolicy(),
@@ -782,8 +712,7 @@ namespace tik4net.Winbox
                 // Connections window does not declare — the one GRE row (to 10.99.0.8) carried the API's
                 // gre-key=26642 at 0x15, which no other row sent (7.24.2). Read-only, as the table is.
                 ["/ip/firewall/connection"] = new FieldAliasSet(
-                    apiToJg: Ci(("uses-helper", "helper-used")),
-                    jgToApi: Ci(("helper-used", "uses-helper")),
+                    both: Ci(("uses-helper", "helper-used")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["gre-key"] = new WinboxJgField("gre-key", 0x15, "u32", true),
@@ -793,16 +722,13 @@ namespace tik4net.Winbox
                 // Offload' (bd7) is NOT the API's hw: on the seeded ether2 port the API printed hw=true where bd7 read
                 // false, and a port whose record carries no bd7 has no hw either (7.24.2).
                 ["/interface/bridge/port"] = new FieldAliasSet(
-                    apiToJg: Ci(("external-fdb-status", "external-fdb")),
-                    jgToApi: Ci(("external-fdb", "external-fdb-status"))),
+                    both: Ci(("external-fdb-status", "external-fdb"))),
 
                 // /ip/ipsec/active-peers: the window declares 'Side' {enm b5: initiator, responder} and a 'Responder'
                 // flag on the same b5, so the key carries `side` and the flag is derived from it. The two SPIs are
                 // keys no window declares: an initiating peer printed spii=ef035cfdda65233b and
                 // spir=0000000000000000, the strings the record carried at 0x15 and 0x16 (7.24.2).
                 ["/ip/ipsec/active-peers"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["responder"] = Tuple.Create("side", "responder"),
@@ -820,14 +746,11 @@ namespace tik4net.Winbox
                 // The user profile's 'Rate Limit (rx/tx)' carries its units in the label, as on the server
                 // profile: the API says rate-limit, with the same value (1M/2M on a t4n profile, 7.24.4).
                 ["/ip/hotspot/user/profile"] = new FieldAliasSet(
-                    apiToJg: Ci(("rate-limit", "rate-limit-(rx/tx)")),
-                    jgToApi: Ci(("rate-limit-(rx/tx)", "rate-limit")),
+                    both: Ci(("rate-limit", "rate-limit-(rx/tx)")),
                     derivedBools: HotspotDefault().DerivedBools),
 
                 // /ip/hotspot/ip-binding: `bypassed` is the binding's type, as a flag (type=bypassed, bypassed=true).
                 ["/ip/hotspot/ip-binding"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["bypassed"] = Tuple.Create("type", "bypassed"),
@@ -837,10 +760,8 @@ namespace tik4net.Winbox
                 // no window declares: icmp-rate-mask=0x1819 moved the unnamed 0x1C from 6168 to 6169, and the API
                 // prints it in hex with the prefix.
                 ["/ip/settings"] = new FieldAliasSet(
-                    apiToJg: Ci(("ipv4-high-fragment-thresh", "ipv4-fragment-threshold-bytes"),
-                               ("ipv4-fragment-time", "ipv4-fragment-timeout")),
-                    jgToApi: Ci(("ipv4-fragment-threshold-bytes", "ipv4-high-fragment-thresh"),
-                               ("ipv4-fragment-timeout", "ipv4-fragment-time")),
+                    both: Ci(("ipv4-high-fragment-thresh", "ipv4-fragment-threshold-bytes"),
+                             ("ipv4-fragment-time", "ipv4-fragment-timeout")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["icmp-rate-mask"] = new WinboxJgField("icmp-rate-mask", 0x1C, "u32", false,
@@ -849,29 +770,18 @@ namespace tik4net.Winbox
 
                 // The two IPsec algorithm sets: singular where the window says plural, and vice versa.
                 ["/ip/ipsec/profile"] = new FieldAliasSet(
-                    apiToJg: Ci(("hash-algorithm", "hash-algorithms"),
-                               ("enc-algorithm", "encryption-algorithm")),
-                    jgToApi: Ci(("hash-algorithms", "hash-algorithm"),
-                               ("encryption-algorithm", "enc-algorithm"))),
+                    both: Ci(("hash-algorithm", "hash-algorithms"), ("enc-algorithm", "encryption-algorithm"))),
 
                 ["/ip/ipsec/proposal"] = new FieldAliasSet(
-                    apiToJg: Ci(("enc-algorithms", "encr-algorithms")),
-                    jgToApi: Ci(("encr-algorithms", "enc-algorithms"))),
+                    both: Ci(("enc-algorithms", "encr-algorithms"))),
 
                 // The two timeouts were confirmed by writing 17s and 23s and reading both back: every other
                 // TCP timeout on this window is named '<state>-timeout' on both sides, and these two are the
                 // pair where the window drops the suffix.
                 ["/ip/firewall/connection/tracking"] = new FieldAliasSet(
-                    apiToJg: Ci(("tcp-max-retrans-timeout", "tcp-max-retransmit-timeout"),
-                               ("tcp-close-timeout", "tcp-close"),
-                               ("tcp-time-wait-timeout", "tcp-time-wait"),
-                               ("total-ip4-entries", "total-ipv4-entries"),
-                               ("total-ip6-entries", "total-ipv6-entries")),
-                    jgToApi: Ci(("tcp-max-retransmit-timeout", "tcp-max-retrans-timeout"),
-                               ("tcp-close", "tcp-close-timeout"),
-                               ("tcp-time-wait", "tcp-time-wait-timeout"),
-                               ("total-ipv4-entries", "total-ip4-entries"),
-                               ("total-ipv6-entries", "total-ip6-entries")),
+                    both: Ci(("tcp-max-retrans-timeout", "tcp-max-retransmit-timeout"),
+                             ("tcp-close-timeout", "tcp-close"), ("tcp-time-wait-timeout", "tcp-time-wait"),
+                             ("total-ip4-entries", "total-ipv4-entries"), ("total-ip6-entries", "total-ipv6-entries")),
                     // active-ipv6: enabled=yes moved the unnamed bool 0x2F False → True with the API's
                     // active-ipv6, and enabled=auto put both back. Read-only.
                     // total-entries: 7.x declares it ('Total Entries', uf); the 6.49.13 window does not, but
@@ -886,11 +796,9 @@ namespace tik4net.Winbox
                 // API says `list` on both. On 7.x the alias yields to the catalog's own label (AliasToJg). The
                 // IPv6 window is labelled the same way.
                 ["/ip/firewall/address-list"] = new FieldAliasSet(
-                    apiToJg: Ci(("list", "name")),
-                    jgToApi: Ci(("name", "list"))),
+                    both: Ci(("list", "name"))),
                 ["/ipv6/firewall/address-list"] = new FieldAliasSet(
-                    apiToJg: Ci(("list", "name")),
-                    jgToApi: Ci(("name", "list"))),
+                    both: Ci(("list", "name"))),
 
                 // /ip/route: the API's `active` bool is the route window's 'Contribution' enum — one wire
                 // field (u22), two vocabularies. The base 'All Routes' window's numflag on that key
@@ -911,8 +819,7 @@ namespace tik4net.Winbox
                 // 'Pref. Source' is the API's pref-src, on both versions: a 6.49.13 connected route printed
                 // pref-src=<its own address> and carried that address at 0x3 under the opt flag 0x3EB.
                 ["/ip/route"] = new FieldAliasSet(
-                    apiToJg: Ci(("pref-src", "pref-source")),
-                    jgToApi: Ci(("pref-source", "pref-src")),
+                    both: Ci(("pref-src", "pref-source")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["immediate-gw"] = new WinboxJgField("immediate-gw", 0x108, "addr[]", true,
@@ -931,7 +838,7 @@ namespace tik4net.Winbox
 
                 // /system/history: 'undoable' is a numflag member (u4=0), and the API prints undoable=true on
                 // every such row (7.24). Its redoable and floating-undo members have not been seen printed.
-                ["/system/history"] = new FieldAliasSet(Ci(), Ci(), numFlagMembers: new[] { "undoable" }),
+                ["/system/history"] = new FieldAliasSet(numFlagMembers: new[] { "undoable" }),
 
                 // /routing/ospf/interface-template: the template window types Transmit Delay as a plain
                 // `number` (u2c700b, max:65535 min:1) while the live 'OSPF Interface' window on [44,111]
@@ -941,8 +848,7 @@ namespace tik4net.Winbox
                 // that rule would reach every such pair in the catalog on the strength of one example.
                 // Its 'Network Type' is the API's type — confirmed by setting type=ptp and watching it arrive.
                 ["/routing/ospf/interface-template"] = new FieldAliasSet(
-                    apiToJg: Ci(("type", "network-type")),
-                    jgToApi: Ci(("network-type", "type")),
+                    both: Ci(("type", "network-type")),
                     // The state flag, as the routing tables name it (see RoutingInactive).
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
@@ -961,20 +867,9 @@ namespace tik4net.Winbox
                 // The other two it could not: the API prints a false flag as no word at all, so no
                 // comparison would ever have named them.
                 ["/ip/dhcp-server/network"] = new FieldAliasSet(
-                    apiToJg: Ci(("dns-server", "dns-servers"),
-                                ("ntp-server", "ntp-servers"),
-                                ("wins-server", "wins-servers"),
-                                ("caps-manager", "caps-managers"),
-                                ("dhcp-option", "dhcp-options"),
-                                ("dns-none", "no-dns"),
-                                ("ntp-none", "no-ntp")),
-                    jgToApi: Ci(("dns-servers", "dns-server"),
-                                ("ntp-servers", "ntp-server"),
-                                ("wins-servers", "wins-server"),
-                                ("caps-managers", "caps-manager"),
-                                ("dhcp-options", "dhcp-option"),
-                                ("no-dns", "dns-none"),
-                                ("no-ntp", "ntp-none"))),
+                    both: Ci(("dns-server", "dns-servers"), ("ntp-server", "ntp-servers"),
+                             ("wins-server", "wins-servers"), ("caps-manager", "caps-managers"),
+                             ("dhcp-option", "dhcp-options"), ("dns-none", "no-dns"), ("ntp-none", "no-ntp"))),
 
                 // Three fields the WRITE audit found and no read could: each is empty on a stock row, so
                 // the two transports agreed on an empty vocabulary and the path passed. They surfaced the
@@ -983,8 +878,7 @@ namespace tik4net.Winbox
                 // Each pairing was then confirmed by value, not by resemblance: with the API asked to set
                 // it, native reports the same value under its own name.
                 ["/caps-man/security"] = new FieldAliasSet(
-                    apiToJg: Ci(("authentication-types", "authentication-type")),
-                    jgToApi: Ci(("authentication-type", "authentication-types"))),
+                    both: Ci(("authentication-types", "authentication-type"))),
 
                 // /routing/bgp/connection: RouterOS 7 groups a connection's sub-settings with a DOT --
                 // remote.address, local.role -- and WinBox labels them 'Remote Address' and 'Local Role',
@@ -995,10 +889,7 @@ namespace tik4net.Winbox
                 // reserved in a RouterOS field name, and a global rewrite would quietly re-point any future
                 // field that has one.
                 ["/routing/bgp/connection"] = new FieldAliasSet(
-                    apiToJg: Ci(("remote.address", "remote-address"),
-                                ("local.role", "local-role")),
-                    jgToApi: Ci(("remote-address", "remote.address"),
-                                ("local-role", "local.role")),
+                    both: Ci(("remote.address", "remote-address"), ("local.role", "local-role")),
                     // The state flag, as the routing tables name it (see RoutingInactive): a connection with no
                     // local address reads inactive=true over the API and 0xFE0008=true natively (7.24.2).
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
@@ -1008,8 +899,7 @@ namespace tik4net.Winbox
                 // `inactive` here too — told apart on the BGP connection, where a row reads true on both sides.
                 // On 6.49.13 the window also spells out 'Ignore AS Path Length' (b12), the API's ignore-as-path-len.
                 ["/routing/bgp/instance"] = new FieldAliasSet(
-                    apiToJg: Ci(("router-id", "ip"), ("ignore-as-path-len", "ignore-as-path-length")),
-                    jgToApi: Ci(("ip", "router-id"), ("ignore-as-path-length", "ignore-as-path-len")),
+                    both: Ci(("router-id", "ip"), ("ignore-as-path-len", "ignore-as-path-length")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
 
                 // /routing/ospf/instance on RouterOS 6: the 6.49.13 window (and its OSPFv3 twin) spells each field
@@ -1018,30 +908,16 @@ namespace tik4net.Winbox
                 // 0xFE0008 is the API's `inactive`, as on the other routing tables (7.24.5: a disabled instance).
                 // ONE entry: a second one for this path in this initializer silently replaced the first.
                 ["/routing/ospf/instance"] = new FieldAliasSet(
-                    apiToJg: Ci(("distribute-default", "redistribute-default-route"),
-                                ("redistribute-connected", "redistribute-connected-routes"),
-                                ("redistribute-static", "redistribute-static-routes"),
-                                ("redistribute-rip", "redistribute-rip-routes"),
-                                ("redistribute-bgp", "redistribute-bgp-routes"),
-                                ("redistribute-other-ospf", "redistribute-other-ospf-routes"),
-                                ("metric-default", "default-route-metric"),
-                                ("metric-connected", "connected-routes-metric"),
-                                ("metric-static", "static-routes-metric"),
-                                ("metric-rip", "rip-routes-metric"),
-                                ("metric-bgp", "bgp-routes-metric"),
-                                ("metric-other-ospf", "other-ospf-routes-metric")),
-                    jgToApi: Ci(("redistribute-default-route", "distribute-default"),
-                                ("redistribute-connected-routes", "redistribute-connected"),
-                                ("redistribute-static-routes", "redistribute-static"),
-                                ("redistribute-rip-routes", "redistribute-rip"),
-                                ("redistribute-bgp-routes", "redistribute-bgp"),
-                                ("redistribute-other-ospf-routes", "redistribute-other-ospf"),
-                                ("default-route-metric", "metric-default"),
-                                ("connected-routes-metric", "metric-connected"),
-                                ("static-routes-metric", "metric-static"),
-                                ("rip-routes-metric", "metric-rip"),
-                                ("bgp-routes-metric", "metric-bgp"),
-                                ("other-ospf-routes-metric", "metric-other-ospf")),
+                    both: Ci(("distribute-default", "redistribute-default-route"),
+                             ("redistribute-connected", "redistribute-connected-routes"),
+                             ("redistribute-static", "redistribute-static-routes"),
+                             ("redistribute-rip", "redistribute-rip-routes"),
+                             ("redistribute-bgp", "redistribute-bgp-routes"),
+                             ("redistribute-other-ospf", "redistribute-other-ospf-routes"),
+                             ("metric-default", "default-route-metric"),
+                             ("metric-connected", "connected-routes-metric"),
+                             ("metric-static", "static-routes-metric"), ("metric-rip", "rip-routes-metric"),
+                             ("metric-bgp", "bgp-routes-metric"), ("metric-other-ospf", "other-ospf-routes-metric")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" },
                     // state is the 6.x window's 'Running' {bool, u65, ro}: the API's down at 0 and running at 1
                     // (6.49.13: an OSPF network on an addressed interface moved it 0 -> 1, state down -> running).
@@ -1069,8 +945,6 @@ namespace tik4net.Winbox
                 // Two bools the API spells as words, so they carry a two-member map rather than a bool type;
                 // the encoder writes a mapped value at the field's own wire type.
                 ["/system/health"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["state"] = new WinboxJgField("state", 0x8, "bool", true, enumMap: HealthStateMap),
@@ -1093,22 +967,11 @@ namespace tik4net.Winbox
                 // names, while RouterOS splits every tuple into two fields. Named here per key, with the
                 // algorithm's enum map, so they read, resolve and write like catalogued fields.
                 ["/interface/wireless/security-profiles"] = new FieldAliasSet(
-                    apiToJg: Ci(("radius-mac-authentication", "mac-authentication"),
-                               ("radius-mac-accounting", "mac-accounting"),
-                               ("radius-eap-accounting", "eap-accounting"),
-                               ("radius-mac-format", "mac-format"),
-                               ("radius-mac-mode", "mac-mode"),
-                               ("radius-called-format", "called-id-format"),
-                               ("radius-mac-caching", "mac-caching-time"),
-                               ("static-transmit-key", "transmit-key")),
-                    jgToApi: Ci(("mac-authentication", "radius-mac-authentication"),
-                               ("mac-accounting", "radius-mac-accounting"),
-                               ("eap-accounting", "radius-eap-accounting"),
-                               ("mac-format", "radius-mac-format"),
-                               ("mac-mode", "radius-mac-mode"),
-                               ("called-id-format", "radius-called-format"),
-                               ("mac-caching-time", "radius-mac-caching"),
-                               ("transmit-key", "static-transmit-key")),
+                    both: Ci(("radius-mac-authentication", "mac-authentication"),
+                             ("radius-mac-accounting", "mac-accounting"), ("radius-eap-accounting", "eap-accounting"),
+                             ("radius-mac-format", "mac-format"), ("radius-mac-mode", "mac-mode"),
+                             ("radius-called-format", "called-id-format"), ("radius-mac-caching", "mac-caching-time"),
+                             ("static-transmit-key", "transmit-key")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["static-algo-0"] = WepAlgo("static-algo-0", 0x7),
@@ -1127,8 +990,7 @@ namespace tik4net.Winbox
                 // Interface' in WinBox and 'allow-disable-external-interface' in the API — one stray "to".
                 // Without the alias the entity read back a field name RouterOS never uses.
                 ["/ip/upnp"] = new FieldAliasSet(
-                    apiToJg: Ci(("allow-disable-external-interface", "allow-to-disable-external-interface")),
-                    jgToApi: Ci(("allow-to-disable-external-interface", "allow-disable-external-interface"))),
+                    both: Ci(("allow-disable-external-interface", "allow-to-disable-external-interface"))),
 
                 // /interface/wifi/security: WinBox writes the label with the ID spelled out — 'FT Preserve
                 // VLAN ID' normalizes to ft-preserve-vlan-id, where the API says ft-preserve-vlanid. Same
@@ -1141,10 +1003,7 @@ namespace tik4net.Winbox
                 // initialised through the indexer, so a duplicate key does not throw — it silently
                 // overwrites, and a second entry lower down took this one's place with no sign at all.
                 ["/interface/wifi/security"] = new FieldAliasSet(
-                    apiToJg: Ci(("ft-preserve-vlanid", "ft-preserve-vlan-id"),
-                                ("authentication-types", "types")),
-                    jgToApi: Ci(("ft-preserve-vlan-id", "ft-preserve-vlanid"),
-                                ("types", "authentication-types"))),
+                    both: Ci(("ft-preserve-vlanid", "ft-preserve-vlan-id"), ("authentication-types", "types"))),
 
                 // /ip/hotspot/profile: the RADIUS tab drops the 'radius-' prefix the API spells out — the
                 // checkbox is just 'Accounting' (b8e, def:1, on:'radius') where the API says
@@ -1167,20 +1026,10 @@ namespace tik4net.Winbox
                 // label already normalizes to the API's http-proxy, and what differed was the value.
                 ["/ip/hotspot/profile"] = new FieldAliasSet(
                     addrPortPairs: Ci(("http-proxy", "http-proxy-port")),
-                    apiToJg: Ci(("radius-accounting", "accounting"),
-                               ("radius-default-domain", "default-domain"),
-                               ("radius-interim-update", "interim-update"),
-                               ("radius-location-id", "location-id"),
-                               ("radius-location-name", "location-name"),
-                               ("radius-mac-format", "mac-format"),
-                               ("rate-limit", "rate-limit-(rx/tx)")),
-                    jgToApi: Ci(("accounting", "radius-accounting"),
-                               ("default-domain", "radius-default-domain"),
-                               ("interim-update", "radius-interim-update"),
-                               ("location-id", "radius-location-id"),
-                               ("location-name", "radius-location-name"),
-                               ("mac-format", "radius-mac-format"),
-                               ("rate-limit-(rx/tx)", "rate-limit")),
+                    both: Ci(("radius-accounting", "accounting"), ("radius-default-domain", "default-domain"),
+                             ("radius-interim-update", "interim-update"), ("radius-location-id", "location-id"),
+                             ("radius-location-name", "location-name"), ("radius-mac-format", "mac-format"),
+                             ("rate-limit", "rate-limit-(rx/tx)")),
                     // `default` is the shipped *0 profile, as on the user tables (see HotspotDefault).
                     derivedBools: HotspotDefault().DerivedBools),
 
@@ -1195,54 +1044,22 @@ namespace tik4net.Winbox
                 // filter-ip-address="!192.168.251.0/24,10.0.0.1/32".
                 ["/tool/sniffer"] = new FieldAliasSet(
                     addrPortPairs: Ci(("server", "port")),
-                    apiToJg: Ci(("filter-interface", "interfaces"),
-                               ("filter-mac-address", "mac-address"),
-                               ("filter-src-mac-address", "src-mac-address"),
-                               ("filter-dst-mac-address", "dst-mac-address"),
-                               ("filter-mac-protocol", "mac-protocol"),
-                               ("filter-ip-address", "ip-address"),
-                               ("filter-src-ip-address", "src-ip-address"),
-                               ("filter-dst-ip-address", "dst-ip-address"),
-                               ("filter-ipv6-address", "ipv6-address"),
-                               ("filter-src-ipv6-address", "src-ipv6-address"),
-                               ("filter-dst-ipv6-address", "dst-ipv6-address"),
-                               ("filter-ip-protocol", "ip-protocol"),
-                               ("filter-src-port", "src-port"),
-                               ("filter-dst-port", "dst-port"),
-                               ("filter-vlan", "vlan"),
-                               ("filter-cpu", "cpu"),
-                               ("filter-direction", "direction"),
-                               ("filter-operator-between-entries", "filter-operation"),
-                               ("quick-rows", "rows"),
-                               ("quick-show-frame", "show-frame"),
-                               ("streaming-server", "server")),
-                    jgToApi: Ci(("interfaces", "filter-interface"),
-                               ("mac-address", "filter-mac-address"),
-                               ("src-mac-address", "filter-src-mac-address"),
-                               ("dst-mac-address", "filter-dst-mac-address"),
-                               ("mac-protocol", "filter-mac-protocol"),
-                               ("ip-address", "filter-ip-address"),
-                               ("src-ip-address", "filter-src-ip-address"),
-                               ("dst-ip-address", "filter-dst-ip-address"),
-                               ("ipv6-address", "filter-ipv6-address"),
-                               ("src-ipv6-address", "filter-src-ipv6-address"),
-                               ("dst-ipv6-address", "filter-dst-ipv6-address"),
-                               ("ip-protocol", "filter-ip-protocol"),
-                               ("src-port", "filter-src-port"),
-                               ("dst-port", "filter-dst-port"),
-                               ("vlan", "filter-vlan"),
-                               ("cpu", "filter-cpu"),
-                               ("direction", "filter-direction"),
-                               ("filter-operation", "filter-operator-between-entries"),
-                               ("rows", "quick-rows"),
-                               ("show-frame", "quick-show-frame"),
-                               ("server", "streaming-server"))),
+                    both: Ci(("filter-interface", "interfaces"), ("filter-mac-address", "mac-address"),
+                             ("filter-src-mac-address", "src-mac-address"),
+                             ("filter-dst-mac-address", "dst-mac-address"), ("filter-mac-protocol", "mac-protocol"),
+                             ("filter-ip-address", "ip-address"), ("filter-src-ip-address", "src-ip-address"),
+                             ("filter-dst-ip-address", "dst-ip-address"), ("filter-ipv6-address", "ipv6-address"),
+                             ("filter-src-ipv6-address", "src-ipv6-address"),
+                             ("filter-dst-ipv6-address", "dst-ipv6-address"), ("filter-ip-protocol", "ip-protocol"),
+                             ("filter-src-port", "src-port"), ("filter-dst-port", "dst-port"),
+                             ("filter-vlan", "vlan"), ("filter-cpu", "cpu"), ("filter-direction", "direction"),
+                             ("filter-operator-between-entries", "filter-operation"), ("quick-rows", "rows"),
+                             ("quick-show-frame", "show-frame"), ("streaming-server", "server"))),
 
                 // /interface/list: the shipped-row flag (0xFE000D) is spelled 'builtin' here, where most
                 // tables that have it say 'default' — which is the name the universal seed gives it. A key
                 // alias wins over the seed, so this one path reports the word RouterOS uses for it.
                 ["/interface/list"] = new FieldAliasSet(
-                    apiToJg: Ci(), jgToApi: Ci(),
                     keyToApi: new Dictionary<int, string>
                     {
                         [WinboxM2Protocol.RecordKey.Builtin] = "builtin",
@@ -1250,8 +1067,7 @@ namespace tik4net.Winbox
 
                 // /ip/pool: the window labels the ranges list 'Addresses'; the API calls it 'ranges'.
                 ["/ip/pool"] = new FieldAliasSet(
-                    apiToJg: Ci(("ranges", "addresses")),
-                    jgToApi: Ci(("addresses", "ranges"))),
+                    both: Ci(("ranges", "addresses"))),
 
                 // /queue/simple: RouterOS prints one field per rate where the M2 model keeps two — 'max-limit'
                 // is 'Target Upload / Max Limit' (0xD8) beside 'Target Download / Max Limit' (0x13C) in the
@@ -1302,10 +1118,7 @@ namespace tik4net.Winbox
                     // 'Total Avg. Packet Rate' (0x195) its 'total-packet-rate'. The other five totals
                     // (total-bytes, total-packets, total-dropped, total-queued-bytes, total-queued-packets)
                     // already carry the API's own name.
-                    apiToJg: Ci(("total-rate", "total-avg-rate"),
-                                ("total-packet-rate", "total-avg-packet-rate")),
-                    jgToApi: Ci(("total-avg-rate", "total-rate"),
-                                ("total-avg-packet-rate", "total-packet-rate"))),
+                    both: Ci(("total-rate", "total-avg-rate"), ("total-packet-rate", "total-avg-packet-rate"))),
 
                 // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
                 // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",
@@ -1321,8 +1134,6 @@ namespace tik4net.Winbox
                 // arrived as "rx-bytes", a name the API never uses. Naming them by key fixes both directions,
                 // and gives /interface/monitor-traffic its field names for free (see TryRunMonitor).
                 ["/interface"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
                     keyToApi: new Dictionary<int, string>
                     {
                         [0x10001] = "type-id",

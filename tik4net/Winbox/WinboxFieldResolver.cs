@@ -443,7 +443,7 @@ namespace tik4net.Winbox
             }
             var ci = StringComparer.OrdinalIgnoreCase;
             return new FieldAliasSet(
-                Merge(child.ApiToJg, parent.ApiToJg, ci)!, Merge(child.JgToApi, parent.JgToApi, ci)!,
+                apiToJgOnly: Merge(child.ApiToJg, parent.ApiToJg, ci), jgToApiOnly: Merge(child.JgToApi, parent.JgToApi, ci),
                 keyToApi: Merge(child.KeyToApi, parent.KeyToApi, null),
                 alsoKnownAs: Merge(child.AlsoKnownAs, parent.AlsoKnownAs, ci),
                 keyUiType: Merge(child.KeyUiType, parent.KeyUiType, null),
