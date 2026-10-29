@@ -753,7 +753,7 @@ namespace tik4net.WinboxNative
                     // row silently shortens the result set — a missing row reads exactly like "the router has
                     // none". It is still dropped (including it would be a guess), but it says so.
                     if (!r.TryGetValue(typeKey, out var t) || t.Item2 == null) return false;
-                    if (WinboxFieldResolver.TryToInt64(t.Item2, out long tv)) return tv == typeValue;
+                    if (WinboxValueFormat.TryToInt64(t.Item2, out long tv)) return tv == typeValue;
                     if (TikWireTrace.Enabled)
                         TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
                             $"subtype key {typeKey} of {apiPath} is '{t.Item2}' ({t.Item2.GetType().Name}), " +

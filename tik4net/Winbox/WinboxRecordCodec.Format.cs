@@ -7,6 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Diagnostics;
 
+using static tik4net.Winbox.WinboxValueFormat;
+
 namespace tik4net.Winbox
 {
     internal sealed partial class WinboxRecordCodec
@@ -30,36 +32,36 @@ namespace tik4net.Winbox
                         return FormatFirewallLimit(jf, value, rec);
                     case WinboxFieldResolver.FirewallTosUiType:
                     {
-                        WinboxFieldResolver.TryToInt64(value, out long tos);
-                        long mask = rec.TryGetValue(0x1CA, out var mt) && WinboxFieldResolver.TryToInt64(mt.Item2, out long m) ? m : 255;
+                        WinboxValueFormat.TryToInt64(value, out long tos);
+                        long mask = rec.TryGetValue(0x1CA, out var mt) && WinboxValueFormat.TryToInt64(mt.Item2, out long m) ? m : 255;
                         return "0x" + tos.ToString("X", CultureInfo.InvariantCulture)
                              + (mask == 255 ? "" : "/0x" + mask.ToString("X", CultureInfo.InvariantCulture));
                     }
                     case "ipaddr":
-                        return WinboxFieldResolver.IpFromU32(value);
+                        return WinboxValueFormat.IpFromU32(value);
                     case "ipaddrandport":
                     {
                         // types.ipaddrandport.tostr: ipaddr2string(addr) + (port ? ':' + port : '') — the port at
                         // 'portid' (MaskKey), left out when absent or 0, as the 6.x API prints a connection.
-                        string addr = WinboxFieldResolver.IpFromU32(value);
+                        string addr = WinboxValueFormat.IpFromU32(value);
                         long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
-                                    && WinboxFieldResolver.TryToInt64(pt.Item2, out long p) ? p : 0;
+                                    && WinboxValueFormat.TryToInt64(pt.Item2, out long p) ? p : 0;
                         return port == 0 ? addr : addr + ":" + port.ToString(CultureInfo.InvariantCulture);
                     }
                     case "netmask":
                         // types.netmask.tostr is netmask2len(val).toString() — the LENGTH, not the mask,
                         // and RouterOS agrees: a pcq queue type prints pcq-src-address-mask=32 for the
                         // 4294967295 on the wire. Without this the raw u32 reached the caller.
-                        return WinboxFieldResolver.MaskToPrefix(value)
+                        return WinboxValueFormat.MaskToPrefix(value)
                                    .ToString(CultureInfo.InvariantCulture);
                     case "network":
                     {
-                        string addr = WinboxFieldResolver.IpFromU32(value);
+                        string addr = WinboxValueFormat.IpFromU32(value);
                         if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var mt) && mt.Item2 != null)
                         {
                             if (jf.IsRange)
-                                return WinboxFieldResolver.FormatV4Range(value, mt.Item2);
-                            return addr + "/" + WinboxFieldResolver.MaskToPrefix(mt.Item2);
+                                return WinboxValueFormat.FormatV4Range(value, mt.Item2);
+                            return addr + "/" + WinboxValueFormat.MaskToPrefix(mt.Item2);
                         }
                         return addr;
                     }
@@ -77,9 +79,9 @@ namespace tik4net.Winbox
                         // the v6 value the router actually sends fell through to the wire formatter and
                         // read '::' where the API says '::/0'.
                         string addr6 = value is byte[] b6
-                            ? WinboxFieldResolver.IpV6FromBytes(b6) : value.ToString()!;
+                            ? WinboxValueFormat.IpV6FromBytes(b6) : value.ToString()!;
                         if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var m6) && m6.Item2 != null)
-                            return addr6 + "/" + (WinboxFieldResolver.TryToInt64(m6.Item2, out long n6)
+                            return addr6 + "/" + (WinboxValueFormat.TryToInt64(m6.Item2, out long n6)
                                 ? n6 : 0).ToString(CultureInfo.InvariantCulture);
                         return addr6;
                     }
@@ -103,9 +105,9 @@ namespace tik4net.Winbox
                     {
                         // Two WinBox boxes, one API field (see WinboxFieldResolver.AddrPortUiType). The port
                         // rides on MaskKey and is consumed in DecodeRecord, so it appears only here.
-                        string addr = WinboxFieldResolver.IpFromU32(value);
+                        string addr = WinboxValueFormat.IpFromU32(value);
                         long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
-                                    && WinboxFieldResolver.TryToInt64(pt.Item2, out long p) ? p : 0;
+                                    && WinboxValueFormat.TryToInt64(pt.Item2, out long p) ? p : 0;
                         return addr + ":" + port.ToString(CultureInfo.InvariantCulture);
                     }
                     case "integer":
@@ -114,7 +116,7 @@ namespace tik4net.Winbox
                         // `num2int(val)`, and num2int is `v >= 0x80000000 ? v - 0x100000000 : v`. Without it
                         // /system/ntp/client's system-offset read as 4294967276 where the API says a small
                         // negative — a wrong value that looks like a plausible large one.
-                        if (!WinboxFieldResolver.TryToInt64(value, out long signed))
+                        if (!WinboxValueFormat.TryToInt64(value, out long signed))
                         {
                             TraceNonNumeric("integer", value);
                             break;
@@ -133,7 +135,7 @@ namespace tik4net.Winbox
                         // total-hdd-size 91372 -> 93564928, each the API's own number. It went unnoticed
                         // because every kbytes field on that path but one has a volatile name (free-,
                         // total-memory) and the audit does not compare those.
-                        if (!WinboxFieldResolver.TryToInt64(value, out long kib))
+                        if (!WinboxValueFormat.TryToInt64(value, out long kib))
                         {
                             TraceNonNumeric("kbytes", value);
                             break;
@@ -152,7 +154,7 @@ namespace tik4net.Winbox
                         // -39.73. Padding therefore disagreed with the API on exactly the values whose last
                         // digit is zero — roughly one reading in ten, which is why it was recorded as
                         // agreeing exactly. A fraction that trims away entirely takes the '.' with it.
-                        if (!WinboxFieldResolver.TryToInt64(value, out long fp))
+                        if (!WinboxValueFormat.TryToInt64(value, out long fp))
                         {
                             TraceNonNumeric("fixedpoint", value);
                             break;
@@ -163,8 +165,8 @@ namespace tik4net.Winbox
                         // (scale:100, postfix:'s') reads 1s at 100 and 1s500ms at 150 — measured by moving
                         // the value, since 1.5 and 1s500ms are the same quantity spelled two ways and only
                         // the router says which spelling is its own.
-                        if (IsSecondsPostfix(jf.Postfix) || IsMillisecondsPostfix(jf.Postfix))
-                            return FormatDuration(v, DurationTicksPerSecond(jf), DurationZeroUnit(jf));
+                        if (jf.IsSecondsPostfix || jf.IsMillisecondsPostfix)
+                            return FormatDuration(v, jf.TicksPerSecond, jf.DurationZeroUnit);
                         int scale = jf.Scale < 1 ? 1 : jf.Scale;
                         if (scale == 1) return v.ToString(CultureInfo.InvariantCulture);
                         string sign = v < 0 ? "-" : "";
@@ -186,7 +188,7 @@ namespace tik4net.Winbox
                         // its distance from now. Measured before the JS was read and agreeing with it:
                         // /certificate and /ip/dhcp-client expires-after both read exactly one uptime higher
                         // than the API (89828 s, with uptime 89828 s at that moment).
-                        if (!WinboxFieldResolver.TryToInt64(value, out long stamp))
+                        if (!WinboxValueFormat.TryToInt64(value, out long stamp))
                         {
                             TraceNonNumeric("age", value);
                             break;
@@ -209,7 +211,7 @@ namespace tik4net.Winbox
                         // '2026-07-25 10:24:52' to the second. clockdate is the same value printed as a date
                         // alone (/system/clock 'Date'). 'date' is the 6.x catalog's name for dateandtime: on
                         // 6.49.13 a certificate's 1789921669 is the API's 'sep/20/2026 16:27:49'.
-                        if (!WinboxFieldResolver.TryToInt64(value, out long epoch))
+                        if (!WinboxValueFormat.TryToInt64(value, out long epoch))
                         {
                             TraceNonNumeric(jf.UiType, value);
                             break;
@@ -238,7 +240,7 @@ namespace tik4net.Winbox
                     {
                         // types.timezone.tostr → timezone2string: a signed SECOND offset rendered ±HH:MM.
                         // /system/clock gmt-offset read as the bare 7200.
-                        if (!WinboxFieldResolver.TryToInt64(value, out long offset))
+                        if (!WinboxValueFormat.TryToInt64(value, out long offset))
                         {
                             TraceNonNumeric("timezone", value);
                             break;
@@ -254,7 +256,7 @@ namespace tik4net.Winbox
                         // A time of day: types.clocktime.tostr is interval2string(getTime(val)), getTime being
                         // val % 86400. Measured on 7.24.2: /system/clock time 84043 where the API prints
                         // 23:20:43.
-                        if (!WinboxFieldResolver.TryToInt64(value, out long tod))
+                        if (!WinboxValueFormat.TryToInt64(value, out long tod))
                         {
                             TraceNonNumeric("clocktime", value);
                             break;
@@ -270,7 +272,7 @@ namespace tik4net.Winbox
                         // /system/watchdog ping-start-after-boot as 30000 (scale:100) where it prints 5m.
                         // webfig's own '1d 02:03:04' rendering is not used — our contract is the text
                         // RouterOS's API prints for the same field.
-                        if (!WinboxFieldResolver.TryToInt64(value, out long ticks))
+                        if (!WinboxValueFormat.TryToInt64(value, out long ticks))
                         {
                             TraceNonNumeric("interval", value);
                             break;
@@ -281,9 +283,9 @@ namespace tik4net.Winbox
                         return FormatDuration(ticks, jf.Scale);
                     }
                     case "macaddr":
-                        return WinboxFieldResolver.MacFromBytes(value);
+                        return WinboxValueFormat.MacFromBytes(value);
                     case "ip6addr":
-                        return value is byte[] v6 ? WinboxFieldResolver.IpV6FromBytes(v6) : value.ToString()!; // value != null (checked above)
+                        return value is byte[] v6 ? WinboxValueFormat.IpV6FromBytes(v6) : value.ToString()!; // value != null (checked above)
                     case "addr":
                         // The compound webfig 'addr' object, read back the way types.addr.tostr renders it:
                         // by SUB-KEY, not by position. The generic nested-message fallback returns the
@@ -294,19 +296,19 @@ namespace tik4net.Winbox
                     case WinboxFieldResolver.NumberNetmaskUiType:
                     {
                         // connection-limit=10,24: the number and the netmask's prefix length, as the API prints it.
-                        if (!WinboxFieldResolver.TryToInt64(value, out long number)) break;
+                        if (!WinboxValueFormat.TryToInt64(value, out long number)) break;
                         string limitText = number.ToString(CultureInfo.InvariantCulture);
                         return rec.TryGetValue(jf.MaskKey, out var mt) && mt?.Item2 != null
-                            ? limitText + "," + WinboxFieldResolver.MaskToPrefix(mt.Item2).ToString(CultureInfo.InvariantCulture)
+                            ? limitText + "," + WinboxValueFormat.MaskToPrefix(mt.Item2).ToString(CultureInfo.InvariantCulture)
                             : limitText;
                     }
                     case "numberrange":
                     {
                         // webfig types.numberrange.tostr: the low end alone when both ends agree, else low-high —
                         // the API's packet-size=100-200. The high end rides MaskKey (WinboxJgCatalog.HighKeyOf).
-                        if (jf.MaskKey == 0 || !WinboxFieldResolver.TryToInt64(value, out long low)) break;
+                        if (jf.MaskKey == 0 || !WinboxValueFormat.TryToInt64(value, out long low)) break;
                         long high = rec.TryGetValue(jf.MaskKey, out var ht) && ht?.Item2 != null
-                                    && WinboxFieldResolver.TryToInt64(ht.Item2, out long h) ? h : low;
+                                    && WinboxValueFormat.TryToInt64(ht.Item2, out long h) ? h : low;
                         return high == low ? low.ToString(CultureInfo.InvariantCulture)
                             : low.ToString(CultureInfo.InvariantCulture) + "-" + high.ToString(CultureInfo.InvariantCulture);
                     }
@@ -329,14 +331,14 @@ namespace tik4net.Winbox
                     case "multitristate":
                     {
                         if (jf.EnumMap == null || jf.MaskKey == 0) break;
-                        if (!WinboxFieldResolver.TryToInt64(value, out long onBits))
+                        if (!WinboxValueFormat.TryToInt64(value, out long onBits))
                         {
                             TraceNonNumeric("multitristate", value);
                             break;
                         }
                         long offBits = 0;
                         if (rec.TryGetValue(jf.MaskKey, out var maskT) && maskT?.Item2 != null
-                            && WinboxFieldResolver.TryToInt64(maskT.Item2, out long mb))
+                            && WinboxValueFormat.TryToInt64(maskT.Item2, out long mb))
                             offBits = mb;
                         // Plain members first, then the negated ones, each in bit order — which is how the
                         // router itself prints a mixed list: tcp-flags="!fin,syn,!urg,ack" reads back
@@ -381,7 +383,7 @@ namespace tik4net.Winbox
                             if (members != null) return FormatBitSet(jf, value, members, rec);
                         }
                         if (jf.EnumMap == null) break;
-                        if (!WinboxFieldResolver.TryToInt64(value, out long bits))
+                        if (!WinboxValueFormat.TryToInt64(value, out long bits))
                         {
                             // Falls through to the raw wire text, which is visibly not a label list — but a
                             // silent fall-through is how a .jg/router mismatch goes unnoticed for a release,
@@ -467,15 +469,15 @@ namespace tik4net.Winbox
                     // DOES have a static member for the value (see §32.6) is answered by that member below.
                     if (collectRefTables == null
                         && (jf.EnumMap == null
-                            || !(WinboxFieldResolver.TryToInt64(value, out long rv)
+                            || !(WinboxValueFormat.TryToInt64(value, out long rv)
                                  && jf.EnumMap.ContainsKey(unchecked((int)rv))))
-                        && WinboxFieldResolver.TryToInt64(value, out long idv))
+                        && WinboxValueFormat.TryToInt64(value, out long idv))
                         return FormatId(idv);
                 }
                 // static enum: map the numeric value back to its API string label.
                 if (jf.EnumMap != null)
                 {
-                    if (WinboxFieldResolver.TryToInt64(value, out long ev))
+                    if (WinboxValueFormat.TryToInt64(value, out long ev))
                     {
                         if (jf.EnumMap.TryGetValue(unchecked((int)ev), out var label))
                             return PrintedMember(jf.ApiName, label);
@@ -483,7 +485,7 @@ namespace tik4net.Winbox
                         // KIND of number. webfig renders it bare and paints the unit next to the box; the
                         // API prints a duration. /ip/ipsec/profile dpd-interval, whose only member is
                         // 'disable-dpd' at 0, read as 8 where the API says 8s.
-                        if (IsSecondsPostfix(jf.Postfix)) return FormatDuration(ev, jf.Scale);
+                        if (jf.IsSecondsPostfix) return FormatDuration(ev, jf.Scale);
                         // …or the ELEMENT says what kind: /system/scheduler start-time is
                         // {enm,map:{4294967295:'startup'},c:[{type:'clocktime'}]}, and a time of day read as
                         // 84032 where the API prints 23:20:32 (7.24.2).
@@ -505,18 +507,18 @@ namespace tik4net.Winbox
             // declaration rather than assumed: a scalar says `postfix:'hex'`, and a hex part inside a
             // compound says nothing, because there the 0x belongs to the tuple's own prefix.
             if (jf != null && value != null && jf.Radix == 16
-                && WinboxFieldResolver.TryToInt64(value, out long hx))
-                return FormatRadix(hx, jf.Radix, IsHexPostfix(jf.Postfix));
+                && WinboxValueFormat.TryToInt64(value, out long hx))
+                return FormatRadix(hx, jf.Radix, jf.IsHexPostfix);
 
             // A plain number whose postfix says seconds or milliseconds is a duration too — nothing above
             // catches it, because the .jg types it `number` and only the unit beside the box says otherwise.
             // Seconds, measured on 7.24.2: /system/watchdog ping-timeout reads 60 on the wire where the API
             // prints 1m, and /queue/tree burst-time 0 where it prints 0s.
             if (jf != null && value != null
-                && (IsMillisecondsPostfix(jf.Postfix) || (IsSecondsPostfix(jf.Postfix) && !IsPrintedBare(jf)))
+                && (jf.IsMillisecondsPostfix || (jf.IsSecondsPostfix && !IsPrintedBare(jf)))
                 && string.Equals(jf.UiType, "number", StringComparison.OrdinalIgnoreCase)
-                && WinboxFieldResolver.TryToInt64(value, out long ms))
-                return FormatDuration(ms, DurationTicksPerSecond(jf), DurationZeroUnit(jf));
+                && WinboxValueFormat.TryToInt64(value, out long ms))
+                return FormatDuration(ms, jf.TicksPerSecond, jf.DurationZeroUnit);
 
             return FormatValue(wireType, value);
         }
@@ -650,7 +652,7 @@ namespace tik4net.Winbox
             // 0 for a bridge row the API prints `auto` for, while every subtype menu had been corrected.
             if ((!jf.IsOptional && jf.Min <= 0) || jf.ApiName == null) return false;
             if (!ZeroSpelledAsWord.TryGetValue(jf.ApiName, out word)) { word = null; return false; }
-            if (WinboxFieldResolver.TryToInt64(value, out long n) && n == 0) return true;
+            if (WinboxValueFormat.TryToInt64(value, out long n) && n == 0) return true;
             word = null;
             return false;
         }
@@ -688,7 +690,7 @@ namespace tik4net.Winbox
         {
             word = null;
             if (jf?.ApiName == null || jf.Def != WinboxJgField.UnsetSentinel) return false;
-            if (!WinboxFieldResolver.TryToInt64(value, out long n) || n != WinboxJgField.UnsetSentinel) return false;
+            if (!WinboxValueFormat.TryToInt64(value, out long n) || n != WinboxJgField.UnsetSentinel) return false;
             return SentinelSpelledAsWord.TryGetValue(jf.ApiName, out word);
         }
 
@@ -742,7 +744,7 @@ namespace tik4net.Winbox
         private void Learn(WinboxJgField jf, Dictionary<int, Tuple<string, object>> rec, object value)
         {
             if (!(value is string word) || word.Length == 0) return;
-            if (!rec.TryGetValue(jf.KindIdKey, out var id) || !WinboxFieldResolver.TryToInt64(id.Item2, out long kindId)) return;
+            if (!rec.TryGetValue(jf.KindIdKey, out var id) || !WinboxValueFormat.TryToInt64(id.Item2, out long kindId)) return;
             lock (_kindWordsLock) _kindWords[KindWordKey(jf.Key, kindId)] = word;
         }
 
@@ -750,7 +752,7 @@ namespace tik4net.Winbox
         {
             word = null;
             if (jf.KindIdKey == 0 || !rec.TryGetValue(jf.KindIdKey, out var id)
-                || !WinboxFieldResolver.TryToInt64(id.Item2, out long kindId)) return false;
+                || !WinboxValueFormat.TryToInt64(id.Item2, out long kindId)) return false;
             lock (_kindWordsLock) return _kindWords.TryGetValue(KindWordKey(jf.Key, kindId), out word);
         }
 
@@ -833,40 +835,6 @@ namespace tik4net.Winbox
                  + (s % 60).ToString("00", CultureInfo.InvariantCulture);
         }
 
-        private static bool IsSecondsPostfix(string? postfix)
-            => string.Equals(postfix, "s", StringComparison.Ordinal);
-
-        private static bool IsMillisecondsPostfix(string? postfix)
-            => string.Equals(postfix, "ms", StringComparison.Ordinal);
-
-        // The postfix that is not a unit at all but a BASE: 'hex' is webfig saying it paints the base
-        // beside the box, and RouterOS spells it into the value as '0x'.
-        private static bool IsHexPostfix(string? postfix)
-            => string.Equals(postfix, "hex", StringComparison.Ordinal);
-
-        private static string FormatRadix(long value, int radix, bool withPrefix)
-        {
-            if (radix != 16) return value.ToString(CultureInfo.InvariantCulture);
-            string digits = value < 0
-                ? "-" + (-value).ToString("x", CultureInfo.InvariantCulture)
-                : value.ToString("x", CultureInfo.InvariantCulture);
-            return withPrefix ? "0x" + digits : digits;
-        }
-
-        /// <summary>
-        /// Ticks per second for a field whose postfix says it is a duration: the displayed number is
-        /// <c>value/scale</c> in that unit, so a millisecond field packs a thousand more of them into a
-        /// second than a seconds field does.
-        /// </summary>
-        private static int DurationTicksPerSecond(WinboxJgField jf)
-        {
-            int scale = jf.Scale < 1 ? 1 : jf.Scale;
-            return IsMillisecondsPostfix(jf.Postfix) ? scale * 1000 : scale;
-        }
-
-        private static string DurationZeroUnit(WinboxJgField jf)
-            => IsMillisecondsPostfix(jf.Postfix) ? "ms" : "s";
-
         // webfig `types.multibignumber = inherit(types.multinumber)` — the same list, elements eight bytes
         // wide instead of four. Both its element types (`bignumber`, `bigbitrate`) sit on types.number, so an
         // element renders exactly as the scalar of the same type does: as the number itself.
@@ -945,7 +913,7 @@ namespace tik4net.Winbox
         /// reads <c>attrs.range</c> for a scalar.</para>
         /// <para>Live on 7.24: <c>/ip/pool</c>'s <c>ranges</c> is the flattened, ranged form — a pool of
         /// <c>192.168.251.10-192.168.251.20,192.168.252.5,192.168.253.0/24</c> arrives as six u32s — and the
-        /// API re-collapses an exact block to its prefix form, which <see cref="WinboxFieldResolver.
+        /// API re-collapses an exact block to its prefix form, which <see cref="WinboxValueFormat.
         /// FormatV4Range"/> does too. Without this the whole field reached the caller as the raw
         /// <c>[184264896,352037056,…]</c>.</para>
         /// </remarks>
@@ -969,8 +937,8 @@ namespace tik4net.Winbox
                 string b = second != null ? (i < second.Count ? second[i] : "") : first[i * 2 + 1];
                 if (isMac)
                 {
-                    string mac = WinboxFieldResolver.MacFromBytes(a);
-                    rendered.Add(b.Length > 0 ? mac + "/" + WinboxFieldResolver.MacFromBytes(b) : mac);
+                    string mac = WinboxValueFormat.MacFromBytes(a);
+                    rendered.Add(b.Length > 0 ? mac + "/" + WinboxValueFormat.MacFromBytes(b) : mac);
                     continue;
                 }
                 if (isV6)
@@ -979,17 +947,17 @@ namespace tik4net.Winbox
                     // the PREFIX LENGTH itself rather than a mask, and it is printed at every length,
                     // /128 included — RouterOS prints what webfig's tostr hides.
                     byte[]? raw = HexToBytes(a);
-                    string addr6 = raw != null ? WinboxFieldResolver.IpV6FromBytes(raw) : a;
+                    string addr6 = raw != null ? WinboxValueFormat.IpV6FromBytes(raw) : a;
                     rendered.Add(long.TryParse(b, out long plen)
                         ? addr6 + "/" + plen.ToString(CultureInfo.InvariantCulture)
                         : addr6);
                     continue;
                 }
                 if (!uint.TryParse(a, out uint addr)) { rendered.Add(a); continue; }
-                if (!uint.TryParse(b, out uint sibling)) { rendered.Add(WinboxFieldResolver.IpFromU32(addr)); continue; }
+                if (!uint.TryParse(b, out uint sibling)) { rendered.Add(WinboxValueFormat.IpFromU32(addr)); continue; }
                 rendered.Add(jf.ElementIsRange
-                    ? WinboxFieldResolver.FormatV4Range(addr, sibling)
-                    : WinboxFieldResolver.IpFromU32(addr) + "/" + WinboxFieldResolver.MaskToPrefix(sibling));
+                    ? WinboxValueFormat.FormatV4Range(addr, sibling)
+                    : WinboxValueFormat.IpFromU32(addr) + "/" + WinboxValueFormat.MaskToPrefix(sibling));
             }
             return string.Join(",", rendered);
         }
@@ -1063,14 +1031,14 @@ namespace tik4net.Winbox
 
         private string FormatStatusWord(WinboxJgElementPart part, string word, Dictionary<string, int[]>? collectRefTables)
         {
-            if (part.EnumMap != null && WinboxFieldResolver.TryToInt64(word, out long ev)
+            if (part.EnumMap != null && WinboxValueFormat.TryToInt64(word, out long ev)
                 && part.EnumMap.TryGetValue(unchecked((int)ev), out var label))
                 return label;
             if (part.RefHandler != null)
                 return ResolveRefName(part.RefHandler, word, collectRefTables) ?? word;
             if (string.Equals(part.UiType, "multiipaddr", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(part.UiType, "ipaddr", StringComparison.OrdinalIgnoreCase))
-                return WinboxFieldResolver.IpFromU32(word);
+                return WinboxValueFormat.IpFromU32(word);
             return word;
         }
 
@@ -1089,7 +1057,7 @@ namespace tik4net.Winbox
             if (!element.TryGetValue(part.Key, out var v) || v?.Item2 == null) return "";
             object? mask = part.MaskKey != 0 && element.TryGetValue(part.MaskKey, out var mt) ? mt?.Item2 : null;
             // A part with a static map is an enum wherever it sits — the API prints the word, not the index.
-            if (part.EnumMap != null && WinboxFieldResolver.TryToInt64(v.Item2, out long ev)
+            if (part.EnumMap != null && WinboxValueFormat.TryToInt64(v.Item2, out long ev)
                 && part.EnumMap.TryGetValue(unchecked((int)ev), out var label))
                 return label;
             // …and a part with a DYNAMIC dropdown is a reference wherever it sits: /snmp's trap-interfaces
@@ -1101,19 +1069,19 @@ namespace tik4net.Winbox
             }
             // A hex part renders its digits bare: the 0x in front of an STP identifier belongs to the
             // compound, and only its FIRST part is hexadecimal — port-id is 0x80.1, not 0x80.0x1.
-            if (part.Radix == 16 && WinboxFieldResolver.TryToInt64(v.Item2, out long ph))
+            if (part.Radix == 16 && WinboxValueFormat.TryToInt64(v.Item2, out long ph))
                 return FormatRadix(ph, part.Radix, withPrefix: false);
             switch ((part.UiType ?? "").ToLowerInvariant())
             {
                 case "interval":
                     // The wire carries a count of seconds; the API spells it "5m". A part carries no scale
                     // of its own, and no live element declares one.
-                    return WinboxFieldResolver.TryToInt64(v.Item2, out long ticks)
+                    return WinboxValueFormat.TryToInt64(v.Item2, out long ticks)
                         ? FormatDuration(ticks, 1)
                         : v.Item2.ToString()!;
                 case "network":
-                    return WinboxFieldResolver.IpFromU32(v.Item2)
-                         + (mask != null ? "/" + WinboxFieldResolver.MaskToPrefix(mask) : "");
+                    return WinboxValueFormat.IpFromU32(v.Item2)
+                         + (mask != null ? "/" + WinboxValueFormat.MaskToPrefix(mask) : "");
                 case "network6":
                 {
                     // The sibling holds the PREFIX LENGTH itself, not a mask — there is no 128-bit mask to
@@ -1122,23 +1090,23 @@ namespace tik4net.Winbox
                     // rule, not the API's text: a /snmp/community scoped to one host reads back
                     // "2001:db8:3::7/128" on 7.24, and this codec answers in the API's text. Same divergence
                     // as `macnetwork`, whose all-ones mask webfig hides and RouterOS prints.
-                    string addr = v.Item2 is byte[] b6 ? WinboxFieldResolver.IpV6FromBytes(b6) : "::";
+                    string addr = v.Item2 is byte[] b6 ? WinboxValueFormat.IpV6FromBytes(b6) : "::";
                     if (mask == null) return addr;
-                    long len = WinboxFieldResolver.TryToInt64(mask, out long n) ? n : 0;
+                    long len = WinboxValueFormat.TryToInt64(mask, out long n) ? n : 0;
                     return addr + "/" + len.ToString(CultureInfo.InvariantCulture);
                 }
                 case "ipaddr":
-                    return WinboxFieldResolver.IpFromU32(v.Item2);
+                    return WinboxValueFormat.IpFromU32(v.Item2);
                 case "ip6addr":
-                    return v.Item2 is byte[] b ? WinboxFieldResolver.IpV6FromBytes(b) : v.Item2.ToString()!; // v.Item2 != null (checked above)
+                    return v.Item2 is byte[] b ? WinboxValueFormat.IpV6FromBytes(b) : v.Item2.ToString()!; // v.Item2 != null (checked above)
                 case "macaddr":
-                    return WinboxFieldResolver.MacFromBytes(v.Item2);
+                    return WinboxValueFormat.MacFromBytes(v.Item2);
                 case "macnetwork":
                     // Six address bytes and six mask bytes. RouterOS prints the mask even when it is the
                     // all-ones one (filter-mac-address reads back "AA:BB:CC:DD:EE:FF/FF:FF:FF:FF:FF:FF"),
                     // where webfig's own tostr hides it - the API text is what this codec answers in.
-                    return WinboxFieldResolver.MacFromBytes(v.Item2)
-                         + (mask != null ? "/" + WinboxFieldResolver.MacFromBytes(mask) : "");
+                    return WinboxValueFormat.MacFromBytes(v.Item2)
+                         + (mask != null ? "/" + WinboxValueFormat.MacFromBytes(mask) : "");
                 case "addr":
                     return v.Item2 is Dictionary<int, Tuple<string, object>> a ? FormatAddr(a, collectRefTables) : v.Item2.ToString()!; // v.Item2 != null (checked above)
                 default:
@@ -1166,47 +1134,17 @@ namespace tik4net.Winbox
                     return FormatScaled(fp, elementScale);
                 }
                 case "ipaddr":
-                    return uint.TryParse(element, out uint u) ? WinboxFieldResolver.IpFromU32(u) : element;
+                    return uint.TryParse(element, out uint u) ? WinboxValueFormat.IpFromU32(u) : element;
                 case "macaddr":
-                    return WinboxFieldResolver.MacFromBytes(element);
+                    return WinboxValueFormat.MacFromBytes(element);
                 case "ip6addr":
                 {
                     byte[]? raw = HexToBytes(element);
-                    return raw != null ? WinboxFieldResolver.IpV6FromBytes(raw) : element;
+                    return raw != null ? WinboxValueFormat.IpV6FromBytes(raw) : element;
                 }
                 default:
                     return element;
             }
-        }
-
-        /// <summary>
-        /// A scaled integer as the API prints it: the whole part, then the fraction padded to the scale's
-        /// digits and trimmed of trailing zeros — the same rule the scalar <c>fixedpoint</c> case follows,
-        /// so 2412000/1000 is "2412" and 1500/1000 is "1.5".
-        /// </summary>
-        private static string FormatScaled(long value, int scale)
-        {
-            if (scale < 1) scale = 1;
-            string sign = value < 0 ? "-" : "";
-            long abs = Math.Abs(value);
-            int digits = scale.ToString(CultureInfo.InvariantCulture).Length - 1;
-            string frac = (abs % scale).ToString(CultureInfo.InvariantCulture)
-                .PadLeft(digits, '0').TrimEnd('0');
-            return sign + (abs / scale).ToString(CultureInfo.InvariantCulture)
-                 + (frac.Length > 0 ? "." + frac : "");
-        }
-
-        // Hex text (as M2Message renders a raw/addr6 element) back to bytes; null when it is not hex, which
-        // leaves the caller with the original text rather than a wrong address.
-        private static byte[]? HexToBytes(string hex)
-        {
-            if (hex.Length == 0 || hex.Length % 2 != 0) return null;
-            var bytes = new byte[hex.Length / 2];
-            for (int i = 0; i < bytes.Length; i++)
-                if (!byte.TryParse(hex.Substring(i * 2, 2), NumberStyles.HexNumber,
-                        CultureInfo.InvariantCulture, out bytes[i]))
-                    return null;
-            return bytes;
         }
 
         /// <summary>
@@ -1216,9 +1154,9 @@ namespace tik4net.Winbox
         private static string FormatFirewallLimit(WinboxJgField jf, object rate, Dictionary<int, Tuple<string, object>> rec)
         {
             long Box(int key, long def)
-                => rec.TryGetValue(key, out var t) && WinboxFieldResolver.TryToInt64(t.Item2, out long n) ? n : def;
+                => rec.TryGetValue(key, out var t) && WinboxValueFormat.TryToInt64(t.Item2, out long n) ? n : def;
             bool dst = jf.UiType == WinboxFieldResolver.FirewallDstLimitUiType;
-            WinboxFieldResolver.TryToInt64(rate, out long r);
+            WinboxValueFormat.TryToInt64(rate, out long r);
             long period = Box(dst ? 0x39 : 0x11, 1);
             string text = r.ToString(CultureInfo.InvariantCulture)
                         + (period == 1 ? "" : "/" + FormatDuration(period, 1));
@@ -1230,54 +1168,6 @@ namespace tik4net.Winbox
                 ? word : by.ToString(CultureInfo.InvariantCulture);
             return text + "," + Box(0x37, 5).ToString(CultureInfo.InvariantCulture) + "," + byText
                  + "/" + FormatDuration(Box(0x3B, 1000), 100);
-        }
-
-        /// <summary>
-        /// Renders a wire duration as the text RouterOS's own API prints for it: the non-zero units only,
-        /// largest first, concatenated without separators — <c>1w</c>, <c>5m</c>, <c>2d17h30m3s</c>,
-        /// <c>518w1d18h55m42s</c> — and a zero in <paramref name="zeroUnit"/> when the whole thing is zero.
-        /// </summary>
-        /// <param name="ticks">The wire value.</param>
-        /// <param name="scale">Wire units per second (the <c>.jg</c> <c>scale</c>, 1 when undeclared).</param>
-        /// <param name="zeroUnit">
-        /// The unit a zero is spelled in — the unit the FIELD is expressed in, not seconds: a bonding
-        /// down-delay of nothing reads <c>0ms</c>.
-        /// </param>
-        /// <remarks>
-        /// Deliberately not webfig's <c>interval2string</c>, which renders <c>1d 02:03:04</c>: that is what
-        /// the WinBox UI shows, and the API is what every other transport in this library reports. The unit
-        /// set and the omit-zeroes rule are read off the API's own output on 7.23.2 (604800 → <c>1w</c>,
-        /// 300 → <c>5m</c>, 0 → <c>0s</c>).
-        /// </remarks>
-        private static string FormatDuration(long ticks, int scale, string zeroUnit = "s")
-        {
-            if (scale < 1) scale = 1;
-            bool negative = ticks < 0;
-            if (negative) ticks = -ticks;
-
-            long seconds = ticks / scale;
-            long remainder = ticks % scale;
-
-            var sb = new System.Text.StringBuilder();
-            if (negative) sb.Append('-');
-            long[] sizes = { 604800, 86400, 3600, 60 };
-            string[] units = { "w", "d", "h", "m" };
-            for (int i = 0; i < sizes.Length; i++)
-            {
-                long n = seconds / sizes[i];
-                if (n > 0) sb.Append(n).Append(units[i]);
-                seconds %= sizes[i];
-            }
-            if (seconds > 0) sb.Append(seconds).Append('s');
-
-            // A scaled field can carry a sub-second remainder (scale:100 counts hundredths); RouterOS spells
-            // that in milliseconds. Dropping it would report a value the router did not give us.
-            if (remainder > 0) sb.Append(remainder * 1000 / scale).Append("ms");
-
-            // Everything was zero — which is a value, and the API prints it as a zero in the unit the FIELD
-            // is expressed in, not in seconds: a bonding down-delay of nothing reads `0ms`, not `0s`.
-            if (sb.Length == 0 || (negative && sb.Length == 1)) sb.Append("0").Append(zeroUnit);
-            return sb.ToString();
         }
 
         // "[a,b,c]" → [a,b,c]; "[]" → empty. The brackets are M2Message's rendering of an array, not part of
@@ -1305,10 +1195,10 @@ namespace tik4net.Winbox
         private static string FormatBitSet(WinboxJgField jf, object value,
             IReadOnlyDictionary<int, string> members, Dictionary<int, Tuple<string, object>> rec)
         {
-            if (!WinboxFieldResolver.TryToInt64(value, out long onBits)) return value?.ToString() ?? "";
+            if (!WinboxValueFormat.TryToInt64(value, out long onBits)) return value?.ToString() ?? "";
             long offBits = 0;
             if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var maskT) && maskT?.Item2 != null
-                && WinboxFieldResolver.TryToInt64(maskT.Item2, out long mb))
+                && WinboxValueFormat.TryToInt64(maskT.Item2, out long mb))
                 offBits = mb;
 
             var plain = members.Where(kv => (onBits & (1L << kv.Key)) != 0)
@@ -1372,7 +1262,7 @@ namespace tik4net.Winbox
         private static string FormatId(object value)
         {
             if (value == null) return "*0";
-            if (WinboxFieldResolver.TryToInt64(value, out long id) && id >= 0)
+            if (WinboxValueFormat.TryToInt64(value, out long id) && id >= 0)
                 return WinboxRecordId.Format((ulong)id);
             // Handing back the raw text produces an .id that is not a RouterOS handle at all, so every
             // later set/remove addressed by it will fail — noisily, but a long way from here. Trace it.
@@ -1435,10 +1325,10 @@ namespace tik4net.Winbox
                 : null;
 
             string? text = null;
-            if (Get(WinboxFieldResolver.AddrV6SubKey) is byte[] v6) text = WinboxFieldResolver.IpV6FromBytes(v6);
-            else if (Get(WinboxFieldResolver.AddrV4SubKey) is object v4) text = WinboxFieldResolver.IpFromU32(v4);
+            if (Get(WinboxFieldResolver.AddrV6SubKey) is byte[] v6) text = WinboxValueFormat.IpV6FromBytes(v6);
+            else if (Get(WinboxFieldResolver.AddrV4SubKey) is object v4) text = WinboxValueFormat.IpFromU32(v4);
             else if (Get(WinboxFieldResolver.AddrDnsSubKey) is object dns) text = dns.ToString();
-            else if (Get(WinboxFieldResolver.AddrMacSubKey) is object mac) text = WinboxFieldResolver.MacFromBytes(mac);
+            else if (Get(WinboxFieldResolver.AddrMacSubKey) is object mac) text = WinboxValueFormat.MacFromBytes(mac);
             if (text == null) return iface ?? FormatNestedMessage(addr);
 
             if (Get(WinboxFieldResolver.AddrPrefixSubKey) is object plen) text += "/" + plen;
@@ -1452,7 +1342,7 @@ namespace tik4net.Winbox
             if (wireType == "bool") return (value is bool b && b) ? "true" : "false";
             // An FT_ADDR6 value arrives as 16 bytes; without this it renders as "System.Byte[]" whenever the
             // .jg does not also give the field an ip6addr UI type.
-            if (wireType == "ip6" && value is byte[] v6) return WinboxFieldResolver.IpV6FromBytes(v6);
+            if (wireType == "ip6" && value is byte[] v6) return WinboxValueFormat.IpV6FromBytes(v6);
             if (value is Dictionary<int, Tuple<string, object>> one) return FormatNestedMessage(one);
             if (value is List<Dictionary<int, Tuple<string, object>>> many)
                 return string.Join(",", many.Select(FormatNestedMessage));

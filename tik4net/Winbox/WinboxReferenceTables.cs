@@ -136,7 +136,7 @@ namespace tik4net.Winbox
             if (nameKey < 0 || row == null) return false;
             if (!row.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var idt) || idt.Item2 == null) return false;
             if (!row.TryGetValue(nameKey, out var nt) || nt.Item2 == null) return false;
-            if (!WinboxFieldResolver.TryToInt64(idt.Item2, out long rowId))
+            if (!WinboxValueFormat.TryToInt64(idt.Item2, out long rowId))
             {
                 WinboxRecordCodec.TraceNonNumeric("reference table id", idt.Item2);
                 return false;

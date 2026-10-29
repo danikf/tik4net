@@ -34,7 +34,7 @@ namespace tik4net.unittests.Winbox
         {
             foreach (object numeric in new object[] { (uint)3232235777, 42, (long)42, (byte)7, "123", true })
             {
-                Assert.IsTrue(WinboxFieldResolver.TryToInt64(numeric, out _),
+                Assert.IsTrue(WinboxValueFormat.TryToInt64(numeric, out _),
                     $"'{numeric}' ({numeric.GetType().Name}) must still read as a number");
             }
         }
@@ -44,7 +44,7 @@ namespace tik4net.unittests.Winbox
         {
             foreach (object v in NonNumericValues())
             {
-                Assert.IsFalse(WinboxFieldResolver.TryToInt64(v, out long parsed),
+                Assert.IsFalse(WinboxValueFormat.TryToInt64(v, out long parsed),
                     $"'{v}' must not read as a number");
                 Assert.AreEqual(0L, parsed, "the out value stays 0, which is precisely why the bool must be checked");
             }
@@ -56,7 +56,7 @@ namespace tik4net.unittests.Winbox
             foreach (object v in NonNumericValues())
             {
                 var ex = Assert.ThrowsException<WinboxFieldResolutionException>(
-                    () => WinboxFieldResolver.IpFromU32(v),
+                    () => WinboxValueFormat.IpFromU32(v),
                     $"'{v}' used to decode as the perfectly plausible address 0.0.0.0");
                 StringAssert.Contains(ex.Message, "IPv4 address");
             }
@@ -68,7 +68,7 @@ namespace tik4net.unittests.Winbox
             // /0 is not a nonsense prefix — it is the default route's — so this fallback was unfalsifiable
             // by inspection of the result.
             foreach (object v in NonNumericValues())
-                Assert.ThrowsException<WinboxFieldResolutionException>(() => WinboxFieldResolver.MaskToPrefix(v));
+                Assert.ThrowsException<WinboxFieldResolutionException>(() => WinboxValueFormat.MaskToPrefix(v));
         }
 
         [TestMethod]
@@ -76,11 +76,11 @@ namespace tik4net.unittests.Winbox
         {
             // Both halves matter: with end silently 0 the pair rendered as a bare host or an enormous block,
             // depending on which half was unreadable.
-            uint valid = WinboxFieldResolver.PackIpV4("192.0.2.10").Value;
+            uint valid = WinboxValueFormat.PackIpV4("192.0.2.10").Value;
             Assert.ThrowsException<WinboxFieldResolutionException>(
-                () => WinboxFieldResolver.FormatV4Range(valid, "not-a-number"));
+                () => WinboxValueFormat.FormatV4Range(valid, "not-a-number"));
             Assert.ThrowsException<WinboxFieldResolutionException>(
-                () => WinboxFieldResolver.FormatV4Range("not-a-number", valid));
+                () => WinboxValueFormat.FormatV4Range("not-a-number", valid));
         }
 
         [TestMethod]
@@ -88,10 +88,10 @@ namespace tik4net.unittests.Winbox
         {
             // The guard must not have narrowed what a good value can be: octet-LSB u32, and the boxed forms
             // M2Message may hand over.
-            uint packed = WinboxFieldResolver.PackIpV4("192.168.1.1").Value;
-            Assert.AreEqual("192.168.1.1", WinboxFieldResolver.IpFromU32(packed));
-            Assert.AreEqual("192.168.1.1", WinboxFieldResolver.IpFromU32((long)packed));
-            Assert.AreEqual(24, WinboxFieldResolver.MaskToPrefix(WinboxFieldResolver.PackIpV4("255.255.255.0").Value));
+            uint packed = WinboxValueFormat.PackIpV4("192.168.1.1").Value;
+            Assert.AreEqual("192.168.1.1", WinboxValueFormat.IpFromU32(packed));
+            Assert.AreEqual("192.168.1.1", WinboxValueFormat.IpFromU32((long)packed));
+            Assert.AreEqual(24, WinboxValueFormat.MaskToPrefix(WinboxValueFormat.PackIpV4("255.255.255.0").Value));
         }
 
         // ── the fall-back-to-raw half ─────────────────────────────────────────

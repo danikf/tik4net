@@ -237,7 +237,7 @@ namespace tik4net.Winbox
                 foreach (var nf in numFlags)
                 {
                     if (!rec.TryGetValue(nf.Key, out var flagVal)) continue;
-                    if (!WinboxFieldResolver.TryToInt64(flagVal.Item2, out long n)) continue;
+                    if (!WinboxValueFormat.TryToInt64(flagVal.Item2, out long n)) continue;
                     if (n < int.MinValue || n > int.MaxValue) continue;
                     if (!nf.Value.TryGetValue((int)n, out string? flagName)) continue;
                     if (!fields.ContainsKey(flagName)) fields[flagName] = "true";
@@ -358,7 +358,7 @@ namespace tik4net.Winbox
             if (IsAnotherKindsField(jf, rec)) return true;
             if (jf.Condition != null && jf.Condition.IsFalseOn(rec)) return true;
             if (jf.UiType == "macaddr" && !IsSixByteRaw(value)) return true;
-            if (WinboxFieldResolver.TryToInt64(value, out long n))
+            if (WinboxValueFormat.TryToInt64(value, out long n))
             {
                 // A marker RouterOS prints as a word is a value, whichever of the two rules below would drop it.
                 if (TrySentinelWord(jf, value, out _)) return false;
@@ -388,7 +388,7 @@ namespace tik4net.Winbox
         {
             if (jf.PaneSelectorKey == 0 || jf.PaneValues == null || jf.PaneValues.Length == 0) return false;
             if (!rec.TryGetValue(jf.PaneSelectorKey, out var sel) || sel?.Item2 == null) return true;
-            if (!WinboxFieldResolver.TryToInt64(sel.Item2, out long kind)) return false;
+            if (!WinboxValueFormat.TryToInt64(sel.Item2, out long kind)) return false;
             return jf.IsForeignPane(kind);
         }
 
@@ -396,7 +396,7 @@ namespace tik4net.Winbox
         // collectRefTables set, notes the table down instead (see WinboxReferenceTables.NameOf).
         private string? ResolveRefName(int[] refHandler, object idValue, Dictionary<string, int[]>? collectRefTables)
         {
-            if (!WinboxFieldResolver.TryToInt64(idValue, out long idl))
+            if (!WinboxValueFormat.TryToInt64(idValue, out long idl))
             {
                 TraceNonNumeric("reference", idValue);
                 return null;                       // caller keeps the raw text — never a fabricated name

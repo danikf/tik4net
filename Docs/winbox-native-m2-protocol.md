@@ -443,7 +443,7 @@ live from the router (`0x32` = start, `0x33` = end):
 
 So RouterOS picks the rendering from the **span**, not from how the value was entered: `start == end`
 is a bare host (never `/32`), an aligned power-of-two block is CIDR, anything else is `a-b`. That rule
-is `WinboxFieldResolver.FormatV4Range` / `TryParseV4Range`, and matching it exactly is what makes the
+is `WinboxValueFormat.FormatV4Range` / `TryParseV4Range`, and matching it exactly is what makes the
 record read identically over native and over every other transport.
 
 ### 24.2 The catalog must copy `range` when it flattens `opt`/`not`

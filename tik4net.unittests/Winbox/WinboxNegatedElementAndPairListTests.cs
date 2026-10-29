@@ -123,7 +123,7 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual(1, elements.Count);
             Assert.AreEqual(false, elements[0][0x1]);
-            Assert.AreEqual(WinboxFieldResolver.PackIpV4("192.168.251.0"), (uint)Num(elements[0][0x2]));
+            Assert.AreEqual(WinboxValueFormat.PackIpV4("192.168.251.0"), (uint)Num(elements[0][0x2]));
             Assert.AreEqual(0x00FFFFFFL, Num(elements[0][0x3]), "the netmask, packed octet-LSB like the address");
         }
 
@@ -136,10 +136,10 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual(2, elements.Count);
             Assert.AreEqual(true, elements[0][0x1], "the '!' belongs to THIS element");
-            Assert.AreEqual(WinboxFieldResolver.PackIpV4("192.168.251.0"), (uint)Num(elements[0][0x2]),
+            Assert.AreEqual(WinboxValueFormat.PackIpV4("192.168.251.0"), (uint)Num(elements[0][0x2]),
                 "and the value is still the address, not the flag");
             Assert.AreEqual(false, elements[1][0x1]);
-            Assert.AreEqual(WinboxFieldResolver.PackIpV4("10.0.0.1"), (uint)Num(elements[1][0x2]));
+            Assert.AreEqual(WinboxValueFormat.PackIpV4("10.0.0.1"), (uint)Num(elements[1][0x2]));
         }
 
         [TestMethod]
@@ -229,10 +229,10 @@ namespace tik4net.unittests.Winbox
             CollectionAssert.AreEqual(
                 new object[]
                 {
-                    (int)WinboxFieldResolver.PackIpV4("192.168.251.10"),
-                    (int)WinboxFieldResolver.PackIpV4("192.168.251.20"),
-                    (int)WinboxFieldResolver.PackIpV4("192.168.252.5"),
-                    (int)WinboxFieldResolver.PackIpV4("192.168.252.5"),
+                    (int)WinboxValueFormat.PackIpV4("192.168.251.10"),
+                    (int)WinboxValueFormat.PackIpV4("192.168.251.20"),
+                    (int)WinboxValueFormat.PackIpV4("192.168.252.5"),
+                    (int)WinboxValueFormat.PackIpV4("192.168.252.5"),
                 },
                 ((IEnumerable<int>)ParseU32Array(fields[0xB])).Cast<object>().ToArray(),
                 "lo,hi per element — a bare address is the range that starts and ends on it");
@@ -245,8 +245,8 @@ namespace tik4net.unittests.Winbox
                 .EncodeField("ranges", "192.168.253.0/24"));
             var v = ParseU32Array(fields[0xB]);
 
-            Assert.AreEqual((int)WinboxFieldResolver.PackIpV4("192.168.253.0"), v[0]);
-            Assert.AreEqual((int)WinboxFieldResolver.PackIpV4("192.168.253.255"), v[1]);
+            Assert.AreEqual((int)WinboxValueFormat.PackIpV4("192.168.253.0"), v[0]);
+            Assert.AreEqual((int)WinboxValueFormat.PackIpV4("192.168.253.255"), v[1]);
         }
 
         [TestMethod]
@@ -270,15 +270,15 @@ namespace tik4net.unittests.Winbox
             CollectionAssert.AreEqual(
                 new[]
                 {
-                    (int)WinboxFieldResolver.PackIpV4("192.168.251.10"),
-                    (int)WinboxFieldResolver.PackIpV4("192.168.252.5"),
+                    (int)WinboxValueFormat.PackIpV4("192.168.251.10"),
+                    (int)WinboxValueFormat.PackIpV4("192.168.252.5"),
                 },
                 ParseU32Array(fields[0xD3]), "the starts");
             CollectionAssert.AreEqual(
                 new[]
                 {
-                    (int)WinboxFieldResolver.PackIpV4("192.168.251.20"),
-                    (int)WinboxFieldResolver.PackIpV4("192.168.252.5"),
+                    (int)WinboxValueFormat.PackIpV4("192.168.251.20"),
+                    (int)WinboxValueFormat.PackIpV4("192.168.252.5"),
                 },
                 ParseU32Array(fields[0xDE]), "the ends, one per element rather than interleaved");
         }

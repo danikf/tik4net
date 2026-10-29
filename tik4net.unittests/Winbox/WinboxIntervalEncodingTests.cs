@@ -15,7 +15,7 @@ namespace tik4net.unittests.Winbox
     {
         private static long Parse(string value, int scale = 1)
         {
-            Assert.IsTrue(WinboxFieldResolver.TryParseDuration(value, scale, out long ticks),
+            Assert.IsTrue(WinboxValueFormat.TryParseDuration(value, scale, out long ticks),
                 $"'{value}' must parse as a RouterOS duration");
             return ticks;
         }
@@ -87,7 +87,7 @@ namespace tik4net.unittests.Winbox
         /// </summary>
         [TestMethod]
         public void Duration_RefusesATwoPartClock()
-            => Assert.IsFalse(WinboxFieldResolver.TryParseDuration("05:00", 1, out _));
+            => Assert.IsFalse(WinboxValueFormat.TryParseDuration("05:00", 1, out _));
 
         [TestMethod]
         public void Duration_ParsesASignedValue()
@@ -105,7 +105,7 @@ namespace tik4net.unittests.Winbox
         public void Duration_RefusesWhatIsNotOne()
         {
             foreach (string bad in new[] { "", "   ", "auto", "5x", "m", "5m3", "1w2q", "-", "5 m" })
-                Assert.IsFalse(WinboxFieldResolver.TryParseDuration(bad, 1, out _),
+                Assert.IsFalse(WinboxValueFormat.TryParseDuration(bad, 1, out _),
                     $"'{bad}' must not be accepted as a duration");
         }
     }

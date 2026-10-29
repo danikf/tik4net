@@ -197,6 +197,35 @@ namespace tik4net.Winbox
         /// </remarks>
         internal string? Postfix { get; }
 
+        /// <summary>The postfix says the number counts seconds (<c>'s'</c>).</summary>
+        internal bool IsSecondsPostfix => string.Equals(Postfix, "s", StringComparison.Ordinal);
+
+        /// <summary>The postfix says the number counts milliseconds (<c>'ms'</c>).</summary>
+        internal bool IsMillisecondsPostfix => string.Equals(Postfix, "ms", StringComparison.Ordinal);
+
+        /// <summary>
+        /// The postfix means TIME rather than a unit painted beside the box — the one rule the encoder and the decoder
+        /// share, so a field cannot read in one spelling and write in another. 'min', 'MHz', '%' and the rest are units
+        /// the API spells the same way WinBox does (a bare number).
+        /// </summary>
+        internal bool IsTimePostfix => IsSecondsPostfix || IsMillisecondsPostfix;
+
+        /// <summary>
+        /// The postfix that is not a unit at all but a BASE: <c>'hex'</c> is webfig saying it paints the base beside
+        /// the box, and RouterOS spells it into the value as <c>0x</c>.
+        /// </summary>
+        internal bool IsHexPostfix => string.Equals(Postfix, "hex", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Wire units per second for a field whose postfix says it is a duration: the displayed number is
+        /// <c>value/</c><see cref="Scale"/> in that unit, so a millisecond field packs a thousand more of them into a
+        /// second than a seconds field does.
+        /// </summary>
+        internal int TicksPerSecond => IsMillisecondsPostfix ? Scale * 1000 : Scale;
+
+        /// <summary>The unit a zero duration of this field is printed in: <c>0ms</c> or <c>0s</c>.</summary>
+        internal string DurationZeroUnit => IsMillisecondsPostfix ? "ms" : "s";
+
         /// <summary>
         /// For a LIST field, the <c>type</c> of its unnamed element child (<c>c:[{type:'ipaddr'},…]</c>) —
         /// <c>null</c> when the field has no child. webfig renders a list by handing each element to this

@@ -43,7 +43,7 @@ namespace tik4net.Winbox
                 var board = _ops.GetSingleton(BoardInfoHandler);
                 DateTime after = DateTime.UtcNow;
                 if (board == null || !board.TryGetValue(BoardUptimeKey, out var up)
-                    || !WinboxFieldResolver.TryToInt64(up.Item2, out fetched))
+                    || !WinboxValueFormat.TryToInt64(up.Item2, out fetched))
                 {
                     lock (_uptimeLock) _uptimeUnreadable = true;
                     TraceUptimeUnreadable(null);
@@ -56,7 +56,7 @@ namespace tik4net.Winbox
                 // that decides which second the answer falls in.
                 long? jiffies = null;
                 if (board.TryGetValue(BoardJiffiesKey, out var jfy)
-                    && WinboxFieldResolver.TryToInt64(jfy.Item2, out long jval)) jiffies = jval;
+                    && WinboxValueFormat.TryToInt64(jfy.Item2, out long jval)) jiffies = jval;
                 lock (_uptimeLock)
                 {
                     _jiffiesAtFetch = jiffies;
@@ -158,7 +158,7 @@ namespace tik4net.Winbox
                 var clock = _ops.GetSingleton(ClockHandler);
                 after = DateTime.UtcNow;
                 if (clock == null || !clock.TryGetValue(ClockNowKey, out var now)
-                    || !WinboxFieldResolver.TryToInt64(now.Item2, out fetched) || fetched <= 0)
+                    || !WinboxValueFormat.TryToInt64(now.Item2, out fetched) || fetched <= 0)
                 {
                     lock (_uptimeLock) _routerClockUnreadable = true;
                     TraceRouterClockUnreadable(null);

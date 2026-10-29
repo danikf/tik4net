@@ -24,7 +24,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void Addr6FieldIsSixteenBytesWithNoLengthPrefix()
         {
-            byte[] f = M2Message.Addr6Sys(0xFEFF21, WinboxFieldResolver.PackIpV6("::1"));
+            byte[] f = M2Message.Addr6Sys(0xFEFF21, WinboxValueFormat.PackIpV6("::1"));
 
             Assert.AreEqual(4 + 16, f.Length, "key(3) + type(1) + 16 address bytes, no length byte");
             Assert.AreEqual(0x21, f[0]); Assert.AreEqual(0xFF, f[1]); Assert.AreEqual(0xFE, f[2]);
@@ -41,7 +41,7 @@ namespace tik4net.unittests.Winbox
             // hop came back as an empty submessage because of exactly this.
             var m2 = new[] { (byte)'M', (byte)'2' }
                 .Concat(M2Message.U32Sys(0x10, 4242))
-                .Concat(M2Message.Addr6Sys(0x11, WinboxFieldResolver.PackIpV6("2001:db8::1")))
+                .Concat(M2Message.Addr6Sys(0x11, WinboxValueFormat.PackIpV6("2001:db8::1")))
                 .Concat(M2Message.StringSys(0x12, "after"))
                 .ToArray();
 
@@ -50,7 +50,7 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(3, fields.Count, "the field after the address must still parse");
             Assert.AreEqual((uint)4242, fields[0x10].Item2);
             Assert.AreEqual("ip6", fields[0x11].Item1);
-            Assert.AreEqual("2001:db8::1", WinboxFieldResolver.IpV6FromBytes((byte[])fields[0x11].Item2));
+            Assert.AreEqual("2001:db8::1", WinboxValueFormat.IpV6FromBytes((byte[])fields[0x11].Item2));
             Assert.AreEqual("after", fields[0x12].Item2);
         }
 
@@ -78,10 +78,10 @@ namespace tik4net.unittests.Winbox
         [DataRow("2001:db8:85a3::8a2e:370:7334")]
         public void IpV6RoundTripsThroughBytes(string text)
         {
-            byte[] bytes = WinboxFieldResolver.PackIpV6(text);
+            byte[] bytes = WinboxValueFormat.PackIpV6(text);
             Assert.IsNotNull(bytes, text);
             Assert.AreEqual(16, bytes.Length);
-            Assert.AreEqual(text, WinboxFieldResolver.IpV6FromBytes(bytes));
+            Assert.AreEqual(text, WinboxValueFormat.IpV6FromBytes(bytes));
         }
 
         [TestMethod]
@@ -89,10 +89,10 @@ namespace tik4net.unittests.Winbox
         {
             // What a traceroute hop arrives as. The binary API calls this hop 127.0.0.1, so the native
             // transport must not call it ::ffff:127.0.0.1 — same record, same name, per the parity rule.
-            byte[] mapped = WinboxFieldResolver.PackIpV6("::ffff:127.0.0.1");
+            byte[] mapped = WinboxValueFormat.PackIpV6("::ffff:127.0.0.1");
 
             CollectionAssert.AreEqual(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 127, 0, 0, 1 }, mapped);
-            Assert.AreEqual("127.0.0.1", WinboxFieldResolver.IpV6FromBytes(mapped));
+            Assert.AreEqual("127.0.0.1", WinboxValueFormat.IpV6FromBytes(mapped));
         }
 
         [DataTestMethod]
@@ -103,7 +103,7 @@ namespace tik4net.unittests.Winbox
         [DataRow("::1::2")]
         public void PackIpV6RejectsWhatIsNotAnIpV6Address(string text)
         {
-            Assert.IsNull(WinboxFieldResolver.PackIpV6(text));
+            Assert.IsNull(WinboxValueFormat.PackIpV6(text));
         }
 
         // ── the addr compound: one sub-key per address form ────────────────────

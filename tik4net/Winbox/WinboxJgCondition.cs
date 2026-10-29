@@ -220,10 +220,10 @@ namespace tik4net.Winbox
             if (val is string) return false;
             if (!(val is byte[]) && val is IEnumerable seq)
             {
-                foreach (var first in seq) return first == null || WinboxFieldResolver.TryToInt64(first, out n);
+                foreach (var first in seq) return first == null || WinboxValueFormat.TryToInt64(first, out n);
                 return true;                            // an empty array: webfig's val[0] is undefined → 0
             }
-            return WinboxFieldResolver.TryToInt64(val, out n);
+            return WinboxValueFormat.TryToInt64(val, out n);
         }
 
         private static bool IsSet(Dictionary<string, object> node, string attr)

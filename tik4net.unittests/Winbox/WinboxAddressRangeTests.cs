@@ -18,10 +18,10 @@ namespace tik4net.unittests.Winbox
     public class WinboxAddressRangeTests
     {
         // Addresses ride octet-LSB (192.0.2.74 → 0x4A0200C0), so these are the wire values, not host order.
-        private static uint Ip(string s) => WinboxFieldResolver.PackIpV4(s).Value;
+        private static uint Ip(string s) => WinboxValueFormat.PackIpV4(s).Value;
 
         private static string Format(string start, string end)
-            => WinboxFieldResolver.FormatV4Range(Ip(start), Ip(end));
+            => WinboxValueFormat.FormatV4Range(Ip(start), Ip(end));
 
         // ── decode: pair → RouterOS text ──────────────────────────────────────
 
@@ -73,15 +73,15 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AllThreeFormsParseIntoTheStartEndPair()
         {
-            Assert.IsTrue(WinboxFieldResolver.TryParseV4Range("192.0.2.74", out uint s1, out uint e1));
+            Assert.IsTrue(WinboxValueFormat.TryParseV4Range("192.0.2.74", out uint s1, out uint e1));
             Assert.AreEqual(Ip("192.0.2.74"), s1);
             Assert.AreEqual(Ip("192.0.2.74"), e1, "a host must send end=start, not an open-ended range");
 
-            Assert.IsTrue(WinboxFieldResolver.TryParseV4Range("192.0.2.10-192.0.2.20", out uint s2, out uint e2));
+            Assert.IsTrue(WinboxValueFormat.TryParseV4Range("192.0.2.10-192.0.2.20", out uint s2, out uint e2));
             Assert.AreEqual(Ip("192.0.2.10"), s2);
             Assert.AreEqual(Ip("192.0.2.20"), e2);
 
-            Assert.IsTrue(WinboxFieldResolver.TryParseV4Range("192.0.2.0/24", out uint s3, out uint e3));
+            Assert.IsTrue(WinboxValueFormat.TryParseV4Range("192.0.2.0/24", out uint s3, out uint e3));
             Assert.AreEqual(Ip("192.0.2.0"), s3);
             Assert.AreEqual(Ip("192.0.2.255"), e3, "a CIDR block sends its LAST address as the end");
         }
@@ -90,7 +90,7 @@ namespace tik4net.unittests.Winbox
         public void ACidrValueIsMaskedDownToItsBlock()
         {
             // "192.0.2.74/24" names the block, not the host — the same normalisation the router does.
-            Assert.IsTrue(WinboxFieldResolver.TryParseV4Range("192.0.2.74/24", out uint s, out uint e));
+            Assert.IsTrue(WinboxValueFormat.TryParseV4Range("192.0.2.74/24", out uint s, out uint e));
             Assert.AreEqual(Ip("192.0.2.0"), s);
             Assert.AreEqual(Ip("192.0.2.255"), e);
         }
@@ -98,9 +98,9 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void ASlashThirtyTwoCollapsesToAHost()
         {
-            Assert.IsTrue(WinboxFieldResolver.TryParseV4Range("192.0.2.74/32", out uint s, out uint e));
+            Assert.IsTrue(WinboxValueFormat.TryParseV4Range("192.0.2.74/32", out uint s, out uint e));
             Assert.AreEqual(s, e);
-            Assert.AreEqual("192.0.2.74", WinboxFieldResolver.FormatV4Range(s, e));
+            Assert.AreEqual("192.0.2.74", WinboxValueFormat.FormatV4Range(s, e));
         }
 
         [TestMethod]
@@ -109,17 +109,17 @@ namespace tik4net.unittests.Winbox
             foreach (string text in new[]
                      { "192.0.2.74", "192.0.2.0/24", "192.0.2.0/30", "10.0.0.0/8", "192.0.2.10-192.0.2.20" })
             {
-                Assert.IsTrue(WinboxFieldResolver.TryParseV4Range(text, out uint s, out uint e), text);
-                Assert.AreEqual(text, WinboxFieldResolver.FormatV4Range(s, e), $"round trip of '{text}'");
+                Assert.IsTrue(WinboxValueFormat.TryParseV4Range(text, out uint s, out uint e), text);
+                Assert.AreEqual(text, WinboxValueFormat.FormatV4Range(s, e), $"round trip of '{text}'");
             }
         }
 
         [TestMethod]
         public void ANonIpValueIsRefusedSoTheCallerCanFallThrough()
         {
-            Assert.IsFalse(WinboxFieldResolver.TryParseV4Range("example.com", out _, out _));
-            Assert.IsFalse(WinboxFieldResolver.TryParseV4Range("2001:db8::1", out _, out _));
-            Assert.IsFalse(WinboxFieldResolver.TryParseV4Range("", out _, out _));
+            Assert.IsFalse(WinboxValueFormat.TryParseV4Range("example.com", out _, out _));
+            Assert.IsFalse(WinboxValueFormat.TryParseV4Range("2001:db8::1", out _, out _));
+            Assert.IsFalse(WinboxValueFormat.TryParseV4Range("", out _, out _));
         }
     }
 }

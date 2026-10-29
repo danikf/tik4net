@@ -117,7 +117,7 @@ namespace tik4net.unittests.Winbox
             var resolver = Resolver(QueueWindow, "/queue/simple", QueueHandler);
 
             var v4 = Elements(resolver.EncodeField("target", "192.168.251.0/24"), 0x72);
-            Assert.AreEqual(WinboxFieldResolver.PackIpV4("192.168.251.0"), (uint)Num(v4[0][0x1]));
+            Assert.AreEqual(WinboxValueFormat.PackIpV4("192.168.251.0"), (uint)Num(v4[0][0x1]));
             Assert.AreEqual(0x00FFFFFFL, Num(v4[0][0x2]), "the netmask, packed octet-LSB like the address");
 
             var v6 = Elements(resolver.EncodeField("target", "2001:db8::/32"), 0x72);
