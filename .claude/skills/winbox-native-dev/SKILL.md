@@ -137,7 +137,7 @@ each M2 request via `M2Message.Describe` (top-level keys `0xKEY=type:value`).
 | apiName↔key + **typed value ENCODE (writes)** | `tik4net/Winbox/WinboxFieldResolver.cs` (name↔key), `.Encode.cs` (`EncodeField`, the `switch(uiType)`), `.Aliases.cs` (shipped aliases), `.Values.cs` (value statics) | `ResolveKey`, `EncodeField`, `BuildKeyToApiName` |
 | M2 record → API field **DECODE (reads)** | `tik4net/Winbox/WinboxRecordCodec.cs` (decode, references), `.Format.cs` (`FormatTyped`, the `switch(jf.UiType)`), `.RouterClock.cs` | `DecodeRecord`, `FormatTyped` |
 | apiPath→handler aliases (stable text bridge) | `tik4net/Winbox/WinboxHandlerMap.cs` | `ShippedAlias`, `Resolve`, `AddOverride`, `TryResolveSubtypeFilter` |
-| friendly-name → M2 .id | `tik4net/Winbox/WinboxIdResolver.cs` | `FindIdByName`, `ResolveReference` |
+| name ↔ M2 .id of referenced tables (both directions, member maps) | `tik4net/Winbox/WinboxReferenceTables.cs` | `NameOf`, `MembersOf`, `FindIdByNameAsync`, `ResolveReference` |
 
 Design split (keep it): handler NUMBERS + field KEYS come **live from the `.jg`** (version-volatile);
 only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is shipped in C#. See

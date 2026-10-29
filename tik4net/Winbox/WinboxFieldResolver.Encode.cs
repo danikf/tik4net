@@ -1494,7 +1494,7 @@ namespace tik4net.Winbox
         /// <summary>
         /// The handler of the table a field takes its bit-set MEMBERS from, or <c>null</c> when the field is
         /// not a table-backed bit set. Lets a caller read that table before encoding instead of blocking
-        /// inside the encoder (see <c>WinboxIdResolver.PrimeMemberTableAsync</c>).
+        /// inside the encoder (see <c>WinboxReferenceTables.PrimeMemberTableAsync</c>).
         /// </summary>
         internal int[]? BitSetMemberTable(string apiName)
         {

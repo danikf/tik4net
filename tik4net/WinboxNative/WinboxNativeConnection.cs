@@ -81,7 +81,7 @@ namespace tik4net.WinboxNative
 
         WinboxNativeM2Operations IWinboxNativeHost.Ops => _ops;
         WinboxRecordCodec IWinboxNativeHost.Codec => _codec;
-        WinboxIdResolver IWinboxNativeHost.IdResolver => _idResolver;
+        WinboxReferenceTables IWinboxNativeHost.References => _references;
         WinboxJgCatalog IWinboxNativeHost.Catalog => _catalog;
         WinboxHandlerMap IWinboxNativeHost.HandlerMap => _handlerMap;
         IReadOnlyDictionary<string, string>? IWinboxNativeHost.LabelHints => _labelHints.Value;
@@ -161,7 +161,7 @@ namespace tik4net.WinboxNative
         private readonly Dictionary<string, Dictionary<string, int>> _fieldOverrides =
             new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
 
-        // _session, _ops, _codec, _idResolver are assigned in Open (not the constructor).
+        // _session, _ops, _codec, _references are assigned in Open (not the constructor).
         private IWinboxM2Channel _session = null!;
         private WinboxM2Multiplexer? _mux;   // null until open starts the reader loop (every carrier runs one, MAC included)
         private WinboxNativeM2Operations _ops = null!;
@@ -229,7 +229,7 @@ namespace tik4net.WinboxNative
                 ? filter
                 : new TikCommandParameter(name.Substring(0, start) + apiName, filter.Value, filter.ParameterFormat);
         }
-        private WinboxIdResolver _idResolver = null!;   // friendly-name → M2 id lookup (see WinboxIdResolver)
+        private WinboxReferenceTables _references = null!;   // name ↔ id of the referenced tables (see WinboxReferenceTables)
         // Replaced at open time by the process-shared catalog for this router's plugin set
         // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
         private WinboxJgCatalog _catalog = new WinboxJgCatalog();
@@ -451,8 +451,8 @@ namespace tik4net.WinboxNative
             // before the shipped override tail).
             _handlerMap.SetDerivedPaths(_catalog.GetDerivedPaths());
             _handlerMap.SetSubtypeFilters(_catalog.GetSubtypeFilters());
-            _codec = new WinboxRecordCodec(_ops, _catalog);
-            _idResolver = new WinboxIdResolver(_ops, _catalog);
+            _references = new WinboxReferenceTables(_ops, _catalog);
+            _codec = new WinboxRecordCodec(_ops, _catalog, _references);
             StartMultiplexer(session);
             SetOpened();
         }
@@ -552,7 +552,7 @@ namespace tik4net.WinboxNative
             _session = null!;
             _ops = null!;
             _codec = null!;
-            _idResolver = null!;
+            _references = null!;
         }
 
         // ── Native read overrides ───────────────────────────────────────────────

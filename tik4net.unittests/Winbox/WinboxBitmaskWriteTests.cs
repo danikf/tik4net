@@ -279,7 +279,7 @@ namespace tik4net.unittests.Winbox
                 },
             };
 
-            var map = WinboxRecordCodec.BuildMemberMap(Parse(GroupWindow), new[] { 13, 3 }, rows);
+            var map = WinboxReferenceTables.BuildMemberMap(Parse(GroupWindow), new[] { 13, 3 }, rows);
 
             Assert.AreEqual("read", map[6]);
         }

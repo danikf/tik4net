@@ -1383,7 +1383,7 @@ namespace tik4net.Winbox
         // One place for "the router sent something this decode step cannot read as a number". None of the
         // callers fabricate a value — they fall back to the raw wire text — but a fall-back nobody can see is
         // how a .jg/router mismatch survives a release.
-        private static void TraceNonNumeric(string what, object value)
+        internal static void TraceNonNumeric(string what, object value)
         {
             if (!TikWireTrace.Enabled) return;
             TikWireTrace.Emit("wbx.codec", TikWireDir.Note,

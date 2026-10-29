@@ -246,7 +246,7 @@ namespace tik4net.WinboxNative
                         // once/duration instruct the client and no window has an input of that name. A table-backed
                         // bit set's members are read by the encoder's own blocking member-table lookup here.
                         var requestFields = _host.EncodeNameValueFields(
-                            spec.Handler, descriptor, resolver, skipId: true, _host.IdResolver.ResolveReference,
+                            spec.Handler, descriptor, resolver, skipId: true, _host.References.ResolveReference,
                             allowReadOnly: true, includeFilters: true, skipSnapshotModifier: true);
                         id = _host.Ops.StartMonitor(spec.Handler, spec.StartCmd, requestFields);
                         started = true;

@@ -39,8 +39,9 @@ namespace tik4net.unittests.Winbox
             var map = (WinboxHandlerMap)Get("_handlerMap");
             map.SetDerivedPaths(catalog.GetDerivedPaths());
             map.SetSubtypeFilters(catalog.GetSubtypeFilters());
-            Set("_codec", new WinboxRecordCodec(ops, catalog));
-            Set("_idResolver", new WinboxIdResolver(ops, catalog));
+            var references = new WinboxReferenceTables(ops, catalog);
+            Set("_references", references);
+            Set("_codec", new WinboxRecordCodec(ops, catalog, references));
             typeof(tik4net.Connection.TikConnectionBase)
                 .GetMethod("SetOpened", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(Connection, null);

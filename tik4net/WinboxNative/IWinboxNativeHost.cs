@@ -20,8 +20,8 @@ namespace tik4net.WinboxNative
         /// <summary>The M2 record → API field decoder of the open session.</summary>
         WinboxRecordCodec Codec { get; }
 
-        /// <summary>The friendly-name → M2 id lookup of the open session.</summary>
-        WinboxIdResolver IdResolver { get; }
+        /// <summary>The name ↔ id service of the referenced tables, shared with <see cref="Codec"/>.</summary>
+        WinboxReferenceTables References { get; }
 
         /// <summary>The router's <c>.jg</c> catalog.</summary>
         WinboxJgCatalog Catalog { get; }

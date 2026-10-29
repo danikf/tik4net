@@ -41,8 +41,8 @@ namespace tik4net.WinboxNative
                     AddSubtypeDiscriminator(apiPath, fields);
                     await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
                     int? newId = await _host.Ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
-                    // A new row is a name the reference cache has never seen (see ForgetReferenceNames).
-                    _host.Codec.ForgetReferenceNames();
+                    // A new row is a name the reference cache has never seen (see WinboxReferenceTables.Forget).
+                    _host.References.Forget();
                     if (!newId.HasValue)
                         throw TikAddIdNotRead.Create(_host.CommandFor(descriptor), null);
                     return "*" + unchecked((uint)newId.Value).ToString("X");
@@ -97,7 +97,7 @@ namespace tik4net.WinboxNative
                     AddSubtypeDiscriminator(apiPath, fields);
                     await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
                     await _host.Ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
-                    _host.Codec.ForgetReferenceNames();
+                    _host.References.Forget();
                     break;
                 }
                 case "set":
@@ -142,7 +142,7 @@ namespace tik4net.WinboxNative
                     int id = await ResolveRecordIdAsync(handler, resolver, descriptor, required: true,
                         cancellationToken).ConfigureAwait(false);
                     await _host.Ops.RemoveAsync(handler, id, cancellationToken).ConfigureAwait(false);
-                    _host.Codec.ForgetReferenceNames();
+                    _host.References.Forget();
                     break;
                 }
                 case "move":
@@ -194,7 +194,7 @@ namespace tik4net.WinboxNative
                 allowReadOnly, includeFilters, skipSnapshotModifier);
             if (requests.Count == 0) return fields;
 
-            var resolveRef = await _host.IdResolver.ResolveReferencesAsync(requests, cancellationToken).ConfigureAwait(false);
+            var resolveRef = await _host.References.ResolveReferencesAsync(requests, cancellationToken).ConfigureAwait(false);
             return EncodeNameValueFields(handler, descriptor, resolver, skipId, resolveRef,
                 allowReadOnly, includeFilters, skipSnapshotModifier);
         }
@@ -208,7 +208,7 @@ namespace tik4net.WinboxNative
             var fields = EncodeUnsetFields(handler, descriptor, resolver, ReferenceCollector(requests));
             if (requests.Count == 0) return fields;
 
-            var resolveRef = await _host.IdResolver.ResolveReferencesAsync(requests, cancellationToken).ConfigureAwait(false);
+            var resolveRef = await _host.References.ResolveReferencesAsync(requests, cancellationToken).ConfigureAwait(false);
             return EncodeUnsetFields(handler, descriptor, resolver, resolveRef);
         }
 
@@ -269,7 +269,7 @@ namespace tik4net.WinboxNative
         // The delegate EncodeField asks for a bit set's member table. Cached per connection by the id
         // resolver, so the awaited path (which primes it first) never blocks here.
         private IReadOnlyDictionary<int, string>? MemberTableReader(int[] handler)
-            => _host.IdResolver.ReadMemberTable(handler);
+            => _host.References.ReadMemberTable(handler);
 
         // Reads, under await, the member table of every table-backed bit set the command writes. Which
         // fields those are is asked of the RESOLVER, so it cannot drift from what the encoder will look up.
@@ -287,7 +287,7 @@ namespace tik4net.WinboxNative
             }
             if (wanted == null) return;
             foreach (int[] table in wanted)
-                await _host.IdResolver.PrimeMemberTableAsync(table, cancellationToken).ConfigureAwait(false);
+                await _host.References.PrimeMemberTableAsync(table, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -384,12 +384,12 @@ namespace tik4net.WinboxNative
                     out _, out int? setCommand);
                 await _host.Ops.SetSingletonAsync(handler, await encodeFields().ConfigureAwait(false),
                     SingletonIdOf(descriptor), cancellationToken, setCommand).ConfigureAwait(false);
-                _host.Codec.ForgetReferenceNames();
+                _host.References.Forget();
                 return;
             }
             int id = await ResolveRecordIdAsync(handler, resolver, descriptor, required: true,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
-            _host.Codec.ForgetReferenceNames();   // a set can RENAME the row another table refers to
+            _host.References.Forget();   // a set can RENAME the row another table refers to
             await _host.Ops.SetAsync(handler, id, await encodeFields().ConfigureAwait(false), cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -434,7 +434,7 @@ namespace tik4net.WinboxNative
                     return hexId;
 
                 // Friendly name (or a where-style key): match against the record 'name' field via getall.
-                int? byName = await _host.IdResolver
+                int? byName = await _host.References
                     .FindIdByNameAsync(handler, resolver, idParam, cancellationToken).ConfigureAwait(false);
                 if (byName.HasValue) return byName.Value;
             }
@@ -493,7 +493,7 @@ namespace tik4net.WinboxNative
                 int.TryParse(dest.Substring(1), System.Globalization.NumberStyles.HexNumber,
                     System.Globalization.CultureInfo.InvariantCulture, out int hexId))
                 return hexId;
-            int? byName = await _host.IdResolver
+            int? byName = await _host.References
                 .FindIdByNameAsync(handler, resolver, dest, cancellationToken).ConfigureAwait(false);
             if (byName.HasValue) return byName.Value;
             throw new TikNoSuchItemException(_host.CommandFor(descriptor.CommandText), new TikTrapSentenceResult(

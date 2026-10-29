@@ -115,7 +115,7 @@ namespace tik4net.unittests.Winbox
                 "[{name:'X',c:[{title:'Queue Types',type:'map',path:[ 20,10 ],nameval:'Type Name',c:[" +
                 "{name:'Type Name',type:'string',id:'s16',min:1}]}]}]"));
 
-            var (nameKey, nameValKey) = WinboxRecordCodec.RefNameKeys(catalog, new[] { 20, 10 });
+            var (nameKey, nameValKey) = WinboxReferenceTables.RefNameKeys(catalog, new[] { 20, 10 });
 
             Assert.AreEqual(0x16, nameValKey, "the Type Name box");
             Assert.AreNotEqual(0x16, nameKey, "the seeded name key is not where these rows keep their name");

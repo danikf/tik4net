@@ -21,17 +21,9 @@ namespace tik4net.Winbox
         private readonly WinboxNativeM2Operations _ops;
         private readonly WinboxJgCatalog _catalog;
 
-        // id → name cache per referenced table, built lazily from one getall — this avoids a getall per
-        // referenced field per row. Names are stable between WRITES, not for a whole session: a row added or
-        // renamed through this same connection is a row the cache has never seen, and the reference decoded
-        // to the raw id instead of the name. Every write drops the cache (see ForgetReferenceNames), which
-        // is the only event that can make it wrong.
-        private readonly Dictionary<string, Dictionary<int, string>> _refNameCache =
-            new Dictionary<string, Dictionary<int, string>>(StringComparer.Ordinal);
-
-        // Guards the cache: a multiplexed connection can decode two commands' rows at once, and
-        // PrimeReferencesAsync writes from the awaited path while a synchronous decode may be reading.
-        private readonly object _refNameCacheLock = new object();
+        // Row names and bit-set members of the referenced tables, both directions, shared with the encoder and the
+        // command paths of the same connection (see WinboxReferenceTables).
+        private readonly WinboxReferenceTables _refs;
 
         // The router's uptime clock, the origin every `age` value counts from. Handler and key are webfig's
         // own (fetchBoardInfo posts a get-singleton to [24,2] and reads u1).
@@ -63,16 +55,21 @@ namespace tik4net.Winbox
         // The Unix epoch, the origin every dateandtime/clockdate value on the wire counts from.
         private static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        private static readonly Dictionary<string, int> EmptyOverrides = new Dictionary<string, int>();
 
         // The per-row note RouterOS prints as .about; see DecodeRecord.
         internal const int AboutKey = 0xFE001C;
         internal const string AboutField = ".about";
 
         internal WinboxRecordCodec(WinboxNativeM2Operations ops, WinboxJgCatalog catalog)
+            : this(ops, catalog, new WinboxReferenceTables(ops, catalog))
+        {
+        }
+
+        internal WinboxRecordCodec(WinboxNativeM2Operations ops, WinboxJgCatalog catalog, WinboxReferenceTables references)
         {
             _ops = ops;
             _catalog = catalog;
+            _refs = references;
         }
 
         /// <summary>
@@ -395,7 +392,8 @@ namespace tik4net.Winbox
             return jf.IsForeignPane(kind);
         }
 
-        // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name.
+        // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name. With
+        // collectRefTables set, notes the table down instead (see WinboxReferenceTables.NameOf).
         private string? ResolveRefName(int[] refHandler, object idValue, Dictionary<string, int[]>? collectRefTables)
         {
             if (!WinboxFieldResolver.TryToInt64(idValue, out long idl))
@@ -403,35 +401,7 @@ namespace tik4net.Winbox
                 TraceNonNumeric("reference", idValue);
                 return null;                       // caller keeps the raw text — never a fabricated name
             }
-            int id = unchecked((int)idl);
-
-            string key = string.Join(",", refHandler);
-            var map = CachedRefNames(key);
-            if (collectRefTables != null)
-            {
-                // Collecting pass: note the table down (unless it is cached already) and answer nothing. This
-                // is the ONLY place that decides a reference needs its table read, so the awaited prefetch and
-                // the decode cannot disagree about which tables those are.
-                if (map == null) collectRefTables[key] = refHandler;
-                return null;
-            }
-            if (map == null)
-            {
-                // Blocking: reached when the awaited path did not prime this table — a synchronous monitor
-                // round, or a value whose table was still uncached when the collecting pass ran.
-                try { map = BuildRefNameMap(refHandler, _ops.GetAll(refHandler)); }
-                catch (Exception ex)
-                {
-                    // The lookup falls back to the numeric id, which reads as a plausible value rather than
-                    // as an error — so a single transient getall failure must not be memoized. Leaving the
-                    // empty map in the cache turned one hiccup into "every reference on this handler is
-                    // numeric for the rest of the connection"; retry on the next value instead.
-                    TraceUnreadableRefTable(key, ex);
-                    return null;
-                }
-                StoreRefNames(key, map);
-            }
-            return map.TryGetValue(id, out var n) ? n : null;
+            return _refs.NameOf(refHandler, unchecked((int)idl), collectRefTables);
         }
 
         /// <summary>
@@ -456,232 +426,21 @@ namespace tik4net.Winbox
         {
             if (records == null || keyToName == null || keyToField == null) return;
 
-            // Cheap exits before the collecting decode: nothing on this handler references anything, or every
+            // Cheap exit before the collecting decode: nothing on this handler references anything, or every
             // table it could reference is cached already. Both are the steady state, and neither needs a pass.
-            bool anyUncached = false;
-            foreach (var jf in keyToField.Values)
-            {
-                if (jf?.RefHandler == null) continue;
-                foreach (int[] table in jf.RefHandlers ?? new[] { jf.RefHandler })
-                    if (CachedRefNames(string.Join(",", table)) == null) { anyUncached = true; break; }
-                if (anyUncached) break;
-            }
-            if (!anyUncached) return;
+            if (!_refs.AnyUncached(keyToField.Values)) return;
 
             var wanted = new Dictionary<string, int[]>(StringComparer.Ordinal);
             foreach (var rec in records)
                 DecodeRecord(rec, keyToName, keyToField, wanted);   // result discarded; only the questions matter
 
-            foreach (var kv in wanted)
-            {
-                Dictionary<int, string> map;
-                try
-                {
-                    var rows = await _ops.GetAllAsync(kv.Value, cancellationToken).ConfigureAwait(false);
-                    // The same rows, read as whichever map the key asks for — a dropdown's names or a bit
-                    // set's members (see MemberMapSuffix).
-                    map = kv.Key.EndsWith(MemberMapSuffix, StringComparison.Ordinal)
-                        ? BuildMemberMap(_catalog, kv.Value, rows)
-                        : BuildRefNameMap(kv.Value, rows);
-                }
-                catch (Exception ex)
-                {
-                    TraceUnreadableRefTable(kv.Key, ex);
-                    continue;   // not memoized — the decode that follows falls back to the blocking lookup
-                }
-                StoreRefNames(kv.Key, map);
-            }
+            await _refs.PrimeAsync(wanted, cancellationToken).ConfigureAwait(false);
         }
 
-        // Build the id → name map of a referenced table from its rows. One place, so the blocking lookup and
-        // the awaited prime cannot end up with differently-populated caches.
-        private Dictionary<int, string> BuildRefNameMap(
-            int[] refHandler, IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
-        {
-            var map = new Dictionary<int, string>();
-            var (nameKey, nameValKey) = RefNameKeys(_catalog, refHandler);
-            foreach (var r in rows)
-                // TryReadIdAndName only returns true after successfully assigning a non-null name.
-                if (TryReadIdAndName(r, nameKey, out int rowId, out string? rowName)
-                    || TryReadIdAndName(r, nameValKey, out rowId, out rowName))
-                    map[rowId] = rowName!;
-            return map;
-        }
-
-        /// <summary>
-        /// The two keys a referenced row's name can sit at: the table's <c>name</c> field, and the field its
-        /// window declares as <c>nameval</c> (<c>-1</c> for either it has none).
-        /// </summary>
-        /// <remarks>
-        /// <c>name</c> is tried first, so every reference that resolved before resolves the same way. The
-        /// <c>nameval</c> key is the fallback for a row that does not carry it — and it cannot be decided from
-        /// the catalog alone, because the resolver seeds <c>name</c> at <c>0x10006</c> for a table whose window
-        /// has no Name box. <c>/queue/type</c> is one: its rows are named by 'Type Name' at <c>0x16</c>, the
-        /// seeded key was never in them, and <c>/queue/simple</c>'s queue read back as <c>*FFFFFFFA</c> where the
-        /// API says pcq-upload-default (7.24.2). The bit-set member map (<see cref="BuildMemberMap"/>) already
-        /// read <c>nameval</c>.
-        /// </remarks>
-        internal static (int nameKey, int nameValKey) RefNameKeys(WinboxJgCatalog catalog, int[] refHandler)
-            => NameKeysOf(catalog, refHandler,
-                new WinboxFieldResolver(null, refHandler, catalog, EmptyOverrides).BuildKeyToApiName());
-
-        /// <summary>
-        /// <see cref="RefNameKeys"/> over a key map the caller already holds — the one rule for which keys name a row,
-        /// used by id → name (<see cref="BuildRefNameMap"/>) and name → id (<c>WinboxIdResolver</c>) alike, so a
-        /// reference that reads back as a name can be written with that name.
-        /// </summary>
-        internal static (int nameKey, int nameValKey) NameKeysOf(WinboxJgCatalog catalog, int[] handler,
-            IReadOnlyDictionary<int, string> keyToApiName)
-        {
-            int nameKey = NameKeyOf(keyToApiName);
-            int nameValKey = -1;
-            string? nameVal = catalog.GetNameValField(handler);
-            if (nameVal != null)
-                foreach (var kv in keyToApiName)
-                    if (string.Equals(kv.Value, nameVal, StringComparison.OrdinalIgnoreCase)
-                        && !WinboxM2Protocol.TypedKey.IsQualified(kv.Key))
-                    { nameValKey = kv.Key; break; }
-            return (nameKey, nameValKey);
-        }
-
-        /// <summary>
-        /// The M2 key of a table's <c>name</c> field, or -1 when it has none.
-        /// </summary>
-        internal static int NameKeyOf(IReadOnlyDictionary<int, string> keyToApiName)
-        {
-            if (keyToApiName != null)
-                foreach (var kv in keyToApiName)
-                    // Only a WIRE key can be looked up in a record: an arrayness-qualified registration
-                    // (WinboxM2Protocol.TypedKey) is the resolver's own bookkeeping and matches nothing.
-                    if (kv.Value == "name" && !WinboxM2Protocol.TypedKey.IsQualified(kv.Key)) return kv.Key;
-            return -1;
-        }
-
-        /// <summary>
-        /// Reads a row's numeric record id and its <c>name</c>, the two fields every name ↔ id translation
-        /// needs. Returns <c>false</c> when the row carries neither, or an id that is not a number.
-        /// </summary>
-        /// <remarks>
-        /// Deliberately NOT a <c>DecodeRecord</c> — a name and an id need no typed decoding, and running
-        /// the full decoder to read them drags in the referenced-table lookups of every OTHER field on the row.
-        /// The id lookup then paid round trips for reference tables it never used, and — because the caller
-        /// stops at the first matching row — fetched a different set of them depending on where in the table
-        /// the match happened to fall, which is not something a lookup's cost should depend on.
-        /// <para>A row whose id is not numeric is skipped rather than guessed at, so the value it would have
-        /// named stays raw instead of picking up a neighbour's name; traced, because a cached map makes such an
-        /// omission permanent and invisible.</para>
-        /// </remarks>
-        internal static bool TryReadIdAndName(
-            Dictionary<int, Tuple<string, object>> row, int nameKey, out int id, out string? name)
-        {
-            id = 0;
-            name = null;
-            if (nameKey < 0 || row == null) return false;
-            if (!row.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var idt) || idt.Item2 == null) return false;
-            if (!row.TryGetValue(nameKey, out var nt) || nt.Item2 == null) return false;
-            if (!WinboxFieldResolver.TryToInt64(idt.Item2, out long rowId))
-            {
-                TraceNonNumeric("reference table id", idt.Item2);
-                return false;
-            }
-            id = unchecked((int)rowId);
-            name = nt.Item2.ToString();
-            return true;
-        }
-
-        /// <summary>
-        /// The cache-key suffix under which a referenced table's BIT-SET member map is kept, next to the
-        /// ordinary id → name map of the same table.
-        /// </summary>
-        /// <remarks>
-        /// The two are different maps of the same rows. A dropdown shows the row's <c>name</c>; a bit set
-        /// shows what the window declares as the row's display value (<c>nameval</c>), and for the policy
-        /// table [13,3] those disagree — 'Name' is the sentence "read router configuration" and 'Alias' is
-        /// the word the API prints, <c>read</c>.
-        /// </remarks>
-        private const string MemberMapSuffix = "|members";
-
-        /// <summary>
-        /// Builds the member map of a bit set's referenced table: <c>bit index → member name</c>, where the
-        /// bit index IS the referenced record's id (webfig's SetView keys its checkboxes by
-        /// <c>obj.ufe0001</c> and ORs <c>1&lt;&lt;id</c>).
-        /// </summary>
-        internal static Dictionary<int, string> BuildMemberMap(WinboxJgCatalog catalog, int[] refHandler,
-            IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
-        {
-            var refResolver = new WinboxFieldResolver(null, refHandler, catalog, EmptyOverrides);
-            var keyToName = refResolver.BuildKeyToApiName();
-            string? nameVal = catalog.GetNameValField(refHandler);
-            int nameKey = -1;
-            if (nameVal != null)
-                foreach (var kv in keyToName)
-                    if (string.Equals(kv.Value, nameVal, StringComparison.OrdinalIgnoreCase)
-                        && !WinboxM2Protocol.TypedKey.IsQualified(kv.Key))
-                    { nameKey = kv.Key; break; }
-            if (nameKey < 0) nameKey = NameKeyOf(keyToName);
-
-            var map = new Dictionary<int, string>();
-            foreach (var r in rows)
-                if (TryReadIdAndName(r, nameKey, out int rowId, out string? rowName))
-                    map[rowId] = rowName!;
-            return map;
-        }
-
-        /// <summary>
-        /// The member map of a bit set whose members come from a TABLE rather than a static <c>.jg</c> map
-        /// (<c>/user/group</c> policies, a script's or scheduler entry's policy). Follows
-        /// <see cref="ResolveRefName"/>'s collect/cache/blocking structure exactly, so the awaited prefetch
-        /// and the decode cannot disagree about which tables get read.
-        /// </summary>
-        private Dictionary<int, string>? ResolveMemberMap(int[] refHandler,
+        // The member map of a bit set whose members come from a TABLE rather than a static .jg map (/user/group
+        // policies, a script's or scheduler entry's policy); see WinboxReferenceTables.MembersOf.
+        private IReadOnlyDictionary<int, string>? ResolveMemberMap(int[] refHandler,
             Dictionary<string, int[]>? collectRefTables)
-        {
-            string key = string.Join(",", refHandler) + MemberMapSuffix;
-            var map = CachedRefNames(key);
-            if (collectRefTables != null)
-            {
-                if (map == null) collectRefTables[key] = refHandler;
-                return null;
-            }
-            if (map == null)
-            {
-                try { map = BuildMemberMap(_catalog, refHandler, _ops.GetAll(refHandler)); }
-                catch (Exception ex)
-                {
-                    TraceUnreadableRefTable(key, ex);
-                    return null;
-                }
-                StoreRefNames(key, map);
-            }
-            return map;
-        }
-
-        /// <summary>
-        /// Drops the id → name cache. Called after any write: an add, a rename or a remove changes what the
-        /// referenced tables contain, and a stale entry does not read as an error — the reference decodes to
-        /// the bare id, which looks like a value.
-        /// </summary>
-        internal void ForgetReferenceNames()
-        {
-            lock (_refNameCacheLock) _refNameCache.Clear();
-        }
-
-        private Dictionary<int, string>? CachedRefNames(string key)
-        {
-            lock (_refNameCacheLock)
-                return _refNameCache.TryGetValue(key, out var map) ? map : null;
-        }
-
-        private void StoreRefNames(string key, Dictionary<int, string> map)
-        {
-            lock (_refNameCacheLock) _refNameCache[key] = map;
-        }
-
-        private static void TraceUnreadableRefTable(string key, Exception ex)
-        {
-            if (TikWireTrace.Enabled)
-                TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
-                    "reference table [" + key + "] unreadable, values stay numeric: " + ex.Message);
-        }
+            => _refs.MembersOf(refHandler, collectRefTables);
     }
 }
