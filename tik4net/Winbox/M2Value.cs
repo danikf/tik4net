@@ -33,7 +33,7 @@ namespace tik4net.Winbox
         internal bool ShortForm { get; }
 
         /// <summary>The trace's name for this value's type and form (<c>u8</c>, <c>str_l</c>, <c>msg[]</c>, …).</summary>
-        internal string TraceName => M2Types.RecordName(Type, ShortForm);
+        internal string TraceName => M2Types.TraceName(Type, ShortForm);
     }
 
     /// <summary>

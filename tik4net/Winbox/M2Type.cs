@@ -61,6 +61,10 @@ namespace tik4net.Winbox
         /// <c>id2int</c>, lower case for the scalar and upper case for its array.
         /// </summary>
         /// <remarks>
+        /// <para>The letters are not a convention to be inferred from examples: webfig declares the whole mapping in one
+        /// literal, <c>id2int={b:0&lt;&lt;27,u:1&lt;&lt;27,q:2&lt;&lt;27,a:3&lt;&lt;27,s:4&lt;&lt;27,m:5&lt;&lt;27,r:6&lt;&lt;27,B:16&lt;&lt;27,U:17&lt;&lt;27,
+        /// Q:18&lt;&lt;27,A:19&lt;&lt;27,S:20&lt;&lt;27,M:21&lt;&lt;27,R:22&lt;&lt;27}</c> — an ftype per letter. Mirrors
+        /// <c>jg_analyze.py</c> PREFIX.</para>
         /// <c>id2int</c>'s fourteen letters, and no more — the 7.17 and 7.24 histograms find thirteen of them, every
         /// one here (<c>B</c> being the one no window uses). A letter MISSING from this table is worse than a
         /// mistyped one: the field cannot be typed at all. That is what <c>Q</c> (FT_U64_ARRAY) did to every
@@ -98,9 +102,12 @@ namespace tik4net.Winbox
         /// </summary>
         internal static int FType(this M2Type type) => type == M2Type.Unknown ? (int)M2Type.U32 : (int)type;
 
-        // ── The string vocabularies, until every user reads M2Type (D3 b, step 1) ──────────────
+        // ── Spellings: output only; nothing compares them ─────────────────────────────────
 
-        /// <summary>The <c>.jg</c> wire-type name of a type (<c>"string"</c>, <c>"addr[]"</c>; <c>"?"</c> for unknown).</summary>
+        /// <summary>
+        /// The catalog's spelling of a type (<c>"string"</c>, <c>"addr[]"</c>; <c>"?"</c> for unknown), for the messages
+        /// that name a field's type.
+        /// </summary>
         internal static string JgName(M2Type type)
         {
             switch (type)
@@ -117,34 +124,11 @@ namespace tik4net.Winbox
             }
         }
 
-        /// <summary>The type a <c>.jg</c> wire-type name stands for — the inverse of <see cref="JgName"/>.</summary>
-        internal static M2Type FromJgName(string? name)
-        {
-            switch (name)
-            {
-                case "bool": return M2Type.Bool;
-                case "u32": return M2Type.U32;
-                case "u64": return M2Type.U64;
-                case "ip6": return M2Type.Addr6;
-                case "string": return M2Type.String;
-                case "addr": return M2Type.Message;
-                case "raw": return M2Type.Raw;
-                case "bool[]": return M2Type.BoolArray;
-                case "u32[]": return M2Type.U32Array;
-                case "u64[]": return M2Type.U64Array;
-                case "ip6[]": return M2Type.Addr6Array;
-                case "string[]": return M2Type.StringArray;
-                case "addr[]": return M2Type.MessageArray;
-                case "raw[]": return M2Type.RawArray;
-                default: return M2Type.Unknown;
-            }
-        }
-
         /// <summary>
-        /// The record type name <see cref="M2Message.ParseAllFields"/> gives a value of <paramref name="type"/> sent
-        /// with or without the short size flag.
+        /// The trace's spelling of a value of <paramref name="type"/> sent with or without the short size flag
+        /// (<see cref="M2Value.TraceName"/>).
         /// </summary>
-        internal static string RecordName(M2Type type, bool shortForm)
+        internal static string TraceName(M2Type type, bool shortForm)
         {
             switch (type)
             {
@@ -163,29 +147,6 @@ namespace tik4net.Winbox
                 case M2Type.MessageArray: return "msg[]";
                 case M2Type.RawArray: return "raw[]";
                 default: return "?";   // a record built from a catalog field of an unknown letter
-            }
-        }
-
-        /// <summary>The type a record type name stands for — the inverse of <see cref="RecordName"/>.</summary>
-        internal static M2Type FromRecordName(string name)
-        {
-            switch (name)
-            {
-                case "bool": return M2Type.Bool;
-                case "u8": case "u32": return M2Type.U32;
-                case "u64": return M2Type.U64;
-                case "ip6": return M2Type.Addr6;
-                case "str": case "str_l": return M2Type.String;
-                case "msg": return M2Type.Message;
-                case "raw": case "raw_l": return M2Type.Raw;
-                case "bool[]": return M2Type.BoolArray;
-                case "u32[]": return M2Type.U32Array;
-                case "u64[]": return M2Type.U64Array;
-                case "ip6[]": return M2Type.Addr6Array;
-                case "str[]": return M2Type.StringArray;
-                case "msg[]": return M2Type.MessageArray;
-                case "raw[]": return M2Type.RawArray;
-                default: throw new ArgumentOutOfRangeException(nameof(name), name, "not a record type name");
             }
         }
     }

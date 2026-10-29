@@ -330,7 +330,7 @@ namespace tik4net.Winbox
             // Loud failure for list/array fields we do NOT yet encode, rather than silently sending a
             // wrong-typed scalar the router quietly drops (silent data loss is worse than an error). The
             // handled list type (multinumberrange) already returned above; anything else with an array wire
-            // type ("u32[]"/"string[]"/…) or a 'multi…' UI type (e.g. bridge-vlan 'tagged'/'untagged'
+            // type (u32[], string[], …) or a 'multi…' UI type (e.g. bridge-vlan 'tagged'/'untagged'
             // interface lists) is not yet supported over native M2 writes.
             if (value.Length > 0 && IsUnsupportedListType(wireType, uiType))
                 throw new WinboxFieldResolutionException(

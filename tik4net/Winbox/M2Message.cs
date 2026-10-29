@@ -474,7 +474,7 @@ namespace tik4net.Winbox
             if (!IsM2(m2)) return records;
             foreach (var f in Walk(m2))
             {
-                if (f.Key != fullKey || FType(f.Type) != FType(TypeByte.MessageArray)) continue;
+                if (f.Key != fullKey || M2Types.FromTypeByte(f.Type) != M2Type.MessageArray) continue;
                 int pos = f.ValueStart;
                 int cnt = ReadLen(f.Type, m2, ref pos);
                 for (int i = 0; i < cnt && pos < m2.Length; i++)
@@ -806,7 +806,7 @@ namespace tik4net.Winbox
             if (!IsM2(m2)) return m2!;
             foreach (var f in Walk(m2))
             {
-                if (f.Key != fullKey || FType(f.Type) != FType(TypeByte.U32Array)) continue;
+                if (f.Key != fullKey || M2Types.FromTypeByte(f.Type) != M2Type.U32Array) continue;
                 int p = f.ValueStart;
                 int count = ReadCounter(m2, ref p, LenWidth(f.Type));
                 var values = new int[count];

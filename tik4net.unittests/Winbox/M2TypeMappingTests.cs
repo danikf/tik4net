@@ -1,13 +1,11 @@
-// M2TypeMappingTests.cs — M2Type against the two string vocabularies it replaces (WinBox + MAC review, D3 b).
+// M2TypeMappingTests.cs — the two parses of an M2Type are total (WinBox + MAC review, D3 b).
 //
-// The record type names M2Message.ParseAllFields gives a value and the .jg wire-type names the catalog gives a field are
-// mapped to M2Type both ways. The mapping is total when every type byte the walker steps over parses to a name that
-// maps to that byte's M2Type, every .jg prefix letter's name maps to the letter's M2Type, and every M2Type has a type
-// byte and a letter of its own.
+// A record value is typed from its TLV type byte and a catalog field from its .jg prefix letter. Both parses are total
+// when every type byte the walker steps over parses to the M2Type of its ftype, every one of id2int's fourteen letters
+// names a distinct M2Type, no other letter names one, and every M2Type is reached both ways.
 
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Winbox;
 
@@ -17,6 +15,7 @@ namespace tik4net.unittests.Winbox
     public class M2TypeMappingTests
     {
         private const int Key = 0x5;
+        private const string Id2IntLetters = "buqasmrBUQASMR";
 
         private static readonly M2Type[] AllTypes =
             System.Enum.GetValues(typeof(M2Type)).Cast<M2Type>().Where(t => t != M2Type.Unknown).ToArray();
@@ -31,7 +30,7 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
-        public void EveryTypeByteTheWalkerKnows_ParsesToTheRecordNameOfItsM2Type()
+        public void EveryTypeByteTheWalkerKnows_ParsesToTheM2TypeOfItsFType()
         {
             var seen = new HashSet<M2Type>();
             for (int b = 0; b < 256; b++)
@@ -41,53 +40,50 @@ namespace tik4net.unittests.Winbox
                 M2Type? type = M2Types.FromTypeByte(b);
                 Assert.IsNotNull(type, $"type byte 0x{b:X2} is walked but has no M2Type");
                 Assert.AreEqual(type.Value, value.Type, $"0x{b:X2}");
+                Assert.AreEqual(b >> 3, (int)value.Type, $"0x{b:X2}: the type is the ftype");
                 Assert.AreEqual((b & M2Message.TypeByte.Short) != 0, value.ShortForm, $"0x{b:X2}");
-                string name = value.TraceName;
-                Assert.AreEqual(type.Value, M2Types.FromRecordName(name), $"0x{b:X2} '{name}'");
                 seen.Add(type.Value);
             }
             CollectionAssert.AreEquivalent(AllTypes, seen.ToArray(), "every M2Type has a type byte the walker knows");
         }
 
         [TestMethod]
-        public void EveryJgPrefixLetter_NamesTheM2TypeOfItsWireTypeName()
+        public void EveryId2IntLetter_NamesADistinctM2Type_AndNoOtherLetterNamesOne()
         {
-            var prefix = (Dictionary<char, string>)typeof(WinboxJgCatalog)
-                .GetField("Prefix", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
             var seen = new HashSet<M2Type>();
-            foreach (var kv in prefix)
+            foreach (char c in Id2IntLetters)
             {
-                Assert.IsTrue(M2Types.TryFromJgPrefix(kv.Key, out var type), $"'{kv.Key}'");
-                Assert.AreEqual(type, M2Types.FromJgName(kv.Value), $"'{kv.Key}' = {kv.Value}");
-                Assert.AreEqual(kv.Value, M2Types.JgName(type), $"'{kv.Key}'");
-                Assert.AreEqual(type.FType(), (int)type, $"'{kv.Key}': the ftype the unset list names it by");
-                seen.Add(type);
+                Assert.IsTrue(M2Types.TryFromJgPrefix(c, out var type), $"'{c}'");
+                Assert.AreEqual(char.IsUpper(c), type.IsArray(), $"'{c}': upper case is the array form");
+                Assert.AreEqual(type.FType(), (int)type, $"'{c}': the ftype the unset list names it by");
+                Assert.IsTrue(seen.Add(type), $"'{c}' names a type another letter names");
             }
             CollectionAssert.AreEquivalent(AllTypes, seen.ToArray(), "every M2Type has a .jg letter");
             for (char c = 'A'; c <= 'z'; c++)
-                if (char.IsLetter(c) && !prefix.ContainsKey(c))
-                    Assert.IsFalse(M2Types.TryFromJgPrefix(c, out _), $"'{c}' is not one of id2int's letters");
+                if (char.IsLetter(c) && Id2IntLetters.IndexOf(c) < 0)
+                {
+                    Assert.IsFalse(M2Types.TryFromJgPrefix(c, out var unknown), $"'{c}' is not one of id2int's letters");
+                    Assert.AreEqual(M2Type.Unknown, unknown, $"'{c}'");
+                }
         }
 
         [TestMethod]
-        public void AnUnknownLetter_IsTheCatalogsQuestionMark_AndNamesItselfAsAU32()
+        public void AnUnknownLetter_NamesItselfAsAU32Scalar()
         {
-            Assert.AreEqual(M2Type.Unknown, M2Types.FromJgName("?"));
-            Assert.AreEqual("?", M2Types.JgName(M2Type.Unknown));
             Assert.AreEqual(1, M2Type.Unknown.FType());
             Assert.IsFalse(M2Type.Unknown.IsArray());
-            Assert.AreEqual(WinboxM2Protocol.TypedKey.KindOf("?"), WinboxM2Protocol.TypedKey.KindOf(M2Type.Unknown));
+            Assert.AreEqual(WinboxM2Protocol.TypedKey.Scalar, WinboxM2Protocol.TypedKey.KindOf(M2Type.Unknown));
+            Assert.AreEqual("?", M2Types.JgName(M2Type.Unknown));
         }
 
         [TestMethod]
-        public void TheKindOfAType_IsTheKindOfBothItsNames()
+        public void TheKindOfAType_IsArrayBoolOrScalar()
         {
             foreach (var type in AllTypes)
             {
-                int kind = WinboxM2Protocol.TypedKey.KindOf(type);
-                Assert.AreEqual(WinboxM2Protocol.TypedKey.KindOf(M2Types.JgName(type)), kind, type.ToString());
-                Assert.AreEqual(WinboxM2Protocol.TypedKey.KindOf(M2Types.RecordName(type, false)), kind, type.ToString());
-                Assert.AreEqual(WinboxM2Protocol.TypedKey.KindOf(M2Types.RecordName(type, true)), kind, type.ToString());
+                int expected = type.IsArray() ? WinboxM2Protocol.TypedKey.Array
+                    : type == M2Type.Bool ? WinboxM2Protocol.TypedKey.Bool : WinboxM2Protocol.TypedKey.Scalar;
+                Assert.AreEqual(expected, WinboxM2Protocol.TypedKey.KindOf(type), type.ToString());
             }
         }
     }

@@ -83,9 +83,8 @@ namespace tik4net.Winbox
             if (resp == null || resp.Length < 2 || resp[0] != 'M' || resp[1] != '2') return resp;
             foreach (var f in M2Message.Walk(resp))
             {
-                int ftype = M2Message.FType(f.Type);
-                if ((f.Key >> 16) != 0 || (ftype != M2Message.FType(M2Message.TypeByte.String)
-                                           && ftype != M2Message.FType(M2Message.TypeByte.Raw)))
+                M2Type? type = M2Types.FromTypeByte(f.Type);
+                if ((f.Key >> 16) != 0 || (type != M2Type.String && type != M2Type.Raw))
                     continue;
                 // The value follows its length: one byte for the short form, four for the long, two otherwise.
                 int lenWidth = (f.Type & M2Message.TypeByte.Short) != 0 ? 1 : (f.Type & M2Message.TypeByte.Long) != 0 ? 4 : 2;
