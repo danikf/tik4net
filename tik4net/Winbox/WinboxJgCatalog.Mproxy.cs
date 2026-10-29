@@ -70,24 +70,24 @@ namespace tik4net.Winbox
             return all.Count > 0 ? all.ToArray() : null;
         }
 
-        // Pull the raw/string file-content field (user namespace) out of a read response.
+        // Pull the raw/string file-content field (user namespace) out of a read response: the first non-empty one the
+        // one TLV walk (M2Message.Walk) finds whole. An empty or cut-off field is stepped over by the walk's own rule —
+        // a hand-written walk here once skipped an empty field from past its length and read the next field's first
+        // byte as a length.
         private static byte[]? ExtractMproxyChunk(byte[]? resp)
         {
             if (resp == null || resp.Length < 2 || resp[0] != 'M' || resp[1] != '2') return resp;
-            int pos = 2;
-            while (pos + 4 <= resp.Length)
+            foreach (var f in M2Message.Walk(resp))
             {
-                int ns = resp[pos + 2], type = resp[pos + 3];
-                pos += 4;
-                if (ns == 0x00 && (type == 0x31 || type == 0x30 || type == 0x21 || type == 0x20))
-                {
-                    int len = (type == 0x31 || type == 0x21)
-                        ? resp[pos++]
-                        : (int)BitConverter.ToUInt16(resp, (pos += 2) - 2);
-                    if (len > 0 && pos + len <= resp.Length)
-                        return resp.Skip(pos).Take(len).ToArray();
-                }
-                pos += M2Message.SkipTypeBytes(type, resp, pos);
+                int ftype = M2Message.FType(f.Type);
+                if ((f.Key >> 16) != 0 || (ftype != M2Message.FType(M2Message.TypeByte.String)
+                                           && ftype != M2Message.FType(M2Message.TypeByte.Raw)))
+                    continue;
+                // The value follows its length: one byte for the short form, four for the long, two otherwise.
+                int lenWidth = (f.Type & M2Message.TypeByte.Short) != 0 ? 1 : (f.Type & M2Message.TypeByte.Long) != 0 ? 4 : 2;
+                int start = f.ValueStart + lenWidth;
+                if (f.End > resp.Length || f.End <= start) continue;   // cut off, or empty
+                return resp.Skip(start).Take(f.End - start).ToArray();
             }
             return null;
         }
