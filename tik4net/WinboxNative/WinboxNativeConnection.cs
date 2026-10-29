@@ -106,11 +106,6 @@ namespace tik4net.WinboxNative
             bool includeFilters, bool skipSnapshotModifier)
             => _writer.EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId, cancellationToken, allowReadOnly,
                 includeFilters, skipSnapshotModifier);
-        List<byte[]> IWinboxNativeHost.EncodeNameValueFields(int[] handler, TikCommandDescriptor descriptor,
-            WinboxFieldResolver resolver, bool skipId, Func<int[], string, int?> resolveRef, bool allowReadOnly,
-            bool includeFilters, bool skipSnapshotModifier)
-            => _writer.EncodeNameValueFields(handler, descriptor, resolver, skipId, resolveRef, allowReadOnly, includeFilters,
-                skipSnapshotModifier);
         void IWinboxNativeHost.TakeLabelHints(TikCommandDescriptor descriptor) => TakeLabelHints(descriptor);
         Task<CommandGate> IWinboxNativeHost.EnterCommandAsync(CancellationToken cancellationToken) => EnterCommandAsync(cancellationToken);
         (int[] handler, WinboxFieldResolver resolver) IWinboxNativeHost.ResolveHandlerAndFields(string apiPath)

@@ -80,11 +80,6 @@ namespace tik4net.WinboxNative
             WinboxFieldResolver resolver, bool skipId, CancellationToken cancellationToken, bool allowReadOnly = false,
             bool includeFilters = false, bool skipSnapshotModifier = false);
 
-        /// <summary>Encodes the command's name=value parameters as M2 fields, references resolved by <paramref name="resolveRef"/>.</summary>
-        List<byte[]> EncodeNameValueFields(int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
-            bool skipId, Func<int[], string, int?> resolveRef, bool allowReadOnly = false, bool includeFilters = false,
-            bool skipSnapshotModifier = false);
-
         /// <summary>Takes the WinBox labels the command carries for the resolvers it builds.</summary>
         void TakeLabelHints(TikCommandDescriptor descriptor);
 
