@@ -128,6 +128,12 @@ DrainSync(250)                          // drain leftover redraw so it can't lea
   (substring `password>`). See [findings-cli.md](findings-cli.md) §4.
 - **Prompt**: `RouterOsCliLogin.IsShellPrompt` = `TrimEnd().EndsWith("] >")`.
 - **`END_AUTH` does not mean the login succeeded** — see §8.
+- **Login options** (`admin+t`): the EC-SRP5 validator is built from the account name before the `+`
+  (`EcSrp5.AccountName`), as on both WinBox carriers — a validator over the whole login name is refused as
+  "incorrect username or password". The `CTRL_USERNAME` name keeps the options, and the console flags (`+c`) go
+  into the caller's group rather than a second one (`RouterOsCliLogin.WithTerminalLoginFlags`: `admin+t` →
+  `admin+tc`): RouterOS reads one `+` group, and `admin+t+c` logs in with the console in colour. Measured on
+  7.25, 7.21.5 and 6.49.21 with `MacTelnetLoginOptionsProbe` (`[Ignore]`d, development-time).
 
 ## 5. Executing a command
 
@@ -443,7 +449,7 @@ cover — a single large answer to a command that is not a read.
 
 **The echo of the command counts too.** RouterOS 6 repaints the whole typed line after every character, so
 the echo of a command grows with the square of its length. The terminal user name carries `+c`, as every PTY
-login's does (the EC-SRP5 exchange keeps the bare name): without it the repaint is coloured, ~65 KB for one
+login's does (§4: merged into a caller's options group; the EC-SRP5 exchange keeps the account name): without it the repaint is coloured, ~65 KB for one
 180-character window command on 6.49.13, and under that volume the router re-sent packets already acknowledged
 and then stopped mid-echo — 21 of 425 reads of a one-session entity sweep waited out the 30 s deadline at
 17–24 KB. With `+c` the same echo is ~19 KB and the sweep had none

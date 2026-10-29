@@ -928,14 +928,15 @@ namespace tik4net.MacTelnet
             // 7.25, 7.21.5 and 6.49.21, findings-mactelnet.md §4).
             EcSrp5Proof proof = client.Answer(challenge, pass, EcSrp5.AccountName(user));
 
-            // The terminal's user name carries the console flags every PTY login uses (+c: no colour), while the
-            // EC-SRP5 exchange above keeps the account name. Without it RouterOS 6 colours its per-character repaint
+            // The terminal's user name carries the console flags every PTY login uses (+c: no colour), merged into the
+            // options group a caller wrote rather than added as a second one, which RouterOS ignores
+            // (RouterOsCliLogin.WithTerminalLoginFlags). Without them RouterOS 6 colours its per-character repaint
             // of the typed line: ~65 KB of echo for one 180-character window command, a volume under which the
             // router's MAC-Telnet server retransmits packets we had acknowledged and then drops its own output —
             // 21 of 425 reads of a one-session entity sweep stalled for 30 s at 19 KB. With +c: none (6.49.13).
             Send(PKT_DATA,
                 BuildCtrl(CTRL_PASSWORD,     proof.ClientConfirmation)
-                .Concat(BuildCtrl(CTRL_USERNAME,    Encoding.UTF8.GetBytes(user + tik4net.Cli.RouterOsCliLogin.TerminalLoginFlags)))
+                .Concat(BuildCtrl(CTRL_USERNAME,    Encoding.UTF8.GetBytes(tik4net.Cli.RouterOsCliLogin.WithTerminalLoginFlags(user))))
                 .Concat(BuildCtrl(CTRL_TERM_TYPE,   Encoding.ASCII.GetBytes("vt102")))
                 .Concat(BuildCtrl(CTRL_TERM_WIDTH,  BitConverter.GetBytes((ushort)80)))
                 .Concat(BuildCtrl(CTRL_TERM_HEIGHT, BitConverter.GetBytes((ushort)25)))

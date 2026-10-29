@@ -137,6 +137,23 @@ namespace tik4net.Cli
         /// </summary>
         public const string TerminalLoginFlags = "+c";
 
+        /// <summary>
+        /// <paramref name="loginName"/> with the <see cref="TerminalLoginFlags"/> letters in its options group: appended
+        /// as a group of their own to a bare name (<c>admin</c> → <c>admin+c</c>), and merged into the group a caller
+        /// already wrote (<c>admin+t</c> → <c>admin+tc</c>), because RouterOS reads one group only — measured over
+        /// MAC-Telnet on 7.25, <c>admin+t+c</c> logs in and ignores the <c>c</c>, the console comes back in colour.
+        /// </summary>
+        internal static string WithTerminalLoginFlags(string loginName)
+        {
+            int plus = loginName.IndexOf('+');
+            if (plus < 0) return loginName + TerminalLoginFlags;
+            string options = loginName.Substring(plus + 1);
+            var missing = new System.Text.StringBuilder();
+            foreach (char flag in TerminalLoginFlags.Substring(1))
+                if (options.IndexOf(flag) < 0) missing.Append(flag);
+            return loginName + missing;
+        }
+
         /// <summary>Ctrl-C — used to dismiss the change-password nag.</summary>
         private const byte CtrlC = 0x03;
 
