@@ -36,13 +36,7 @@ namespace tik4net.WinboxNative
                 using (await _host.EnterCommandAsync(cancellationToken).ConfigureAwait(false))   // see RunPrint
                 {
                     var (handler, resolver) = _host.ResolveHandlerAndFields(apiPath);
-                    var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
-                        cancellationToken).ConfigureAwait(false);
-                    AddSubtypeDiscriminator(apiPath, fields);
-                    await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
-                    int? newId = await _host.Ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
-                    // A new row is a name the reference cache has never seen (see WinboxReferenceTables.Forget).
-                    _host.References.Forget();
+                    int? newId = await AddRowAsync(handler, apiPath, resolver, descriptor, cancellationToken).ConfigureAwait(false);
                     if (!newId.HasValue)
                         throw TikAddIdNotRead.Create(_host.CommandFor(descriptor), null);
                     return WinboxRecordId.Format(unchecked((uint)newId.Value));
@@ -92,12 +86,7 @@ namespace tik4net.WinboxNative
                 case "add":
                 {
                     // /path/add invoked via ExecuteNonQuery (the new id, if any, is discarded here).
-                    var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
-                        cancellationToken).ConfigureAwait(false);
-                    AddSubtypeDiscriminator(apiPath, fields);
-                    await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
-                    await _host.Ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
-                    _host.References.Forget();
+                    await AddRowAsync(handler, apiPath, resolver, descriptor, cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 case "set":
@@ -161,6 +150,22 @@ namespace tik4net.WinboxNative
                         .ConfigureAwait(false);
                     break;
             }
+        }
+
+        // The one add, for ExecuteScalar's RunAddAsync and ExecuteNonQuery's RunVerbAsync alike: encode, the subtype
+        // discriminator, place-before, add, forget the reference names. Two copies of this had already drifted once
+        // (X1: the non-query add lost the discriminator). Returns the new row's id, if the router sent one.
+        private async Task<int?> AddRowAsync(int[] handler, string apiPath, WinboxFieldResolver resolver,
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
+            var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
+                cancellationToken).ConfigureAwait(false);
+            AddSubtypeDiscriminator(apiPath, fields);
+            await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
+            int? newId = await _host.Ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
+            // A new row is a name the reference cache has never seen (see WinboxReferenceTables.Forget).
+            _host.References.Forget();
+            return newId;
         }
 
         /// <summary>
@@ -258,9 +263,7 @@ namespace tik4net.WinboxNative
                 }
                 catch (WinboxFieldValueException ex)
                 {
-                    throw new TikCommandTrapException(
-                        _host.CommandFor(descriptor.CommandText),
-                        new TikTrapSentenceResult(ex.Message));
+                    throw _host.TrapFor(descriptor.CommandText, ex.Message);
                 }
             }
             return fields;
@@ -338,9 +341,7 @@ namespace tik4net.WinboxNative
                 }
                 catch (WinboxFieldValueException ex)
                 {
-                    throw new TikCommandTrapException(
-                        _host.CommandFor(descriptor.CommandText),
-                        new TikTrapSentenceResult(ex.Message));
+                    throw _host.TrapFor(descriptor.CommandText, ex.Message);
                 }
                 // A field the catalog cannot name has no id to list, so the request would carry the verb and
                 // nothing to apply it to — a success that clears nothing. Name it instead.
@@ -351,18 +352,14 @@ namespace tik4net.WinboxNative
                 fields.Add(M2Message.U32ArraySys(WinboxM2Protocol.SysKey.UnsetFields, unsetIds.ToArray()));
 
             if (named == 0)
-                throw new TikCommandTrapException(
-                    _host.CommandFor(descriptor.CommandText),
-                    new TikTrapSentenceResult(
-                        "unset requires at least one '" + TikSpecialProperties.UnsetValueName
-                        + "=<field>' parameter naming the field to clear."));
+                throw _host.TrapFor(descriptor.CommandText,
+                    "unset requires at least one '" + TikSpecialProperties.UnsetValueName
+                    + "=<field>' parameter naming the field to clear.");
 
             if (unknown.Count > 0)
-                throw new TikCommandTrapException(
-                    _host.CommandFor(descriptor.CommandText),
-                    new TikTrapSentenceResult(
-                        "no M2 field id for " + string.Join(", ", unknown)
-                        + " on this handler, so an unset naming it would clear nothing."));
+                throw _host.TrapFor(descriptor.CommandText,
+                    "no M2 field id for " + string.Join(", ", unknown)
+                    + " on this handler, so an unset naming it would clear nothing.");
 
             return fields;
         }

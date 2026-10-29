@@ -94,8 +94,12 @@ namespace tik4net.WinboxNative
         ITikCommand IWinboxNativeHost.CommandFor(TikCommandDescriptor descriptor) => CommandFor(descriptor);
         TikCommandException IWinboxNativeHost.TranslateM2Error(WinboxM2OperationException ex, string commandText)
             => TranslateM2Error(ex, commandText);
-        IReadOnlyDictionary<string, int> IWinboxNativeHost.OverridesFor(string apiPath) => OverridesFor(apiPath);
-        WinboxFieldResolver IWinboxNativeHost.MakeResolver(string apiPath, int[] handler) => MakeResolver(apiPath, handler);
+        WinboxFieldResolver IWinboxNativeHost.MakeResolver(string apiPath, int[] handler, string? actionLabel, string? windowPath)
+            => MakeResolver(apiPath, handler, actionLabel, windowPath);
+        TikCommandException IWinboxNativeHost.TrapFor(string commandText, string message)
+            => TrapFor(CommandFor(commandText), message);
+        TikCommandException IWinboxNativeHost.TrapFor(TikCommandDescriptor descriptor, string message)
+            => TrapFor(CommandFor(descriptor), message);
         CommandGate IWinboxNativeHost.EnterCommand() => EnterCommand();
         Task<List<byte[]>> IWinboxNativeHost.EncodeNameValueFieldsAsync(int[] handler, TikCommandDescriptor descriptor,
             WinboxFieldResolver resolver, bool skipId, CancellationToken cancellationToken, bool allowReadOnly,
@@ -814,12 +818,18 @@ namespace tik4net.WinboxNative
         private bool IsActionVerbPath(TikCommandDescriptor descriptor)
         {
             int[]? handler = _handlerMap.Resolve(TikPath.Parent(descriptor.CommandText));
-            if (handler == null) return false;
+            return handler != null && TryFindAction(handler, TikPath.Verb(descriptor.CommandText), out _, out _);
+        }
+
+        // The .jg action of a handler that a command verb names (see ActionMatchesVerb): its SYS_CMD and its label.
+        private bool TryFindAction(int[] handler, string verb, out int cmd, out string actionLabel)
+        {
             var actions = _catalog.GetHandlerActions(handler);
-            if (actions == null) return false;
-            string verb = TikPath.Verb(descriptor.CommandText);
-            foreach (var kv in actions)
-                if (ActionMatchesVerb(kv.Key, verb)) return true;
+            if (actions != null)
+                foreach (var kv in actions)
+                    if (ActionMatchesVerb(kv.Key, verb)) { cmd = kv.Value; actionLabel = kv.Key; return true; }
+            cmd = -1;
+            actionLabel = "";
             return false;
         }
 
@@ -830,21 +840,16 @@ namespace tik4net.WinboxNative
         /// </summary>
         /// <remarks>
         /// The arguments are encoded against the ACTION's own field map, not the handler's — see
-        /// <see cref="MakeActionResolver"/>. Until then this sent no arguments at all, so
+        /// <see cref="MakeResolver"/> with the action label. Until then this sent no arguments at all, so
         /// <c>/ip/ipsec/key/rsa/generate-key name=x key-size=2048</c> reached the router as a bare "generate a
         /// key" and produced an unnamed 1024-bit one, reported back as success.
         /// </remarks>
         private async Task DispatchActionVerbAsync(string verb, string apiPath, int[] handler,
             WinboxFieldResolver resolver, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            int cmd = -1;
-            string? actionLabel = null;
-            var actions = _catalog.GetHandlerActions(handler);
-            if (actions != null)
-                foreach (var kv in actions)
-                    if (ActionMatchesVerb(kv.Key, verb)) { cmd = kv.Value; actionLabel = kv.Key; break; }
-            if (cmd < 0)
+            if (!TryFindAction(handler, verb, out int cmd, out string actionLabel))
             {
+                var actions = _catalog.GetHandlerActions(handler);
                 // Say WHAT was looked for and WHAT the handler actually offers. The old message named only
                 // the verb, so every reader had to re-derive whether the verb was missing from the catalog
                 // or merely spelled differently by its GUI label — the two need opposite fixes (a genuine
@@ -871,9 +876,7 @@ namespace tik4net.WinboxNative
             // mirror RunActionWindow: an action's inputs are often .jg-marked read-only (they are display
             // widgets in the GUI) yet are exactly the values to send, and a caller reaching an action through
             // a read method has had its parameters rewritten to Filter format.
-            // cmd and actionLabel are always assigned together in the loop above, and cmd < 0 already
-            // returned/threw, so actionLabel is guaranteed non-null here.
-            var argResolver = MakeActionResolver(apiPath, handler, actionLabel!);
+            var argResolver = MakeResolver(apiPath, handler, actionLabel);
             var fields = await _writer.EncodeNameValueFieldsAsync(handler, WithoutRecordSelector(descriptor), argResolver,
                 skipId: true, cancellationToken, allowReadOnly: true, includeFilters: true).ConfigureAwait(false);
 
@@ -915,7 +918,7 @@ namespace tik4net.WinboxNative
 
             // cmd and actionLabel are always assigned together; cmd >= 0 guarantees actionLabel non-null here
             // (same contract as the RunActionAsync call site above).
-            var resolver = MakeActionResolver(apiPath, handler, actionLabel!);
+            var resolver = MakeResolver(apiPath, handler, actionLabel!);
             var fields = await _writer.EncodeNameValueFieldsAsync(handler, descriptor, resolver,
                 skipId: true, cancellationToken: cancellationToken, allowReadOnly: true, includeFilters: true)
                 .ConfigureAwait(false);
@@ -1256,20 +1259,34 @@ namespace tik4net.WinboxNative
         /// declares its own field keys, so a resolver that only knew the handler could not tell EoIP's
         /// 'Remote Address' from GRE's.
         /// </summary>
-        private WinboxFieldResolver MakeResolver(string apiPath, int[] handler)
-            => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
-                                       _handlerMap.ResolveDerivedKey(apiPath), labelHints: _labelHints.Value);
+        /// <param name="apiPath">The path whose field NAMES the resolver answers with.</param>
+        /// <param name="handler">The handler the path resolves to.</param>
+        /// <param name="actionLabel">For an ACTION invocation, the action whose own arguments are laid over the
+        /// path's fields. Without the overlay an argument that shares its label with a record column resolves to the
+        /// column — and a read-only column encodes to nothing, so the argument never leaves the client (see
+        /// <see cref="WinboxJgCatalog.GetActionFields"/>).</param>
+        /// <param name="windowPath">The path whose window and session overrides hold the keys, when that is not
+        /// <paramref name="apiPath"/>: a snapshot monitor reads its parent's record under its own names.</param>
+        private WinboxFieldResolver MakeResolver(string apiPath, int[] handler, string? actionLabel = null,
+            string? windowPath = null)
+        {
+            string window = windowPath ?? apiPath;
+            return new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(window), _useGuiNames,
+                                           _handlerMap.ResolveDerivedKey(window),
+                                           actionLabel == null ? null : _catalog.GetActionFields(handler, actionLabel),
+                                           _labelHints.Value);
+        }
 
         /// <summary>
-        /// The resolver for an ACTION invocation: the path's ordinary resolver with the action window's own
-        /// arguments laid over it. Without the overlay an argument that shares its label with a record column
-        /// resolves to the column — and a read-only column encodes to nothing, so the argument never leaves
-        /// the client (see <see cref="WinboxJgCatalog.GetActionFields"/>).
+        /// A refusal this transport makes before sending anything (a value the encoder cannot write, an unset naming
+        /// nothing, a duration the router would refuse), raised as the trap the router raises for it over the API.
         /// </summary>
-        private WinboxFieldResolver MakeActionResolver(string apiPath, int[] handler, string actionLabel)
-            => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
-                                       _handlerMap.ResolveDerivedKey(apiPath),
-                                       _catalog.GetActionFields(handler, actionLabel), _labelHints.Value);
+        /// <remarks>
+        /// Every client-side refusal comes through here, so how they are classified is decided in one place (review
+        /// D7, which measures each against the API).
+        /// </remarks>
+        private static TikCommandException TrapFor(ITikCommand command, string message)
+            => new TikCommandTrapException(command, new TikTrapSentenceResult(message));
 
         /// <summary>
         /// Whether the window <paramref name="apiPath"/> resolves to is a singleton (get-singleton /

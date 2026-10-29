@@ -356,10 +356,8 @@ namespace tik4net.WinboxNative
             // NAMES come from the monitor path's own alias set — the same record is called 'rx' in the
             // interface list and 'rx-bits-per-second' by /interface/monitor-traffic, and a caller asking for
             // the monitor must get the monitor's names.
-            var resolver = new WinboxFieldResolver(WinboxNativeConnection.ApiPathOf(descriptor.CommandText), handler, _host.Catalog,
-                _host.OverridesFor(parentPath), _host.UseGuiNames, _host.HandlerMap.ResolveDerivedKey(parentPath),
-                labelHints: _host.LabelHints);
-            var plan = resolver.DecodePlan();
+            var plan = _host.MakeResolver(WinboxNativeConnection.ApiPathOf(descriptor.CommandText), handler,
+                windowPath: parentPath).DecodePlan();
             int flags = _host.Catalog.GetReadFlags(handler);
 
             List<Dictionary<int, Tuple<string, object>>> records;
@@ -390,8 +388,7 @@ namespace tik4net.WinboxNative
                 if (int.TryParse(p.Value, System.Globalization.NumberStyles.Integer,
                         System.Globalization.CultureInfo.InvariantCulture, out int seconds))
                     return TimeSpan.FromSeconds(seconds);
-                throw new TikCommandTrapException(_host.CommandFor(descriptor),
-                    new TikTrapSentenceResult($"invalid value for argument duration: {p.Value}"));
+                throw _host.TrapFor(descriptor, $"invalid value for argument duration: {p.Value}");
             }
             return null;
         }

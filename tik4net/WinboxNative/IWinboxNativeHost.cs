@@ -56,11 +56,21 @@ namespace tik4net.WinboxNative
         /// <summary>A native M2 operation error as the public exception the other transports raise.</summary>
         TikCommandException TranslateM2Error(WinboxM2OperationException ex, string commandText);
 
-        /// <summary>The session field overrides of a path (<see cref="WinboxNativeConnection.FieldOverride"/>).</summary>
-        IReadOnlyDictionary<string, int> OverridesFor(string apiPath);
+        /// <summary>
+        /// The field resolver for a path and the handler it resolves to; an action's arguments laid over it when
+        /// <paramref name="actionLabel"/> names one, the window and overrides of <paramref name="windowPath"/> when the
+        /// values live in another path's window (a snapshot monitor reads its parent's record).
+        /// </summary>
+        WinboxFieldResolver MakeResolver(string apiPath, int[] handler, string? actionLabel = null, string? windowPath = null);
 
-        /// <summary>The field resolver for a path and the handler it resolves to.</summary>
-        WinboxFieldResolver MakeResolver(string apiPath, int[] handler);
+        /// <summary>
+        /// A refusal the client makes before sending anything, as the trap the router would raise over the API. The one
+        /// place such a refusal is classified (review D7).
+        /// </summary>
+        TikCommandException TrapFor(string commandText, string message);
+
+        /// <summary>As <see cref="TrapFor(string, string)"/>, with the descriptor's parameters on the command.</summary>
+        TikCommandException TrapFor(TikCommandDescriptor descriptor, string message);
 
         /// <summary>The command gate for one M2 operation: a no-op on a multiplexed session.</summary>
         WinboxNativeConnection.CommandGate EnterCommand();

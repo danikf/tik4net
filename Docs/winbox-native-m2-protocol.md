@@ -506,7 +506,7 @@ first label wins — so a read-only column shadows a writable argument sharing i
 
 An action's fields are therefore attributed to the **action** as well as to its handler
 (`WinboxJgCatalog.GetActionFields`), and an invocation resolves against handler → window → action,
-the action having the last word (`WinboxFieldResolver`, `WinboxNativeConnection.MakeActionResolver`).
+the action having the last word (`WinboxFieldResolver`, `WinboxNativeConnection.MakeResolver` with the action label).
 The handler map keeps exactly the content it had — that map is what a `getall` row decodes against,
 where the column really is the right answer, and it is also the only map a standalone action window
 (Wake on LAN `[82]`, whose handler backs no list) ever had.
