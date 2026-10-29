@@ -252,6 +252,12 @@ namespace tik4net.WinboxNative
                         started = true;
                     }
 
+                    // A caller's duration= ends a continuous window by itself, as the API ends it with !done and as
+                    // the read method does (RunMonitorWindowAsync): the pass that ends after it is the last.
+                    TimeSpan? duration = TikMonitorVerbs.SelfTerminating(TikPath.Verb(descriptor.CommandText))
+                        ? null : MonitorDuration(descriptor);
+                    DateTime? runUntil = duration.HasValue ? DateTime.UtcNow + duration.Value : (DateTime?)null;
+
                     // The pass is driven here rather than inside the operations layer, because this is where the
                     // cancel handle and the row callback live — and because a pass is unbounded in time (see
                     // PollMonitorRound). `continuation != null` means the router is still mid-pass, so the next
@@ -274,6 +280,7 @@ namespace tik4net.WinboxNative
 
                         if (done) break;              // router set Finished: the operation is over for good
                         if (continuation != null) continue;   // same pass, next record — no sleep
+                        if (runUntil.HasValue && DateTime.UtcNow >= runUntil.Value) break;   // the caller's duration is over
 
                         // The pass ended without Finished: an autorefresh snapshot window (Torch, Scan, …) whose
                         // getall lists what exists right now. Wait the interval, then start a fresh pass.

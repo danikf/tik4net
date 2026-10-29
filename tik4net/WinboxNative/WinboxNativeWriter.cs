@@ -307,7 +307,8 @@ namespace tik4net.WinboxNative
         /// <remarks>
         /// <c>duration</c> is the same kind of instruction: no <c>.jg</c> monitor window has an input of that name
         /// (checked across the 7.24 catalog), because WinBox runs a window until the user closes it. It is
-        /// honoured by <c>RunMonitorWindowSync</c> keeping the window open for that long.
+        /// honoured by the monitor itself, which keeps a continuous window open for that long and then ends it — the read
+        /// method and the callback monitor alike (<c>WinboxNativeMonitor</c>).
         /// </remarks>
         private static bool IsMonitorSnapshotModifier(string name)
             => string.Equals(name, "once", StringComparison.OrdinalIgnoreCase)
