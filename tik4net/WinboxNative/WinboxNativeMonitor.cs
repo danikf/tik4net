@@ -79,10 +79,9 @@ namespace tik4net.WinboxNative
             // handler is non-null here: ResolveMonitorWindow assigns it whenever it returns a spec,
             // and the no-spec case threw above.
             var resolver = _host.MakeResolver(apiPath, handler!);
-            var keyToName = resolver.BuildKeyToApiName();
-            var keyToField = resolver.BuildKeyToField();
+            var plan = resolver.DecodePlan();
             return PollingMonitorEngine.StartWorker("winbox-native-monitor",
-                handle => MonitorLoop(spec, descriptor, resolver, keyToName, keyToField, handle, onRow, onError, onDone));
+                handle => MonitorLoop(spec, descriptor, resolver, plan, handle, onRow, onError, onDone));
         }
 
         /// <summary>
@@ -146,9 +145,7 @@ namespace tik4net.WinboxNative
             CancellationToken cancellationToken)
         {
             var resolver = _host.MakeResolver(apiPath, handler);
-            var keyToName = resolver.BuildKeyToApiName();
-            var keyToField = resolver.BuildKeyToField();
-            var numFlags = resolver.BuildNumFlags();
+            var plan = resolver.DecodePlan();
 
             var rows = new List<TikRecordSentence>();
             uint? id = null;
@@ -189,10 +186,8 @@ namespace tik4net.WinboxNative
                         .ConfigureAwait(false);
                     continuation = next;
 
-                    await _host.Codec.PrimeReferencesAsync(records, keyToName, keyToField, cancellationToken).ConfigureAwait(false);
-                    foreach (var rec in records)
-                        rows.Add(new TikRecordSentence(_host.Codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
-                            resolver.ExtraSpellings)));
+                    foreach (var fields in await _host.Codec.DecodeRowsAsync(records, plan, cancellationToken).ConfigureAwait(false))
+                        rows.Add(new TikRecordSentence(fields));
 
                     if (done) break;                    // router set Finished: the command is over
                     if (continuation != null) continue; // mid-pass: keep reading this one
@@ -235,13 +230,11 @@ namespace tik4net.WinboxNative
         // instead of throwing synchronously out of ExecuteWithCallback. An M2 error reaches onError through
         // IPollingMonitorHost.ToTrap. The window is cancelled before onDone, which fires exactly once.
         private void MonitorLoop(WinboxMonitorSpec spec, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
-            IReadOnlyDictionary<int, string> keyToName, IReadOnlyDictionary<int, WinboxJgField> keyToField,
-            TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
+            WinboxDecodePlan plan, TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
             => PollingMonitorEngine.Run(_host, handle, onError, onDone, () =>
             {
                 uint? id = null;
                 bool started = false;
-                var numFlags = resolver.BuildNumFlags();
                 try
                 {
                     using (_host.EnterCommand())
@@ -277,8 +270,7 @@ namespace tik4net.WinboxNative
                         // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
                         // as the router produces it instead of in a lump when the pass ends.
                         foreach (var rec in records)
-                            onRow?.Invoke(new TikRecordSentence(_host.Codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
-                                resolver.ExtraSpellings)));
+                            onRow?.Invoke(new TikRecordSentence(_host.Codec.DecodeRecord(rec, plan)));
 
                         if (done) break;              // router set Finished: the operation is over for good
                         if (continuation != null) continue;   // same pass, next record — no sleep
@@ -312,11 +304,9 @@ namespace tik4net.WinboxNative
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int[]? handler = _host.HandlerMap.Resolve(apiPath);
             if (handler == null) return set;
-            var resolver = _host.MakeResolver(apiPath, handler);
-            var keyToName = resolver.BuildKeyToApiName();
-            var keyToField = resolver.BuildKeyToField();
-            foreach (var kv in keyToField)
-                if (kv.Value != null && kv.Value.ReadOnly && keyToName.TryGetValue(kv.Key, out var n))
+            var plan = _host.MakeResolver(apiPath, handler).DecodePlan();
+            foreach (var kv in plan.KeyToField)
+                if (kv.Value != null && kv.Value.ReadOnly && plan.KeyToName.TryGetValue(kv.Key, out var n))
                     set.Add(n);
             return set;
         }
@@ -369,22 +359,16 @@ namespace tik4net.WinboxNative
             var resolver = new WinboxFieldResolver(WinboxNativeConnection.ApiPathOf(descriptor.CommandText), handler, _host.Catalog,
                 _host.OverridesFor(parentPath), _host.UseGuiNames, _host.HandlerMap.ResolveDerivedKey(parentPath),
                 labelHints: _host.LabelHints);
-            var keyToName = resolver.BuildKeyToApiName();
-            var keyToField = resolver.BuildKeyToField();
-            var numFlags = resolver.BuildNumFlags();
+            var plan = resolver.DecodePlan();
             int flags = _host.Catalog.GetReadFlags(handler);
 
             List<Dictionary<int, Tuple<string, object>>> records;
             try { records = await _host.Ops.GetAllAsync(handler, cancellationToken, flags).ConfigureAwait(false); }
             catch (WinboxM2OperationException ex) { throw _host.TranslateM2Error(ex, descriptor.CommandText); }
 
-            await _host.Codec.PrimeReferencesAsync(records, keyToName, keyToField, cancellationToken).ConfigureAwait(false);
-
             var result = new List<TikRecordSentence>();
-            foreach (var rec in records)
+            foreach (var decoded in await _host.Codec.DecodeRowsAsync(records, plan, cancellationToken).ConfigureAwait(false))
             {
-                var decoded = _host.Codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
-                            resolver.ExtraSpellings);
                 if (decoded.TryGetValue("name", out var nm) && string.Equals(nm, target, StringComparison.Ordinal))
                 {
                     result.Add(new TikRecordSentence(decoded));

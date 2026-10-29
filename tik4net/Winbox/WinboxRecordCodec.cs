@@ -88,6 +88,33 @@ namespace tik4net.Winbox
             IReadOnlyDictionary<string, string[]>? extraSpellings = null)
             => DecodeRecord(rec, keyToName, keyToField, null, derivedBools, numFlags, extraSpellings);
 
+        /// <summary>
+        /// Translates a decoded M2 record by a command's <see cref="WinboxDecodePlan"/> — every map the plan carries.
+        /// </summary>
+        internal Dictionary<string, string> DecodeRecord(Dictionary<int, Tuple<string, object>> rec, WinboxDecodePlan plan)
+            => DecodeRecord(rec, plan.KeyToName, plan.KeyToField, null, plan.DerivedBools, plan.NumFlags, plan.ExtraSpellings);
+
+        /// <summary>
+        /// Decodes a batch of records by <paramref name="plan"/>: the referenced tables they need are read first, under
+        /// await (<see cref="PrimeReferencesAsync"/>), so the synchronous decode that follows does not block on a cache
+        /// miss.
+        /// </summary>
+        /// <remarks>
+        /// The rows are decoded lazily, as the result is enumerated, so a caller that stops at the row it wants (a
+        /// snapshot monitor picking its interface) decodes no further — a decode learns kind words for the connection
+        /// (<see cref="LearnKindWords"/>), and the rows after the match never taught it anything.
+        /// <para><paramref name="learnKindWords"/> learns every kind name the batch carries before the first row is
+        /// decoded, as a table read does, so an enslaved interface is named by its kind even when its peers come later.</para>
+        /// </remarks>
+        internal async Task<IEnumerable<Dictionary<string, string>>> DecodeRowsAsync(
+            IReadOnlyCollection<Dictionary<int, Tuple<string, object>>> records, WinboxDecodePlan plan,
+            CancellationToken cancellationToken, bool learnKindWords = false)
+        {
+            await PrimeReferencesAsync(records, plan.KeyToName, plan.KeyToField, cancellationToken).ConfigureAwait(false);
+            if (learnKindWords) LearnKindWords(records, plan.KeyToField);
+            return records.Select(rec => DecodeRecord(rec, plan));
+        }
+
         // The decode proper. collectRefTables != null puts it in COLLECTING mode: reference names are not
         // looked up, the tables they would have needed are noted instead, and the fields it returns are
         // thrown away. See PrimeReferencesAsync — that mode is how the awaited path learns what to fetch.

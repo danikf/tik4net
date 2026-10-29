@@ -717,10 +717,7 @@ namespace tik4net.WinboxNative
                         .ConfigureAwait(false);
             }
 
-            var resolver = MakeResolver(apiPath, handler);
-            var keyToName = resolver.BuildKeyToApiName();
-            var keyToField = resolver.BuildKeyToField();
-            var numFlags = resolver.BuildNumFlags();
+            var plan = MakeResolver(apiPath, handler).DecodePlan();
 
             // Singleton tables (type:'item' window, e.g. /system/resource, /ip/dns) expose a single record
             // read via get-singleton; everything else lists via getall.
@@ -766,17 +763,14 @@ namespace tik4net.WinboxNative
                 }).ToList();
 
             // Decoding a reference field renders the referenced record's NAME, which needs that table read
-            // once. Priming it here keeps the decode below synchronous without it blocking this thread on a
-            // cache miss (see WinboxRecordCodec.PrimeReferencesAsync).
-            await _codec.PrimeReferencesAsync(records, keyToName, keyToField, cancellationToken).ConfigureAwait(false);
-
-            _codec.LearnKindWords(records, keyToField);
+            // once. DecodeRowsAsync primes it first, so the decode stays synchronous without it blocking this
+            // thread on a cache miss (see WinboxRecordCodec.PrimeReferencesAsync).
             var rows = new List<TikRecordSentence>(records.Count);
             RowsTheApiHides.TryGetValue(apiPath, out var hidden);
-            foreach (var rec in records)
+            foreach (var fields in await _codec.DecodeRowsAsync(records, plan, cancellationToken, learnKindWords: true)
+                         .ConfigureAwait(false))
             {
-                var row = new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
-                            resolver.ExtraSpellings));
+                var row = new TikRecordSentence(fields);
                 if (hidden != null && row.Words.TryGetValue(hidden.Item1, out var hiddenValue)
                     && string.Equals(hiddenValue, hidden.Item2, StringComparison.Ordinal))
                     continue;
@@ -1030,8 +1024,9 @@ namespace tik4net.WinboxNative
                 finally { _labelHints.Value = previous; }
                 // The names from BuildKeyToApiName, which applies the hints and the overrides as a read does; the
                 // field itself (read-only, enum words) by key from BuildKeyToField, whose names are the catalog's.
-                var byKey = resolver.BuildKeyToField();
-                var named = resolver.BuildKeyToApiName()
+                var plan = resolver.DecodePlan();
+                var byKey = plan.KeyToField;
+                var named = plan.KeyToName
                     .Where(kv => kv.Value.Length > 0 && kv.Value != TikSpecialProperties.Id)
                     .Select(kv => new { Name = kv.Value, Field = byKey.TryGetValue(kv.Key, out var f) ? f : null })
                     .ToList();
@@ -1233,9 +1228,9 @@ namespace tik4net.WinboxNative
             int[]? handler = _handlerMap.Resolve(apiPath);
             if (handler == null)
                 return null;
-            var resolver = MakeResolver(apiPath, handler);
-            var names = resolver.BuildKeyToApiName();
-            var fields = resolver.BuildKeyToField();
+            var plan = MakeResolver(apiPath, handler).DecodePlan();
+            var names = plan.KeyToName;
+            var fields = plan.KeyToField;
             var codec = _codec;   // the open connection's decoder: DescribeFields needs an opened catalog anyway
             var result = new List<(string, WinboxJgField, Func<object, string?>)>();
             foreach (var pair in fields)

@@ -466,6 +466,11 @@ namespace tik4net.Winbox
         /// <see cref="FieldAliasSet.AlsoKnownAs"/>).</summary>
         internal IReadOnlyDictionary<string, string[]>? ExtraSpellings => Aliases?.AlsoKnownAs;
 
+        /// <summary>
+        /// Everything a decode of this path's records needs, built once per command (see <see cref="WinboxDecodePlan"/>).
+        /// </summary>
+        internal WinboxDecodePlan DecodePlan() => new WinboxDecodePlan(this);
+
         // Rewrite an API field name to its .jg label (encode/resolve direction); identity when no alias.
         // An alias whose label this catalog lacks yields to the API name when the catalog has THAT: a label
         // can differ by RouterOS version (address-list 'Name' on 6.x, 'List' on 7.x), and falling through to
