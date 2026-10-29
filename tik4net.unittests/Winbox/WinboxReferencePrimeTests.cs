@@ -30,7 +30,7 @@ namespace tik4net.unittests.Winbox
         private static readonly int[] RefHandler = { 20, 90 };
 
         private static WinboxJgField ReferenceField(string uiType)
-            => new WinboxJgField("list", RefKey, "u32", false, uiType: uiType, refHandler: RefHandler);
+            => new WinboxJgField("list", RefKey, M2Type.U32, false, uiType: uiType, refHandler: RefHandler);
 
         private static M2Record Row(object value)
             => new M2Record { [RefKey] = new M2Value(M2Type.U32, value) };
@@ -80,7 +80,7 @@ namespace tik4net.unittests.Winbox
             // predicted-from-.jg approach fetched a table the decode provably does not use.
             Assert.AreEqual(0, RoundTripsToPrime(ReferenceField("ipaddr"), 3232235777u),
                 "an ipaddr renders from the value itself; its declared reference is never consulted");
-            var flags = new WinboxJgField("list", RefKey, "u32", false,
+            var flags = new WinboxJgField("list", RefKey, M2Type.U32, false,
                 enumMap: new Dictionary<int, string> { [0] = "established" }, uiType: "set",
                 refHandler: RefHandler);
             Assert.AreEqual(0, RoundTripsToPrime(flags, 1u),

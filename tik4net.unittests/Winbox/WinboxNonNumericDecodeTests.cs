@@ -111,7 +111,7 @@ namespace tik4net.unittests.Winbox
             // The zero label is the trap: on a typical .jg map index 0 is "none"/"off"/"disabled", so a value
             // the codec could not read used to come back as a confident "off".
             var map = new Dictionary<int, string> { [0] = "off", [1] = "on" };
-            var field = new WinboxJgField("state", 0x10001, "u32", false, enumMap: map, uiType: "enm");
+            var field = new WinboxJgField("state", 0x10001, M2Type.U32, false, enumMap: map, uiType: "enm");
 
             Assert.AreEqual("ether1", Decode(field, "ether1")["state"]);
             Assert.AreEqual("on", Decode(field, 1)["state"], "a readable value must still map to its label");
@@ -122,7 +122,7 @@ namespace tik4net.unittests.Winbox
         {
             // An empty label list reads as "no flags set", which is a meaningful firewall answer.
             var map = new Dictionary<int, string> { [0] = "established", [1] = "related" };
-            var field = new WinboxJgField("connection-state", 0x10002, "u32", false, enumMap: map, uiType: "set");
+            var field = new WinboxJgField("connection-state", 0x10002, M2Type.U32, false, enumMap: map, uiType: "set");
 
             Assert.AreEqual("not-a-number", Decode(field, "not-a-number")["connection-state"]);
             Assert.AreEqual("established,related", Decode(field, 3)["connection-state"]);

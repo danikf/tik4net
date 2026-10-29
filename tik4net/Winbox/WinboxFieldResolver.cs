@@ -226,8 +226,8 @@ namespace tik4net.Winbox
         };
 
         // Wire type for seed fields without a .jg entry (so EncodeField types them correctly).
-        private static string SeedWireType(string apiName)
-            => string.Equals(apiName, "disabled", StringComparison.OrdinalIgnoreCase) ? "bool" : "string";
+        private static M2Type SeedWireType(string apiName)
+            => string.Equals(apiName, "disabled", StringComparison.OrdinalIgnoreCase) ? M2Type.Bool : M2Type.String;
 
         // ── Deck panes: the kind prefix (stable text) ──────────────────────────
 
@@ -698,7 +698,7 @@ namespace tik4net.Winbox
                     if (!map.ContainsKey(kv.Key))
                     {
                         aliasSet.KeyToApi.TryGetValue(kv.Key, out var nm);
-                        map[kv.Key] = new WinboxJgField(nm ?? "", kv.Key, "u32", true, null, kv.Value);
+                        map[kv.Key] = new WinboxJgField(nm ?? "", kv.Key, M2Type.U32, true, null, kv.Value);
                     }
             ApplyAddrPortPairs(map, aliasSet);
             ApplyPairedFields(map, aliasSet);

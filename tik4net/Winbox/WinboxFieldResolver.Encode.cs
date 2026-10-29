@@ -247,7 +247,7 @@ namespace tik4net.Winbox
                 case "multinumber":
                     if (EncodeNumberList(key, value, jg, apiName, resolveRef, result)) return result;
                     break;
-                case "multi" when jg?.WireType == "addr[]":   // .jg M-prefix: a MESSAGE array
+                case "multi" when jg?.WireType == M2Type.MessageArray:   // .jg M-prefix: a MESSAGE array
                     if (EncodeMessageList(key, value, jg, apiName, resolveRef, result)) return result;
                     break;
                 case "multistring":
@@ -291,7 +291,7 @@ namespace tik4net.Winbox
                         // ...at the field's own wire type. A two-member map over a BOOL key is a real shape
                         // (/system/health spells its two bools 'disabled'/'enabled'), and a u32 written to a
                         // bool key is a request the router accepts, answers, and ignores.
-                        result.Add(jg.WireType == "bool"
+                        result.Add(jg.WireType == M2Type.Bool
                             ? M2Message.BoolSys(key, kv.Key != 0)
                             : EncodeU32(key, (uint)kv.Key));
                         return result;
@@ -299,7 +299,7 @@ namespace tik4net.Winbox
                 foreach (var kv in jg.EnumMap)
                     if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
                     {
-                        result.Add(jg.WireType == "bool"
+                        result.Add(jg.WireType == M2Type.Bool
                             ? M2Message.BoolSys(key, kv.Key != 0)
                             : EncodeU32(key, (uint)kv.Key));
                         return result;
@@ -325,7 +325,7 @@ namespace tik4net.Winbox
                 throw new WinboxFieldValueException(
                     $"input does not match any value of {apiName}");
 
-            string wireType = jg?.WireType ?? SeedWireType(apiName);
+            M2Type wireType = jg?.WireType ?? SeedWireType(apiName);
 
             // Loud failure for list/array fields we do NOT yet encode, rather than silently sending a
             // wrong-typed scalar the router quietly drops (silent data loss is worse than an error). The
@@ -335,7 +335,7 @@ namespace tik4net.Winbox
             if (value.Length > 0 && IsUnsupportedListType(wireType, uiType))
                 throw new WinboxFieldResolutionException(
                     $"WinBox native: field '{apiName}' on '{_apiPath}' is a list/array type " +
-                    $"('{uiType ?? wireType}') that is not yet encodable over native WinBox M2 writes. " +
+                    $"('{uiType ?? M2Types.JgName(wireType)}') that is not yet encodable over native WinBox M2 writes. " +
                     "Use an Api/REST/CLI connection for this field (or a FieldOverride to a scalar key).");
 
             // A scalar tuple is a compound the API prints joined by a separator, and splitting the text back
@@ -359,7 +359,7 @@ namespace tik4net.Winbox
             // that spelling is what a caller hands in; the plain decimal is still accepted.
             if (jg != null && jg.Radix == 16 && value.Length > 2
                 && value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-                && (wireType == "u32" || wireType == "u8" || wireType == "u16")
+                && wireType == M2Type.U32
                 && uint.TryParse(value.Substring(2), System.Globalization.NumberStyles.HexNumber,
                                  System.Globalization.CultureInfo.InvariantCulture, out uint hex))
             {
@@ -369,7 +369,7 @@ namespace tik4net.Winbox
 
             // 'addr' (webfig types.addr) is a compound: the value is a nested message, and each address FORM
             // rides at its own sub-key. Encoding it needs the whole set, not just IPv4 — see EncodeAddr.
-            if (wireType == "addr" && value.Length > 0)
+            if (wireType == M2Type.Message && value.Length > 0)
             {
                 result.Add(M2Message.MessageSys(key, EncodeAddr(value, jg?.Allow, apiName, _apiPath)));
                 return result;
@@ -377,17 +377,14 @@ namespace tik4net.Winbox
 
             switch (wireType)
             {
-                case "bool":
+                case M2Type.Bool:
                     result.Add(M2Message.BoolSys(key, ParseBool(value)));
                     break;
-                case "u32":
-                case "i32":
-                case "dur":
-                case "time":
+                case M2Type.U32:
                     if (long.TryParse(value, out long n)) result.Add(EncodeU32(key, (uint)n));
                     else result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
                     break;
-                case "u64":
+                case M2Type.U64:
                     // A u64 must go out as a u64. Narrowing it to the u32 form — which is what this case
                     // used to share — sends the wrong TYPE BYTE, and the router answers success and ignores
                     // the field: /queue/simple's rate fields resolved to their keys, were encoded, and never
@@ -403,10 +400,10 @@ namespace tik4net.Winbox
                     else
                         result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
                     break;
-                case "raw":
+                case M2Type.Raw:
                     result.Add(M2Message.RawSys(key, ParseRaw(value)));
                     break;
-                case "ip6":
+                case M2Type.Addr6:
                 {
                     // A standalone IPv6 field (.jg 'a' prefix), as opposed to the '6' member of an addr
                     // compound. Same FT_ADDR6 encoding; a value that is not an address stays text so the
@@ -416,7 +413,7 @@ namespace tik4net.Winbox
                     else result.Add(M2Message.StringSys(key, value));
                     break;
                 }
-                default: // "string", "addr" and unknowns round-trip as string text
+                default: // string, message, unknown and the arrays round-trip as string text
                     result.Add(M2Message.StringSys(key, value));
                     break;
             }
@@ -672,7 +669,7 @@ namespace tik4net.Winbox
             // seventeen. On an ADD the router fills the rest in itself, so the row still comes out
             // spelled exactly as the API's own add spells it.
             long setMask = negatedBits;
-            if (jg.WireType != null && jg.WireType.EndsWith("[]", StringComparison.Ordinal))
+            if (jg.WireType.IsArray())
             {
                 result.Add(M2Message.U32ArraySys(key,
                     unchecked((int)bits), unchecked((int)setMask)));
@@ -781,7 +778,7 @@ namespace tik4net.Winbox
             return true;
         }
 
-        // The typed encoder of "multi" when jg?.WireType == "addr[]" (a case of EncodeField). True when the value
+        // The typed encoder of "multi" when jg?.WireType == M2Type.MessageArray (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
         private bool EncodeMessageList(int key, string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
         {
@@ -1029,7 +1026,7 @@ namespace tik4net.Winbox
         /// and takes <c>out,none</c>, so the catalog's own field reads <c>out:none</c> and cannot split a write.
         /// </summary>
         private static WinboxJgField FirewallIpsecPolicy()
-            => new WinboxJgField("ipsec-policy", 0x84, "u32", false, uiType: WinboxJgCatalog.TupleUiType,
+            => new WinboxJgField("ipsec-policy", 0x84, M2Type.U32, false, uiType: WinboxJgCatalog.TupleUiType,
                 optKey: 0x1C5, elementSeparator: ",",
                 elementParts: new[]
                 {
@@ -1053,7 +1050,7 @@ namespace tik4net.Winbox
         /// after the boxes, and the API has one (7.24.5, filter, raw and mangle alike).
         /// </summary>
         private static WinboxJgField FirewallLimit()
-            => new WinboxJgField("limit", 0x87, "u64", false, uiType: FirewallLimitUiType, optKey: 0x1A0, notKey: 0xE4);
+            => new WinboxJgField("limit", 0x87, M2Type.U64, false, uiType: FirewallLimitUiType, optKey: 0x1A0, notKey: 0xE4);
 
         /// <summary>
         /// The firewall's dst-limit, <c>rate[/period],burst,limit-by/expire</c> (<c>30,5,dst-address/1m</c>): the window's
@@ -1061,7 +1058,7 @@ namespace tik4net.Winbox
         /// expire u3b in hundredths of a second, which the API always prints (7.24.5).
         /// </summary>
         private static WinboxJgField FirewallDstLimit()
-            => new WinboxJgField("dst-limit", 0x36, "u32", false, uiType: FirewallDstLimitUiType, optKey: 0x1A4);
+            => new WinboxJgField("dst-limit", 0x36, M2Type.U32, false, uiType: FirewallDstLimitUiType, optKey: 0x1A4);
 
         /// <summary>UI type of <see cref="FirewallTos"/>: one API field over the window's 'TOS' group.</summary>
         internal const string FirewallTosUiType = "tik4net-fw-tos";
@@ -1072,7 +1069,7 @@ namespace tik4net.Winbox
         /// default 0xFF (7.24.5). The catalog reads tos and tos-mask, in lower case.
         /// </summary>
         private static WinboxJgField FirewallTos()
-            => new WinboxJgField("tos", 0x1C9, "u32", false, uiType: FirewallTosUiType, optKey: 0x1C7, notKey: 0x1C8);
+            => new WinboxJgField("tos", 0x1C9, M2Type.U32, false, uiType: FirewallTosUiType, optKey: 0x1C7, notKey: 0x1C8);
 
         /// <summary>
         /// The keys of a firewall group field other than the field's own (and ipsec-policy's second part), or none for
@@ -1175,7 +1172,7 @@ namespace tik4net.Winbox
         /// under an opt and a not.
         /// </summary>
         private static WinboxJgField FirewallBridgePort(string apiName, int key, int optKey, int notKey)
-            => new WinboxJgField(apiName, key, "u32", false, uiType: "enm", refHandler: new[] { 20, 0 },
+            => new WinboxJgField(apiName, key, M2Type.U32, false, uiType: "enm", refHandler: new[] { 20, 0 },
                 optKey: optKey, notKey: notKey,
                 enumMap: new Dictionary<int, string>
                 {
@@ -1516,15 +1513,15 @@ namespace tik4net.Winbox
         {
             switch (jg.WireType)
             {
-                case "string[]":
+                case M2Type.StringArray:
                     return M2Message.StringArraySys(key, items);
-                case "raw[]":
+                case M2Type.RawArray:
                     return M2Message.RawArraySys(key, items.Select(ParseRaw).ToList());
-                case "ip6[]":
+                case M2Type.Addr6Array:
                     return M2Message.Addr6ArraySys(key, items.Select(t =>
                         PackIpV6(t.Split('/')[0]) ?? throw new WinboxFieldValueException(
                             $"input does not match any value of {apiName} (element '{t}')")).ToList());
-                case "u64[]":
+                case M2Type.U64Array:
                 {
                     // webfig `types.multibignumber = inherit(types.multinumber)`: the same flat array, one
                     // element width wider. Its elements are numbers (`bignumber` and `bigbitrate` both sit on
@@ -1540,7 +1537,7 @@ namespace tik4net.Winbox
                     }
                     return M2Message.U64ArraySys(key, big);
                 }
-                case "u32[]":
+                case M2Type.U32Array:
                 {
                     var nums = new List<int>();
                     foreach (string t in items)
@@ -1561,18 +1558,18 @@ namespace tik4net.Winbox
                 }
                 default:
                     throw new WinboxFieldResolutionException(
-                        $"WinBox native: field '{apiName}' on '{_apiPath}' is a list of '{jg.WireType}', " +
+                        $"WinBox native: field '{apiName}' on '{_apiPath}' is a list of '{M2Types.JgName(jg.WireType)}', " +
                         "which is not yet encodable over native WinBox M2 writes. Use an Api/REST/CLI " +
                         "connection for this field.");
             }
         }
 
         // True for a list/array field that EncodeField has no specific encoder for (so it would otherwise be
-        // silently mis-sent as a scalar string). Array wire types end in "[]"; 'multi…' UI types are the
+        // silently mis-sent as a scalar string). An array wire type, or a 'multi…' UI type — the
         // WinBox multi-value controls (multitristatearray, …). multinumberrange, numberrangelist and
         // multinumber are handled before this check, so they never reach here.
-        private static bool IsUnsupportedListType(string? wireType, string? uiType)
-            => (wireType != null && wireType.EndsWith("[]", StringComparison.Ordinal))
+        private static bool IsUnsupportedListType(M2Type wireType, string? uiType)
+            => wireType.IsArray()
                || (uiType != null && uiType.StartsWith("multi", StringComparison.OrdinalIgnoreCase)
                    && !IsScalarDespiteMultiPrefix(uiType));
 

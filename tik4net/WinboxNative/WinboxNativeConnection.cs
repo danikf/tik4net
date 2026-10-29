@@ -1238,7 +1238,7 @@ namespace tik4net.WinboxNative
                 var field = pair.Value;
                 result.Add((apiName, field, value =>
                 {
-                    var rec = new M2Record { [field.Key] = new M2Value(M2Types.FromJgName(field.WireType), value) };
+                    var rec = new M2Record { [field.Key] = new M2Value(field.WireType, value) };
                     return codec.DecodeRecord(rec, names, fields).TryGetValue(apiName, out string? text) ? text : null;
                 }));
             }

@@ -165,7 +165,7 @@ namespace tik4net.integrationtests
                         string declared = entity.Type.GetProperty(p.PropertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetCustomAttribute<TikPropertyAttribute>()?.DefaultValue;
                         if (!field.Def.HasValue) { nNoDef++; continue; }
                         if (declared == null) { nNoAttr++; continue; }
-                        object raw = field.WireType == "bool" ? (object)(field.Def.Value != 0) : field.Def.Value;
+                        object raw = field.WireType == M2Type.Bool ? (object)(field.Def.Value != 0) : field.Def.Value;
                         string catalogDefault;
                         try { catalogDefault = render(raw); }
                         catch (Exception ex) { catalogDefault = "<" + ex.GetType().Name + ">"; }
@@ -243,7 +243,7 @@ namespace tik4net.integrationtests
         // How a field holds its value, when it holds several or takes a '!': null for a plain scalar.
         private static string ValueShape(WinboxJgField field)
         {
-            string ui = field.UiType ?? field.WireType;
+            string ui = field.UiType ?? M2Types.JgName(field.WireType);
             bool multi = ui.StartsWith("multi", StringComparison.Ordinal) || ui.EndsWith("list", StringComparison.Ordinal)
                          || field.ElementUiType != null || field.ElementSeparator != null;
             bool members = WinboxFieldResolver.IsPerMemberNegatedList(field.UiType) || field.ElementNotKey != 0;

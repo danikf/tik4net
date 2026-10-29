@@ -127,7 +127,7 @@ namespace tik4net.unittests.Winbox
         public void AnExactEnumMatchWinsOverACaseInsensitiveOne()
         {
             var twins = new Dictionary<int, string> { [0] = "XX:XX:XX:XX:XX:XX", [7] = "xx:xx:xx:xx:xx:xx" };
-            var field = new WinboxJgField("mac-format", 0x1C, "u32", false, enumMap: twins);
+            var field = new WinboxJgField("mac-format", 0x1C, M2Type.U32, false, enumMap: twins);
             var resolver = ResolverWith(field);
 
             Assert.AreEqual(7L, Convert.ToInt64(Encoded(resolver.EncodeField("mac-format", "xx:xx:xx:xx:xx:xx")).Value),
@@ -136,7 +136,7 @@ namespace tik4net.unittests.Winbox
 
             // The fallback still resolves a value whose case matches no member exactly.
             var single = new Dictionary<int, string> { [0] = "as-username", [1] = "as-username-and-password" };
-            var plain = ResolverWith(new WinboxJgField("mac-mode", 0x1D, "u32", false, enumMap: single));
+            var plain = ResolverWith(new WinboxJgField("mac-mode", 0x1D, M2Type.U32, false, enumMap: single));
             Assert.AreEqual(1L, Convert.ToInt64(Encoded(plain.EncodeField("mac-mode", "AS-Username-And-Password")).Value),
                 "an inexact case must still resolve — that is what the fallback is for");
         }

@@ -130,10 +130,10 @@ namespace tik4net.unittests.Winbox
             var fields = Parse(Window).GetHandlerFields(Handler);
             Assert.IsNotNull(fields);
 
-            Assert.AreEqual("u64[]", fields!["tx-packet"].WireType);
+            Assert.AreEqual(M2Type.U64Array, fields!["tx-packet"].WireType);
             Assert.AreEqual("multibignumber", fields["tx-packet"].UiType);
             Assert.AreEqual(0x480, fields["tx-packet"].Key);
-            Assert.AreEqual("u32[]", fields["forward-to"].WireType,
+            Assert.AreEqual(M2Type.U32Array, fields["forward-to"].WireType,
                 "and the u32 list beside it is unchanged");
         }
 

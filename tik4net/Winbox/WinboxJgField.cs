@@ -68,8 +68,8 @@ namespace tik4net.Winbox
         /// <summary>Numeric M2 field key (e.g. 0x10006 for Name).</summary>
         internal int Key { get; }
 
-        /// <summary>Wire-type code decoded from the <c>id</c> prefix (e.g. "string", "u32", "bool", "raw").</summary>
-        internal string WireType { get; }
+        /// <summary>The M2 type the <c>id</c>'s prefix letter names (<c>s</c> → string, <c>U</c> → u32[], …).</summary>
+        internal M2Type WireType { get; }
 
         /// <summary>True when the <c>.jg</c> marks the field read-only (<c>ro:1</c>).</summary>
         internal bool ReadOnly { get; }
@@ -319,29 +319,7 @@ namespace tik4net.Winbox
         /// part of the identity: a <c>u12</c> and a <c>U12</c> are two fields on one key and name themselves
         /// differently here, exactly as they do in the record.
         /// </remarks>
-        internal int TypedFieldId => (FtypeOf(WireType) << 27) | Key;
-
-        // 0=bool 1=u32 2=u64 3=addr6 4=string 5=message 6=raw, +16 for the array form — id2int's fourteen
-        // letters read back through the catalog's own prefix table, so the two cannot drift apart.
-        private static int FtypeOf(string wireType)
-        {
-            wireType = wireType ?? "";
-            bool array = wireType.EndsWith("[]", StringComparison.Ordinal);
-            string scalar = array ? wireType.Substring(0, wireType.Length - 2) : wireType;
-            int ftype;
-            switch (scalar)
-            {
-                case "bool":   ftype = 0; break;
-                case "u32":    ftype = 1; break;
-                case "u64":    ftype = 2; break;
-                case "ip6":    ftype = 3; break;
-                case "string": ftype = 4; break;
-                case "addr":   ftype = 5; break;   // .jg 'm' — a MESSAGE, id2int m:5
-                case "raw":    ftype = 6; break;
-                default:       ftype = 1; break;    // u32 is the catalog's default id prefix
-            }
-            return array ? ftype + 16 : ftype;
-        }
+        internal int TypedFieldId => (WireType.FType() << 27) | Key;
 
         /// <summary>
         /// The <c>.jg</c> <c>opt:1</c> ATTRIBUTE — "this field may legitimately have no value" — which is a
@@ -434,7 +412,7 @@ namespace tik4net.Winbox
                && !string.Equals(UiType, "netmask", StringComparison.OrdinalIgnoreCase)
                && (EnumMap == null || !EnumMap.ContainsKey(unchecked((int)UnsetSentinel)));
 
-        internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,
+        internal WinboxJgField(string apiName, int key, M2Type wireType, bool readOnly,
             IReadOnlyDictionary<int, string>? enumMap = null, string? uiType = null, int maskKey = 0,
             int[]? refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
             string? allow = null, long? def = null,

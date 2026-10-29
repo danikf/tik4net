@@ -95,10 +95,10 @@ namespace tik4net.Winbox
                         var upField = jf.PairHalves.Item1;
                         var downField = jf.PairHalves.Item2;
 
-                        string up = FormatTyped(upField, M2Types.FromJgName(upField.WireType), value, rec, collectRefTables);
+                        string up = FormatTyped(upField, upField.WireType, value, rec, collectRefTables);
                         string down = "0";
                         if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var other) && other.Value != null)
-                            down = FormatTyped(downField, M2Types.FromJgName(downField.WireType), other.Value, rec, collectRefTables);
+                            down = FormatTyped(downField, downField.WireType, other.Value, rec, collectRefTables);
                         return up + "/" + down;
                     }
                     case WinboxFieldResolver.AddrPortUiType:
@@ -779,7 +779,7 @@ namespace tik4net.Winbox
         // direction — a number declared, text carried — is not caught (the two were compared in two spellings
         // of the type, so it never fired; F10).
         private static bool IsWireKindContradiction(WinboxJgField? jf, M2Type wireType)
-            => jf != null && M2Types.FromJgName(jf.WireType) == M2Type.String
+            => jf != null && jf.WireType == M2Type.String
                && (wireType == M2Type.U32 || wireType == M2Type.U64);
 
         // The postfixes acted on: the two that mean TIME. 'min', 'MHz', '%' and the rest are units the API
@@ -1279,7 +1279,7 @@ namespace tik4net.Winbox
         {
             if (!TikWireTrace.Enabled) return;
             TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
-                $"'{jf.ApiName}' (key 0x{jf.Key:X}) is declared {jf.WireType} and the row carries "
+                $"'{jf.ApiName}' (key 0x{jf.Key:X}) is declared {M2Types.JgName(jf.WireType)} and the row carries "
                 + $"{wire.TraceName}; not reported on this row");
         }
 

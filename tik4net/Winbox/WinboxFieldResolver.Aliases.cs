@@ -184,11 +184,11 @@ namespace tik4net.Winbox
         };
 
         private static WinboxJgField WepAlgo(string apiName, int key)
-            => new WinboxJgField(apiName, key, "u32", false, enumMap: WepAlgoMap);
+            => new WinboxJgField(apiName, key, M2Type.U32, false, enumMap: WepAlgoMap);
 
         // A 'secret' in the .jg; the API prints and accepts it as a plain string.
         private static WinboxJgField WepKey(string apiName, int key)
-            => new WinboxJgField(apiName, key, "string", false);
+            => new WinboxJgField(apiName, key, M2Type.String, false);
 
         // /system/health's two states, as RouterOS spells them.
         private static readonly Dictionary<int, string> HealthStateMap = new Dictionary<int, string>
@@ -228,10 +228,10 @@ namespace tik4net.Winbox
                     keyToApi: new Dictionary<int, string> { [0x6b] = "packet-loss" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["host"] = new WinboxJgField("host", 0x1, "raw", true, uiType: "macaddr"),
-                        ["time"] = new WinboxJgField("time", 0x64, "u32", true, uiType: "number", postfix: "ms"),
-                        ["sent"] = new WinboxJgField("sent", 0x69, "u32", true, uiType: "number"),
-                        ["received"] = new WinboxJgField("received", 0x6A, "u32", true, uiType: "number"),
+                        ["host"] = new WinboxJgField("host", 0x1, M2Type.Raw, true, uiType: "macaddr"),
+                        ["time"] = new WinboxJgField("time", 0x64, M2Type.U32, true, uiType: "number", postfix: "ms"),
+                        ["sent"] = new WinboxJgField("sent", 0x69, M2Type.U32, true, uiType: "number"),
+                        ["received"] = new WinboxJgField("received", 0x6A, M2Type.U32, true, uiType: "number"),
                     }),
 
                 // /tool/traceroute (ToolTraceroute). The .jg window (type:'query', path:[26]) labels the target
@@ -345,13 +345,13 @@ namespace tik4net.Winbox
                     jgToApiOnly: Ci(("auto-negotiation", "auto-negotiation-status")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["disable-running-check"] = new WinboxJgField("disable-running-check", 0x1000D, "bool", false),
+                        ["disable-running-check"] = new WinboxJgField("disable-running-check", 0x1000D, M2Type.Bool, false),
                         // The factory MAC: unnamed 0x404 carries the API's orig-mac-address (AA:BB:CC:DD:EE:FF on
                         // ether1, 7.24.2) beside 0x3E9's mac-address. Read-only, as the API has it.
-                        ["orig-mac-address"] = new WinboxJgField("orig-mac-address", 0x404, "raw", true,
+                        ["orig-mac-address"] = new WinboxJgField("orig-mac-address", 0x404, M2Type.Raw, true,
                                                                  uiType: "macaddr"),
                         // cable-settings: unnamed 0x3F5. default/standard/short moved it to 2/1/0 on ether2 (7.24.2).
-                        ["cable-settings"] = new WinboxJgField("cable-settings", 0x3F5, "u32", false,
+                        ["cable-settings"] = new WinboxJgField("cable-settings", 0x3F5, M2Type.U32, false,
                             enumMap: new Dictionary<int, string> { [0] = "short", [1] = "standard", [2] = "default" }),
                     }),
 
@@ -370,7 +370,7 @@ namespace tik4net.Winbox
                              ("unpack", "unpacking")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["interface"] = new WinboxJgField("interface", 0x13, "u32[]", true,
+                        ["interface"] = new WinboxJgField("interface", 0x13, M2Type.U32Array, true,
                                                           uiType: "multinumber", refHandler: new[] { 20, 0 }),
                     },
                     // A neighbour heard only over IPv6 has no IPv4 key, and the API's `address` is then its IPv6
@@ -401,8 +401,8 @@ namespace tik4net.Winbox
                     both: Ci(("store-leases-disk", "store-leases-on-disk")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["accounting"] = new WinboxJgField("accounting", 0x3, "bool", false),
-                        ["interim-update"] = new WinboxJgField("interim-update", 0x2, "u32", false, uiType: "interval"),
+                        ["accounting"] = new WinboxJgField("accounting", 0x3, M2Type.Bool, false),
+                        ["interim-update"] = new WinboxJgField("interim-update", 0x2, M2Type.U32, false, uiType: "interval"),
                     }),
 
                 // /ip/dns: 'mDNS Repeater Interfaces' is the API's mdns-repeat-ifaces. Both read empty on a
@@ -466,7 +466,7 @@ namespace tik4net.Winbox
                     // the API's platform=MikroTik (7.24.2). Read-only, as the API has it.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["platform"] = new WinboxJgField("platform", 0x1B, "string", true),
+                        ["platform"] = new WinboxJgField("platform", 0x1B, M2Type.String, true),
                     }),
 
                 // /ip/traffic-flow: both fields read 0 on a stock router, so the audit's value match was
@@ -489,7 +489,7 @@ namespace tik4net.Winbox
                     both: Ci(("v9-template-refresh", "v9/ipfix-template-refresh")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["v9-template-timeout"] = new WinboxJgField("v9-template-timeout", 0x5, "u32", false,
+                        ["v9-template-timeout"] = new WinboxJgField("v9-template-timeout", 0x5, M2Type.U32, false,
                                                                     uiType: "interval"),
                     }),
 
@@ -513,7 +513,7 @@ namespace tik4net.Winbox
                              ("support-broadband-tr101", "support-the-broadband-forum-tr-101")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["address-lists"] = new WinboxJgField("address-lists", 0x1E, "string[]", false,
+                        ["address-lists"] = new WinboxJgField("address-lists", 0x1E, M2Type.StringArray, false,
                                                               uiType: "multistring", elementUiType: "string"),
                     }),
 
@@ -543,8 +543,8 @@ namespace tik4net.Winbox
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "invalid" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["on-fail"] = new WinboxJgField("on-fail", 0x13, "string", false),
-                        ["connection-tracking-mode"] = new WinboxJgField("connection-tracking-mode", 0x17, "u32", false,
+                        ["on-fail"] = new WinboxJgField("on-fail", 0x13, M2Type.String, false),
+                        ["connection-tracking-mode"] = new WinboxJgField("connection-tracking-mode", 0x17, M2Type.U32, false,
                             enumMap: new Dictionary<int, string> { [0] = "passive-active", [1] = "active-active" }),
                     }),
 
@@ -574,8 +574,8 @@ namespace tik4net.Winbox
                 ["/ip/ipsec/peer"] = new FieldAliasSet(
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["ppk-secret"] = new WinboxJgField("ppk-secret", 0x36, "string", false),
-                        ["responder"] = new WinboxJgField("responder", 0xE, "bool", true),
+                        ["ppk-secret"] = new WinboxJgField("ppk-secret", 0x36, M2Type.String, false),
+                        ["responder"] = new WinboxJgField("responder", 0xE, M2Type.Bool, true),
                     }),
 
                 // /interface/bridge: auto-mac is a key no Bridge window declares. auto-mac=no with
@@ -586,7 +586,7 @@ namespace tik4net.Winbox
                     both: Ci(("ether-type", "ethertype")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["auto-mac"] = new WinboxJgField("auto-mac", 0x65, "bool", false),
+                        ["auto-mac"] = new WinboxJgField("auto-mac", 0x65, M2Type.Bool, false),
                     }),
 
                 // /interface/l2tp-server/server: the two accept filters are keys no window declares. Each value the
@@ -595,9 +595,9 @@ namespace tik4net.Winbox
                 ["/interface/l2tp-server/server"] = new FieldAliasSet(
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["accept-proto-version"] = new WinboxJgField("accept-proto-version", 0xDF, "u32", false,
+                        ["accept-proto-version"] = new WinboxJgField("accept-proto-version", 0xDF, M2Type.U32, false,
                             enumMap: new Dictionary<int, string> { [0] = "all", [2] = "l2tpv2", [3] = "l2tpv3" }),
-                        ["accept-pseudowire-type"] = new WinboxJgField("accept-pseudowire-type", 0xDE, "u32", false,
+                        ["accept-pseudowire-type"] = new WinboxJgField("accept-pseudowire-type", 0xDE, M2Type.U32, false,
                             enumMap: new Dictionary<int, string> { [0] = "all", [5] = "ether", [7] = "ppp" }),
                     }),
 
@@ -608,8 +608,8 @@ namespace tik4net.Winbox
                     both: Ci(("endpoint-address", "endpoint")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["rx"] = new WinboxJgField("rx", 0x3F3, "u64", true),
-                        ["tx"] = new WinboxJgField("tx", 0x3F4, "u64", true),
+                        ["rx"] = new WinboxJgField("rx", 0x3F3, M2Type.U64, true),
+                        ["tx"] = new WinboxJgField("tx", 0x3F4, M2Type.U64, true),
                     }),
 
                 // /ip/address: actual-interface is a key no window declares. The unnamed 0x5 carries the interface
@@ -618,7 +618,7 @@ namespace tik4net.Winbox
                 ["/ip/address"] = new FieldAliasSet(
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["actual-interface"] = new WinboxJgField("actual-interface", 0x5, "u32", true,
+                        ["actual-interface"] = new WinboxJgField("actual-interface", 0x5, M2Type.U32, true,
                                                                  uiType: "enm", refHandler: new[] { 20, 0 }),
                     }),
 
@@ -640,7 +640,7 @@ namespace tik4net.Winbox
                     // the same u6). A reference into this very table.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["bundle"] = new WinboxJgField("bundle", 0x6, "u32", true, uiType: "enm", refHandler: new[] { 24, 23 }),
+                        ["bundle"] = new WinboxJgField("bundle", 0x6, M2Type.U32, true, uiType: "enm", refHandler: new[] { 24, 23 }),
                     }),
 
                 // /ip/firewall/mangle: action=route's destination is u3f4, labelled 'Route Dst.' on 7.x but
@@ -659,10 +659,10 @@ namespace tik4net.Winbox
                     both: Ci(("new-dscp", "new-dscp-(tos)"), ("new-mss", "new-tcp-mss")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["route-dst"] = new WinboxJgField("route-dst", 0x3F4, "u32", false, uiType: "ipaddr"),
-                        ["realm"] = new WinboxJgField("realm", 0x7E, "u32", false, uiType: "number",
+                        ["route-dst"] = new WinboxJgField("route-dst", 0x3F4, M2Type.U32, false, uiType: "ipaddr"),
+                        ["realm"] = new WinboxJgField("realm", 0x7E, M2Type.U32, false, uiType: "number",
                             optKey: 0x1C2, notKey: 0xE0),
-                        ["new-ttl"] = new WinboxJgField("new-ttl", 0x3EE, "u32", false, uiType: WinboxJgCatalog.TupleUiType,
+                        ["new-ttl"] = new WinboxJgField("new-ttl", 0x3EE, M2Type.U32, false, uiType: WinboxJgCatalog.TupleUiType,
                             elementSeparator: ":",
                             elementParts: new[]
                             {
@@ -685,7 +685,7 @@ namespace tik4net.Winbox
                         ["limit"] = FirewallLimit(),
                         ["dst-limit"] = FirewallDstLimit(),
                         ["tos"] = FirewallTos(),
-                        ["realm"] = new WinboxJgField("realm", 0x7E, "u32", false, uiType: "number", optKey: 0x1C2, notKey: 0xE0),
+                        ["realm"] = new WinboxJgField("realm", 0x7E, M2Type.U32, false, uiType: "number", optKey: 0x1C2, notKey: 0xE0),
                     }),
 
                 // /ip/firewall/raw: the Raw window draws no bridge-port or packet-mark boxes, yet a raw rule takes them
@@ -699,12 +699,12 @@ namespace tik4net.Winbox
                         ["limit"] = FirewallLimit(),
                         ["dst-limit"] = FirewallDstLimit(),
                         ["tos"] = FirewallTos(),
-                        ["packet-mark"] = new WinboxJgField("packet-mark", 0x1E, "string", false, optKey: 0x19A, notKey: 0x1D),
+                        ["packet-mark"] = new WinboxJgField("packet-mark", 0x1E, M2Type.String, false, optKey: 0x19A, notKey: 0x1D),
                         ["in-bridge-port"] = FirewallBridgePort("in-bridge-port", 0x54, 0x1B0, 0xD1),
                         ["out-bridge-port"] = FirewallBridgePort("out-bridge-port", 0x55, 0x1B1, 0xD2),
-                        ["in-bridge-port-list"] = new WinboxJgField("in-bridge-port-list", 0x44C, "u32", false,
+                        ["in-bridge-port-list"] = new WinboxJgField("in-bridge-port-list", 0x44C, M2Type.U32, false,
                             uiType: "enm", refHandler: new[] { 20, 90 }, optKey: 0xBB8, notKey: 0x7D0),
-                        ["out-bridge-port-list"] = new WinboxJgField("out-bridge-port-list", 0x44D, "u32", false,
+                        ["out-bridge-port-list"] = new WinboxJgField("out-bridge-port-list", 0x44D, M2Type.U32, false,
                             uiType: "enm", refHandler: new[] { 20, 90 }, optKey: 0xBB9, notKey: 0x7D1),
                     }),
 
@@ -715,7 +715,7 @@ namespace tik4net.Winbox
                     both: Ci(("uses-helper", "helper-used")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["gre-key"] = new WinboxJgField("gre-key", 0x15, "u32", true),
+                        ["gre-key"] = new WinboxJgField("gre-key", 0x15, M2Type.U32, true),
                     }),
 
                 // /interface/bridge/port: the status tab's 'External FDB' (bce) is external-fdb-status. Its 'Hw.
@@ -735,8 +735,8 @@ namespace tik4net.Winbox
                     },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["spii"] = new WinboxJgField("spii", 0x15, "string", true),
-                        ["spir"] = new WinboxJgField("spir", 0x16, "string", true),
+                        ["spii"] = new WinboxJgField("spii", 0x15, M2Type.String, true),
+                        ["spir"] = new WinboxJgField("spir", 0x16, M2Type.String, true),
                     }),
 
                 // /ip/hotspot/user and /ip/hotspot/user/profile: `default` marks the row the router ships, and
@@ -764,7 +764,7 @@ namespace tik4net.Winbox
                              ("ipv4-fragment-time", "ipv4-fragment-timeout")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["icmp-rate-mask"] = new WinboxJgField("icmp-rate-mask", 0x1C, "u32", false,
+                        ["icmp-rate-mask"] = new WinboxJgField("icmp-rate-mask", 0x1C, M2Type.U32, false,
                                                                postfix: "hex", radix: 16),
                     }),
 
@@ -788,8 +788,8 @@ namespace tik4net.Winbox
                     // the router sends the key — enabled=yes moved 0xF from 0 to 9 with total-entries=9.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["active-ipv6"] = new WinboxJgField("active-ipv6", 0x2F, "bool", true),
-                        ["total-entries"] = new WinboxJgField("total-entries", 0xF, "u32", true, uiType: "number"),
+                        ["active-ipv6"] = new WinboxJgField("active-ipv6", 0x2F, M2Type.Bool, true),
+                        ["total-entries"] = new WinboxJgField("total-entries", 0xF, M2Type.U32, true, uiType: "number"),
                     }),
 
                 // The address list's own key (0xFE0010) is labelled 'Name' by RouterOS 6 and 'List' by 7; the
@@ -822,7 +822,7 @@ namespace tik4net.Winbox
                     both: Ci(("pref-src", "pref-source")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["immediate-gw"] = new WinboxJgField("immediate-gw", 0x108, "addr[]", true,
+                        ["immediate-gw"] = new WinboxJgField("immediate-gw", 0x108, M2Type.MessageArray, true,
                                                              uiType: "multi", elementUiType: "addr"),
                     },
                     numFlagMembers: new[] { "active", "connect", "static", "dhcp" },
@@ -832,7 +832,7 @@ namespace tik4net.Winbox
                     // window. Read-only: a native write of it has not been measured.
                     fallbackFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["vrf-interface"] = new WinboxJgField("vrf-interface", 0x3C, "u32", true,
+                        ["vrf-interface"] = new WinboxJgField("vrf-interface", 0x3C, M2Type.U32, true,
                                                               uiType: "enm", refHandler: new[] { 20, 0 }),
                     }),
 
@@ -853,7 +853,7 @@ namespace tik4net.Winbox
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["transmit-delay"] = new WinboxJgField("transmit-delay", 0x2C700B, "u32", false,
+                        ["transmit-delay"] = new WinboxJgField("transmit-delay", 0x2C700B, M2Type.U32, false,
                                                                uiType: "interval"),
                     }),
 
@@ -923,7 +923,7 @@ namespace tik4net.Winbox
                     // (6.49.13: an OSPF network on an addressed interface moved it 0 -> 1, state down -> running).
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["state"] = new WinboxJgField("state", 0x65, "u32", true,
+                        ["state"] = new WinboxJgField("state", 0x65, M2Type.U32, true,
                             enumMap: new Dictionary<int, string> { [0] = "down", [1] = "running" }),
                     }),
 
@@ -947,8 +947,8 @@ namespace tik4net.Winbox
                 ["/system/health"] = new FieldAliasSet(
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["state"] = new WinboxJgField("state", 0x8, "bool", true, enumMap: HealthStateMap),
-                        ["state-after-reboot"] = new WinboxJgField("state-after-reboot", 0x9, "bool", false,
+                        ["state"] = new WinboxJgField("state", 0x8, M2Type.Bool, true, enumMap: HealthStateMap),
+                        ["state-after-reboot"] = new WinboxJgField("state-after-reboot", 0x9, M2Type.Bool, false,
                                                                    enumMap: HealthStateMap),
                     }),
 
@@ -1175,12 +1175,12 @@ namespace tik4net.Winbox
                     // NOT see these — a synthetic an ethernet row needs goes in that set.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["type"] = new WinboxJgField("type", 0x1001E, "string", true) { KindIdKey = 0x10001 },
-                        ["mac-address"] = new WinboxJgField("mac-address", 0x3E9, "raw", false,
+                        ["type"] = new WinboxJgField("type", 0x1001E, M2Type.String, true) { KindIdKey = 0x10001 },
+                        ["mac-address"] = new WinboxJgField("mac-address", 0x3E9, M2Type.Raw, false,
                                                             uiType: "macaddr"),
                         // 7.x declares it ('Default Name', s10031); the 6.49.13 window does not, but the router
                         // sends the key — ether1 and ether2 carried their own default-name at 0x10031.
-                        ["default-name"] = new WinboxJgField("default-name", 0x10031, "string", true),
+                        ["default-name"] = new WinboxJgField("default-name", 0x10031, M2Type.String, true),
                     }),
             };
 

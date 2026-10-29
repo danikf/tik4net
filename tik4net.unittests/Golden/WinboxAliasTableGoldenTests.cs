@@ -65,6 +65,7 @@ namespace tik4net.unittests.Golden
                 case null: return "null";
                 case string s: return "'" + s + "'";
                 case bool b: return b ? "true" : "false";
+                case M2Type m2: return "'" + M2Types.JgName(m2) + "'";   // the catalog's spelling, as the pin has it
                 case Enum e: return e.ToString();
                 case IFormattable f: return f.ToString(null, CultureInfo.InvariantCulture);
                 case IDictionary d:

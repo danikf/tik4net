@@ -188,8 +188,8 @@ namespace tik4net.Winbox
                 // One key, two kinds, and this entry is not the kind the field is: the other entry, filed under its
                 // qualified key, is the field's value. /interface/vrrp sends a bool and the connection-tracking-mode
                 // u32 both on 0x17, and which one the parser meets first depends on the frame.
-                if (jf != null && WinboxM2Protocol.TypedKey.KindOf(M2Types.FromJgName(jf.WireType)) != WinboxM2Protocol.TypedKey.KindOf(kv.Value.Type)
-                    && kv.Key == wireKey && rec.ContainsQualified(wireKey, M2Types.FromJgName(jf.WireType)))
+                if (jf != null && WinboxM2Protocol.TypedKey.KindOf(jf.WireType) != WinboxM2Protocol.TypedKey.KindOf(kv.Value.Type)
+                    && kv.Key == wireKey && rec.ContainsQualified(wireKey, jf.WireType))
                     continue;
                 if (IsUnsetField(jf, kv.Value.Value!, rec)) continue;
                 // A key the router filled with a different KIND of value is not this field on this row.

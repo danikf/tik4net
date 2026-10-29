@@ -514,7 +514,7 @@ namespace tik4net.Winbox
             return "/" + string.Join("/", parts);
         }
 
-        private void AddField(string handlerKey, string label, int key, string wireType, bool ro,
+        private void AddField(string handlerKey, string label, int key, M2Type wireType, bool ro,
             IReadOnlyDictionary<int, string>? enumMap, string? uiType, int maskKey, int[]? refHandler,
             int optKey = 0, int notKey = 0, bool isRange = false, string? allow = null, long? def = null,
             PaneContext? pane = null, int offKey = 0, bool isOptional = false, string? elementUiType = null,
@@ -901,7 +901,7 @@ namespace tik4net.Winbox
                     {
                         // wrapper with no inner control: it is a plain bool option (e.g. opt around a checkbox).
                         if (dec != null)
-                            AddField(handlerKey, label, dec.Value.key, "bool", false, null, "bool", 0, null,
+                            AddField(handlerKey, label, dec.Value.key, M2Type.Bool, false, null, "bool", 0, null,
                                 pane: pane);
                         return;
                     }
@@ -1088,7 +1088,7 @@ namespace tik4net.Winbox
                     return;
 
             var parts = new List<WinboxJgElementPart>();
-            var keys = new List<Tuple<int, string>>();
+            var keys = new List<Tuple<int, M2Type>>();
             foreach (var c in children)
             {
                 if (!(c is Dictionary<string, object> cd)) continue;
@@ -1603,15 +1603,16 @@ namespace tik4net.Winbox
         private static long? ExtractDef(Dictionary<string, object> node)
             => node.TryGetValue("def", out var dv) && TryToLong(dv, out long d) ? (long?)d : null;
 
-        // 's10006' → (key=0x10006, type="string"); prefix is exactly one leading letter, rest is hex.
-        private static (int key, string type)? DecodeId(string idStr)
+        // 's10006' → (key=0x10006, type=String); prefix is exactly one leading letter, rest is hex. A letter outside
+        // id2int's fourteen is M2Type.Unknown.
+        private static (int key, M2Type type)? DecodeId(string idStr)
         {
             var m = Regex.Match(idStr, "^([a-zA-Z])([0-9a-fA-F]+)$");
             if (!m.Success) return null;
             char pfx = m.Groups[1].Value[0];
             if (!int.TryParse(m.Groups[2].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int key))
                 return null;
-            string type = Prefix.TryGetValue(pfx, out var t) ? t : "?";
+            M2Types.TryFromJgPrefix(pfx, out M2Type type);
             return (key, type);
         }
 
