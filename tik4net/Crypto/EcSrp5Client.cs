@@ -38,9 +38,9 @@ namespace tik4net.Crypto
         /// <param name="challenge">The <see cref="ChallengeLength"/>-byte challenge.</param>
         /// <param name="password">The password.</param>
         /// <param name="validatorName">
-        /// Whose password the validator is built from. The WinBox carriers pass the account name alone
+        /// Whose password the validator is built from. All three carriers pass the account name alone
         /// (<see cref="EcSrp5.AccountName"/>: RouterOS leaves login options out of it, Docs/findings-romon.md "Agent
-        /// login"); MAC-Telnet passes the whole login name.
+        /// login", Docs/findings-mactelnet.md §4).
         /// </param>
         internal EcSrp5Proof Answer(byte[] challenge, string password, string validatorName)
         {

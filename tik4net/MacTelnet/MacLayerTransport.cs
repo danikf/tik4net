@@ -923,12 +923,13 @@ namespace tik4net.MacTelnet
         // Shared EC-SRP5 completion: compute shared secret, send CTRL_PASSWORD, wait for END_AUTH.
         private EcSrp5Proof FinishAuth(string user, string pass, EcSrp5Client client, byte[] challenge)
         {
-            // MAC-Telnet builds the validator from the whole login name, options included; the WinBox carriers use the
-            // account name alone (EcSrp5.AccountName).
-            EcSrp5Proof proof = client.Answer(challenge, pass, user);
+            // The validator is built from the account name alone (EcSrp5.AccountName), as on the WinBox carriers: RouterOS
+            // leaves login options out of it, and refuses a validator over 'admin+t' as a wrong password (measured on
+            // 7.25, 7.21.5 and 6.49.21, findings-mactelnet.md §4).
+            EcSrp5Proof proof = client.Answer(challenge, pass, EcSrp5.AccountName(user));
 
             // The terminal's user name carries the console flags every PTY login uses (+c: no colour), while the
-            // EC-SRP5 exchange above keeps the bare name. Without it RouterOS 6 colours its per-character repaint
+            // EC-SRP5 exchange above keeps the account name. Without it RouterOS 6 colours its per-character repaint
             // of the typed line: ~65 KB of echo for one 180-character window command, a volume under which the
             // router's MAC-Telnet server retransmits packets we had acknowledged and then drops its own output —
             // 21 of 425 reads of a one-session entity sweep stalled for 30 s at 19 KB. With +c: none (6.49.13).

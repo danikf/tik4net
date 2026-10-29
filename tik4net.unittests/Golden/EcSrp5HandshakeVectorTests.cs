@@ -208,14 +208,15 @@ namespace tik4net.unittests.Golden
         /// <summary>MAC-Telnet: <c>MacLayerTransport.Authenticate</c> over control packets against a loopback peer.</summary>
         /// <remarks>
         /// MAC-Telnet gets no server confirmation (the router answers <c>CTRL_END_AUTH</c>), so the peer instead says which
-        /// validator name the client confirmation was built from. Today that is the whole login name, unlike both WinBox
-        /// carriers, which use the account name before '+' — review item X6, pinned here as today's behaviour.
+        /// validator name the client confirmation was built from. The peer challenges as RouterOS does, with the
+        /// account name before '+' (measured on 7.25, 7.21.5 and 6.49.21: a validator over the whole login name is
+        /// refused — review item X6); the client builds it the same way, as both WinBox carriers do.
         /// </remarks>
         private static List<string> MacTelnet(string user)
         {
             var lines = new List<string>();
-            var full = new RouterSide(user);
             var account = new RouterSide(EcSrp5.AccountName(user));
+            var full = new RouterSide(user);
             using (var router = new LoopbackMacRouter())
             using (var client = new MacTelnetAuthProbe())
             {
@@ -228,17 +229,17 @@ namespace tik4net.unittests.Golden
                     if (ctrl.Any(c => c.type == 1))   // CTRL_PASSSALT carrying the hello
                     {
                         byte[] hello = ctrl.First(c => c.type == 1).data;
-                        byte[] challenge = full.Challenge(hello);
-                        account.Challenge(hello);
+                        byte[] challenge = account.Challenge(hello);
+                        full.Challenge(hello);
                         lines.Add("challenge " + GoldenFile.Hex(challenge));
                         router.SendData(BuildCtrl(1, challenge));
                     }
                     else if (ctrl.Any(c => c.type == 2))   // CTRL_PASSWORD carrying the client confirmation
                     {
                         byte[] cc = ctrl.First(c => c.type == 2).data;
-                        string name = full.Matches(cc) ? "full-login-name" : account.Matches(cc) ? "account-name" : "neither";
+                        string name = account.Matches(cc) ? "account-name" : full.Matches(cc) ? "full-login-name" : "neither";
                         lines.Add("validator " + name);
-                        lines.Add("expected-server-confirmation " + GoldenFile.Hex(full.Matches(cc) ? full.Confirm(cc) : account.Confirm(cc)));
+                        lines.Add("expected-server-confirmation " + GoldenFile.Hex(account.Confirm(cc)));
                         router.SendData(BuildCtrl(9, new byte[0]));   // CTRL_END_AUTH
                     }
                 };
