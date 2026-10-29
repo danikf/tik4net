@@ -60,6 +60,33 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// A callback torch given <c>duration=</c>: an instruction to the client, not an input of the WinBox torch window
+        /// (WinBox + MAC review, §5 X4). The read method dropped it; the callback path sent it to the resolver, which
+        /// failed the whole monitor with "cannot resolve API field 'duration'". (Torch, not ping: the API refuses
+        /// <c>duration</c> on <c>/ping</c> as an unknown parameter.)
+        /// </summary>
+        [TestMethod]
+        public void TorchAsyncWithDurationWillNotFail()
+        {
+            EnsureCapability(TikConnectionCapability.Listen, "async torch");
+            var rows = new List<ITikReSentence>();
+            ITikTrapSentence trap = null;
+            var cmd = Connection.CreateCommandAndParameters("/tool/torch",
+                "interface", TestConstants.Interface, "duration", "3");
+            cmd.ExecuteWithCallback(row => { lock (rows) rows.Add(row); }, error => trap = error);
+            try
+            {
+                WaitUntil(() => { lock (rows) return rows.Count > 0 || trap != null; }, TimeSpan.FromSeconds(5));
+                Assert.IsNull(trap, trap?.Message);
+                lock (rows) Assert.IsTrue(rows.Count > 0, "torch reported nothing on " + TestConstants.Interface);
+            }
+            finally
+            {
+                try { cmd.Cancel(); } catch { /* best-effort */ }
+            }
+        }
+
+        /// <summary>
         /// An async ping must keep delivering for as long as the router keeps pinging — not stop after the
         /// first few seconds.
         /// </summary>

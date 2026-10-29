@@ -246,12 +246,15 @@ namespace tik4net.WinboxNative
                 {
                     using (_host.EnterCommand())
                     {
-                        // Encode the caller's NameValue parameters as the monitor's request fields (interface, cpu, …).
-                        // allowReadOnly: a window's input fields are often .jg-marked ro (display) yet are the
-                        // monitor's legitimate request inputs and must be sent (e.g. ping 'address').
+                        // Encode the caller's parameters as the monitor's request fields (interface, cpu, …), under
+                        // the read method's rules (RunMonitorWindowAsync): allowReadOnly, because a window's input
+                        // fields are often .jg-marked ro (display) yet are its request inputs (ping 'address');
+                        // includeFilters, because an input may arrive in Filter format; skipSnapshotModifier, because
+                        // once/duration instruct the client and no window has an input of that name. A table-backed
+                        // bit set's members are read by the encoder's own blocking member-table lookup here.
                         var requestFields = _host.EncodeNameValueFields(
                             spec.Handler, descriptor, resolver, skipId: true, _host.IdResolver.ResolveReference,
-                            allowReadOnly: true);
+                            allowReadOnly: true, includeFilters: true, skipSnapshotModifier: true);
                         id = _host.Ops.StartMonitor(spec.Handler, spec.StartCmd, requestFields);
                         started = true;
                     }
