@@ -198,530 +198,78 @@ namespace tik4net.Winbox
             switch (uiType)
             {
                 case "fixedpoint":
-                {
-                    // The inverse of the decode, and missing for the same reason the ms case above was: a
-                    // `fixedpoint` renders as value/scale and had no encoder at all, so /caps-man/channel's
-                    // frequency (scale:1000, the wire holding 2412000) took "2412" through the generic
-                    // numeric branch and landed 2412 — which the router then printed back as 2.412.
-                    if (value.Length == 0) return result;
-                    // A time postfix makes it a duration on the way out, exactly as on the way in.
-                    if (jg?.IsTimePostfix == true)
-                    {
-                        if (!TryParseDuration(value, jg!.TicksPerSecond, out long dticks))
-                            throw new WinboxFieldResolutionException(
-                                $"WinBox native: '{value}' is not a valid duration for field '{apiName}' "
-                                + $"on '{_apiPath}'.");
-                        result.Add(EncodeU32(key, unchecked((uint)dticks)));
-                        return result;
-                    }
-                    int fpScale = jg == null || jg.Scale < 1 ? 1 : jg.Scale;
-                    if (!TryParseScaled(value, fpScale, out long scaled))
-                        throw new WinboxFieldResolutionException(
-                            $"WinBox native: '{value}' is not a valid number for field '{apiName}' on "
-                            + $"'{_apiPath}'. Expected a decimal with at most "
-                            + $"{fpScale.ToString(CultureInfo.InvariantCulture).Length - 1} fraction digit(s).");
-                    result.Add(EncodeU32(key, unchecked((uint)scaled)));
-                    return result;
-                }
+                    if (EncodeFixedPoint(key, value, jg, apiName, result)) return result;
+                    break;
                 case "clocktime":
-                {
-                    // A time of day, as seconds since midnight: webfig types.clocktime.fromstr is
-                    // string2interval(str), and the API prints and accepts it as 23:20:32. Without this the
-                    // text reached the generic u32 branch and went out as a string the router ignores.
-                    if (value.Length == 0) return result;
-                    if (!TryParseDuration(value, 1, out long secondsOfDay))
-                        throw new WinboxFieldValueException(
-                            $"input does not match any value of {apiName} (expected a time of day, e.g. 23:20:32)");
-                    result.Add(EncodeU32(key, unchecked((uint)(secondsOfDay % 86400))));
-                    return result;
-                }
+                    if (EncodeClockTime(key, value, apiName, result)) return result;
+                    break;
                 case "clockdate":
                 case "dateandtime":
                 case "date":
-                {
-                    // Unix epoch seconds, the inverse of WinboxRecordCodec's decode. The API spells the value
-                    // 2026-11-21 (7.x) or nov/21/2026 (6.x, and what the mapper writes); as text it reached the
-                    // generic u32 branch and went out as a string the router answers OK to and ignores
-                    // (/system/scheduler start-date, 7.24.5 and 6.49.13).
-                    if (value.Length == 0) return result;
-                    if (!TikDateTimeHelper.TryFromTikDateTime(value, out DateTime when))
-                        throw new WinboxFieldValueException(
-                            $"input does not match any value of {apiName} (expected a date, e.g. 2026-11-21 or nov/21/2026)");
-                    if (string.Equals(uiType, "clockdate", StringComparison.OrdinalIgnoreCase))
-                        when = when.Date;
-                    long seconds = (long)(DateTime.SpecifyKind(when, DateTimeKind.Utc) - EpochUtc).TotalSeconds;
-                    result.Add(EncodeU32(key, unchecked((uint)seconds)));
-                    return result;
-                }
+                    if (EncodeDateAndTime(key, value, apiName, uiType, result)) return result;
+                    break;
                 case "interval":
-                {
-                    // The inverse of WinboxRecordCodec's interval decode, and it has to exist for the same
-                    // reason the decode does: the wire carries a COUNT of 1/scale-second units, while the API
-                    // spells the same value "5m" / "1w" / "500ms". Without this, "5m" failed long.TryParse in
-                    // the generic u32 branch and went out as the STRING "5m" — which the router accepts,
-                    // answers with status 0, and ignores, so the write silently did nothing.
-                    if (value.Length == 0) return result;
-                    // A named value wins, exactly as on the way back (e.g. 'immediately' / 'never').
-                    if (jg?.EnumMap != null)
-                    {
-                        foreach (var kv in jg.EnumMap)
-                            if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
-                            {
-                                result.Add(EncodeU32(key, unchecked((uint)kv.Key)));
-                                return result;
-                            }
-                    }
-                    if (TryParseDuration(value, jg?.Scale ?? 1, out long ticks))
-                    {
-                        result.Add(EncodeU32(key, unchecked((uint)ticks)));
-                        return result;
-                    }
-                    // Not a duration and not a named value. Refused rather than sent as text: text on a
-                    // numeric key is the silent no-op this case exists to remove.
-                    throw new WinboxFieldResolutionException(
-                        $"WinBox native: '{value}' is not a valid interval for field '{apiName}' on "
-                        + $"'{_apiPath}'. Expected a RouterOS duration (\"5m\", \"1w2d\", \"500ms\"), a plain "
-                        + "number of seconds"
-                        + (jg?.EnumMap != null
-                            ? ", or one of: " + string.Join(", ", jg.EnumMap.Values) + "."
-                            : "."));
-                }
+                    if (EncodeInterval(key, value, jg, apiName, result)) return result;
+                    break;
                 case "network":
-                {
-                    // Empty → unset (send nothing).
-                    if (value.Length == 0) return result;
-                    // jg cannot be null here: uiType only reaches this switch as jg?.UiType's value, so a
-                    // non-null "network" case implies jg itself is non-null.
-                    if (jg!.IsRange)
-                    {
-                        // range:1 → the maskid sibling is the range-END address, not a netmask. All three
-                        // RouterOS forms are accepted ("a", "a-b", "a/len"); sending end=start for a host
-                        // avoids the router storing an open-ended range (which is what a /32 netmask sent as
-                        // the "end" produced).
-                        if (!TryParseV4Range(value, out uint start, out uint end))
-                            break; // not v4 — fall through to generic encoders
-                        result.Add(EncodeU32(key, start));
-                        if (jg.MaskKey != 0) result.Add(EncodeU32(jg.MaskKey, end));
-                        return result;
-                    }
-                    // "addr/mask" → address u32 (key) + netmask u32 (maskid).
-                    var parts = value.Split('/');
-                    uint? addr = PackIpV4(parts[0]);
-                    if (addr == null) break; // not v4 — fall through to generic encoders
-                    result.Add(EncodeU32(key, addr.Value));
-                    if (jg.MaskKey != 0)
-                    {
-                        uint mask = parts.Length > 1 ? MaskFrom(parts[1]) : 0xFFFFFFFFu;
-                        result.Add(EncodeU32(jg.MaskKey, mask));
-                    }
-                    return result;
-                }
+                    if (EncodeNetwork(key, value, jg, result)) return result;
+                    break;
                 case "ipaddr":
-                {
-                    if (value.Length == 0) return result;
-                    uint? ip = PackIpV4(value.Split('/')[0]);
-                    if (ip == null) break;
-                    result.Add(EncodeU32(key, ip.Value));
-                    return result;
-                }
+                    if (EncodeIpAddr(key, value, result)) return result;
+                    break;
                 case NumberNetmaskUiType when jg != null && jg.MaskKey != 0:
-                {
-                    // "10,24": the number on the field's key, the prefix as a mask on its netmask key. The API
-                    // always prints both; a bare "10" leaves the netmask as the router has it.
-                    if (value.Length == 0) return result;
-                    int comma = value.IndexOf(',');
-                    string numberText = comma < 0 ? value : value.Substring(0, comma);
-                    if (!uint.TryParse(numberText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint number))
-                        throw new WinboxFieldValueException($"'{value}' is not number,netmask for '{apiName}' (expected 10,32).");
-                    result.Add(EncodeU32(key, number));
-                    if (comma >= 0)
-                        result.Add(EncodeU32(jg.MaskKey, MaskFrom(value.Substring(comma + 1).Trim())));
-                    return result;
-                }
+                    if (EncodeNumberNetmask(key, value, jg, apiName, result)) return result;
+                    break;
                 case "netmask":
-                {
-                    // The read side answers in prefix lengths (types.netmask.tostr), so the write side has
-                    // to accept one. MaskFrom takes both spellings — "32" and "255.255.255.255" — which is
-                    // also what types.netmask.fromstr does.
-                    if (value.Length == 0) return result;
-                    result.Add(EncodeU32(key, MaskFrom(value)));
-                    return result;
-                }
+                    if (EncodeNetmask(key, value, result)) return result;
+                    break;
                 case "macaddr":
-                {
-                    if (value.Length == 0) return result;
-                    result.Add(M2Message.RawSys(key, ParseRaw(value)));
-                    return result;
-                }
+                    if (EncodeMacAddr(key, value, result)) return result;
+                    break;
                 // A multibits is the same bitmask a `set` is — types.multibits.put ORs (1<<member) over the
                 // same bit-indexed map — and only its editor differs. Without this case it fell past the
                 // switch into the list/array refusal below, so every /ip/firewall address-type write was
                 // rejected as "not yet encodable" for a field that is one u32.
                 case "multibits":
                 case "set":
-                {
-                    // Bitmask flag set (e.g. connection-state "established,related"). Empty → unset (send nothing).
-                    // The value rides as a u32 of OR'd (1<<bitIndex) per the .jg bit map; the opt/not flags and
-                    // the leading '!' were handled above.
-                    if (value.Length == 0) return result;
-
-                    // The members: a static .jg map, or — for /user/group's policies and the script and
-                    // scheduler policy fields — a TABLE, where the bit index is the referenced row's id.
-                    // A member list that cannot be read is refused rather than encoded as far as it goes:
-                    // without it every token misses, and the field would go out as a clean, well-formed
-                    // ZERO, which the router accepts as "this row is allowed nothing".
-                    IReadOnlyDictionary<int, string>? memberMap = jg!.EnumMap;
-                    if (memberMap == null && jg.RefHandler != null)
-                    {
-                        memberMap = resolveRefTable?.Invoke(jg.RefHandler);
-                        if (memberMap == null)
-                            throw new WinboxFieldResolutionException(
-                                $"WinBox native: field '{apiName}' on '{_apiPath}' is a bit set whose members "
-                                + $"live in table [{string.Join(",", jg.RefHandler)}], which could not be read, "
-                                + "so the value cannot be encoded without silently clearing the field.");
-                    }
-
-                    long bits = 0;
-                    long negatedBits = 0;
-                    if (memberMap != null)
-                        foreach (var tok in value.Split(','))
-                        {
-                            string t = tok.Trim();
-                            bool negated = t.StartsWith("!");
-                            if (negated) t = t.Substring(1).Trim();
-                            if (t.Length == 0) continue;
-                            bool matched = false;
-                            foreach (var kv in memberMap)
-                                if (string.Equals(kv.Value, t, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    if (negated) negatedBits |= 1L << kv.Key; else bits |= 1L << kv.Key;
-                                    matched = true;
-                                    break;
-                                }
-                            // A member nobody knows is a wrong value, not a member to skip: dropping it sends
-                            // a bit set the router accepts with that permission simply absent.
-                            if (!matched && jg.RefHandler != null)
-                                throw new WinboxFieldValueException(
-                                    $"input does not match any value of {apiName} (member '{t}')");
-                        }
-                    // The second half of the value: the members this write says NO to. webfig's editor
-                    // sends both — SetView.save builds `set` from the ticked boxes and `unset` from the
-                    // unticked ones and calls put([set,unset]) — so the mask is the complement WITHIN the
-                    // member list, not ~bits over all 32 bits (types.multibits.put, whose editor has no
-                    // unticked-vs-absent distinction, does use the plain complement).
-                    //
-                    // It only rides when the field declares somewhere to put it: a maskid sibling for a
-                    // scalar, or the second element of a two-element u32[] for a `set` on an array key
-                    // (types.set.put's 'U' branch). A u32 written to an array key is the wrong TYPE BYTE,
-                    // which RouterOS answers with success and ignores.
-                    // The second half of the value: the members this write explicitly DENIES. The router
-                    // applies the members the request mentions — the union of the two words — and leaves the
-                    // rest of the row as it found it, which is exactly how the binary API behaves for the
-                    // same command: `set policy=read,write,winbox` on a group that already had `test` keeps
-                    // test (measured on 7.24, both directions). Sending "every member not named" as denied
-                    // instead — which is what WinBox's own editor does, because it always has the whole
-                    // checkbox state in hand — turns a set of three members into a rewrite of all
-                    // seventeen. On an ADD the router fills the rest in itself, so the row still comes out
-                    // spelled exactly as the API's own add spells it.
-                    long setMask = negatedBits;
-                    if (jg.WireType != null && jg.WireType.EndsWith("[]", StringComparison.Ordinal))
-                    {
-                        result.Add(M2Message.U32ArraySys(key,
-                            unchecked((int)bits), unchecked((int)setMask)));
-                        return result;
-                    }
-                    result.Add(EncodeU32(key, unchecked((uint)bits)));
-                    if (jg.MaskKey != 0) result.Add(EncodeU32(jg.MaskKey, unchecked((uint)setMask)));
-                    return result;
-                }
+                    if (EncodeBitSet(key, value, jg, apiName, resolveRefTable, result)) return result;
+                    break;
                 case "enm":
-                {
-                    // dynamic dropdown → referenced object's .id; resolve the name against that table.
-                    // jg non-null: uiType == "enm" only when jg.UiType produced it.
-                    if (jg!.RefHandler != null && resolveRef != null && value.Length > 0
-                        && !long.TryParse(value, out _))
-                    {
-                        // Every table the dropdown draws from, in the order webfig's enm.pair tries them — a
-                        // queue tree's parent is an interface OR another queue, and only the first was searched.
-                        foreach (int[] table in jg.RefHandlers ?? new[] { jg.RefHandler })
-                        {
-                            int? id = resolveRef(table, value);
-                            if (id.HasValue) { result.Add(EncodeU32(key, (uint)id.Value)); return result; }
-                        }
-
-                        // The name is not a record in the referenced table. It may still be a static enum
-                        // member ("none", "all", …), so try those below — but if nothing matches, the value
-                        // is simply wrong and must not be swallowed. Silently dropping it sends a request the
-                        // router happily accepts with the field missing, so a typo'd interface name looks
-                        // like success. Remember to fail at the end of this method instead.
-                        unresolvedReference = true;
-                    }
-                    break; // fall through to static-map / numeric handling below
-                }
+                    if (EncodeReference(key, value, jg, resolveRef, ref unresolvedReference, result)) return result;
+                    break;
                 case "numberrange" when jg != null && jg.MaskKey != 0:
-                {
-                    // One range on two keys (webfig types.numberrange.fromstr/put): "100-200" is low 100 on the
-                    // field's key and high 200 on its highid, a bare "100" is [100,100]. Only the low end was
-                    // written before, as a plain number, and "100-200" did not parse at all.
-                    if (value.Length == 0) return result;
-                    int dash = value.IndexOf('-');
-                    string lowText = dash < 0 ? value : value.Substring(0, dash);
-                    string highText = dash < 0 ? value : value.Substring(dash + 1);
-                    if (!uint.TryParse(lowText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint lo)
-                        || !uint.TryParse(highText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint hi))
-                        throw new WinboxFieldValueException($"'{value}' is not a number range for '{apiName}' (expected 100 or 100-200).");
-                    result.Add(EncodeU32(key, lo));
-                    result.Add(EncodeU32(jg.MaskKey, hi));
-                    return result;
-                }
+                    if (EncodeNumberRange(key, value, jg, apiName, result)) return result;
+                    break;
                 case "multinumberrange":
                 case "numberrangelist":
-                {
-                    // A list of number ranges: bridge-vlan 'vlan-ids', firewall 'dst-port'/'dscp'/'pcp', … .
-                    // webfig types.multinumberrange.put (no id2) and types.numberrangelist (inherits def) both
-                    // store a flat u32[] of [lo0,hi0,lo1,hi1,…]; a bare "10" is the range [10,10]. An invertible
-                    // (not-wrapped) field negates via its not-flag bool (RouterOS "!80"), handled above along
-                    // with the opt flag. Empty → unset.
-                    if (value.Length == 0) return result;
-                    var nums = ParseNumberRangeList(value, apiName);
-                    if (nums.Count == 0) return result;
-                    result.Add(M2Message.U32ArraySys(key, nums.ToArray()));
-                    return result;
-                }
+                    if (EncodeNumberRangeList(key, value, apiName, result)) return result;
+                    break;
                 case "multinumber":
-                {
-                    // A list whose ELEMENTS are what the scalar encoders handle one at a time: bridge-vlan
-                    // 'tagged'/'untagged' (interface references), the log rule's 'topics' (a static enum),
-                    // /ip/proxy 'port' (plain numbers). webfig types.multinumber stores them as a flat u32[]
-                    // in the order given, so the whole field is one array write — and encoding each element
-                    // by the same three rules the decode reads them back with (reference → static map →
-                    // literal) is what makes the round trip agree.
-                    if (value.Length == 0) return result;
-                    var items = new List<int>();
-                    foreach (var tok in value.Split(','))
-                    {
-                        string t = tok.Trim();
-                        if (t.Length == 0) continue;
-                        // The ELEMENT's own scale, the inverse of the decode: "2412" on a
-                        // {fixedpoint,scale:1000} element is 2412000 on the wire. Without it the write
-                        // landed 2412 and the router printed it back as 2.412. Gated on the scale alone —
-                        // a scale above 1 IS the statement that the wire counts in smaller units than the
-                        // API prints, whatever the element's ui type is spelled as.
-                        // jg non-null: uiType == "multinumber" only when jg.UiType produced it.
-                        if (jg!.ElementScale > 1)
-                        {
-                            if (!TryParseScaled(t, jg.ElementScale, out long scaledElem))
-                                throw new WinboxFieldValueException(
-                                    $"input does not match any value of {apiName} (element '{t}')");
-                            items.Add(unchecked((int)scaledElem));
-                        }
-                        else items.Add(EncodeListElement(jg!, t, apiName, resolveRef));
-                    }
-                    if (items.Count == 0) return result;
-                    result.Add(M2Message.U32ArraySys(key, items.ToArray()));
-                    return result;
-                }
+                    if (EncodeNumberList(key, value, jg, apiName, resolveRef, result)) return result;
+                    break;
                 case "multi" when jg?.WireType == "addr[]":   // .jg M-prefix: a MESSAGE array
-                {
-                    // A list whose elements are whole SUBMESSAGES. What one element is varies — an `addr`
-                    // compound (/ip/dns servers), a single addressable leaf (/snmp trap-interfaces, one
-                    // interface id), or a tuple/union of several parts — and each is encoded by the same
-                    // rules its scalar counterpart is, so the allow-mask handling, the enum maps and the
-                    // reference resolution all stay in one place.
-                    var elements = new List<byte[][]>();
-                    foreach (var tok in value.Split(','))
-                    {
-                        string t = tok.Trim();
-                        if (t.Length > 0) elements.Add(EncodeMessageElement(jg!, t, apiName, resolveRef));
-                    }
-                    result.Add(M2Message.MessageArraySys(key, elements));
-                    return result;
-                }
+                    if (EncodeMessageList(key, value, jg, apiName, resolveRef, result)) return result;
+                    break;
                 case "multistring":
                 case "multiraw":
                 case "multiipaddr":
                 case "multiip6addr":
                 case "multibignumber":
-                {
-                    // The rest of the webfig list family. All five `inherit(types.multinumber)` and store one
-                    // ARRAY under one key, differing only in what an element is — text, bytes, an IPv4 packed
-                    // into a u32, sixteen IPv6 bytes — so the element type decides the conversion and the
-                    // field's WIRE type decides the array's TLV form.
-                    //
-                    // An empty value is the EMPTY ARRAY, not a dropped field: a key the router is not told
-                    // about keeps whatever it already holds, so clearing a list has to be said out loud.
-                    var items = new List<string>();
-                    foreach (var tok in value.Split(','))
-                    {
-                        string t = tok.Trim();
-                        if (t.Length > 0) items.Add(t);
-                    }
-                    result.Add(EncodeScalarArray(jg!, key, items, apiName));
-                    return result;
-                }
+                    if (EncodeScalarList(key, value, jg, apiName, result)) return result;
+                    break;
                 case "multinetwork":
                 case "multimacnetwork":
-                {
-                    // webfig types.multinetwork: a list of (address, sibling) PAIRS. With a `maskid` the two
-                    // halves ride in two PARALLEL arrays, one entry per element; without one the type is a
-                    // plain multinumberrange and the pairs are FLATTENED into a single [a0,b0,a1,b1,...]
-                    // array (types.multinetwork.put delegates to multinumberrange.put when maskid is null).
-                    //
-                    // What the second half MEANS is the element's business, exactly as on a scalar: the range
-                    // END when the element declares range:1 (/ip/pool "192.168.251.10-192.168.251.20"), a
-                    // netmask otherwise. An empty value is the empty array, not a dropped field.
-                    bool isMac = string.Equals(uiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase);
-                    // jg non-null: uiType only reaches this switch as jg?.UiType's value.
-                    if (isMac && jg!.MaskKey == 0) break;   // not the shape webfig describes - refuse below
-                    var addrs = new List<int>();
-                    var masks = new List<int>();
-                    var macs = new List<byte[]>();
-                    var macMasks = new List<byte[]>();
-                    foreach (var tok in value.Split(','))
-                    {
-                        string t = tok.Trim();
-                        if (t.Length == 0) continue;
-                        if (isMac)
-                        {
-                            var mp = t.Split('/');
-                            if (!TryParseMac(mp[0], out byte[]? mac)) throw NotThisPart(apiName, t);
-                            byte[] mask = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-                            if (mp.Length > 1 && !TryParseMac(mp[1], out mask!)) throw NotThisPart(apiName, t);
-                            macs.Add(mac!);       // non-null: TryParseMac sets it before returning true
-                            macMasks.Add(mask);
-                            continue;
-                        }
-                        uint lo, hi;
-                        if (jg!.ElementIsRange)
-                        {
-                            if (!TryParseV4Range(t, out lo, out hi)) throw NotThisPart(apiName, t);
-                        }
-                        else
-                        {
-                            var np = t.Split('/');
-                            uint? packed = PackIpV4(np[0]);
-                            if (packed == null) throw NotThisPart(apiName, t);
-                            lo = packed.Value;
-                            hi = np.Length > 1 ? MaskFrom(np[1]) : 0xFFFFFFFFu;
-                        }
-                        addrs.Add(unchecked((int)lo));
-                        masks.Add(unchecked((int)hi));
-                    }
-                    if (isMac)
-                    {
-                        result.Add(M2Message.RawArraySys(key, macs));
-                        result.Add(M2Message.RawArraySys(jg!.MaskKey, macMasks));
-                        return result;
-                    }
-                    if (jg!.MaskKey != 0)
-                    {
-                        result.Add(M2Message.U32ArraySys(key, addrs.ToArray()));
-                        result.Add(M2Message.U32ArraySys(jg.MaskKey, masks.ToArray()));
-                        return result;
-                    }
-                    var flat = new List<int>();
-                    for (int i = 0; i < addrs.Count; i++) { flat.Add(addrs[i]); flat.Add(masks[i]); }
-                    result.Add(M2Message.U32ArraySys(key, flat.ToArray()));
-                    return result;
-                }
+                    if (EncodeNetworkList(key, value, jg, apiName, uiType, result)) return result;
+                    break;
                 case "multinetwork6":
-                {
-                    // `types.multinetwork6 = inherit(types.multinetwork)` — the same list of pairs, over
-                    // sixteen-byte addresses. Only the parallel-array form can exist here: a 128-bit address
-                    // does not fit the flattened u32 array the maskid-less multinetwork falls back to, and
-                    // both fields the 7.24 catalog declares carry a maskid.
-                    //
-                    // The sibling holds the PREFIX LENGTH itself, not a mask, and a bare address means /128 —
-                    // the same rule the scalar network6 part follows.
-                    if (jg!.MaskKey == 0) break;   // not the shape webfig describes - refuse below
-                    var v6Addrs = new List<byte[]>();
-                    var v6Lens = new List<int>();
-                    foreach (var tok in value.Split(','))
-                    {
-                        string t = tok.Trim();
-                        if (t.Length == 0) continue;
-                        var np = t.Split('/');
-                        byte[]? packed6 = PackIpV6(np[0]);
-                        if (packed6 == null) throw NotThisPart(apiName, t);
-                        int plen = 128;
-                        if (np.Length > 1 && (!int.TryParse(np[1], NumberStyles.Integer,
-                                CultureInfo.InvariantCulture, out plen) || plen < 0 || plen > 128))
-                            throw NotThisPart(apiName, t);
-                        v6Addrs.Add(packed6);
-                        v6Lens.Add(plen);
-                    }
-                    result.Add(M2Message.Addr6ArraySys(key, v6Addrs));
-                    result.Add(M2Message.U32ArraySys(jg.MaskKey, v6Lens.ToArray()));
-                    return result;
-                }
+                    if (EncodeNetwork6List(key, value, jg, apiName, result)) return result;
+                    break;
                 case "multitristate":
-                {
-                    // A bitmask whose members can each be negated, with the negated ones in a SECOND key:
-                    // types.multitristate.put ORs the plain members into `id` and the '!' ones into `maskid`
-                    // (contrast multitristatearray, which does the same across two ARRAYS, and a scalar's
-                    // NotKey, which negates the whole value). /ip/firewall/filter tcp-flags="syn,!ack".
-                    //
-                    // Both keys are always sent once anything is: the router keeps whatever it already has
-                    // for a key it is not told about, so writing only the plain half would leave a stale '!'
-                    // member behind and report success.
-                    if (jg!.MaskKey == 0) break;   // no second key: not the shape webfig describes — refuse below
-                    if (value.Length == 0) return result;
-                    // The whole-list '!' is a bare leading element (tcp-flags="!,syn,!ack", as the API prints it) and
-                    // the field's own `not` flag, written both ways: the flag is stored on the row, and the router's
-                    // text set rewrites it every time (!,syn,!ack + set rst → rst,!ack, 7.24.5).
-                    bool wholeNegated = value == "!" || value.StartsWith("!,", StringComparison.Ordinal);
-                    if (wholeNegated)
-                    {
-                        value = value.Length > 1 ? value.Substring(2) : "";
-                        if (value.Length == 0)
-                            // RouterOS refuses a bare '!' too ("ambiguous value of flag"): there is nothing to negate.
-                            throw new WinboxFieldValueException($"input does not match any value of {apiName} (a '!' with no members)");
-                        if (jg.NotKey == 0)
-                            throw new WinboxFieldValueException($"input does not match any value of {apiName} (the field takes no '!' on the whole list)");
-                    }
-                    if (jg.NotKey != 0)
-                        result.Add(M2Message.BoolSys(jg.NotKey, wholeNegated));
-                    long onBits = 0, offBits = 0;
-                    foreach (var tok in value.Split(','))
-                    {
-                        string t = tok.Trim();
-                        if (t.Length == 0) continue;
-                        bool negated = t.StartsWith("!");
-                        if (negated) t = t.Substring(1).Trim();
-                        if (t.Length == 0) continue;
-                        int bit = EncodeListElement(jg, t, apiName, resolveRef);
-                        if (negated) offBits |= 1L << bit; else onBits |= 1L << bit;
-                    }
-                    result.Add(EncodeU32(key, unchecked((uint)onBits)));
-                    result.Add(EncodeU32(jg.MaskKey, unchecked((uint)offBits)));
-                    return result;
-                }
+                    if (EncodeTriStateList(key, ref value, jg, apiName, resolveRef, result)) return result;
+                    break;
                 case "multitristatearray":
-                {
-                    // A list whose elements may each be negated — /system/logging 'topics', where the API
-                    // writes "info,!debug". webfig types.multitristatearray.put splits the one list into TWO
-                    // arrays by that flag and writes both keys, so the '!' is a different KEY here, not a
-                    // value prefix (contrast the NotKey flag on a scalar). Both arrays are always sent,
-                    // including as empty, because that is the only way to CLEAR the other half.
-                    // jg non-null: uiType == "multitristatearray" only when jg.UiType produced it.
-                    if (jg!.OffKey == 0) break;   // no second key: not the shape webfig describes — refuse below
-                    if (value.Length == 0) return result;
-                    var on = new List<int>();
-                    var off = new List<int>();
-                    foreach (var tok in value.Split(','))
-                    {
-                        string t = tok.Trim();
-                        if (t.Length == 0) continue;
-                        bool negated = t.StartsWith("!");
-                        if (negated) t = t.Substring(1).Trim();
-                        if (t.Length == 0) continue;
-                        (negated ? off : on).Add(EncodeListElement(jg, t, apiName, resolveRef));
-                    }
-                    if (on.Count == 0 && off.Count == 0) return result;
-                    result.Add(M2Message.U32ArraySys(key, on.ToArray()));
-                    result.Add(M2Message.U32ArraySys(jg.OffKey, off.ToArray()));
-                    return result;
-                }
+                    if (EncodeTriStateArrayList(key, value, jg, apiName, resolveRef, result)) return result;
+                    break;
             }
 
             // (opt/not flags for the generic encoders below were emitted before the switch, together with every
@@ -873,6 +421,578 @@ namespace tik4net.Winbox
                     break;
             }
             return result;
+        }
+
+        // The typed encoder of "fixedpoint" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeFixedPoint(int key, string value, WinboxJgField? jg, string apiName, List<byte[]> result)
+        {
+            // The inverse of the decode, and missing for the same reason the ms case above was: a
+            // `fixedpoint` renders as value/scale and had no encoder at all, so /caps-man/channel's
+            // frequency (scale:1000, the wire holding 2412000) took "2412" through the generic
+            // numeric branch and landed 2412 — which the router then printed back as 2.412.
+            if (value.Length == 0) return true;
+            // A time postfix makes it a duration on the way out, exactly as on the way in.
+            if (jg?.IsTimePostfix == true)
+            {
+                if (!TryParseDuration(value, jg!.TicksPerSecond, out long dticks))
+                    throw new WinboxFieldResolutionException(
+                        $"WinBox native: '{value}' is not a valid duration for field '{apiName}' "
+                        + $"on '{_apiPath}'.");
+                result.Add(EncodeU32(key, unchecked((uint)dticks)));
+                return true;
+            }
+            int fpScale = jg == null || jg.Scale < 1 ? 1 : jg.Scale;
+            if (!TryParseScaled(value, fpScale, out long scaled))
+                throw new WinboxFieldResolutionException(
+                    $"WinBox native: '{value}' is not a valid number for field '{apiName}' on "
+                    + $"'{_apiPath}'. Expected a decimal with at most "
+                    + $"{fpScale.ToString(CultureInfo.InvariantCulture).Length - 1} fraction digit(s).");
+            result.Add(EncodeU32(key, unchecked((uint)scaled)));
+            return true;
+        }
+
+        // The typed encoder of "clocktime" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeClockTime(int key, string value, string apiName, List<byte[]> result)
+        {
+            // A time of day, as seconds since midnight: webfig types.clocktime.fromstr is
+            // string2interval(str), and the API prints and accepts it as 23:20:32. Without this the
+            // text reached the generic u32 branch and went out as a string the router ignores.
+            if (value.Length == 0) return true;
+            if (!TryParseDuration(value, 1, out long secondsOfDay))
+                throw new WinboxFieldValueException(
+                    $"input does not match any value of {apiName} (expected a time of day, e.g. 23:20:32)");
+            result.Add(EncodeU32(key, unchecked((uint)(secondsOfDay % 86400))));
+            return true;
+        }
+
+        // The typed encoder of "clockdate" / "dateandtime" / "date" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeDateAndTime(int key, string value, string apiName, string? uiType, List<byte[]> result)
+        {
+            // Unix epoch seconds, the inverse of WinboxRecordCodec's decode. The API spells the value
+            // 2026-11-21 (7.x) or nov/21/2026 (6.x, and what the mapper writes); as text it reached the
+            // generic u32 branch and went out as a string the router answers OK to and ignores
+            // (/system/scheduler start-date, 7.24.5 and 6.49.13).
+            if (value.Length == 0) return true;
+            if (!TikDateTimeHelper.TryFromTikDateTime(value, out DateTime when))
+                throw new WinboxFieldValueException(
+                    $"input does not match any value of {apiName} (expected a date, e.g. 2026-11-21 or nov/21/2026)");
+            if (string.Equals(uiType, "clockdate", StringComparison.OrdinalIgnoreCase))
+                when = when.Date;
+            long seconds = (long)(DateTime.SpecifyKind(when, DateTimeKind.Utc) - EpochUtc).TotalSeconds;
+            result.Add(EncodeU32(key, unchecked((uint)seconds)));
+            return true;
+        }
+
+        // The typed encoder of "interval" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeInterval(int key, string value, WinboxJgField? jg, string apiName, List<byte[]> result)
+        {
+            // The inverse of WinboxRecordCodec's interval decode, and it has to exist for the same
+            // reason the decode does: the wire carries a COUNT of 1/scale-second units, while the API
+            // spells the same value "5m" / "1w" / "500ms". Without this, "5m" failed long.TryParse in
+            // the generic u32 branch and went out as the STRING "5m" — which the router accepts,
+            // answers with status 0, and ignores, so the write silently did nothing.
+            if (value.Length == 0) return true;
+            // A named value wins, exactly as on the way back (e.g. 'immediately' / 'never').
+            if (jg?.EnumMap != null)
+            {
+                foreach (var kv in jg.EnumMap)
+                    if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Add(EncodeU32(key, unchecked((uint)kv.Key)));
+                        return true;
+                    }
+            }
+            if (TryParseDuration(value, jg?.Scale ?? 1, out long ticks))
+            {
+                result.Add(EncodeU32(key, unchecked((uint)ticks)));
+                return true;
+            }
+            // Not a duration and not a named value. Refused rather than sent as text: text on a
+            // numeric key is the silent no-op this case exists to remove.
+            throw new WinboxFieldResolutionException(
+                $"WinBox native: '{value}' is not a valid interval for field '{apiName}' on "
+                + $"'{_apiPath}'. Expected a RouterOS duration (\"5m\", \"1w2d\", \"500ms\"), a plain "
+                + "number of seconds"
+                + (jg?.EnumMap != null
+                    ? ", or one of: " + string.Join(", ", jg.EnumMap.Values) + "."
+                    : "."));
+        }
+
+        // The typed encoder of "network" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeNetwork(int key, string value, WinboxJgField? jg, List<byte[]> result)
+        {
+            // Empty → unset (send nothing).
+            if (value.Length == 0) return true;
+            // jg cannot be null here: uiType only reaches this switch as jg?.UiType's value, so a
+            // non-null "network" case implies jg itself is non-null.
+            if (jg!.IsRange)
+            {
+                // range:1 → the maskid sibling is the range-END address, not a netmask. All three
+                // RouterOS forms are accepted ("a", "a-b", "a/len"); sending end=start for a host
+                // avoids the router storing an open-ended range (which is what a /32 netmask sent as
+                // the "end" produced).
+                if (!TryParseV4Range(value, out uint start, out uint end))
+                    return false; // not v4 — fall through to generic encoders
+                result.Add(EncodeU32(key, start));
+                if (jg.MaskKey != 0) result.Add(EncodeU32(jg.MaskKey, end));
+                return true;
+            }
+            // "addr/mask" → address u32 (key) + netmask u32 (maskid).
+            var parts = value.Split('/');
+            uint? addr = PackIpV4(parts[0]);
+            if (addr == null) return false; // not v4 — fall through to generic encoders
+            result.Add(EncodeU32(key, addr.Value));
+            if (jg.MaskKey != 0)
+            {
+                uint mask = parts.Length > 1 ? MaskFrom(parts[1]) : 0xFFFFFFFFu;
+                result.Add(EncodeU32(jg.MaskKey, mask));
+            }
+            return true;
+        }
+
+        // The typed encoder of "ipaddr" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeIpAddr(int key, string value, List<byte[]> result)
+        {
+            if (value.Length == 0) return true;
+            uint? ip = PackIpV4(value.Split('/')[0]);
+            if (ip == null) return false;
+            result.Add(EncodeU32(key, ip.Value));
+            return true;
+        }
+
+        // The typed encoder of NumberNetmaskUiType when jg != null && jg.MaskKey != 0 (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeNumberNetmask(int key, string value, WinboxJgField jg, string apiName, List<byte[]> result)
+        {
+            // "10,24": the number on the field's key, the prefix as a mask on its netmask key. The API
+            // always prints both; a bare "10" leaves the netmask as the router has it.
+            if (value.Length == 0) return true;
+            int comma = value.IndexOf(',');
+            string numberText = comma < 0 ? value : value.Substring(0, comma);
+            if (!uint.TryParse(numberText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint number))
+                throw new WinboxFieldValueException($"'{value}' is not number,netmask for '{apiName}' (expected 10,32).");
+            result.Add(EncodeU32(key, number));
+            if (comma >= 0)
+                result.Add(EncodeU32(jg.MaskKey, MaskFrom(value.Substring(comma + 1).Trim())));
+            return true;
+        }
+
+        // The typed encoder of "netmask" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeNetmask(int key, string value, List<byte[]> result)
+        {
+            // The read side answers in prefix lengths (types.netmask.tostr), so the write side has
+            // to accept one. MaskFrom takes both spellings — "32" and "255.255.255.255" — which is
+            // also what types.netmask.fromstr does.
+            if (value.Length == 0) return true;
+            result.Add(EncodeU32(key, MaskFrom(value)));
+            return true;
+        }
+
+        // The typed encoder of "macaddr" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeMacAddr(int key, string value, List<byte[]> result)
+        {
+            if (value.Length == 0) return true;
+            result.Add(M2Message.RawSys(key, ParseRaw(value)));
+            return true;
+        }
+
+        // The typed encoder of "multibits" / "set" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeBitSet(int key, string value, WinboxJgField? jg, string apiName, Func<int[], IReadOnlyDictionary<int, string>?>? resolveRefTable, List<byte[]> result)
+        {
+            // Bitmask flag set (e.g. connection-state "established,related"). Empty → unset (send nothing).
+            // The value rides as a u32 of OR'd (1<<bitIndex) per the .jg bit map; the opt/not flags and
+            // the leading '!' were handled above.
+            if (value.Length == 0) return true;
+
+            // The members: a static .jg map, or — for /user/group's policies and the script and
+            // scheduler policy fields — a TABLE, where the bit index is the referenced row's id.
+            // A member list that cannot be read is refused rather than encoded as far as it goes:
+            // without it every token misses, and the field would go out as a clean, well-formed
+            // ZERO, which the router accepts as "this row is allowed nothing".
+            IReadOnlyDictionary<int, string>? memberMap = jg!.EnumMap;
+            if (memberMap == null && jg.RefHandler != null)
+            {
+                memberMap = resolveRefTable?.Invoke(jg.RefHandler);
+                if (memberMap == null)
+                    throw new WinboxFieldResolutionException(
+                        $"WinBox native: field '{apiName}' on '{_apiPath}' is a bit set whose members "
+                        + $"live in table [{string.Join(",", jg.RefHandler)}], which could not be read, "
+                        + "so the value cannot be encoded without silently clearing the field.");
+            }
+
+            long bits = 0;
+            long negatedBits = 0;
+            if (memberMap != null)
+                foreach (var tok in value.Split(','))
+                {
+                    string t = tok.Trim();
+                    bool negated = t.StartsWith("!");
+                    if (negated) t = t.Substring(1).Trim();
+                    if (t.Length == 0) continue;
+                    bool matched = false;
+                    foreach (var kv in memberMap)
+                        if (string.Equals(kv.Value, t, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (negated) negatedBits |= 1L << kv.Key; else bits |= 1L << kv.Key;
+                            matched = true;
+                            break;
+                        }
+                    // A member nobody knows is a wrong value, not a member to skip: dropping it sends
+                    // a bit set the router accepts with that permission simply absent.
+                    if (!matched && jg.RefHandler != null)
+                        throw new WinboxFieldValueException(
+                            $"input does not match any value of {apiName} (member '{t}')");
+                }
+            // The second half of the value: the members this write says NO to. webfig's editor
+            // sends both — SetView.save builds `set` from the ticked boxes and `unset` from the
+            // unticked ones and calls put([set,unset]) — so the mask is the complement WITHIN the
+            // member list, not ~bits over all 32 bits (types.multibits.put, whose editor has no
+            // unticked-vs-absent distinction, does use the plain complement).
+            //
+            // It only rides when the field declares somewhere to put it: a maskid sibling for a
+            // scalar, or the second element of a two-element u32[] for a `set` on an array key
+            // (types.set.put's 'U' branch). A u32 written to an array key is the wrong TYPE BYTE,
+            // which RouterOS answers with success and ignores.
+            // The second half of the value: the members this write explicitly DENIES. The router
+            // applies the members the request mentions — the union of the two words — and leaves the
+            // rest of the row as it found it, which is exactly how the binary API behaves for the
+            // same command: `set policy=read,write,winbox` on a group that already had `test` keeps
+            // test (measured on 7.24, both directions). Sending "every member not named" as denied
+            // instead — which is what WinBox's own editor does, because it always has the whole
+            // checkbox state in hand — turns a set of three members into a rewrite of all
+            // seventeen. On an ADD the router fills the rest in itself, so the row still comes out
+            // spelled exactly as the API's own add spells it.
+            long setMask = negatedBits;
+            if (jg.WireType != null && jg.WireType.EndsWith("[]", StringComparison.Ordinal))
+            {
+                result.Add(M2Message.U32ArraySys(key,
+                    unchecked((int)bits), unchecked((int)setMask)));
+                return true;
+            }
+            result.Add(EncodeU32(key, unchecked((uint)bits)));
+            if (jg.MaskKey != 0) result.Add(EncodeU32(jg.MaskKey, unchecked((uint)setMask)));
+            return true;
+        }
+
+        // The typed encoder of "enm" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeReference(int key, string value, WinboxJgField? jg, Func<int[], string, int?>? resolveRef, ref bool unresolvedReference, List<byte[]> result)
+        {
+            // dynamic dropdown → referenced object's .id; resolve the name against that table.
+            // jg non-null: uiType == "enm" only when jg.UiType produced it.
+            if (jg!.RefHandler != null && resolveRef != null && value.Length > 0
+                && !long.TryParse(value, out _))
+            {
+                // Every table the dropdown draws from, in the order webfig's enm.pair tries them — a
+                // queue tree's parent is an interface OR another queue, and only the first was searched.
+                foreach (int[] table in jg.RefHandlers ?? new[] { jg.RefHandler })
+                {
+                    int? id = resolveRef(table, value);
+                    if (id.HasValue) { result.Add(EncodeU32(key, (uint)id.Value)); return true; }
+                }
+
+                // The name is not a record in the referenced table. It may still be a static enum
+                // member ("none", "all", …), so try those below — but if nothing matches, the value
+                // is simply wrong and must not be swallowed. Silently dropping it sends a request the
+                // router happily accepts with the field missing, so a typo'd interface name looks
+                // like success. Remember to fail at the end of this method instead.
+                unresolvedReference = true;
+            }
+            return false; // fall through to static-map / numeric handling below
+        }
+
+        // The typed encoder of "numberrange" when jg != null && jg.MaskKey != 0 (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeNumberRange(int key, string value, WinboxJgField jg, string apiName, List<byte[]> result)
+        {
+            // One range on two keys (webfig types.numberrange.fromstr/put): "100-200" is low 100 on the
+            // field's key and high 200 on its highid, a bare "100" is [100,100]. Only the low end was
+            // written before, as a plain number, and "100-200" did not parse at all.
+            if (value.Length == 0) return true;
+            int dash = value.IndexOf('-');
+            string lowText = dash < 0 ? value : value.Substring(0, dash);
+            string highText = dash < 0 ? value : value.Substring(dash + 1);
+            if (!uint.TryParse(lowText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint lo)
+                || !uint.TryParse(highText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out uint hi))
+                throw new WinboxFieldValueException($"'{value}' is not a number range for '{apiName}' (expected 100 or 100-200).");
+            result.Add(EncodeU32(key, lo));
+            result.Add(EncodeU32(jg.MaskKey, hi));
+            return true;
+        }
+
+        // The typed encoder of "multinumberrange" / "numberrangelist" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeNumberRangeList(int key, string value, string apiName, List<byte[]> result)
+        {
+            // A list of number ranges: bridge-vlan 'vlan-ids', firewall 'dst-port'/'dscp'/'pcp', … .
+            // webfig types.multinumberrange.put (no id2) and types.numberrangelist (inherits def) both
+            // store a flat u32[] of [lo0,hi0,lo1,hi1,…]; a bare "10" is the range [10,10]. An invertible
+            // (not-wrapped) field negates via its not-flag bool (RouterOS "!80"), handled above along
+            // with the opt flag. Empty → unset.
+            if (value.Length == 0) return true;
+            var nums = ParseNumberRangeList(value, apiName);
+            if (nums.Count == 0) return true;
+            result.Add(M2Message.U32ArraySys(key, nums.ToArray()));
+            return true;
+        }
+
+        // The typed encoder of "multinumber" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeNumberList(int key, string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
+        {
+            // A list whose ELEMENTS are what the scalar encoders handle one at a time: bridge-vlan
+            // 'tagged'/'untagged' (interface references), the log rule's 'topics' (a static enum),
+            // /ip/proxy 'port' (plain numbers). webfig types.multinumber stores them as a flat u32[]
+            // in the order given, so the whole field is one array write — and encoding each element
+            // by the same three rules the decode reads them back with (reference → static map →
+            // literal) is what makes the round trip agree.
+            if (value.Length == 0) return true;
+            var items = new List<int>();
+            foreach (var tok in value.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length == 0) continue;
+                // The ELEMENT's own scale, the inverse of the decode: "2412" on a
+                // {fixedpoint,scale:1000} element is 2412000 on the wire. Without it the write
+                // landed 2412 and the router printed it back as 2.412. Gated on the scale alone —
+                // a scale above 1 IS the statement that the wire counts in smaller units than the
+                // API prints, whatever the element's ui type is spelled as.
+                // jg non-null: uiType == "multinumber" only when jg.UiType produced it.
+                if (jg!.ElementScale > 1)
+                {
+                    if (!TryParseScaled(t, jg.ElementScale, out long scaledElem))
+                        throw new WinboxFieldValueException(
+                            $"input does not match any value of {apiName} (element '{t}')");
+                    items.Add(unchecked((int)scaledElem));
+                }
+                else items.Add(EncodeListElement(jg!, t, apiName, resolveRef));
+            }
+            if (items.Count == 0) return true;
+            result.Add(M2Message.U32ArraySys(key, items.ToArray()));
+            return true;
+        }
+
+        // The typed encoder of "multi" when jg?.WireType == "addr[]" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeMessageList(int key, string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
+        {
+            // A list whose elements are whole SUBMESSAGES. What one element is varies — an `addr`
+            // compound (/ip/dns servers), a single addressable leaf (/snmp trap-interfaces, one
+            // interface id), or a tuple/union of several parts — and each is encoded by the same
+            // rules its scalar counterpart is, so the allow-mask handling, the enum maps and the
+            // reference resolution all stay in one place.
+            var elements = new List<byte[][]>();
+            foreach (var tok in value.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length > 0) elements.Add(EncodeMessageElement(jg!, t, apiName, resolveRef));
+            }
+            result.Add(M2Message.MessageArraySys(key, elements));
+            return true;
+        }
+
+        // The typed encoder of "multistring" / "multiraw" / "multiipaddr" / "multiip6addr" / "multibignumber" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeScalarList(int key, string value, WinboxJgField? jg, string apiName, List<byte[]> result)
+        {
+            // The rest of the webfig list family. All five `inherit(types.multinumber)` and store one
+            // ARRAY under one key, differing only in what an element is — text, bytes, an IPv4 packed
+            // into a u32, sixteen IPv6 bytes — so the element type decides the conversion and the
+            // field's WIRE type decides the array's TLV form.
+            //
+            // An empty value is the EMPTY ARRAY, not a dropped field: a key the router is not told
+            // about keeps whatever it already holds, so clearing a list has to be said out loud.
+            var items = new List<string>();
+            foreach (var tok in value.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length > 0) items.Add(t);
+            }
+            result.Add(EncodeScalarArray(jg!, key, items, apiName));
+            return true;
+        }
+
+        // The typed encoder of "multinetwork" / "multimacnetwork" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeNetworkList(int key, string value, WinboxJgField? jg, string apiName, string? uiType, List<byte[]> result)
+        {
+            // webfig types.multinetwork: a list of (address, sibling) PAIRS. With a `maskid` the two
+            // halves ride in two PARALLEL arrays, one entry per element; without one the type is a
+            // plain multinumberrange and the pairs are FLATTENED into a single [a0,b0,a1,b1,...]
+            // array (types.multinetwork.put delegates to multinumberrange.put when maskid is null).
+            //
+            // What the second half MEANS is the element's business, exactly as on a scalar: the range
+            // END when the element declares range:1 (/ip/pool "192.168.251.10-192.168.251.20"), a
+            // netmask otherwise. An empty value is the empty array, not a dropped field.
+            bool isMac = string.Equals(uiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase);
+            // jg non-null: uiType only reaches this switch as jg?.UiType's value.
+            if (isMac && jg!.MaskKey == 0) return false;   // not the shape webfig describes - refuse below
+            var addrs = new List<int>();
+            var masks = new List<int>();
+            var macs = new List<byte[]>();
+            var macMasks = new List<byte[]>();
+            foreach (var tok in value.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length == 0) continue;
+                if (isMac)
+                {
+                    var mp = t.Split('/');
+                    if (!TryParseMac(mp[0], out byte[]? mac)) throw NotThisPart(apiName, t);
+                    byte[] mask = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+                    if (mp.Length > 1 && !TryParseMac(mp[1], out mask!)) throw NotThisPart(apiName, t);
+                    macs.Add(mac!);       // non-null: TryParseMac sets it before returning true
+                    macMasks.Add(mask);
+                    continue;
+                }
+                uint lo, hi;
+                if (jg!.ElementIsRange)
+                {
+                    if (!TryParseV4Range(t, out lo, out hi)) throw NotThisPart(apiName, t);
+                }
+                else
+                {
+                    var np = t.Split('/');
+                    uint? packed = PackIpV4(np[0]);
+                    if (packed == null) throw NotThisPart(apiName, t);
+                    lo = packed.Value;
+                    hi = np.Length > 1 ? MaskFrom(np[1]) : 0xFFFFFFFFu;
+                }
+                addrs.Add(unchecked((int)lo));
+                masks.Add(unchecked((int)hi));
+            }
+            if (isMac)
+            {
+                result.Add(M2Message.RawArraySys(key, macs));
+                result.Add(M2Message.RawArraySys(jg!.MaskKey, macMasks));
+                return true;
+            }
+            if (jg!.MaskKey != 0)
+            {
+                result.Add(M2Message.U32ArraySys(key, addrs.ToArray()));
+                result.Add(M2Message.U32ArraySys(jg.MaskKey, masks.ToArray()));
+                return true;
+            }
+            var flat = new List<int>();
+            for (int i = 0; i < addrs.Count; i++) { flat.Add(addrs[i]); flat.Add(masks[i]); }
+            result.Add(M2Message.U32ArraySys(key, flat.ToArray()));
+            return true;
+        }
+
+        // The typed encoder of "multinetwork6" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeNetwork6List(int key, string value, WinboxJgField? jg, string apiName, List<byte[]> result)
+        {
+            // `types.multinetwork6 = inherit(types.multinetwork)` — the same list of pairs, over
+            // sixteen-byte addresses. Only the parallel-array form can exist here: a 128-bit address
+            // does not fit the flattened u32 array the maskid-less multinetwork falls back to, and
+            // both fields the 7.24 catalog declares carry a maskid.
+            //
+            // The sibling holds the PREFIX LENGTH itself, not a mask, and a bare address means /128 —
+            // the same rule the scalar network6 part follows.
+            if (jg!.MaskKey == 0) return false;   // not the shape webfig describes - refuse below
+            var v6Addrs = new List<byte[]>();
+            var v6Lens = new List<int>();
+            foreach (var tok in value.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length == 0) continue;
+                var np = t.Split('/');
+                byte[]? packed6 = PackIpV6(np[0]);
+                if (packed6 == null) throw NotThisPart(apiName, t);
+                int plen = 128;
+                if (np.Length > 1 && (!int.TryParse(np[1], NumberStyles.Integer,
+                        CultureInfo.InvariantCulture, out plen) || plen < 0 || plen > 128))
+                    throw NotThisPart(apiName, t);
+                v6Addrs.Add(packed6);
+                v6Lens.Add(plen);
+            }
+            result.Add(M2Message.Addr6ArraySys(key, v6Addrs));
+            result.Add(M2Message.U32ArraySys(jg.MaskKey, v6Lens.ToArray()));
+            return true;
+        }
+
+        // The typed encoder of "multitristate" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeTriStateList(int key, ref string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
+        {
+            // A bitmask whose members can each be negated, with the negated ones in a SECOND key:
+            // types.multitristate.put ORs the plain members into `id` and the '!' ones into `maskid`
+            // (contrast multitristatearray, which does the same across two ARRAYS, and a scalar's
+            // NotKey, which negates the whole value). /ip/firewall/filter tcp-flags="syn,!ack".
+            //
+            // Both keys are always sent once anything is: the router keeps whatever it already has
+            // for a key it is not told about, so writing only the plain half would leave a stale '!'
+            // member behind and report success.
+            if (jg!.MaskKey == 0) return false;   // no second key: not the shape webfig describes — refuse below
+            if (value.Length == 0) return true;
+            // The whole-list '!' is a bare leading element (tcp-flags="!,syn,!ack", as the API prints it) and
+            // the field's own `not` flag, written both ways: the flag is stored on the row, and the router's
+            // text set rewrites it every time (!,syn,!ack + set rst → rst,!ack, 7.24.5).
+            bool wholeNegated = value == "!" || value.StartsWith("!,", StringComparison.Ordinal);
+            if (wholeNegated)
+            {
+                value = value.Length > 1 ? value.Substring(2) : "";
+                if (value.Length == 0)
+                    // RouterOS refuses a bare '!' too ("ambiguous value of flag"): there is nothing to negate.
+                    throw new WinboxFieldValueException($"input does not match any value of {apiName} (a '!' with no members)");
+                if (jg.NotKey == 0)
+                    throw new WinboxFieldValueException($"input does not match any value of {apiName} (the field takes no '!' on the whole list)");
+            }
+            if (jg.NotKey != 0)
+                result.Add(M2Message.BoolSys(jg.NotKey, wholeNegated));
+            long onBits = 0, offBits = 0;
+            foreach (var tok in value.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length == 0) continue;
+                bool negated = t.StartsWith("!");
+                if (negated) t = t.Substring(1).Trim();
+                if (t.Length == 0) continue;
+                int bit = EncodeListElement(jg, t, apiName, resolveRef);
+                if (negated) offBits |= 1L << bit; else onBits |= 1L << bit;
+            }
+            result.Add(EncodeU32(key, unchecked((uint)onBits)));
+            result.Add(EncodeU32(jg.MaskKey, unchecked((uint)offBits)));
+            return true;
+        }
+
+        // The typed encoder of "multitristatearray" (a case of EncodeField). True when the value
+        // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
+        private bool EncodeTriStateArrayList(int key, string value, WinboxJgField? jg, string apiName, Func<int[], string, int?>? resolveRef, List<byte[]> result)
+        {
+            // A list whose elements may each be negated — /system/logging 'topics', where the API
+            // writes "info,!debug". webfig types.multitristatearray.put splits the one list into TWO
+            // arrays by that flag and writes both keys, so the '!' is a different KEY here, not a
+            // value prefix (contrast the NotKey flag on a scalar). Both arrays are always sent,
+            // including as empty, because that is the only way to CLEAR the other half.
+            // jg non-null: uiType == "multitristatearray" only when jg.UiType produced it.
+            if (jg!.OffKey == 0) return false;   // no second key: not the shape webfig describes — refuse below
+            if (value.Length == 0) return true;
+            var on = new List<int>();
+            var off = new List<int>();
+            foreach (var tok in value.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length == 0) continue;
+                bool negated = t.StartsWith("!");
+                if (negated) t = t.Substring(1).Trim();
+                if (t.Length == 0) continue;
+                (negated ? off : on).Add(EncodeListElement(jg, t, apiName, resolveRef));
+            }
+            if (on.Count == 0 && off.Count == 0) return true;
+            result.Add(M2Message.U32ArraySys(key, on.ToArray()));
+            result.Add(M2Message.U32ArraySys(jg.OffKey, off.ToArray()));
+            return true;
         }
 
         /// <summary>
