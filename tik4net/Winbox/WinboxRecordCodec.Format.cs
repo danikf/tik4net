@@ -17,7 +17,7 @@ namespace tik4net.Winbox
         // a network field renders "addr/prefixlen" (pulling the netmask from its maskid sibling key), MACs
         // from raw bytes, static enums back to their string label, dynamic enum references back to the
         // referenced record's name. Falls back to the wire-type formatter.
-        private string FormatTyped(WinboxJgField? jf, string wireType, object value,
+        private string FormatTyped(WinboxJgField? jf, M2Type wireType, object value,
             M2Record rec, Dictionary<string, int[]>? collectRefTables)
         {
             if (jf != null && value != null)
@@ -95,10 +95,10 @@ namespace tik4net.Winbox
                         var upField = jf.PairHalves.Item1;
                         var downField = jf.PairHalves.Item2;
 
-                        string up = FormatTyped(upField, upField.WireType, value, rec, collectRefTables);
+                        string up = FormatTyped(upField, M2Types.FromJgName(upField.WireType), value, rec, collectRefTables);
                         string down = "0";
                         if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var other) && other.Value != null)
-                            down = FormatTyped(downField, downField.WireType, other.Value, rec, collectRefTables);
+                            down = FormatTyped(downField, M2Types.FromJgName(downField.WireType), other.Value, rec, collectRefTables);
                         return up + "/" + down;
                     }
                     case WinboxFieldResolver.AddrPortUiType:
@@ -774,33 +774,13 @@ namespace tik4net.Winbox
                     Learn(kindField, rec, v.Value);
         }
 
-        private static bool IsWireKindContradiction(WinboxJgField? jf, string wireType)
-        {
-            if (jf == null || jf.WireType == null) return false;
-            bool fieldIsText = IsTextWire(jf.WireType);
-            bool wireIsText = IsTextWire(wireType);
-            if (fieldIsText == wireIsText) return false;
-            // Only a scalar declaration says anything this strong: a list, a message or an address is
-            // carried in shapes this comparison does not model.
-            return IsScalarKind(jf.WireType) && IsScalarKind(wireType);
-        }
-
-        private static bool IsTextWire(string wireType)
-            => string.Equals(wireType, "string", StringComparison.OrdinalIgnoreCase);
-
-        private static bool IsScalarKind(string wireType)
-        {
-            switch ((wireType ?? "").ToLowerInvariant())
-            {
-                case "string":
-                case "u32":
-                case "u64":
-                case "u8":
-                    return true;
-                default:
-                    return false;
-            }
-        }
+        // A field declared as text that the row carries as a number. Only a scalar declaration says anything this
+        // strong: a list, a message or an address is carried in shapes this comparison does not model. The other
+        // direction — a number declared, text carried — is not caught (the two were compared in two spellings
+        // of the type, so it never fired; F10).
+        private static bool IsWireKindContradiction(WinboxJgField? jf, M2Type wireType)
+            => jf != null && M2Types.FromJgName(jf.WireType) == M2Type.String
+               && (wireType == M2Type.U32 || wireType == M2Type.U64);
 
         // The postfixes acted on: the two that mean TIME. 'min', 'MHz', '%' and the rest are units the API
         // spells the same way WinBox does (a bare number), so appending them would invent text the router
@@ -1014,7 +994,7 @@ namespace tik4net.Winbox
                 {
                     // A list leaf arrives as "[a,b]" — "[]" when empty, which is no word at all.
                     var items = SplitListElements(v.Value);
-                    bool isList = v.TraceName.EndsWith("[]", StringComparison.Ordinal)
+                    bool isList = v.Type.IsArray()
                         || (v.Value is string sv && sv.StartsWith("[", StringComparison.Ordinal));
                     IEnumerable<string> words = items.Count > 0 || isList ? items : new List<string> { v.Value!.ToString()! };
                     text = string.Join(",", words.Select(w => FormatStatusWord(part, w, collectRefTables)));
@@ -1295,12 +1275,12 @@ namespace tik4net.Winbox
         // A key whose wire value contradicts the field's declared kind — a string where a number is declared
         // or the reverse. The row is not carrying this field, and a silent drop is how a wrong value gets
         // reported for a release, so say so.
-        private static void TraceWireKindContradiction(WinboxJgField jf, string wireType)
+        private static void TraceWireKindContradiction(WinboxJgField jf, M2Value wire)
         {
             if (!TikWireTrace.Enabled) return;
             TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
                 $"'{jf.ApiName}' (key 0x{jf.Key:X}) is declared {jf.WireType} and the row carries "
-                + $"{wireType}; not reported on this row");
+                + $"{wire.TraceName}; not reported on this row");
         }
 
         /// <summary>
@@ -1336,13 +1316,13 @@ namespace tik4net.Winbox
             return text;
         }
 
-        private static string FormatValue(string wireType, object? value)
+        private static string FormatValue(M2Type wireType, object? value)
         {
             if (value == null) return "";
-            if (wireType == "bool") return (value is bool b && b) ? "true" : "false";
+            if (wireType == M2Type.Bool) return (value is bool b && b) ? "true" : "false";
             // An FT_ADDR6 value arrives as 16 bytes; without this it renders as "System.Byte[]" whenever the
             // .jg does not also give the field an ip6addr UI type.
-            if (wireType == "ip6" && value is byte[] v6) return WinboxValueFormat.IpV6FromBytes(v6);
+            if (wireType == M2Type.Addr6 && value is byte[] v6) return WinboxValueFormat.IpV6FromBytes(v6);
             if (value is M2Record one) return FormatNestedMessage(one);
             if (value is List<M2Record> many)
                 return string.Join(",", many.Select(FormatNestedMessage));
@@ -1368,7 +1348,7 @@ namespace tik4net.Winbox
             foreach (var kv in msg.OrderBy(k => k.Key))
             {
                 if (kv.Value.Value == null) continue;
-                return FormatValue(kv.Value.TraceName, kv.Value.Value);
+                return FormatValue(kv.Value.Type, kv.Value.Value);
             }
             return "";
         }

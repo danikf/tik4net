@@ -170,7 +170,7 @@ namespace tik4net.Winbox
                 // is the normal path: a window with no such collision registers no qualified key, and a router
                 // that sends a field with the arrayness the .jg did NOT predict still decodes as it always did.
                 int wireKey = WinboxM2Protocol.TypedKey.WireKeyOf(kv.Key);
-                int typedKey = WinboxM2Protocol.TypedKey.Qualify(wireKey, kv.Value.TraceName);
+                int typedKey = WinboxM2Protocol.TypedKey.Qualify(wireKey, kv.Value.Type);
                 if (consumedKeys.Contains(wireKey)) continue;
                 if (!keyToName.TryGetValue(typedKey, out var apiName)
                     && !keyToName.TryGetValue(wireKey, out apiName)) continue;
@@ -188,8 +188,8 @@ namespace tik4net.Winbox
                 // One key, two kinds, and this entry is not the kind the field is: the other entry, filed under its
                 // qualified key, is the field's value. /interface/vrrp sends a bool and the connection-tracking-mode
                 // u32 both on 0x17, and which one the parser meets first depends on the frame.
-                if (jf != null && WinboxM2Protocol.TypedKey.KindOf(jf.WireType) != WinboxM2Protocol.TypedKey.KindOf(kv.Value.TraceName)
-                    && kv.Key == wireKey && rec.ContainsKey(WinboxM2Protocol.TypedKey.Qualify(wireKey, jf.WireType)))
+                if (jf != null && WinboxM2Protocol.TypedKey.KindOf(M2Types.FromJgName(jf.WireType)) != WinboxM2Protocol.TypedKey.KindOf(kv.Value.Type)
+                    && kv.Key == wireKey && rec.ContainsQualified(wireKey, M2Types.FromJgName(jf.WireType)))
                     continue;
                 if (IsUnsetField(jf, kv.Value.Value!, rec)) continue;
                 // A key the router filled with a different KIND of value is not this field on this row.
@@ -199,14 +199,14 @@ namespace tik4net.Winbox
                 // `eoip`. A row whose value contradicts the field's declared wire type gets no value at
                 // all, which is the honest answer: we do not know this row's type, and saying nothing is
                 // not the same as saying a number.
-                if (IsWireKindContradiction(jf, kv.Value.TraceName))
+                if (IsWireKindContradiction(jf, kv.Value.Type))
                 {
                     if (TryLearnedKindWord(jf!, rec, out string? kindWord)) { fields[apiName] = kindWord!; continue; }
-                    TraceWireKindContradiction(jf!, kv.Value.TraceName);
+                    TraceWireKindContradiction(jf!, kv.Value);
                     continue;
                 }
                 if (jf != null && jf.KindIdKey != 0) Learn(jf, rec, kv.Value.Value);
-                fields[apiName] = Negated(jf, rec, FormatTyped(jf, kv.Value.TraceName, kv.Value.Value!, rec, collectRefTables));
+                fields[apiName] = Negated(jf, rec, FormatTyped(jf, kv.Value.Type, kv.Value.Value!, rec, collectRefTables));
             }
 
             // The comment key rides every record, empty on a row with no comment, where the API prints nothing.
