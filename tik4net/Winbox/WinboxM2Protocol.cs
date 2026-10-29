@@ -228,6 +228,18 @@
             /// <summary><paramref name="wireKey"/> qualified by the kind of <paramref name="wireTypeName"/>.</summary>
             internal static int Qualify(int wireKey, string wireTypeName)
                 => (wireKey & WireMask) | KindOf(wireTypeName);
+
+            /// <summary>
+            /// The qualifier for a type: an array, a scalar bool, or any other scalar. Two fields on one key are told
+            /// apart when their kinds differ — <c>U12</c> beside <c>u12</c>, and <c>b1f</c> beside <c>q1f</c> (a flag
+            /// and a counter).
+            /// </summary>
+            internal static int KindOf(M2Type type)
+                => type.IsArray() ? Array : type == M2Type.Bool ? Bool : Scalar;
+
+            /// <summary><paramref name="wireKey"/> qualified by the kind of <paramref name="type"/>.</summary>
+            internal static int Qualify(int wireKey, M2Type type)
+                => (wireKey & WireMask) | KindOf(type);
         }
 
         /// <summary>
