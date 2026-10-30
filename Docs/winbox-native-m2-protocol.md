@@ -446,6 +446,11 @@ is a bare host (never `/32`), an aligned power-of-two block is CIDR, anything el
 is `WinboxValueFormat.FormatV4Range` / `TryParseV4Range`, and matching it exactly is what makes the
 record read identically over native and over every other transport.
 
+A value that is not IPv4 is refused before anything is sent ("invalid value for argument src-address", a
+`TikCommandTrapException` as over the API), on this field and on every `ipaddr` / `network` field with no other
+address family. The router does not refuse it: text on the `u32` key is stored, and the rule then prints
+`src-address=""` (7.25). A `union` field gives its other families their turn instead.
+
 ### 24.2 The catalog must copy `range` when it flattens `opt`/`not`
 
 `WinboxJgCatalog.AddOptionField` — which drills through `opt`/`not` wrappers to the value leaf —

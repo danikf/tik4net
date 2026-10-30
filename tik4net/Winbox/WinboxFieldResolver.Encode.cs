@@ -212,10 +212,10 @@ namespace tik4net.Winbox
                     if (EncodeInterval(key, value, jg, apiName, result)) return result;
                     break;
                 case "network":
-                    if (EncodeNetwork(key, value, jg, result)) return result;
+                    if (EncodeNetwork(key, value, jg, apiName, result)) return result;
                     break;
                 case "ipaddr":
-                    if (EncodeIpAddr(key, value, result)) return result;
+                    if (EncodeIpAddr(key, value, jg, apiName, result)) return result;
                     break;
                 case NumberNetmaskUiType when jg != null && jg.MaskKey != 0:
                     if (EncodeNumberNetmask(key, value, jg, apiName, result)) return result;
@@ -521,7 +521,7 @@ namespace tik4net.Winbox
 
         // The typed encoder of "network" (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
-        private bool EncodeNetwork(int key, string value, WinboxJgField? jg, List<byte[]> result)
+        private bool EncodeNetwork(int key, string value, WinboxJgField? jg, string apiName, List<byte[]> result)
         {
             // Empty → unset (send nothing).
             if (value.Length == 0) return true;
@@ -534,7 +534,7 @@ namespace tik4net.Winbox
                 // avoids the router storing an open-ended range (which is what a /32 netmask sent as
                 // the "end" produced).
                 if (!TryParseV4Range(value, out uint start, out uint end))
-                    return false; // not v4 — fall through to generic encoders
+                    return NotIpv4(jg, apiName); // another family of a union falls through to the generic encoders
                 result.Add(EncodeU32(key, start));
                 if (jg.MaskKey != 0) result.Add(EncodeU32(jg.MaskKey, end));
                 return true;
@@ -542,7 +542,7 @@ namespace tik4net.Winbox
             // "addr/mask" → address u32 (key) + netmask u32 (maskid).
             var parts = value.Split('/');
             uint? addr = PackIpV4(parts[0]);
-            if (addr == null) return false; // not v4 — fall through to generic encoders
+            if (addr == null) return NotIpv4(jg, apiName); // another family of a union falls through to the generic encoders
             result.Add(EncodeU32(key, addr.Value));
             if (jg.MaskKey != 0)
             {
@@ -554,13 +554,24 @@ namespace tik4net.Winbox
 
         // The typed encoder of "ipaddr" (a case of EncodeField). True when the value
         // is encoded (EncodeField returns what is in result); false to fall through to the generic encoders.
-        private bool EncodeIpAddr(int key, string value, List<byte[]> result)
+        private bool EncodeIpAddr(int key, string value, WinboxJgField? jg, string apiName, List<byte[]> result)
         {
             if (value.Length == 0) return true;
             uint? ip = PackIpV4(value.Split('/')[0]);
-            if (ip == null) return false;
+            if (ip == null) return NotIpv4(jg, apiName);
             result.Add(EncodeU32(key, ip.Value));
             return true;
+        }
+
+        // A value an IPv4 field cannot hold. A union (a field with other address families, see
+        // WinboxJgField.ExtraRegistrations) answers false so its other families get their turn. A field with no other
+        // family refuses it, as webfig's types.ipaddr / types.network fromstr do: the generic fallback put the text on
+        // the u32 key as a string, the router stored it, and /ip/firewall/filter printed src-address="" (7.25), where
+        // the API refuses the same set (WinBox review D7).
+        private static bool NotIpv4(WinboxJgField? jg, string apiName)
+        {
+            if (jg?.ExtraRegistrations != null && jg.ExtraRegistrations.Count > 0) return false;
+            throw new WinboxFieldValueException($"invalid value for argument {apiName}");
         }
 
         // The typed encoder of NumberNetmaskUiType when jg != null && jg.MaskKey != 0 (a case of EncodeField). True when the value
