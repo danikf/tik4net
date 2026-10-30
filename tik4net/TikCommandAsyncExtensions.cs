@@ -42,7 +42,7 @@ namespace tik4net
         /// <inheritdoc cref="ITikCommandAsync.ExecuteScalarOrDefaultAsync"/>
         /// <param name="command">Command to execute.</param>
         /// <param name="defaultValue">Value returned when no matching record was found, or when the row has no <paramref name="target"/> field.</param>
-        /// <param name="target">Name of the returned field, or <c>null</c> for the first non-<c>.id</c> field.</param>
+        /// <param name="target">Name of the returned field, or <c>null</c> for the row's one value field (see <see cref="ITikCommand.ExecuteScalar()"/>).</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         public static Task<string?> ExecuteScalarOrDefaultAsync(this ITikCommand command, string? defaultValue = null,
             string? target = null, CancellationToken cancellationToken = default(CancellationToken))

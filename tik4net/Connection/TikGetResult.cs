@@ -102,7 +102,7 @@ namespace tik4net.Connection
 
         /// <summary>
         /// One record of one field. The field is named after what was asked for, which is what makes both
-        /// scalar spellings work: <c>ExecuteScalar()</c> takes the first non-<c>.id</c> field, and
+        /// scalar spellings work: <c>ExecuteScalar()</c> reads the row's one field, and
         /// <c>ExecuteScalar("name")</c> asks for it by name.
         /// </summary>
         /// <param name="field">The field name.</param>

@@ -27,6 +27,22 @@ namespace tik4net.integrationtests
             Assert.IsFalse(string.IsNullOrEmpty(identity.Name.Value), "the router always has an identity");
         }
 
+        /// <summary>
+        /// The documented sample: <c>ExecuteScalar()</c> on <c>/system/identity/print</c> answers the identity, the API's
+        /// answer, on every transport. WinBox native printed <c>{ version, name }</c> and answered the RouterOS version
+        /// (WinBox review D6 / D18).
+        /// </summary>
+        [TestMethod]
+        public void ExecuteScalar_OnTheIdentityPrint_AnswersTheApisIdentity()
+        {
+            EnsureCommandAvailable("/system/identity");
+            string apiIdentity;
+            using (var api = LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api))
+                apiIdentity = api.CreateCommand("/system/identity/print").ExecuteScalar();
+
+            Assert.AreEqual(apiIdentity, Connection.CreateCommand("/system/identity/print").ExecuteScalar());
+        }
+
         [TestMethod]
         [TestLock(TestLockScope.Router)]
         public void SaveSystemIdentity_RoundTrip_WillWork()

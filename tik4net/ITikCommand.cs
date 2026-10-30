@@ -84,11 +84,17 @@ namespace tik4net
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and ensures that operation returns one value (=ret parameter) or single value in single !re row, which is returned as result.
         /// </summary>
+        /// <remarks>
+        /// On a one-row answer with no <c>=ret=</c> the value is the row's one field other than <c>.id</c> and <c>.tag</c>;
+        /// a row with no such field answers its <c>.id</c>. A row with more than one throws
+        /// <see cref="TikCommandUnexpectedResponseException"/> on every transport: the order of a row's fields is the
+        /// transport's, so name the field with <see cref="ExecuteScalar(string)"/>.
+        /// </remarks>
         /// <returns>Value returned by router.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.), or a row with more than one value field.</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
@@ -115,6 +121,12 @@ namespace tik4net
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <c>null</c>.
         /// </summary>
+        /// <remarks>
+        /// On a one-row answer with no <c>=ret=</c> the value is the row's one field other than <c>.id</c> and <c>.tag</c>;
+        /// a row with no such field answers its <c>.id</c>. A row with more than one still throws
+        /// <see cref="TikCommandUnexpectedResponseException"/> on every transport: the order of a row's fields is the
+        /// transport's, so name the field with <see cref="ExecuteScalar(string)"/>.
+        /// </remarks>
         /// <returns>Value returned by router or <c>null</c>.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
@@ -127,6 +139,12 @@ namespace tik4net
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <paramref name="defaultValue"/>.
         /// </summary>
+        /// <remarks>
+        /// On a one-row answer with no <c>=ret=</c> the value is the row's one field other than <c>.id</c> and <c>.tag</c>;
+        /// a row with no such field answers its <c>.id</c>. A row with more than one still throws
+        /// <see cref="TikCommandUnexpectedResponseException"/> on every transport: the order of a row's fields is the
+        /// transport's, so name the field with <see cref="ExecuteScalar(string)"/>.
+        /// </remarks>
         /// <returns>Value returned by router or <paramref name="defaultValue"/>.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>

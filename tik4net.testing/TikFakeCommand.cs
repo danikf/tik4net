@@ -89,13 +89,27 @@ namespace tik4net.Testing
                     return ret;
             }
 
-            // Secondary path: single field in single !re (e.g. /system/identity/print)
+            // Secondary path: the one value field of a single !re (e.g. /system/identity/print)
             var reList = sentences.OfType<ITikReSentence>().ToList();
-            if (reList.Count == 1 && reList[0].Words.Count == 1)
-                return reList[0].Words.Values.First();
+            if (reList.Count == 1 && ScalarOfRow(reList[0]) is string value)
+                return value;
 
             throw new TikCommandUnexpectedResponseException(
                 "ExecuteScalar: response contains neither =ret= nor a single-field !re sentence.", this, sentences);
+        }
+
+        // The rule every transport follows for ExecuteScalar() with no target (D18): the row's one field other than
+        // .id / .tag, else its .id; more than one throws. Null for a row with neither.
+        private string? ScalarOfRow(ITikReSentence row)
+        {
+            var fields = row.Words.Keys.Where(k => k != TikSpecialProperties.Id && k != TikSpecialProperties.Tag).ToList();
+            if (fields.Count == 1)
+                return row.Words[fields[0]];
+            if (fields.Count > 1)
+                throw new TikCommandUnexpectedResponseException(
+                    $"ExecuteScalar() needs a row with one value field; the row has {fields.Count} ({string.Join(", ", fields)}). "
+                    + "Name the field with ExecuteScalar(target), or read the row with ExecuteSingleRow().", this, row);
+            return row.Words.TryGetValue(TikSpecialProperties.Id, out var id) ? id : null;
         }
 
         /// <inheritdoc/>
@@ -124,8 +138,8 @@ namespace tik4net.Testing
             }
 
             var reList = sentences.OfType<ITikReSentence>().ToList();
-            if (reList.Count == 1 && reList[0].Words.Count == 1)
-                return reList[0].Words.Values.First();
+            if (reList.Count == 1 && ScalarOfRow(reList[0]) is string value)
+                return value;
 
             return defaultValue;
         }

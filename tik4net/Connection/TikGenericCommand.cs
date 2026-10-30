@@ -151,8 +151,8 @@ namespace tik4net.Connection
             => !string.IsNullOrEmpty(rawText) ? rawText : TikCommandResult.EmptyRawScalar(this, !throwIfMissing, defaultValue);
 
         /// <summary>
-        /// Scalar of a read: pick <paramref name="target"/> (or the first non-<c>.id</c> field) out of the single
-        /// returned row. Reads go through <c>print</c> rather than <c>get value-name=…</c> on purpose: RouterOS
+        /// Scalar of a read: pick <paramref name="target"/> (or, with none, the row's one value field — see
+        /// <see cref="TikCommandResult.ScalarOfRow"/>) out of the single returned row. Reads go through <c>print</c> rather than <c>get value-name=…</c> on purpose: RouterOS
         /// rejects <c>get .id=*N</c> ("syntax error") and <c>value-name=.id</c> ("input does not match any value
         /// of value-name"), while <c>:put [/path print as-value where .id=*N]</c> works for every field.
         /// </summary>
@@ -166,10 +166,9 @@ namespace tik4net.Connection
                 throw new TikCommandUnexpectedResponseException("Single value expected but multiple rows returned.", this, rows.Cast<ITikSentence>());
 
             var single = rows[0];
-            string fieldToRead = target
-                ?? single.Words.Keys.FirstOrDefault(k => k != TikSpecialProperties.Id && k != TikSpecialProperties.Tag)
-                ?? TikSpecialProperties.Id;
-            return TikCommandResult.FieldOfRow(single, fieldToRead, !throwIfMissing, defaultValue);
+            return target != null
+                ? TikCommandResult.FieldOfRow(single, target, !throwIfMissing, defaultValue)
+                : TikCommandResult.ScalarOfRow(this, single, verb, !throwIfMissing, defaultValue);
         }
 
         // ExecuteSingleRow's throwIfMissing:true never lets TikCommandResult.SingleRow return null.

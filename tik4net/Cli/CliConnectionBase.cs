@@ -1377,8 +1377,8 @@ namespace tik4net.Cli
         /// </summary>
         /// <remarks>
         /// The record carries one field, named after the requested <c>value-name</c> (or <c>ret</c> for a
-        /// whole-row get). That name is what makes both scalar spellings work: <c>ExecuteScalar()</c> takes
-        /// the first non-<c>.id</c> field, and <c>ExecuteScalar("name")</c> asks for it by name.
+        /// whole-row get). That name is what makes both scalar spellings work: <c>ExecuteScalar()</c> reads
+        /// the row's one field, and <c>ExecuteScalar("name")</c> asks for it by name.
         /// <para>
         /// An empty answer is left as zero records rather than an empty-valued one. <c>get</c> is a read
         /// verb, so the layer above turns "no rows" into <see cref="TikNoSuchItemException"/> — which is what

@@ -276,8 +276,9 @@ namespace tik4net.Api
                     if (target != null)
                         return TikCommandResult.FieldOfRow(reResponse, target, allowReturnDefault, defaultValue);
 
-                    // No target: the row's one word. D18 (the WinBox review) replaces this pick.
-                    return reResponse.Words.Single(v => v.Key != TikSpecialProperties.Tag).Value; //single word value from !re  //NOTE - .tag could be added when Connection.SendTagWithSyncCommand=true
+                    // No target: the row's one value field (D18).
+                    return TikCommandResult.ScalarOfRow(this, reResponse, tik4net.Connection.TikPath.Verb(CommandText),
+                        allowReturnDefault, defaultValue);
                 }
                 else
                     throw new TikCommandUnexpectedResponseException("Single !done response or exactly one !re sentences expected. (1x!done or 1x!re + 1x!done )", this, response.Cast<ITikSentence>());

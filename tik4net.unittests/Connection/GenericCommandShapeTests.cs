@@ -222,17 +222,44 @@ namespace tik4net.unittests.Connection
 
         // ── What each method makes of the answer ──────────────────────────────
 
+        // D18 (strict): ExecuteScalar() with no target reads a row with one value field (other than .id / .tag).
+
         [TestMethod]
-        public void ExecuteScalar_ReadsTheFirstFieldThatIsNotTheId()
+        public void ExecuteScalar_OnAMultiFieldRow_ThrowsUnexpectedResponseNamingTheFields()
         {
-            // X4 as it is: the first non-.id field in record order. The binary API throws on a multi-field row.
             var conn = new RecordingConnection();
             conn.Answers.Enqueue(new List<TikRecordSentence> { Row(".id", "*1", "name", "a", "mtu", "1500") });
             conn.Answers.Enqueue(new List<TikRecordSentence> { Row(".id", "*1", "name", "a", "mtu", "1500") });
             var cmd = conn.CreateCommand("/interface/print");
 
-            Assert.AreEqual("a", cmd.ExecuteScalar());
-            Assert.AreEqual("1500", cmd.ExecuteScalar("mtu"));
+            var ex = Assert.ThrowsException<TikCommandUnexpectedResponseException>(() => cmd.ExecuteScalar());
+            StringAssert.Contains(ex.Message, "the row has 2 (name, mtu)");
+            Assert.AreEqual("1500", cmd.ExecuteScalar("mtu"), "a named field is read as before");
+        }
+
+        [TestMethod]
+        public void ExecuteScalarOrDefault_OnAMultiFieldRow_Throws()
+        {
+            var conn = new RecordingConnection();
+            conn.Answers.Enqueue(new List<TikRecordSentence> { Row("name", "a", "mtu", "1500") });
+            Assert.ThrowsException<TikCommandUnexpectedResponseException>(
+                () => conn.CreateCommand("/interface/print").ExecuteScalarOrDefault("x"));
+        }
+
+        [TestMethod]
+        public void ExecuteScalar_OnTheIdAndOneField_ReadsTheField()
+        {
+            var conn = new RecordingConnection();
+            conn.Answers.Enqueue(new List<TikRecordSentence> { Row(".id", "*1", "name", "a") });
+            Assert.AreEqual("a", conn.CreateCommand("/interface/print").ExecuteScalar());
+        }
+
+        [TestMethod]
+        public void ExecuteScalar_OnTheIdAlone_ReadsTheId()
+        {
+            var conn = new RecordingConnection();
+            conn.Answers.Enqueue(new List<TikRecordSentence> { Row(".id", "*1") });
+            Assert.AreEqual("*1", conn.CreateCommand("/interface/print").ExecuteScalar());
         }
 
         [TestMethod]

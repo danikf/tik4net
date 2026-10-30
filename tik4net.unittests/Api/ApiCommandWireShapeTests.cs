@@ -248,18 +248,55 @@ namespace tik4net.unittests.Api
 
         // ── Answers the review changes on purpose ─────────────────────────────
 
-        [TestMethod]
-        public void ExecuteScalar_OnAMultiFieldRow_ThrowsLinqsInvalidOperation()
+        // D18 (strict): ExecuteScalar() with no target reads a row with one value field (other than .id / .tag).
+
+        private static void AnswerRow(FakeRouterServer s, string tag, params string[] words)
         {
-            // X4 as it is: LINQ Single over the row's words. The transport-neutral command returns the first
-            // non-.id field instead.
-            Exchange(c => Assert.ThrowsException<InvalidOperationException>(
-                    () => c.CreateCommand("/interface/print").ExecuteScalar()),
-                (s, tag) =>
+            s.WriteSentence(new[] { "!re", $"{TikSpecialProperties.Tag}={tag}" }.Concat(words).ToArray());
+            Done(s, tag);
+        }
+
+        [TestMethod]
+        public void ExecuteScalar_OnAMultiFieldRow_ThrowsUnexpectedResponseNamingTheFields()
+        {
+            Exchange(c =>
                 {
-                    s.WriteSentence("!re", $"{TikSpecialProperties.Tag}={tag}", "=name=a", "=mtu=1500");
-                    Done(s, tag);
-                });
+                    var ex = Assert.ThrowsException<TikCommandUnexpectedResponseException>(
+                        () => c.CreateCommand("/interface/print").ExecuteScalar());
+                    StringAssert.Contains(ex.Message, "the row has 2 (name, mtu)");
+                    StringAssert.Contains(ex.Message, "ExecuteScalar(target)");
+                },
+                (s, tag) => AnswerRow(s, tag, "=name=a", "=mtu=1500"));
+        }
+
+        [TestMethod]
+        public void ExecuteScalarOrDefault_OnAMultiFieldRow_Throws()
+        {
+            Exchange(c => Assert.ThrowsException<TikCommandUnexpectedResponseException>(
+                    () => c.CreateCommand("/interface/print").ExecuteScalarOrDefault("x")),
+                (s, tag) => AnswerRow(s, tag, "=name=a", "=mtu=1500"));
+        }
+
+        [TestMethod]
+        public void ExecuteScalar_OnTheIdAndOneField_ReadsTheField()
+        {
+            Exchange(c => Assert.AreEqual("a", c.CreateCommand("/interface/print").ExecuteScalar()),
+                (s, tag) => AnswerRow(s, tag, "=.id=*1", "=name=a"));
+        }
+
+        [TestMethod]
+        public void ExecuteScalar_OnTheIdAlone_ReadsTheId()
+        {
+            Exchange(c => Assert.AreEqual("*1", c.CreateCommand("/interface/print").ExecuteScalar()),
+                (s, tag) => AnswerRow(s, tag, "=.id=*1"));
+        }
+
+        [TestMethod]
+        public void ExecuteScalarAsync_OnAMultiFieldRow_Throws()
+        {
+            Exchange(c => Assert.ThrowsException<TikCommandUnexpectedResponseException>(
+                    () => ((ITikCommandAsync)c.CreateCommand("/interface/print")).ExecuteScalarAsync().GetAwaiter().GetResult()),
+                (s, tag) => AnswerRow(s, tag, "=name=a", "=mtu=1500"));
         }
 
         [TestMethod]

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace tik4net.Connection
 {
@@ -77,6 +78,35 @@ namespace tik4net.Connection
                 return defaultValue;
             throw new TikSentenceException($"Field '{field}' is not in the row the router returned.", row);
         }
+
+        /// <summary>
+        /// The scalar of a one-row answer when no field is named (D18, strict): the row's one field other than
+        /// <c>.id</c> and <c>.tag</c>; with none, the <c>.id</c>, or the empty-answer rule of <see cref="EmptyScalar"/>
+        /// when the row has no <c>.id</c> either; with more than one, <see cref="TikCommandUnexpectedResponseException"/>
+        /// naming them.
+        /// </summary>
+        /// <remarks>
+        /// The order of a row's fields is the transport's, not part of any contract, so "the first field" would be a
+        /// guess: WinBox native printed <c>/system/identity</c> as <c>{ version, name }</c>.
+        /// </remarks>
+        internal static string? ScalarOfRow(ITikCommand command, ITikReSentence row, string verb, bool allowDefault,
+            string? defaultValue)
+        {
+            var fields = row.Words.Keys
+                .Where(k => k != TikSpecialProperties.Id && k != TikSpecialProperties.Tag).ToList();
+            if (fields.Count == 1)
+                return row.Words[fields[0]];
+            if (fields.Count > 1)
+                throw new TikCommandUnexpectedResponseException(MultiFieldMessage(fields), command, row);
+            if (row.Words.TryGetValue(TikSpecialProperties.Id, out var id))
+                return id;
+            return EmptyScalar(command, verb, allowDefault, defaultValue, "returned a row with no fields");
+        }
+
+        /// <summary>The message of <see cref="ScalarOfRow"/>'s refusal of a row with several value fields.</summary>
+        internal static string MultiFieldMessage(IList<string> fields)
+            => $"ExecuteScalar() needs a row with one value field; the row has {fields.Count} ({string.Join(", ", fields)}). "
+               + "Name the field with ExecuteScalar(target), or read the row with ExecuteSingleRow().";
 
         /// <summary>
         /// The one row of a single-row read: none is <see cref="TikNoSuchItemException"/> (or null without
