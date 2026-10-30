@@ -156,6 +156,14 @@ namespace tik4net.Winbox
                 => layers.Any(l => l.Layer != FieldLayer.OwnSynthetic && l.Layer != FieldLayer.Fallback
                                    && l.Fields.ContainsKey(apiName));
 
+            // The keys another window of this handler declares and the path's own window does not (WinBox review
+            // D6). The handler's map is every window's, and its record carries every window's keys: /ip/settings
+            // decoded connection tracking's and neighbour discovery's fields into its row. With a window to go by,
+            // the handler layer keeps only what no other window claims. A path reached by PathOverride (no window)
+            // keeps the whole handler.
+            var otherWindows = layers.Any(l => l.Layer == FieldLayer.Window)
+                ? _catalog.GetOtherWindowKeys(_windowKey) : null;
+
             foreach (var (layer, fields) in layers)
                 switch (layer)
                 {
@@ -164,8 +172,11 @@ namespace tik4net.Winbox
                         break;
                     case FieldLayer.Action:
                     case FieldLayer.Window:
-                    case FieldLayer.Handler:
                         foreach (var kv in Scoped(fields)) if (!Replaced(kv)) yield return kv;
+                        break;
+                    case FieldLayer.Handler:
+                        foreach (var kv in Scoped(fields))
+                            if (!Replaced(kv) && (otherWindows == null || !otherWindows.Contains(kv.Value.Key))) yield return kv;
                         break;
                     case FieldLayer.InheritedSynthetic:
                         foreach (var kv in fields) if (!Replaced(kv)) yield return kv;
@@ -644,6 +655,12 @@ namespace tik4net.Winbox
                 // field out of the decode exactly as it was before panes were harvested.
                 if (!string.Equals(kv.Key, RegisteredNameToReport(kv.Value), StringComparison.OrdinalIgnoreCase))
                     continue;
+                // A `nonpublic:1` declaration is a slot WinBox reads and never paints, and the API does not print
+                // it either: the identity window's 'Version' (sd) made /system/identity/print answer
+                // {version, name}, and ExecuteScalar() the RouterOS version (WinBox review D6). A shipped
+                // synthetic field over such a key (/system/package's bundle) is declared public and still names it,
+                // and so does a key another window of the handler paints (see WinboxJgCatalog.IsDeclaredPublic).
+                if (kv.Value.NonPublic && !_catalog.IsDeclaredPublic(_handler, kv.Value.Key)) continue;
                 Put(kv.Value.Key, AliasToApi(kv.Key));
                 // One declaration, several keys: a union's other address families and a tuple's other parts
                 // (see WinboxJgField.ExtraRegistrations). They answer to the same name, so the row decodes

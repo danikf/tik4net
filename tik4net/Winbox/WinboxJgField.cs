@@ -506,7 +506,10 @@ namespace tik4net.Winbox
         /// window.
         /// </summary>
         /// <remarks>
-        /// It matters only when two declarations of one window claim the same API name. The visible one is
+        /// A nonpublic field is not decoded into a row: the API does not print it either (the identity window's
+        /// <c>Version</c>, <c>/system/resource</c>'s <c>jiffies</c>, <c>/file</c>'s <c>container</c> — WinBox
+        /// review D6). It still takes part in the catalog, where it matters when two declarations of one window
+        /// claim the same API name. The visible one is
         /// the field the API is talking about, because the pairing is built on what WinBox SHOWS; a
         /// <c>nonpublic</c> declaration is an internal slot that happens to be spelled the same. <c>/file</c>
         /// is the case that forced it: <c>[72]</c> declares both <c>{name:'type',id:'u3',nonpublic:1}</c> —
@@ -515,9 +518,8 @@ namespace tik4net.Winbox
         /// <c>/file</c> reported <c>type=5</c> where the API says <c>type=directory</c>.
         ///
         /// So a visible declaration DISPLACES a nonpublic one holding the same name in the catalog, whichever
-        /// order the two are declared in. It is not a blanket demotion: where nothing visible claims the name
-        /// the nonpublic field keeps it, which is how <c>/file</c>'s internal-only <c>family</c>,
-        /// <c>basename</c> and <c>container</c> go on being reported.
+        /// order the two are declared in. Where nothing visible claims the name the nonpublic field keeps it in
+        /// the catalog — a condition (<c>on:'freq'</c>) or a shipped synthetic field may still need its key.
         /// </remarks>
         internal bool NonPublic { get; }
 

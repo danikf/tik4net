@@ -82,7 +82,9 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual("disabled", decoded["state"], "the live pair: 0x8=False alongside state=disabled");
             Assert.AreEqual("enabled", decoded["state-after-reboot"], "and 0x9=True alongside enabled");
-            Assert.AreEqual("0", decoded["caps"], "the field the .jg DOES name is unaffected");
+            // `caps` is the window's nonpublic slot: WinBox never paints it and the API does not print it on a
+            // CHR (the D6 sweep, 7.25), so a synthetic field beside it does not bring it back.
+            Assert.IsFalse(decoded.ContainsKey("caps"), "a nonpublic field is not decoded into the row");
         }
 
         /// <summary>

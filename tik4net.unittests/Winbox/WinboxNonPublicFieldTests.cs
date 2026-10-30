@@ -67,13 +67,13 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
-        public void AnInvisibleFieldNoOneContestsStillAnswers()
+        public void AnInvisibleFieldIsNotDecodedEvenWhenNoOneContestsIt()
         {
-            // The point of demoting rather than dropping: /file's own container/family/basename are all
-            // nonpublic and are the only declaration of their key.
+            // /file's container/family/basename are nonpublic and the only declaration of their key, and the API's
+            // /file print has none of them (7.25: name, type, last-modified on a directory). WinBox review D6.
             var fields = Decode((0x5, M2Type.U32, 134348884U));
 
-            Assert.AreEqual("134348884", fields["container"]);
+            Assert.IsFalse(fields.ContainsKey("container"));
         }
 
         [TestMethod]

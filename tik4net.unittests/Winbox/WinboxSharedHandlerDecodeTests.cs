@@ -194,5 +194,42 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual("100ms", decoded["arp-interval"], "the API prints it on a mii bond");
             Assert.AreEqual("100ms", decoded["mii-interval"]);
         }
+            // Two singleton windows on one handler, the shape of /ip/settings and connection tracking (WinBox review D6):
+        // the record carries both windows' keys, and a path is decoded by its own window.
+        private const string TwoSettingsWindows =
+            "[{name:'IP',c:[{name:'Settings',title:'IP Settings',type:'item',path:[ 47,0 ],c:[" +
+            "{name:'IP Forward',type:'bool',id:'b1'},{name:'ARP Timeout',type:'interval',id:'u2'}]}," +
+            "{name:'Tracking',title:'Tracking',type:'item',path:[ 47,0 ],c:[" +
+            "{name:'Enabled',type:'bool',id:'b5'},{name:'TCP Timestamps',type:'bool',id:'b6'}]}]}]";
+
+        private static Dictionary<string, string> DecodeWindow(string windowSuffix, string windowKeyOverride = null)
+        {
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto(TwoSettingsWindows));
+            string windowKey = windowKeyOverride ?? catalog.GetDerivedPaths().Keys.FirstOrDefault(k => k.EndsWith(windowSuffix, StringComparison.Ordinal));
+            if (windowKeyOverride == null) Assert.IsNotNull(windowKey, "the window must be harvested under a derived path");
+            return Decode(TwoSettingsWindows, "/ip/settings", new[] { 47, 0 }, windowKey,
+                (0x1, M2Type.Bool, (object)true), (0x2, M2Type.U32, (object)30u),
+                (0x5, M2Type.Bool, (object)true), (0x6, M2Type.Bool, (object)false));
+        }
+
+        [TestMethod]
+        public void APathIsDecodedByItsOwnWindowNotByTheOtherWindowsOnItsHandler()
+        {
+            var settings = DecodeWindow("/settings");
+            CollectionAssert.AreEquivalent(new[] { "ip-forward", "arp-timeout" }, settings.Keys.ToList(),
+                "the other window's enabled / tcp-timestamps are not this path's fields");
+
+            var tracking = DecodeWindow("/tracking");
+            CollectionAssert.AreEquivalent(new[] { "enabled", "tcp-timestamps" }, tracking.Keys.ToList());
+        }
+
+        [TestMethod]
+        public void APathWithNoWindowKeepsTheWholeHandler()
+        {
+            // A path reached by PathOverride has no window to scope by.
+            var decoded = DecodeWindow("", windowKeyOverride: "");
+            Assert.AreEqual(4, decoded.Count, string.Join(",", decoded.Keys));
+        }
     }
 }

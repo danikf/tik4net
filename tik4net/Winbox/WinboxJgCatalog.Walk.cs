@@ -555,6 +555,7 @@ namespace tik4net.Winbox
                 prefix: prefix, elementScale: elementScale, relative: relative, refHandlers: refHandlers)
                 { ElementStatusParts = elementStatusParts };
             _labels[field] = label;
+            if (!nonPublic) _publicKeys.Add((HandlerOfOwner(handlerKey), key));
             if (!_fieldsByLabel.TryGetValue(handlerKey, out var ownLabels))
                 _fieldsByLabel[handlerKey] = ownLabels = new Dictionary<string, WinboxJgField>(StringComparer.Ordinal);
             if (!ownLabels.ContainsKey(label)) ownLabels[label] = field;

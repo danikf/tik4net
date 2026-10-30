@@ -426,9 +426,10 @@ Handler `[24,1]`:
 A read returns `{"version":"…","identity":"…"}`, while the API returns `{"name":"…"}`.
 `WinboxFieldResolver` ships a field alias (`name ↔ identity`) for this handler.
 
-The `version` field is not discarded: `nonpublic:1` does not mean "not an API field" — several fields
-the API routinely returns carry it too (`MAC Address`, `Interface`, `L2 MTU`). Native records are
-generally a superset of API fields, and the mapper ignores the extras it doesn't need.
+The `version` field is not decoded: a `nonpublic:1` declaration is a slot WinBox never paints, and the API
+does not print it, unless another window of the same handler declares the key visibly (see
+[winbox-native-m2-protocol.md](winbox-native-m2-protocol.md), *Fields on a handler several windows share*). So
+`/system/identity/print` is `{ name }` on every transport, and `ExecuteScalar()` on it answers the identity.
 
 ### 14.2 `multilinestring` is a scalar string, not a list
 

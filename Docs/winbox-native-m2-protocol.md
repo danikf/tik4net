@@ -1324,6 +1324,16 @@ ids through it.
 
 ### Fields on a handler several windows share
 
+**A path is decoded by its own window.** A handler's record carries the keys of every window on it, and the
+handler's field map is all of those windows' fields: `/ip/settings`, connection tracking and neighbour discovery
+share one handler, NTP client and server another, and a print decoded by the handler map returned 79 and 80 fields
+the API does not print on the first two, and each NTP window's fields on the other. When the path resolves to a
+window, the handler layer contributes only the keys no *other* handler-backed window of that handler declares
+(`WinboxJgCatalog.GetOtherWindowKeys`); a path reached by `PathOverride` has no window and keeps the whole handler.
+Interface subtype windows are not handler-backed (their fields never enter `[20,0]`'s map) and do not take part.
+Measured on 7.25 by `WinboxNativeFieldScopeSweepTest`, which compares a plain `print` of every `[TikEntity]` path
+with the API's on both native transports.
+
 Measured on 7.24.2, each on a seeded row:
 
 * **A flag key is consumed only when no other field owns it.** The decoder drops an opt/not field's flag key
@@ -2359,10 +2369,13 @@ Three shapes account for most of the pairings, and none of them is a spelling di
   `{name:'type',id:'u3',nonpublic:1}` — the numeric file kind — before `{name:'Type',id:'s7'}`, the text
   RouterOS prints, and the router sends BOTH on every row (`0x3=5` and `0x7=directory` side by side in
   one record). Since the whole api-name ↔ WinBox pairing is built on what the window SHOWS, the visible
-  declaration is the one the API is naming, and it now displaces a `nonpublic` incumbent whichever order
-  the two appear in. Not a blanket demotion: 465 declarations across the router's plugins carry the flag,
-  and where nothing visible contests the name the field keeps it — which is how `/file`'s own internal
-  `family`, `basename` and `container` go on being reported.
+  declaration is the one the API is naming, and it displaces a `nonpublic` incumbent whichever order
+  the two appear in. A `nonpublic` field is not decoded into a row either: the API does not print the identity
+  window's `Version`, `/system/resource`'s `jiffies`, `/system/health`'s `caps` or `/file`'s `container`,
+  `family` and `basename`. The exception is a key some window of the same handler declares visibly — the generic
+  interface window's `MTU` is `nonpublic`, every subtype window redeclares it with `override:1`, and the API
+  prints `mtu` on `/interface` (`WinboxJgCatalog.IsDeclaredPublic`). A shipped synthetic field over a
+  `nonpublic` key (`/system/package`'s `bundle`) names it as before.
 * **A unit webfig paints beside the box is part of the API's value.** `types.kbytes` renders "N KiB"
   straight from the wire number, unlike `types.bytes` which is already in bytes — so a `kbytes` field read
   1024 times too small. `/system/resource` on 7.24, exact to the byte: total-memory 4194304 →

@@ -304,6 +304,69 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// The M2 keys that the OTHER windows on the handler of <paramref name="derivedPath"/> declare, and the window
+        /// itself does not: the part of the handler's map that belongs to a different window. Empty when the path
+        /// names no handler-backed window.
+        /// </summary>
+        /// <remarks>
+        /// A handler's record carries the keys of every window on it — <c>/ip/settings</c>, connection tracking and
+        /// neighbour discovery share one handler, NTP client and server another — and a decode by the handler's map
+        /// names all of them (WinBox review D6). Only handler-backed windows count: an interface subtype
+        /// window's fields never went into the handler map, so they are nothing a decode of <c>/interface</c> has to
+        /// leave out.
+        /// </remarks>
+        internal ICollection<int> GetOtherWindowKeys(string? derivedPath)
+        {
+            if (derivedPath == null) return Array.Empty<int>();
+            lock (_otherWindowKeys)
+            {
+                if (_otherWindowKeys.TryGetValue(derivedPath, out var cached)) return cached;
+                var self = JgOwner.Window(derivedPath);
+                var keys = new HashSet<int>();
+                if (_handlerBackedWindows.Contains(self) && _windowHandlerKey.TryGetValue(self, out var handlerOwner))
+                {
+                    foreach (var kv in _windowHandlerKey)
+                        if (!kv.Key.Equals(self) && kv.Value.Equals(handlerOwner) && _handlerBackedWindows.Contains(kv.Key)
+                            && _byHandler.TryGetValue(kv.Key, out var fields))
+                            foreach (var f in fields.Values) AddKeysOf(f, keys);
+                    if (_byHandler.TryGetValue(self, out var own))
+                    {
+                        var ownKeys = new HashSet<int>();
+                        foreach (var f in own.Values) AddKeysOf(f, ownKeys);
+                        keys.ExceptWith(ownKeys);
+                    }
+                }
+                _otherWindowKeys[derivedPath] = keys;
+                return keys;
+            }
+
+            static void AddKeysOf(WinboxJgField f, HashSet<int> into)
+            {
+                into.Add(f.Key);
+                if (f.ExtraRegistrations != null)
+                    foreach (var extra in f.ExtraRegistrations) into.Add(extra.Key);
+            }
+        }
+
+        /// <summary>
+        /// Whether some window on <paramref name="handler"/> — an interface subtype window included — declares
+        /// <paramref name="key"/> as a field WinBox paints (no <c>nonpublic:1</c>).
+        /// </summary>
+        /// <remarks>
+        /// A nonpublic declaration is not decoded (see <see cref="WinboxJgField.NonPublic"/>) unless the key is a real
+        /// field elsewhere: the generic interface window's <c>MTU</c> is nonpublic and every subtype window redeclares it
+        /// visible (<c>override:1</c>), and the API prints <c>mtu</c> on <c>/interface</c>.
+        /// </remarks>
+        internal bool IsDeclaredPublic(WinboxHandler handler, int key) => _publicKeys.Contains((JgOwner.Of(handler), key));
+
+        // (handler owner, key) of every visible declaration; see IsDeclaredPublic.
+        private readonly HashSet<(JgOwner Handler, int Key)> _publicKeys = new HashSet<(JgOwner Handler, int Key)>();
+
+        // derived path → GetOtherWindowKeys' answer; cleared whenever another plugin is parsed in.
+        private readonly Dictionary<string, ICollection<int>> _otherWindowKeys =
+            new Dictionary<string, ICollection<int>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
         /// API paths derived from the <c>.jg</c> menu tree: <c>derivedApiPath → handler</c>.
         /// Built from every <c>type:'map'/'query'</c> window node (its <c>path:[…]</c> handler keyed by
         /// the normalized enclosing <c>group</c> + node <c>name</c>). Dropdown references

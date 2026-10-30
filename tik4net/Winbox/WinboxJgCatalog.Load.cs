@@ -383,6 +383,7 @@ namespace tik4net.Winbox
                 Walk(tree, null, new List<string>());
                 SettleTitleNames();
                 ResolveConditions();
+                lock (_otherWindowKeys) _otherWindowKeys.Clear();
                 return true;
             }
             catch (Exception ex)
