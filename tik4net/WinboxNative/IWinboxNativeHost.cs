@@ -65,11 +65,12 @@ namespace tik4net.WinboxNative
 
         /// <summary>
         /// A refusal the client makes before sending anything, as the trap the router would raise over the API. The one
-        /// place such a refusal is classified (review D7).
+        /// place such a refusal is classified (review D7). <paramref name="innerException"/> is the client-side reason, when
+        /// there is one to hand on.
         /// </summary>
-        TikCommandException TrapFor(string commandText, string message);
+        TikCommandException TrapFor(string commandText, string message, Exception? innerException = null);
 
-        /// <summary>As <see cref="TrapFor(string, string)"/>, with the descriptor's parameters on the command.</summary>
+        /// <summary>As <see cref="TrapFor(string, string, Exception)"/>, with the descriptor's parameters on the command.</summary>
         TikCommandException TrapFor(TikCommandDescriptor descriptor, string message);
 
         /// <summary>The command gate for one M2 operation: a no-op on a multiplexed session.</summary>

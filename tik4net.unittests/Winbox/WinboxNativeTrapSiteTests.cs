@@ -7,6 +7,9 @@
 //   /ip/firewall/filter/unset .id=… value-name=nosuchfield → "input does not match any value of value-name"
 //   /ip/firewall/filter/unset .id=…                        → "missing =value-name="
 //   /tool/torch interface=… duration=abc                   → "invalid time value for argument duration"
+//   /ip/address/set .id=… nosuchfield=1 (and add, and /interface/monitor-traffic … nosuchfield=1)
+//                                                          → "unknown parameter nosuchfield"
+//   /ip/address/set .id=… dynamic=no                       → "unknown parameter dynamic"
 // Router-free: the real connection over a scripted channel.
 
 using System;
@@ -69,6 +72,35 @@ namespace tik4net.unittests.Winbox
         public void AnUnsetNamingAFieldTheWindowLacks_IsAPlainTrap()
             => AssertRefusedBeforeSending(h => h.Connection.CreateCommandAndParameters("/x/y/unset",
                 ".id", "*1", "value-name", "nosuchfield").ExecuteNonQuery(), "nosuchfield");
+
+        // F13: a name with no M2 key is the API's "unknown parameter"; the resolution exception, which says how to add a
+        // FieldOverride when the gap is ours, is underneath.
+        private static void AssertUnknownParameter(string verb, string field, params string[] more)
+        {
+            var args = new System.Collections.Generic.List<string>(more) { field, "1" };
+            AssertRefusedBeforeSending(h => h.Connection.CreateCommandAndParameters("/x/y/" + verb, args.ToArray())
+                .ExecuteNonQuery(), "unknown parameter " + field);
+            using (var h = new NativeConnectionHarness(Window))
+            {
+                var ex = Assert.ThrowsException<TikCommandTrapException>(() => h.Connection
+                    .CreateCommandAndParameters("/x/y/" + verb, args.ToArray()).ExecuteNonQuery());
+                Assert.AreEqual("unknown parameter " + field, ex.Message);
+                Assert.IsInstanceOfType(ex.InnerException, typeof(WinboxFieldResolutionException));
+                Assert.AreEqual(0, h.RequestsWithCommand(WinboxM2Protocol.Command.Add).Count, "nothing was added");
+            }
+        }
+
+        [TestMethod]
+        public void ASetNamingAFieldTheWindowLacks_IsTheApisUnknownParameter()
+            => AssertUnknownParameter("set", "nosuchfield", ".id", "*1");
+
+        [TestMethod]
+        public void AnAddNamingAFieldTheWindowLacks_IsTheApisUnknownParameter()
+            => AssertUnknownParameter("add", "nosuchfield", "name", "a");
+
+        [TestMethod]
+        public void ASetOfARowState_IsTheApisUnknownParameter()
+            => AssertUnknownParameter("set", "dynamic", ".id", "*1");
 
         [TestMethod]
         public void AnUnsetNamingNoField_IsAPlainTrap()

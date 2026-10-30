@@ -847,7 +847,7 @@ namespace tik4net.Winbox
             throw new WinboxFieldResolutionException(
                 $"WinBox native: cannot resolve API field '{apiName}' on '{_apiPath}' to an M2 key. " +
                 $"Add a session field override (connection.FieldOverride(\"{_apiPath}\", \"{apiName}\", key)) " +
-                $"or use a WinboxCli connection instead.");
+                $"or use a WinboxCli connection instead.", unknownFieldName: apiName);
         }
 
         /// <summary>
@@ -974,12 +974,30 @@ namespace tik4net.Winbox
 
     /// <summary>
     /// Thrown when the WinBox native field resolver cannot unambiguously map an API field name to an
-    /// M2 key. The message tells the caller how to recover (session override or a WinboxCli connection).
+    /// M2 key, or cannot encode or decode a value. The message tells the caller how to recover (session override or a
+    /// WinboxCli connection).
     /// </summary>
+    /// <remarks>
+    /// A write (<c>set</c>, <c>add</c>, an action's or monitor's argument) naming a field with no M2 key does not
+    /// throw this: it throws the binary API's <c>unknown parameter &lt;name&gt;</c> <see cref="TikCommandTrapException"/>,
+    /// with this exception as its <see cref="System.Exception.InnerException"/>, because native cannot tell a field the router
+    /// lacks from one the catalog mapping lacks. Nothing is sent either way.
+    /// </remarks>
     public sealed class WinboxFieldResolutionException : TikConnectionException
     {
         /// <summary>.ctor</summary>
         public WinboxFieldResolutionException(string message) : base(message) { }
+
+        internal WinboxFieldResolutionException(string message, string unknownFieldName) : base(message)
+        {
+            UnknownFieldName = unknownFieldName;
+        }
+
+        /// <summary>
+        /// The field name that resolved to no M2 key, when that is the failure (rather than a value the encoder
+        /// cannot write). A write naming it is the router's "unknown parameter" (see <c>WinboxNativeWriter</c>).
+        /// </summary>
+        internal string? UnknownFieldName { get; }
     }
 
     /// <summary>

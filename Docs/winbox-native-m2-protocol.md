@@ -1954,8 +1954,9 @@ the word RouterOS itself uses on that path — never both at once, and never one
 
 **They are state, not configuration, so they resolve for a READ only.** The router computes them and the
 API refuses to write one (`unknown parameter dynamic`); a seed that resolved for a write would send an
-untyped value at a bool key, which the router accepts, answers, and ignores. Writing one raises a
-`WinboxFieldResolutionException` instead. They are also filled in LAST, so a window that declares a field
+untyped value at a bool key, which the router accepts, answers, and ignores. Writing one raises the API's
+`TikCommandTrapException` "unknown parameter <name>" instead, as every write naming a field with no key does, with the
+resolver's `WinboxFieldResolutionException` as its `InnerException` (`WinboxNativeWriter.EncodeNameValueFields`). They are also filled in LAST, so a window that declares a field
 at one of those keys keeps its own name for it.
 
 ### 33.1 The name gap, and the tool that closes it

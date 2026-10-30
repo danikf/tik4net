@@ -96,8 +96,8 @@ namespace tik4net.WinboxNative
             => TranslateM2Error(ex, commandText);
         WinboxFieldResolver IWinboxNativeHost.MakeResolver(string apiPath, WinboxHandler handler, string? actionLabel, string? windowPath)
             => MakeResolver(apiPath, handler, actionLabel, windowPath);
-        TikCommandException IWinboxNativeHost.TrapFor(string commandText, string message)
-            => TrapFor(CommandFor(commandText), message);
+        TikCommandException IWinboxNativeHost.TrapFor(string commandText, string message, Exception? innerException)
+            => TrapFor(CommandFor(commandText), message, innerException);
         TikCommandException IWinboxNativeHost.TrapFor(TikCommandDescriptor descriptor, string message)
             => TrapFor(CommandFor(descriptor), message);
         CommandGate IWinboxNativeHost.EnterCommand() => EnterCommand();
@@ -1286,8 +1286,8 @@ namespace tik4net.WinboxNative
         /// Every client-side refusal comes through here, so how they are classified is decided in one place (review
         /// D7, which measures each against the API).
         /// </remarks>
-        private static TikCommandException TrapFor(ITikCommand command, string message)
-            => new TikCommandTrapException(command, new TikTrapSentenceResult(message));
+        private static TikCommandException TrapFor(ITikCommand command, string message, Exception? innerException = null)
+            => new TikCommandTrapException(command, new TikTrapSentenceResult(message), innerException);
 
         /// <summary>
         /// Whether the window <paramref name="apiPath"/> resolves to is a singleton (get-singleton /

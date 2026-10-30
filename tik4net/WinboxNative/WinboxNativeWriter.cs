@@ -265,6 +265,13 @@ namespace tik4net.WinboxNative
                 {
                     throw _host.TrapFor(descriptor.CommandText, ex.Message);
                 }
+                // A name with no M2 key is what the router answers "unknown parameter <name>" for over the API (a
+                // misspelling, a read-only row state such as 'dynamic'). Native cannot tell that from a catalog gap
+                // of ours, so the resolution exception, which says how to add a FieldOverride, rides underneath.
+                catch (WinboxFieldResolutionException ex) when (ex.UnknownFieldName != null)
+                {
+                    throw _host.TrapFor(descriptor.CommandText, "unknown parameter " + p.Name, ex);
+                }
             }
             return fields;
         }

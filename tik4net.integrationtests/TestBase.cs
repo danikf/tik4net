@@ -652,7 +652,10 @@ namespace tik4net.integrationtests
         /// </summary>
         protected static bool IsWinboxNativeUnsupported(Exception ex)
         {
-            if (ex is tik4net.Winbox.WinboxFieldResolutionException)
+            // A write naming a field with no M2 key reaches the caller as the API's "unknown parameter" trap, with the
+            // resolution exception underneath; a catalog gap of ours looks the same, so both stay a skip here.
+            if (ex is tik4net.Winbox.WinboxFieldResolutionException
+                || ex.InnerException is tik4net.Winbox.WinboxFieldResolutionException)
                 return true;
             return ex is TikCommandTrapException
                 && ex.Message.IndexOf("WinBox native", StringComparison.OrdinalIgnoreCase) >= 0

@@ -186,6 +186,12 @@ namespace tik4net
         /// Adds a session field override <c>apiName → key</c> for the given API path. Takes priority over
         /// the <c>.jg</c> catalog and the normalizer when resolving fields on that path.
         /// </summary>
+        /// <remarks>
+        /// The case it is for: a write naming a field the catalog has no key for throws the binary API's
+        /// <c>unknown parameter &lt;name&gt;</c> <see cref="TikCommandTrapException"/>, with a
+        /// <see cref="Winbox.WinboxFieldResolutionException"/> as its <see cref="System.Exception.InnerException"/>. When the
+        /// router does have the field, the override supplies the key.
+        /// </remarks>
         /// <param name="apiPath">API path, e.g. <c>/interface</c>.</param>
         /// <param name="apiName">RouterOS API field name, e.g. <c>mtu</c>.</param>
         /// <param name="key">M2 numeric field key.</param>

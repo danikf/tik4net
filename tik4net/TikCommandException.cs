@@ -124,6 +124,14 @@ namespace tik4net
             CodeDescription = trapSentence.CategoryDescription;
         }
 
+        // Library-internal: a refusal a transport makes for the router, carrying the client-side reason underneath.
+        internal TikCommandTrapException(ITikCommand command, ITikTrapSentence trapSentence, Exception? innerException)
+            : base(command, trapSentence.Message, innerException)
+        {
+            Code = trapSentence.CategoryCode;
+            CodeDescription = trapSentence.CategoryDescription;
+        }
+
         /// <summary>
         /// .ctor. <see cref="Code"/> and <see cref="CodeDescription"/> are <c>-1</c> / <c>category not provided</c>,
         /// as for a trap sentence that names no category.
