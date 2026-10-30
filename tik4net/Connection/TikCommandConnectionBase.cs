@@ -144,6 +144,19 @@ namespace tik4net.Connection
         protected virtual Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
 
+        /// <summary>
+        /// The read of <c>ExecuteListUntilDone(timeout)</c>: run until the command ends by itself, or until
+        /// <paramref name="cancellationToken"/> (the caller's deadline) stops it. Default: <see cref="RunPrintAsync"/>.
+        /// </summary>
+        /// <remarks>
+        /// Internal, so the transport-author surface does not change. A transport whose plain read of a never-ending
+        /// command returns a snapshot (WinBox native's continuous monitor windows, <c>/tool/torch</c>) overrides it to
+        /// keep reading, so the deadline ends the read as it does on the binary API.
+        /// </remarks>
+        internal virtual Task<IList<TikRecordSentence>> RunPrintUntilDoneAsync(TikCommandDescriptor descriptor,
+            CancellationToken cancellationToken)
+            => RunPrintAsync(descriptor, cancellationToken);
+
         /// <summary>Async <see cref="RunAdd"/>. Default: not supported (see the note on the async hooks).</summary>
         protected virtual Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
@@ -200,6 +213,15 @@ namespace tik4net.Connection
             descriptor = Canonical(descriptor);
             CheckFilters(descriptor);
             return TikProplist.Apply(descriptor, await RunPrintAsync(descriptor, cancellationToken).ConfigureAwait(false));
+        }
+
+        /// <summary>As <see cref="InvokeRunPrintAsync"/>, through <see cref="RunPrintUntilDoneAsync"/>.</summary>
+        internal async Task<IList<TikRecordSentence>> InvokeRunPrintUntilDoneAsync(TikCommandDescriptor descriptor,
+            CancellationToken cancellationToken)
+        {
+            descriptor = Canonical(descriptor);
+            CheckFilters(descriptor);
+            return TikProplist.Apply(descriptor, await RunPrintUntilDoneAsync(descriptor, cancellationToken).ConfigureAwait(false));
         }
 
         internal async Task<string> InvokeRunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)

@@ -288,7 +288,12 @@ namespace tik4net.integrationtests
         [ExpectedException(typeof(TikCommandAbortException))]
         public void ExecuteListUntilDone_NeverEndingCommand_ThrowsAbortException()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "torch streaming");
+            // The API and WinBox native (which reads the torch window until the deadline). The CLI family traps on the
+            // read ("input does not match any value of interface"), handed to the CLI review.
+            var type = ResolveConnectionType();
+            if (!Connection.Supports(TikConnectionCapability.Streaming)
+                && type != TikConnectionType.WinboxNative && type != TikConnectionType.WinboxNativeMac)
+                Assert.Inconclusive($"{type}: torch through ExecuteListUntilDone is the CLI review's open item.");
             // /tool/torch never sends !done on its own — timeout must kick in
             var cmd = Connection.CreateCommandAndParameters("/tool/torch", TikCommandParameterFormat.NameValue,
                 "interface", TestConstants.Interface);

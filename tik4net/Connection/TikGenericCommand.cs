@@ -387,6 +387,25 @@ namespace tik4net.Connection
             }
         }
 
+        // ExecuteListUntilDone's bounded read: the transport's own until-done read, which runs a never-ending command
+        // until the deadline where its plain read would answer a snapshot (TikCommandConnectionBase.RunPrintUntilDoneAsync).
+        private async Task<IList<ITikReSentence>> ExecuteListUntilDoneInternalAsync(CancellationToken cancellationToken)
+        {
+            EnsureConnectionSet();
+            EnsureCommandTextSet();
+            cancellationToken.ThrowIfCancellationRequested();
+            BeginRun();
+            try
+            {
+                var rows = await Transport.InvokeRunPrintUntilDoneAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
+                return rows.Cast<ITikReSentence>().ToList();
+            }
+            finally
+            {
+                EndRun();
+            }
+        }
+
         // ── Unsupported: streaming / async ────────────────────────────────────
 
         public override IEnumerable<ITikReSentence> ExecuteListWithDuration(TimeSpan duration)
@@ -416,7 +435,7 @@ namespace tik4net.Connection
                 IList<ITikReSentence> rows;
                 try
                 {
-                    rows = ExecuteListInternalAsync(deadline.Token).GetAwaiter().GetResult();
+                    rows = ExecuteListUntilDoneInternalAsync(deadline.Token).GetAwaiter().GetResult();
                 }
                 catch (OperationCanceledException) when (deadline.IsCancellationRequested)
                 {

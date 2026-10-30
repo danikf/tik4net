@@ -329,9 +329,12 @@ the API and in the terminal. A WinBox window has no such input — "a single rea
 client — and attempting to encode it results in a `WinboxFieldResolutionException` on a field the
 caller never meant as data (`IsMonitorSnapshotModifier`).
 
-**Known limitation:** `/ping` without `count` (and `/tool/torch` via `ExecuteList`) run until
-something stops them; a synchronous read is bounded by `ReceiveTimeout` and ends in a
-`TikConnectionReceiveTimeoutException` instead of holding the thread forever.
+A read of a continuous window (`/tool/torch`, `ExecuteList`) is its first pass, the snapshot. Under
+`ExecuteListUntilDone(timeout)` the window is polled pass after pass until the caller's timeout cancels it
+(`TikCommandAbortException`, the window closed with its `cancelcmd`), as the binary API reads a torch until the
+timeout ends it. A self-terminating command with no bound (`/ping` without `count`) runs until something stops it;
+a plain synchronous read is bounded by `ReceiveTimeout` and ends in a `TikConnectionReceiveTimeoutException`
+instead of holding the thread forever.
 
 ## 23. `addr` is a compound field, and IPv6 rides as its own ftype
 

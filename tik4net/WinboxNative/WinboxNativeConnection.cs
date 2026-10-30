@@ -579,8 +579,18 @@ namespace tik4net.WinboxNative
             => RunPrintAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        protected override async Task<IList<TikRecordSentence>> RunPrintAsync(
+        protected override Task<IList<TikRecordSentence>> RunPrintAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => RunPrintAsync(descriptor, untilDone: false, cancellationToken);
+
+        // ExecuteListUntilDone(timeout): a continuous monitor window (/tool/torch) is read until the caller's deadline
+        // instead of for one pass, as the binary API reads it until the timeout ends it.
+        internal override Task<IList<TikRecordSentence>> RunPrintUntilDoneAsync(
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => RunPrintAsync(descriptor, untilDone: true, cancellationToken);
+
+        private async Task<IList<TikRecordSentence>> RunPrintAsync(
+            TikCommandDescriptor descriptor, bool untilDone, CancellationToken cancellationToken)
         {
             int generation = _sessionGeneration;
             try
@@ -592,7 +602,7 @@ namespace tik4net.WinboxNative
                 {
                     // M2 has no field projection: a getall returns every key, and the base trims the rows to
                     // .proplist (TikProplist).
-                    return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                    return await RunPrintCoreAsync(descriptor, cancellationToken, untilDone).ConfigureAwait(false);
                 }
             }
             catch (TikConnectionSessionClosedException) when (SessionRebuildAllowed)
@@ -604,7 +614,7 @@ namespace tik4net.WinboxNative
                 // of it is a guess this transport must not make.
                 await ReopenAsync(generation, cancellationToken).ConfigureAwait(false);
                 using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
-                    return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                    return await RunPrintCoreAsync(descriptor, cancellationToken, untilDone).ConfigureAwait(false);
             }
         }
 
@@ -651,7 +661,7 @@ namespace tik4net.WinboxNative
             => RunPrintCoreAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         private async Task<IList<TikRecordSentence>> RunPrintCoreAsync(
-            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken, bool untilDone = false)
         {
             TakeLabelHints(descriptor);   // here, not in RunPrintAsync: background workers enter the core directly
             EnsureNativeOpen();
@@ -710,8 +720,8 @@ namespace tik4net.WinboxNative
             {
                 var monitorSpec = _catalog.GetMonitorByHandler(handler);
                 if (monitorSpec != null)
-                    return await _monitor.RunMonitorWindowAsync(monitorSpec, apiPath, handler, descriptor, cancellationToken)
-                        .ConfigureAwait(false);
+                    return await _monitor.RunMonitorWindowAsync(monitorSpec, apiPath, handler, descriptor, cancellationToken,
+                            untilDone).ConfigureAwait(false);
             }
 
             var plan = MakeResolver(apiPath, handler).DecodePlan();

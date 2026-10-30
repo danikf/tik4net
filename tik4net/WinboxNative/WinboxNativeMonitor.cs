@@ -141,13 +141,13 @@ namespace tik4net.WinboxNative
         /// </remarks>
         internal async Task<IList<TikRecordSentence>> RunMonitorWindowAsync(
             WinboxMonitorSpec spec, string apiPath, WinboxHandler handler, TikCommandDescriptor descriptor,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken, bool untilDone = false)
         {
             var rows = new List<TikRecordSentence>();
             try
             {
                 await RunPassesAsync(spec, descriptor, _host.MakeResolver(apiPath, handler), rows.Add, () => rows.Count,
-                    handle: null, cancellationToken).ConfigureAwait(false);
+                    handle: null, cancellationToken, untilDone).ConfigureAwait(false);
             }
             catch (WinboxM2OperationException ex) { throw _host.TranslateM2Error(ex, descriptor.CommandText); }
             return rows;
@@ -187,9 +187,12 @@ namespace tik4net.WinboxNative
         /// the read method runs under its caller's gate already.
         /// </param>
         /// <param name="cancellationToken">The read method's token; the cancel request itself never carries it.</param>
+        /// <param name="untilDone">A read for <c>ExecuteListUntilDone(timeout)</c>: a continuous window is not ended after
+        /// its first pass nor by the receive timeout; it runs until <paramref name="cancellationToken"/> (the caller's
+        /// deadline) or the router's Finished ends it.</param>
         private async Task RunPassesAsync(WinboxMonitorSpec spec, TikCommandDescriptor descriptor,
             WinboxFieldResolver resolver, Action<TikRecordSentence> onRow, Func<int>? rowCount, TikMonitorHandle? handle,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken, bool untilDone = false)
         {
             bool callback = handle != null;
             var plan = resolver.DecodePlan();
@@ -217,7 +220,7 @@ namespace tik4net.WinboxNative
                 // republishes a longer table every autorefresh until the last hop is probed. A continuous
                 // window has no end to wait for, so for a read the first pass IS the answer.
                 bool waitForDone = TikMonitorVerbs.SelfTerminating(TikPath.Verb(descriptor.CommandText));
-                DateTime? deadline = callback ? (DateTime?)null : DateTime.UtcNow.AddMilliseconds(_host.ReceiveTimeoutMs);
+                DateTime? deadline = callback || untilDone ? (DateTime?)null : DateTime.UtcNow.AddMilliseconds(_host.ReceiveTimeoutMs);
 
                 // A caller's duration= keeps a continuous window open for that long and then ends it, the way the
                 // API streams a report per refresh until the duration ends and closes with !done
@@ -253,7 +256,7 @@ namespace tik4net.WinboxNative
                     {
                         if (DateTime.UtcNow >= runUntil.Value) break;   // the caller's duration is over
                     }
-                    else if (!waitForDone && !callback) break;   // read of a continuous window: one pass is the snapshot
+                    else if (!waitForDone && !callback && !untilDone) break;   // read of a continuous window: one pass is the snapshot
 
                     // A read is bounded so a command that never finishes fails like any other unfinished read
                     // instead of hanging on this thread forever.
