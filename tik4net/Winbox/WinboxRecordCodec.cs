@@ -198,7 +198,11 @@ namespace tik4net.Winbox
                 // under its master in the list. Reported as `type` that read `474` where the API says
                 // `eoip`. A row whose value contradicts the field's declared wire type gets no value at
                 // all, which is the honest answer: we do not know this row's type, and saying nothing is
-                // not the same as saying a number.
+                // not the same as saying a number. The reverse — text on a number key — is what another M2
+                // client leaves when it writes a non-IPv4 text to an IPv4 field (7.25: the API printed
+                // src-address="" and decoding the row threw, failing the whole table); RouterOS itself sends
+                // none (every catalog word on a number key is an enm member, and a sweep of three routers
+                // found no such row), so it is dropped the same way.
                 if (IsWireKindContradiction(jf, kv.Value.Type))
                 {
                     if (TryLearnedKindWord(jf!, rec, out string? kindWord)) { fields[apiName] = kindWord!; continue; }

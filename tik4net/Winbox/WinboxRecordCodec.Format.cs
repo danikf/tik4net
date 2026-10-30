@@ -781,13 +781,16 @@ namespace tik4net.Winbox
                     Learn(kindField, rec, v.Value);
         }
 
-        // A field declared as text that the row carries as a number. Only a scalar declaration says anything this
-        // strong: a list, a message or an address is carried in shapes this comparison does not model. The other
-        // direction — a number declared, text carried — is not caught (the two were compared in two spellings
-        // of the type, so it never fired; F10).
+        // A field declared as text that the row carries as a number, or declared as a number that the row carries as
+        // text. Only a scalar declaration says anything this strong: a list or a message is carried in shapes this
+        // comparison does not model. A key the window declares in both kinds never gets here — the value is looked
+        // up under its own kind first.
         private static bool IsWireKindContradiction(WinboxJgField? jf, M2Type wireType)
-            => jf != null && jf.WireType == M2Type.String
-               && (wireType == M2Type.U32 || wireType == M2Type.U64);
+            => jf != null
+               && ((jf.WireType == M2Type.String && IsNumber(wireType))
+                   || (IsNumber(jf.WireType) && wireType == M2Type.String));
+
+        private static bool IsNumber(M2Type type) => type == M2Type.U32 || type == M2Type.U64;
 
         // The postfixes acted on: the two that mean TIME. 'min', 'MHz', '%' and the rest are units the API
         // spells the same way WinBox does (a bare number), so appending them would invent text the router

@@ -2056,7 +2056,12 @@ into families rather than being fifteen unrelated bugs:
   nothing weaker — gets no value from that key, and says so on the trace channel. The row's own type id
   (`0x10001`) then names it, from the id → name pairs the other rows carry (see *Interface `type` label*); a
   type no other row names stays absent, which the audit keeps as a named gap (its fixture's bonding slave is
-  the one EoIP tunnel).
+  the one EoIP tunnel). The rule runs both ways: a number-declared key carrying a string is dropped the same
+  way. RouterOS sends none of its own — every word the catalogs put on a number key (`auto`, `unlimited`,
+  `none`, `disabled`: about 120 on 7.25, 6.49 and 7.21 alike) is an `enm` member, numeric on the wire, and
+  `WinboxWireKindContradictionProbe` found no such row on any path of the three lab routers — but another M2
+  client can leave one: a non-IPv4 text written to an IPv4 field is stored as `str` (7.25), the API then prints
+  the field as `""`, and decoding it as an address threw and failed the whole table's read.
 * **An unresolved reference** — **closed**. A dynamic reference no row answers to, and that no static
   member names either, is what an all-ones "not set" looks like where the `.jg` wraps it in no
   `defenum`. RouterOS prints the raw `.id` token there — `/caps-man/provisioning`'s
