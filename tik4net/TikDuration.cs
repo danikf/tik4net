@@ -34,12 +34,12 @@ namespace tik4net
     /// </remarks>
     public readonly struct TikDuration : IEquatable<TikDuration>
     {
-        // Compact form: 1w2d3h4m5s6ms, in that order, any part optional — but at least one, and nothing
+        // Compact form: 1w2d3h4m5s6ms7us, in that order, any part optional — but at least one, and nothing
         // else in the string. The old uptime regex made every part optional AND was used with Match rather
         // than a full-string anchor, so it matched the empty prefix of ANYTHING and reported zero for
         // input it had not understood at all.
         private static readonly Regex CompactPattern = new Regex(
-            @"^(?:(?<w>\d+)w)?(?:(?<d>\d+)d)?(?:(?<h>\d+)h)?(?:(?<m>\d+)m(?!s))?(?:(?<s>\d+)s)?(?:(?<ms>\d+)ms)?$",
+            @"^(?:(?<w>\d+)w)?(?:(?<d>\d+)d)?(?:(?<h>\d+)h)?(?:(?<m>\d+)m(?!s))?(?:(?<s>\d+)s)?(?:(?<ms>\d+)ms)?(?:(?<us>\d+)us)?$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         // Clock form as the CLI prints it: an optional week/day prefix in front of hh:mm:ss[.fff].
@@ -184,6 +184,13 @@ namespace tik4net
         /// <param name="result">The parsed length of time.</param>
         public static bool TryParseTimeSpan(string? value, out TimeSpan result)
         {
+            // A number too large for a TimeSpan is not a duration either; a Try method answers that, it does not throw.
+            try { return TryParseTimeSpanCore(value, out result); }
+            catch (OverflowException) { result = default; return false; }
+        }
+
+        private static bool TryParseTimeSpanCore(string? value, out TimeSpan result)
+        {
             result = default;
             if (string.IsNullOrWhiteSpace(value))
                 return false;
@@ -208,22 +215,24 @@ namespace tik4net
                 return true;
             }
 
+            // Counted in ticks, not through TimeSpan.FromMilliseconds(double): on .NET Framework that call rounds to a
+            // whole millisecond, which turned a ping's 124us — and the CLI's .000124 — into zero.
             var clock = ClockPattern.Match(text);
             if (clock.Success)
             {
-                double ms = Part(clock, "w") * 604800000d
-                          + Part(clock, "d") * 86400000d
-                          + Part(clock, "h") * 3600000d
-                          + Part(clock, "m") * 60000d
-                          + Part(clock, "s") * 1000d;
+                long ticks = Ticks(clock, "w", TimeSpan.TicksPerDay * 7)
+                           + Ticks(clock, "d", TimeSpan.TicksPerDay)
+                           + Ticks(clock, "h", TimeSpan.TicksPerHour)
+                           + Ticks(clock, "m", TimeSpan.TicksPerMinute)
+                           + Ticks(clock, "s", TimeSpan.TicksPerSecond);
 
                 // ".200" is 200 MILLISECONDS, not 200 of anything else: the CLI writes the fraction of a
-                // second, so its scale depends on how many digits there are.
+                // second, so its scale depends on how many digits there are (seven are a tick each).
                 var frac = clock.Groups["frac"];
                 if (frac.Success)
-                    ms += double.Parse("0." + frac.Value, CultureInfo.InvariantCulture) * 1000d;
+                    ticks += long.Parse(frac.Value.PadRight(7, '0'), NumberStyles.None, CultureInfo.InvariantCulture);
 
-                result = TimeSpan.FromMilliseconds(negative ? -ms : ms);
+                result = TimeSpan.FromTicks(negative ? -ticks : ticks);
                 return true;
             }
 
@@ -232,33 +241,38 @@ namespace tik4net
             var compact = CompactPattern.Match(text);
             if (compact.Success && HasAnyPart(compact))
             {
-                double ms = Part(compact, "w") * 604800000d
-                          + Part(compact, "d") * 86400000d
-                          + Part(compact, "h") * 3600000d
-                          + Part(compact, "m") * 60000d
-                          + Part(compact, "s") * 1000d
-                          + Part(compact, "ms");
+                long ticks = Ticks(compact, "w", TimeSpan.TicksPerDay * 7)
+                           + Ticks(compact, "d", TimeSpan.TicksPerDay)
+                           + Ticks(compact, "h", TimeSpan.TicksPerHour)
+                           + Ticks(compact, "m", TimeSpan.TicksPerMinute)
+                           + Ticks(compact, "s", TimeSpan.TicksPerSecond)
+                           + Ticks(compact, "ms", TimeSpan.TicksPerMillisecond)
+                           + Ticks(compact, "us", TimeSpan.TicksPerMillisecond / 1000);
 
-                result = TimeSpan.FromMilliseconds(negative ? -ms : ms);
+                result = TimeSpan.FromTicks(negative ? -ticks : ticks);
                 return true;
             }
 
             return false;
         }
 
-        private static double Part(Match match, string name)
+        private static long Ticks(Match match, string name, long ticksPerUnit)
         {
             var group = match.Groups[name];
-            return group.Success ? double.Parse(group.Value, CultureInfo.InvariantCulture) : 0d;
+            return group.Success
+                ? checked(long.Parse(group.Value, NumberStyles.None, CultureInfo.InvariantCulture) * ticksPerUnit)
+                : 0L;
         }
 
         private static bool HasAnyPart(Match match)
             => match.Groups["w"].Success || match.Groups["d"].Success || match.Groups["h"].Success
-            || match.Groups["m"].Success || match.Groups["s"].Success || match.Groups["ms"].Success;
+            || match.Groups["m"].Success || match.Groups["s"].Success || match.Groups["ms"].Success
+            || match.Groups["us"].Success;
 
         /// <summary>
         /// The value in the compact form the router accepts on write (<c>1d2h3m4s</c>, <c>200ms</c>,
-        /// <c>0s</c>), or the <see cref="Token"/> verbatim.
+        /// <c>0s</c>), down to the microseconds the router writes for a ping (<c>1ms52us</c>), or the
+        /// <see cref="Token"/> verbatim.
         /// </summary>
         /// <remarks>
         /// Zero renders as <c>0s</c> and never as <c>none</c>: "no time at all" and "this field is turned
@@ -285,6 +299,8 @@ namespace tik4net
             if (t.Minutes != 0) sb.Append(t.Minutes.ToString(CultureInfo.InvariantCulture)).Append('m');
             if (t.Seconds != 0) sb.Append(t.Seconds.ToString(CultureInfo.InvariantCulture)).Append('s');
             if (t.Milliseconds != 0) sb.Append(t.Milliseconds.ToString(CultureInfo.InvariantCulture)).Append("ms");
+            long micros = t.Ticks % TimeSpan.TicksPerMillisecond / 10;   // a ping's time and round trips: 1ms52us
+            if (micros != 0) sb.Append(micros.ToString(CultureInfo.InvariantCulture)).Append("us");
 
             // Every part was zero, so the value is zero — and something has to be written.
             if (sb.Length == 0 || (negative && sb.Length == 1))

@@ -187,5 +187,35 @@ namespace tik4net.unittests.Connection
             Assert.AreEqual(TimeSpan.FromSeconds(-5), TikDuration.Parse("-5").Value);
             Assert.AreEqual(-new TimeSpan(1, 2, 0, 0), TikDuration.Parse("-1d2h").Value);
         }
+
+        /// <summary>
+        /// A ping's time and round trips are microseconds, and the API writes them so: <c>124us</c>, <c>134ms893us</c>
+        /// (measured on 7.25, <c>/ping</c>). <c>ToolPing.Time</c> could not read them.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow("124us", 1240L)]
+        [DataRow("134ms893us", 1348930L)]
+        [DataRow("132ms13us", 1320130L)]
+        [DataRow("1s5us", 10000050L)]
+        public void MicrosecondsAreRead(string compact, long ticks)
+            => Assert.AreEqual(TimeSpan.FromTicks(ticks), TikDuration.Parse(compact).Value);
+
+        [DataTestMethod]
+        [DataRow("124us")]
+        [DataRow("134ms893us")]
+        [DataRow("1ms52us")]
+        [DataRow("1s5us")]
+        [DataRow("200ms")]
+        public void MicrosecondsSurviveTheirOwnToString(string compact)
+            => Assert.AreEqual(compact, TikDuration.Parse(compact).ToString());
+
+        [TestMethod]
+        public void AFractionOfAMillisecondIsNotRoundedAway()
+        {
+            // The CLI's fraction of a second is up to seven digits; on .NET Framework TimeSpan.FromMilliseconds rounds to
+            // a whole millisecond, so it would read as zero.
+            Assert.AreEqual(TimeSpan.FromTicks(1240), TikDuration.Parse("00:00:00.000124").Value);
+            Assert.AreEqual("124us", TikDuration.Parse("00:00:00.000124").ToString());
+        }
     }
 }

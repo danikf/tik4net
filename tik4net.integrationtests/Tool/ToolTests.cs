@@ -34,6 +34,30 @@ namespace tik4net.integrationtests
             Assert.IsTrue(result.Count() == 4);
         }
 
+        /// <summary>
+        /// A loopback ping answers in microseconds, which the API writes <c>124us</c> (7.25). Each row's time must read
+        /// as a duration, not as a word kept verbatim, and the round trips must parse too, on every transport: native
+        /// read the wire's microseconds as milliseconds (F12), and <see cref="TikDuration"/> had no <c>us</c>.
+        /// </summary>
+        [TestMethod]
+        public void PingLocalhostTimesAreDurations()
+        {
+            var rows = ToolPing.Execute(Connection, "127.0.0.1", 2).ToList();
+            Assert.AreEqual(2, rows.Count);
+            foreach (var row in rows)
+            {
+                Assert.IsTrue(row.Time.TryGetValue(out var time) && time.HasValue, "no time on " + row);
+                Assert.AreEqual(TikValueKind.Value, time.Value.Kind, "time kept as a word: " + time.Value.Token);
+                Assert.IsTrue(time.Value.Value > TimeSpan.Zero && time.Value.Value < TimeSpan.FromSeconds(1),
+                    "a loopback round trip of " + time.Value);
+                // The CLI's `ping … as-value` prints no round trips (nor sent/received): not this test's subject.
+                foreach (var rtt in new[] { row.MinRtt, row.AvgRtt, row.MaxRtt }.Where(r => r.State != TikFieldState.Absent))
+                    Assert.IsTrue(TikDuration.TryParseTimeSpan(rtt.GetValueOrDefault(), out var span)
+                                  && span > TimeSpan.Zero && span < TimeSpan.FromSeconds(1),
+                        "a round trip of '" + rtt.GetValueOrDefault() + "'");
+            }
+        }
+
         [TestMethod]
         public void PingLocalhostAsyncWillNotFail()
         {

@@ -247,7 +247,11 @@ aliases. Only stable text/keys are shipped — types still come live from `.jg`.
 - the running counts are keys the window does not name, paired against the API's rows (7.25): `0x69` sent,
   `0x6A` received, `0x67` packet-loss (the statusbar's unnamed percentage). A reply also carries its row index at
   `0xFE0001` and a number at `0x4` (the request's 'Dont Fragment' key); the API prints neither, so neither is
-  decoded. `time` (`0x7`) and min/avg/max (`0x64`–`0x66`) are microseconds on the wire.
+  decoded. `time` (`0x7`) and min/avg/max (`0x64`–`0x66`) are microseconds on the wire, and the API prints them as a
+  compact duration down to the microsecond: `135` is `135us`, `105488` is `105ms488us` (7.25). Min/Avg/Max are
+  `fixedpoint scale:1000 postfix:'ms'`; `Time` is an `enm` (`4294967295` = `timeout`) whose element child is that
+  fixedpoint, so its scale comes from the child (`WinboxJgField.ElementScale`). A timed-out echo carries no `0x7`
+  and reads `status=timeout`, as on the API.
 - the address rides as the `addr` composite described in §23.1 (nested message under key `0x16`,
   IPv4 on sub-key `0xFEFF20`). Request fields go through even for `ro:1` (`allowReadOnly`).
 
@@ -2091,7 +2095,9 @@ into families rather than being fifteen unrelated bugs:
   `postfix:'s'`) reads `1s` at 100 and `1s500ms` at 150 — so `1.5` and `1s500ms` are the same quantity
   and only the router says which spelling is its. `ms` had been on the excluded side of
   `IsSecondsPostfix`, whose comment claimed the API spells those units the way WinBox does; a seeded
-  bonding row disproved it. A zero now carries the field's OWN unit (`0ms`, not `0s`).
+  bonding row disproved it. A zero now carries the field's OWN unit (`0ms`, not `0s`). A field finer than a
+  millisecond (a ping's round trips: milliseconds at `scale:1000`) prints its microseconds as a `us` part,
+  `105ms488us`, as the API does.
   `/routing/ospf/interface-template` needed one more thing: its window types `Transmit Delay` as a
   plain `number` where the live 'OSPF Interface' window types the SAME key as an `interval`, and the
   API sides with the second. Typed per path rather than by preferring `interval` wherever two windows

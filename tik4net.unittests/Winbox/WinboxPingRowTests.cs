@@ -3,6 +3,8 @@
 // One ping, both transports. The API: seq host size ttl time sent received packet-loss min-rtt avg-rtt max-rtt.
 // The native reply record: {0x10=True, 0x4=0, 0x5=64, 0x7=135, 0xC=0, 0xD=0, 0x64=135, 0xF=0, 0x65=135, 0x66=135,
 // 0x69=1, 0x6A=1, 0x67=0, 0xFE0001=0, 0x1=<host>, 0x3=56, 0x68="1 of 1 packets received"}.
+// The wire's time and round trips are microseconds: the API prints a 135 as 135us, and a second ping (0x7=99784,
+// 0x64=99784, 0x65=105488, 0x66=111193) as time=99ms784us min-rtt=99ms784us avg-rtt=105ms488us max-rtt=111ms193us.
 // Router-free: the catalog's Ping window (cut down), the resolver and the codec.
 
 using System.Collections.Generic;
@@ -20,8 +22,13 @@ namespace tik4net.unittests.Winbox
             "request:[{name:'Ping To',type:'addr',id:'m16',allow:'46v%Dm',req:1},{name:'Packet Count',type:'number',id:'u11',opt:1}," +
             "{name:'Packet Size',type:'number',id:'u3',def:56,max:65535,min:28},{name:'Dont Fragment',type:'bool',id:'b4'}]," +
             "startcmd:16646159,status:[{type:'statusbar',c:[{type:'string',id:'s68',cols:20}," +
-            "{type:'integer',id:'u67',def:4294967295,opt:1,postfix:'% packet loss'}]}]," +
-            "c:[{name:'Seq #',type:'number',id:'uf',width:45},{name:'Reply Size',type:'number',id:'u3',opt:1,width:60}," +
+            "{type:'integer',id:'u67',def:4294967295,opt:1,postfix:'% packet loss'}," +
+            "{name:'Min',type:'fixedpoint',id:'u64',def:4294967295,opt:1,postfix:'ms',scale:1000}," +
+            "{name:'Avg',type:'fixedpoint',id:'u65',def:4294967295,opt:1,postfix:'ms',scale:1000}," +
+            "{name:'Max',type:'fixedpoint',id:'u66',def:4294967295,opt:1,postfix:'ms',scale:1000}]}]," +
+            "c:[{name:'Seq #',type:'number',id:'uf',width:45}," +
+            "{name:'Time',type:'enm',id:'u7',def:4294967295,postfix:'ms',values:{type:'static',map:{4294967295:'timeout'}},width:50,c:[{type:'fixedpoint',scale:1000}]}," +
+            "{name:'Reply Size',type:'number',id:'u3',opt:1,width:60}," +
             "{name:'TTL',type:'number',id:'u5',opt:1,width:35}]}]}]";
 
         private static WinboxFieldResolver Resolver(string path)
@@ -31,7 +38,7 @@ namespace tik4net.unittests.Winbox
             return new WinboxFieldResolver(path, new[] { 22 }, catalog, new Dictionary<string, int>());
         }
 
-        private static Dictionary<string, string> DecodeReply(string path)
+        private static Dictionary<string, string> DecodeReply(string path, M2Record times = null)
         {
             var resolver = Resolver(path);
             var rec = new M2Record
@@ -46,6 +53,8 @@ namespace tik4net.unittests.Winbox
                 [0x1] = new M2Value(M2Type.U32, 0x0104A8C0u),
                 [0x3] = new M2Value(M2Type.U32, 56u),
             };
+            if (times != null)
+                foreach (var kv in times) rec[kv.Key] = kv.Value;
             return new WinboxRecordCodec(null, null).DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
@@ -77,6 +86,45 @@ namespace tik4net.unittests.Winbox
             var row = DecodeReply(path);
             Assert.IsFalse(row.ContainsKey(".id"), "the reply's row index is not a field the API prints");
             Assert.IsFalse(row.ContainsKey("dont-fragment"), "0x4 on a reply is not the request's Dont Fragment");
+        }
+
+        [DataTestMethod]
+        [DataRow("/ping")]
+        [DataRow("/tool/ping")]
+        public void TimeAndRoundTripsAreMicroseconds(string path)
+        {
+            var row = DecodeReply(path, new M2Record
+            {
+                [0x7] = new M2Value(M2Type.U32, 99784u),
+                [0x64] = new M2Value(M2Type.U32, 99784u),
+                [0x65] = new M2Value(M2Type.U32, 105488u),
+                [0x66] = new M2Value(M2Type.U32, 111193u),
+            });
+            Assert.AreEqual("99ms784us", row["time"]);
+            Assert.AreEqual("99ms784us", row["min-rtt"]);
+            Assert.AreEqual("105ms488us", row["avg-rtt"]);
+            Assert.AreEqual("111ms193us", row["max-rtt"]);
+        }
+
+        [DataTestMethod]
+        [DataRow("/ping")]
+        [DataRow("/tool/ping")]
+        public void ASubMillisecondTimeIsMicroseconds(string path)
+        {
+            var row = DecodeReply(path, new M2Record
+            {
+                [0x7] = new M2Value(M2Type.U32, 135u),
+                [0x64] = new M2Value(M2Type.U32, 135u),
+            });
+            Assert.AreEqual("135us", row["time"]);
+            Assert.AreEqual("135us", row["min-rtt"]);
+        }
+
+        [TestMethod]
+        public void TheTimeReadsAsATikDuration()
+        {
+            var row = DecodeReply("/ping", new M2Record { [0x7] = new M2Value(M2Type.U32, 99784u) });
+            Assert.AreEqual(System.TimeSpan.FromTicks(997840), TikDuration.Parse(row["time"]).Value);
         }
     }
 }

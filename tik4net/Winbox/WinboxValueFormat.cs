@@ -489,8 +489,16 @@ namespace tik4net.Winbox
             if (seconds > 0) sb.Append(seconds).Append('s');
 
             // A scaled field can carry a sub-second remainder (scale:100 counts hundredths); RouterOS spells
-            // that in milliseconds. Dropping it would report a value the router did not give us.
-            if (remainder > 0) sb.Append(remainder * 1000 / scale).Append("ms");
+            // that in milliseconds. Dropping it would report a value the router did not give us. A field finer
+            // than a millisecond carries microseconds too, and the API writes them: a ping's 105488 (a
+            // fixedpoint of milliseconds, scale:1000) is 105ms488us.
+            if (remainder > 0 && scale > 1000)
+            {
+                long micros = remainder * 1000000 / scale;
+                if (micros >= 1000) sb.Append(micros / 1000).Append("ms");
+                if (micros % 1000 > 0) sb.Append(micros % 1000).Append("us");
+            }
+            else if (remainder > 0) sb.Append(remainder * 1000 / scale).Append("ms");
 
             // Everything was zero — which is a value, and the API prints it as a zero in the unit the FIELD
             // is expressed in, not in seconds: a bonding down-delay of nothing reads `0ms`, not `0s`.

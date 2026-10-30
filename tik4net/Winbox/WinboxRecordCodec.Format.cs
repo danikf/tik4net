@@ -485,6 +485,13 @@ namespace tik4net.Winbox
                         // KIND of number. webfig renders it bare and paints the unit next to the box; the
                         // API prints a duration. /ip/ipsec/profile dpd-interval, whose only member is
                         // 'disable-dpd' at 0, read as 8 where the API says 8s.
+                        // …or a fixedpoint ELEMENT says it, with the scale: /ping's Time is
+                        // {enm,postfix:'ms',map:{4294967295:'timeout'},c:[{fixedpoint,scale:1000}]}, microseconds
+                        // on the wire, which the API prints 99ms784us (7.25). Read bare, it was 99784.
+                        if (jf.IsTimePostfix
+                            && string.Equals(jf.ElementUiType, "fixedpoint", StringComparison.OrdinalIgnoreCase))
+                            return FormatDuration(ev, (jf.IsMillisecondsPostfix ? 1000 : 1) * jf.ElementScale,
+                                jf.DurationZeroUnit);
                         if (jf.IsSecondsPostfix) return FormatDuration(ev, jf.Scale);
                         // …or the ELEMENT says what kind: /system/scheduler start-time is
                         // {enm,map:{4294967295:'startup'},c:[{type:'clocktime'}]}, and a time of day read as
