@@ -89,7 +89,17 @@ namespace tik4net.Winbox
         /// Translates a decoded M2 record by a command's <see cref="WinboxDecodePlan"/> — every map the plan carries.
         /// </summary>
         internal Dictionary<string, string> DecodeRecord(M2Record rec, WinboxDecodePlan plan)
-            => DecodeRecord(rec, plan.KeyToName, plan.KeyToField, null, plan.DerivedBools, plan.NumFlags, plan.ExtraSpellings);
+        {
+            var fields = DecodeRecord(rec, plan.KeyToName, plan.KeyToField, null, plan.DerivedBools, plan.NumFlags, plan.ExtraSpellings);
+            // Last, so a field another one is derived from (/system/package's installed → available) has done its part.
+            if (plan.NotReported != null)
+                foreach (string name in plan.NotReported) fields.Remove(name);
+            if (plan.OmittedWhen != null)
+                foreach (var unset in plan.OmittedWhen)
+                    if (fields.TryGetValue(unset.Key, out string? value) && string.Equals(value, unset.Value, StringComparison.Ordinal))
+                        fields.Remove(unset.Key);
+            return fields;
+        }
 
         /// <summary>
         /// Decodes a batch of records by <paramref name="plan"/>: the referenced tables they need are read first, under

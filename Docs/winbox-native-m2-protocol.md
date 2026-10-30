@@ -1350,6 +1350,27 @@ Interface subtype windows are not handler-backed (their fields never enter `[20,
 Measured on 7.25 by `WinboxNativeFieldScopeSweepTest`, which compares a plain `print` of every `[TikEntity]` path
 with the API's on both native transports.
 
+**A window field the API's menu does not print is left out by the path's alias set** (decode only, never the
+write). Three rules, each entry measured on 7.25:
+
+* `NotReportedTabs` — a tab of the window the API prints from another command: `/system/clock`'s Manual Time Zone
+  (`/system/clock/manual`), `/ip/traffic-flow`'s IPFIX (`/ip/traffic-flow/ipfix`), `/ip/proxy`'s Status, Lookups,
+  Inserts and Refreshes (`/ip/proxy/monitor`). Each field's tab is carried on `WinboxJgField.Tab`.
+* `NotReportedNames` — a name the API's menu does not have, which the API's `get value-name=<name>` answers with
+  "input does not match any value of value-name" (where a name it has but leaves unset answers an empty `!done`):
+  `/interface`'s live rates and `type-id`, the generic Interface window's counters and the Ethernet window's link
+  status on `/interface/ethernet` and `/interface/vrrp`, `/certificate`'s General Type, `/system/package`'s
+  `installed` (`available` is derived from it first), `/user/group`'s flags, and `.about` on two singletons.
+* `OmittedWhen` — name → the text it decodes to while unset, for a field the API leaves out until it holds
+  something else: seeded rows of `/radius`, `/ip/dhcp-client`, the hotspot users and user profiles, IPsec mode
+  configs and profiles, `/ppp/profile` and `/system/watchdog`, each read with the field unset and set. No rule
+  of the catalog predicts it: an `opt:1` field at its zero is printed on other menus.
+
+The rules apply to the path's own set only. `/interface/monitor-traffic` reads the interface window through
+`/interface`'s set for the very rates `/interface` leaves out. For the same reason a child menu inherits an
+ancestor's synthetic fields only when it resolves to the ancestor's handler: `/interface/bridge/settings`
+(`[20,17]`) read the bridge's `auto-mac` key from the `/interface/bridge` set.
+
 Measured on 7.24.2, each on a seeded row:
 
 * **A flag key is consumed only when no other field owns it.** The decoder drops an opt/not field's flag key

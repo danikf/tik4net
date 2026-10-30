@@ -42,13 +42,16 @@ namespace tik4net.Winbox
         // .winbox-labels marker): apiName → catalog name. Second in priority, after the session overrides and
         // before every heuristic; a label this version's catalog does not have is ignored.
         private readonly IReadOnlyDictionary<string, string>? _labelHints;
+        // API path → the handler it resolves to: whether an ancestor's alias set describes this path's rows at all.
+        private readonly Func<string, WinboxHandler?>? _pathHandler;
 
         internal WinboxFieldResolver(string? apiPath, WinboxHandler handler, WinboxJgCatalog catalog,
             IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string? windowKey = null,
             IReadOnlyDictionary<string, WinboxJgField>? actionFields = null,
-            IReadOnlyDictionary<string, string>? labelHints = null)
+            IReadOnlyDictionary<string, string>? labelHints = null, Func<string, WinboxHandler?>? pathHandler = null)
         {
             _labelHints = labelHints;
+            _pathHandler = pathHandler;
             _apiPath = apiPath;
             _handler = handler;
             _catalog = catalog;
@@ -405,6 +408,8 @@ namespace tik4net.Winbox
         private IReadOnlyDictionary<string, WinboxJgField>? _ownSynthetic;
         private IReadOnlyDictionary<string, WinboxJgField>? _inheritedSynthetic;
         private IReadOnlyDictionary<string, WinboxJgField>? _fallback;
+        // The set in force is the path's own (or its own over /interface's), not an ancestor's it reads through.
+        private bool _ownAliases;
 
         // The nearest shipped set (the path's own, or its nearest ancestor's), and — for an interface subtype
         // read on the generic [20,0] handler that has a set of its OWN — the base /interface set merged beneath
@@ -438,8 +443,16 @@ namespace tik4net.Winbox
                 ShippedFieldAliases.TryGetValue("/interface", out baseSet);
 
             _aliases = baseSet == null ? found : MergeAliases(found, baseSet);
+            _ownAliases = exact;
             _ownSynthetic = exact ? found.SyntheticFields : null;
             var inherited = exact ? baseSet?.SyntheticFields : found.SyntheticFields;
+            // An ancestor's synthetic names a key of the ANCESTOR's records. A subtype on the same handler reads those
+            // records (an /interface/vlan row is an /interface row); a child menu on a handler of its own reads others,
+            // where the key is something else: /interface/bridge/settings ([20,17]) reported the bridge's auto-mac
+            // (0x65), a field its API menu does not have (WinBox review F11).
+            if (!exact && foundPath != null && _pathHandler?.Invoke(foundPath) is WinboxHandler ancestor
+                && ancestor != _handler)
+                inherited = null;
             if (inherited != null && _ownSynthetic != null)
             {
                 // A synthetic of the path's own replaces the base's on the same name or the same key.
@@ -475,7 +488,42 @@ namespace tik4net.Winbox
                 pairedFields: Merge(child.PairedFields, parent.PairedFields, ci),
                 numFlagMembers: child.NumFlagMembers == null ? parent.NumFlagMembers
                     : parent.NumFlagMembers == null ? child.NumFlagMembers
-                    : child.NumFlagMembers.Union(parent.NumFlagMembers));
+                    : child.NumFlagMembers.Union(parent.NumFlagMembers),
+                // A subtype row is an /interface row, so /interface's names stay out of it too. Tabs are the child's own:
+                // they name tabs of ITS window.
+                notReportedNames: (child.NotReportedNames ?? Enumerable.Empty<string>())
+                    .Union(parent.NotReportedNames ?? Enumerable.Empty<string>()),
+                notReportedTabs: child.NotReportedTabs, omittedWhen: child.OmittedWhen);
+        }
+
+        /// <summary>
+        /// The fields this path's rows leave out while they hold their unset text (<see cref="FieldAliasSet.OmittedWhen"/>);
+        /// <c>null</c> when the set in force is an ancestor's.
+        /// </summary>
+        internal IReadOnlyDictionary<string, string>? OmittedWhen => Aliases != null && _ownAliases ? Aliases.OmittedWhen : null;
+
+        /// <summary>
+        /// The API names this path's decode leaves out: <see cref="FieldAliasSet.NotReportedNames"/>, and every field
+        /// of the window's <see cref="FieldAliasSet.NotReportedTabs"/> under the name it decodes as.
+        /// </summary>
+        internal ISet<string>? NotReportedNames
+        {
+            get
+            {
+                // An ancestor's set describes the ancestor's rows: /interface/monitor-traffic is decoded through
+                // /interface's set precisely for the live rates /interface itself does not print.
+                var aliases = Aliases;
+                if (aliases == null || !_ownAliases
+                    || (aliases.NotReportedNames == null && aliases.NotReportedTabs == null)) return null;
+                var names = new HashSet<string>(aliases.NotReportedNames ?? Enumerable.Empty<string>(),
+                    StringComparer.OrdinalIgnoreCase);
+                var tabs = aliases.NotReportedTabs;
+                var window = tabs == null ? null : _catalog?.GetWindowFields(_windowKey);
+                if (window != null)
+                    foreach (var kv in window)
+                        if (kv.Value.Tab != null && tabs!.Contains(kv.Value.Tab)) names.Add(AliasToApi(kv.Key));
+                return names;
+            }
         }
 
         /// <summary>

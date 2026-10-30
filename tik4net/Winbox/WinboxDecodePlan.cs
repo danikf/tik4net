@@ -18,7 +18,15 @@ namespace tik4net.Winbox
             DerivedBools = resolver.DerivedBoolFields;
             ExtraSpellings = resolver.ExtraSpellings;
             NumFlags = resolver.BuildNumFlags();
+            NotReported = resolver.NotReportedNames;
+            OmittedWhen = resolver.OmittedWhen;
         }
+
+        /// <summary>The fields left out while they hold their unset text (<see cref="WinboxFieldResolver.OmittedWhen"/>), or <c>null</c>.</summary>
+        internal IReadOnlyDictionary<string, string>? OmittedWhen { get; }
+
+        /// <summary>The API names left out of every row (<see cref="WinboxFieldResolver.NotReportedNames"/>), or <c>null</c>.</summary>
+        internal ISet<string>? NotReported { get; }
 
         /// <summary>M2 key → API field name (<see cref="WinboxFieldResolver.BuildKeyToApiName"/>).</summary>
         internal IReadOnlyDictionary<int, string> KeyToName { get; }

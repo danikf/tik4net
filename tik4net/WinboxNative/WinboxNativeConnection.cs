@@ -1275,7 +1275,7 @@ namespace tik4net.WinboxNative
             return new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(window), _useGuiNames,
                                            _handlerMap.ResolveDerivedKey(window),
                                            actionLabel == null ? null : _catalog.GetActionFields(handler, actionLabel),
-                                           _labelHints.Value);
+                                           _labelHints.Value, _handlerMap.Resolve);
         }
 
         /// <summary>

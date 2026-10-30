@@ -1,5 +1,5 @@
 # T3 - WinBox shipped alias tables (static tables of WinboxFieldResolver and WinboxHandlerMap)
-ShippedFieldAliases count=77 ci
+ShippedFieldAliases count=87 ci
 ShippedFieldAliases[/caps-man/provisioning].AddrPortPairs = null
 ShippedFieldAliases[/caps-man/provisioning].AlsoKnownAs = null
 ShippedFieldAliases[/caps-man/provisioning].ApiToJg = ci{'slave-configurations'='slave-configuration'}
@@ -9,7 +9,10 @@ ShippedFieldAliases[/caps-man/provisioning].JgToApi = ci{'slave-configuration'='
 ShippedFieldAliases[/caps-man/provisioning].KeyToApi = {}
 ShippedFieldAliases[/caps-man/provisioning].KeyUiType = {}
 ShippedFieldAliases[/caps-man/provisioning].NotReportedKeys = null
+ShippedFieldAliases[/caps-man/provisioning].NotReportedNames = null
+ShippedFieldAliases[/caps-man/provisioning].NotReportedTabs = null
 ShippedFieldAliases[/caps-man/provisioning].NumFlagMembers = null
+ShippedFieldAliases[/caps-man/provisioning].OmittedWhen = null
 ShippedFieldAliases[/caps-man/provisioning].PairedFields = null
 ShippedFieldAliases[/caps-man/provisioning].SyntheticFields = null
 ShippedFieldAliases[/caps-man/security].AddrPortPairs = null
@@ -21,9 +24,27 @@ ShippedFieldAliases[/caps-man/security].JgToApi = ci{'authentication-type'='auth
 ShippedFieldAliases[/caps-man/security].KeyToApi = {}
 ShippedFieldAliases[/caps-man/security].KeyUiType = {}
 ShippedFieldAliases[/caps-man/security].NotReportedKeys = null
+ShippedFieldAliases[/caps-man/security].NotReportedNames = null
+ShippedFieldAliases[/caps-man/security].NotReportedTabs = null
 ShippedFieldAliases[/caps-man/security].NumFlagMembers = null
+ShippedFieldAliases[/caps-man/security].OmittedWhen = null
 ShippedFieldAliases[/caps-man/security].PairedFields = null
 ShippedFieldAliases[/caps-man/security].SyntheticFields = null
+ShippedFieldAliases[/certificate].AddrPortPairs = null
+ShippedFieldAliases[/certificate].AlsoKnownAs = null
+ShippedFieldAliases[/certificate].ApiToJg = ci{}
+ShippedFieldAliases[/certificate].DerivedBools = null
+ShippedFieldAliases[/certificate].FallbackFields = null
+ShippedFieldAliases[/certificate].JgToApi = ci{}
+ShippedFieldAliases[/certificate].KeyToApi = {}
+ShippedFieldAliases[/certificate].KeyUiType = {}
+ShippedFieldAliases[/certificate].NotReportedKeys = null
+ShippedFieldAliases[/certificate].NotReportedNames = ci{'general-type', 'no-key-export'}
+ShippedFieldAliases[/certificate].NotReportedTabs = null
+ShippedFieldAliases[/certificate].NumFlagMembers = null
+ShippedFieldAliases[/certificate].OmittedWhen = null
+ShippedFieldAliases[/certificate].PairedFields = null
+ShippedFieldAliases[/certificate].SyntheticFields = null
 ShippedFieldAliases[/file].AddrPortPairs = null
 ShippedFieldAliases[/file].AlsoKnownAs = null
 ShippedFieldAliases[/file].ApiToJg = ci{'name'='file-name'}
@@ -33,7 +54,10 @@ ShippedFieldAliases[/file].JgToApi = ci{'file-name'='name'}
 ShippedFieldAliases[/file].KeyToApi = {}
 ShippedFieldAliases[/file].KeyUiType = {}
 ShippedFieldAliases[/file].NotReportedKeys = null
+ShippedFieldAliases[/file].NotReportedNames = null
+ShippedFieldAliases[/file].NotReportedTabs = null
 ShippedFieldAliases[/file].NumFlagMembers = null
+ShippedFieldAliases[/file].OmittedWhen = null
 ShippedFieldAliases[/file].PairedFields = null
 ShippedFieldAliases[/file].SyntheticFields = null
 ShippedFieldAliases[/interface].AddrPortPairs = null
@@ -45,9 +69,12 @@ ShippedFieldAliases[/interface].JgToApi = ci{}
 ShippedFieldAliases[/interface].KeyToApi = {65537='type-id', 65739='rx-packets-per-second', 65741='tx-packets-per-second', 65747='rx-bits-per-second', 65748='tx-bits-per-second', 65749='fp-rx-bits-per-second', 65750='fp-tx-bits-per-second', 65751='fp-rx-packets-per-second', 65752='fp-tx-packets-per-second', 65784='rx-drop', 65785='tx-drop', 65786='rx-error', 65787='tx-error', 65788='rx-byte', 65789='tx-byte', 65790='rx-packet', 65791='tx-packet', 65796='tx-queue-drop'}
 ShippedFieldAliases[/interface].KeyUiType = {}
 ShippedFieldAliases[/interface].NotReportedKeys = null
+ShippedFieldAliases[/interface].NotReportedNames = ci{'fp-rx-bits-per-second', 'fp-rx-packets-per-second', 'fp-tx-bits-per-second', 'fp-tx-packets-per-second', 'rx-bits-per-second', 'rx-packets-per-second', 'tx-bits-per-second', 'tx-packets-per-second', 'type-id'}
+ShippedFieldAliases[/interface].NotReportedTabs = null
 ShippedFieldAliases[/interface].NumFlagMembers = null
+ShippedFieldAliases[/interface].OmittedWhen = null
 ShippedFieldAliases[/interface].PairedFields = null
-ShippedFieldAliases[/interface].SyntheticFields = ci{'default-name'=WinboxJgField{Allow=null ApiName='default-name' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=65585 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536936497 UiType=null WireType='string'}, 'mac-address'=WinboxJgField{Allow=null ApiName='mac-address' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1001 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=805307369 UiType='macaddr' WireType='raw'}, 'type'=WinboxJgField{Allow=null ApiName='type' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=65566 KindIdKey=65537 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536936478 UiType=null WireType='string'}}
+ShippedFieldAliases[/interface].SyntheticFields = ci{'default-name'=WinboxJgField{Allow=null ApiName='default-name' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=65585 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536936497 UiType=null WireType='string'}, 'mac-address'=WinboxJgField{Allow=null ApiName='mac-address' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1001 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=805307369 UiType='macaddr' WireType='raw'}, 'type'=WinboxJgField{Allow=null ApiName='type' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=65566 KindIdKey=65537 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536936478 UiType=null WireType='string'}}
 ShippedFieldAliases[/interface/bridge].AddrPortPairs = null
 ShippedFieldAliases[/interface/bridge].AlsoKnownAs = null
 ShippedFieldAliases[/interface/bridge].ApiToJg = ci{'ether-type'='ethertype'}
@@ -57,9 +84,12 @@ ShippedFieldAliases[/interface/bridge].JgToApi = ci{'ethertype'='ether-type'}
 ShippedFieldAliases[/interface/bridge].KeyToApi = {}
 ShippedFieldAliases[/interface/bridge].KeyUiType = {}
 ShippedFieldAliases[/interface/bridge].NotReportedKeys = null
+ShippedFieldAliases[/interface/bridge].NotReportedNames = null
+ShippedFieldAliases[/interface/bridge].NotReportedTabs = null
 ShippedFieldAliases[/interface/bridge].NumFlagMembers = null
+ShippedFieldAliases[/interface/bridge].OmittedWhen = null
 ShippedFieldAliases[/interface/bridge].PairedFields = null
-ShippedFieldAliases[/interface/bridge].SyntheticFields = ci{'auto-mac'=WinboxJgField{Allow=null ApiName='auto-mac' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=101 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=101 UiType=null WireType='bool'}}
+ShippedFieldAliases[/interface/bridge].SyntheticFields = ci{'auto-mac'=WinboxJgField{Allow=null ApiName='auto-mac' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=101 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=101 UiType=null WireType='bool'}}
 ShippedFieldAliases[/interface/bridge/port].AddrPortPairs = null
 ShippedFieldAliases[/interface/bridge/port].AlsoKnownAs = null
 ShippedFieldAliases[/interface/bridge/port].ApiToJg = ci{'external-fdb-status'='external-fdb'}
@@ -69,7 +99,10 @@ ShippedFieldAliases[/interface/bridge/port].JgToApi = ci{'external-fdb'='externa
 ShippedFieldAliases[/interface/bridge/port].KeyToApi = {}
 ShippedFieldAliases[/interface/bridge/port].KeyUiType = {}
 ShippedFieldAliases[/interface/bridge/port].NotReportedKeys = null
+ShippedFieldAliases[/interface/bridge/port].NotReportedNames = null
+ShippedFieldAliases[/interface/bridge/port].NotReportedTabs = null
 ShippedFieldAliases[/interface/bridge/port].NumFlagMembers = null
+ShippedFieldAliases[/interface/bridge/port].OmittedWhen = null
 ShippedFieldAliases[/interface/bridge/port].PairedFields = null
 ShippedFieldAliases[/interface/bridge/port].SyntheticFields = null
 ShippedFieldAliases[/interface/ethernet].AddrPortPairs = null
@@ -81,9 +114,12 @@ ShippedFieldAliases[/interface/ethernet].JgToApi = ci{'auto-negotiation'='auto-n
 ShippedFieldAliases[/interface/ethernet].KeyToApi = {}
 ShippedFieldAliases[/interface/ethernet].KeyUiType = {}
 ShippedFieldAliases[/interface/ethernet].NotReportedKeys = null
+ShippedFieldAliases[/interface/ethernet].NotReportedNames = ci{'active-queue-type', 'actual-mtu', 'answer-time', 'auto-negotiation-status', 'caps', 'default-queue-type', 'full-duplex', 'last-link-down-time', 'last-link-up-time', 'link', 'link-downs', 'pon', 'queue-type', 'rate', 'rx-byte', 'rx-drop', 'rx-error', 'rx-packet', 'sfp', 'supported', 'tx-byte', 'tx-drop', 'tx-error', 'tx-packet', 'tx-queue-drop', 'tx-too-short', 'type', 'vrf'}
+ShippedFieldAliases[/interface/ethernet].NotReportedTabs = null
 ShippedFieldAliases[/interface/ethernet].NumFlagMembers = null
+ShippedFieldAliases[/interface/ethernet].OmittedWhen = null
 ShippedFieldAliases[/interface/ethernet].PairedFields = null
-ShippedFieldAliases[/interface/ethernet].SyntheticFields = ci{'cable-settings'=WinboxJgField{Allow=null ApiName='cable-settings' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='short', 1='standard', 2='default'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1013 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134218741 UiType=null WireType='u32'}, 'disable-running-check'=WinboxJgField{Allow=null ApiName='disable-running-check' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=65549 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=65549 UiType=null WireType='bool'}, 'orig-mac-address'=WinboxJgField{Allow=null ApiName='orig-mac-address' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1028 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=805307396 UiType='macaddr' WireType='raw'}}
+ShippedFieldAliases[/interface/ethernet].SyntheticFields = ci{'cable-settings'=WinboxJgField{Allow=null ApiName='cable-settings' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='short', 1='standard', 2='default'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1013 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134218741 UiType=null WireType='u32'}, 'disable-running-check'=WinboxJgField{Allow=null ApiName='disable-running-check' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=65549 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=65549 UiType=null WireType='bool'}, 'orig-mac-address'=WinboxJgField{Allow=null ApiName='orig-mac-address' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1028 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=805307396 UiType='macaddr' WireType='raw'}}
 ShippedFieldAliases[/interface/l2tp-server/server].AddrPortPairs = null
 ShippedFieldAliases[/interface/l2tp-server/server].AlsoKnownAs = null
 ShippedFieldAliases[/interface/l2tp-server/server].ApiToJg = ci{}
@@ -93,9 +129,12 @@ ShippedFieldAliases[/interface/l2tp-server/server].JgToApi = ci{}
 ShippedFieldAliases[/interface/l2tp-server/server].KeyToApi = {}
 ShippedFieldAliases[/interface/l2tp-server/server].KeyUiType = {}
 ShippedFieldAliases[/interface/l2tp-server/server].NotReportedKeys = null
+ShippedFieldAliases[/interface/l2tp-server/server].NotReportedNames = null
+ShippedFieldAliases[/interface/l2tp-server/server].NotReportedTabs = null
 ShippedFieldAliases[/interface/l2tp-server/server].NumFlagMembers = null
+ShippedFieldAliases[/interface/l2tp-server/server].OmittedWhen = null
 ShippedFieldAliases[/interface/l2tp-server/server].PairedFields = null
-ShippedFieldAliases[/interface/l2tp-server/server].SyntheticFields = ci{'accept-proto-version'=WinboxJgField{Allow=null ApiName='accept-proto-version' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='all', 2='l2tpv2', 3='l2tpv3'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=223 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217951 UiType=null WireType='u32'}, 'accept-pseudowire-type'=WinboxJgField{Allow=null ApiName='accept-pseudowire-type' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='all', 5='ether', 7='ppp'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=222 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217950 UiType=null WireType='u32'}}
+ShippedFieldAliases[/interface/l2tp-server/server].SyntheticFields = ci{'accept-proto-version'=WinboxJgField{Allow=null ApiName='accept-proto-version' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='all', 2='l2tpv2', 3='l2tpv3'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=223 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217951 UiType=null WireType='u32'}, 'accept-pseudowire-type'=WinboxJgField{Allow=null ApiName='accept-pseudowire-type' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='all', 5='ether', 7='ppp'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=222 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217950 UiType=null WireType='u32'}}
 ShippedFieldAliases[/interface/list].AddrPortPairs = null
 ShippedFieldAliases[/interface/list].AlsoKnownAs = null
 ShippedFieldAliases[/interface/list].ApiToJg = ci{}
@@ -105,9 +144,27 @@ ShippedFieldAliases[/interface/list].JgToApi = ci{}
 ShippedFieldAliases[/interface/list].KeyToApi = {16646157='builtin'}
 ShippedFieldAliases[/interface/list].KeyUiType = {}
 ShippedFieldAliases[/interface/list].NotReportedKeys = null
+ShippedFieldAliases[/interface/list].NotReportedNames = null
+ShippedFieldAliases[/interface/list].NotReportedTabs = null
 ShippedFieldAliases[/interface/list].NumFlagMembers = null
+ShippedFieldAliases[/interface/list].OmittedWhen = null
 ShippedFieldAliases[/interface/list].PairedFields = null
 ShippedFieldAliases[/interface/list].SyntheticFields = null
+ShippedFieldAliases[/interface/pptp-server/server].AddrPortPairs = null
+ShippedFieldAliases[/interface/pptp-server/server].AlsoKnownAs = null
+ShippedFieldAliases[/interface/pptp-server/server].ApiToJg = ci{}
+ShippedFieldAliases[/interface/pptp-server/server].DerivedBools = null
+ShippedFieldAliases[/interface/pptp-server/server].FallbackFields = null
+ShippedFieldAliases[/interface/pptp-server/server].JgToApi = ci{}
+ShippedFieldAliases[/interface/pptp-server/server].KeyToApi = {}
+ShippedFieldAliases[/interface/pptp-server/server].KeyUiType = {}
+ShippedFieldAliases[/interface/pptp-server/server].NotReportedKeys = null
+ShippedFieldAliases[/interface/pptp-server/server].NotReportedNames = ci{'.about'}
+ShippedFieldAliases[/interface/pptp-server/server].NotReportedTabs = null
+ShippedFieldAliases[/interface/pptp-server/server].NumFlagMembers = null
+ShippedFieldAliases[/interface/pptp-server/server].OmittedWhen = null
+ShippedFieldAliases[/interface/pptp-server/server].PairedFields = null
+ShippedFieldAliases[/interface/pptp-server/server].SyntheticFields = null
 ShippedFieldAliases[/interface/vrrp].AddrPortPairs = null
 ShippedFieldAliases[/interface/vrrp].AlsoKnownAs = null
 ShippedFieldAliases[/interface/vrrp].ApiToJg = ci{'connection-tracking-port'='conn-tracking-port'}
@@ -117,9 +174,12 @@ ShippedFieldAliases[/interface/vrrp].JgToApi = ci{'conn-tracking-port'='connecti
 ShippedFieldAliases[/interface/vrrp].KeyToApi = {16646152='invalid'}
 ShippedFieldAliases[/interface/vrrp].KeyUiType = {}
 ShippedFieldAliases[/interface/vrrp].NotReportedKeys = null
+ShippedFieldAliases[/interface/vrrp].NotReportedNames = ci{'active-queue-type', 'default-queue-type', 'link-downs', 'queue-type', 'rx-byte', 'rx-drop', 'rx-error', 'rx-packet', 'tx-byte', 'tx-drop', 'tx-error', 'tx-packet', 'tx-queue-drop', 'type', 'vrf'}
+ShippedFieldAliases[/interface/vrrp].NotReportedTabs = null
 ShippedFieldAliases[/interface/vrrp].NumFlagMembers = null
+ShippedFieldAliases[/interface/vrrp].OmittedWhen = null
 ShippedFieldAliases[/interface/vrrp].PairedFields = null
-ShippedFieldAliases[/interface/vrrp].SyntheticFields = ci{'connection-tracking-mode'=WinboxJgField{Allow=null ApiName='connection-tracking-mode' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='passive-active', 1='active-active'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=23 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217751 UiType=null WireType='u32'}, 'on-fail'=WinboxJgField{Allow=null ApiName='on-fail' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=19 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870931 UiType=null WireType='string'}}
+ShippedFieldAliases[/interface/vrrp].SyntheticFields = ci{'connection-tracking-mode'=WinboxJgField{Allow=null ApiName='connection-tracking-mode' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='passive-active', 1='active-active'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=23 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217751 UiType=null WireType='u32'}, 'on-fail'=WinboxJgField{Allow=null ApiName='on-fail' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=19 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870931 UiType=null WireType='string'}}
 ShippedFieldAliases[/interface/vxlan].AddrPortPairs = null
 ShippedFieldAliases[/interface/vxlan].AlsoKnownAs = null
 ShippedFieldAliases[/interface/vxlan].ApiToJg = ci{'rem-csum'='remote-checksum-offload'}
@@ -129,7 +189,10 @@ ShippedFieldAliases[/interface/vxlan].JgToApi = ci{'remote-checksum-offload'='re
 ShippedFieldAliases[/interface/vxlan].KeyToApi = {}
 ShippedFieldAliases[/interface/vxlan].KeyUiType = {}
 ShippedFieldAliases[/interface/vxlan].NotReportedKeys = null
+ShippedFieldAliases[/interface/vxlan].NotReportedNames = null
+ShippedFieldAliases[/interface/vxlan].NotReportedTabs = null
 ShippedFieldAliases[/interface/vxlan].NumFlagMembers = null
+ShippedFieldAliases[/interface/vxlan].OmittedWhen = null
 ShippedFieldAliases[/interface/vxlan].PairedFields = null
 ShippedFieldAliases[/interface/vxlan].SyntheticFields = null
 ShippedFieldAliases[/interface/wifi/security].AddrPortPairs = null
@@ -141,7 +204,10 @@ ShippedFieldAliases[/interface/wifi/security].JgToApi = ci{'ft-preserve-vlan-id'
 ShippedFieldAliases[/interface/wifi/security].KeyToApi = {}
 ShippedFieldAliases[/interface/wifi/security].KeyUiType = {}
 ShippedFieldAliases[/interface/wifi/security].NotReportedKeys = null
+ShippedFieldAliases[/interface/wifi/security].NotReportedNames = null
+ShippedFieldAliases[/interface/wifi/security].NotReportedTabs = null
 ShippedFieldAliases[/interface/wifi/security].NumFlagMembers = null
+ShippedFieldAliases[/interface/wifi/security].OmittedWhen = null
 ShippedFieldAliases[/interface/wifi/security].PairedFields = null
 ShippedFieldAliases[/interface/wifi/security].SyntheticFields = null
 ShippedFieldAliases[/interface/wireguard/peers].AddrPortPairs = null
@@ -153,9 +219,12 @@ ShippedFieldAliases[/interface/wireguard/peers].JgToApi = ci{'endpoint'='endpoin
 ShippedFieldAliases[/interface/wireguard/peers].KeyToApi = {}
 ShippedFieldAliases[/interface/wireguard/peers].KeyUiType = {}
 ShippedFieldAliases[/interface/wireguard/peers].NotReportedKeys = null
+ShippedFieldAliases[/interface/wireguard/peers].NotReportedNames = null
+ShippedFieldAliases[/interface/wireguard/peers].NotReportedTabs = null
 ShippedFieldAliases[/interface/wireguard/peers].NumFlagMembers = null
+ShippedFieldAliases[/interface/wireguard/peers].OmittedWhen = null
 ShippedFieldAliases[/interface/wireguard/peers].PairedFields = null
-ShippedFieldAliases[/interface/wireguard/peers].SyntheticFields = ci{'rx'=WinboxJgField{Allow=null ApiName='rx' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1011 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=268436467 UiType=null WireType='u64'}, 'tx'=WinboxJgField{Allow=null ApiName='tx' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1012 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=268436468 UiType=null WireType='u64'}}
+ShippedFieldAliases[/interface/wireguard/peers].SyntheticFields = ci{'rx'=WinboxJgField{Allow=null ApiName='rx' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1011 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=268436467 UiType=null WireType='u64'}, 'tx'=WinboxJgField{Allow=null ApiName='tx' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1012 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=268436468 UiType=null WireType='u64'}}
 ShippedFieldAliases[/interface/wireless/security-profiles].AddrPortPairs = null
 ShippedFieldAliases[/interface/wireless/security-profiles].AlsoKnownAs = null
 ShippedFieldAliases[/interface/wireless/security-profiles].ApiToJg = ci{'radius-called-format'='called-id-format', 'radius-eap-accounting'='eap-accounting', 'radius-mac-accounting'='mac-accounting', 'radius-mac-authentication'='mac-authentication', 'radius-mac-caching'='mac-caching-time', 'radius-mac-format'='mac-format', 'radius-mac-mode'='mac-mode', 'static-transmit-key'='transmit-key'}
@@ -165,9 +234,12 @@ ShippedFieldAliases[/interface/wireless/security-profiles].JgToApi = ci{'called-
 ShippedFieldAliases[/interface/wireless/security-profiles].KeyToApi = {}
 ShippedFieldAliases[/interface/wireless/security-profiles].KeyUiType = {}
 ShippedFieldAliases[/interface/wireless/security-profiles].NotReportedKeys = null
+ShippedFieldAliases[/interface/wireless/security-profiles].NotReportedNames = null
+ShippedFieldAliases[/interface/wireless/security-profiles].NotReportedTabs = null
 ShippedFieldAliases[/interface/wireless/security-profiles].NumFlagMembers = null
+ShippedFieldAliases[/interface/wireless/security-profiles].OmittedWhen = null
 ShippedFieldAliases[/interface/wireless/security-profiles].PairedFields = null
-ShippedFieldAliases[/interface/wireless/security-profiles].SyntheticFields = ci{'static-algo-0'=WinboxJgField{Allow=null ApiName='static-algo-0' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=7 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217735 UiType=null WireType='u32'}, 'static-algo-1'=WinboxJgField{Allow=null ApiName='static-algo-1' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=8 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217736 UiType=null WireType='u32'}, 'static-algo-2'=WinboxJgField{Allow=null ApiName='static-algo-2' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=9 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217737 UiType=null WireType='u32'}, 'static-algo-3'=WinboxJgField{Allow=null ApiName='static-algo-3' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=10 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217738 UiType=null WireType='u32'}, 'static-key-0'=WinboxJgField{Allow=null ApiName='static-key-0' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=11 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870923 UiType=null WireType='string'}, 'static-key-1'=WinboxJgField{Allow=null ApiName='static-key-1' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=12 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870924 UiType=null WireType='string'}, 'static-key-2'=WinboxJgField{Allow=null ApiName='static-key-2' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=13 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870925 UiType=null WireType='string'}, 'static-key-3'=WinboxJgField{Allow=null ApiName='static-key-3' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=14 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870926 UiType=null WireType='string'}, 'static-sta-private-algo'=WinboxJgField{Allow=null ApiName='static-sta-private-algo' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=16 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217744 UiType=null WireType='u32'}, 'static-sta-private-key'=WinboxJgField{Allow=null ApiName='static-sta-private-key' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=17 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870929 UiType=null WireType='string'}}
+ShippedFieldAliases[/interface/wireless/security-profiles].SyntheticFields = ci{'static-algo-0'=WinboxJgField{Allow=null ApiName='static-algo-0' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=7 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217735 UiType=null WireType='u32'}, 'static-algo-1'=WinboxJgField{Allow=null ApiName='static-algo-1' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=8 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217736 UiType=null WireType='u32'}, 'static-algo-2'=WinboxJgField{Allow=null ApiName='static-algo-2' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=9 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217737 UiType=null WireType='u32'}, 'static-algo-3'=WinboxJgField{Allow=null ApiName='static-algo-3' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=10 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217738 UiType=null WireType='u32'}, 'static-key-0'=WinboxJgField{Allow=null ApiName='static-key-0' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=11 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870923 UiType=null WireType='string'}, 'static-key-1'=WinboxJgField{Allow=null ApiName='static-key-1' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=12 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870924 UiType=null WireType='string'}, 'static-key-2'=WinboxJgField{Allow=null ApiName='static-key-2' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=13 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870925 UiType=null WireType='string'}, 'static-key-3'=WinboxJgField{Allow=null ApiName='static-key-3' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=14 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870926 UiType=null WireType='string'}, 'static-sta-private-algo'=WinboxJgField{Allow=null ApiName='static-sta-private-algo' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='none', 1='40bit-wep', 2='104bit-wep', 3='aes-ccm', 4='tkip'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=16 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217744 UiType=null WireType='u32'}, 'static-sta-private-key'=WinboxJgField{Allow=null ApiName='static-sta-private-key' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=17 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870929 UiType=null WireType='string'}}
 ShippedFieldAliases[/ip/accounting].AddrPortPairs = null
 ShippedFieldAliases[/ip/accounting].AlsoKnownAs = null
 ShippedFieldAliases[/ip/accounting].ApiToJg = ci{'enabled'='enable-accounting'}
@@ -177,7 +249,10 @@ ShippedFieldAliases[/ip/accounting].JgToApi = ci{'enable-accounting'='enabled'}
 ShippedFieldAliases[/ip/accounting].KeyToApi = {}
 ShippedFieldAliases[/ip/accounting].KeyUiType = {}
 ShippedFieldAliases[/ip/accounting].NotReportedKeys = null
+ShippedFieldAliases[/ip/accounting].NotReportedNames = null
+ShippedFieldAliases[/ip/accounting].NotReportedTabs = null
 ShippedFieldAliases[/ip/accounting].NumFlagMembers = null
+ShippedFieldAliases[/ip/accounting].OmittedWhen = null
 ShippedFieldAliases[/ip/accounting].PairedFields = null
 ShippedFieldAliases[/ip/accounting].SyntheticFields = null
 ShippedFieldAliases[/ip/address].AddrPortPairs = null
@@ -189,9 +264,12 @@ ShippedFieldAliases[/ip/address].JgToApi = ci{}
 ShippedFieldAliases[/ip/address].KeyToApi = {}
 ShippedFieldAliases[/ip/address].KeyUiType = {}
 ShippedFieldAliases[/ip/address].NotReportedKeys = null
+ShippedFieldAliases[/ip/address].NotReportedNames = null
+ShippedFieldAliases[/ip/address].NotReportedTabs = null
 ShippedFieldAliases[/ip/address].NumFlagMembers = null
+ShippedFieldAliases[/ip/address].OmittedWhen = null
 ShippedFieldAliases[/ip/address].PairedFields = null
-ShippedFieldAliases[/ip/address].SyntheticFields = ci{'actual-interface'=WinboxJgField{Allow=null ApiName='actual-interface' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=5 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217733 UiType='enm' WireType='u32'}}
+ShippedFieldAliases[/ip/address].SyntheticFields = ci{'actual-interface'=WinboxJgField{Allow=null ApiName='actual-interface' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=5 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217733 UiType='enm' WireType='u32'}}
 ShippedFieldAliases[/ip/arp].AddrPortPairs = null
 ShippedFieldAliases[/ip/arp].AlsoKnownAs = null
 ShippedFieldAliases[/ip/arp].ApiToJg = ci{'address'='ip-address'}
@@ -201,9 +279,27 @@ ShippedFieldAliases[/ip/arp].JgToApi = ci{'ip-address'='address'}
 ShippedFieldAliases[/ip/arp].KeyToApi = {}
 ShippedFieldAliases[/ip/arp].KeyUiType = {}
 ShippedFieldAliases[/ip/arp].NotReportedKeys = null
+ShippedFieldAliases[/ip/arp].NotReportedNames = null
+ShippedFieldAliases[/ip/arp].NotReportedTabs = null
 ShippedFieldAliases[/ip/arp].NumFlagMembers = null
+ShippedFieldAliases[/ip/arp].OmittedWhen = null
 ShippedFieldAliases[/ip/arp].PairedFields = null
 ShippedFieldAliases[/ip/arp].SyntheticFields = null
+ShippedFieldAliases[/ip/cloud].AddrPortPairs = null
+ShippedFieldAliases[/ip/cloud].AlsoKnownAs = null
+ShippedFieldAliases[/ip/cloud].ApiToJg = ci{}
+ShippedFieldAliases[/ip/cloud].DerivedBools = null
+ShippedFieldAliases[/ip/cloud].FallbackFields = null
+ShippedFieldAliases[/ip/cloud].JgToApi = ci{}
+ShippedFieldAliases[/ip/cloud].KeyToApi = {}
+ShippedFieldAliases[/ip/cloud].KeyUiType = {}
+ShippedFieldAliases[/ip/cloud].NotReportedKeys = null
+ShippedFieldAliases[/ip/cloud].NotReportedNames = ci{'.about'}
+ShippedFieldAliases[/ip/cloud].NotReportedTabs = null
+ShippedFieldAliases[/ip/cloud].NumFlagMembers = null
+ShippedFieldAliases[/ip/cloud].OmittedWhen = null
+ShippedFieldAliases[/ip/cloud].PairedFields = null
+ShippedFieldAliases[/ip/cloud].SyntheticFields = null
 ShippedFieldAliases[/ip/dhcp-client].AddrPortPairs = null
 ShippedFieldAliases[/ip/dhcp-client].AlsoKnownAs = null
 ShippedFieldAliases[/ip/dhcp-client].ApiToJg = ci{'address'='ip-address', 'allow-reconfigure'='allow-reconfigure-messages', 'default-route-tables'='routing-tables'}
@@ -213,7 +309,10 @@ ShippedFieldAliases[/ip/dhcp-client].JgToApi = ci{'allow-reconfigure-messages'='
 ShippedFieldAliases[/ip/dhcp-client].KeyToApi = {}
 ShippedFieldAliases[/ip/dhcp-client].KeyUiType = {}
 ShippedFieldAliases[/ip/dhcp-client].NotReportedKeys = null
+ShippedFieldAliases[/ip/dhcp-client].NotReportedNames = null
+ShippedFieldAliases[/ip/dhcp-client].NotReportedTabs = null
 ShippedFieldAliases[/ip/dhcp-client].NumFlagMembers = null
+ShippedFieldAliases[/ip/dhcp-client].OmittedWhen = ci{'dscp'='0', 'script'='', 'vlan-priority'='0'}
 ShippedFieldAliases[/ip/dhcp-client].PairedFields = null
 ShippedFieldAliases[/ip/dhcp-client].SyntheticFields = null
 ShippedFieldAliases[/ip/dhcp-relay].AddrPortPairs = null
@@ -225,7 +324,10 @@ ShippedFieldAliases[/ip/dhcp-relay].JgToApi = ci{'local-address-as-source-ip'='l
 ShippedFieldAliases[/ip/dhcp-relay].KeyToApi = {}
 ShippedFieldAliases[/ip/dhcp-relay].KeyUiType = {}
 ShippedFieldAliases[/ip/dhcp-relay].NotReportedKeys = null
+ShippedFieldAliases[/ip/dhcp-relay].NotReportedNames = null
+ShippedFieldAliases[/ip/dhcp-relay].NotReportedTabs = null
 ShippedFieldAliases[/ip/dhcp-relay].NumFlagMembers = null
+ShippedFieldAliases[/ip/dhcp-relay].OmittedWhen = null
 ShippedFieldAliases[/ip/dhcp-relay].PairedFields = null
 ShippedFieldAliases[/ip/dhcp-relay].SyntheticFields = null
 ShippedFieldAliases[/ip/dhcp-server].AddrPortPairs = null
@@ -237,9 +339,12 @@ ShippedFieldAliases[/ip/dhcp-server].JgToApi = ci{'dns-entry-suffix'='add-dns-en
 ShippedFieldAliases[/ip/dhcp-server].KeyToApi = {}
 ShippedFieldAliases[/ip/dhcp-server].KeyUiType = {}
 ShippedFieldAliases[/ip/dhcp-server].NotReportedKeys = null
+ShippedFieldAliases[/ip/dhcp-server].NotReportedNames = null
+ShippedFieldAliases[/ip/dhcp-server].NotReportedTabs = null
 ShippedFieldAliases[/ip/dhcp-server].NumFlagMembers = null
+ShippedFieldAliases[/ip/dhcp-server].OmittedWhen = null
 ShippedFieldAliases[/ip/dhcp-server].PairedFields = null
-ShippedFieldAliases[/ip/dhcp-server].SyntheticFields = ci{'address-lists'=WinboxJgField{Allow=null ApiName='address-lists' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType='string' EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=30 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=-1610612706 UiType='multistring' WireType='string[]'}}
+ShippedFieldAliases[/ip/dhcp-server].SyntheticFields = ci{'address-lists'=WinboxJgField{Allow=null ApiName='address-lists' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType='string' EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=30 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=-1610612706 UiType='multistring' WireType='string[]'}}
 ShippedFieldAliases[/ip/dhcp-server/config].AddrPortPairs = null
 ShippedFieldAliases[/ip/dhcp-server/config].AlsoKnownAs = null
 ShippedFieldAliases[/ip/dhcp-server/config].ApiToJg = ci{'store-leases-disk'='store-leases-on-disk'}
@@ -249,9 +354,12 @@ ShippedFieldAliases[/ip/dhcp-server/config].JgToApi = ci{'store-leases-on-disk'=
 ShippedFieldAliases[/ip/dhcp-server/config].KeyToApi = {}
 ShippedFieldAliases[/ip/dhcp-server/config].KeyUiType = {}
 ShippedFieldAliases[/ip/dhcp-server/config].NotReportedKeys = null
+ShippedFieldAliases[/ip/dhcp-server/config].NotReportedNames = null
+ShippedFieldAliases[/ip/dhcp-server/config].NotReportedTabs = null
 ShippedFieldAliases[/ip/dhcp-server/config].NumFlagMembers = null
+ShippedFieldAliases[/ip/dhcp-server/config].OmittedWhen = null
 ShippedFieldAliases[/ip/dhcp-server/config].PairedFields = null
-ShippedFieldAliases[/ip/dhcp-server/config].SyntheticFields = ci{'accounting'=WinboxJgField{Allow=null ApiName='accounting' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=3 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=3 UiType=null WireType='bool'}, 'interim-update'=WinboxJgField{Allow=null ApiName='interim-update' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=2 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217730 UiType='interval' WireType='u32'}}
+ShippedFieldAliases[/ip/dhcp-server/config].SyntheticFields = ci{'accounting'=WinboxJgField{Allow=null ApiName='accounting' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=3 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=3 UiType=null WireType='bool'}, 'interim-update'=WinboxJgField{Allow=null ApiName='interim-update' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=2 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217730 UiType='interval' WireType='u32'}}
 ShippedFieldAliases[/ip/dhcp-server/lease].AddrPortPairs = null
 ShippedFieldAliases[/ip/dhcp-server/lease].AlsoKnownAs = null
 ShippedFieldAliases[/ip/dhcp-server/lease].ApiToJg = ci{'address-lists'='address-list', 'dhcp-option'='dhcp-options'}
@@ -261,7 +369,10 @@ ShippedFieldAliases[/ip/dhcp-server/lease].JgToApi = ci{'address-list'='address-
 ShippedFieldAliases[/ip/dhcp-server/lease].KeyToApi = {}
 ShippedFieldAliases[/ip/dhcp-server/lease].KeyUiType = {}
 ShippedFieldAliases[/ip/dhcp-server/lease].NotReportedKeys = null
+ShippedFieldAliases[/ip/dhcp-server/lease].NotReportedNames = null
+ShippedFieldAliases[/ip/dhcp-server/lease].NotReportedTabs = null
 ShippedFieldAliases[/ip/dhcp-server/lease].NumFlagMembers = null
+ShippedFieldAliases[/ip/dhcp-server/lease].OmittedWhen = null
 ShippedFieldAliases[/ip/dhcp-server/lease].PairedFields = null
 ShippedFieldAliases[/ip/dhcp-server/lease].SyntheticFields = null
 ShippedFieldAliases[/ip/dhcp-server/network].AddrPortPairs = null
@@ -273,7 +384,10 @@ ShippedFieldAliases[/ip/dhcp-server/network].JgToApi = ci{'caps-managers'='caps-
 ShippedFieldAliases[/ip/dhcp-server/network].KeyToApi = {}
 ShippedFieldAliases[/ip/dhcp-server/network].KeyUiType = {}
 ShippedFieldAliases[/ip/dhcp-server/network].NotReportedKeys = null
+ShippedFieldAliases[/ip/dhcp-server/network].NotReportedNames = null
+ShippedFieldAliases[/ip/dhcp-server/network].NotReportedTabs = null
 ShippedFieldAliases[/ip/dhcp-server/network].NumFlagMembers = null
+ShippedFieldAliases[/ip/dhcp-server/network].OmittedWhen = null
 ShippedFieldAliases[/ip/dhcp-server/network].PairedFields = null
 ShippedFieldAliases[/ip/dhcp-server/network].SyntheticFields = null
 ShippedFieldAliases[/ip/dns].AddrPortPairs = null
@@ -285,7 +399,10 @@ ShippedFieldAliases[/ip/dns].JgToApi = ci{'mdns-repeater-interfaces'='mdns-repea
 ShippedFieldAliases[/ip/dns].KeyToApi = {}
 ShippedFieldAliases[/ip/dns].KeyUiType = {}
 ShippedFieldAliases[/ip/dns].NotReportedKeys = null
+ShippedFieldAliases[/ip/dns].NotReportedNames = null
+ShippedFieldAliases[/ip/dns].NotReportedTabs = null
 ShippedFieldAliases[/ip/dns].NumFlagMembers = null
+ShippedFieldAliases[/ip/dns].OmittedWhen = null
 ShippedFieldAliases[/ip/dns].PairedFields = null
 ShippedFieldAliases[/ip/dns].SyntheticFields = null
 ShippedFieldAliases[/ip/firewall/address-list].AddrPortPairs = null
@@ -297,7 +414,10 @@ ShippedFieldAliases[/ip/firewall/address-list].JgToApi = ci{'name'='list'}
 ShippedFieldAliases[/ip/firewall/address-list].KeyToApi = {}
 ShippedFieldAliases[/ip/firewall/address-list].KeyUiType = {}
 ShippedFieldAliases[/ip/firewall/address-list].NotReportedKeys = null
+ShippedFieldAliases[/ip/firewall/address-list].NotReportedNames = null
+ShippedFieldAliases[/ip/firewall/address-list].NotReportedTabs = null
 ShippedFieldAliases[/ip/firewall/address-list].NumFlagMembers = null
+ShippedFieldAliases[/ip/firewall/address-list].OmittedWhen = null
 ShippedFieldAliases[/ip/firewall/address-list].PairedFields = null
 ShippedFieldAliases[/ip/firewall/address-list].SyntheticFields = null
 ShippedFieldAliases[/ip/firewall/connection].AddrPortPairs = null
@@ -309,9 +429,12 @@ ShippedFieldAliases[/ip/firewall/connection].JgToApi = ci{'helper-used'='uses-he
 ShippedFieldAliases[/ip/firewall/connection].KeyToApi = {}
 ShippedFieldAliases[/ip/firewall/connection].KeyUiType = {}
 ShippedFieldAliases[/ip/firewall/connection].NotReportedKeys = null
+ShippedFieldAliases[/ip/firewall/connection].NotReportedNames = null
+ShippedFieldAliases[/ip/firewall/connection].NotReportedTabs = null
 ShippedFieldAliases[/ip/firewall/connection].NumFlagMembers = null
+ShippedFieldAliases[/ip/firewall/connection].OmittedWhen = null
 ShippedFieldAliases[/ip/firewall/connection].PairedFields = null
-ShippedFieldAliases[/ip/firewall/connection].SyntheticFields = ci{'gre-key'=WinboxJgField{Allow=null ApiName='gre-key' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=21 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217749 UiType=null WireType='u32'}}
+ShippedFieldAliases[/ip/firewall/connection].SyntheticFields = ci{'gre-key'=WinboxJgField{Allow=null ApiName='gre-key' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=21 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217749 UiType=null WireType='u32'}}
 ShippedFieldAliases[/ip/firewall/connection/tracking].AddrPortPairs = null
 ShippedFieldAliases[/ip/firewall/connection/tracking].AlsoKnownAs = null
 ShippedFieldAliases[/ip/firewall/connection/tracking].ApiToJg = ci{'tcp-close-timeout'='tcp-close', 'tcp-max-retrans-timeout'='tcp-max-retransmit-timeout', 'tcp-time-wait-timeout'='tcp-time-wait', 'total-ip4-entries'='total-ipv4-entries', 'total-ip6-entries'='total-ipv6-entries'}
@@ -321,9 +444,12 @@ ShippedFieldAliases[/ip/firewall/connection/tracking].JgToApi = ci{'tcp-close'='
 ShippedFieldAliases[/ip/firewall/connection/tracking].KeyToApi = {}
 ShippedFieldAliases[/ip/firewall/connection/tracking].KeyUiType = {}
 ShippedFieldAliases[/ip/firewall/connection/tracking].NotReportedKeys = null
+ShippedFieldAliases[/ip/firewall/connection/tracking].NotReportedNames = null
+ShippedFieldAliases[/ip/firewall/connection/tracking].NotReportedTabs = null
 ShippedFieldAliases[/ip/firewall/connection/tracking].NumFlagMembers = null
+ShippedFieldAliases[/ip/firewall/connection/tracking].OmittedWhen = null
 ShippedFieldAliases[/ip/firewall/connection/tracking].PairedFields = null
-ShippedFieldAliases[/ip/firewall/connection/tracking].SyntheticFields = ci{'active-ipv6'=WinboxJgField{Allow=null ApiName='active-ipv6' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=47 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=47 UiType=null WireType='bool'}, 'total-entries'=WinboxJgField{Allow=null ApiName='total-entries' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=15 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217743 UiType='number' WireType='u32'}}
+ShippedFieldAliases[/ip/firewall/connection/tracking].SyntheticFields = ci{'active-ipv6'=WinboxJgField{Allow=null ApiName='active-ipv6' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=47 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=47 UiType=null WireType='bool'}, 'total-entries'=WinboxJgField{Allow=null ApiName='total-entries' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=15 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217743 UiType='number' WireType='u32'}}
 ShippedFieldAliases[/ip/firewall/filter].AddrPortPairs = null
 ShippedFieldAliases[/ip/firewall/filter].AlsoKnownAs = null
 ShippedFieldAliases[/ip/firewall/filter].ApiToJg = ci{}
@@ -333,9 +459,12 @@ ShippedFieldAliases[/ip/firewall/filter].JgToApi = ci{}
 ShippedFieldAliases[/ip/firewall/filter].KeyToApi = {}
 ShippedFieldAliases[/ip/firewall/filter].KeyUiType = {}
 ShippedFieldAliases[/ip/firewall/filter].NotReportedKeys = null
+ShippedFieldAliases[/ip/firewall/filter].NotReportedNames = null
+ShippedFieldAliases[/ip/firewall/filter].NotReportedTabs = null
 ShippedFieldAliases[/ip/firewall/filter].NumFlagMembers = null
+ShippedFieldAliases[/ip/firewall/filter].OmittedWhen = null
 ShippedFieldAliases[/ip/firewall/filter].PairedFields = null
-ShippedFieldAliases[/ip/firewall/filter].SyntheticFields = ci{'dst-limit'=WinboxJgField{Allow=null ApiName='dst-limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=54 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=420 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217782 UiType='tik4net-fw-dst-limit' WireType='u32'}, 'ipsec-policy'=WinboxJgField{Allow=null ApiName='ipsec-policy' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=[WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='in', 1='out'} Key=132 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}, WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='none', 1='ipsec'} Key=133 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}] ElementScale=1 ElementSeparator=',' ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=132 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=453 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217860 UiType='tuple' WireType='u32'}, 'limit'=WinboxJgField{Allow=null ApiName='limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=135 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=228 OffKey=0 OptKey=416 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=268435591 UiType='tik4net-fw-limit' WireType='u64'}, 'realm'=WinboxJgField{Allow=null ApiName='realm' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=126 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=224 OffKey=0 OptKey=450 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217854 UiType='number' WireType='u32'}, 'tos'=WinboxJgField{Allow=null ApiName='tos' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=457 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=456 OffKey=0 OptKey=455 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134218185 UiType='tik4net-fw-tos' WireType='u32'}}
+ShippedFieldAliases[/ip/firewall/filter].SyntheticFields = ci{'dst-limit'=WinboxJgField{Allow=null ApiName='dst-limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=54 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=420 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217782 UiType='tik4net-fw-dst-limit' WireType='u32'}, 'ipsec-policy'=WinboxJgField{Allow=null ApiName='ipsec-policy' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=[WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='in', 1='out'} Key=132 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}, WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='none', 1='ipsec'} Key=133 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}] ElementScale=1 ElementSeparator=',' ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=132 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=453 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217860 UiType='tuple' WireType='u32'}, 'limit'=WinboxJgField{Allow=null ApiName='limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=135 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=228 OffKey=0 OptKey=416 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=268435591 UiType='tik4net-fw-limit' WireType='u64'}, 'realm'=WinboxJgField{Allow=null ApiName='realm' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=126 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=224 OffKey=0 OptKey=450 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217854 UiType='number' WireType='u32'}, 'tos'=WinboxJgField{Allow=null ApiName='tos' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=457 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=456 OffKey=0 OptKey=455 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134218185 UiType='tik4net-fw-tos' WireType='u32'}}
 ShippedFieldAliases[/ip/firewall/mangle].AddrPortPairs = null
 ShippedFieldAliases[/ip/firewall/mangle].AlsoKnownAs = null
 ShippedFieldAliases[/ip/firewall/mangle].ApiToJg = ci{'new-dscp'='new-dscp-(tos)', 'new-mss'='new-tcp-mss'}
@@ -345,9 +474,12 @@ ShippedFieldAliases[/ip/firewall/mangle].JgToApi = ci{'new-dscp-(tos)'='new-dscp
 ShippedFieldAliases[/ip/firewall/mangle].KeyToApi = {}
 ShippedFieldAliases[/ip/firewall/mangle].KeyUiType = {}
 ShippedFieldAliases[/ip/firewall/mangle].NotReportedKeys = null
+ShippedFieldAliases[/ip/firewall/mangle].NotReportedNames = null
+ShippedFieldAliases[/ip/firewall/mangle].NotReportedTabs = null
 ShippedFieldAliases[/ip/firewall/mangle].NumFlagMembers = null
+ShippedFieldAliases[/ip/firewall/mangle].OmittedWhen = null
 ShippedFieldAliases[/ip/firewall/mangle].PairedFields = null
-ShippedFieldAliases[/ip/firewall/mangle].SyntheticFields = ci{'dst-limit'=WinboxJgField{Allow=null ApiName='dst-limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=54 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=420 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217782 UiType='tik4net-fw-dst-limit' WireType='u32'}, 'ipsec-policy'=WinboxJgField{Allow=null ApiName='ipsec-policy' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=[WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='in', 1='out'} Key=132 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}, WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='none', 1='ipsec'} Key=133 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}] ElementScale=1 ElementSeparator=',' ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=132 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=453 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217860 UiType='tuple' WireType='u32'}, 'limit'=WinboxJgField{Allow=null ApiName='limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=135 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=228 OffKey=0 OptKey=416 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=268435591 UiType='tik4net-fw-limit' WireType='u64'}, 'new-ttl'=WinboxJgField{Allow=null ApiName='new-ttl' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=[WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='set', 1='increment', 2='decrement'} Key=1006 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}, WinboxJgElementPart{Alternatives=null Continues=false EnumMap=null Key=1007 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='number'}] ElementScale=1 ElementSeparator=':' ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1006 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134218734 UiType='tuple' WireType='u32'}, 'realm'=WinboxJgField{Allow=null ApiName='realm' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=126 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=224 OffKey=0 OptKey=450 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217854 UiType='number' WireType='u32'}, 'route-dst'=WinboxJgField{Allow=null ApiName='route-dst' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1012 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134218740 UiType='ipaddr' WireType='u32'}, 'tos'=WinboxJgField{Allow=null ApiName='tos' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=457 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=456 OffKey=0 OptKey=455 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134218185 UiType='tik4net-fw-tos' WireType='u32'}}
+ShippedFieldAliases[/ip/firewall/mangle].SyntheticFields = ci{'dst-limit'=WinboxJgField{Allow=null ApiName='dst-limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=54 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=420 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217782 UiType='tik4net-fw-dst-limit' WireType='u32'}, 'ipsec-policy'=WinboxJgField{Allow=null ApiName='ipsec-policy' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=[WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='in', 1='out'} Key=132 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}, WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='none', 1='ipsec'} Key=133 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}] ElementScale=1 ElementSeparator=',' ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=132 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=453 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217860 UiType='tuple' WireType='u32'}, 'limit'=WinboxJgField{Allow=null ApiName='limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=135 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=228 OffKey=0 OptKey=416 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=268435591 UiType='tik4net-fw-limit' WireType='u64'}, 'new-ttl'=WinboxJgField{Allow=null ApiName='new-ttl' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=[WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='set', 1='increment', 2='decrement'} Key=1006 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}, WinboxJgElementPart{Alternatives=null Continues=false EnumMap=null Key=1007 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='number'}] ElementScale=1 ElementSeparator=':' ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1006 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134218734 UiType='tuple' WireType='u32'}, 'realm'=WinboxJgField{Allow=null ApiName='realm' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=126 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=224 OffKey=0 OptKey=450 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217854 UiType='number' WireType='u32'}, 'route-dst'=WinboxJgField{Allow=null ApiName='route-dst' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1012 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134218740 UiType='ipaddr' WireType='u32'}, 'tos'=WinboxJgField{Allow=null ApiName='tos' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=457 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=456 OffKey=0 OptKey=455 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134218185 UiType='tik4net-fw-tos' WireType='u32'}}
 ShippedFieldAliases[/ip/firewall/raw].AddrPortPairs = null
 ShippedFieldAliases[/ip/firewall/raw].AlsoKnownAs = null
 ShippedFieldAliases[/ip/firewall/raw].ApiToJg = ci{}
@@ -357,9 +489,12 @@ ShippedFieldAliases[/ip/firewall/raw].JgToApi = ci{}
 ShippedFieldAliases[/ip/firewall/raw].KeyToApi = {}
 ShippedFieldAliases[/ip/firewall/raw].KeyUiType = {}
 ShippedFieldAliases[/ip/firewall/raw].NotReportedKeys = null
+ShippedFieldAliases[/ip/firewall/raw].NotReportedNames = null
+ShippedFieldAliases[/ip/firewall/raw].NotReportedTabs = null
 ShippedFieldAliases[/ip/firewall/raw].NumFlagMembers = null
+ShippedFieldAliases[/ip/firewall/raw].OmittedWhen = null
 ShippedFieldAliases[/ip/firewall/raw].PairedFields = null
-ShippedFieldAliases[/ip/firewall/raw].SyntheticFields = ci{'dst-limit'=WinboxJgField{Allow=null ApiName='dst-limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=54 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=420 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217782 UiType='tik4net-fw-dst-limit' WireType='u32'}, 'in-bridge-port'=WinboxJgField{Allow=null ApiName='in-bridge-port' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={16777216='all ethernet', 16777217='all wireless', 16777218='all vlan', 16777219='all ppp'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=84 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=209 OffKey=0 OptKey=432 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217812 UiType='enm' WireType='u32'}, 'in-bridge-port-list'=WinboxJgField{Allow=null ApiName='in-bridge-port-list' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1100 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=2000 OffKey=0 OptKey=3000 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=[20,90] RefHandlers=[[20,90]] Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134218828 UiType='enm' WireType='u32'}, 'ipsec-policy'=WinboxJgField{Allow=null ApiName='ipsec-policy' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=[WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='in', 1='out'} Key=132 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}, WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='none', 1='ipsec'} Key=133 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}] ElementScale=1 ElementSeparator=',' ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=132 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=453 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217860 UiType='tuple' WireType='u32'}, 'limit'=WinboxJgField{Allow=null ApiName='limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=135 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=228 OffKey=0 OptKey=416 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=268435591 UiType='tik4net-fw-limit' WireType='u64'}, 'out-bridge-port'=WinboxJgField{Allow=null ApiName='out-bridge-port' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={16777216='all ethernet', 16777217='all wireless', 16777218='all vlan', 16777219='all ppp'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=85 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=210 OffKey=0 OptKey=433 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217813 UiType='enm' WireType='u32'}, 'out-bridge-port-list'=WinboxJgField{Allow=null ApiName='out-bridge-port-list' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1101 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=2001 OffKey=0 OptKey=3001 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=[20,90] RefHandlers=[[20,90]] Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134218829 UiType='enm' WireType='u32'}, 'packet-mark'=WinboxJgField{Allow=null ApiName='packet-mark' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=30 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=29 OffKey=0 OptKey=410 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870942 UiType=null WireType='string'}, 'tos'=WinboxJgField{Allow=null ApiName='tos' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=457 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=456 OffKey=0 OptKey=455 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134218185 UiType='tik4net-fw-tos' WireType='u32'}}
+ShippedFieldAliases[/ip/firewall/raw].SyntheticFields = ci{'dst-limit'=WinboxJgField{Allow=null ApiName='dst-limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=54 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=420 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217782 UiType='tik4net-fw-dst-limit' WireType='u32'}, 'in-bridge-port'=WinboxJgField{Allow=null ApiName='in-bridge-port' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={16777216='all ethernet', 16777217='all wireless', 16777218='all vlan', 16777219='all ppp'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=84 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=209 OffKey=0 OptKey=432 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217812 UiType='enm' WireType='u32'}, 'in-bridge-port-list'=WinboxJgField{Allow=null ApiName='in-bridge-port-list' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1100 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=2000 OffKey=0 OptKey=3000 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=[20,90] RefHandlers=[[20,90]] Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134218828 UiType='enm' WireType='u32'}, 'ipsec-policy'=WinboxJgField{Allow=null ApiName='ipsec-policy' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=[WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='in', 1='out'} Key=132 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}, WinboxJgElementPart{Alternatives=null Continues=false EnumMap={0='none', 1='ipsec'} Key=133 MaskKey=0 Prefix=null Radix=0 RefHandler=null UiType='enm'}] ElementScale=1 ElementSeparator=',' ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=132 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=453 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217860 UiType='tuple' WireType='u32'}, 'limit'=WinboxJgField{Allow=null ApiName='limit' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=135 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=228 OffKey=0 OptKey=416 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=268435591 UiType='tik4net-fw-limit' WireType='u64'}, 'out-bridge-port'=WinboxJgField{Allow=null ApiName='out-bridge-port' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={16777216='all ethernet', 16777217='all wireless', 16777218='all vlan', 16777219='all ppp'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=85 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=210 OffKey=0 OptKey=433 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217813 UiType='enm' WireType='u32'}, 'out-bridge-port-list'=WinboxJgField{Allow=null ApiName='out-bridge-port-list' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1101 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=2001 OffKey=0 OptKey=3001 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=[20,90] RefHandlers=[[20,90]] Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134218829 UiType='enm' WireType='u32'}, 'packet-mark'=WinboxJgField{Allow=null ApiName='packet-mark' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=30 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=29 OffKey=0 OptKey=410 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870942 UiType=null WireType='string'}, 'tos'=WinboxJgField{Allow=null ApiName='tos' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=457 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=456 OffKey=0 OptKey=455 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134218185 UiType='tik4net-fw-tos' WireType='u32'}}
 ShippedFieldAliases[/ip/hotspot/ip-binding].AddrPortPairs = null
 ShippedFieldAliases[/ip/hotspot/ip-binding].AlsoKnownAs = null
 ShippedFieldAliases[/ip/hotspot/ip-binding].ApiToJg = ci{}
@@ -369,7 +504,10 @@ ShippedFieldAliases[/ip/hotspot/ip-binding].JgToApi = ci{}
 ShippedFieldAliases[/ip/hotspot/ip-binding].KeyToApi = {}
 ShippedFieldAliases[/ip/hotspot/ip-binding].KeyUiType = {}
 ShippedFieldAliases[/ip/hotspot/ip-binding].NotReportedKeys = null
+ShippedFieldAliases[/ip/hotspot/ip-binding].NotReportedNames = null
+ShippedFieldAliases[/ip/hotspot/ip-binding].NotReportedTabs = null
 ShippedFieldAliases[/ip/hotspot/ip-binding].NumFlagMembers = null
+ShippedFieldAliases[/ip/hotspot/ip-binding].OmittedWhen = null
 ShippedFieldAliases[/ip/hotspot/ip-binding].PairedFields = null
 ShippedFieldAliases[/ip/hotspot/ip-binding].SyntheticFields = null
 ShippedFieldAliases[/ip/hotspot/profile].AddrPortPairs = ci{'http-proxy'='http-proxy-port'}
@@ -381,7 +519,10 @@ ShippedFieldAliases[/ip/hotspot/profile].JgToApi = ci{'accounting'='radius-accou
 ShippedFieldAliases[/ip/hotspot/profile].KeyToApi = {}
 ShippedFieldAliases[/ip/hotspot/profile].KeyUiType = {}
 ShippedFieldAliases[/ip/hotspot/profile].NotReportedKeys = null
+ShippedFieldAliases[/ip/hotspot/profile].NotReportedNames = ci{'rate-limit'}
+ShippedFieldAliases[/ip/hotspot/profile].NotReportedTabs = null
 ShippedFieldAliases[/ip/hotspot/profile].NumFlagMembers = null
+ShippedFieldAliases[/ip/hotspot/profile].OmittedWhen = null
 ShippedFieldAliases[/ip/hotspot/profile].PairedFields = null
 ShippedFieldAliases[/ip/hotspot/profile].SyntheticFields = null
 ShippedFieldAliases[/ip/hotspot/user].AddrPortPairs = null
@@ -393,7 +534,10 @@ ShippedFieldAliases[/ip/hotspot/user].JgToApi = ci{}
 ShippedFieldAliases[/ip/hotspot/user].KeyToApi = {}
 ShippedFieldAliases[/ip/hotspot/user].KeyUiType = {}
 ShippedFieldAliases[/ip/hotspot/user].NotReportedKeys = null
+ShippedFieldAliases[/ip/hotspot/user].NotReportedNames = null
+ShippedFieldAliases[/ip/hotspot/user].NotReportedTabs = null
 ShippedFieldAliases[/ip/hotspot/user].NumFlagMembers = null
+ShippedFieldAliases[/ip/hotspot/user].OmittedWhen = ci{'address'='0.0.0.0', 'email'='', 'limit-bytes-in'='0', 'limit-bytes-out'='0', 'limit-bytes-total'='0', 'limit-uptime'='0s', 'mac-address'='00:00:00:00:00:00', 'otp-secret'='', 'password'='', 'profile'='*FFFFFFFF', 'routes'=''}
 ShippedFieldAliases[/ip/hotspot/user].PairedFields = null
 ShippedFieldAliases[/ip/hotspot/user].SyntheticFields = null
 ShippedFieldAliases[/ip/hotspot/user/profile].AddrPortPairs = null
@@ -405,9 +549,27 @@ ShippedFieldAliases[/ip/hotspot/user/profile].JgToApi = ci{'rate-limit-(rx/tx)'=
 ShippedFieldAliases[/ip/hotspot/user/profile].KeyToApi = {}
 ShippedFieldAliases[/ip/hotspot/user/profile].KeyUiType = {}
 ShippedFieldAliases[/ip/hotspot/user/profile].NotReportedKeys = null
+ShippedFieldAliases[/ip/hotspot/user/profile].NotReportedNames = ci{'advertise', 'advertise-interval', 'advertise-timeout', 'advertise-url', 'open-status-page'}
+ShippedFieldAliases[/ip/hotspot/user/profile].NotReportedTabs = null
 ShippedFieldAliases[/ip/hotspot/user/profile].NumFlagMembers = null
+ShippedFieldAliases[/ip/hotspot/user/profile].OmittedWhen = ci{'address-pool'='none', 'incoming-filter'='', 'incoming-packet-mark'='', 'on-login'='', 'on-logout'='', 'outgoing-filter'='', 'outgoing-packet-mark'='', 'rate-limit'='', 'session-timeout'='0s'}
 ShippedFieldAliases[/ip/hotspot/user/profile].PairedFields = null
 ShippedFieldAliases[/ip/hotspot/user/profile].SyntheticFields = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].AddrPortPairs = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].AlsoKnownAs = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].ApiToJg = ci{}
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].DerivedBools = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].FallbackFields = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].JgToApi = ci{}
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].KeyToApi = {}
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].KeyUiType = {}
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].NotReportedKeys = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].NotReportedNames = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].NotReportedTabs = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].NumFlagMembers = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].OmittedWhen = ci{'dst-host'=''}
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].PairedFields = null
+ShippedFieldAliases[/ip/hotspot/walled-garden/ip].SyntheticFields = null
 ShippedFieldAliases[/ip/ipsec/active-peers].AddrPortPairs = null
 ShippedFieldAliases[/ip/ipsec/active-peers].AlsoKnownAs = null
 ShippedFieldAliases[/ip/ipsec/active-peers].ApiToJg = ci{}
@@ -417,9 +579,27 @@ ShippedFieldAliases[/ip/ipsec/active-peers].JgToApi = ci{}
 ShippedFieldAliases[/ip/ipsec/active-peers].KeyToApi = {}
 ShippedFieldAliases[/ip/ipsec/active-peers].KeyUiType = {}
 ShippedFieldAliases[/ip/ipsec/active-peers].NotReportedKeys = null
+ShippedFieldAliases[/ip/ipsec/active-peers].NotReportedNames = null
+ShippedFieldAliases[/ip/ipsec/active-peers].NotReportedTabs = null
 ShippedFieldAliases[/ip/ipsec/active-peers].NumFlagMembers = null
+ShippedFieldAliases[/ip/ipsec/active-peers].OmittedWhen = null
 ShippedFieldAliases[/ip/ipsec/active-peers].PairedFields = null
-ShippedFieldAliases[/ip/ipsec/active-peers].SyntheticFields = ci{'spii'=WinboxJgField{Allow=null ApiName='spii' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=21 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870933 UiType=null WireType='string'}, 'spir'=WinboxJgField{Allow=null ApiName='spir' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=22 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870934 UiType=null WireType='string'}}
+ShippedFieldAliases[/ip/ipsec/active-peers].SyntheticFields = ci{'spii'=WinboxJgField{Allow=null ApiName='spii' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=21 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870933 UiType=null WireType='string'}, 'spir'=WinboxJgField{Allow=null ApiName='spir' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=22 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870934 UiType=null WireType='string'}}
+ShippedFieldAliases[/ip/ipsec/mode-config].AddrPortPairs = null
+ShippedFieldAliases[/ip/ipsec/mode-config].AlsoKnownAs = null
+ShippedFieldAliases[/ip/ipsec/mode-config].ApiToJg = ci{}
+ShippedFieldAliases[/ip/ipsec/mode-config].DerivedBools = null
+ShippedFieldAliases[/ip/ipsec/mode-config].FallbackFields = null
+ShippedFieldAliases[/ip/ipsec/mode-config].JgToApi = ci{}
+ShippedFieldAliases[/ip/ipsec/mode-config].KeyToApi = {}
+ShippedFieldAliases[/ip/ipsec/mode-config].KeyUiType = {}
+ShippedFieldAliases[/ip/ipsec/mode-config].NotReportedKeys = null
+ShippedFieldAliases[/ip/ipsec/mode-config].NotReportedNames = null
+ShippedFieldAliases[/ip/ipsec/mode-config].NotReportedTabs = null
+ShippedFieldAliases[/ip/ipsec/mode-config].NumFlagMembers = null
+ShippedFieldAliases[/ip/ipsec/mode-config].OmittedWhen = ci{'connection-mark'='', 'src-address-list'=''}
+ShippedFieldAliases[/ip/ipsec/mode-config].PairedFields = null
+ShippedFieldAliases[/ip/ipsec/mode-config].SyntheticFields = null
 ShippedFieldAliases[/ip/ipsec/peer].AddrPortPairs = null
 ShippedFieldAliases[/ip/ipsec/peer].AlsoKnownAs = null
 ShippedFieldAliases[/ip/ipsec/peer].ApiToJg = ci{}
@@ -429,19 +609,25 @@ ShippedFieldAliases[/ip/ipsec/peer].JgToApi = ci{}
 ShippedFieldAliases[/ip/ipsec/peer].KeyToApi = {}
 ShippedFieldAliases[/ip/ipsec/peer].KeyUiType = {}
 ShippedFieldAliases[/ip/ipsec/peer].NotReportedKeys = null
+ShippedFieldAliases[/ip/ipsec/peer].NotReportedNames = null
+ShippedFieldAliases[/ip/ipsec/peer].NotReportedTabs = null
 ShippedFieldAliases[/ip/ipsec/peer].NumFlagMembers = null
+ShippedFieldAliases[/ip/ipsec/peer].OmittedWhen = null
 ShippedFieldAliases[/ip/ipsec/peer].PairedFields = null
-ShippedFieldAliases[/ip/ipsec/peer].SyntheticFields = ci{'ppk-secret'=WinboxJgField{Allow=null ApiName='ppk-secret' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=54 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870966 UiType=null WireType='string'}, 'responder'=WinboxJgField{Allow=null ApiName='responder' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=14 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=14 UiType=null WireType='bool'}}
+ShippedFieldAliases[/ip/ipsec/peer].SyntheticFields = ci{'ppk-secret'=WinboxJgField{Allow=null ApiName='ppk-secret' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=54 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870966 UiType=null WireType='string'}, 'responder'=WinboxJgField{Allow=null ApiName='responder' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=14 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=14 UiType=null WireType='bool'}}
 ShippedFieldAliases[/ip/ipsec/profile].AddrPortPairs = null
 ShippedFieldAliases[/ip/ipsec/profile].AlsoKnownAs = null
-ShippedFieldAliases[/ip/ipsec/profile].ApiToJg = ci{'enc-algorithm'='encryption-algorithm', 'hash-algorithm'='hash-algorithms'}
+ShippedFieldAliases[/ip/ipsec/profile].ApiToJg = ci{'enc-algorithm'='encryption-algorithm', 'hash-algorithm'='hash-algorithms', 'prf-algorithm'='prf-algorithms'}
 ShippedFieldAliases[/ip/ipsec/profile].DerivedBools = null
 ShippedFieldAliases[/ip/ipsec/profile].FallbackFields = null
-ShippedFieldAliases[/ip/ipsec/profile].JgToApi = ci{'encryption-algorithm'='enc-algorithm', 'hash-algorithms'='hash-algorithm'}
+ShippedFieldAliases[/ip/ipsec/profile].JgToApi = ci{'encryption-algorithm'='enc-algorithm', 'hash-algorithms'='hash-algorithm', 'prf-algorithms'='prf-algorithm'}
 ShippedFieldAliases[/ip/ipsec/profile].KeyToApi = {}
 ShippedFieldAliases[/ip/ipsec/profile].KeyUiType = {}
 ShippedFieldAliases[/ip/ipsec/profile].NotReportedKeys = null
+ShippedFieldAliases[/ip/ipsec/profile].NotReportedNames = null
+ShippedFieldAliases[/ip/ipsec/profile].NotReportedTabs = null
 ShippedFieldAliases[/ip/ipsec/profile].NumFlagMembers = null
+ShippedFieldAliases[/ip/ipsec/profile].OmittedWhen = ci{'lifebytes'='0', 'prf-algorithm'='auto'}
 ShippedFieldAliases[/ip/ipsec/profile].PairedFields = null
 ShippedFieldAliases[/ip/ipsec/profile].SyntheticFields = null
 ShippedFieldAliases[/ip/ipsec/proposal].AddrPortPairs = null
@@ -453,7 +639,10 @@ ShippedFieldAliases[/ip/ipsec/proposal].JgToApi = ci{'encr-algorithms'='enc-algo
 ShippedFieldAliases[/ip/ipsec/proposal].KeyToApi = {}
 ShippedFieldAliases[/ip/ipsec/proposal].KeyUiType = {}
 ShippedFieldAliases[/ip/ipsec/proposal].NotReportedKeys = null
+ShippedFieldAliases[/ip/ipsec/proposal].NotReportedNames = null
+ShippedFieldAliases[/ip/ipsec/proposal].NotReportedTabs = null
 ShippedFieldAliases[/ip/ipsec/proposal].NumFlagMembers = null
+ShippedFieldAliases[/ip/ipsec/proposal].OmittedWhen = null
 ShippedFieldAliases[/ip/ipsec/proposal].PairedFields = null
 ShippedFieldAliases[/ip/ipsec/proposal].SyntheticFields = null
 ShippedFieldAliases[/ip/neighbor].AddrPortPairs = null
@@ -465,9 +654,12 @@ ShippedFieldAliases[/ip/neighbor].JgToApi = ci{'board-name'='board', 'ip-address
 ShippedFieldAliases[/ip/neighbor].KeyToApi = {}
 ShippedFieldAliases[/ip/neighbor].KeyUiType = {}
 ShippedFieldAliases[/ip/neighbor].NotReportedKeys = null
+ShippedFieldAliases[/ip/neighbor].NotReportedNames = null
+ShippedFieldAliases[/ip/neighbor].NotReportedTabs = null
 ShippedFieldAliases[/ip/neighbor].NumFlagMembers = null
+ShippedFieldAliases[/ip/neighbor].OmittedWhen = null
 ShippedFieldAliases[/ip/neighbor].PairedFields = null
-ShippedFieldAliases[/ip/neighbor].SyntheticFields = ci{'interface'=WinboxJgField{Allow=null ApiName='interface' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=19 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=-2013265901 UiType='multinumber' WireType='u32[]'}}
+ShippedFieldAliases[/ip/neighbor].SyntheticFields = ci{'interface'=WinboxJgField{Allow=null ApiName='interface' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=19 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=-2013265901 UiType='multinumber' WireType='u32[]'}}
 ShippedFieldAliases[/ip/pool].AddrPortPairs = null
 ShippedFieldAliases[/ip/pool].AlsoKnownAs = null
 ShippedFieldAliases[/ip/pool].ApiToJg = ci{'ranges'='addresses'}
@@ -477,7 +669,10 @@ ShippedFieldAliases[/ip/pool].JgToApi = ci{'addresses'='ranges'}
 ShippedFieldAliases[/ip/pool].KeyToApi = {}
 ShippedFieldAliases[/ip/pool].KeyUiType = {}
 ShippedFieldAliases[/ip/pool].NotReportedKeys = null
+ShippedFieldAliases[/ip/pool].NotReportedNames = null
+ShippedFieldAliases[/ip/pool].NotReportedTabs = null
 ShippedFieldAliases[/ip/pool].NumFlagMembers = null
+ShippedFieldAliases[/ip/pool].OmittedWhen = null
 ShippedFieldAliases[/ip/pool].PairedFields = null
 ShippedFieldAliases[/ip/pool].SyntheticFields = null
 ShippedFieldAliases[/ip/proxy].AddrPortPairs = null
@@ -489,21 +684,42 @@ ShippedFieldAliases[/ip/proxy].JgToApi = ci{'cache-hit-dscp-(tos)'='cache-hit-ds
 ShippedFieldAliases[/ip/proxy].KeyToApi = {}
 ShippedFieldAliases[/ip/proxy].KeyUiType = {}
 ShippedFieldAliases[/ip/proxy].NotReportedKeys = null
+ShippedFieldAliases[/ip/proxy].NotReportedNames = null
+ShippedFieldAliases[/ip/proxy].NotReportedTabs = ci{'inserts', 'lookups', 'refreshes', 'status'}
 ShippedFieldAliases[/ip/proxy].NumFlagMembers = null
+ShippedFieldAliases[/ip/proxy].OmittedWhen = null
 ShippedFieldAliases[/ip/proxy].PairedFields = null
 ShippedFieldAliases[/ip/proxy].SyntheticFields = null
+ShippedFieldAliases[/ip/proxy/access].AddrPortPairs = null
+ShippedFieldAliases[/ip/proxy/access].AlsoKnownAs = null
+ShippedFieldAliases[/ip/proxy/access].ApiToJg = ci{}
+ShippedFieldAliases[/ip/proxy/access].DerivedBools = null
+ShippedFieldAliases[/ip/proxy/access].FallbackFields = null
+ShippedFieldAliases[/ip/proxy/access].JgToApi = ci{}
+ShippedFieldAliases[/ip/proxy/access].KeyToApi = {}
+ShippedFieldAliases[/ip/proxy/access].KeyUiType = {}
+ShippedFieldAliases[/ip/proxy/access].NotReportedKeys = null
+ShippedFieldAliases[/ip/proxy/access].NotReportedNames = ci{'dynamic'}
+ShippedFieldAliases[/ip/proxy/access].NotReportedTabs = null
+ShippedFieldAliases[/ip/proxy/access].NumFlagMembers = null
+ShippedFieldAliases[/ip/proxy/access].OmittedWhen = null
+ShippedFieldAliases[/ip/proxy/access].PairedFields = null
+ShippedFieldAliases[/ip/proxy/access].SyntheticFields = null
 ShippedFieldAliases[/ip/route].AddrPortPairs = null
 ShippedFieldAliases[/ip/route].AlsoKnownAs = null
 ShippedFieldAliases[/ip/route].ApiToJg = ci{'pref-src'='pref-source'}
 ShippedFieldAliases[/ip/route].DerivedBools = null
-ShippedFieldAliases[/ip/route].FallbackFields = ci{'vrf-interface'=WinboxJgField{Allow=null ApiName='vrf-interface' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=60 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217788 UiType='enm' WireType='u32'}}
+ShippedFieldAliases[/ip/route].FallbackFields = ci{'vrf-interface'=WinboxJgField{Allow=null ApiName='vrf-interface' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=60 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=[20,0] RefHandlers=[[20,0]] Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217788 UiType='enm' WireType='u32'}}
 ShippedFieldAliases[/ip/route].JgToApi = ci{'pref-source'='pref-src'}
 ShippedFieldAliases[/ip/route].KeyToApi = {}
 ShippedFieldAliases[/ip/route].KeyUiType = {}
 ShippedFieldAliases[/ip/route].NotReportedKeys = null
+ShippedFieldAliases[/ip/route].NotReportedNames = null
+ShippedFieldAliases[/ip/route].NotReportedTabs = null
 ShippedFieldAliases[/ip/route].NumFlagMembers = ci{'active', 'connect', 'dhcp', 'static'}
+ShippedFieldAliases[/ip/route].OmittedWhen = null
 ShippedFieldAliases[/ip/route].PairedFields = null
-ShippedFieldAliases[/ip/route].SyntheticFields = ci{'immediate-gw'=WinboxJgField{Allow=null ApiName='immediate-gw' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType='addr' EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=264 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=-1476394744 UiType='multi' WireType='addr[]'}}
+ShippedFieldAliases[/ip/route].SyntheticFields = ci{'immediate-gw'=WinboxJgField{Allow=null ApiName='immediate-gw' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType='addr' EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=264 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=-1476394744 UiType='multi' WireType='addr[]'}}
 ShippedFieldAliases[/ip/service].AddrPortPairs = null
 ShippedFieldAliases[/ip/service].AlsoKnownAs = ci{'available-from'=['address']}
 ShippedFieldAliases[/ip/service].ApiToJg = ci{'address'='available-from', 'proto'='protocol'}
@@ -513,7 +729,10 @@ ShippedFieldAliases[/ip/service].JgToApi = ci{'protocol'='proto'}
 ShippedFieldAliases[/ip/service].KeyToApi = {}
 ShippedFieldAliases[/ip/service].KeyUiType = {}
 ShippedFieldAliases[/ip/service].NotReportedKeys = null
+ShippedFieldAliases[/ip/service].NotReportedNames = null
+ShippedFieldAliases[/ip/service].NotReportedTabs = null
 ShippedFieldAliases[/ip/service].NumFlagMembers = null
+ShippedFieldAliases[/ip/service].OmittedWhen = null
 ShippedFieldAliases[/ip/service].PairedFields = null
 ShippedFieldAliases[/ip/service].SyntheticFields = null
 ShippedFieldAliases[/ip/settings].AddrPortPairs = null
@@ -525,9 +744,12 @@ ShippedFieldAliases[/ip/settings].JgToApi = ci{'ipv4-fragment-threshold-bytes'='
 ShippedFieldAliases[/ip/settings].KeyToApi = {}
 ShippedFieldAliases[/ip/settings].KeyUiType = {}
 ShippedFieldAliases[/ip/settings].NotReportedKeys = null
+ShippedFieldAliases[/ip/settings].NotReportedNames = null
+ShippedFieldAliases[/ip/settings].NotReportedTabs = null
 ShippedFieldAliases[/ip/settings].NumFlagMembers = null
+ShippedFieldAliases[/ip/settings].OmittedWhen = null
 ShippedFieldAliases[/ip/settings].PairedFields = null
-ShippedFieldAliases[/ip/settings].SyntheticFields = ci{'icmp-rate-mask'=WinboxJgField{Allow=null ApiName='icmp-rate-mask' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=true IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=28 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix='hex' Prefix=null Radix=16 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217756 UiType=null WireType='u32'}}
+ShippedFieldAliases[/ip/settings].SyntheticFields = ci{'icmp-rate-mask'=WinboxJgField{Allow=null ApiName='icmp-rate-mask' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=true IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=28 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix='hex' Prefix=null Radix=16 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217756 UiType=null WireType='u32'}}
 ShippedFieldAliases[/ip/socks].AddrPortPairs = null
 ShippedFieldAliases[/ip/socks].AlsoKnownAs = null
 ShippedFieldAliases[/ip/socks].ApiToJg = ci{'auth-method'='authentication-method'}
@@ -537,7 +759,10 @@ ShippedFieldAliases[/ip/socks].JgToApi = ci{'authentication-method'='auth-method
 ShippedFieldAliases[/ip/socks].KeyToApi = {}
 ShippedFieldAliases[/ip/socks].KeyUiType = {}
 ShippedFieldAliases[/ip/socks].NotReportedKeys = null
+ShippedFieldAliases[/ip/socks].NotReportedNames = null
+ShippedFieldAliases[/ip/socks].NotReportedTabs = null
 ShippedFieldAliases[/ip/socks].NumFlagMembers = null
+ShippedFieldAliases[/ip/socks].OmittedWhen = null
 ShippedFieldAliases[/ip/socks].PairedFields = null
 ShippedFieldAliases[/ip/socks].SyntheticFields = null
 ShippedFieldAliases[/ip/traffic-flow].AddrPortPairs = null
@@ -549,7 +774,10 @@ ShippedFieldAliases[/ip/traffic-flow].JgToApi = ci{'packet-sampling-interval'='s
 ShippedFieldAliases[/ip/traffic-flow].KeyToApi = {}
 ShippedFieldAliases[/ip/traffic-flow].KeyUiType = {}
 ShippedFieldAliases[/ip/traffic-flow].NotReportedKeys = null
+ShippedFieldAliases[/ip/traffic-flow].NotReportedNames = null
+ShippedFieldAliases[/ip/traffic-flow].NotReportedTabs = ci{'ipfix'}
 ShippedFieldAliases[/ip/traffic-flow].NumFlagMembers = null
+ShippedFieldAliases[/ip/traffic-flow].OmittedWhen = null
 ShippedFieldAliases[/ip/traffic-flow].PairedFields = null
 ShippedFieldAliases[/ip/traffic-flow].SyntheticFields = null
 ShippedFieldAliases[/ip/traffic-flow/target].AddrPortPairs = null
@@ -561,9 +789,12 @@ ShippedFieldAliases[/ip/traffic-flow/target].JgToApi = ci{'v9/ipfix-template-ref
 ShippedFieldAliases[/ip/traffic-flow/target].KeyToApi = {}
 ShippedFieldAliases[/ip/traffic-flow/target].KeyUiType = {}
 ShippedFieldAliases[/ip/traffic-flow/target].NotReportedKeys = null
+ShippedFieldAliases[/ip/traffic-flow/target].NotReportedNames = null
+ShippedFieldAliases[/ip/traffic-flow/target].NotReportedTabs = null
 ShippedFieldAliases[/ip/traffic-flow/target].NumFlagMembers = null
+ShippedFieldAliases[/ip/traffic-flow/target].OmittedWhen = null
 ShippedFieldAliases[/ip/traffic-flow/target].PairedFields = null
-ShippedFieldAliases[/ip/traffic-flow/target].SyntheticFields = ci{'v9-template-timeout'=WinboxJgField{Allow=null ApiName='v9-template-timeout' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=5 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217733 UiType='interval' WireType='u32'}}
+ShippedFieldAliases[/ip/traffic-flow/target].SyntheticFields = ci{'v9-template-timeout'=WinboxJgField{Allow=null ApiName='v9-template-timeout' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=5 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217733 UiType='interval' WireType='u32'}}
 ShippedFieldAliases[/ip/upnp].AddrPortPairs = null
 ShippedFieldAliases[/ip/upnp].AlsoKnownAs = null
 ShippedFieldAliases[/ip/upnp].ApiToJg = ci{'allow-disable-external-interface'='allow-to-disable-external-interface'}
@@ -573,7 +804,10 @@ ShippedFieldAliases[/ip/upnp].JgToApi = ci{'allow-to-disable-external-interface'
 ShippedFieldAliases[/ip/upnp].KeyToApi = {}
 ShippedFieldAliases[/ip/upnp].KeyUiType = {}
 ShippedFieldAliases[/ip/upnp].NotReportedKeys = null
+ShippedFieldAliases[/ip/upnp].NotReportedNames = null
+ShippedFieldAliases[/ip/upnp].NotReportedTabs = null
 ShippedFieldAliases[/ip/upnp].NumFlagMembers = null
+ShippedFieldAliases[/ip/upnp].OmittedWhen = null
 ShippedFieldAliases[/ip/upnp].PairedFields = null
 ShippedFieldAliases[/ip/upnp].SyntheticFields = null
 ShippedFieldAliases[/ipv6/firewall/address-list].AddrPortPairs = null
@@ -585,7 +819,10 @@ ShippedFieldAliases[/ipv6/firewall/address-list].JgToApi = ci{'name'='list'}
 ShippedFieldAliases[/ipv6/firewall/address-list].KeyToApi = {}
 ShippedFieldAliases[/ipv6/firewall/address-list].KeyUiType = {}
 ShippedFieldAliases[/ipv6/firewall/address-list].NotReportedKeys = null
+ShippedFieldAliases[/ipv6/firewall/address-list].NotReportedNames = null
+ShippedFieldAliases[/ipv6/firewall/address-list].NotReportedTabs = null
 ShippedFieldAliases[/ipv6/firewall/address-list].NumFlagMembers = null
+ShippedFieldAliases[/ipv6/firewall/address-list].OmittedWhen = null
 ShippedFieldAliases[/ipv6/firewall/address-list].PairedFields = null
 ShippedFieldAliases[/ipv6/firewall/address-list].SyntheticFields = null
 ShippedFieldAliases[/ping].AddrPortPairs = null
@@ -597,9 +834,27 @@ ShippedFieldAliases[/ping].JgToApi = ci{'avg'='avg-rtt', 'max'='max-rtt', 'min'=
 ShippedFieldAliases[/ping].KeyToApi = {103='packet-loss', 1='host'}
 ShippedFieldAliases[/ping].KeyUiType = {1='ipaddr'}
 ShippedFieldAliases[/ping].NotReportedKeys = {16646145, 4}
+ShippedFieldAliases[/ping].NotReportedNames = null
+ShippedFieldAliases[/ping].NotReportedTabs = null
 ShippedFieldAliases[/ping].NumFlagMembers = null
+ShippedFieldAliases[/ping].OmittedWhen = null
 ShippedFieldAliases[/ping].PairedFields = null
-ShippedFieldAliases[/ping].SyntheticFields = ci{'received'=WinboxJgField{Allow=null ApiName='received' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=106 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217834 UiType='number' WireType='u32'}, 'sent'=WinboxJgField{Allow=null ApiName='sent' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=105 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217833 UiType='number' WireType='u32'}}
+ShippedFieldAliases[/ping].SyntheticFields = ci{'received'=WinboxJgField{Allow=null ApiName='received' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=106 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217834 UiType='number' WireType='u32'}, 'sent'=WinboxJgField{Allow=null ApiName='sent' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=105 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217833 UiType='number' WireType='u32'}}
+ShippedFieldAliases[/ppp/profile].AddrPortPairs = null
+ShippedFieldAliases[/ppp/profile].AlsoKnownAs = null
+ShippedFieldAliases[/ppp/profile].ApiToJg = ci{}
+ShippedFieldAliases[/ppp/profile].DerivedBools = null
+ShippedFieldAliases[/ppp/profile].FallbackFields = null
+ShippedFieldAliases[/ppp/profile].JgToApi = ci{}
+ShippedFieldAliases[/ppp/profile].KeyToApi = {}
+ShippedFieldAliases[/ppp/profile].KeyUiType = {}
+ShippedFieldAliases[/ppp/profile].NotReportedKeys = null
+ShippedFieldAliases[/ppp/profile].NotReportedNames = null
+ShippedFieldAliases[/ppp/profile].NotReportedTabs = null
+ShippedFieldAliases[/ppp/profile].NumFlagMembers = null
+ShippedFieldAliases[/ppp/profile].OmittedWhen = ci{'dhcpv6-pd-pool'='', 'dns-server'='', 'queue-type'='default-small/default-small', 'remote-ipv6-prefix-pool'='', 'wins-server'=''}
+ShippedFieldAliases[/ppp/profile].PairedFields = ci{'queue-type'=('upload-queue-type', 'download-queue-type')}
+ShippedFieldAliases[/ppp/profile].SyntheticFields = null
 ShippedFieldAliases[/queue/simple].AddrPortPairs = null
 ShippedFieldAliases[/queue/simple].AlsoKnownAs = null
 ShippedFieldAliases[/queue/simple].ApiToJg = ci{'total-packet-rate'='total-avg-packet-rate', 'total-rate'='total-avg-rate'}
@@ -609,7 +864,10 @@ ShippedFieldAliases[/queue/simple].JgToApi = ci{'total-avg-packet-rate'='total-p
 ShippedFieldAliases[/queue/simple].KeyToApi = {}
 ShippedFieldAliases[/queue/simple].KeyUiType = {}
 ShippedFieldAliases[/queue/simple].NotReportedKeys = null
+ShippedFieldAliases[/queue/simple].NotReportedNames = null
+ShippedFieldAliases[/queue/simple].NotReportedTabs = null
 ShippedFieldAliases[/queue/simple].NumFlagMembers = null
+ShippedFieldAliases[/queue/simple].OmittedWhen = null
 ShippedFieldAliases[/queue/simple].PairedFields = ci{'bucket-size'=('upload-bucket-size', 'download-bucket-size'), 'burst-limit'=('upload-burst-limit', 'download-burst-limit'), 'burst-threshold'=('upload-burst-threshold', 'download-burst-threshold'), 'burst-time'=('upload-burst-time', 'download-burst-time'), 'bytes'=('total-uploaded-bytes', 'total-downloaded-bytes'), 'dropped'=('upload-dropped', 'download-dropped'), 'limit-at'=('upload-limit-at', 'download-limit-at'), 'max-limit'=('upload-max-limit', 'download-max-limit'), 'packet-rate'=('upload-avg-packet-rate', 'download-avg-packet-rate'), 'packets'=('total-uploaded-packets', 'total-downloaded-packets'), 'priority'=('upload-priority', 'download-priority'), 'queue'=('upload-queue-type', 'download-queue-type'), 'queued-bytes'=('upload-queued-bytes', 'download-queued-bytes'), 'queued-packets'=('upload-queued-packets', 'download-queued-packets'), 'rate'=('upload-avg-rate', 'download-avg-rate')}
 ShippedFieldAliases[/queue/simple].SyntheticFields = null
 ShippedFieldAliases[/queue/tree].AddrPortPairs = null
@@ -621,7 +879,10 @@ ShippedFieldAliases[/queue/tree].JgToApi = ci{'avg-packet-rate'='packet-rate', '
 ShippedFieldAliases[/queue/tree].KeyToApi = {}
 ShippedFieldAliases[/queue/tree].KeyUiType = {}
 ShippedFieldAliases[/queue/tree].NotReportedKeys = null
+ShippedFieldAliases[/queue/tree].NotReportedNames = null
+ShippedFieldAliases[/queue/tree].NotReportedTabs = null
 ShippedFieldAliases[/queue/tree].NumFlagMembers = null
+ShippedFieldAliases[/queue/tree].OmittedWhen = null
 ShippedFieldAliases[/queue/tree].PairedFields = null
 ShippedFieldAliases[/queue/tree].SyntheticFields = null
 ShippedFieldAliases[/queue/type].AddrPortPairs = null
@@ -633,19 +894,40 @@ ShippedFieldAliases[/queue/type].JgToApi = ci{'bfifo-queue-size'='bfifo-limit', 
 ShippedFieldAliases[/queue/type].KeyToApi = {}
 ShippedFieldAliases[/queue/type].KeyUiType = {}
 ShippedFieldAliases[/queue/type].NotReportedKeys = null
+ShippedFieldAliases[/queue/type].NotReportedNames = null
+ShippedFieldAliases[/queue/type].NotReportedTabs = null
 ShippedFieldAliases[/queue/type].NumFlagMembers = null
+ShippedFieldAliases[/queue/type].OmittedWhen = null
 ShippedFieldAliases[/queue/type].PairedFields = null
 ShippedFieldAliases[/queue/type].SyntheticFields = null
+ShippedFieldAliases[/radius].AddrPortPairs = null
+ShippedFieldAliases[/radius].AlsoKnownAs = null
+ShippedFieldAliases[/radius].ApiToJg = ci{}
+ShippedFieldAliases[/radius].DerivedBools = null
+ShippedFieldAliases[/radius].FallbackFields = null
+ShippedFieldAliases[/radius].JgToApi = ci{}
+ShippedFieldAliases[/radius].KeyToApi = {}
+ShippedFieldAliases[/radius].KeyUiType = {}
+ShippedFieldAliases[/radius].NotReportedKeys = null
+ShippedFieldAliases[/radius].NotReportedNames = null
+ShippedFieldAliases[/radius].NotReportedTabs = null
+ShippedFieldAliases[/radius].NumFlagMembers = null
+ShippedFieldAliases[/radius].OmittedWhen = ci{'src-address'='0.0.0.0'}
+ShippedFieldAliases[/radius].PairedFields = null
+ShippedFieldAliases[/radius].SyntheticFields = null
 ShippedFieldAliases[/routing/bgp/connection].AddrPortPairs = null
 ShippedFieldAliases[/routing/bgp/connection].AlsoKnownAs = null
-ShippedFieldAliases[/routing/bgp/connection].ApiToJg = ci{'local.role'='local-role', 'remote.address'='remote-address'}
+ShippedFieldAliases[/routing/bgp/connection].ApiToJg = ci{'input.filter'='input-filter', 'local.role'='local-role', 'output.filter-chain'='output-filter', 'remote.address'='remote-address'}
 ShippedFieldAliases[/routing/bgp/connection].DerivedBools = null
 ShippedFieldAliases[/routing/bgp/connection].FallbackFields = null
-ShippedFieldAliases[/routing/bgp/connection].JgToApi = ci{'local-role'='local.role', 'remote-address'='remote.address'}
+ShippedFieldAliases[/routing/bgp/connection].JgToApi = ci{'input-filter'='input.filter', 'local-role'='local.role', 'output-filter'='output.filter-chain', 'remote-address'='remote.address'}
 ShippedFieldAliases[/routing/bgp/connection].KeyToApi = {16646152='inactive'}
 ShippedFieldAliases[/routing/bgp/connection].KeyUiType = {}
 ShippedFieldAliases[/routing/bgp/connection].NotReportedKeys = null
+ShippedFieldAliases[/routing/bgp/connection].NotReportedNames = null
+ShippedFieldAliases[/routing/bgp/connection].NotReportedTabs = null
 ShippedFieldAliases[/routing/bgp/connection].NumFlagMembers = null
+ShippedFieldAliases[/routing/bgp/connection].OmittedWhen = null
 ShippedFieldAliases[/routing/bgp/connection].PairedFields = null
 ShippedFieldAliases[/routing/bgp/connection].SyntheticFields = null
 ShippedFieldAliases[/routing/bgp/instance].AddrPortPairs = null
@@ -657,7 +939,10 @@ ShippedFieldAliases[/routing/bgp/instance].JgToApi = ci{'ignore-as-path-length'=
 ShippedFieldAliases[/routing/bgp/instance].KeyToApi = {16646152='inactive'}
 ShippedFieldAliases[/routing/bgp/instance].KeyUiType = {}
 ShippedFieldAliases[/routing/bgp/instance].NotReportedKeys = null
+ShippedFieldAliases[/routing/bgp/instance].NotReportedNames = null
+ShippedFieldAliases[/routing/bgp/instance].NotReportedTabs = null
 ShippedFieldAliases[/routing/bgp/instance].NumFlagMembers = null
+ShippedFieldAliases[/routing/bgp/instance].OmittedWhen = null
 ShippedFieldAliases[/routing/bgp/instance].PairedFields = null
 ShippedFieldAliases[/routing/bgp/instance].SyntheticFields = null
 ShippedFieldAliases[/routing/filter/rule].AddrPortPairs = null
@@ -669,7 +954,10 @@ ShippedFieldAliases[/routing/filter/rule].JgToApi = ci{}
 ShippedFieldAliases[/routing/filter/rule].KeyToApi = {16646152='inactive'}
 ShippedFieldAliases[/routing/filter/rule].KeyUiType = {}
 ShippedFieldAliases[/routing/filter/rule].NotReportedKeys = null
+ShippedFieldAliases[/routing/filter/rule].NotReportedNames = null
+ShippedFieldAliases[/routing/filter/rule].NotReportedTabs = null
 ShippedFieldAliases[/routing/filter/rule].NumFlagMembers = null
+ShippedFieldAliases[/routing/filter/rule].OmittedWhen = null
 ShippedFieldAliases[/routing/filter/rule].PairedFields = null
 ShippedFieldAliases[/routing/filter/rule].SyntheticFields = null
 ShippedFieldAliases[/routing/ospf/area].AddrPortPairs = null
@@ -681,7 +969,10 @@ ShippedFieldAliases[/routing/ospf/area].JgToApi = ci{'area-name'='name'}
 ShippedFieldAliases[/routing/ospf/area].KeyToApi = {16646152='inactive'}
 ShippedFieldAliases[/routing/ospf/area].KeyUiType = {}
 ShippedFieldAliases[/routing/ospf/area].NotReportedKeys = null
+ShippedFieldAliases[/routing/ospf/area].NotReportedNames = null
+ShippedFieldAliases[/routing/ospf/area].NotReportedTabs = null
 ShippedFieldAliases[/routing/ospf/area].NumFlagMembers = null
+ShippedFieldAliases[/routing/ospf/area].OmittedWhen = null
 ShippedFieldAliases[/routing/ospf/area].PairedFields = null
 ShippedFieldAliases[/routing/ospf/area].SyntheticFields = null
 ShippedFieldAliases[/routing/ospf/instance].AddrPortPairs = null
@@ -693,9 +984,12 @@ ShippedFieldAliases[/routing/ospf/instance].JgToApi = ci{'bgp-routes-metric'='me
 ShippedFieldAliases[/routing/ospf/instance].KeyToApi = {16646152='inactive'}
 ShippedFieldAliases[/routing/ospf/instance].KeyUiType = {}
 ShippedFieldAliases[/routing/ospf/instance].NotReportedKeys = null
+ShippedFieldAliases[/routing/ospf/instance].NotReportedNames = null
+ShippedFieldAliases[/routing/ospf/instance].NotReportedTabs = null
 ShippedFieldAliases[/routing/ospf/instance].NumFlagMembers = null
+ShippedFieldAliases[/routing/ospf/instance].OmittedWhen = null
 ShippedFieldAliases[/routing/ospf/instance].PairedFields = null
-ShippedFieldAliases[/routing/ospf/instance].SyntheticFields = ci{'state'=WinboxJgField{Allow=null ApiName='state' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='down', 1='running'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=101 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217829 UiType=null WireType='u32'}}
+ShippedFieldAliases[/routing/ospf/instance].SyntheticFields = ci{'state'=WinboxJgField{Allow=null ApiName='state' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='down', 1='running'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=101 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217829 UiType=null WireType='u32'}}
 ShippedFieldAliases[/routing/ospf/interface-template].AddrPortPairs = null
 ShippedFieldAliases[/routing/ospf/interface-template].AlsoKnownAs = null
 ShippedFieldAliases[/routing/ospf/interface-template].ApiToJg = ci{'type'='network-type'}
@@ -705,9 +999,12 @@ ShippedFieldAliases[/routing/ospf/interface-template].JgToApi = ci{'network-type
 ShippedFieldAliases[/routing/ospf/interface-template].KeyToApi = {16646152='inactive'}
 ShippedFieldAliases[/routing/ospf/interface-template].KeyUiType = {}
 ShippedFieldAliases[/routing/ospf/interface-template].NotReportedKeys = null
+ShippedFieldAliases[/routing/ospf/interface-template].NotReportedNames = null
+ShippedFieldAliases[/routing/ospf/interface-template].NotReportedTabs = null
 ShippedFieldAliases[/routing/ospf/interface-template].NumFlagMembers = null
+ShippedFieldAliases[/routing/ospf/interface-template].OmittedWhen = null
 ShippedFieldAliases[/routing/ospf/interface-template].PairedFields = null
-ShippedFieldAliases[/routing/ospf/interface-template].SyntheticFields = ci{'transmit-delay'=WinboxJgField{Allow=null ApiName='transmit-delay' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=2912267 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=137129995 UiType='interval' WireType='u32'}}
+ShippedFieldAliases[/routing/ospf/interface-template].SyntheticFields = ci{'transmit-delay'=WinboxJgField{Allow=null ApiName='transmit-delay' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=2912267 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=137129995 UiType='interval' WireType='u32'}}
 ShippedFieldAliases[/routing/rule].AddrPortPairs = null
 ShippedFieldAliases[/routing/rule].AlsoKnownAs = null
 ShippedFieldAliases[/routing/rule].ApiToJg = ci{}
@@ -717,7 +1014,10 @@ ShippedFieldAliases[/routing/rule].JgToApi = ci{}
 ShippedFieldAliases[/routing/rule].KeyToApi = {16646152='inactive'}
 ShippedFieldAliases[/routing/rule].KeyUiType = {}
 ShippedFieldAliases[/routing/rule].NotReportedKeys = null
+ShippedFieldAliases[/routing/rule].NotReportedNames = null
+ShippedFieldAliases[/routing/rule].NotReportedTabs = null
 ShippedFieldAliases[/routing/rule].NumFlagMembers = null
+ShippedFieldAliases[/routing/rule].OmittedWhen = null
 ShippedFieldAliases[/routing/rule].PairedFields = null
 ShippedFieldAliases[/routing/rule].SyntheticFields = null
 ShippedFieldAliases[/snmp].AddrPortPairs = null
@@ -729,9 +1029,27 @@ ShippedFieldAliases[/snmp].JgToApi = ci{'contact-info'='contact'}
 ShippedFieldAliases[/snmp].KeyToApi = {}
 ShippedFieldAliases[/snmp].KeyUiType = {}
 ShippedFieldAliases[/snmp].NotReportedKeys = null
+ShippedFieldAliases[/snmp].NotReportedNames = null
+ShippedFieldAliases[/snmp].NotReportedTabs = null
 ShippedFieldAliases[/snmp].NumFlagMembers = null
+ShippedFieldAliases[/snmp].OmittedWhen = null
 ShippedFieldAliases[/snmp].PairedFields = null
 ShippedFieldAliases[/snmp].SyntheticFields = null
+ShippedFieldAliases[/system/clock].AddrPortPairs = null
+ShippedFieldAliases[/system/clock].AlsoKnownAs = null
+ShippedFieldAliases[/system/clock].ApiToJg = ci{}
+ShippedFieldAliases[/system/clock].DerivedBools = null
+ShippedFieldAliases[/system/clock].FallbackFields = null
+ShippedFieldAliases[/system/clock].JgToApi = ci{}
+ShippedFieldAliases[/system/clock].KeyToApi = {}
+ShippedFieldAliases[/system/clock].KeyUiType = {}
+ShippedFieldAliases[/system/clock].NotReportedKeys = null
+ShippedFieldAliases[/system/clock].NotReportedNames = null
+ShippedFieldAliases[/system/clock].NotReportedTabs = ci{'manual-time-zone'}
+ShippedFieldAliases[/system/clock].NumFlagMembers = null
+ShippedFieldAliases[/system/clock].OmittedWhen = null
+ShippedFieldAliases[/system/clock].PairedFields = null
+ShippedFieldAliases[/system/clock].SyntheticFields = null
 ShippedFieldAliases[/system/health].AddrPortPairs = null
 ShippedFieldAliases[/system/health].AlsoKnownAs = null
 ShippedFieldAliases[/system/health].ApiToJg = ci{}
@@ -741,9 +1059,12 @@ ShippedFieldAliases[/system/health].JgToApi = ci{}
 ShippedFieldAliases[/system/health].KeyToApi = {}
 ShippedFieldAliases[/system/health].KeyUiType = {}
 ShippedFieldAliases[/system/health].NotReportedKeys = null
+ShippedFieldAliases[/system/health].NotReportedNames = null
+ShippedFieldAliases[/system/health].NotReportedTabs = null
 ShippedFieldAliases[/system/health].NumFlagMembers = null
+ShippedFieldAliases[/system/health].OmittedWhen = null
 ShippedFieldAliases[/system/health].PairedFields = null
-ShippedFieldAliases[/system/health].SyntheticFields = ci{'state'=WinboxJgField{Allow=null ApiName='state' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='disabled', 1='enabled'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=8 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=8 UiType=null WireType='bool'}, 'state-after-reboot'=WinboxJgField{Allow=null ApiName='state-after-reboot' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='disabled', 1='enabled'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=9 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=9 UiType=null WireType='bool'}}
+ShippedFieldAliases[/system/health].SyntheticFields = ci{'state'=WinboxJgField{Allow=null ApiName='state' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='disabled', 1='enabled'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=8 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=8 UiType=null WireType='bool'}, 'state-after-reboot'=WinboxJgField{Allow=null ApiName='state-after-reboot' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap={0='disabled', 1='enabled'} ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=9 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=false RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=9 UiType=null WireType='bool'}}
 ShippedFieldAliases[/system/history].AddrPortPairs = null
 ShippedFieldAliases[/system/history].AlsoKnownAs = null
 ShippedFieldAliases[/system/history].ApiToJg = ci{}
@@ -753,7 +1074,10 @@ ShippedFieldAliases[/system/history].JgToApi = ci{}
 ShippedFieldAliases[/system/history].KeyToApi = {}
 ShippedFieldAliases[/system/history].KeyUiType = {}
 ShippedFieldAliases[/system/history].NotReportedKeys = null
+ShippedFieldAliases[/system/history].NotReportedNames = null
+ShippedFieldAliases[/system/history].NotReportedTabs = null
 ShippedFieldAliases[/system/history].NumFlagMembers = ci{'undoable'}
+ShippedFieldAliases[/system/history].OmittedWhen = null
 ShippedFieldAliases[/system/history].PairedFields = null
 ShippedFieldAliases[/system/history].SyntheticFields = null
 ShippedFieldAliases[/system/identity].AddrPortPairs = null
@@ -765,7 +1089,10 @@ ShippedFieldAliases[/system/identity].JgToApi = ci{'identity'='name'}
 ShippedFieldAliases[/system/identity].KeyToApi = {}
 ShippedFieldAliases[/system/identity].KeyUiType = {}
 ShippedFieldAliases[/system/identity].NotReportedKeys = null
+ShippedFieldAliases[/system/identity].NotReportedNames = null
+ShippedFieldAliases[/system/identity].NotReportedTabs = null
 ShippedFieldAliases[/system/identity].NumFlagMembers = null
+ShippedFieldAliases[/system/identity].OmittedWhen = null
 ShippedFieldAliases[/system/identity].PairedFields = null
 ShippedFieldAliases[/system/identity].SyntheticFields = null
 ShippedFieldAliases[/system/logging/action].AddrPortPairs = null
@@ -777,7 +1104,10 @@ ShippedFieldAliases[/system/logging/action].JgToApi = ci{'add-topics'='add-topic
 ShippedFieldAliases[/system/logging/action].KeyToApi = {}
 ShippedFieldAliases[/system/logging/action].KeyUiType = {}
 ShippedFieldAliases[/system/logging/action].NotReportedKeys = null
+ShippedFieldAliases[/system/logging/action].NotReportedNames = null
+ShippedFieldAliases[/system/logging/action].NotReportedTabs = null
 ShippedFieldAliases[/system/logging/action].NumFlagMembers = null
+ShippedFieldAliases[/system/logging/action].OmittedWhen = null
 ShippedFieldAliases[/system/logging/action].PairedFields = null
 ShippedFieldAliases[/system/logging/action].SyntheticFields = null
 ShippedFieldAliases[/system/ntp/client].AddrPortPairs = null
@@ -789,7 +1119,10 @@ ShippedFieldAliases[/system/ntp/client].JgToApi = ci{'last-update'='last-update-
 ShippedFieldAliases[/system/ntp/client].KeyToApi = {}
 ShippedFieldAliases[/system/ntp/client].KeyUiType = {}
 ShippedFieldAliases[/system/ntp/client].NotReportedKeys = null
+ShippedFieldAliases[/system/ntp/client].NotReportedNames = null
+ShippedFieldAliases[/system/ntp/client].NotReportedTabs = null
 ShippedFieldAliases[/system/ntp/client].NumFlagMembers = null
+ShippedFieldAliases[/system/ntp/client].OmittedWhen = null
 ShippedFieldAliases[/system/ntp/client].PairedFields = null
 ShippedFieldAliases[/system/ntp/client].SyntheticFields = null
 ShippedFieldAliases[/system/package].AddrPortPairs = null
@@ -801,9 +1134,12 @@ ShippedFieldAliases[/system/package].JgToApi = ci{}
 ShippedFieldAliases[/system/package].KeyToApi = {}
 ShippedFieldAliases[/system/package].KeyUiType = {}
 ShippedFieldAliases[/system/package].NotReportedKeys = null
+ShippedFieldAliases[/system/package].NotReportedNames = ci{'installed'}
+ShippedFieldAliases[/system/package].NotReportedTabs = null
 ShippedFieldAliases[/system/package].NumFlagMembers = null
+ShippedFieldAliases[/system/package].OmittedWhen = null
 ShippedFieldAliases[/system/package].PairedFields = null
-ShippedFieldAliases[/system/package].SyntheticFields = ci{'bundle'=WinboxJgField{Allow=null ApiName='bundle' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=6 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=[24,23] RefHandlers=[[24,23]] Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217734 UiType='enm' WireType='u32'}}
+ShippedFieldAliases[/system/package].SyntheticFields = ci{'bundle'=WinboxJgField{Allow=null ApiName='bundle' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=6 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=[24,23] RefHandlers=[[24,23]] Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217734 UiType='enm' WireType='u32'}}
 ShippedFieldAliases[/system/resource].AddrPortPairs = null
 ShippedFieldAliases[/system/resource].AlsoKnownAs = null
 ShippedFieldAliases[/system/resource].ApiToJg = ci{'cpu-frequency'='freq', 'total-hdd-space'='total-hdd-size', 'write-sect-since-reboot'='sector-writes-since-reboot', 'write-sect-total'='total-sector-writes'}
@@ -813,9 +1149,27 @@ ShippedFieldAliases[/system/resource].JgToApi = ci{'freq'='cpu-frequency', 'sect
 ShippedFieldAliases[/system/resource].KeyToApi = {}
 ShippedFieldAliases[/system/resource].KeyUiType = {}
 ShippedFieldAliases[/system/resource].NotReportedKeys = null
+ShippedFieldAliases[/system/resource].NotReportedNames = null
+ShippedFieldAliases[/system/resource].NotReportedTabs = null
 ShippedFieldAliases[/system/resource].NumFlagMembers = null
+ShippedFieldAliases[/system/resource].OmittedWhen = null
 ShippedFieldAliases[/system/resource].PairedFields = null
-ShippedFieldAliases[/system/resource].SyntheticFields = ci{'platform'=WinboxJgField{Allow=null ApiName='platform' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=27 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=536870939 UiType=null WireType='string'}}
+ShippedFieldAliases[/system/resource].SyntheticFields = ci{'platform'=WinboxJgField{Allow=null ApiName='platform' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=27 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=536870939 UiType=null WireType='string'}}
+ShippedFieldAliases[/system/watchdog].AddrPortPairs = null
+ShippedFieldAliases[/system/watchdog].AlsoKnownAs = null
+ShippedFieldAliases[/system/watchdog].ApiToJg = ci{}
+ShippedFieldAliases[/system/watchdog].DerivedBools = null
+ShippedFieldAliases[/system/watchdog].FallbackFields = null
+ShippedFieldAliases[/system/watchdog].JgToApi = ci{}
+ShippedFieldAliases[/system/watchdog].KeyToApi = {}
+ShippedFieldAliases[/system/watchdog].KeyUiType = {}
+ShippedFieldAliases[/system/watchdog].NotReportedKeys = null
+ShippedFieldAliases[/system/watchdog].NotReportedNames = null
+ShippedFieldAliases[/system/watchdog].NotReportedTabs = null
+ShippedFieldAliases[/system/watchdog].NumFlagMembers = null
+ShippedFieldAliases[/system/watchdog].OmittedWhen = ci{'send-email-from'='', 'send-email-to'='', 'send-smtp-server'='0.0.0.0'}
+ShippedFieldAliases[/system/watchdog].PairedFields = null
+ShippedFieldAliases[/system/watchdog].SyntheticFields = null
 ShippedFieldAliases[/tool/bandwidth-server].AddrPortPairs = null
 ShippedFieldAliases[/tool/bandwidth-server].AlsoKnownAs = null
 ShippedFieldAliases[/tool/bandwidth-server].ApiToJg = ci{'allowed-addresses4'='ipv4-allowed-networks', 'allowed-addresses6'='ipv6-allowed-networks'}
@@ -825,7 +1179,10 @@ ShippedFieldAliases[/tool/bandwidth-server].JgToApi = ci{'ipv4-allowed-networks'
 ShippedFieldAliases[/tool/bandwidth-server].KeyToApi = {}
 ShippedFieldAliases[/tool/bandwidth-server].KeyUiType = {}
 ShippedFieldAliases[/tool/bandwidth-server].NotReportedKeys = null
+ShippedFieldAliases[/tool/bandwidth-server].NotReportedNames = null
+ShippedFieldAliases[/tool/bandwidth-server].NotReportedTabs = null
 ShippedFieldAliases[/tool/bandwidth-server].NumFlagMembers = null
+ShippedFieldAliases[/tool/bandwidth-server].OmittedWhen = null
 ShippedFieldAliases[/tool/bandwidth-server].PairedFields = null
 ShippedFieldAliases[/tool/bandwidth-server].SyntheticFields = null
 ShippedFieldAliases[/tool/e-mail].AddrPortPairs = null
@@ -837,7 +1194,10 @@ ShippedFieldAliases[/tool/e-mail].JgToApi = ci{}
 ShippedFieldAliases[/tool/e-mail].KeyToApi = {}
 ShippedFieldAliases[/tool/e-mail].KeyUiType = {}
 ShippedFieldAliases[/tool/e-mail].NotReportedKeys = null
+ShippedFieldAliases[/tool/e-mail].NotReportedNames = null
+ShippedFieldAliases[/tool/e-mail].NotReportedTabs = null
 ShippedFieldAliases[/tool/e-mail].NumFlagMembers = null
+ShippedFieldAliases[/tool/e-mail].OmittedWhen = null
 ShippedFieldAliases[/tool/e-mail].PairedFields = null
 ShippedFieldAliases[/tool/e-mail].SyntheticFields = null
 ShippedFieldAliases[/tool/ping].AddrPortPairs = null
@@ -849,9 +1209,12 @@ ShippedFieldAliases[/tool/ping].JgToApi = ci{'avg'='avg-rtt', 'max'='max-rtt', '
 ShippedFieldAliases[/tool/ping].KeyToApi = {103='packet-loss', 1='host'}
 ShippedFieldAliases[/tool/ping].KeyUiType = {1='ipaddr'}
 ShippedFieldAliases[/tool/ping].NotReportedKeys = {16646145, 4}
+ShippedFieldAliases[/tool/ping].NotReportedNames = null
+ShippedFieldAliases[/tool/ping].NotReportedTabs = null
 ShippedFieldAliases[/tool/ping].NumFlagMembers = null
+ShippedFieldAliases[/tool/ping].OmittedWhen = null
 ShippedFieldAliases[/tool/ping].PairedFields = null
-ShippedFieldAliases[/tool/ping].SyntheticFields = ci{'received'=WinboxJgField{Allow=null ApiName='received' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=106 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217834 UiType='number' WireType='u32'}, 'sent'=WinboxJgField{Allow=null ApiName='sent' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=105 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217833 UiType='number' WireType='u32'}}
+ShippedFieldAliases[/tool/ping].SyntheticFields = ci{'received'=WinboxJgField{Allow=null ApiName='received' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=106 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217834 UiType='number' WireType='u32'}, 'sent'=WinboxJgField{Allow=null ApiName='sent' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=105 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217833 UiType='number' WireType='u32'}}
 ShippedFieldAliases[/tool/romon/ping].AddrPortPairs = null
 ShippedFieldAliases[/tool/romon/ping].AlsoKnownAs = null
 ShippedFieldAliases[/tool/romon/ping].ApiToJg = ci{'avg-rtt'='avg', 'max-rtt'='max', 'min-rtt'='min', 'seq'='seq-#', 'size'='packet-size'}
@@ -861,9 +1224,12 @@ ShippedFieldAliases[/tool/romon/ping].JgToApi = ci{'avg'='avg-rtt', 'max'='max-r
 ShippedFieldAliases[/tool/romon/ping].KeyToApi = {107='packet-loss'}
 ShippedFieldAliases[/tool/romon/ping].KeyUiType = {}
 ShippedFieldAliases[/tool/romon/ping].NotReportedKeys = null
+ShippedFieldAliases[/tool/romon/ping].NotReportedNames = null
+ShippedFieldAliases[/tool/romon/ping].NotReportedTabs = null
 ShippedFieldAliases[/tool/romon/ping].NumFlagMembers = null
+ShippedFieldAliases[/tool/romon/ping].OmittedWhen = null
 ShippedFieldAliases[/tool/romon/ping].PairedFields = null
-ShippedFieldAliases[/tool/romon/ping].SyntheticFields = ci{'host'=WinboxJgField{Allow=null ApiName='host' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=805306369 UiType='macaddr' WireType='raw'}, 'received'=WinboxJgField{Allow=null ApiName='received' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=106 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217834 UiType='number' WireType='u32'}, 'sent'=WinboxJgField{Allow=null ApiName='sent' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=105 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1 TitleApiName=null TypedFieldId=134217833 UiType='number' WireType='u32'}, 'time'=WinboxJgField{Allow=null ApiName='time' Condition=null Def=null DurationZeroUnit='ms' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=true IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=true Key=100 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix='ms' Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 TicksPerSecond=1000 TitleApiName=null TypedFieldId=134217828 UiType='number' WireType='u32'}}
+ShippedFieldAliases[/tool/romon/ping].SyntheticFields = ci{'host'=WinboxJgField{Allow=null ApiName='host' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=1 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=805306369 UiType='macaddr' WireType='raw'}, 'received'=WinboxJgField{Allow=null ApiName='received' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=106 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217834 UiType='number' WireType='u32'}, 'sent'=WinboxJgField{Allow=null ApiName='sent' Condition=null Def=null DurationZeroUnit='s' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=false IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=false Key=105 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix=null Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1 TitleApiName=null TypedFieldId=134217833 UiType='number' WireType='u32'}, 'time'=WinboxJgField{Allow=null ApiName='time' Condition=null Def=null DurationZeroUnit='ms' ElementIsRange=false ElementNotKey=0 ElementParts=null ElementScale=1 ElementSeparator=null ElementStatusParts=null ElementUiType=null EnumMap=null ExtraRegistrations=null IsHexPostfix=false IsMillisecondsPostfix=true IsOptional=false IsRange=false IsSecondsPostfix=false IsTimePostfix=true Key=100 KindIdKey=0 MaskKey=0 Min=0 NonPublic=false NotKey=0 OffKey=0 OptKey=0 PairHalves=null PaneKind=null PaneSelectorKey=0 PaneValues=null Postfix='ms' Prefix=null Radix=0 ReadOnly=true RefHandler=null RefHandlers=null Relative=false Scale=1 Tab=null TicksPerSecond=1000 TitleApiName=null TypedFieldId=134217828 UiType='number' WireType='u32'}}
 ShippedFieldAliases[/tool/sniffer].AddrPortPairs = ci{'server'='port'}
 ShippedFieldAliases[/tool/sniffer].AlsoKnownAs = null
 ShippedFieldAliases[/tool/sniffer].ApiToJg = ci{'filter-cpu'='cpu', 'filter-direction'='direction', 'filter-dst-ip-address'='dst-ip-address', 'filter-dst-ipv6-address'='dst-ipv6-address', 'filter-dst-mac-address'='dst-mac-address', 'filter-dst-port'='dst-port', 'filter-interface'='interfaces', 'filter-ip-address'='ip-address', 'filter-ip-protocol'='ip-protocol', 'filter-ipv6-address'='ipv6-address', 'filter-mac-address'='mac-address', 'filter-mac-protocol'='mac-protocol', 'filter-operator-between-entries'='filter-operation', 'filter-src-ip-address'='src-ip-address', 'filter-src-ipv6-address'='src-ipv6-address', 'filter-src-mac-address'='src-mac-address', 'filter-src-port'='src-port', 'filter-vlan'='vlan', 'quick-rows'='rows', 'quick-show-frame'='show-frame', 'streaming-server'='server'}
@@ -873,7 +1239,10 @@ ShippedFieldAliases[/tool/sniffer].JgToApi = ci{'cpu'='filter-cpu', 'direction'=
 ShippedFieldAliases[/tool/sniffer].KeyToApi = {}
 ShippedFieldAliases[/tool/sniffer].KeyUiType = {}
 ShippedFieldAliases[/tool/sniffer].NotReportedKeys = null
+ShippedFieldAliases[/tool/sniffer].NotReportedNames = null
+ShippedFieldAliases[/tool/sniffer].NotReportedTabs = null
 ShippedFieldAliases[/tool/sniffer].NumFlagMembers = null
+ShippedFieldAliases[/tool/sniffer].OmittedWhen = null
 ShippedFieldAliases[/tool/sniffer].PairedFields = null
 ShippedFieldAliases[/tool/sniffer].SyntheticFields = null
 ShippedFieldAliases[/tool/traceroute].AddrPortPairs = null
@@ -885,7 +1254,10 @@ ShippedFieldAliases[/tool/traceroute].JgToApi = ci{'host'='address', 'packet-siz
 ShippedFieldAliases[/tool/traceroute].KeyToApi = {}
 ShippedFieldAliases[/tool/traceroute].KeyUiType = {}
 ShippedFieldAliases[/tool/traceroute].NotReportedKeys = null
+ShippedFieldAliases[/tool/traceroute].NotReportedNames = null
+ShippedFieldAliases[/tool/traceroute].NotReportedTabs = null
 ShippedFieldAliases[/tool/traceroute].NumFlagMembers = null
+ShippedFieldAliases[/tool/traceroute].OmittedWhen = null
 ShippedFieldAliases[/tool/traceroute].PairedFields = null
 ShippedFieldAliases[/tool/traceroute].SyntheticFields = null
 ShippedFieldAliases[/tool/wol].AddrPortPairs = null
@@ -897,7 +1269,10 @@ ShippedFieldAliases[/tool/wol].JgToApi = ci{'mac-address'='mac'}
 ShippedFieldAliases[/tool/wol].KeyToApi = {}
 ShippedFieldAliases[/tool/wol].KeyUiType = {}
 ShippedFieldAliases[/tool/wol].NotReportedKeys = null
+ShippedFieldAliases[/tool/wol].NotReportedNames = null
+ShippedFieldAliases[/tool/wol].NotReportedTabs = null
 ShippedFieldAliases[/tool/wol].NumFlagMembers = null
+ShippedFieldAliases[/tool/wol].OmittedWhen = null
 ShippedFieldAliases[/tool/wol].PairedFields = null
 ShippedFieldAliases[/tool/wol].SyntheticFields = null
 ShippedFieldAliases[/user].AddrPortPairs = null
@@ -909,7 +1284,10 @@ ShippedFieldAliases[/user].JgToApi = ci{'allowed-address'='address'}
 ShippedFieldAliases[/user].KeyToApi = {}
 ShippedFieldAliases[/user].KeyUiType = {}
 ShippedFieldAliases[/user].NotReportedKeys = null
+ShippedFieldAliases[/user].NotReportedNames = null
+ShippedFieldAliases[/user].NotReportedTabs = null
 ShippedFieldAliases[/user].NumFlagMembers = null
+ShippedFieldAliases[/user].OmittedWhen = null
 ShippedFieldAliases[/user].PairedFields = null
 ShippedFieldAliases[/user].SyntheticFields = null
 ShippedFieldAliases[/user/group].AddrPortPairs = null
@@ -921,13 +1299,17 @@ ShippedFieldAliases[/user/group].JgToApi = ci{'policies'='policy'}
 ShippedFieldAliases[/user/group].KeyToApi = {}
 ShippedFieldAliases[/user/group].KeyUiType = {}
 ShippedFieldAliases[/user/group].NotReportedKeys = null
+ShippedFieldAliases[/user/group].NotReportedNames = ci{'default', 'system'}
+ShippedFieldAliases[/user/group].NotReportedTabs = null
 ShippedFieldAliases[/user/group].NumFlagMembers = null
+ShippedFieldAliases[/user/group].OmittedWhen = null
 ShippedFieldAliases[/user/group].PairedFields = null
 ShippedFieldAliases[/user/group].SyntheticFields = null
 WinboxFieldResolver.AddrIfaceRefHandler = [20,0]
 WinboxFieldResolver.EnumMemberAliases = ci{'action'=ci{'change-dscp-(tos)'='change-dscp'}, 'advertise'=ci{'10G-full'='10000M-full', '2.5G-full'='2500M-full', '5G-full'='5000M-full'}, 'cipher'=ci{'aes-128'='aes128', 'aes-128-cbc'='aes128-cbc', 'aes-128-gcm'='aes128-gcm', 'aes-192'='aes192', 'aes-192-cbc'='aes192-cbc', 'aes-192-gcm'='aes192-gcm', 'aes-256'='aes256', 'aes-256-cbc'='aes256-cbc', 'aes-256-gcm'='aes256-gcm', 'blowfish-128'='blowfish128'}, 'download-burst-limit'=ci{'unlimited'='0'}, 'download-burst-threshold'=ci{'unlimited'='0'}, 'download-limit-at'=ci{'unlimited'='0'}, 'download-max-limit'=ci{'unlimited'='0'}, 'dynamic-lease-identifiers'=ci{'mac-address'='client-mac', 'option-82'='opt-82'}, 'l2tpv3-cookie-length'=ci{'0-bytes'='0'}, 'lacp-rate'=ci{'1-s'='1sec', '30-s'='30secs'}, 'protocol'=ci{'ip-encap'='ipencap'}, 'redistribute-default-route'=ci{'always-(as-type-1)'='always-as-type-1', 'always-(as-type-2)'='always-as-type-2', 'if-installed-(as-type-1)'='if-installed-as-type-1', 'if-installed-(as-type-2)'='if-installed-as-type-2'}, 'remote-log-format'=ci{'bsd-syslog'='syslog'}, 'timestamp-format'=ci{'bsd'='bsd-syslog'}, 'upload-burst-limit'=ci{'unlimited'='0'}, 'upload-burst-threshold'=ci{'unlimited'='0'}, 'upload-limit-at'=ci{'unlimited'='0'}, 'upload-max-limit'=ci{'unlimited'='0'}}
 WinboxFieldResolver.FallbackSeed = ci{'disabled'=16646154, 'name'=65542}
 WinboxFieldResolver.FirewallDstLimitBy = {1='dst-address', 3='dst-address-and-port', 4='src-address', 5='src-and-dst-addresses', 7='addresses-and-dst-port'}
+WinboxFieldResolver.GenericInterfaceCounters = ['type', 'vrf', 'link-downs', 'rx-byte', 'tx-byte', 'rx-packet', 'tx-packet', 'rx-drop', 'tx-drop', 'tx-queue-drop', 'rx-error', 'tx-error', 'queue-type', 'default-queue-type', 'active-queue-type']
 WinboxFieldResolver.GenericInterfaceHandler = [20,0]
 WinboxFieldResolver.HealthStateMap = {0='disabled', 1='enabled'}
 WinboxFieldResolver.LabelOverride = ci{'actual mtu'='actual-mtu', 'arp'='arp', 'l2 mtu'='l2mtu', 'mac address'='mac-address', 'mtu'='mtu', 'rx'='rx-byte', 'tx'='tx-byte'}

@@ -110,6 +110,41 @@ namespace tik4net.Winbox
             /// </remarks>
             public readonly ISet<int>? NotReportedKeys;
 
+            /// <summary>
+            /// API names the window decodes and the API's menu does not have, left out of the decode (WinBox review F11).
+            /// </summary>
+            /// <remarks>
+            /// Each is measured with the API's <c>get value-name=</c>, which answers "input does not match any value of
+            /// value-name" for a name the menu lacks and an empty <c>!done</c> for one it has but leaves unset (7.25):
+            /// <c>/interface</c>'s live rates (the API's <c>monitor-traffic</c>) and its <c>type-id</c>. By name, not by
+            /// key, because a name is the same on every version. Decode only, like <see cref="NotReportedKeys"/>.
+            /// </remarks>
+            public readonly ISet<string>? NotReportedNames;
+
+            /// <summary>
+            /// Tabs of the path's own window whose fields the API prints from another command, left out of the decode
+            /// (WinBox review F11), as normalized labels.
+            /// </summary>
+            /// <remarks>
+            /// The <c>/system/clock</c> window's 'Manual Time Zone' tab is the API's <c>/system/clock/manual</c>,
+            /// <c>/ip/traffic-flow</c>'s 'IPFIX' tab is <c>/ip/traffic-flow/ipfix</c>, and <c>/ip/proxy</c>'s
+            /// counters are <c>/ip/proxy/monitor</c>: the API's <c>get</c> of every such field traps on the window's
+            /// own menu (7.25). A tab is a label, so the rule holds on every version that has the tab.
+            /// </remarks>
+            public readonly ISet<string>? NotReportedTabs;
+
+            /// <summary>
+            /// API name → the text the field decodes to while it is unset: the API leaves such a field out of the row
+            /// until it holds something else (WinBox review F11).
+            /// </summary>
+            /// <remarks>
+            /// Not a rule the catalog can give: an <c>opt:1</c> field at its zero is printed on some menus
+            /// (<c>local-address=0.0.0.0</c>, ppp secret <c>routes=""</c>) and left out on others, so every entry is
+            /// measured on a seeded row both ways — absent while unset, printed once set (7.25): <c>/radius</c>
+            /// <c>src-address</c> is left out at <c>0.0.0.0</c> and printed at <c>10.99.0.1</c>. Decode only.
+            /// </remarks>
+            public readonly IReadOnlyDictionary<string, string>? OmittedWhen;
+
             /// <param name="both">API name → <c>.jg</c> label pairs that rename one value in both directions — "one name
             /// for one value": each goes into <see cref="ApiToJg"/> as written and into <see cref="JgToApi"/> reversed.</param>
             /// <param name="apiToJgOnly">Encode-only spellings, laid over <paramref name="both"/>: an API name a write may
@@ -126,6 +161,9 @@ namespace tik4net.Winbox
             /// <param name="numFlagMembers">See <see cref="NumFlagMembers"/>.</param>
             /// <param name="fallbackFields">See <see cref="FallbackFields"/>.</param>
             /// <param name="notReportedKeys">See <see cref="NotReportedKeys"/>.</param>
+            /// <param name="notReportedNames">See <see cref="NotReportedNames"/>.</param>
+            /// <param name="notReportedTabs">See <see cref="NotReportedTabs"/>.</param>
+            /// <param name="omittedWhen">See <see cref="OmittedWhen"/>.</param>
             public FieldAliasSet(IReadOnlyDictionary<string, string>? both = null,
                 IReadOnlyDictionary<string, string>? apiToJgOnly = null, IReadOnlyDictionary<string, string>? jgToApiOnly = null,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
@@ -136,7 +174,9 @@ namespace tik4net.Winbox
                 IReadOnlyDictionary<string, Tuple<string, string>>? pairedFields = null,
                 IEnumerable<string>? numFlagMembers = null,
                 IReadOnlyDictionary<string, WinboxJgField>? fallbackFields = null,
-                IEnumerable<int>? notReportedKeys = null)
+                IEnumerable<int>? notReportedKeys = null,
+                IEnumerable<string>? notReportedNames = null, IEnumerable<string>? notReportedTabs = null,
+                IReadOnlyDictionary<string, string>? omittedWhen = null)
             {
                 var apiToJg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var jgToApi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -156,6 +196,11 @@ namespace tik4net.Winbox
                 SyntheticFields = syntheticFields;
                 FallbackFields = fallbackFields;
                 NotReportedKeys = notReportedKeys == null ? null : new HashSet<int>(notReportedKeys);
+                NotReportedNames = notReportedNames == null
+                    ? null : new HashSet<string>(notReportedNames, StringComparer.OrdinalIgnoreCase);
+                NotReportedTabs = notReportedTabs == null
+                    ? null : new HashSet<string>(notReportedTabs, StringComparer.OrdinalIgnoreCase);
+                OmittedWhen = omittedWhen;
             }
         }
 
@@ -231,6 +276,21 @@ namespace tik4net.Winbox
             },
             notReportedKeys: new[] { WinboxM2Protocol.RecordKey.Id, 0x4 });
 
+        /// <summary>
+        /// The generic Interface window's fields that an interface subtype's API menu does not print (WinBox review F11).
+        /// </summary>
+        /// <remarks>
+        /// A subtype (Ethernet, VRRP) is read on the generic <c>[20,0]</c> handler and its rows carry the generic window's
+        /// keys; the API prints these on <c>/interface</c>, and <c>get value-name=</c> of each traps on
+        /// <c>/interface/ethernet</c> and <c>/interface/vrrp</c> (7.25), the queue columns being the handler's Interface
+        /// Queues window (<c>/queue/interface</c>). Not every subtype: the bridge's print has <c>actual-mtu</c>.
+        /// </remarks>
+        private static readonly string[] GenericInterfaceCounters =
+        {
+            "type", "vrf", "link-downs", "rx-byte", "tx-byte", "rx-packet", "tx-packet", "rx-drop", "tx-drop",
+            "tx-queue-drop", "rx-error", "tx-error", "queue-type", "default-queue-type", "active-queue-type",
+        };
+
         private static readonly Dictionary<string, FieldAliasSet> ShippedFieldAliases =
             new Dictionary<string, FieldAliasSet>(StringComparer.OrdinalIgnoreCase)
             {
@@ -288,8 +348,10 @@ namespace tik4net.Winbox
                 // /user/group: the window's field is 'Policies', the API's is 'policy' — one name for one
                 // value, so the alias is the whole difference. (Its members come from the policy table
                 // [13,3], not from a static map; see EncodeField's bit-set branch.)
+                // default/system: the window's flags, which the API's /user/group menu does not have (get traps, 7.25).
                 ["/user/group"] = new FieldAliasSet(
-                    both: Ci(("policy", "policies"))),
+                    both: Ci(("policy", "policies")),
+                    notReportedNames: new[] { "default", "system" }),
 
                 ["/system/identity"] = new FieldAliasSet(
                     both: Ci(("name", "identity"))),
@@ -380,7 +442,16 @@ namespace tik4net.Winbox
                         // cable-settings: unnamed 0x3F5. default/standard/short moved it to 2/1/0 on ether2 (7.24.2).
                         ["cable-settings"] = new WinboxJgField("cable-settings", 0x3F5, M2Type.U32, false,
                             enumMap: new Dictionary<int, string> { [0] = "short", [1] = "standard", [2] = "default" }),
-                    }),
+                    },
+                    // The generic window's counters, and the Ethernet window's link status: the API's
+                    // /interface/ethernet/monitor (rate, full-duplex, auto-negotiation-status, supported, sfp, pon).
+                    // rx-byte, rx-drop, rx-packet and tx-too-short are names the ethernet menu knows (its stats), and
+                    // neither print nor print stats prints them on 7.25 CHR; get traps for every other one.
+                    notReportedNames: GenericInterfaceCounters.Concat(new[]
+                    {
+                        "caps", "link", "answer-time", "actual-mtu", "last-link-down-time", "last-link-up-time",
+                        "rate", "full-duplex", "auto-negotiation-status", "supported", "sfp", "pon", "tx-too-short",
+                    })),
 
                 // /ip/arp and /ip/neighbor: WinBox's 'IP Address' is the API's `address`. On /ip/neighbor
                 // the router ALSO prints `address4` for the same value and `address6` for the v6 one, so
@@ -412,7 +483,9 @@ namespace tik4net.Winbox
                 // (192.168.4.236/24), the reconfigure flag, and the routing-table list.
                 ["/ip/dhcp-client"] = new FieldAliasSet(
                     both: Ci(("address", "ip-address"), ("allow-reconfigure", "allow-reconfigure-messages"),
-                             ("default-route-tables", "routing-tables"))),
+                             ("default-route-tables", "routing-tables")),
+                    // A client on a t4n bridge: absent at 0/0/"", printed at dscp=10 vlan-priority=3 (7.25).
+                    omittedWhen: Ci(("dscp", "0"), ("vlan-priority", "0"), ("script", ""))),
 
                 // /user: WinBox's 'Allowed Address'. Both rows of a stock router leave it EMPTY, which is
                 // why the audit could not propose it — two blanks agree vacuously. Confirmed by creating a
@@ -465,8 +538,28 @@ namespace tik4net.Winbox
                 ["/ip/socks"] = new FieldAliasSet(
                     both: Ci(("auth-method", "authentication-method"))),
 
+                // The window's Status, Lookups, Inserts and Refreshes tabs are counters: the API's /ip/proxy/monitor.
                 ["/ip/proxy"] = new FieldAliasSet(
-                    both: Ci(("cache-hit-dscp", "cache-hit-dscp-(tos)"))),
+                    both: Ci(("cache-hit-dscp", "cache-hit-dscp-(tos)")),
+                    notReportedTabs: new[] { "status", "lookups", "inserts", "refreshes" }),
+
+                // Each measured on a t4n row (7.25): absent while unset, printed once set — the walled-garden entry's
+                // dst-host unset only (the router takes dst-host or dst-address, not both).
+                ["/radius"] = new FieldAliasSet(omittedWhen: Ci(("src-address", "0.0.0.0"))),
+                ["/ip/hotspot/walled-garden/ip"] = new FieldAliasSet(omittedWhen: Ci(("dst-host", ""))),
+                ["/ip/ipsec/mode-config"] = new FieldAliasSet(omittedWhen: Ci(("connection-mark", ""), ("src-address-list", ""))),
+                ["/system/watchdog"] = new FieldAliasSet(
+                    omittedWhen: Ci(("send-email-from", ""), ("send-email-to", ""), ("send-smtp-server", "0.0.0.0"))),
+                // queue-type is the API's upload/download pair of the window's two boxes (ethernet-default/default-small
+                // set over the API read back as upload ethernet-default, download default-small) and is left out at
+                // default-small/default-small; the pools unset only (the lab has no IPv6 pool).
+                ["/ppp/profile"] = new FieldAliasSet(
+                    pairedFields: Pairs(("queue-type", "upload-queue-type", "download-queue-type")),
+                    omittedWhen: Ci(("dns-server", ""), ("wins-server", ""), ("dhcpv6-pd-pool", ""),
+                                    ("remote-ipv6-prefix-pool", ""), ("queue-type", "default-small/default-small"))),
+
+                // dynamic: a flag the API's /ip/proxy/access menu does not have (get traps, 7.25).
+                ["/ip/proxy/access"] = new FieldAliasSet(notReportedNames: new[] { "dynamic" }),
 
                 // 7.x: 'NTP Servers'. 6.49.13 has two boxes instead, 'Primary/Secondary NTP Server' (u2, u3), and
                 // calls the API's last-update-before 'Last Update' (u6a, an age); no 7.x NTP label collides.
@@ -498,9 +591,23 @@ namespace tik4net.Winbox
 
                 // /ip/traffic-flow: both fields read 0 on a stock router, so the audit's value match was
                 // vacuous. Confirmed by writing 13 and 27 and watching the two arrive in that order.
+                // The window's IPFIX tab is the API's /ip/traffic-flow/ipfix.
                 ["/ip/traffic-flow"] = new FieldAliasSet(
                     both: Ci(("sampling-interval", "packet-sampling-interval"),
-                             ("sampling-space", "packet-sampling-space"))),
+                             ("sampling-space", "packet-sampling-space")),
+                    notReportedTabs: new[] { "ipfix" }),
+
+                // The window's Manual Time Zone tab is the API's /system/clock/manual.
+                ["/system/clock"] = new FieldAliasSet(notReportedTabs: new[] { "manual-time-zone" }),
+
+                // The window's General Type and No Key Export, which the API's /certificate menu does not have (get
+                // traps, 7.25).
+                ["/certificate"] = new FieldAliasSet(notReportedNames: new[] { "general-type", "no-key-export" }),
+
+                // The router's note on the row, which the API prints on a list row (/ip/dhcp-server) and on neither of
+                // these singletons, whose notes say PPTP is unsafe and that cloud is not on a CHR free licence (7.25).
+                ["/interface/pptp-server/server"] = new FieldAliasSet(notReportedNames: new[] { WinboxRecordCodec.AboutField }),
+                ["/ip/cloud"] = new FieldAliasSet(notReportedNames: new[] { WinboxRecordCodec.AboutField }),
 
                 // Each pairing below was confirmed by MOVING the value on a seeded row over the API and naming
                 // the one native field that changed (7.24.2) — never by the two names looking alike.
@@ -573,7 +680,8 @@ namespace tik4net.Winbox
                         ["on-fail"] = new WinboxJgField("on-fail", 0x13, M2Type.String, false),
                         ["connection-tracking-mode"] = new WinboxJgField("connection-tracking-mode", 0x17, M2Type.U32, false,
                             enumMap: new Dictionary<int, string> { [0] = "passive-active", [1] = "active-active" }),
-                    }),
+                    },
+                    notReportedNames: GenericInterfaceCounters),
 
                 // The routing tables' state flag 0xFE0008 is `inactive` to the API (seeded rows, 7.24.2: true on a
                 // BGP connection with no local address, on a disabled routing rule and filter rule; false on the
@@ -657,11 +765,13 @@ namespace tik4net.Winbox
                 // /system/package: webfig declares `available` as an inverted flag on the Installed key
                 // ({name:'available',type:'flag',id:'bb',hint:'A',inv:1}); the key already carries `installed`, so
                 // the flag is derived from it. Every row a router lists is installed=true, available=false.
+                // installed is what `available` is derived from; the API's menu does not have it (get traps, 7.25).
                 ["/system/package"] = new FieldAliasSet(
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["available"] = Tuple.Create("installed", "false"),
                     },
+                    notReportedNames: new[] { "installed" },
                     // `bundle` is the window's nonpublic {number, u6}: the record id of the package this one ships
                     // in, which the API prints by NAME — routeros-x86 where u6=1 (6.49.13; the 7.x windows declare
                     // the same u6). A reference into this very table.
@@ -769,12 +879,25 @@ namespace tik4net.Winbox
                 // /ip/hotspot/user and /ip/hotspot/user/profile: `default` marks the row the router ships, and
                 // webfig declares it as a flag ON THE RECORD ID (ufe0001) — no key of its own. The API prints
                 // default=true on exactly the *0 row of each table (7.24.2), so it is derived from the id.
-                ["/ip/hotspot/user"] = HotspotDefault(),
+                // A t4n user: every one absent while unset and printed once set (7.25), except otp-secret (left unset)
+                // and profile, which the shipped default-trial row leaves unresolved (*FFFFFFFF) and the API leaves out.
+                ["/ip/hotspot/user"] = new FieldAliasSet(
+                    derivedBools: HotspotDefault().DerivedBools,
+                    omittedWhen: Ci(("address", "0.0.0.0"), ("email", ""), ("limit-bytes-in", "0"), ("limit-bytes-out", "0"),
+                                    ("limit-bytes-total", "0"), ("limit-uptime", "0s"), ("mac-address", "00:00:00:00:00:00"),
+                                    ("password", ""), ("routes", ""), ("otp-secret", ""), ("profile", "*FFFFFFFF"))),
                 // The user profile's 'Rate Limit (rx/tx)' carries its units in the label, as on the server
                 // profile: the API says rate-limit, with the same value (1M/2M on a t4n profile, 7.24.4).
+                // A t4n profile, 7.25: the omittedWhen fields are absent while unset and printed once set (address-pool
+                // measured unset only: the lab has no pool); open-status-page and the advertise fields are printed by no
+                // API read, set or not (open-status-page=http-login on the t4n profile).
                 ["/ip/hotspot/user/profile"] = new FieldAliasSet(
                     both: Ci(("rate-limit", "rate-limit-(rx/tx)")),
-                    derivedBools: HotspotDefault().DerivedBools),
+                    derivedBools: HotspotDefault().DerivedBools,
+                    notReportedNames: new[] { "open-status-page", "advertise", "advertise-interval", "advertise-timeout", "advertise-url" },
+                    omittedWhen: Ci(("session-timeout", "0s"), ("rate-limit", ""), ("on-login", ""), ("on-logout", ""),
+                                    ("incoming-filter", ""), ("outgoing-filter", ""), ("incoming-packet-mark", ""),
+                                    ("outgoing-packet-mark", ""), ("address-pool", "none"))),
 
                 // /ip/hotspot/ip-binding: `bypassed` is the binding's type, as a flag (type=bypassed, bypassed=true).
                 ["/ip/hotspot/ip-binding"] = new FieldAliasSet(
@@ -796,8 +919,12 @@ namespace tik4net.Winbox
                     }),
 
                 // The two IPsec algorithm sets: singular where the window says plural, and vice versa.
+                // prf-algorithm: the API's name for the window's 'PRF Algorithms' (CLI completion of set, 7.25).
+                // lifebytes and prf-algorithm are absent at 0 and auto, printed at 1000 and sha256 (t4n profile, 7.25).
                 ["/ip/ipsec/profile"] = new FieldAliasSet(
-                    both: Ci(("hash-algorithm", "hash-algorithms"), ("enc-algorithm", "encryption-algorithm"))),
+                    both: Ci(("hash-algorithm", "hash-algorithms"), ("enc-algorithm", "encryption-algorithm"),
+                             ("prf-algorithm", "prf-algorithms")),
+                    omittedWhen: Ci(("lifebytes", "0"), ("prf-algorithm", "auto"))),
 
                 ["/ip/ipsec/proposal"] = new FieldAliasSet(
                     both: Ci(("enc-algorithms", "encr-algorithms"))),
@@ -915,8 +1042,11 @@ namespace tik4net.Winbox
                 // Aliased per path rather than by turning every dot into a hyphen everywhere. A dot is not
                 // reserved in a RouterOS field name, and a global rewrite would quietly re-point any future
                 // field that has one.
+                // input.filter / output.filter-chain: the API's names for the window's Input Filter / Output Filter,
+                // confirmed by value (both lab-bgp-in on the lab's connection, 7.25).
                 ["/routing/bgp/connection"] = new FieldAliasSet(
-                    both: Ci(("remote.address", "remote-address"), ("local.role", "local-role")),
+                    both: Ci(("remote.address", "remote-address"), ("local.role", "local-role"),
+                             ("input.filter", "input-filter"), ("output.filter-chain", "output-filter")),
                     // The state flag, as the routing tables name it (see RoutingInactive): a connection with no
                     // local address reads inactive=true over the API and 0xFE0008=true natively (7.24.2).
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
@@ -1051,7 +1181,9 @@ namespace tik4net.Winbox
                 //
                 // 'HTTP Proxy' (u83) IS handled, by addrPortPairs below rather than by a name alias: the
                 // label already normalizes to the API's http-proxy, and what differed was the value.
+                // rate-limit: printed by no API read of the server profile, even set (1M/2M on a t4n profile, 7.25).
                 ["/ip/hotspot/profile"] = new FieldAliasSet(
+                    notReportedNames: new[] { "rate-limit" },
                     addrPortPairs: Ci(("http-proxy", "http-proxy-port")),
                     both: Ci(("radius-accounting", "accounting"), ("radius-default-domain", "default-domain"),
                              ("radius-interim-update", "interim-update"), ("radius-location-id", "location-id"),
@@ -1208,6 +1340,14 @@ namespace tik4net.Winbox
                         // 7.x declares it ('Default Name', s10031); the 6.49.13 window does not, but the router
                         // sends the key — ether1 and ether2 carried their own default-name at 0x10031.
                         ["default-name"] = new WinboxJgField("default-name", 0x10031, M2Type.String, true),
+                    },
+                    // The live rates are named above for /interface/monitor-traffic, which reads this window through
+                    // this set; /interface's own print has none of them, nor type-id (get traps, 7.25).
+                    notReportedNames: new[]
+                    {
+                        "type-id", "rx-bits-per-second", "tx-bits-per-second", "rx-packets-per-second",
+                        "tx-packets-per-second", "fp-rx-bits-per-second", "fp-tx-bits-per-second",
+                        "fp-rx-packets-per-second", "fp-tx-packets-per-second",
                     }),
             };
 

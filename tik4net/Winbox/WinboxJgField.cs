@@ -583,6 +583,12 @@ namespace tik4net.Winbox
         internal WinboxJgCondition? Condition { get; set; }
 
         /// <summary>
+        /// The window tab the field is declared on, as a normalized label (<c>manual-time-zone</c>), or <c>null</c>
+        /// outside any tab. See <c>FieldAliasSet.NotReportedTabs</c>.
+        /// </summary>
+        internal string? Tab { get; set; }
+
+        /// <summary>
         /// The same field under a different API name — for a field a window gives a label another field of
         /// that window already claimed, and which is therefore reachable only under a qualified name.
         /// </summary>
@@ -596,13 +602,13 @@ namespace tik4net.Winbox
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, 0, null, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts };
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts, Tab = Tab };
 
         internal WinboxJgField WithApiName(string apiName)
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts };
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts, Tab = Tab };
     }
 }

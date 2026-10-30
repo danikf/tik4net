@@ -553,7 +553,7 @@ namespace tik4net.Winbox
                 elementIsRange: elementIsRange, titleApiName: titleName,
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
                 prefix: prefix, elementScale: elementScale, relative: relative, refHandlers: refHandlers)
-                { ElementStatusParts = elementStatusParts };
+                { ElementStatusParts = elementStatusParts, Tab = tab };
             _labels[field] = label;
             if (!nonPublic) _publicKeys.Add((HandlerOfOwner(handlerKey), key));
             if (!_fieldsByLabel.TryGetValue(handlerKey, out var ownLabels))

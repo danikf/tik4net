@@ -58,66 +58,28 @@ namespace tik4net.integrationtests
         };
 
         /// <summary>
-        /// Path → (name → reason): native-only names the window scoping (D6) did not explain, recorded as WinBox review
-        /// F11 rather than fixed. Each is a field of the WinBox window that the API prints elsewhere (a monitor command,
-        /// a sub-menu) or not at all. Tolerated so that the sweep fails on a NEW leak; an entry no longer seen is
-        /// reported, not failed, since some depend on the rows the lab holds.
+        /// Path → (name → reason): native-only names that stay, each with the measurement that keeps it (WinBox review
+        /// F11). Tolerated so that the sweep fails on a NEW leak; an entry no longer seen is reported, not failed, since
+        /// some depend on the rows the lab holds.
         /// </summary>
         private static readonly Dictionary<string, Dictionary<string, string>> KnownOpen =
             new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
         {
-            ["/certificate"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "general-type", "no-key-export"),
-            ["/interface"] = Open("live rates of the window's Traffic tab; the API reads them with /interface/monitor-traffic",
-                "fp-rx-bits-per-second", "fp-rx-packets-per-second", "fp-tx-bits-per-second", "fp-tx-packets-per-second", "rx-bits-per-second", "rx-packets-per-second", "tx-bits-per-second", "tx-packets-per-second", "type-id"),
-            ["/interface/bridge/settings"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "auto-mac"),
-            ["/interface/ethernet"] = Open("the generic interface window's counters and the Ethernet window's link status; the API prints the first on /interface and the second with /interface/ethernet/monitor",
-                "active-queue-type", "actual-mtu", "answer-time", "auto-negotiation-status", "caps", "default-queue-type", "fp-rx-bits-per-second", "fp-rx-packets-per-second", "fp-tx-bits-per-second", "fp-tx-packets-per-second", "full-duplex", "last-link-down-time", "last-link-up-time", "link", "link-downs", "pon", "queue-type", "rate", "rx-bits-per-second", "rx-byte", "rx-drop", "rx-error", "rx-packet", "rx-packets-per-second", "sfp", "supported", "tx-bits-per-second", "tx-byte", "tx-drop", "tx-error", "tx-packet", "tx-packets-per-second", "tx-queue-drop", "tx-too-short", "type", "type-id", "vrf"),
-            ["/interface/pptp-server/server"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                ".about"),
-            ["/interface/vrrp"] = Open("the generic interface window's counters, which the API prints on /interface, not on the subtype menu",
-                "active-queue-type", "connection-tracking-port", "default-queue-type", "fp-rx-bits-per-second", "fp-rx-packets-per-second", "fp-tx-bits-per-second", "fp-tx-packets-per-second", "link-downs", "queue-type", "remote-address", "rx-bits-per-second", "rx-byte", "rx-drop", "rx-error", "rx-packet", "rx-packets-per-second", "tx-bits-per-second", "tx-byte", "tx-drop", "tx-error", "tx-packet", "tx-packets-per-second", "tx-queue-drop", "type", "type-id", "vrf"),
-            ["/ip/cloud"] = Open("the BTH VPN tab and the about line",
-                ".about", "back-to-home-vpn", "dns-name", "use-local-address", "vpn-dns-name", "vpn-interface", "vpn-peer-private-key", "vpn-peer-public-key", "vpn-port", "vpn-prefer-relay-code", "vpn-private-key", "vpn-public-key", "vpn-relay-ipv4-status", "vpn-relay-ipv6-status", "vpn-status"),
-            ["/ip/dhcp-client"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "dscp", "script", "vlan-priority"),
-            ["/ip/hotspot/profile"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "rate-limit", "ssl-certificate"),
-            ["/ip/hotspot/user"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "address", "email", "limit-bytes-in", "limit-bytes-out", "limit-bytes-total", "limit-uptime", "mac-address", "otp-secret", "password", "profile", "routes"),
-            ["/ip/hotspot/user/profile"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "address-pool", "advertise", "advertise-interval", "advertise-timeout", "advertise-url", "incoming-filter", "incoming-packet-mark", "on-login", "on-logout", "open-status-page", "outgoing-filter", "outgoing-packet-mark", "rate-limit", "session-timeout"),
-            ["/ip/hotspot/walled-garden/ip"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "dst-host"),
-            ["/ip/ipsec/mode-config"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "connection-mark", "src-address-list"),
-            ["/ip/ipsec/profile"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "lifebytes", "prf-algorithms"),
-            ["/ip/proxy"] = Open("the window's status counters; the API reads them with /ip/proxy/monitor",
-                "client-connections", "config-max-fresh", "denied", "errors", "expired", "heuristic", "hits-sent-to-clients", "inserts-denied", "inserts-successes", "no-expiration-info", "no-memory", "non-cachable", "not-found", "other", "received-from-servers", "refreshes-expired", "request-max-age", "requests", "response-max-age", "sent-to-clients", "server-connections", "successes", "too-large", "total-ram-used", "url-requests"),
-            ["/ip/proxy/access"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "dynamic"),
-            ["/ip/service"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
+            ["/interface/vrrp"] = Open("the API prints it only once sync-connection-tracking=yes (a t4n VRRP interface, 7.25), "
+                + "and the window declares no condition on it ('Conn. Tracking Port', u16, def 8275) to follow",
+                "connection-tracking-port"),
+            ["/ip/cloud"] = Open("licence-dependent: on a CHR free licence ('Cloud services not supported') the API's get "
+                + "of each BTH VPN field and use-local-address traps and dns-name is empty and left out; what a licensed "
+                + "router prints is not measurable on the lab",
+                "back-to-home-vpn", "dns-name", "use-local-address", "vpn-dns-name", "vpn-interface", "vpn-peer-private-key",
+                "vpn-peer-public-key", "vpn-port", "vpn-prefer-relay-code", "vpn-private-key", "vpn-public-key",
+                "vpn-relay-ipv4-status", "vpn-relay-ipv6-status", "vpn-status"),
+            ["/ip/service"] = Open("renamed between versions over one key and one label (address on 6.49.21 and 7.21.5, "
+                + "available-from on 7.25): native reports both spellings (AlsoKnownAs), as it does not read the router's version",
                 "address"),
-            ["/ip/traffic-flow"] = Open("the IPFIX template tab; the API's /ip/traffic-flow/ipfix",
-                "bytes", "dst-address", "dst-address-mask", "dst-mac-address", "dst-port", "first-forwarded", "gateway", "icmp-code", "icmp-type", "igmp-type", "in-interface", "ip-header-length", "ip-tos", "ip-total-lenth", "ipv6-flow-label", "is-multicast", "last-forwarded", "log-nat-events", "nat-dst-address", "nat-dst-port", "nat-src-address", "nat-src-port", "out-interface", "packets", "protocol", "src-address", "src-address-mask", "src-mac-address", "src-port", "system-init-time", "tcp-ack-number", "tcp-flags", "tcp-seq-number", "tcp-window-size", "ttl", "udp-length"),
-            ["/ppp/profile"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "dhcpv6-pd-pool", "dns-server", "download-queue-type", "remote-ipv6-prefix-pool", "upload-queue-type", "wins-server"),
-            ["/radius"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "src-address"),
-            ["/routing/bgp/connection"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "input-filter", "output-filter"),
-            ["/system/clock"] = Open("the Manual Time Zone tab; the API's /system/clock/manual",
-                "dst-delta", "dst-end", "dst-start", "time-zone"),
-            ["/system/package"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "installed"),
-            ["/system/watchdog"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "send-email-from", "send-email-to", "send-smtp-server"),
-            ["/tool/e-mail"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
+            ["/tool/e-mail"] = Open("renamed between versions over one key and one label (address on 6.49.21, server on "
+                + "7.21.5 and 7.25): native reports both spellings (AlsoKnownAs), as it does not read the router's version",
                 "address"),
-            ["/user/group"] = Open("unclassified: a field the window shows and the API's plain print leaves out",
-                "default", "system"),
         };
 
         private static Dictionary<string, string> Open(string reason, params string[] names)

@@ -103,6 +103,8 @@ namespace tik4net.Winbox
             "timestamp|Remote Log Format", // /system/logging/action syslog-time-format
             "tls|Remote Log Protocol",  // /system/logging/action check-certificate
             "bsd|BSD Syslog",           // the same, in the catalogs before remote-log-format replaced the bool
+            "https|Login By",           // /ip/hotspot/profile ssl-certificate (7.25: printed with https in login-by)
+            "conntrack|Sync. Connection Tracking", // /interface/vrrp remote-address (7.25: printed once it is yes)
         };
 
         /// <summary>The name of the condition this one's <c>oron</c> falls back to, if any.</summary>
