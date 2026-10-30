@@ -241,9 +241,13 @@ it (`Capabilities = Crud | Listen`); the CLI transports do not.
 apiPath) ships stable text/key aliases the same way `WinboxHandlerMap.ShippedAlias` ships path
 aliases. Only stable text/keys are shipped — types still come live from `.jg`.
 
-**Ping** (`/ping`→[22], query, start `0xFE000F`/cancel `0xFE0011`/poll `0xFE0004`):
+**Ping** (`/ping` and `/tool/ping`→[22], query, start `0xFE000F`/cancel `0xFE0011`/poll `0xFE0004`):
 - aliases: address→`ping-to`, count→`packet-count`, size→`packet-size`, min/avg/max-rtt; the reply's
   **host = key 0x1** (u32 ipaddr, unnamed in `.jg` → resolved via `KeyToApi`+`KeyUiType`).
+- the running counts are keys the window does not name, paired against the API's rows (7.25): `0x69` sent,
+  `0x6A` received, `0x67` packet-loss (the statusbar's unnamed percentage). A reply also carries its row index at
+  `0xFE0001` and a number at `0x4` (the request's 'Dont Fragment' key); the API prints neither, so neither is
+  decoded. `time` (`0x7`) and min/avg/max (`0x64`–`0x66`) are microseconds on the wire.
 - the address rides as the `addr` composite described in §23.1 (nested message under key `0x16`,
   IPv4 on sub-key `0xFEFF20`). Request fields go through even for `ro:1` (`allowReadOnly`).
 

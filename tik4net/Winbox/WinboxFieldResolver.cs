@@ -612,9 +612,11 @@ namespace tik4net.Winbox
             // field order pick between them — /system/ntp/server read the client's flag and reported true
             // where the API says false. A name belongs to the most specific window that claims it.
             var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var notReported = Aliases?.NotReportedKeys;
             void Put(int key, string apiName, bool sameField = false)
             {
                 if (map.ContainsKey(key)) return;
+                if (notReported != null && notReported.Contains(WinboxM2Protocol.TypedKey.WireKeyOf(key))) return;
                 // A qualified registration is the SAME field as its plain one (see ContestedKeys), so it must
                 // not be the thing that claims the name away from it. Neither must a union's other family or
                 // a tuple's other part (sameField) — those keys ARE the field that just claimed the name, and

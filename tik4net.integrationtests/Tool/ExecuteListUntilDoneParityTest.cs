@@ -56,13 +56,15 @@ namespace tik4net.integrationtests
             Assert.AreEqual(3, api.Count, "the API's own ping");
             CollectionAssert.AreEqual(api.Select(Stable).ToList(), untilDone.Select(Stable).ToList(), "ExecuteListUntilDone");
             CollectionAssert.AreEqual(api.Select(Stable).ToList(), list.Select(Stable).ToList(), "ExecuteList");
-            // The field sets are reported, not asserted: they differ by transport today (the CLI's `ping as-value`
-            // prints no running statistics, WinBox native's ping window prints its own), which is each transport's
-            // parity finding for its own review. The rows themselves are the same.
+            // The field sets are reported, not asserted: the CLI's `ping as-value` prints no running statistics, which
+            // is the CLI review's parity finding. The rows themselves are the same.
             var apiFields = new HashSet<string>(api[0].Words.Keys.Where(k => k != TikSpecialProperties.Tag));
             var ownFields = new HashSet<string>(untilDone[0].Words.Keys.Where(k => k != TikSpecialProperties.Tag));
             Console.WriteLine("fields the API has and this transport does not: " + string.Join(",", apiFields.Except(ownFields).OrderBy(k => k, StringComparer.Ordinal)));
             Console.WriteLine("fields this transport has and the API does not: " + string.Join(",", ownFields.Except(apiFields).OrderBy(k => k, StringComparer.Ordinal)));
+            var type = ResolveConnectionType();
+            if (type == TikConnectionType.WinboxNative || type == TikConnectionType.WinboxNativeMac)
+                Assert.IsTrue(apiFields.SetEquals(ownFields), "WinBox native's ping row carries the API's fields");
         }
 
         /// <summary>

@@ -99,6 +99,17 @@ namespace tik4net.Winbox
             /// </remarks>
             public readonly ISet<string>? NumFlagMembers;
 
+            /// <summary>
+            /// Keys the router sends on this path's rows and the API does not print, left out of the decode.
+            /// </summary>
+            /// <remarks>
+            /// For keys a catalog field or a system seed WOULD name: a ping reply carries its row index at
+            /// <c>0xFE0001</c> (read as <c>.id</c>) and a number at <c>0x4</c>, the key of the request's
+            /// 'Dont Fragment' (read as <c>dont-fragment=0</c>); the API's ping rows have neither (7.25).
+            /// Decode only: a write still resolves the request field.
+            /// </remarks>
+            public readonly ISet<int>? NotReportedKeys;
+
             /// <param name="both">API name → <c>.jg</c> label pairs that rename one value in both directions — "one name
             /// for one value": each goes into <see cref="ApiToJg"/> as written and into <see cref="JgToApi"/> reversed.</param>
             /// <param name="apiToJgOnly">Encode-only spellings, laid over <paramref name="both"/>: an API name a write may
@@ -114,6 +125,7 @@ namespace tik4net.Winbox
             /// <param name="pairedFields">See <see cref="PairedFields"/>.</param>
             /// <param name="numFlagMembers">See <see cref="NumFlagMembers"/>.</param>
             /// <param name="fallbackFields">See <see cref="FallbackFields"/>.</param>
+            /// <param name="notReportedKeys">See <see cref="NotReportedKeys"/>.</param>
             public FieldAliasSet(IReadOnlyDictionary<string, string>? both = null,
                 IReadOnlyDictionary<string, string>? apiToJgOnly = null, IReadOnlyDictionary<string, string>? jgToApiOnly = null,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
@@ -123,7 +135,8 @@ namespace tik4net.Winbox
                 IReadOnlyDictionary<string, WinboxJgField>? syntheticFields = null,
                 IReadOnlyDictionary<string, Tuple<string, string>>? pairedFields = null,
                 IEnumerable<string>? numFlagMembers = null,
-                IReadOnlyDictionary<string, WinboxJgField>? fallbackFields = null)
+                IReadOnlyDictionary<string, WinboxJgField>? fallbackFields = null,
+                IEnumerable<int>? notReportedKeys = null)
             {
                 var apiToJg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var jgToApi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -142,6 +155,7 @@ namespace tik4net.Winbox
                 DerivedBools = derivedBools;
                 SyntheticFields = syntheticFields;
                 FallbackFields = fallbackFields;
+                NotReportedKeys = notReportedKeys == null ? null : new HashSet<int>(notReportedKeys);
             }
         }
 
@@ -197,19 +211,32 @@ namespace tik4net.Winbox
             [1] = "enabled",
         };
 
+        // /ping and /tool/ping. 'address'/'host' both ride the WinBox 'ping-to' field; the result row decodes it to the
+        // API 'host'. count/size/seq/min/avg/max are likewise relabelled. The reply's responder address rides at key 0x1
+        // (u32 ipaddr), which the .jg leaves unnamed — so its name and ipaddr formatting are supplied here (the value is
+        // a packed-u32 IPv4). The running counts are keys the window does not name either, paired by one ping against
+        // the API's rows (7.25: {0x69=2, 0x6A=2, 0x67=0} beside sent=2 received=2 packet-loss=0): 0x69 sent, 0x6A
+        // received, 0x67 the loss percentage (the statusbar's unnamed '% packet loss'). See NotReportedKeys for the two
+        // keys the reply carries that the API does not print.
+        private static readonly FieldAliasSet PingAliases = new FieldAliasSet(
+            both: Ci(("count", "packet-count"), ("size", "packet-size"), ("seq", "seq-#"), ("min-rtt", "min"),
+                     ("avg-rtt", "avg"), ("max-rtt", "max")),
+            apiToJgOnly: Ci(("address", "ping-to")),
+            keyToApi: new Dictionary<int, string> { [0x1] = "host", [0x67] = "packet-loss" },
+            keyUiType: new Dictionary<int, string> { [0x1] = "ipaddr" },
+            syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sent"] = new WinboxJgField("sent", 0x69, M2Type.U32, true, uiType: "number"),
+                ["received"] = new WinboxJgField("received", 0x6A, M2Type.U32, true, uiType: "number"),
+            },
+            notReportedKeys: new[] { WinboxM2Protocol.RecordKey.Id, 0x4 });
+
         private static readonly Dictionary<string, FieldAliasSet> ShippedFieldAliases =
             new Dictionary<string, FieldAliasSet>(StringComparer.OrdinalIgnoreCase)
             {
-                // /ping (ToolPing, top-level /ping). 'address'/'host' both ride the WinBox 'ping-to' field; the
-                // result row decodes it to the API 'host'. count/size/seq/min/avg/max are likewise relabelled.
-                ["/ping"] = new FieldAliasSet(
-                    both: Ci(("count", "packet-count"), ("size", "packet-size"), ("seq", "seq-#"), ("min-rtt", "min"),
-                             ("avg-rtt", "avg"), ("max-rtt", "max")),
-                    apiToJgOnly: Ci(("address", "ping-to")),
-                    // The reply's responder address rides at key 0x1 (u32 ipaddr), which the .jg leaves unnamed —
-                    // so its name and ipaddr formatting are supplied here (the value is a packed-u32 IPv4).
-                    keyToApi: new Dictionary<int, string> { [0x1] = "host" },
-                    keyUiType: new Dictionary<int, string> { [0x1] = "ipaddr" }),
+                // /ping (ToolPing, top-level /ping) and /tool/ping, the same command: see PingAliases.
+                ["/ping"] = PingAliases,
+                ["/tool/ping"] = PingAliases,
 
                 // /tool/romon/ping (ToolRomonPing). The 'RoMON Ping' window labels the request size 'Packet Size'
                 // and the reply's 'Reply Size' (both key 0x2, both the API's 'size'); the statusbar names
