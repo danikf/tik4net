@@ -100,14 +100,12 @@ namespace tik4net.WinboxNative
             => TrapFor(CommandFor(commandText), message, innerException);
         TikCommandException IWinboxNativeHost.TrapFor(TikCommandDescriptor descriptor, string message)
             => TrapFor(CommandFor(descriptor), message);
-        CommandGate IWinboxNativeHost.EnterCommand() => EnterCommand();
         Task<List<byte[]>> IWinboxNativeHost.EncodeNameValueFieldsAsync(WinboxHandler handler, TikCommandDescriptor descriptor,
             WinboxFieldResolver resolver, bool skipId, CancellationToken cancellationToken, bool allowReadOnly,
             bool includeFilters, bool skipSnapshotModifier)
             => _writer.EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId, cancellationToken, allowReadOnly,
                 includeFilters, skipSnapshotModifier);
         void IWinboxNativeHost.TakeLabelHints(TikCommandDescriptor descriptor) => TakeLabelHints(descriptor);
-        Task<CommandGate> IWinboxNativeHost.EnterCommandAsync(CancellationToken cancellationToken) => EnterCommandAsync(cancellationToken);
         (WinboxHandler handler, WinboxFieldResolver resolver) IWinboxNativeHost.ResolveHandlerAndFields(string apiPath)
             => ResolveHandlerAndFields(apiPath);
         bool IWinboxNativeHost.IsSingletonWindow(string apiPath, WinboxHandler handler) => IsSingletonWindow(apiPath, handler);
@@ -462,16 +460,13 @@ namespace tik4net.WinboxNative
         /// <remarks>
         /// Deliberately the <b>last</b> step of <see cref="InitAfterAuth"/>: authentication, the router
         /// version probe and the <c>.jg</c> catalog fetch all read the channel directly and would race the
-        /// reader loop. Those run once, so leaving them lockstep costs nothing (design §4.2).
-        /// <para>Both native transports multiplex. A channel that cannot yield its
-        /// read side (<see cref="IWinboxM2Channel.SupportsReaderLoop"/>) would keep the lockstep path and its
-        /// stale-frame drain instead.</para>
+        /// reader loop. Those run once, so leaving them on the open-phase round trip costs nothing (design §4.2).
+        /// <para>Every channel runs a reader loop (<see cref="IWinboxM2Channel.ReceiveNextFrame"/>), so every command
+        /// after the open is multiplexed; there is no lockstep path after it (review D4).</para>
         /// </remarks>
         private void StartMultiplexer(IWinboxM2Channel session)
         {
-            if (!session.SupportsReaderLoop) return;
-
-            // Discard anything the lockstep init phase left buffered BEFORE the reader loop starts.
+            // Discard anything the open phase left buffered BEFORE the reader loop starts.
             // A leftover frame is not merely noise here: the multiplexer restarts request ids from 1, so a
             // stale frame carrying, say, id 3 could be delivered to a *new* request that later gets id 3 —
             // turning the old "reply shifted by one" desync into a silent wrong-reply. Draining is safe at
@@ -480,48 +475,6 @@ namespace tik4net.WinboxNative
 
             _mux = new WinboxM2Multiplexer(session);
             _ops.UseMultiplexer(_mux);
-        }
-
-        /// <summary>
-        /// Acquires the command gate for one M2 operation. On a multiplexed connection this is a no-op:
-        /// the reader loop correlates replies by request id, so concurrent operations are safe and
-        /// serializing them would give back exactly the throughput multiplexing was added to gain. It stays
-        /// the real semaphore on any channel left on the lockstep path, where a reader that takes "the next
-        /// frame" would otherwise pick up someone else's reply.
-        /// </summary>
-        private CommandGate EnterCommand() => new CommandGate(_mux == null ? CommandLock : null);
-
-        /// <summary>
-        /// <see cref="EnterCommand"/> for an awaiting caller: on the multiplexed path there is nothing to
-        /// acquire, so it completes synchronously; on the lockstep path it waits for the semaphore without
-        /// blocking a thread.
-        /// </summary>
-        private async Task<CommandGate> EnterCommandAsync(CancellationToken cancellationToken)
-        {
-            if (_mux != null) return default;
-            await CommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            return new CommandGate(CommandLock, alreadyHeld: true);
-        }
-
-        /// <summary>Scope object for <see cref="EnterCommand"/>; releases the semaphore if one was taken.</summary>
-        internal readonly struct CommandGate : IDisposable
-        {
-            private readonly SemaphoreSlim? _held;
-
-            internal CommandGate(SemaphoreSlim? toAcquire)
-            {
-                _held = toAcquire;
-                _held?.Wait();
-            }
-
-            /// <summary>Wraps a semaphore the caller has already acquired (see <c>EnterCommandAsync</c>).</summary>
-            internal CommandGate(SemaphoreSlim held, bool alreadyHeld)
-            {
-                _held = alreadyHeld ? held : throw new ArgumentException(
-                    "Use the single-argument constructor to acquire the semaphore here.", nameof(alreadyHeld));
-            }
-
-            public void Dispose() => _held?.Release();
         }
 
         /// <inheritdoc/>
@@ -595,15 +548,10 @@ namespace tik4net.WinboxNative
             int generation = _sessionGeneration;
             try
             {
-                // Gate the M2 channel (see EnterCommand): a no-op when multiplexed, a real lock only on a channel left
-                // on the lockstep path, where a concurrent CRUD call or monitor poll would otherwise interleave with ours.
-                // Background workers enter the gate themselves and call RunPrintCore directly (not reentrant).
-                using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    // M2 has no field projection: a getall returns every key, and the base trims the rows to
-                    // .proplist (TikProplist).
-                    return await RunPrintCoreAsync(descriptor, cancellationToken, untilDone).ConfigureAwait(false);
-                }
+                // No command gate: the multiplexer correlates replies by request id, so concurrent operations
+                // share the channel safely. M2 has no field projection: a getall returns every key, and the base
+                // trims the rows to .proplist (TikProplist).
+                return await RunPrintCoreAsync(descriptor, cancellationToken, untilDone).ConfigureAwait(false);
             }
             catch (TikConnectionSessionClosedException) when (SessionRebuildAllowed)
             {
@@ -613,8 +561,7 @@ namespace tik4net.WinboxNative
                 // never acknowledged" is a statement about the CARRIER, and re-adding a row on the strength
                 // of it is a guess this transport must not make.
                 await ReopenAsync(generation, cancellationToken).ConfigureAwait(false);
-                using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
-                    return await RunPrintCoreAsync(descriptor, cancellationToken, untilDone).ConfigureAwait(false);
+                return await RunPrintCoreAsync(descriptor, cancellationToken, untilDone).ConfigureAwait(false);
             }
         }
 
@@ -1100,9 +1047,7 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)
         {
-            // The engine owns no gate, so the snapshot enters it here and calls the ungated core (see RunPrint).
-            using (EnterCommand())
-                return RunPrintCore(printDescriptor);
+            return RunPrintCore(printDescriptor);
         }
 
         /// <inheritdoc/>

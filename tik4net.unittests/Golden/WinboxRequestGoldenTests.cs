@@ -50,7 +50,6 @@ namespace tik4net.unittests.Golden
             public bool SendAbandoned => false;
             public bool SendStalled => false;
             public long BytesReceived => 0;
-            public bool SupportsReaderLoop => false;
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0) { }
             public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, FixedRequestId);
             public void Send(byte[] m2)

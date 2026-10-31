@@ -88,7 +88,6 @@ namespace tik4net.unittests.Winbox
             public bool SupportsStaleDrain => false;
             public bool SendAbandoned => _abandoned;
             public bool SendStalled => false;
-            public bool SupportsReaderLoop => true;
 
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0)
                 => throw new NotSupportedException("The fake channel is handed to the multiplexer already open.");

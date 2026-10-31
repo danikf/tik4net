@@ -45,13 +45,13 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
-        /// Switches this instance from the lockstep channel path to id-multiplexed dispatch. Called once by
-        /// the owning connection <b>after</b> authentication and one-time init have finished on the lockstep
-        /// path, since the multiplexer's reader loop takes exclusive ownership of the channel's read side.
+        /// Switches this instance from the open-phase round trip to id-multiplexed dispatch. Called once by
+        /// the owning connection <b>after</b> authentication and one-time init have finished, since the
+        /// multiplexer's reader loop takes exclusive ownership of the channel's read side.
         /// </summary>
         /// <remarks>
         /// This also retires <see cref="DrainStaleFrames"/> and the request-id skip loop for multiplexed
-        /// connections: both exist only because a lockstep reader takes "the next frame" rather than "its
+        /// connections: both exist only because the open-phase reader takes "the next frame" rather than "its
         /// own frame", and a stray frame therefore shifts every subsequent reply by one. With id dispatch a
         /// stray frame is identified and dropped by the reader loop instead.
         /// </remarks>
@@ -92,7 +92,8 @@ namespace tik4net.Winbox
         internal Action? OnRelayEnded { get; set; }
 
         /// <summary>
-        /// The single send/receive seam — multiplexed dispatch, or the lockstep drain + request-id skip — for every
+        /// The single send/receive seam — multiplexed dispatch, or while the connection opens the stale drain +
+        /// request-id skip — for every
         /// operation here and for a caller-built M2 message. It fires the trace hooks around the round trip, so every
         /// M2 operation (read and write) is observable without duplicating the hook at each call site.
         /// </summary>
@@ -115,7 +116,7 @@ namespace tik4net.Winbox
                 return multiplexed;
             }
 
-            return LockstepSendReceive(request);
+            return OpenPhaseSendReceive(request);
         }
 
         /// <summary>
@@ -124,11 +125,9 @@ namespace tik4net.Winbox
         /// </summary>
         /// <remarks>
         /// Only the multiplexed path is genuinely asynchronous, and that is the only path an async command can
-        /// reach: the lockstep branch runs while the connection is still opening (auth, version probe,
+        /// reach: the open-phase branch runs while the connection is still opening (auth, version probe,
         /// <c>.jg</c> catalog), before <c>IsOpened</c> is set and therefore
-        /// before any command — sync or async — is accepted. It is kept here so a channel that cannot yield
-        /// its read side still has a working implementation rather than a hole; such a channel is refused the
-        /// async capability by never being given a multiplexer.
+        /// before any command — sync or async — is accepted. Every connection multiplexes once open (review D4).
         /// </remarks>
         /// <param name="request">The built M2 message.</param>
         /// <param name="cancellationToken">Cancels the wait (not the router's work).</param>
@@ -140,7 +139,7 @@ namespace tik4net.Winbox
         private Task<byte[]> SendReceiveAsync(byte[] request, CancellationToken cancellationToken, int? timeoutMs = null)
         {
             if (_mux == null)
-                return Task.FromResult(LockstepSendReceive(request));
+                return Task.FromResult(OpenPhaseSendReceive(request));
 
             OnRequest?.Invoke(request);
             return AwaitReply(_mux.SendReceiveAsync(request, timeoutMs ?? _timeoutMs, cancellationToken));
@@ -155,10 +154,9 @@ namespace tik4net.Winbox
             return response;
         }
 
-        // Pre-multiplexing path: used during connect/auth/init on every transport, and for the whole lifetime
-        // of any channel that cannot run a reader loop (IWinboxM2Channel.SupportsReaderLoop). Both native
-        // transports multiplex after init, the MAC one included.
-        private byte[] LockstepSendReceive(byte[] request)
+        // The open phase's round trip: version probe and .jg catalog, before the multiplexer owns the read side. Every
+        // connection multiplexes once open, so no command after the open comes through here (review D4).
+        private byte[] OpenPhaseSendReceive(byte[] request)
         {
             // Discard any frame already buffered on the shared channel before issuing a synchronous
             // request. The native M2 protocol is poll-based (its one push, a logout, has no request id), so anything

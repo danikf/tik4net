@@ -130,23 +130,16 @@ namespace tik4net.Winbox
         byte[]? SendReceive(byte[] m2, int timeoutMs);
 
         /// <summary>
-        /// True when the channel can hand its read side to a <see cref="WinboxM2Multiplexer"/> reader loop
-        /// (i.e. <see cref="ReceiveNextFrame"/> is implemented). Both the TCP and the MAC channel do — the MAC
-        /// one because <c>MacLayerTransport</c> survives sends from two threads, see
-        /// <c>Docs/winbox-m2-multiplexing-design.md</c> §4.5. The property stays on the interface because a
-        /// channel that streams unsolicited id-less frames must never be given a multiplexer.
-        /// </summary>
-        bool SupportsReaderLoop { get; }
-
-        /// <summary>
         /// Blocks until the next inbound M2 message is decoded, for exclusive use by a reader loop that
         /// owns the read side of the channel. Unlike <see cref="Receive"/> this carries <b>no timeout</b>:
         /// a per-read deadline can fire mid-frame and desynchronize the stream, so deadlines belong to the
         /// per-request registrations instead (design §4.2a). Returns <c>null</c> when the channel is closed.
         /// </summary>
-        /// <exception cref="NotSupportedException">
-        /// <see cref="SupportsReaderLoop"/> is <c>false</c>.
-        /// </exception>
+        /// <remarks>
+        /// Every channel implements it, so every native connection multiplexes after its open (review D4). The MAC
+        /// one can because <c>MacLayerTransport</c> survives sends from two threads, see
+        /// <c>Docs/winbox-m2-multiplexing-design.md</c> §4.5.
+        /// </remarks>
         byte[]? ReceiveNextFrame();
 
         /// <summary>

@@ -65,7 +65,6 @@ namespace tik4net.unittests.WinboxCli
 
             public bool IsEncrypted => true;
             public bool SupportsStaleDrain => false;
-            public bool SupportsReaderLoop => false;
             public bool SendAbandoned => false;
             public bool SendStalled => false;
             public bool DataAvailable => _ready.Count > 0;

@@ -217,16 +217,6 @@ namespace tik4net.Winbox
         public byte[] NextReqIdField()
             => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)Interlocked.Increment(ref _reqId));
 
-        /// <inheritdoc/>
-        /// <remarks>
-        /// <c>true</c>, and it rests on two things. <see cref="MacLayerTransport"/> sends ACK/PONG from
-        /// inside its receive path, so a background reader has the transport writing from two threads
-        /// (design §4.5): every write goes through <c>SendGate</c>, which makes that safe. And the outbound
-        /// retransmit state is a QUEUE rather than a single slot — the MAC counter is a cumulative byte
-        /// offset, and a lost first packet of two is exactly what a single-slot buffer cannot resend.
-        /// </remarks>
-        public bool SupportsReaderLoop => true;
-
         // How long one ReceiveNextFrame poll waits before looping. The method itself carries no deadline —
         // per-request deadlines belong to the multiplexer's registrations — but the MAC layer has no
         // blocking primitive, and the slice has to end periodically so RetransmitIfUnacked keeps running
@@ -240,9 +230,16 @@ namespace tik4net.Winbox
         private bool _readerLoopHandover;
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// A reader loop over this carrier rests on two things. <see cref="MacLayerTransport"/> sends ACK/PONG from
+        /// inside its receive path, so a background reader has the transport writing from two threads
+        /// (design §4.5): every write goes through <c>SendGate</c>, which makes that safe. And the outbound
+        /// retransmit state is a QUEUE rather than a single slot — the MAC counter is a cumulative byte
+        /// offset, and a lost first packet of two is exactly what a single-slot buffer cannot resend.
+        /// </remarks>
         public byte[]? ReceiveNextFrame()
         {
-            // One-time handover from the lockstep path (the MAC counterpart of the TCP channel's one-time
+            // One-time handover from the open phase (the MAC counterpart of the TCP channel's one-time
             // switch to an infinite socket timeout). Anything still in the reassembly buffer was left by an
             // init exchange that has already completed, and the multiplexer restarts request ids from 1 — so
             // a leftover reply echoing, say, id 3 would be handed to a *new* request that later gets id 3.

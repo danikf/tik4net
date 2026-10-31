@@ -78,7 +78,6 @@ namespace tik4net.unittests.Winbox
                 return null!;
             }
 
-            public bool SupportsReaderLoop => true;
             public bool IsEncrypted => false;
             public bool DataAvailable => false;
             public bool SupportsStaleDrain => false;
@@ -113,7 +112,6 @@ namespace tik4net.unittests.Winbox
                 return null!;
             }
 
-            public bool SupportsReaderLoop => true;
             public bool IsEncrypted => false;
             public bool DataAvailable => false;
             public bool SupportsStaleDrain => false;

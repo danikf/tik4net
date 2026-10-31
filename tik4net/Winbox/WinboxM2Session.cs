@@ -174,9 +174,6 @@ namespace tik4net.Winbox
             => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)Interlocked.Increment(ref _reqId));
 
         /// <inheritdoc/>
-        public bool SupportsReaderLoop => true;
-
-        /// <inheritdoc/>
         public byte[]? ReceiveNextFrame()
         {
             // The reader loop owns the socket, so the receive timeout goes to infinite once and stays there:

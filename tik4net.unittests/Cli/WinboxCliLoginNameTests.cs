@@ -34,7 +34,6 @@ namespace tik4net.unittests.Cli
             public bool SendAbandoned => false;
             public bool SendStalled => false;
             public long BytesReceived => 0;
-            public bool SupportsReaderLoop => false;
             public byte[] NextReqIdField() => throw new NotSupportedException();
             public void Send(byte[] m2) => throw new NotSupportedException();
             public byte[] Receive(int timeoutMs) => throw new NotSupportedException();

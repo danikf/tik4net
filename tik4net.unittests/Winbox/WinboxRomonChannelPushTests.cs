@@ -126,7 +126,6 @@ namespace tik4net.unittests.Winbox
             public bool SupportsStaleDrain => false;
             public bool SendAbandoned => false;
             public bool SendStalled => false;
-            public bool SupportsReaderLoop => false;
             public byte[] ReceiveNextFrame() => throw new NotSupportedException();
             public void StartIdleServicing() { }
             public void Dispose() { }
@@ -180,7 +179,6 @@ namespace tik4net.unittests.Winbox
             public bool SupportsStaleDrain => false;
             public bool SendAbandoned => false;
             public bool SendStalled => false;
-            public bool SupportsReaderLoop => false;
             public byte[] ReceiveNextFrame() => throw new NotSupportedException();
             public void StartIdleServicing() { }
             public void Dispose() { }

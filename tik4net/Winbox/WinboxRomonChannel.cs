@@ -268,7 +268,6 @@ namespace tik4net.Winbox
         public bool SendAbandoned => _agent.SendAbandoned;
         public bool SendStalled => _agent.SendStalled;
         public long BytesReceived => _agent.BytesReceived;
-        public bool SupportsReaderLoop => _agent.SupportsReaderLoop;
         public byte[] NextReqIdField() => _agent.NextReqIdField();
         public void StartIdleServicing() => _agent.StartIdleServicing();
         public void Dispose() => _agent.Dispose();

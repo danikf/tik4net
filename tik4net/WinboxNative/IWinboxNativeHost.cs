@@ -73,9 +73,6 @@ namespace tik4net.WinboxNative
         /// <summary>As <see cref="TrapFor(string, string, Exception)"/>, with the descriptor's parameters on the command.</summary>
         TikCommandException TrapFor(TikCommandDescriptor descriptor, string message);
 
-        /// <summary>The command gate for one M2 operation: a no-op on a multiplexed session.</summary>
-        WinboxNativeConnection.CommandGate EnterCommand();
-
         /// <summary>Encodes the command's name=value parameters as M2 fields, references resolved under await.</summary>
         Task<List<byte[]>> EncodeNameValueFieldsAsync(WinboxHandler handler, TikCommandDescriptor descriptor,
             WinboxFieldResolver resolver, bool skipId, CancellationToken cancellationToken, bool allowReadOnly = false,
@@ -83,9 +80,6 @@ namespace tik4net.WinboxNative
 
         /// <summary>Takes the WinBox labels the command carries for the resolvers it builds.</summary>
         void TakeLabelHints(TikCommandDescriptor descriptor);
-
-        /// <summary><see cref="EnterCommand"/> for an awaiting caller.</summary>
-        Task<WinboxNativeConnection.CommandGate> EnterCommandAsync(CancellationToken cancellationToken);
 
         /// <summary>The handler and field resolver of a write path; an unmapped path throws as reads do.</summary>
         (WinboxHandler handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath);

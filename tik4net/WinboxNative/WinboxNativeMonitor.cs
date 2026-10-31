@@ -182,9 +182,7 @@ namespace tik4net.WinboxNative
         /// <c>null</c> for the read method; the callback worker's handle otherwise. It picks the stop rules: the router's
         /// Finished and the caller's <c>duration=</c> end both; a READ also ends a continuous window after its first pass
         /// (that pass is the snapshot) and gives up on an unfinished command after the receive timeout, while a CALLBACK
-        /// runs until the caller cancels the handle. A callback also enters the command gate per operation (a no-op on a
-        /// multiplexed connection; a 30-second ping must not hold the lockstep gate for its whole duration, design §2) —
-        /// the read method runs under its caller's gate already.
+        /// runs until the caller cancels the handle.
         /// </param>
         /// <param name="cancellationToken">The read method's token; the cancel request itself never carries it.</param>
         /// <param name="untilDone">A read for <c>ExecuteListUntilDone(timeout)</c>: a continuous window is not ended after
@@ -200,20 +198,17 @@ namespace tik4net.WinboxNative
             bool started = false;
             try
             {
-                using (callback ? await _host.EnterCommandAsync(cancellationToken).ConfigureAwait(false) : default)
-                {
-                    // allowReadOnly / includeFilters: a window's input fields are .jg-marked read-only (they are
-                    // display widgets in the GUI) yet are the monitor's request inputs (ping 'address'), and the read
-                    // path has already rewritten the caller's parameters to Filter format — the same pair of
-                    // exceptions RunActionWindow makes, for the same reasons. skipSnapshotModifier, because
-                    // once/duration instruct the client and no window has an input of that name.
-                    var requestFields = await _host.EncodeNameValueFieldsAsync(
-                        spec.Handler, descriptor, resolver, skipId: true, cancellationToken, allowReadOnly: true,
-                        includeFilters: true, skipSnapshotModifier: true).ConfigureAwait(false);
-                    id = await _host.Ops.StartMonitorAsync(spec.Handler, spec.StartCmd, requestFields, cancellationToken)
-                        .ConfigureAwait(false);
-                    started = true;
-                }
+                // allowReadOnly / includeFilters: a window's input fields are .jg-marked read-only (they are
+                // display widgets in the GUI) yet are the monitor's request inputs (ping 'address'), and the read
+                // path has already rewritten the caller's parameters to Filter format — the same pair of
+                // exceptions RunActionWindow makes, for the same reasons. skipSnapshotModifier, because
+                // once/duration instruct the client and no window has an input of that name.
+                var requestFields = await _host.EncodeNameValueFieldsAsync(
+                    spec.Handler, descriptor, resolver, skipId: true, cancellationToken, allowReadOnly: true,
+                    includeFilters: true, skipSnapshotModifier: true).ConfigureAwait(false);
+                id = await _host.Ops.StartMonitorAsync(spec.Handler, spec.StartCmd, requestFields, cancellationToken)
+                    .ConfigureAwait(false);
+                started = true;
 
                 // A self-terminating command's answer is everything it produces up to its own end, so a pass
                 // that ends without Finished means "still working", not "that was the snapshot": a traceroute
@@ -240,10 +235,9 @@ namespace tik4net.WinboxNative
                 {
                     List<M2Record> records;
                     bool done;
-                    using (callback ? await _host.EnterCommandAsync(cancellationToken).ConfigureAwait(false) : default)
-                        (records, done, continuation) = await _host.Ops
-                            .PollMonitorRoundAsync(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation, cancellationToken)
-                            .ConfigureAwait(false);
+                    (records, done, continuation) = await _host.Ops
+                        .PollMonitorRoundAsync(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation, cancellationToken)
+                        .ConfigureAwait(false);
 
                     // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
                     // as the router produces it instead of in a lump when the pass ends.
@@ -279,13 +273,8 @@ namespace tik4net.WinboxNative
                     // Deliberately NOT passed the caller's token: this is the request that tells the router to
                     // stop, so cancelling it would leave the window running on the router — the exact failure
                     // the capability claims not to have. Best-effort otherwise (the monitor may have ended; the
-                    // rows already delivered are the result). The gate is entered inside the try: an earlier shape
-                    // released a semaphore it had not necessarily acquired when the Wait itself threw during teardown.
-                    try
-                    {
-                        using (callback ? _host.EnterCommand() : default)
-                            _host.Ops.CancelMonitor(spec.Handler, spec.CancelCmd, id);
-                    }
+                    // rows already delivered are the result).
+                    try { _host.Ops.CancelMonitor(spec.Handler, spec.CancelCmd, id); }
                     catch { /* best-effort */ }
                 }
             }

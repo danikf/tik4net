@@ -130,7 +130,6 @@ namespace tik4net.unittests.Winbox
             public bool SendAbandoned => false;
             public bool SendStalled => false;
             public long BytesReceived => 0;
-            public bool SupportsReaderLoop => false;   // kept until D4 removes it from the interface
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0) { }
             public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, 1);
             public void Send(byte[] m2)

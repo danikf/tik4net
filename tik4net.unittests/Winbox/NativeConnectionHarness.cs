@@ -16,9 +16,8 @@ namespace tik4net.unittests.Winbox
     /// </summary>
     /// <remarks>
     /// The open is what <c>InitAfterAuth</c> does minus the catalog fetch and the multiplexer: the parsed catalog is
-    /// put in place of the one a router would send, and the channel stays on the lockstep path
-    /// (<see cref="IWinboxM2Channel.SupportsReaderLoop"/> is false), so every request is answered in order by
-    /// <see cref="Answer"/>. The fields are set by reflection — the connection has no seam for this, and a test
+    /// put in place of the one a router would send, and no multiplexer is started, so the operations keep the
+    /// open-phase round trip and every request is answered in order by <see cref="Answer"/>. The fields are set by reflection — the connection has no seam for this, and a test
     /// that needed one should not be the reason production code grows it.
     /// </remarks>
     internal sealed class NativeConnectionHarness : IDisposable
@@ -107,7 +106,6 @@ namespace tik4net.unittests.Winbox
             public bool SendAbandoned => false;
             public bool SendStalled => false;
             public long BytesReceived => 0;
-            public bool SupportsReaderLoop => false;
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0) { }
             public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, ++_nextId);
             public void Send(byte[] m2)

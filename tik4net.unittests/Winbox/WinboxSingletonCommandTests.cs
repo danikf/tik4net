@@ -97,7 +97,6 @@ namespace tik4net.unittests.Winbox
             public bool SupportsStaleDrain => false;
             public bool SendAbandoned => false;
             public bool SendStalled => false;
-            public bool SupportsReaderLoop => false;
             public byte[] SendReceive(byte[] m2, int timeoutMs) => throw new NotSupportedException();
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0)
                 => throw new NotSupportedException();

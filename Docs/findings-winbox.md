@@ -485,8 +485,8 @@ it and answers "is a complete M2 frame ready", not "did a datagram arrive"; a fi
 `_pendingFrame` for the next `RecvFrame` call to hand out. The getter therefore does perform I/O,
 deliberately — it is a poll operation on the channel, used only by the single-threaded terminal loop in
 `WinboxCliClient`. The native transport's reader loop services the socket continuously instead, which is
-why a channel that streams unsolicited frames (mepty) must never be handed a
-`WinboxM2Multiplexer` — `IWinboxM2Channel.SupportsReaderLoop` guards exactly that.
+why a consumer that reads unsolicited frames (mepty) must never be handed a
+`WinboxM2Multiplexer` — the WinBox CLI connections never construct one.
 
 A property a caller treats as permission to block must actually be true. MAC-Telnet never had the same
 defect, because it drives a background pump over a blocking socket instead of `DataAvailable` gating.

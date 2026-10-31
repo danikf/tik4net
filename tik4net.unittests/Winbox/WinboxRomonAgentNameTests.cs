@@ -56,7 +56,6 @@ namespace tik4net.unittests.Winbox
             public bool SupportsStaleDrain => false;
             public bool SendAbandoned => false;
             public bool SendStalled => false;
-            public bool SupportsReaderLoop => false;
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0)
                 => throw new TikConnectionLoginException(new Exception("Wrong username or password"));
             public byte[] NextReqIdField() => new byte[0];

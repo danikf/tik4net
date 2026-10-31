@@ -39,8 +39,9 @@ consumers with incompatible read models: `WinboxNativeM2Operations` (every reply
 `0xFF0006`) and `WinboxCliClient` (unsolicited terminal-output frames with no request id at all).
 A connection is always exclusively one or the other — `WinboxNativeConnection` and the CLI
 connections each construct their own channel and never share one — so the multiplexer's exclusive
-ownership of the read side is uncontested. `IWinboxM2Channel.SupportsReaderLoop` is the guard: a
-channel that streams unsolicited frames must never be given a multiplexer.
+ownership of the read side is uncontested. Every channel implements the reader loop
+(`IWinboxM2Channel.ReceiveNextFrame`), and only `WinboxNativeConnection` constructs a multiplexer: the terminal
+consumer, whose frames carry no request id, must never be given one.
 
 ---
 
@@ -121,12 +122,10 @@ loop completes, not from the I/O underneath it. `SendReceive` (the synchronous e
 `WinboxNativeM2Operations`'s sync API) blocks on `SendReceiveAsync` rather than duplicating the
 logic.
 
-The connection-wide lock this replaces (`CommandLock` in `WinboxNativeConnection`) disappears from the
-request path on a multiplexed connection: `EnterCommand`/`EnterCommandAsync` become no-ops once
-`_mux` is set, because the reader loop's id dispatch already makes concurrent operations safe, and
-serializing them would give back exactly the throughput multiplexing exists to gain. `CommandLock`
-stays the real semaphore only for a channel that never gets a multiplexer (`SupportsReaderLoop ==
-false`).
+The native connection takes no connection-wide lock around an M2 operation: the reader loop's id dispatch
+already makes concurrent operations safe, and serializing them would give back exactly the throughput
+multiplexing exists to gain. Every connection multiplexes once open, so there is no lockstep path after the
+open; the open itself (version probe, `.jg` catalog) runs on the one thread that opens the connection.
 
 ## 5. Request id: one byte, allocated by the multiplexer once it owns dispatch
 
@@ -281,7 +280,7 @@ asks next — a guarantee id dispatch gives for free and lockstep read-the-next-
 
 `WinboxMacM2Session` reuses `MacLayerTransport` (framing, ACK/PING, EC-SRP5, AES/HMAC key
 derivation) and carries each M2 message as one encrypted blob inside `PKT_DATA` payloads instead of
-the TCP chunk wrapper. `SupportsReaderLoop` is `true` here too — every write already goes through
+the TCP chunk wrapper. It runs the reader loop too — every write already goes through
 `MacLayerTransport.SendGate`, so a background reader adds no writer the gate does not already cover,
 and the retransmit buffer is a queue rather than a single slot (oldest resent first, cumulative ACKs
 retiring everything they cover), which is what makes more than one request in flight survivable when

@@ -26,10 +26,9 @@ namespace tik4net.Winbox
     /// </list>
     /// <para><b>Scope.</b> Native M2 only, over either carrier — TCP and the MAC layer alike.
     /// The mepty terminal path (<c>WinboxCliClient</c>) streams unsolicited frames that carry no request id,
-    /// so it keeps reading the channel directly and must never be given a multiplexer — see design §3.0. That
-    /// is what <see cref="IWinboxM2Channel.SupportsReaderLoop"/> guards.</para>
+    /// so it keeps reading the channel directly and must never be given a multiplexer — see design §3.0.</para>
     /// <para><b>Lifetime.</b> Start this only after connect, authentication and one-time init (router
-    /// version, <c>.jg</c> catalog) have completed on the lockstep path: those sequences read the channel
+    /// version, <c>.jg</c> catalog) have completed on the open-phase round trip: those sequences read the channel
     /// directly and would race the reader loop. Same reasoning as design §4.2.</para>
     /// </remarks>
     internal sealed class WinboxM2Multiplexer : IDisposable
@@ -88,9 +87,6 @@ namespace tik4net.Winbox
         internal WinboxM2Multiplexer(IWinboxM2Channel channel)
         {
             _channel = channel ?? throw new ArgumentNullException(nameof(channel));
-            if (!channel.SupportsReaderLoop)
-                throw new NotSupportedException(
-                    $"{channel.GetType().Name} does not support a reader loop; check SupportsReaderLoop before constructing a multiplexer.");
 
             _readerThread = new Thread(ReaderLoop)
             {

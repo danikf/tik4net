@@ -280,7 +280,6 @@ namespace tik4net.unittests.Winbox
             public bool SupportsStaleDrain => false;
             public bool SendAbandoned => false;
             public bool SendStalled => false;
-            public bool SupportsReaderLoop => false;
 
             public byte[] SendReceive(byte[] m2, int timeoutMs)
             {

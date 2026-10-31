@@ -33,14 +33,11 @@ namespace tik4net.WinboxNative
 
             try
             {
-                using (await _host.EnterCommandAsync(cancellationToken).ConfigureAwait(false))   // see RunPrint
-                {
-                    var (handler, resolver) = _host.ResolveHandlerAndFields(apiPath);
-                    int? newId = await AddRowAsync(handler, apiPath, resolver, descriptor, cancellationToken).ConfigureAwait(false);
-                    if (!newId.HasValue)
-                        throw TikAddIdNotRead.Create(_host.CommandFor(descriptor), null);
-                    return WinboxRecordId.Format(unchecked((uint)newId.Value));
-                }
+                var (handler, resolver) = _host.ResolveHandlerAndFields(apiPath);
+                int? newId = await AddRowAsync(handler, apiPath, resolver, descriptor, cancellationToken).ConfigureAwait(false);
+                if (!newId.HasValue)
+                    throw TikAddIdNotRead.Create(_host.CommandFor(descriptor), null);
+                return WinboxRecordId.Format(unchecked((uint)newId.Value));
             }
             catch (WinboxM2OperationException ex) { throw _host.TranslateM2Error(ex, descriptor.CommandText); }
         }
@@ -57,10 +54,9 @@ namespace tik4net.WinboxNative
             WinboxHandler? actionHandler = _host.HandlerMap.Resolve(WinboxNativeConnection.ApiPathOf(descriptor.CommandText));
             if (_host.Catalog.IsActionOnlyHandler(actionHandler))
             {
-                using (await _host.EnterCommandAsync(cancellationToken).ConfigureAwait(false))
-                    // actionHandler is non-null here: IsActionOnlyHandler answers false for a null handler.
-                    await _host.RunActionWindowAsync(WinboxNativeConnection.ApiPathOf(descriptor.CommandText), actionHandler!.Value, descriptor, cancellationToken)
-                        .ConfigureAwait(false);
+                // actionHandler is non-null here: IsActionOnlyHandler answers false for a null handler.
+                await _host.RunActionWindowAsync(WinboxNativeConnection.ApiPathOf(descriptor.CommandText), actionHandler!.Value, descriptor, cancellationToken)
+                    .ConfigureAwait(false);
                 return;
             }
 
@@ -69,11 +65,8 @@ namespace tik4net.WinboxNative
 
             try
             {
-                using (await _host.EnterCommandAsync(cancellationToken).ConfigureAwait(false))   // see RunPrint
-                {
-                    var (handler, resolver) = _host.ResolveHandlerAndFields(apiPath);
-                    await RunVerbAsync(verb, apiPath, handler, resolver, descriptor, cancellationToken).ConfigureAwait(false);
-                }
+                var (handler, resolver) = _host.ResolveHandlerAndFields(apiPath);
+                await RunVerbAsync(verb, apiPath, handler, resolver, descriptor, cancellationToken).ConfigureAwait(false);
             }
             catch (WinboxM2OperationException ex) { throw _host.TranslateM2Error(ex, descriptor.CommandText); }
         }
