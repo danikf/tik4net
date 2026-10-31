@@ -119,7 +119,8 @@ namespace tik4net.Winbox
         /// failure by the exception's type. TCP: a timeout before the first byte of a frame is <c>null</c> (the stream is
         /// still on a frame boundary); a timeout inside a frame, a frame that does not decrypt and a closed socket throw.
         /// MAC: a frame that does not decrypt is dropped and the wait goes on, because each frame there carries its own
-        /// IV and one bad frame does not desynchronize the next; a closed socket throws.
+        /// IV and one bad frame does not desynchronize the next; the router ending the session (<c>PKT_END</c>, as a FIN
+        /// on TCP) and a closed socket throw.
         /// </remarks>
         /// <param name="timeoutMs">How long to wait for a frame to begin.</param>
         byte[]? Receive(int timeoutMs);

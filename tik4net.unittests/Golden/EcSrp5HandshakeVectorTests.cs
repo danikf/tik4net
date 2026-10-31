@@ -469,6 +469,7 @@ namespace tik4net.unittests.Golden
                         byte type = pkt[1];
                         uint counter = ((uint)pkt[18] << 24) | ((uint)pkt[19] << 16) | ((uint)pkt[20] << 8) | pkt[21];
                         byte[] payload = pkt.Skip(22).ToArray();
+                        _key = (ushort)((pkt[14] << 8) | pkt[15]);   // a request carries the key at [14], a reply at [16]
                         if (type == 0) Send(2, 0, null);                 // SESSIONSTART → ACK
                         else if (type == 1)
                         {
@@ -482,6 +483,9 @@ namespace tik4net.unittests.Golden
                 catch (Exception ex) { _failure = ex; }
             }
 
+            // The session key the client's packets carry; RouterOS answers every packet of the session with it.
+            private volatile ushort _key;
+
             internal void SendData(byte[] payload)
             {
                 Send(1, _outCounter, payload);
@@ -494,6 +498,7 @@ namespace tik4net.unittests.Golden
                 pkt[0] = 1; pkt[1] = type;
                 Buffer.BlockCopy(RouterMac, 0, pkt, 2, 6);
                 Buffer.BlockCopy(ClientMac, 0, pkt, 8, 6);
+                pkt[16] = (byte)(_key >> 8); pkt[17] = (byte)_key;
                 pkt[18] = (byte)(counter >> 24); pkt[19] = (byte)(counter >> 16);
                 pkt[20] = (byte)(counter >> 8); pkt[21] = (byte)counter;
                 if (payload != null) Buffer.BlockCopy(payload, 0, pkt, 22, payload.Length);

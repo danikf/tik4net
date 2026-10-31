@@ -94,13 +94,14 @@ namespace tik4net.unittests.Golden
 
         /// <summary>A packet as the router sends it: its MAC as source, ours as destination, the client type at [14] and
         /// the session key at [16] — the reverse of a request.</summary>
-        private static byte[] FromRouter(byte type, uint counter, byte[]? payload = null, byte[]? srcMac = null, bool keyAt14 = false)
+        private static byte[] FromRouter(byte type, uint counter, byte[]? payload = null, byte[]? srcMac = null, bool keyAt14 = false,
+            ushort key = SessionKey)
         {
             byte[] pkt = new byte[22 + (payload?.Length ?? 0)];
             pkt[0] = 1; pkt[1] = type;
             Buffer.BlockCopy(srcMac ?? RouterMac, 0, pkt, 2, 6);
             Buffer.BlockCopy(ClientMac, 0, pkt, 8, 6);
-            ushort at14 = keyAt14 ? SessionKey : MacTelnetClientType, at16 = keyAt14 ? MacTelnetClientType : SessionKey;
+            ushort at14 = keyAt14 ? key : MacTelnetClientType, at16 = keyAt14 ? MacTelnetClientType : key;
             pkt[14] = (byte)(at14 >> 8); pkt[15] = (byte)at14;
             pkt[16] = (byte)(at16 >> 8); pkt[17] = (byte)at16;
             pkt[18] = (byte)(counter >> 24); pkt[19] = (byte)(counter >> 16); pkt[20] = (byte)(counter >> 8); pkt[21] = (byte)counter;
@@ -124,6 +125,9 @@ namespace tik4net.unittests.Golden
             yield return ("PONG", new[] { FromRouter(5, 9) });
             yield return ("END", new[] { FromRouter(255, 0) });
             yield return ("own echo DATA", new[] { FromRouter(1, 0, Hello, srcMac: ClientMac) });
+            // F9: another session's packets — another MikroTik's, or a session that held the port before.
+            yield return ("DATA of another session", new[] { FromRouter(1, 0, Hello, key: 0x4321) });
+            yield return ("END of another session", new[] { FromRouter(255, 0, key: 0x4321) });
             yield return ("short datagram", new[] { new byte[] { 1, 1, 2, 3 } });
         }
 
@@ -230,13 +234,18 @@ namespace tik4net.unittests.Golden
         public void TriageOfEachPacketType_MatchesTheGoldenFile()
         {
             var lines = new List<string> { "# T5 - what each receive loop does with each packet type: what it sends back, and the state left",
-                "# X7: the DrainSync rows for ACK and END match the pump's (the login drain notes the ACK and sees END)" };
+                "# X7: the DrainSync rows for ACK and END match the pump's (the login drain notes the ACK and sees END)",
+            "# F9: a packet of another session key is dropped by every loop; D9: WinBox-MAC's Receive throws on END" };
 
             foreach (var (name, packets) in Inbound())
             {
                 lines.Add("== " + name);
                 lines.Add("  WinboxMac.DataAvailable " + RunWinboxMac(packets, s => "available=" + s.DataAvailable));
-                lines.Add("  WinboxMac.Receive " + RunWinboxMac(packets, s => "frame=" + Bytes(s.Receive(300))));
+                lines.Add("  WinboxMac.Receive " + RunWinboxMac(packets, s =>
+                {
+                    try { return "frame=" + Bytes(s.Receive(300)); }
+                    catch (Exception ex) { return "throws " + ex.GetType().Name; }
+                }));
                 lines.Add("  MacTelnet.DrainSync " + RunMacTelnet(packets, c =>
                 {
                     typeof(MacTelnetUdpClient).GetMethod("DrainSync", Inst)!.Invoke(c, new object[] { 150 });
@@ -278,7 +287,7 @@ namespace tik4net.unittests.Golden
                 Attach(session, router, 0x0f90);
                 string observed = Deliver(router, session, packets, () => act(session));
                 string state = State(session) + " rxBuf=" + ((List<byte>)Get(session, typeof(WinboxMacM2Session), "_rxBuf")!).Count
-                    + " bytesReceived=" + session.BytesReceived;
+                    + " bytesReceived=" + session.BytesReceived + " routerEnded=" + Get(session, typeof(WinboxMacM2Session), "_routerEnded");
                 Set(session, "_udp", new UdpClient(new IPEndPoint(IPAddress.Loopback, 0)));   // so Dispose's PKT_END goes nowhere
                 session.Dispose();
                 return observed + " | " + state;

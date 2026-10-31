@@ -33,6 +33,10 @@ parse END 01FF0200000000020200000000010015123400000000
   MacLayerPacket.TryParseReply type=255 counter=0 key=1234 srcMac=020000000002 payload=-
 parse own echo DATA 0101020000000001020000000001001512340000000068656C6C6F
   MacLayerPacket.TryParseReply type=1 counter=0 key=1234 srcMac=020000000001 payload=68656C6C6F
+parse DATA of another session 0101020000000002020000000001001543210000000068656C6C6F
+  MacLayerPacket.TryParseReply type=1 counter=0 key=4321 srcMac=020000000002 payload=68656C6C6F
+parse END of another session 01FF0200000000020200000000010015432100000000
+  MacLayerPacket.TryParseReply type=255 counter=0 key=4321 srcMac=020000000002 payload=-
 parse short datagram 01010203
   MacLayerPacket.TryParseReply false
 ctrl BuildCtrl(0, 'ab') 563412FF00000000026162

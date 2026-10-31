@@ -1256,7 +1256,7 @@ namespace tik4net.MacTelnet
 
         /// <summary>
         /// Receives one datagram (the caller has established there is one), parses it, traces it and hands
-        /// it to <paramref name="handler"/>. Returns the handler's verdict; malformed packets and our own
+        /// it to <paramref name="handler"/>. Returns the handler's verdict; malformed packets, another session's and our own
         /// broadcast echo are <c>false</c>.
         /// </summary>
         private bool ReceiveOne(Func<byte, byte[], uint, bool> handler)
@@ -1264,7 +1264,7 @@ namespace tik4net.MacTelnet
 
         /// <summary>
         /// Waits up to <paramref name="timeoutMs"/> (<c>SO_RCVTIMEO</c>) for one datagram, then parses, traces and
-        /// returns it as <see cref="ReceiveOne"/> does. False for a malformed packet or our own echo; a timeout
+        /// returns it as <see cref="ReceiveOne"/> does. False for a malformed packet, our own echo or another session's; a timeout
         /// surfaces as the socket's <see cref="SocketException"/>, as from <see cref="UdpClient.Receive"/> itself.
         /// </summary>
         /// <remarks>For a caller that owns a blocking read loop (MAC-Telnet's pump and login loops).</remarks>
@@ -1279,7 +1279,7 @@ namespace tik4net.MacTelnet
         }
 
         // Reads one datagram under the socket's current receive timeout: parsed, our own echo dropped, the router's
-        // unicast address latched, traced. False for a malformed packet or our own echo.
+        // unicast address latched, traced. False for a malformed packet, our own echo and another session's packet.
         private bool ReadDatagram(out MacLayerReply reply)
         {
             IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
@@ -1290,10 +1290,22 @@ namespace tik4net.MacTelnet
             byte[] payload = reply.Payload, srcMac = reply.SrcMac;
             if (srcMac.SequenceEqual(_localMac)) return false;  // skip own echo
 
+            // Another session's packet: another MikroTik's on the segment, or a session that held this ephemeral port
+            // before. Taking it appended its data to ours, acknowledged it in our stream, and let its PKT_END end this
+            // session (review F9). The router puts our key in every packet of the session, as in the open race.
+            if (reply.SessionKey != _sessionKey)
+            {
+                if (Diagnostics.TikWireTrace.Enabled)
+                    Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
+                        "dropped type=0x" + reply.Type.ToString("x2") + " of another session key="
+                        + reply.SessionKey.ToString("x4") + " from=" + ep + TraceTag);
+                return false;
+            }
+
             // Latch only on OUR router's own packets. The socket is bound for broadcast, so on a segment
             // with several MikroTiks it can see somebody else's session traffic; that must not become the
-            // address we send the rest of this session to. The check gates the latch only — which packets
-            // are ACCEPTED is left exactly as it was, since the handler below is what knows the session key.
+            // address we send the rest of this session to. Which packets are accepted is decided by the session key
+            // above, not by the source MAC.
             if (srcMac.SequenceEqual(_routerMac))
                 LatchRouterUnicast(ep);
 

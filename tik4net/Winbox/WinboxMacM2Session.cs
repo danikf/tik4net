@@ -96,6 +96,7 @@ namespace tik4net.Winbox
         {
             RecvAvailable((type, payload, counter) =>
             {
+                if (type == PKT_END) { _routerEnded = true; return false; }
                 if (!TryAcceptData(type, payload, counter)) return false;
                 if (IsControlPacket(payload)) return false;
                 _rxBuf.AddRange(payload);
@@ -196,14 +197,17 @@ namespace tik4net.Winbox
         private void SendHandshakeFrame(byte[] payload)
             => Send(PKT_DATA, WinboxChunkFraming.Chunk(payload, WinboxChunkFraming.EncryptedTag));
 
-        // Receives the next DATA packet payload (acking, ponging; skipping control packets), or null on timeout.
+        // Receives the next DATA packet payload (acking, ponging; skipping control packets), or null on timeout. The
+        // router ending the session (PKT_END with our key) throws: no frame follows it.
         private byte[]? RecvDataPayload(int timeoutMs)
         {
+            ThrowIfRouterEnded();
             byte[]? result = null;
             try
             {
                 RecvUntil(timeoutMs, (type, payload, counter) =>
                 {
+                    if (type == PKT_END) { _routerEnded = true; return true; }
                     if (!TryAcceptData(type, payload, counter)) return false;
                     if (IsControlPacket(payload)) return false;
                     result = payload;
@@ -211,7 +215,21 @@ namespace tik4net.Winbox
                 });
             }
             catch (TimeoutException) { return null; }
+            ThrowIfRouterEnded();
             return result;
+        }
+
+        // Set when the router sends PKT_END for this session: it has ended it, and nothing sent into it is answered.
+        // The carrier used not to look at PKT_END at all, so a read waited out its whole deadline on a session that
+        // was already gone. Reported as TCP reports the router's FIN, an IOException: the stream is broken, and whether
+        // a command in flight ran is not known (so not TikConnectionSessionClosedException, which says it did not).
+        private volatile bool _routerEnded;
+
+        private void ThrowIfRouterEnded()
+        {
+            if (_routerEnded)
+                throw new System.IO.IOException(
+                    "WinBox over MAC: the router ended this session (PKT_END). Open a new connection to continue.");
         }
 
         public byte[] NextReqIdField()
@@ -267,6 +285,7 @@ namespace tik4net.Winbox
                 // Null is the interface's "channel closed".
                 catch (ObjectDisposedException) { return null; }   // socket closed under us — normal shutdown
                 catch (System.Net.Sockets.SocketException) { return null; }
+                catch (System.IO.IOException) { return null; }   // the router ended the session (PKT_END)
 
                 // A slice that expires is not an error and must not surface as one: partial chunks stay in
                 // the receive buffer and the next slice resumes reassembly where this one stopped.
