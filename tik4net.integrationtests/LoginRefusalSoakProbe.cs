@@ -10,7 +10,7 @@
 // Nothing here asserts a rate: it is a measurement, and the output is the result (console, plus TIK4NET_PROBE_LOG).
 //
 // Env:  TIK4NET_SOAK_OPENS       opens per transport (default 200)
-//       TIK4NET_PROBE_TRANSPORTS comma-separated subset of WinboxNative,WinboxNativeMac,MacTelnet
+//       TIK4NET_PROBE_TRANSPORTS comma-separated subset of WinboxNative,WinboxNativeMac,WinboxCliMac,MacTelnet
 //       TIK4NET_PROBE_LOG        append the report to this file as well
 //       TIK4NET_ROUTER           the router profile (App.config), as for every leg
 
@@ -31,11 +31,13 @@ namespace tik4net.integrationtests
     [TestCategory(TestCategories.LegIndependent)]
     public class LoginRefusalSoakProbe : LockedTestBase
     {
-        // One per EC-SRP5 client body: WinBox over TCP, WinBox over MAC, MAC-Telnet's control packets.
+        // One per EC-SRP5 client body — WinBox over TCP, WinBox over MAC, MAC-Telnet's control packets — and the WinBox
+        // CLI over MAC, whose open goes on past the handshake to the terminal and its login screen.
         private static readonly TikConnectionType[] AllTransports =
         {
             TikConnectionType.WinboxNative,
             TikConnectionType.WinboxNativeMac,
+            TikConnectionType.WinboxCliMac,
             TikConnectionType.MacTelnet,
         };
 

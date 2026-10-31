@@ -17,9 +17,11 @@ namespace tik4net.Cli
     /// which also matches <c>login failure</c> — the wording of the router's own log lines, which the shipped logging
     /// rules echo onto any console at any moment (findings-cli.md §11). Telnet and SSH keep their positional rule in
     /// <see cref="RouterOsCliLogin.ResolveToPromptAsync"/>; aligning them is the CLI review's (D1).</para>
-    /// <para>A nag still on screen after the third Ctrl-C is RouterOS insisting on a new password (an expired one:
-    /// <c>/user expire-password</c>). Nothing but Ctrl-C is ever typed into that prompt — a probe answer typed there is
-    /// password input (<see cref="CliPasswordPromptGuard"/>) — so the login stops and says so.</para>
+    /// <para>An expired password (<c>/user expire-password</c>) shows the same nag — <c>Change your password (Ctrl-C to
+    /// skip)</c>, <c>new password&gt;</c> — and one Ctrl-C skips it (measured on 7.25 over MAC-Telnet and the WinBox
+    /// CLI). A nag still on screen after the third Ctrl-C would be RouterOS insisting on a new password. Nothing but
+    /// Ctrl-C is ever typed into that prompt — a probe answer typed there is password input
+    /// (<see cref="CliPasswordPromptGuard"/>) — so the login stops and says so.</para>
     /// </remarks>
     internal sealed class CliLoginScreen
     {
