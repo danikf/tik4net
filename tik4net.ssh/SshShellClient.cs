@@ -48,7 +48,7 @@ namespace tik4net.Ssh
         {
             try
             {
-                _ssh = CreateClient(host, port, user + RouterOsCliLogin.TerminalLoginFlags, password, key);
+                _ssh = CreateClient(host, port, RouterOsCliLogin.WithTerminalLoginFlags(user), password, key);
                 ConnectOrTimeOut(_ssh);
             }
             catch (SshAuthenticationException)

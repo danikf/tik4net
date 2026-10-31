@@ -91,6 +91,18 @@ namespace tik4net.unittests.Cli
             Assert.IsFalse(ex.Message.Contains("login failed"), ex.Message);
         }
 
+        /// <summary>
+        /// F7: the console flags join the caller's options group (<c>admin+t</c> → <c>admin+tc</c>): RouterOS reads one
+        /// group, so <c>admin+t+c</c> left the console in colour.
+        /// </summary>
+        [TestMethod]
+        public async Task Login_WithOptions_SendsTheFlagsInTheSameGroup()
+        {
+            var term = new FakeRouterTerminal().Emits("Login: ").Emits("Password: ").Emits("[admin@MikroTik] > ");
+            await term.LoginAsync(user: "admin+t");
+            Assert.AreEqual("admin+tc", term.Sent[0].Line);
+        }
+
         /// <summary>A re-offered <c>Login:</c> after the password is a refusal, and keeps saying so.</summary>
         [TestMethod]
         public async Task Login_ReofferedAfterThePassword_StillSaysLoginFailed()

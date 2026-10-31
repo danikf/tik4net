@@ -42,11 +42,11 @@ namespace tik4net.unittests.Cli
             public void StartIdleServicing() => throw new NotSupportedException();
         }
 
-        private static string LoginName(RomonRelayTarget target)
+        private static string LoginName(RomonRelayTarget target, string user = "admin")
         {
             var channel = new RecordingChannel();
             var open = WinboxCliSession.Open(() => channel, target, Encoding.UTF8, CliClientTimeouts.Fixed(1000),
-                "192.0.2.1", 8291, "admin", "", _ => { });
+                "192.0.2.1", 8291, user, "", _ => { });
             try
             {
                 open.Login(CancellationToken.None).GetAwaiter().GetResult();
@@ -59,6 +59,11 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void ADirectLogin_AsksForAConsoleWithoutColours()
             => Assert.AreEqual("admin" + RouterOsCliLogin.TerminalLoginFlags, LoginName(null));
+
+        /// <summary>F7: RouterOS reads one options group, so the flags join the caller's (<c>admin+t+c</c> came back in colour).</summary>
+        [TestMethod]
+        public void ANameWithOptions_GetsTheFlagsInItsOwnGroup()
+            => Assert.AreEqual("admin+tc", LoginName(null, "admin+t"));
 
         [TestMethod]
         public void AnAgentLogin_IsTheBareName()

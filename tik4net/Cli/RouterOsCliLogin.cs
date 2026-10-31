@@ -245,7 +245,7 @@ namespace tik4net.Cli
             string banner = await readUntil(s => IsLoginPrompt(s) || IsShellPrompt(s), ct).ConfigureAwait(false);
             if (!IsShellPrompt(banner))
             {
-                string loginName = useTerminalFlags ? user + TerminalLoginFlags : user;
+                string loginName = useTerminalFlags ? WithTerminalLoginFlags(user) : user;
                 await sendLine(loginName, ct).ConfigureAwait(false);
 
                 // 2. Wait for the "Password:" prompt, send the password.
@@ -414,7 +414,7 @@ namespace tik4net.Cli
             Func<byte[], CancellationToken, Task> sendBytes,
             CancellationToken ct)
         {
-            string loginName = useTerminalFlags ? user + TerminalLoginFlags : user;
+            string loginName = useTerminalFlags ? WithTerminalLoginFlags(user) : user;
 
             // 0. The agent's own id, while its shell is still the one answering. It is what the target records
             //    as 'by-romon' for this session, and it tells a fallen-back relay apart in step 4's message.

@@ -756,7 +756,11 @@ machine for every PTY transport; each transport supplies only the raw byte I/O.
 
 - `Login:` prompt — matched case-insensitively on the substring `ogin:` (`IsLoginPrompt`) — send the
   user name, with `+c` appended (`RouterOsCliLogin.TerminalLoginFlags`) on transports that perform the
-  interactive exchange. `+c` disables ANSI colour; **terminal width is deliberately not pinned** to a
+  interactive exchange. To a name that already carries options the flag joins that group
+  (`RouterOsCliLogin.WithTerminalLoginFlags`: `admin+t` → `admin+tc`), on Telnet, SSH and the WinBox CLI as on
+  MAC-Telnet: RouterOS reads one `+` group, and `admin+t+c` logs in with the console in colour (measured on 7.25,
+  7.21.5 and 6.49.21 with `MacTelnetLoginOptionsProbe`; on 7.25 the SSH console is in colour whatever the name
+  carries). `+c` disables ANSI colour; **terminal width is deliberately not pinned** to a
   fixed value such as `80` — the transport instead answers RouterOS's VT100 cursor-probe negotiation
   (§6) advertising a wide terminal, because a narrow one makes RouterOS wrap long `:put` as-value
   records and insert `\r\n` into the data.
