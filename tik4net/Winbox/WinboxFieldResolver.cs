@@ -500,7 +500,8 @@ namespace tik4net.Winbox
                 notReportedTabs: child.NotReportedTabs, omittedWhen: child.OmittedWhen,
                 writtenDespiteMark: (child.WrittenDespiteMark ?? Enumerable.Empty<string>())
                     .Union(parent.WrittenDespiteMark ?? Enumerable.Empty<string>()),
-                shownOnlyWith: child.ShownOnlyWith, renames: child.Renames);
+                shownOnlyWith: child.ShownOnlyWith, renames: child.Renames, confirmedBy: child.ConfirmedBy,
+                setByAction: child.SetByAction);
         }
 
         /// <summary>

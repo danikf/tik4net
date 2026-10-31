@@ -84,9 +84,26 @@ namespace tik4net.WinboxNative
                 }
                 case "set":
                 {
-                    await WriteFieldsAsync(handler, resolver, descriptor,
-                        () => EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true, cancellationToken),
-                        cancellationToken).ConfigureAwait(false);
+                    // A field the window takes only on a new row: the router answers a set of it with success and
+                    // changes nothing, so it goes through the action that writes it (FieldAliasSet.SetByAction).
+                    var byAction = descriptor.Parameters.Where(p => resolver.ActionSetting(p.Name) != null).ToList();
+                    var plain = byAction.Count == 0 ? descriptor
+                        : new TikCommandDescriptor(descriptor.CommandText, descriptor.Parameters.Except(byAction).ToList());
+                    if (byAction.Count == 0 || plain.Parameters.Any(p => p.Name != TikSpecialProperties.Id))
+                        await WriteFieldsAsync(handler, resolver, plain,
+                            () => EncodeNameValueFieldsAsync(handler, plain, resolver, skipId: true, cancellationToken),
+                            cancellationToken).ConfigureAwait(false);
+                    foreach (var parameter in byAction)
+                    {
+                        await ResolveRecordIdAsync(handler, resolver, descriptor, required: true,
+                            cancellationToken: cancellationToken).ConfigureAwait(false);
+                        var action = resolver.ActionSetting(parameter.Name)!;
+                        var arguments = descriptor.Parameters.Where(p => p.Name == TikSpecialProperties.Id).ToList();
+                        arguments.Add(new TikCommandParameter(action.Item2, parameter.Value, TikCommandParameterFormat.NameValue));
+                        arguments.Add(new TikCommandParameter(action.Item3, parameter.Value, TikCommandParameterFormat.NameValue));
+                        await _host.DispatchActionVerbAsync(action.Item1, apiPath, handler, resolver,
+                            new TikCommandDescriptor(apiPath + "/" + action.Item1, arguments), cancellationToken).ConfigureAwait(false);
+                    }
                     break;
                 }
                 case "enable":
@@ -253,6 +270,9 @@ namespace tik4net.WinboxNative
                     // bare '?name' FILTER (handled elsewhere) carries a null value.
                     fields.AddRange(resolver.EncodeField(p.Name, p.Value!, resolveRef, allowReadOnly,
                         MemberTableReader));
+                    if (resolver.ConfirmationOf(p.Name) is string confirmation)
+                        fields.AddRange(resolver.EncodeField(confirmation, p.Value!, resolveRef, allowReadOnly,
+                            MemberTableReader));
                 }
                 catch (WinboxFieldValueException ex)
                 {

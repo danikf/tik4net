@@ -166,6 +166,20 @@ namespace tik4net.Winbox
             /// </summary>
             public readonly IReadOnlyList<FieldRename>? Renames;
 
+            /// <summary>
+            /// API name → the second field of the window that must carry the same value, which the API has no argument for
+            /// (<c>/user</c> <c>password</c>: the router answers <c>Passwords do not match!</c> without its confirmation).
+            /// Encode only.
+            /// </summary>
+            public readonly IReadOnlyDictionary<string, string>? ConfirmedBy;
+
+            /// <summary>
+            /// API name → the action verb and its two arguments that write it on an existing row, for a field the window
+            /// takes only on a new one: the router answers a plain <c>set</c> of it with success and changes nothing
+            /// (<c>/user</c> <c>password</c>, measured on 6.49.21, 7.21.5 and 7.25).
+            /// </summary>
+            public readonly IReadOnlyDictionary<string, Tuple<string, string, string>>? SetByAction;
+
             /// <param name="both">API name → <c>.jg</c> label pairs that rename one value in both directions — "one name
             /// for one value": each goes into <see cref="ApiToJg"/> as written and into <see cref="JgToApi"/> reversed.</param>
             /// <param name="apiToJgOnly">Encode-only spellings, laid over <paramref name="both"/>: an API name a write may
@@ -188,6 +202,8 @@ namespace tik4net.Winbox
             /// <param name="writtenDespiteMark">See <see cref="WrittenDespiteMark"/>.</param>
             /// <param name="shownOnlyWith">See <see cref="ShownOnlyWith"/>.</param>
             /// <param name="renames">See <see cref="Renames"/>.</param>
+            /// <param name="confirmedBy">See <see cref="ConfirmedBy"/>.</param>
+            /// <param name="setByAction">See <see cref="SetByAction"/>.</param>
             public FieldAliasSet(IReadOnlyDictionary<string, string>? both = null,
                 IReadOnlyDictionary<string, string>? apiToJgOnly = null, IReadOnlyDictionary<string, string>? jgToApiOnly = null,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
@@ -203,7 +219,9 @@ namespace tik4net.Winbox
                 IReadOnlyDictionary<string, string>? omittedWhen = null,
                 IEnumerable<string>? writtenDespiteMark = null,
                 IReadOnlyDictionary<string, string>? shownOnlyWith = null,
-                IReadOnlyList<FieldRename>? renames = null)
+                IReadOnlyList<FieldRename>? renames = null,
+                IReadOnlyDictionary<string, string>? confirmedBy = null,
+                IReadOnlyDictionary<string, Tuple<string, string, string>>? setByAction = null)
             {
                 var apiToJg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var jgToApi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -232,6 +250,8 @@ namespace tik4net.Winbox
                     ? null : new HashSet<string>(writtenDespiteMark, StringComparer.OrdinalIgnoreCase);
                 ShownOnlyWith = shownOnlyWith;
                 Renames = renames;
+                ConfirmedBy = confirmedBy;
+                SetByAction = setByAction;
             }
         }
 
@@ -552,7 +572,12 @@ namespace tik4net.Winbox
                 // why the audit could not propose it — two blanks agree vacuously. Confirmed by creating a
                 // user with address=192.168.251.0/24 and watching that one row change and the others not.
                 ["/user"] = new FieldAliasSet(
-                    both: Ci(("address", "allowed-address"))),
+                    both: Ci(("address", "allowed-address")),
+                    confirmedBy: Ci(("password", "confirm-password")),
+                    setByAction: new Dictionary<string, Tuple<string, string, string>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["password"] = Tuple.Create("change-password", "new-password", "confirm-password"),
+                    }),
 
                 // The rest: one WinBox label, one API name, no structure to derive it from.
                 // accounting and interim-update are 7.x's 'Accounting' (b3) and 'Interim Update' (u2); the 6.49.13

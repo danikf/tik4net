@@ -73,6 +73,14 @@ namespace tik4net.Winbox
         /// <summary>A name this path writes although its window marks it read-only (<see cref="FieldAliasSet.WrittenDespiteMark"/>).</summary>
         internal bool IsWrittenDespiteMark(string apiName) => Aliases?.WrittenDespiteMark?.Contains(apiName) == true;
 
+        /// <summary>The field a write of <paramref name="apiName"/> also fills with its value (<see cref="FieldAliasSet.ConfirmedBy"/>), or null.</summary>
+        internal string? ConfirmationOf(string apiName)
+            => Aliases?.ConfirmedBy != null && Aliases.ConfirmedBy.TryGetValue(apiName, out var confirmation) ? confirmation : null;
+
+        /// <summary>The action that writes <paramref name="apiName"/> on an existing row (<see cref="FieldAliasSet.SetByAction"/>), or null.</summary>
+        internal Tuple<string, string, string>? ActionSetting(string apiName)
+            => Aliases?.SetByAction != null && Aliases.SetByAction.TryGetValue(apiName, out var action) ? action : null;
+
         /// <summary>
         /// Encodes an API field write (<paramref name="apiName"/> = <paramref name="value"/>) into its M2
         /// wire field bytes, driven by the <c>.jg</c> UI-semantic type: IP addresses pack to u32
