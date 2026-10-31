@@ -45,7 +45,13 @@ namespace tik4net.integrationtests
             {
                 List<BgpAdvertisements> apiRows;
                 using (var api = LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api))
+                {
                     apiRows = api.LoadAll<BgpAdvertisements>().ToList();
+                    // A write to the peer's ether1 on the other router bounces the session for ~20 s. Only a router
+                    // with a session configured has anything to wait for.
+                    if (apiRows.Count == 0 && GetMikrotikVersion().Major < 7 && api.CreateCommand("/routing/bgp/peer/print").ExecuteList().Any())
+                        WaitUntil(() => { apiRows = api.LoadAll<BgpAdvertisements>().ToList(); return apiRows.Count > 0; }, TimeSpan.FromSeconds(30));
+                }
                 if (apiRows.Count == 0)
                     Assert.Inconclusive("no advertisements on this router: needs an established BGP session (lab: -Router chr2)");
 

@@ -34,10 +34,17 @@ namespace tik4net.integrationtests
             try
             {
                 Exception refusal = null;
+                int stalls = 0;
                 while (held.Count < MostSlotsTried)
                 {
                     try { held.Add(OpenWinbox()); }
-                    catch (TikConnectionLoginException ex) { refusal = ex; break; }
+                    catch (TikConnectionLoginException ex) when (ex.Message.Contains("WinBox/Dude sessions")) { refusal = ex; break; }
+                    // A connect that got no answer is not the refusal. Seen once in 100 opens during a matrix.
+                    catch (TikConnectionLoginException ex) when (++stalls <= 3)
+                    {
+                        Console.WriteLine($"[limit] open {held.Count + 1} did not reach the router's answer, retrying: {ex.Message}");
+                        Thread.Sleep(1000);
+                    }
                 }
                 if (refusal == null)
                     Assert.Inconclusive($"{MostSlotsTried} WinBox sessions were accepted without a refusal.");

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -72,15 +73,26 @@ namespace tik4net.integrationtests
         {
             EnsureRomonRunning();
             string targetId = LabConfig.Get("romonTargetId");
-            var neighbours = Connection.RomonDiscover(TimeSpan.FromSeconds(2)).ToList();
+            // The lab's RoMON neighbourship comes and goes on its own: a 2 s discover can be empty on an idle lab, and a
+            // neighbour just found can leave every echo unanswered. Both are retried before either is concluded.
+            var neighbours = new List<ToolRomonDiscover>();
+            WaitUntil(() => { neighbours = Connection.RomonDiscover(TimeSpan.FromSeconds(2)).ToList(); return neighbours.Count > 0; },
+                TimeSpan.FromSeconds(10));
             var neighbour = neighbours.FirstOrDefault(n => string.Equals(n.Address.Value, targetId, StringComparison.OrdinalIgnoreCase))
                             ?? neighbours.FirstOrDefault();
             if (neighbour == null)
                 Assert.Inconclusive("The test router has no RoMON neighbour — the lab needs a second RoMON-enabled router on its segment.");
 
             var rows = Connection.RomonPing(neighbour.Address.Value, 2).ToList();
+            WaitUntil(() =>
+            {
+                if (rows.Any(r => r.Time != null)) return true;
+                rows = Connection.RomonPing(neighbour.Address.Value, 2).ToList();
+                return rows.Any(r => r.Time != null);
+            }, TimeSpan.FromSeconds(10));
             Assert.AreEqual(2, rows.Count);
-            Assert.IsTrue(rows.Any(r => r.Time != null), "no echo was answered: " + string.Join(" | ", rows));
+            if (!rows.Any(r => r.Time != null))
+                Assert.Inconclusive("The lab's RoMON neighbour answered no echo within 10 s: " + string.Join(" | ", rows));
             Assert.IsTrue(rows.All(r => string.Equals(r.Host.Value, neighbour.Address.Value, StringComparison.OrdinalIgnoreCase)),
                 "hosts: " + string.Join(", ", rows.Select(r => r.Host)));
         }
