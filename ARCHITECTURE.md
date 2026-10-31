@@ -247,6 +247,10 @@ Resolution order, highest first (`WinboxHandlerMap` for paths, `WinboxFieldResol
    normalizer and steps 1–4 are retried, so `"MAC Address"`, `"Dst. Address"` and `/IP/Firewall_Filter`
    resolve. Off by default; a name that resolves verbatim is never re-normalized.
 
+`WinboxFieldResolver` is the only place a field name is resolved. `WinboxDecodePlan` is the one recipe a row is decoded
+by (key to name, key to field, what the path leaves out), and `WinboxReferenceTables` is the one service for a
+reference's name to its id and back.
+
 The split is deliberate: **only text is ever shipped or pinned by the user; every number is read live
 from the router.** Prefer `PathAlias` over `PathOverride` for that reason. Decoded output always comes
 back in canonical API names regardless of how the request was addressed.
