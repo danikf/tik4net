@@ -87,4 +87,4 @@ PollMonitorRound(action, id 0xFFFFFFFD) result records=[{0x10002=u32:64 0xFE0003
 PollMonitorRound(query, ended) sent 4D320100FF88020018000000010000000200FF88020000000000080000000500FF010600FF092A0700FF080400FE000100FE09030C00FE0805000010
 PollMonitorRound(query, ended) result records=[] done=False continuation=null
 GetSingleton(stale reply first, no match) sent 4D320100FF88020018000000010000000200FF88020000000000080000000500FF010600FF092A0700FF080D00FE000C00FE0805000010
-GetSingleton(stale reply first, no match) result {}
+GetSingleton(stale reply first, no match) result throws TikConnectionReceiveTimeoutException: No WinBox M2 reply for request id 42 while the connection was opening: 1 frame(s) that answer other requests arrived, and nothing after them within 250 ms.

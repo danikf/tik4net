@@ -272,9 +272,7 @@ namespace tik4net.WinboxCli
             while (true)
             {
                 int left = FrameTimeoutMs - (int)deadline.ElapsedMilliseconds;
-                byte[]? frame;
-                try { frame = left > 0 ? _session.Receive(left) : null; }
-                catch (Exception) when (skipped.Count > 0) { frame = null; } // the TCP read throws on timeout; name what came instead
+                byte[]? frame = left > 0 ? _session.Receive(left) : null;
                 if (frame == null)
                 {
                     if (skipped.Count == 0)

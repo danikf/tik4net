@@ -119,11 +119,11 @@ namespace tik4net.Winbox
 
         // ── Generic M2 message I/O (mode-agnostic) ────────────────────────────
 
-        /// <summary>Sends one M2 message and reads one response, honouring the channel mode.</summary>
-        public byte[] SendReceive(byte[] m2, int timeoutMs)
+        /// <inheritdoc cref="IWinboxM2Channel.SendReceive"/>
+        public byte[]? SendReceive(byte[] m2, int timeoutMs)
         {
-            if (IsEncrypted) { EncryptAndSend(m2); return RecvAndDecrypt(timeoutMs); }
-            return SendRecvRaw(m2, timeoutMs);
+            Send(m2);
+            return Receive(timeoutMs);
         }
 
         /// <summary>Sends one M2 message without waiting for a response (fire-and-forget).</summary>
@@ -133,14 +133,35 @@ namespace tik4net.Winbox
             else _transport.SendRaw(m2);
         }
 
-        /// <summary>Receives and decodes one M2 frame already arriving on the wire.</summary>
-        public byte[] Receive(int timeoutMs)
+        /// <summary>Receives and decodes one M2 frame, or <c>null</c> when none began within the timeout.</summary>
+        /// <remarks>
+        /// The socket's receive timeout (SO_RCVTIMEO) is the only deadline TCP has, and where it fires decides what it
+        /// means. Before the first byte of a frame the stream is still on a frame boundary, so the timeout is "nothing
+        /// arrived" and the channel is as usable as before. Once part of a frame has been read it is not: the next read
+        /// would start inside that frame, so the timeout keeps throwing, as does a frame that does not decrypt
+        /// (<see cref="DecryptOrThrow"/>) — review D9.
+        /// </remarks>
+        public byte[]? Receive(int timeoutMs)
         {
-            if (IsEncrypted) return RecvAndDecrypt(timeoutMs);
+            long before = _transport.BytesRead;
+            try
+            {
+                if (IsEncrypted)
+                    return _transport.WithReceiveTimeout(timeoutMs,
+                        () => DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), Keys.ReceiveAes));
 
-            return _transport.WithReceiveTimeout(timeoutMs,
-                () => WinboxChunkFraming.StripRawLength(_transport.RecvChunked(WinboxChunkFraming.RawTag)));
+                return _transport.WithReceiveTimeout(timeoutMs,
+                    () => WinboxChunkFraming.StripRawLength(_transport.RecvChunked(WinboxChunkFraming.RawTag)));
+            }
+            catch (IOException ex) when (_transport.BytesRead == before && IsReceiveTimeout(ex))
+            {
+                return null;
+            }
         }
+
+        private static bool IsReceiveTimeout(IOException ex)
+            => ex.InnerException is System.Net.Sockets.SocketException se
+            && se.SocketErrorCode == System.Net.Sockets.SocketError.TimedOut;
 
         /// <summary>Builds the next request-id system field (key 0xFF0006), incrementing the counter.</summary>
         /// <remarks>
@@ -189,10 +210,6 @@ namespace tik4net.Winbox
             _transport.SendChunked(full, WinboxChunkFraming.EncryptedTag);
         }
 
-        private byte[] RecvAndDecrypt(int timeoutMs)
-            => _transport.WithReceiveTimeout(timeoutMs,
-                () => DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), Keys.ReceiveAes));
-
         /// <summary>
         /// Decrypts one assembled frame, or throws naming what happened.
         /// </summary>
@@ -217,6 +234,7 @@ namespace tik4net.Winbox
             return plain;
         }
 
+        // The legacy login's round trip: a reply that does not come within the timeout is a failed login step.
         private byte[] SendRecvRaw(byte[] m2, int timeoutMs)
         {
             _transport.SendRaw(m2);

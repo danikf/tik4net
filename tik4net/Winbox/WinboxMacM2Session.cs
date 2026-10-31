@@ -285,21 +285,8 @@ namespace tik4net.Winbox
                 // for "the channel closed" — so returning it reported a corrupt frame to every waiter as an
                 // orderly shutdown (X-2). Frames are independently keyed here (each carries its own IV), so
                 // unlike the TCP session one bad frame does not desynchronize what follows it.
-                string? dropped = null;
-                try
-                {
-                    byte[]? plain = Keys.Decrypt(frame);
-                    if (plain != null) return plain;
-                    dropped = "Decrypt returned null (wrong key, bad padding, or a truncated frame)";
-                }
-                catch (Exception ex)
-                {
-                    dropped = $"{ex.GetType().Name}: {ex.Message}";
-                }
-
-                if (tik4net.Diagnostics.TikWireTrace.Enabled)
-                    tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
-                        $"undecryptable {frame.Length}B frame dropped: {dropped}");
+                byte[]? plain = DecryptOrDrop(frame);
+                if (plain != null) return plain;
             }
             return null;
         }
@@ -378,12 +365,45 @@ namespace tik4net.Winbox
             return Receive(timeoutMs);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A frame that does not decrypt is dropped and the wait goes on to the deadline (the contract of
+        /// <see cref="IWinboxM2Channel.Receive"/>): each frame here carries its own IV, so the next one is readable.
+        /// </remarks>
         public byte[]? Receive(int timeoutMs)
         {
-            byte[]? frame = RecvFrame(timeoutMs);   // null: nothing within the timeout
-            if (frame == null) return null;
-            try { return Keys.Decrypt(frame); }
-            catch { return null; }   // not a clean M2 frame
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            while (true)
+            {
+                int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
+                byte[]? frame = RecvFrame(Math.Max(0, remaining));   // null: nothing within the timeout
+                if (frame == null) return null;
+                byte[]? plain = DecryptOrDrop(frame);
+                if (plain != null) return plain;
+                if (remaining <= 0) return null;
+            }
+        }
+
+        // The frame's plaintext, or null — traced — when it is not a clean M2 frame. Decrypt answers null for a wrong
+        // key, a bad pad or a truncated frame and throws only for a cryptographic fault.
+        private byte[]? DecryptOrDrop(byte[] frame)
+        {
+            string dropped;
+            try
+            {
+                byte[]? plain = Keys.Decrypt(frame);
+                if (plain != null) return plain;
+                dropped = "Decrypt returned null (wrong key, bad padding, or a truncated frame)";
+            }
+            catch (Exception ex)
+            {
+                dropped = $"{ex.GetType().Name}: {ex.Message}";
+            }
+
+            if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
+                    $"undecryptable {frame.Length}B frame dropped: {dropped}");
+            return null;
         }
 
         // ── Chunk framing (WinboxChunkFraming, as on TCP, carried in DATA payloads) ──

@@ -110,12 +110,22 @@ namespace tik4net.Winbox
         /// <summary>Sends one M2 message (fire-and-forget).</summary>
         void Send(byte[] m2);
 
-        /// <summary>Receives and decodes one inbound M2 message, or <c>null</c> on timeout / non-data frame.</summary>
+        /// <summary>
+        /// Receives and decodes one inbound M2 message: <c>null</c> when nothing arrived within
+        /// <paramref name="timeoutMs"/>, an exception when the stream is broken.
+        /// </summary>
+        /// <remarks>
+        /// The same contract on every carrier, so a caller waits on <c>null</c> and never has to tell a timeout from a
+        /// failure by the exception's type. TCP: a timeout before the first byte of a frame is <c>null</c> (the stream is
+        /// still on a frame boundary); a timeout inside a frame, a frame that does not decrypt and a closed socket throw.
+        /// MAC: a frame that does not decrypt is dropped and the wait goes on, because each frame there carries its own
+        /// IV and one bad frame does not desynchronize the next; a closed socket throws.
+        /// </remarks>
+        /// <param name="timeoutMs">How long to wait for a frame to begin.</param>
         byte[]? Receive(int timeoutMs);
 
         /// <summary>
-        /// Sends one M2 message and reads one response — <c>null</c> when the carrier heard nothing within the timeout
-        /// (the MAC carrier; the TCP one throws instead, the asymmetry review item X8 names).
+        /// Sends one M2 message and reads one response, under the contract of <see cref="Receive"/>.
         /// </summary>
         byte[]? SendReceive(byte[] m2, int timeoutMs);
 

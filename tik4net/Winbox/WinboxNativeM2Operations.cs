@@ -176,18 +176,26 @@ namespace tik4net.Winbox
             // where draining is disabled), skip it by the echoed request-id (sys key 0xFF0006). Synchronous
             // replies echo it; stray async frames do not. Use the short drain timeout for the re-read so a
             // transport that can desync without a recoverable next frame cannot stall for the full command
-            // timeout on every operation.
+            // timeout on every operation. The first empty receive ends the skipping: nothing more is coming.
             int expected = M2Message.ParseSysReqId(request) ?? -1;
-            for (int skip = 0; expected >= 0 && skip < 16 && (M2Message.ParseSysReqId(response) ?? -1) != expected; skip++)
+            int skipped = 0;
+            for (; response != null && expected >= 0 && skipped < 16 && M2Message.ParseSysReqId(response) != expected; skipped++)
             {
-                try { response = _channel.Receive(DrainTimeoutMs); }
-                catch { break; } // no further frame available — surface what we have
+                OnResponse?.Invoke(response);   // keep the diagnostics trace honest about skipped frames
+                response = _channel.Receive(DrainTimeoutMs);
             }
 
+            // No reply is a timeout, not an empty reply: the interpreters would read null as a reply carrying no
+            // field, and a stale reply to another request as this one's (review F4).
+            if (response == null || (expected >= 0 && M2Message.ParseSysReqId(response) != expected))
+                throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(_timeoutMs),
+                    "No WinBox M2 reply for request id " + expected + " while the connection was opening: "
+                    + (skipped == 0 ? "nothing arrived within " + _timeoutMs + " ms."
+                        : skipped + " frame(s) that answer other requests arrived, and "
+                          + (response == null ? "nothing after them within " + DrainTimeoutMs + " ms." : "no reply among them.")));
+
             OnResponse?.Invoke(response);
-            // Null when the carrier heard nothing (the MAC one; X8). The interpreters read it as an empty reply,
-            // which is what this path has always handed them; D9 settles what "no frame" means.
-            return response!;
+            return response;
         }
 
         /// <summary>

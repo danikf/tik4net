@@ -150,15 +150,15 @@ namespace tik4net.Winbox
         // While the link opens, the agent may push frames of its own between a request and its answer: when it reaps
         // links that other sessions left behind it pushes their logouts (SYS_CMD 0xFE0014, SYS_FROM [0xFF0003, <their
         // link>], no request id) to every WinBox session of the user. The answer is the frame carrying the request's
-        // own id; anything else is read past. Over the MAC layer a frame with no M2 data, and a receive that timed out,
-        // come back null; over TCP a receive that timed out throws. Neither is the answer, so the wait goes on to the
+        // own id; anything else is read past. A receive that timed out comes back null on every carrier, as does a frame
+        // with no M2 data over the MAC layer. Neither is the answer, so the wait goes on to the
         // deadline, and a deadline with no answer is a timeout — not a reply lacking every field, which would read as
         // "RoMON is not enabled" or "no link", nor a socket error, which would read as a failed login.
         private byte[] AgentRequest(byte[] m2, int timeoutMs, string host, string step)
         {
             int? sent = M2Message.ParseSysReqId(m2);
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            byte[]? reply = UntilTimeout(() => _agent.SendReceive(m2, timeoutMs));
+            byte[]? reply = _agent.SendReceive(m2, timeoutMs);
             int readPast = 0;
             while (reply == null || (sent != null && M2Message.ParseSysReqId(reply) != sent))
             {
@@ -174,19 +174,9 @@ namespace tik4net.Winbox
                     throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(timeoutMs),
                         "The RoMON agent " + host + " did not answer the " + step + " within " + timeoutMs + " ms"
                         + (readPast > 0 ? " (" + readPast + " frame(s) of its own were read past)." : "."));
-                reply = UntilTimeout(() => _agent.Receive(left));
+                reply = _agent.Receive(left);
             }
             return reply;
-        }
-
-        private static byte[]? UntilTimeout(Func<byte[]?> receive)
-        {
-            try { return receive(); }
-            catch (System.IO.IOException ex) when (ex.InnerException is System.Net.Sockets.SocketException se
-                                                  && se.SocketErrorCode == System.Net.Sockets.SocketError.TimedOut)
-            {
-                return null;
-            }
         }
 
         private static byte[] ParseRomonId(string id)
