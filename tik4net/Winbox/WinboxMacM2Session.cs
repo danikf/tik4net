@@ -169,7 +169,7 @@ namespace tik4net.Winbox
             SendHandshakeFrame(client.Hello);
 
             // Challenge frame: [len=49][0x06][32B xWB][1B parityB][16B salt] — same as WinBox TCP.
-            byte[]? challenge = RecvFrame(timeoutMs);
+            byte[]? challenge = RecvHandshakeFrame(timeoutMs);
             if (challenge == null || challenge.Length != EcSrp5Client.ChallengeLength)
                 throw new InvalidOperationException(
                     $"MAC-WinBox: bad challenge ({(challenge == null ? "none" : challenge.Length + "B")})");
@@ -182,7 +182,7 @@ namespace tik4net.Winbox
             // Establish what actually arrived before reading anything into it. Folding "no frame" into
             // the digest comparison made a lost or late UDP reply indistinguishable from a rejected
             // password — and over the MAC layer a lost reply is by far the likelier of the two.
-            byte[]? serverCc = RecvFrame(timeoutMs);
+            byte[]? serverCc = RecvHandshakeFrame(timeoutMs);
             if (serverCc == null)
                 throw new InvalidOperationException(
                     $"MAC-WinBox: no server confirmation within {timeoutMs} ms. The handshake did not " +
@@ -192,6 +192,18 @@ namespace tik4net.Winbox
             proof.Verify(serverCc, 32);
 
             _keys = WinboxStreamKeys.Derive(proof.Secret);
+        }
+
+        // A handshake frame, or null on timeout. The router ending the session before its confirmation is a refusal whose
+        // one datagram was lost (WinBox's "invalid user name or password (6)" comes in its place, and the session's
+        // PKT_END after it), so it is retried as MAC-Telnet's empty-screen closure is (MacLayerLoginClosedSilentlyException).
+        private byte[]? RecvHandshakeFrame(int timeoutMs)
+        {
+            try { return RecvFrame(timeoutMs); }
+            catch (System.IO.IOException) when (_routerEnded)
+            {
+                throw new MacLayerLoginClosedSilentlyException("WinBox over MAC");
+            }
         }
 
         private void SendHandshakeFrame(byte[] payload)

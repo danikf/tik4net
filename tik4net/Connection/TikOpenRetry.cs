@@ -31,9 +31,9 @@ namespace tik4net.Connection
     /// is bounded and deliberate: a genuine failure takes <see cref="MaxAttempts"/> attempts and about
     /// <c>(MaxAttempts-1) × <see cref="DelayMs"/></c> ms longer, and leaves that many
     /// <c>login failure</c> lines in the router's log instead of one.</para>
-    /// <para>A MAC-Telnet login the router ends with nothing on screen
-    /// (<see cref="MacTelnet.MacTelnetLoginClosedSilentlyException"/>) is a refusal whose single data packet was lost
-    /// — RouterOS ends the session 1–4 ms after it and never resends it — and is retried as one.</para>
+    /// <para>A MAC-Telnet login the router ends with nothing on screen, and a WinBox-over-MAC login it ends before its
+    /// confirmation (<see cref="MacTelnet.MacLayerLoginClosedSilentlyException"/>), are refusals whose single data
+    /// packet was lost — RouterOS ends the session right after it and never resends it — and are retried as one.</para>
     /// <para>A WinBox connection the router closes before sending a byte (<see cref="WinboxSessionLimitException"/>)
     /// is RouterOS's limit of WinBox/Dude sessions. On a RoMON agent that limit fills with dead relay links, which the
     /// agent reaps as soon as the slots are full, so the refusal lasts a fraction of a second; it is retried after
@@ -135,7 +135,7 @@ namespace tik4net.Connection
                 return;
             var silence = NoAnswer(ex);
             string transport = Refusal(ex)?.Transport ?? silence?.Transport
-                ?? (SilentClosure(ex) != null ? "MAC-Telnet" : SessionLimit(ex) != null || LinkSilent(ex) != null ? "WinBox" : "router");
+                ?? SilentClosure(ex)?.Transport ?? (SessionLimit(ex) != null || LinkSilent(ex) != null ? "WinBox" : "router");
             if (IsApiLoginReset(ex))
                 transport = "API";
             string what = IsApiLoginReset(ex)
@@ -194,13 +194,13 @@ namespace tik4net.Connection
             return null;
         }
 
-        // A MAC-Telnet login ended with nothing on screen: the refusal's one data packet was lost
-        // (MacTelnetLoginClosedSilentlyException).
-        private static MacTelnet.MacTelnetLoginClosedSilentlyException? SilentClosure(Exception ex)
+        // A MAC-layer login ended before the router said anything: the refusal's one data packet was lost
+        // (MacLayerLoginClosedSilentlyException).
+        private static MacTelnet.MacLayerLoginClosedSilentlyException? SilentClosure(Exception ex)
         {
             for (Exception? e = ex; e != null; e = e.InnerException)
             {
-                if (e is MacTelnet.MacTelnetLoginClosedSilentlyException closed) return closed;
+                if (e is MacTelnet.MacLayerLoginClosedSilentlyException closed) return closed;
                 if (e is AggregateException aggregate)
                 {
                     foreach (var inner in aggregate.InnerExceptions)

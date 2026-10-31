@@ -664,7 +664,7 @@ namespace tik4net.MacTelnet
             if (CliLoginScreen.IsRefusal(stripped))
                 return new TikConnectionLoginRefusedException("MAC-Telnet", CliLoginScreen.FirstLine(stripped));
             if (string.IsNullOrEmpty(stripped.Trim()))
-                return new MacTelnetLoginClosedSilentlyException();
+                return new MacLayerLoginClosedSilentlyException("MAC-Telnet");
             return new TikConnectionSessionClosedException(
                 "MAC-Telnet: the router closed the session during login: " + CliLoginScreen.FirstLine(stripped));
         }

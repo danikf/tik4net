@@ -214,9 +214,11 @@ Four consequences for the code:
    resynchronisation after it waits out the receive deadline. RouterOS does *not* send it when logging an idle
    console out.
 3. **A refusal says nothing about the credentials.** It is transient.
-4. **An empty screen at `PKT_END` is a refusal whose text was lost** (`MacTelnetLoginClosedSilentlyException`, an
+4. **An empty screen at `PKT_END` is a refusal whose text was lost** (`MacLayerLoginClosedSilentlyException`, an
    internal `TikConnectionSessionClosedException`), and is retried as a refusal. A closure with other text on
-   screen is not retried.
+   screen is not retried. WinBox over MAC has the same case one step earlier: a `PKT_END` before the EC-SRP5
+   confirmation (where WinBox's refusal, `invalid user name or password (6)`, would have been) is retried the same
+   way.
 
 `TikConnectionLoginRefusedException` is thrown as soon as the line appears or the router hangs up, and
 `MacTelnetConnection.Open`/`OpenAsync` are wrapped in `TikOpenRetry`, as the three WinBox
