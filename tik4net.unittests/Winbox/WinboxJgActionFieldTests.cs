@@ -98,16 +98,16 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
-        public void WithoutTheActionOverlay_TheArgumentEncodesToNothing()
+        public void WithoutTheActionOverlay_TheArgumentIsRefused()
         {
-            // The defect, reproduced at the layer it happened on: resolved against the handler alone,
-            // 'key-size' is the read-only column, and EncodeField drops read-only fields — so the request
-            // reached the router without the argument and RouterOS applied its own default (1024 bits).
+            // Resolved against the handler alone, 'key-size' is the read-only column, which EncodeField refuses.
+            // Dropped instead, the request reaches the router without the argument and RouterOS applies its own
+            // default (1024 bits).
             var catalog = Parse(IpsecKeyWindow);
             var plain = Resolver(catalog, "/ip/ipsec/key/rsa", IpsecKeyHandler);
 
-            Assert.AreEqual(0, plain.EncodeField("key-size", "2048").Count,
-                "a read-only field encodes to no bytes at all — a silently dropped argument");
+            var ex = Assert.ThrowsException<WinboxFieldResolutionException>(() => plain.EncodeField("key-size", "2048"));
+            Assert.AreEqual("key-size", ex.UnknownFieldName);
         }
 
         [TestMethod]

@@ -57,14 +57,33 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// Whether a name=value write of <paramref name="apiName"/> meets the window's read-only mark: the gate
+        /// <see cref="EncodeField"/> applies, asked without a value. A paired field answers for its halves.
+        /// </summary>
+        internal bool IsReadOnlyForWrite(string apiName)
+        {
+            apiName = CanonicalInputName(apiName);
+            var halves = PairedHalfNames(apiName);
+            if (halves != null) return IsReadOnlyForWrite(halves.Item1) || IsReadOnlyForWrite(halves.Item2);
+            WinboxJgField? jg = null;
+            JgFields?.TryGetValue(AliasToJg(apiName), out jg);
+            return jg != null && jg.ReadOnly && !IsWrittenDespiteMark(apiName);
+        }
+
+        /// <summary>A name this path writes although its window marks it read-only (<see cref="FieldAliasSet.WrittenDespiteMark"/>).</summary>
+        internal bool IsWrittenDespiteMark(string apiName) => Aliases?.WrittenDespiteMark?.Contains(apiName) == true;
+
+        /// <summary>
         /// Encodes an API field write (<paramref name="apiName"/> = <paramref name="value"/>) into its M2
         /// wire field bytes, driven by the <c>.jg</c> UI-semantic type: IP addresses pack to u32
         /// (<c>ipaddr</c>) or address+netmask u32 pair (<c>network</c>), MACs to 6 raw bytes, enum strings to
         /// their numeric value (static map) or referenced-object <c>.id</c> (dynamic dropdown), bool/u32/
-        /// string as their wire type. Returns an empty list when the field is read-only or has no sendable
-        /// value; a <c>network</c> field yields two entries (address + mask). <paramref name="resolveRef"/>
+        /// string as their wire type. Returns an empty list when the field has no sendable value; a
+        /// <c>network</c> field yields two entries (address + mask). <paramref name="resolveRef"/>
         /// resolves a dynamic enum reference (handler, name) → numeric id. Throws
-        /// <see cref="WinboxFieldResolutionException"/> when the name cannot be resolved.
+        /// <see cref="WinboxFieldResolutionException"/> when the name cannot be resolved or the window marks it
+        /// read-only, both carrying <see cref="WinboxFieldResolutionException.UnknownFieldName"/>: the API refuses
+        /// such a name as an unknown parameter.
         /// </summary>
         internal List<byte[]> EncodeField(string apiName, string value, Func<WinboxHandler, string, int?>? resolveRef = null,
             bool allowReadOnly = false, Func<WinboxHandler, IReadOnlyDictionary<int, string>?>? resolveRefTable = null)
@@ -109,7 +128,10 @@ namespace tik4net.Winbox
 
             // Read-only fields are unsendable for CRUD writes, but a monitor's request inputs (e.g. ping
             // 'address') are .jg-marked ro as display fields yet must still be sent — allowReadOnly keeps them.
-            if (jg != null && jg.ReadOnly && !allowReadOnly) return result;
+            if (jg != null && jg.ReadOnly && !allowReadOnly && !IsWrittenDespiteMark(apiName))
+                throw new WinboxFieldResolutionException(
+                    $"WinBox native: the window for '{_apiPath}' marks '{apiName}' read-only, and nothing was sent. If the "
+                    + "router's API takes this field on that menu, the gap is tik4net's: please report it.", apiName);
             value = value ?? "";
 
             string? uiType = jg?.UiType;

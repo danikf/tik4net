@@ -122,6 +122,13 @@ namespace tik4net.Winbox
             public readonly ISet<string>? NotReportedNames;
 
             /// <summary>
+            /// Names the window marks read-only and the API's <c>set</c>/<c>add</c> takes all the same, so a write sends
+            /// them. Every other marked name is refused as the API refuses it, <c>unknown parameter</c>. Measured by
+            /// <c>WinboxReadOnlyWriteProbe</c>: the mark holds for all but these of the ~2 800 write arguments on 7.25.
+            /// </summary>
+            public readonly ISet<string>? WrittenDespiteMark;
+
+            /// <summary>
             /// Tabs of the path's own window whose fields the API prints from another command, left out of the decode
             /// (WinBox review F11), as normalized labels.
             /// </summary>
@@ -145,6 +152,20 @@ namespace tik4net.Winbox
             /// </remarks>
             public readonly IReadOnlyDictionary<string, string>? OmittedWhen;
 
+            /// <summary>
+            /// API name → the bool field the API prints it with, for a field left out while that one is off and whose
+            /// window declares no condition to follow (<c>/interface/vrrp</c> <c>connection-tracking-port</c>, measured both
+            /// ways on 7.25). A row that carries no such bool keeps the field. Decode only.
+            /// </summary>
+            public readonly IReadOnlyDictionary<string, string>? ShownOnlyWith;
+
+            /// <summary>
+            /// Fields RouterOS renamed over one key and one label, so only the router's version tells the spellings apart.
+            /// Each is reported as that version's API spells it, and under both names (<see cref="AlsoKnownAs"/>) on a
+            /// version between those measured or when the version was not read. Decode only: a write takes either name.
+            /// </summary>
+            public readonly IReadOnlyList<FieldRename>? Renames;
+
             /// <param name="both">API name → <c>.jg</c> label pairs that rename one value in both directions — "one name
             /// for one value": each goes into <see cref="ApiToJg"/> as written and into <see cref="JgToApi"/> reversed.</param>
             /// <param name="apiToJgOnly">Encode-only spellings, laid over <paramref name="both"/>: an API name a write may
@@ -164,6 +185,9 @@ namespace tik4net.Winbox
             /// <param name="notReportedNames">See <see cref="NotReportedNames"/>.</param>
             /// <param name="notReportedTabs">See <see cref="NotReportedTabs"/>.</param>
             /// <param name="omittedWhen">See <see cref="OmittedWhen"/>.</param>
+            /// <param name="writtenDespiteMark">See <see cref="WrittenDespiteMark"/>.</param>
+            /// <param name="shownOnlyWith">See <see cref="ShownOnlyWith"/>.</param>
+            /// <param name="renames">See <see cref="Renames"/>.</param>
             public FieldAliasSet(IReadOnlyDictionary<string, string>? both = null,
                 IReadOnlyDictionary<string, string>? apiToJgOnly = null, IReadOnlyDictionary<string, string>? jgToApiOnly = null,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
@@ -176,7 +200,10 @@ namespace tik4net.Winbox
                 IReadOnlyDictionary<string, WinboxJgField>? fallbackFields = null,
                 IEnumerable<int>? notReportedKeys = null,
                 IEnumerable<string>? notReportedNames = null, IEnumerable<string>? notReportedTabs = null,
-                IReadOnlyDictionary<string, string>? omittedWhen = null)
+                IReadOnlyDictionary<string, string>? omittedWhen = null,
+                IEnumerable<string>? writtenDespiteMark = null,
+                IReadOnlyDictionary<string, string>? shownOnlyWith = null,
+                IReadOnlyList<FieldRename>? renames = null)
             {
                 var apiToJg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var jgToApi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -201,7 +228,35 @@ namespace tik4net.Winbox
                 NotReportedTabs = notReportedTabs == null
                     ? null : new HashSet<string>(notReportedTabs, StringComparer.OrdinalIgnoreCase);
                 OmittedWhen = omittedWhen;
+                WrittenDespiteMark = writtenDespiteMark == null
+                    ? null : new HashSet<string>(writtenDespiteMark, StringComparer.OrdinalIgnoreCase);
+                ShownOnlyWith = shownOnlyWith;
+                Renames = renames;
             }
+        }
+
+        /// <summary>
+        /// One rename of <see cref="FieldAliasSet.Renames"/>: the newest version measured to use the old name and the
+        /// oldest measured to use the new one.
+        /// </summary>
+        private sealed class FieldRename
+        {
+            private readonly string _oldName, _newName;
+            private readonly Version _lastOld, _firstNew;
+
+            internal FieldRename(string oldName, Version lastOld, string newName, Version firstNew)
+            {
+                _oldName = oldName;
+                _lastOld = lastOld;
+                _newName = newName;
+                _firstNew = firstNew;
+            }
+
+            /// <summary>The spelling <paramref name="version"/>'s API does not use, or <c>null</c> when that is not known.</summary>
+            internal string? NameNotUsedBy(Version version)
+                => version <= _lastOld ? _newName : version >= _firstNew ? _oldName : null;
+
+            public override string ToString() => $"{_oldName}<={_lastOld} {_newName}>={_firstNew}";
         }
 
         /// <summary>
@@ -360,7 +415,12 @@ namespace tik4net.Winbox
                 // nameval), while the API calls it 'name'. Without the alias every file row came back
                 // without a 'name' and the entity read threw "Missing field 'name'".
                 ["/file"] = new FieldAliasSet(
-                    both: Ci(("name", "file-name"))),
+                    both: Ci(("name", "file-name")),
+                    writtenDespiteMark: new[] { "type" }),
+
+                ["/interface/wireguard"] = new FieldAliasSet(writtenDespiteMark: new[] { "vrf" }),
+                ["/ip/ipsec/policy"] = new FieldAliasSet(writtenDespiteMark: new[] { "sa-src-address", "sa-dst-address" }),
+                ["/system/script"] = new FieldAliasSet(writtenDespiteMark: new[] { "owner" }),
 
                 // /system/logging/action: the window's field is {name:'Type',title:'Target'} — the API name
                 // is 'target', and 'type' is not an API field of this table at all.
@@ -428,6 +488,7 @@ namespace tik4net.Winbox
                 // choose); setting disable-running-check=yes on ether2 over the API moved 0x1000D False → True
                 // and left 0x3F4 and ether1 alone (7.24.2). Same polarity as the API's field, writable.
                 ["/interface/ethernet"] = new FieldAliasSet(
+                    writtenDespiteMark: new[] { "orig-mac-address", "mac-address" },
                     both: Ci(("auto-negotiation", "autoneg"), ("loop-protect-status", "status"),
                              ("loop-protect-send-interval", "send-interval"),
                              ("loop-protect-disable-time", "disable-time")),
@@ -525,7 +586,8 @@ namespace tik4net.Winbox
                     alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["available-from"] = new[] { "address" },
-                    }),
+                    },
+                    renames: new[] { new FieldRename("address", new Version(7, 21, 5), "available-from", new Version(7, 25)) }),
 
                 // The same shape: 'Server' (0x1) is the API's server on 7.24 and its address on 6.49.13.
                 ["/tool/e-mail"] = new FieldAliasSet(
@@ -533,7 +595,8 @@ namespace tik4net.Winbox
                     alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["server"] = new[] { "address" },
-                    }),
+                    },
+                    renames: new[] { new FieldRename("address", new Version(6, 49, 21), "server", new Version(7, 21, 5)) }),
 
                 ["/ip/socks"] = new FieldAliasSet(
                     both: Ci(("auth-method", "authentication-method"))),
@@ -673,6 +736,7 @@ namespace tik4net.Winbox
                 // the same key: connection-tracking-mode=active-active moved the number to 1 and WinBox showed
                 // active/active, while the catalog's members are spelled with a slash where the API uses a dash.
                 ["/interface/vrrp"] = new FieldAliasSet(
+                    shownOnlyWith: Ci(("connection-tracking-port", "sync-connection-tracking")),
                     both: Ci(("connection-tracking-port", "conn-tracking-port")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "invalid" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
@@ -973,6 +1037,7 @@ namespace tik4net.Winbox
                 // 'Pref. Source' is the API's pref-src, on both versions: a 6.49.13 connected route printed
                 // pref-src=<its own address> and carried that address at 0x3 under the opt flag 0x3EB.
                 ["/ip/route"] = new FieldAliasSet(
+                    writtenDespiteMark: new[] { "vrf-interface" },
                     both: Ci(("pref-src", "pref-source")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
@@ -1293,6 +1358,7 @@ namespace tik4net.Winbox
                 // arrived as "rx-bytes", a name the API never uses. Naming them by key fixes both directions,
                 // and gives /interface/monitor-traffic its field names for free (see TryRunMonitor).
                 ["/interface"] = new FieldAliasSet(
+                    writtenDespiteMark: new[] { "l2mtu" },
                     keyToApi: new Dictionary<int, string>
                     {
                         [0x10001] = "type-id",

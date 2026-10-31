@@ -89,9 +89,12 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AWriteStillAddressesTheVisibleField()
         {
-            // Not writable here (ro:1), and that is the answer — the important half is that the write side
-            // does not quietly fall back to the numeric slot the read side stopped using.
-            Assert.AreEqual(0, Resolver().EncodeField("type", "directory").Count);
+            // Marked ro:1, and the API's set and add take it all the same — the important half is that the write
+            // side does not quietly fall back to the numeric slot the read side stopped using.
+            var pieces = Resolver().EncodeField("type", "directory");
+            Assert.AreEqual(1, pieces.Count);
+            var back = M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(), pieces[0]));
+            Assert.AreEqual(M2Type.String, back[0x7].Type);
         }
     }
 }

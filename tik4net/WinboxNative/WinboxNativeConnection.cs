@@ -229,6 +229,7 @@ namespace tik4net.WinboxNative
         // Replaced at open time by the process-shared catalog for this router's plugin set
         // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
         private WinboxJgCatalog _catalog = new WinboxJgCatalog();
+        private Version? _routerVersion;
 
         // What Open was given, kept so a session the router dropped can be rebuilt without the caller
         // (see ReopenAsync). The password lives no longer than the connection does and no more exposed
@@ -447,6 +448,13 @@ namespace tik4net.WinboxNative
             // before the shipped override tail).
             _handlerMap.SetDerivedPaths(_catalog.GetDerivedPaths());
             _handlerMap.SetSubtypeFilters(_catalog.GetSubtypeFilters());
+            // Best-effort like the catalog: without it a renamed field is reported under both its names.
+            _routerVersion = null;
+            try { _routerVersion = ParseRouterVersion(_ops.GetRouterVersion()); }
+            catch (Exception ex) when (ex is TikConnectionException || ex is WinboxM2OperationException)
+            {
+                TikWireTrace.Emit("wbx.catalog", TikWireDir.Note, "router version not read: " + ex.Message);
+            }
             _references = new WinboxReferenceTables(_ops, _catalog);
             _codec = new WinboxRecordCodec(_ops, _catalog, _references);
             StartMultiplexer(session);
@@ -984,7 +992,7 @@ namespace tik4net.WinboxNative
                     .Select(kv => new { Name = kv.Value, Field = byKey.TryGetValue(kv.Key, out var f) ? f : null })
                     .ToList();
                 var readable = named.Select(n => n.Name).Distinct(StringComparer.Ordinal).ToList();
-                var writable = named.Where(n => n.Field == null || !n.Field.ReadOnly)
+                var writable = named.Where(n => n.Field == null || !n.Field.ReadOnly || resolver.IsWrittenDespiteMark(n.Name))
                     .Select(n => n.Name).Distinct(StringComparer.Ordinal).ToList();
                 var words = named
                     .GroupBy(n => n.Name, StringComparer.Ordinal)
@@ -1220,7 +1228,16 @@ namespace tik4net.WinboxNative
             return new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(window), _useGuiNames,
                                            _handlerMap.ResolveDerivedKey(window),
                                            actionLabel == null ? null : _catalog.GetActionFields(handler, actionLabel),
-                                           _labelHints.Value, _handlerMap.Resolve);
+                                           _labelHints.Value, _handlerMap.Resolve, _routerVersion);
+        }
+
+        // "7.25", "7.21.5 (stable)", "7.26beta3" → the leading numbers; null when there are none.
+        internal static Version? ParseRouterVersion(string? text)
+        {
+            if (text == null) return null;
+            int end = 0;
+            while (end < text.Length && (char.IsDigit(text[end]) || text[end] == '.')) end++;
+            return Version.TryParse(text.Substring(0, end).TrimEnd('.'), out var version) ? version : null;
         }
 
         /// <summary>

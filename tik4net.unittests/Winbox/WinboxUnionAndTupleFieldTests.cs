@@ -187,7 +187,8 @@ namespace tik4net.unittests.Winbox
         {
             // The same outcome by the older rule, kept explicit so a change to either one cannot leave a
             // tuple silently writing its first part.
-            Assert.AreEqual(0, Resolver().EncodeField("remote", "1.2.3.4:80").Count);
+            var ex = Assert.ThrowsException<WinboxFieldResolutionException>(() => Resolver().EncodeField("remote", "1.2.3.4:80"));
+            Assert.AreEqual("remote", ex.UnknownFieldName);
         }
 
         // ── the tuples that are NOT one field ─────────────────────────────────

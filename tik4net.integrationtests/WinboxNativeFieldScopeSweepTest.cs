@@ -65,21 +65,12 @@ namespace tik4net.integrationtests
         private static readonly Dictionary<string, Dictionary<string, string>> KnownOpen =
             new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
         {
-            ["/interface/vrrp"] = Open("the API prints it only once sync-connection-tracking=yes (a t4n VRRP interface, 7.25), "
-                + "and the window declares no condition on it ('Conn. Tracking Port', u16, def 8275) to follow",
-                "connection-tracking-port"),
             ["/ip/cloud"] = Open("licence-dependent: on a CHR free licence ('Cloud services not supported') the API's get "
                 + "of each BTH VPN field and use-local-address traps and dns-name is empty and left out; what a licensed "
                 + "router prints is not measurable on the lab",
                 "back-to-home-vpn", "dns-name", "use-local-address", "vpn-dns-name", "vpn-interface", "vpn-peer-private-key",
                 "vpn-peer-public-key", "vpn-port", "vpn-prefer-relay-code", "vpn-private-key", "vpn-public-key",
                 "vpn-relay-ipv4-status", "vpn-relay-ipv6-status", "vpn-status"),
-            ["/ip/service"] = Open("renamed between versions over one key and one label (address on 6.49.21 and 7.21.5, "
-                + "available-from on 7.25): native reports both spellings (AlsoKnownAs), as it does not read the router's version",
-                "address"),
-            ["/tool/e-mail"] = Open("renamed between versions over one key and one label (address on 6.49.21, server on "
-                + "7.21.5 and 7.25): native reports both spellings (AlsoKnownAs), as it does not read the router's version",
-                "address"),
         };
 
         private static Dictionary<string, string> Open(string reason, params string[] names)

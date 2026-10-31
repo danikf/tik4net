@@ -102,6 +102,65 @@ namespace tik4net.unittests.Winbox
         public void ASetOfARowState_IsTheApisUnknownParameter()
             => AssertUnknownParameter("set", "dynamic", ".id", "*1");
 
+        // F14: the window's read-only mark. The API refuses such a name as an unknown parameter (actual-interface on
+        // /ip/address, 7.25); native answered success and sent nothing.
+        private const string MarkedWindow =
+            "[{name:'System',c:[{name:'Script',title:'Script',type:'map',path:[ 48,101 ],c:[" +
+            "{name:'Name',type:'string',id:'s10006'}," +
+            "{name:'Owner',type:'string',id:'s67',ro:1}," +
+            "{name:'Run Count',type:'number',id:'u68',ro:1}]}]}]";
+
+        [TestMethod]
+        public void ASetOfAReadOnlyField_IsTheApisUnknownParameter()
+        {
+            using (var h = new NativeConnectionHarness(MarkedWindow))
+            {
+                var ex = Assert.ThrowsException<TikCommandTrapException>(() => h.Connection
+                    .CreateCommandAndParameters("/system/script/set", ".id", "*1", "run-count", "5").ExecuteNonQuery());
+                Assert.AreEqual("unknown parameter run-count", ex.Message);
+                Assert.AreEqual(typeof(TikCommandTrapException), ex.GetType());
+                Assert.IsInstanceOfType(ex.InnerException, typeof(WinboxFieldResolutionException));
+                Assert.AreEqual(0, h.RequestsWithCommand(WinboxM2Protocol.Command.Set).Count, "nothing was written");
+            }
+        }
+
+        [TestMethod]
+        public void AnAddOfAReadOnlyField_IsTheApisUnknownParameter()
+        {
+            using (var h = new NativeConnectionHarness(MarkedWindow))
+            {
+                var ex = Assert.ThrowsException<TikCommandTrapException>(() => h.Connection
+                    .CreateCommandAndParameters("/system/script/add", "name", "a", "run-count", "5").ExecuteNonQuery());
+                Assert.AreEqual("unknown parameter run-count", ex.Message);
+                Assert.AreEqual(0, h.RequestsWithCommand(WinboxM2Protocol.Command.Add).Count, "nothing was added");
+            }
+        }
+
+        // The other side of the mark: the API's set takes /system/script owner, and RouterOS honours it over M2 (7.25).
+        [TestMethod]
+        public void AMarkedFieldTheRouterTakes_IsSent()
+        {
+            using (var h = new NativeConnectionHarness(MarkedWindow))
+            {
+                h.Connection.CreateCommandAndParameters("/system/script/set", ".id", "*1", "owner", "bob").ExecuteNonQuery();
+                var set = h.RequestsWithCommand(WinboxM2Protocol.Command.Set).Single();
+                Assert.AreEqual(M2Type.String, set[0x67].Type);
+            }
+        }
+
+        // A snapshot monitor reads its parent's row, so nothing looked at its arguments.
+        // /interface/monitor-traffic … nosuchfield=1 → "unknown parameter nosuchfield" (7.25).
+        [TestMethod]
+        public void ASnapshotMonitorNamingAnArgumentItLacks_IsTheApisUnknownParameter()
+        {
+            using (var h = new NativeConnectionHarness(Window))
+            {
+                var ex = Assert.ThrowsException<TikCommandTrapException>(() => h.Connection
+                    .CreateCommandAndParameters("/x/y/monitor", "numbers", "a", "once", "", "nosuchfield", "1").ExecuteList());
+                Assert.AreEqual("unknown parameter nosuchfield", ex.Message);
+            }
+        }
+
         [TestMethod]
         public void AnUnsetNamingNoField_IsAPlainTrap()
             => AssertRefusedBeforeSending(h => h.Connection.CreateCommandAndParameters("/x/y/unset",

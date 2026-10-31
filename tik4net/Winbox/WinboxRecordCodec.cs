@@ -98,6 +98,10 @@ namespace tik4net.Winbox
                 foreach (var unset in plan.OmittedWhen)
                     if (fields.TryGetValue(unset.Key, out string? value) && string.Equals(value, unset.Value, StringComparison.Ordinal))
                         fields.Remove(unset.Key);
+            if (plan.ShownOnlyWith != null)
+                foreach (var rule in plan.ShownOnlyWith)
+                    if (fields.TryGetValue(rule.Value, out string? on) && string.Equals(on, "false", StringComparison.Ordinal))
+                        fields.Remove(rule.Key);
             return fields;
         }
 

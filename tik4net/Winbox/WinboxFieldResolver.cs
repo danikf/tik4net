@@ -44,12 +44,16 @@ namespace tik4net.Winbox
         private readonly IReadOnlyDictionary<string, string>? _labelHints;
         // API path → the handler it resolves to: whether an ancestor's alias set describes this path's rows at all.
         private readonly Func<string, WinboxHandler?>? _pathHandler;
+        // The router's RouterOS version: which spelling of a renamed field its API uses. Null when not read.
+        private readonly Version? _routerVersion;
 
         internal WinboxFieldResolver(string? apiPath, WinboxHandler handler, WinboxJgCatalog catalog,
             IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string? windowKey = null,
             IReadOnlyDictionary<string, WinboxJgField>? actionFields = null,
-            IReadOnlyDictionary<string, string>? labelHints = null, Func<string, WinboxHandler?>? pathHandler = null)
+            IReadOnlyDictionary<string, string>? labelHints = null, Func<string, WinboxHandler?>? pathHandler = null,
+            Version? routerVersion = null)
         {
+            _routerVersion = routerVersion;
             _labelHints = labelHints;
             _pathHandler = pathHandler;
             _apiPath = apiPath;
@@ -493,7 +497,10 @@ namespace tik4net.Winbox
                 // they name tabs of ITS window.
                 notReportedNames: (child.NotReportedNames ?? Enumerable.Empty<string>())
                     .Union(parent.NotReportedNames ?? Enumerable.Empty<string>()),
-                notReportedTabs: child.NotReportedTabs, omittedWhen: child.OmittedWhen);
+                notReportedTabs: child.NotReportedTabs, omittedWhen: child.OmittedWhen,
+                writtenDespiteMark: (child.WrittenDespiteMark ?? Enumerable.Empty<string>())
+                    .Union(parent.WrittenDespiteMark ?? Enumerable.Empty<string>()),
+                shownOnlyWith: child.ShownOnlyWith, renames: child.Renames);
         }
 
         /// <summary>
@@ -503,8 +510,15 @@ namespace tik4net.Winbox
         internal IReadOnlyDictionary<string, string>? OmittedWhen => Aliases != null && _ownAliases ? Aliases.OmittedWhen : null;
 
         /// <summary>
-        /// The API names this path's decode leaves out: <see cref="FieldAliasSet.NotReportedNames"/>, and every field
-        /// of the window's <see cref="FieldAliasSet.NotReportedTabs"/> under the name it decodes as.
+        /// The fields this path's rows print only with a bool field on (<see cref="FieldAliasSet.ShownOnlyWith"/>);
+        /// <c>null</c> when the set in force is an ancestor's.
+        /// </summary>
+        internal IReadOnlyDictionary<string, string>? ShownOnlyWith => Aliases != null && _ownAliases ? Aliases.ShownOnlyWith : null;
+
+        /// <summary>
+        /// The API names this path's decode leaves out: <see cref="FieldAliasSet.NotReportedNames"/>, every field
+        /// of the window's <see cref="FieldAliasSet.NotReportedTabs"/> under the name it decodes as, and the spelling of
+        /// a renamed field this router's version does not use (<see cref="FieldAliasSet.Renames"/>).
         /// </summary>
         internal ISet<string>? NotReportedNames
         {
@@ -514,7 +528,7 @@ namespace tik4net.Winbox
                 // /interface's set precisely for the live rates /interface itself does not print.
                 var aliases = Aliases;
                 if (aliases == null || !_ownAliases
-                    || (aliases.NotReportedNames == null && aliases.NotReportedTabs == null)) return null;
+                    || (aliases.NotReportedNames == null && aliases.NotReportedTabs == null && aliases.Renames == null)) return null;
                 var names = new HashSet<string>(aliases.NotReportedNames ?? Enumerable.Empty<string>(),
                     StringComparer.OrdinalIgnoreCase);
                 var tabs = aliases.NotReportedTabs;
@@ -522,6 +536,9 @@ namespace tik4net.Winbox
                 if (window != null)
                     foreach (var kv in window)
                         if (kv.Value.Tab != null && tabs!.Contains(kv.Value.Tab)) names.Add(AliasToApi(kv.Key));
+                if (_routerVersion != null && aliases.Renames != null)
+                    foreach (var rename in aliases.Renames)
+                        if (rename.NameNotUsedBy(_routerVersion) is string unused) names.Add(unused);
                 return names;
             }
         }
@@ -1026,8 +1043,8 @@ namespace tik4net.Winbox
     /// WinboxCli connection).
     /// </summary>
     /// <remarks>
-    /// A write (<c>set</c>, <c>add</c>, an action's or monitor's argument) naming a field with no M2 key does not
-    /// throw this: it throws the binary API's <c>unknown parameter &lt;name&gt;</c> <see cref="TikCommandTrapException"/>,
+    /// A write (<c>set</c>, <c>add</c>, an action's or monitor's argument) naming a field with no M2 key, or one the
+    /// window marks read-only, does not throw this: it throws the binary API's <c>unknown parameter &lt;name&gt;</c> <see cref="TikCommandTrapException"/>,
     /// with this exception as its <see cref="System.Exception.InnerException"/>, because native cannot tell a field the router
     /// lacks from one the catalog mapping lacks. Nothing is sent either way.
     /// </remarks>
@@ -1042,8 +1059,9 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
-        /// The field name that resolved to no M2 key, when that is the failure (rather than a value the encoder
-        /// cannot write). A write naming it is the router's "unknown parameter" (see <c>WinboxNativeWriter</c>).
+        /// The field name that resolved to no M2 key or that the window marks read-only, when that is the failure
+        /// (rather than a value the encoder cannot write). A write naming it is the router's "unknown parameter" (see
+        /// <c>WinboxNativeWriter</c>).
         /// </summary>
         internal string? UnknownFieldName { get; }
     }

@@ -222,8 +222,8 @@ namespace tik4net.WinboxNative
             };
 
         // Encode every NameValue parameter (except client-side markers and, optionally, .id) into M2 fields.
-        // Read-only fields (per .jg) are skipped by the encoder (returns no bytes). A network field expands
-        // to two entries (address + mask); a dynamic enum reference is resolved name→id by resolveRef.
+        // A network field expands to two entries (address + mask); a dynamic enum reference is resolved
+        // name→id by resolveRef.
         internal List<byte[]> EncodeNameValueFields(
             WinboxHandler handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
             Func<WinboxHandler, string, int?> resolveRef,
@@ -258,9 +258,9 @@ namespace tik4net.WinboxNative
                 {
                     throw _host.TrapFor(descriptor.CommandText, ex.Message);
                 }
-                // A name with no M2 key is what the router answers "unknown parameter <name>" for over the API (a
-                // misspelling, a read-only row state such as 'dynamic'). Native cannot tell that from a catalog gap
-                // of ours, so the resolution exception, which says how to add a FieldOverride, rides underneath.
+                // A name with no M2 key, or one the window marks read-only, is what the router answers "unknown
+                // parameter <name>" for over the API (a misspelling, a row state such as 'dynamic'). Native cannot
+                // tell that from a catalog gap of ours, so the resolution exception rides underneath.
                 catch (WinboxFieldResolutionException ex) when (ex.UnknownFieldName != null)
                 {
                     throw _host.TrapFor(descriptor.CommandText, "unknown parameter " + p.Name, ex);

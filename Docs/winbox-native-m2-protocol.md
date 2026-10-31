@@ -518,7 +518,7 @@ on the same handler:
 
 Both are labelled 'Key Size'. A handler-wide field map keyed by label can only keep one of them —
 first label wins — so a read-only column shadows a writable argument sharing its name, and because
-`EncodeField` drops read-only fields, the argument encodes to nothing even once 25.1 is fixed.
+`EncodeField` refuses read-only fields, the argument cannot be sent even once 25.1 is fixed.
 
 An action's fields are therefore attributed to the **action** as well as to its handler
 (`WinboxJgCatalog.GetActionFields`), and an invocation resolves against handler → window → action,
@@ -1983,6 +1983,22 @@ untyped value at a bool key, which the router accepts, answers, and ignores. Wri
 `TikCommandTrapException` "unknown parameter <name>" instead, as every write naming a field with no key does, with the
 resolver's `WinboxFieldResolutionException` as its `InnerException` (`WinboxNativeWriter.EncodeNameValueFields`). They are also filled in LAST, so a window that declares a field
 at one of those keys keeps its own name for it.
+
+**A window's `ro:1` is the API's refusal, with a short list of exceptions.** Of the ~2 800 `set`/`add` arguments
+`/console/inspect` lists on the entity menus (7.25, 7.21.5; Tab completion on 6.49.21), `ro:1` covers only these, which
+`FieldAliasSet.WrittenDespiteMark` sends: `/system/script` `owner` and `/file` `type` (honoured over M2, read back over
+the API), `/interface` `l2mtu`, `/interface/wireguard` `vrf`, `/ip/ipsec/policy` `sa-src-address` and `sa-dst-address`
+(both the API and M2 answer success and the row reads unchanged on the rows measured), `/interface/ethernet`
+`orig-mac-address` (M2 answers success on its own value), and on 6.49.21 `/interface/ethernet` `mac-address` and
+`/ip/route` `vrf-interface` (the grammar only). `WinboxReadOnlyWriteProbe` repeats the comparison on a new version.
+Every other marked name is refused before sending, as `unknown parameter`, except on an action's or monitor window's
+inputs, which are display widgets in the GUI and are sent. A snapshot monitor (`/interface/monitor-traffic`,
+`/interface/*/monitor`) reads its parent's row, so its arguments are checked against the list the router's grammar gives.
+
+**A window cannot say which version spells a field how.** `/ip/service` is `address` to 7.21.5 and `available-from` on
+7.25; `/tool/e-mail` is `address` on 6.49.21 and `server` from 7.21.5; one key and one label throughout. The connection
+reads the version at open (`[24,2]`, key `0x16`) and `FieldAliasSet.Renames` reports the spelling that version's API
+uses, and both on a version between those measured.
 
 ### 33.1 The name gap, and the tool that closes it
 

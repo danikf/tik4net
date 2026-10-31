@@ -110,9 +110,10 @@ namespace tik4net.unittests.Winbox
         /// nothing, rather than sending a field the router would refuse.
         /// </summary>
         [TestMethod]
-        public void TheReadOnlyHalfEncodesToNothing()
+        public void TheReadOnlyHalfIsRefused()
         {
-            Assert.AreEqual(0, Resolver().EncodeField("state", "enabled").Count);
+            var ex = Assert.ThrowsException<WinboxFieldResolutionException>(() => Resolver().EncodeField("state", "enabled"));
+            Assert.AreEqual("state", ex.UnknownFieldName);
         }
 
         /// <summary>

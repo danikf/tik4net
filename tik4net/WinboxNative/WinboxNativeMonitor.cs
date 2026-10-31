@@ -308,6 +308,14 @@ namespace tik4net.WinboxNative
                && _host.HandlerMap.Resolve(WinboxNativeConnection.ApiPathOf(commandText)) == null
                && _host.HandlerMap.Resolve(TikPath.Parent(commandText)) != null;
 
+        // What the router's grammar lists for /interface/monitor-traffic and the /interface/*/monitor verbs (7.25,
+        // /console/inspect). A snapshot reads the parent's row, so nothing else would look at these.
+        private static readonly HashSet<string> SnapshotMonitorArguments = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "numbers", "interface", "once", "duration", "interval", "freeze-frame-interval", "proplist", "as-value",
+            "append", "do", "file", "without-paging",
+        };
+
         // The monitor verbs whose readings are fields of the parent record rather than a window of their own.
         private static bool IsSnapshotMonitorVerb(string verb)
             => string.Equals(verb, "monitor", StringComparison.OrdinalIgnoreCase)
@@ -332,6 +340,13 @@ namespace tik4net.WinboxNative
                 ?? WinboxNativeConnection.FindParam(descriptor, "interface")
                 ?? WinboxNativeConnection.FindParam(descriptor, TikSpecialProperties.Id);
             if (string.IsNullOrEmpty(target)) return null;
+
+            foreach (var p in descriptor.Parameters)
+            {
+                string name = p.Name.TrimStart('?', '=');
+                if (!name.StartsWith(".", StringComparison.Ordinal) && !SnapshotMonitorArguments.Contains(name))
+                    throw _host.TrapFor(descriptor, "unknown parameter " + name);
+            }
 
             // Keys and overrides come from the PARENT window (that is where the values live), but the field
             // NAMES come from the monitor path's own alias set — the same record is called 'rx' in the

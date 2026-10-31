@@ -20,7 +20,11 @@ namespace tik4net.Winbox
             NumFlags = resolver.BuildNumFlags();
             NotReported = resolver.NotReportedNames;
             OmittedWhen = resolver.OmittedWhen;
+            ShownOnlyWith = resolver.ShownOnlyWith;
         }
+
+        /// <summary>The fields printed only with a bool field on (<see cref="WinboxFieldResolver.ShownOnlyWith"/>), or <c>null</c>.</summary>
+        internal IReadOnlyDictionary<string, string>? ShownOnlyWith { get; }
 
         /// <summary>The fields left out while they hold their unset text (<see cref="WinboxFieldResolver.OmittedWhen"/>), or <c>null</c>.</summary>
         internal IReadOnlyDictionary<string, string>? OmittedWhen { get; }
