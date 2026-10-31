@@ -261,11 +261,19 @@ namespace tik4net.integrationtests
             if (!DeliversMonitorRowsLive())
                 Assert.Inconclusive("REST has no session to drop: every request is its own, and its /user/active rows cannot be removed.");
 
-            var before = new HashSet<string>(Connection.CreateCommand("/user/active/print").ExecuteList().Select(r => r.GetId()));
-            using (var victim = OpenSecondaryConnection())
+            // The victim logs in as a user of its own, so its rows are the only ones this test can remove: a session
+            // another parallel leg opened in the same moment is not new-since-a-snapshot's to take.
+            string victimUser = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            string victimUserId = Connection.CreateCommandAndParameters("/user/add", "name", victimUser, "group", "full",
+                "password", victimUser).ExecuteScalar();
+            var type = ResolveConnectionType();
+            try
+            {
+            using (var victim = new TikConnectionSetup(LabAddress(type), victimUser, victimUser) { AllowInvalidCertificate = true }.Create(type))
             {
                 var sessionIds = Connection.CreateCommand("/user/active/print").ExecuteList()
-                    .Select(r => r.GetId()).Where(id => !before.Contains(id)).ToList();
+                    .Where(r => r.Words.TryGetValue("name", out var name) && name == victimUser)
+                    .Select(r => r.GetId()).ToList();
                 Assert.AreNotEqual(0, sessionIds.Count, "the second connection's /user/active row was not found");
 
                 int done = 0;
@@ -303,6 +311,11 @@ namespace tik4net.integrationtests
                 Thread.Sleep(500);   // an onDone after the error would arrive right behind it
                 Assert.AreEqual(0, Volatile.Read(ref done), "onDone after a lost connection; the error was: " + error.Message);
                 Console.WriteLine("errorCallback: " + error.Message);
+            }
+            }
+            finally
+            {
+                Connection.CreateCommandAndParameters("/user/remove", TikSpecialProperties.Id, victimUserId).ExecuteNonQuery();
             }
         }
 
@@ -360,7 +373,8 @@ namespace tik4net.integrationtests
                     row => Interlocked.Increment(ref rowCount),
                     trap => error = trap,
                     () => doneCalled = true);
-                WaitUntil(() => Volatile.Read(ref rowCount) > 0 || doneCalled || error != null, TimeSpan.FromSeconds(3));
+                // Ends at the first row. Over WinBox CLI on MAC a loaded leg was seen past 3 s for it.
+                WaitUntil(() => Volatile.Read(ref rowCount) > 0 || doneCalled || error != null, TimeSpan.FromSeconds(10));
                 profile.CancelAndJoin();
 
                 if (error == null || rowCount > 0 || DateTime.UtcNow > deadline
