@@ -400,6 +400,21 @@ namespace tik4net
             : base(message, innerException)
         {
         }
+
+        /// <summary>
+        /// The terminal transports' report of a command the router never acknowledged, so it did not run:
+        /// <c>"&lt;transport&gt;: the router stopped acknowledging this session — it did not take the bytes of '…', so the
+        /// command did not run. &lt;why&gt;"</c>.
+        /// </summary>
+        /// <param name="transport">The transport's name, e.g. <c>"MAC-Telnet"</c>.</param>
+        /// <param name="sentCommand">The command, or <c>null</c> for the last request.</param>
+        /// <param name="why">What the transport knows about how such a session goes silent.</param>
+        internal static TikConnectionSessionClosedException NotAcknowledged(string transport, string? sentCommand, string why)
+            => new TikConnectionSessionClosedException(
+                transport + ": the router stopped acknowledging this session — it did not take the bytes of "
+                // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
+                + (string.IsNullOrEmpty(sentCommand) ? "the last request" : "'" + sentCommand!.Trim() + "'")
+                + ", so the command did not run. " + why);
     }
 
     /// <summary>

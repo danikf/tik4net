@@ -78,10 +78,6 @@ namespace tik4net.WinboxCli
         /// </summary>
         private int _ackBytes;
 
-        // How many times we answer the change-password nag with Ctrl-C before giving up. Bounded so a
-        // terminal stuck on that prompt fails loudly instead of being fed input indefinitely.
-        private const int MaxNagRounds = 3;
-
         internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, CliClientTimeouts timeouts)
         {
             _session          = channel ?? throw new ArgumentNullException(nameof(channel));
@@ -398,13 +394,13 @@ namespace tik4net.WinboxCli
         // ── Synchronous terminal loops ────────────────────────────────────────
 
         /// <summary>
-        /// Waits until the RouterOS shell prompt appears, answering VT100 cursor-probe negotiation and
-        /// dismissing the change-password nag with Ctrl-C.
+        /// Waits until the RouterOS shell prompt appears, answering VT100 cursor-probe negotiation and settling the
+        /// screen by the one login rule (<see cref="CliLoginScreen"/>: the change-password nag, the refusal).
         /// </summary>
         private void WaitForPromptSync()
         {
             var sb = new StringBuilder();
-            int nagRounds = 0;
+            var screen = new CliLoginScreen();
             var sw = Stopwatch.StartNew();
 
             while (sw.ElapsedMilliseconds < _loginTimeoutMs)
@@ -418,32 +414,24 @@ namespace tik4net.WinboxCli
 
                 string text = _encoding.GetString(chunk);
                 sb.Append(text);
-                string stripped = VtStripper.StripAnsi(sb.ToString());
 
                 // The cursor model is fed unconditionally (Process is eager; only sending the replies is
                 // I/O), but the replies are held back while the change-password prompt is on screen
                 // (CliPasswordPromptGuard): while that prompt is up the ONLY byte we ever send is the Ctrl-C that
                 // skips it. Self-clearing: the buffer is reset with the nag, so the check below resumes as soon as
                 // the prompt is gone.
-                var replies = _vt100.Process(text);
-                if (_passwordPrompt.MayAnswer(text))
-                {
-                    foreach (string reply in replies)
-                        SendInput(_encoding.GetBytes(reply));
-                }
-                if (RouterOsCliLogin.IsChangePasswordNag(stripped))
-                {
-                    if (nagRounds++ >= MaxNagRounds)
-                        throw new TimeoutException(
-                            "WinBox: RouterOS keeps prompting for a new password; refusing to send anything " +
-                            "further to the password prompt.");
-                    SendInput(new byte[] { 0x03 });  // Ctrl-C — skip the change
-                    sb.Clear();
-                    continue;
-                }
+                _vt100.ProcessAndAnswer(text, _passwordPrompt, SendText);
 
-                if (RouterOsCliLogin.IsShellPrompt(stripped))
-                    return;
+                switch (screen.Feed(VtStripper.StripAnsi(sb.ToString())))
+                {
+                    case CliLoginScreen.Step.SendCtrlC:
+                        SendInput(CliLoginScreen.CtrlC);   // skip the change
+                        sb.Clear();
+                        continue;
+                    case CliLoginScreen.Step.Refused:     throw screen.Refusal("WinBox CLI");
+                    case CliLoginScreen.Step.NagPersists: throw CliLoginScreen.NagPersisted("WinBox CLI");
+                    case CliLoginScreen.Step.Prompt:      return;
+                }
             }
 
             throw new TimeoutException("WinBox: timed out waiting for shell prompt.");
@@ -461,18 +449,14 @@ namespace tik4net.WinboxCli
                 throw Cli.CliReadTimeout.CreateClosedBeforeWrite("WinBox CLI", ReceiveTimeoutMs, what, null);
         }
 
-        // How raw bytes are named in a message: printable text as itself, a control key as ^X.
-        private string KeyName(byte[] raw)
-            => raw.Length == 1 && raw[0] < 0x20 ? "^" + (char)(raw[0] + 0x40) : _encoding.GetString(raw);
+        private string KeyName(byte[] raw) => Cli.CliTerminalText.KeyName(raw, _encoding);
+
+        private void SendText(string text) => SendInput(_encoding.GetBytes(text));
 
         private static TikConnectionSessionClosedException SessionClosed(string? sentCommand)
-            => new TikConnectionSessionClosedException(
-                "WinBox CLI: the router stopped acknowledging this session — it did not take the bytes of "
-                // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
-                + (string.IsNullOrEmpty(sentCommand) ? "the last request" : "'" + sentCommand!.Trim() + "'")
-                + ", so the command did not run. The MAC-layer carrier keeps the UDP socket open and RouterOS "
-                + "sends no error when it drops a console session, so the session goes silent rather than "
-                + "reporting anything.");
+            => TikConnectionSessionClosedException.NotAcknowledged("WinBox CLI", sentCommand,
+                "The MAC-layer carrier keeps the UDP socket open and RouterOS sends no error when it drops a console "
+                + "session, so the session goes silent rather than reporting anything.");
 
         /// <summary>
         /// Reads a command response until <see cref="Cli.CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
@@ -533,8 +517,7 @@ namespace tik4net.WinboxCli
                     {
                         string text = _encoding.GetString(chunk);
                         sb.Append(text);
-                        foreach (string reply in _vt100.Process(text))
-                            SendInput(_encoding.GetBytes(reply));
+                        _vt100.ProcessAndAnswer(text, null, SendText);
                         gotData = true;
                     }
                 }
@@ -628,12 +611,10 @@ namespace tik4net.WinboxCli
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
-            DateTime lastData = DateTime.UtcNow;
-            bool any = false;
+            var quiet = new Cli.CliQuietWindow(quietMs);
 
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
-                bool gotData = false;
                 if (_session.DataAvailable)
                 {
                     byte[]? chunk;
@@ -643,10 +624,7 @@ namespace tik4net.WinboxCli
                     {
                         string text = _encoding.GetString(chunk);
                         sb.Append(text);
-                        foreach (string reply in _vt100.Process(text))
-                            SendInput(_encoding.GetBytes(reply));
-                        gotData = true;
-                        any = true;
+                        _vt100.ProcessAndAnswer(text, null, SendText);
                     }
                 }
                 else
@@ -654,12 +632,8 @@ namespace tik4net.WinboxCli
                     await Task.Delay(PollSleepMs).ConfigureAwait(false);
                 }
 
-                if (gotData)
-                    lastData = DateTime.UtcNow;
-                else if (any && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
+                if (quiet.Observe(sb.Length) != Cli.CliQuietWindow.Outcome.Continue)
                     break;
-                else if (!any && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs * CliCompletionParser.NoReactionQuietFactor)
-                    break;   // a Tab the router leaves unanswered: not the receive deadline
             }
 
             return sb.ToString();
@@ -675,14 +649,8 @@ namespace tik4net.WinboxCli
                 try
                 {
                     byte[]? chunk = ReceiveTerminalChunk(FrameTimeoutMs);
-                    if (chunk != null)
-                    {
-                        string text = _encoding.GetString(chunk);
-                        var replies = _vt100.Process(text);
-                        if (_passwordPrompt.MayAnswer(text))   // the login's drain, like MAC-Telnet's
-                            foreach (string reply in replies)
-                                SendInput(_encoding.GetBytes(reply));
-                    }
+                    if (chunk != null)   // the login's drain, like MAC-Telnet's: guarded
+                        _vt100.ProcessAndAnswer(_encoding.GetString(chunk), _passwordPrompt, SendText);
                 }
                 catch (IOException) { break; }
                 deadline = DateTime.UtcNow.AddMilliseconds(quietMs);  // keep draining while data flows

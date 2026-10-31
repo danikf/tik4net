@@ -59,6 +59,20 @@ namespace tik4net.Cli
 
         public Vt100State(int width, int height) { Width = width; Height = height; }
 
+        /// <summary>
+        /// Feeds <paramref name="text"/> to the cursor model and sends its probe answers through <paramref name="send"/>,
+        /// unless <paramref name="guard"/> says the change-password prompt is up — then nothing is sent, because an
+        /// answer typed there is password input (<see cref="CliPasswordPromptGuard"/>). The model is fed either way, so
+        /// its position stays true. <c>null</c> for a guard after the login, where the prompt cannot be up.
+        /// </summary>
+        internal void ProcessAndAnswer(string text, CliPasswordPromptGuard? guard, Action<string> send)
+        {
+            var replies = Process(text);
+            if (guard != null && !guard.MayAnswer(text)) return;
+            foreach (string reply in replies)
+                send(reply);
+        }
+
         /// <summary>Process incoming server text; returns the reply strings to send back (probe answers).</summary>
         public List<string> Process(string text)
         {

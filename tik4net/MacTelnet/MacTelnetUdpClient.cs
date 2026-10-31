@@ -393,8 +393,7 @@ namespace tik4net.MacTelnet
                         // sensitive: if the cursor-position reply is delayed (e.g. by per-packet logging),
                         // RouterOS falls back to a tiny terminal width and wraps its output, breaking
                         // prompt detection. Keep this loop free of expensive work.
-                        foreach (string reply in _vt100.Process(text))
-                            SendTerminalBytes(_encoding.GetBytes(reply));
+                        _vt100.ProcessAndAnswer(text, null, SendTerminalText);
                     }
                     catch (SocketException)
                     {
@@ -431,13 +430,9 @@ namespace tik4net.MacTelnet
         }
 
         private static TikConnectionSessionClosedException SessionClosed(string? sentCommand)
-            => new TikConnectionSessionClosedException(
-                "MAC-Telnet: the router stopped acknowledging this session — it did not take the bytes of "
-                // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
-                + (string.IsNullOrEmpty(sentCommand) ? "the last request" : "'" + sentCommand!.Trim() + "'")
-                + ", so the command did not run. RouterOS logs an idle MAC-Telnet console out after about "
-                + "30 s (its own log records it as a normal logout), and the UDP socket stays open, so the "
-                + "session goes silent rather than reporting an error.");
+            => TikConnectionSessionClosedException.NotAcknowledged("MAC-Telnet", sentCommand,
+                "RouterOS logs an idle MAC-Telnet console out after about 30 s (its own log records it as a normal "
+                + "logout), and the UDP socket stays open, so the session goes silent rather than reporting an error.");
 
         // A direct session the router has ended (PKT_END) takes nothing more: what is sent into it is never
         // acknowledged, so a read after it would only run the deadline out. A relay's end is the relay's to report.
@@ -447,9 +442,7 @@ namespace tik4net.MacTelnet
                 throw CliReadTimeout.CreateClosedBeforeWrite("MAC-Telnet", ReceiveTimeoutMs, what, null);
         }
 
-        // How raw bytes are named in a message: printable text as itself, a control key as ^X.
-        private string KeyName(byte[] raw)
-            => raw.Length == 1 && raw[0] < 0x20 ? "^" + (char)(raw[0] + 0x40) : _encoding.GetString(raw);
+        private string KeyName(byte[] raw) => CliTerminalText.KeyName(raw, _encoding);
 
         // The pump's failure is rethrown as-is, with its original stack. Inventing a wrapper type here
         // would trade the one thing that identifies the fault (a SocketException, say, with its error
@@ -556,8 +549,7 @@ namespace tik4net.MacTelnet
             CancellationToken ct = default)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            DateTime lastData = DateTime.UtcNow;
-            int lastLength = 0;
+            var quiet = new CliQuietWindow(quietMs, requireData);
 
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
@@ -566,15 +558,8 @@ namespace tik4net.MacTelnet
                 _rxSignal.Reset();
 
                 Snapshot(out int length);
-                if (length != lastLength)
-                {
-                    lastLength = length;
-                    lastData   = DateTime.UtcNow;
-                }
-                else if ((lastLength > 0 || !requireData) && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
+                if (quiet.Observe(length) != CliQuietWindow.Outcome.Continue)
                     break;
-                else if (lastLength == 0 && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs * CliCompletionParser.NoReactionQuietFactor)
-                    break;   // a Tab the router leaves unanswered: not the receive deadline
 
                 await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
             }
@@ -599,15 +584,17 @@ namespace tik4net.MacTelnet
 
         private void SendTerminalBytes(byte[] data) => Send(PKT_DATA, data);
 
+        private void SendTerminalText(string text) => SendTerminalBytes(_encoding.GetBytes(text));
+
         /// <summary>
-        /// Waits until the RouterOS shell prompt appears (post-auth VT100 startup).
-        /// Handles the change-password nag and VT100 cursor-probe replies.
+        /// Waits until the RouterOS shell prompt appears (post-auth VT100 startup), answering VT100 cursor probes and
+        /// settling the screen by the one login rule (<see cref="CliLoginScreen"/>: the change-password nag, the refusal).
         /// Pure synchronous socket receive with UdpClient.ReceiveTimeout — no ReceiveAsync.
         /// </summary>
         private void WaitForPromptSync()
         {
             var sb = new StringBuilder();
-            bool nagSent = false;
+            var screen = new CliLoginScreen();
             int  dataPackets = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -634,29 +621,19 @@ namespace tik4net.MacTelnet
                     sb.Append(text);
 
                     // See the pump loop for why the cursor-probe reply must not be delayed. Never sent into a
-                    // change-password prompt (CliPasswordPromptGuard); the nag check below then skips the prompt.
-                    var replies = _vt100.Process(text);
-                    if (_passwordPrompt.MayAnswer(text))
-                        foreach (string reply in replies)
-                            SendTerminalBytes(_encoding.GetBytes(reply));
+                    // change-password prompt (CliPasswordPromptGuard); the screen rule below then skips the prompt.
+                    _vt100.ProcessAndAnswer(text, _passwordPrompt, SendTerminalText);
 
-                    string stripped = VtStripper.StripAnsi(sb.ToString());
-
-                    if (!nagSent && RouterOsCliLogin.IsChangePasswordNag(stripped))
+                    switch (screen.Feed(VtStripper.StripAnsi(sb.ToString())))
                     {
-                        SendTerminalBytes(new byte[] { 0x03 });  // Ctrl-C
-                        nagSent = true;
-                        sb.Clear();
-                        continue;
+                        case CliLoginScreen.Step.SendCtrlC:
+                            SendTerminalBytes(CliLoginScreen.CtrlC);
+                            sb.Clear();
+                            continue;
+                        case CliLoginScreen.Step.Refused:     throw screen.Refusal("MAC-Telnet");
+                        case CliLoginScreen.Step.NagPersists: throw CliLoginScreen.NagPersisted("MAC-Telnet");
+                        case CliLoginScreen.Step.Prompt:      return;
                     }
-
-                    // Checked before the prompt, and on every packet: the refusal is the last thing the
-                    // router says before it stops talking, so nothing later will arrive to be examined.
-                    if (IsLoginRefusal(stripped))
-                        throw new TikConnectionLoginRefusedException("MAC-Telnet", FirstLine(stripped));
-
-                    if (RouterOsCliLogin.IsShellPrompt(stripped))
-                        return;
                 }
                 catch (SocketException) { RetransmitIfUnacked(); /* poll timeout — continue loop */ }
             }
@@ -672,17 +649,9 @@ namespace tik4net.MacTelnet
             throw new TimeoutException(
                 "MAC-Telnet: timed out waiting for shell prompt after " + sw.ElapsedMilliseconds + " ms; "
                 + dataPackets + " terminal packet(s) received, " + sb.Length + " char(s)"
-                + (nagSent ? ", change-password nag dismissed" : "")
+                + (screen.NagRounds > 0 ? ", change-password nag dismissed " + screen.NagRounds + "x" : "")
                 + (seen.Length == 0 ? ", nothing on screen." : ", screen tail: " + seen.Replace("\r", "\\r").Replace("\n", "\\n")));
         }
-
-        // RouterOS refuses a MAC-Telnet login with this exact line, on its own, AFTER the EC-SRP5 exchange
-        // has ended in CTRL_END_AUTH. Matched narrowly rather than through RouterOsCliLogin.IsLoginFailure,
-        // which also matches "login failure" — the wording of the router's own log lines, which the shipped
-        // logging rules echo onto any console at any moment, including this one (see findings-cli.md §11).
-        private static bool IsLoginRefusal(string stripped)
-            => !string.IsNullOrEmpty(stripped)
-            && stripped.IndexOf("Login failed", StringComparison.OrdinalIgnoreCase) >= 0;
 
         // Whatever the router said before it hung up: a refusal if it said one, otherwise the plain fact
         // that the session was closed during login. With nothing on screen it is a refusal whose one data
@@ -690,19 +659,14 @@ namespace tik4net.MacTelnet
         // (7.24, measured by dropping it), so TikOpenRetry retries that case as it retries a refusal.
         internal static Exception RefusalOrClosure(string stripped)
         {
-            if (IsLoginRefusal(stripped))
-                return new TikConnectionLoginRefusedException("MAC-Telnet", FirstLine(stripped));
+            // RouterOS refuses a MAC-Telnet login with "Login failed, …" on its own, AFTER the EC-SRP5 exchange has
+            // ended in CTRL_END_AUTH (CliLoginScreen.IsRefusal says why the match is that narrow).
+            if (CliLoginScreen.IsRefusal(stripped))
+                return new TikConnectionLoginRefusedException("MAC-Telnet", CliLoginScreen.FirstLine(stripped));
             if (string.IsNullOrEmpty(stripped.Trim()))
                 return new MacTelnetLoginClosedSilentlyException();
             return new TikConnectionSessionClosedException(
-                "MAC-Telnet: the router closed the session during login: " + FirstLine(stripped));
-        }
-
-        private static string FirstLine(string s)
-        {
-            foreach (string line in s.Split('\r', '\n'))
-                if (line.Trim().Length > 0) return line.Trim();
-            return s.Trim();
+                "MAC-Telnet: the router closed the session during login: " + CliLoginScreen.FirstLine(stripped));
         }
 
         /// <summary>
@@ -721,13 +685,7 @@ namespace tik4net.MacTelnet
                     // The router ending the session ends the drain; the next read reports it, as after the pump.
                     if (type == PKT_END) { _routerEnded = true; _rxSignal.Set(); break; }
                     if (TryAcceptData(type, payload, counter) && !IsControlPacket(payload))
-                    {
-                        string text = _encoding.GetString(payload);
-                        var replies = _vt100.Process(text);
-                        if (_passwordPrompt.MayAnswer(text))
-                            foreach (string reply in replies)
-                                SendTerminalBytes(_encoding.GetBytes(reply));
-                    }
+                        _vt100.ProcessAndAnswer(_encoding.GetString(payload), _passwordPrompt, SendTerminalText);
                     // Reset quiet window — keep draining while data arrives.
                     quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
                 }
