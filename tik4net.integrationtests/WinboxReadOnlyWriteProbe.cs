@@ -100,6 +100,33 @@ namespace tik4net.integrationtests
                 + $"{apiHits} meet the mark; {entityHits} writable entity properties meet it.");
         }
 
+        // F19: enable/disable encode 'disabled'. Which windows mark it read-only or lack it, against the API's own verbs.
+        [TestMethod]
+        [Ignore("measurement (F19): run on a native leg with the attribute removed")]
+        public void ListWindowsWhereDisabledIsNotWritable()
+        {
+            EnsureNative(ResolveConnectionType());
+            var host = (IWinboxNativeHost)Connection;
+            Connection.CreateCommand("/system/identity/print").ExecuteList();
+            var paths = typeof(TikEntityAttribute).Assembly.GetTypes()
+                .Select(t => t.GetCustomAttribute<TikEntityAttribute>())
+                .Where(a => a != null && a.LoadCommand != "")
+                .Select(a => a.EntityPath).Distinct(StringComparer.Ordinal).OrderBy(p => p, StringComparer.Ordinal).ToList();
+            int checkedPaths = 0, marked = 0, lacking = 0;
+            foreach (string path in paths)
+            {
+                WinboxFieldResolver resolver;
+                try { resolver = host.ResolveHandlerAndFields(path).Item2; }
+                catch (Exception ex) when (!(ex is UnitTestAssertException)) { continue; }
+                checkedPaths++;
+                if (resolver.IsReadOnlyForWrite("disabled")) { marked++; Console.WriteLine("F19 marked: " + path); continue; }
+                try { resolver.EncodeField("disabled", "true"); }
+                catch (WinboxFieldResolutionException) { lacking++; Console.WriteLine("F19 no such field: " + path); }
+                catch (Exception ex) when (!(ex is UnitTestAssertException)) { Console.WriteLine($"F19 {path}: {ex.GetType().Name}"); }
+            }
+            Console.WriteLine($"F19 {checkedPaths} paths: {marked} mark it read-only, {lacking} lack it");
+        }
+
         [TestMethod]
         [Ignore("measurement (F14): run on a native leg with the attribute removed; writes throwaway rows")]
         public void WriteMarkedFieldsOverM2()
@@ -120,6 +147,9 @@ namespace tik4net.integrationtests
                         "action", "encrypt", "peer", tag + "p", "disabled", "yes" }, "sa-src-address", "10.250.3.1");
                     Measure("/ip/ipsec/policy", new[] { "src-address", "10.250.4.0/24", "dst-address", "10.250.5.0/24", "tunnel", "yes",
                         "action", "encrypt", "peer", tag + "p", "disabled", "yes" }, "sa-dst-address", "10.250.3.2");
+                    // F18: the same on an enabled policy; its peer stays disabled and no traffic matches these subnets.
+                    Measure("/ip/ipsec/policy", new[] { "src-address", "10.250.6.0/24", "dst-address", "10.250.7.0/24", "tunnel", "yes",
+                        "action", "encrypt", "peer", tag + "p" }, "sa-src-address", "10.250.3.1");
                 }
                 finally { api.CreateCommandAndParameters("/ip/ipsec/peer/remove", ".id", peerId).ExecuteNonQuery(); }
 

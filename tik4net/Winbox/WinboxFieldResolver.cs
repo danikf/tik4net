@@ -544,6 +544,19 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// Whether <paramref name="apiName"/> is the spelling of a renamed field this router's version does not use
+        /// (<see cref="FieldAliasSet.Renames"/>). Such a name cannot be read here; a write may still name it.
+        /// </summary>
+        internal bool IsUnusedSpelling(string apiName)
+        {
+            var aliases = Aliases;
+            if (_routerVersion == null || aliases?.Renames == null || !_ownAliases) return false;
+            foreach (var rename in aliases.Renames)
+                if (string.Equals(rename.NameNotUsedBy(_routerVersion), apiName, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// <summary>
         /// The bool fields this path derives from another decoded field — see
         /// <see cref="FieldAliasSet.DerivedBools"/>. Empty for all but a handful of paths.
         /// </summary>

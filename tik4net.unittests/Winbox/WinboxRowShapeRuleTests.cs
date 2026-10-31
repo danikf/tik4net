@@ -68,6 +68,21 @@ namespace tik4net.unittests.Winbox
             AssertSpellings(DecodeService(null), "10.0.0.0/8", both, new string[0]);
         }
 
+        [TestMethod]
+        public void TheSpellingThisVersionDoesNotUse_IsNotReadable()
+        {
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto(Service), "the trimmed catalog must parse");
+            WinboxFieldResolver At(Version version) => new WinboxFieldResolver("/ip/service", new[] { 25, 1 }, catalog,
+                new Dictionary<string, int>(), routerVersion: version);
+
+            Assert.IsTrue(At(new Version(7, 25)).IsUnusedSpelling("address"));
+            Assert.IsFalse(At(new Version(7, 25)).IsUnusedSpelling("available-from"));
+            Assert.IsTrue(At(new Version(7, 21, 5)).IsUnusedSpelling("available-from"));
+            Assert.IsFalse(At(new Version(7, 23)).IsUnusedSpelling("address"), "between the versions measured, both stay");
+            Assert.IsFalse(At(null).IsUnusedSpelling("address"), "with no version, both stay");
+        }
+
         [DataTestMethod]
         [DataRow("7.25", "7.25")]
         [DataRow("7.21.5 (stable)", "7.21.5")]

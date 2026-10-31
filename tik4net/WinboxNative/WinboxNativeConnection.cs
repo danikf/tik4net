@@ -989,9 +989,16 @@ namespace tik4net.WinboxNative
                 var byKey = plan.KeyToField;
                 var named = plan.KeyToName
                     .Where(kv => kv.Value.Length > 0 && kv.Value != TikSpecialProperties.Id)
-                    .Select(kv => new { Name = kv.Value, Field = byKey.TryGetValue(kv.Key, out var f) ? f : null })
+                    .Select(kv => (Name: kv.Value, Field: byKey.TryGetValue(kv.Key, out var f) ? f : null))
                     .ToList();
-                var readable = named.Select(n => n.Name).Distinct(StringComparer.Ordinal).ToList();
+                // A row reports a field under its other spellings too (FieldAliasSet.AlsoKnownAs): all are writable,
+                // and of a renamed field's, the one this version uses is the one that reads.
+                var spellings = resolver.ExtraSpellings;
+                if (spellings != null)
+                    named.AddRange(named.Where(n => spellings.ContainsKey(n.Name))
+                        .SelectMany(n => spellings[n.Name].Select(other => (Name: other, n.Field))).ToList());
+                var readable = named.Select(n => n.Name).Where(n => !resolver.IsUnusedSpelling(n))
+                    .Distinct(StringComparer.Ordinal).ToList();
                 var writable = named.Where(n => n.Field == null || !n.Field.ReadOnly || resolver.IsWrittenDespiteMark(n.Name))
                     .Select(n => n.Name).Distinct(StringComparer.Ordinal).ToList();
                 var words = named

@@ -33,6 +33,27 @@ namespace tik4net.integrationtests
             }
         }
 
+        // F21: a filter on the spelling this router's API lacks must not pass validation; a write may still name either.
+        [SafeInParallelLegs]
+        [DataTestMethod]
+        [DataRow("/ip/service", "address", "available-from")]
+        [DataRow("/tool/e-mail", "address", "server")]
+        public void ARenamedField_IsReadableOnlyUnderTheApisSpelling(string path, string oldName, string newName)
+        {
+            var type = ResolveConnectionType();
+            if (type != TikConnectionType.WinboxNative && type != TikConnectionType.WinboxNativeMac)
+                Assert.Inconclusive($"{type}: the rename rule belongs to the WinBox native decode.");
+
+            using (var api = LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api))
+            {
+                var theirs = Names(api, path);
+                var readable = Connection.DescribeMenu(path).ReadableFields;
+                foreach (string name in new[] { oldName, newName })
+                    Assert.AreEqual(theirs.Contains(name), readable.Contains(name),
+                        $"{path} {name}: API prints it={theirs.Contains(name)}, DescribeMenu reads it={readable.Contains(name)}");
+            }
+        }
+
         // F16: the API prints connection-tracking-port only with sync-connection-tracking=yes, and the window declares
         // no condition on it. A disabled row of the test's own, so no VRRP instance runs.
         [TestMethod]
