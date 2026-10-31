@@ -310,8 +310,6 @@ namespace tik4net.unittests.Api
         /// tag whose caller timed out is neither: its caller is gone, and nobody will ever claim it.
         /// </remarks>
         [TestMethod]
-        [Ignore("Defect, handed to the maintainer (5.0-todo, Bugs): a late reply to an abandoned tag is held for good "
-            + "and the next receive timeout blames it on pairing.")]
         public void ALateReplyToAnAbandonedTag_IsNotReportedAsUnpaired()
         {
             const int receiveTimeoutMs = 600;
@@ -344,6 +342,7 @@ namespace tik4net.unittests.Api
                 var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
                     () => connection.CreateCommand("/two/print").ExecuteList());
                 StringAssert.Contains(ex.Message, "no unclaimed sentences");
+                StringAssert.Contains(ex.Message, "1 late sentence(s) for tags already given up on were dropped");
             }
 
             Assert.IsTrue(serverTask.Wait(8000));
