@@ -125,23 +125,18 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void DecryptOrThrow_ReportsAnUndecryptableFrame_AsAProtocolFailureNotAClose()
         {
-            byte[] key = new byte[16], hmacKey = new byte[20];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(key);
-                rng.GetBytes(hmacKey);
-            }
+            var (router, client) = SessionKeys();
 
             // Truncated rather than encrypted under the wrong key: a wrong key leaves the ciphertext a whole
             // number of blocks, so whether Decrypt answers null depends on whether the garbage plaintext
             // happens to carry a plausible pad byte — about one frame in nine does, and a test that decides
             // the fix's fate on that is a coin toss. Losing a byte is one of the causes the fix names, and it
             // is refused every time.
-            byte[] frame = WinboxStreamCrypto.Encrypt(M2Message.BuildM2(M2Message.SysFrom()), key, hmacKey);
+            byte[] frame = router.Encrypt(M2Message.BuildM2(M2Message.SysFrom()));
             byte[] truncated = frame.Take(frame.Length - 1).ToArray();
 
             var ex = Assert.ThrowsException<InvalidOperationException>(
-                () => WinboxM2Session.DecryptOrThrow(truncated, key),
+                () => WinboxM2Session.DecryptOrThrow(truncated, client),
                 "A frame the session cannot decrypt is a protocol failure and must be raised as one.");
 
             StringAssert.Contains(ex.Message, "could not be decrypted",
@@ -152,17 +147,19 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void DecryptOrThrow_ReturnsThePlaintext_WhenTheKeyIsRight()
         {
-            byte[] key = new byte[16], hmacKey = new byte[20];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(key);
-                rng.GetBytes(hmacKey);
-            }
-
+            var (router, client) = SessionKeys();
             byte[] plain = M2Message.BuildM2(M2Message.SysFrom(), M2Message.U32User(0x11, 42));
 
-            CollectionAssert.AreEqual(plain,
-                WinboxM2Session.DecryptOrThrow(WinboxStreamCrypto.Encrypt(plain, key, hmacKey), key));
+            CollectionAssert.AreEqual(plain, WinboxM2Session.DecryptOrThrow(router.Encrypt(plain), client));
+        }
+
+        // Both sides of one session from a random secret: the router sends with what the client receives with.
+        private static (WinboxStreamKeys router, WinboxStreamKeys client) SessionKeys()
+        {
+            byte[] secret = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+                rng.GetBytes(secret);
+            return (WinboxStreamKeys.Derive(secret, server: true), WinboxStreamKeys.Derive(secret));
         }
     }
 }

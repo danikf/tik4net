@@ -100,9 +100,12 @@ namespace tik4net.Crypto
                 .Concat(iv).Concat(ciphertext).ToArray();
         }
 
-        // Decrypt [enc_len 2B BE][IV 16B][ciphertext], strip padding + HMAC, return plaintext.
-        // Returns null on error (wrong key, padding fault, etc.)
-        internal static byte[]? Decrypt(byte[]? assembled, byte[] aesKey)
+        // Decrypt [enc_len 2B BE][IV 16B][ciphertext], strip padding, check + strip the HMAC, return plaintext.
+        // Returns null on error (wrong key, padding fault, truncated frame, an HMAC that does not match).
+        // The HMAC is checked with the receive-side key: RouterOS HMACs every frame the way Encrypt does (measured on
+        // 7.25, 7.21.5 and 6.49.21, over TCP and the MAC layer — review D5), so a frame whose HMAC does not match is not
+        // the router's, or did not arrive whole, and decrypting it anyway handed garbage on as a message (X11).
+        internal static byte[]? Decrypt(byte[]? assembled, byte[] aesKey, byte[] hmacKey)
         {
             if (assembled == null || assembled.Length < 18) return null;
             byte[] iv         = assembled.Skip(2).Take(16).ToArray();
@@ -126,9 +129,16 @@ namespace tik4net.Crypto
             if (strip > plain.Length) return null;
             plain = plain.Take(plain.Length - strip).ToArray();
 
-            // Strip HMAC-SHA1 (20 bytes)
+            // Check and strip HMAC-SHA1 (20 bytes) over the message.
             if (plain.Length < 20) return null;
-            return plain.Take(plain.Length - 20).ToArray();
+            byte[] message = plain.Take(plain.Length - 20).ToArray();
+            byte[] expected;
+            using (var h = new HMACSHA1(hmacKey))
+                expected = h.ComputeHash(message);
+            int diff = 0;
+            for (int i = 0; i < 20; i++)
+                diff |= expected[i] ^ plain[message.Length + i];
+            return diff == 0 ? message : null;
         }
     }
 }

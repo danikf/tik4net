@@ -990,7 +990,7 @@ namespace tik4net.integrationtests
             try
             {
                 byte[] assembled = _transport.RecvChunked(0x06);
-                return WinboxStreamCrypto.Decrypt(assembled, _receiveAesKey);
+                return WinboxStreamCrypto.Decrypt(assembled, _receiveAesKey, _receiveHmacKey);
             }
             finally { _transport.SetReceiveTimeout(old); }
         }

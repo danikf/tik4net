@@ -409,7 +409,7 @@ namespace tik4net.Winbox
             {
                 byte[]? plain = Keys.Decrypt(frame);
                 if (plain != null) return plain;
-                dropped = "Decrypt returned null (wrong key, bad padding, or a truncated frame)";
+                dropped = "Decrypt returned null (wrong key, bad padding, a truncated frame, or an HMAC that does not match)";
             }
             catch (Exception ex)
             {

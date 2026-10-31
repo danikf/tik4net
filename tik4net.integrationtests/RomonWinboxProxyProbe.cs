@@ -185,7 +185,7 @@ namespace tik4net.integrationtests
                                 while (true)
                                 {
                                     byte[] frame = Tcp.ReadChunkedFrame(readExact, 0x06, encrypted: true);
-                                    byte[] plain = WinboxStreamCrypto.Decrypt(frame, recvAes)
+                                    byte[] plain = WinboxStreamCrypto.Decrypt(frame, recvAes, recvHmac)
                                         ?? throw new InvalidOperationException("a WinBox frame did not decrypt");
                                     Log($"{tag} W>A {Describe(plain)}");
                                     agent.Send(plain);

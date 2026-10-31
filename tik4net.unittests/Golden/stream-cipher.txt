@@ -15,3 +15,4 @@ decrypt wrong-key null
 decrypt truncated null
 decrypt header-only null
 decrypt null null
+decrypt wrong-hmac null

@@ -445,6 +445,11 @@ sends no zero-length last chunk after a frame that is an exact multiple of 255 b
    is always block-aligned and no byte exceeds `0x0F`)
 4. `ciphertext = AES-128-CBC(send_aes_key, random_IV, plaintext + hmac + padding)`
 
+**Decrypt (server→client):** the reverse with the receive keys — AES-128-CBC with `receive_aes_key`, strip the
+padding, then check the trailing 20 bytes against `HMAC-SHA1(receive_hmac_key, plaintext)`. RouterOS HMACs every
+frame this way: measured on 7.25, 7.21.5 and 6.49.21, over TCP and over the MAC layer, with no mismatch in tens of
+thousands of frames. A frame whose HMAC does not match is refused (a broken stream on TCP, a dropped frame on MAC).
+
 ---
 
 #### M2 message — TLV format

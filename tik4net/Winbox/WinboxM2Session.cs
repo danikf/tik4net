@@ -148,7 +148,7 @@ namespace tik4net.Winbox
             {
                 if (IsEncrypted)
                     return _transport.WithReceiveTimeout(timeoutMs,
-                        () => DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), Keys.ReceiveAes));
+                        () => DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), Keys));
 
                 return _transport.WithReceiveTimeout(timeoutMs,
                     () => WinboxChunkFraming.StripRawLength(_transport.RecvChunked(WinboxChunkFraming.RawTag)));
@@ -190,7 +190,7 @@ namespace tik4net.Winbox
                 // Null is the interface's "channel closed". A frame that does not decrypt must NOT take that
                 // path — see DecryptOrThrow.
                 if (_keys != null)
-                    return DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _keys.ReceiveAes);
+                    return DecryptOrThrow(_transport.RecvChunked(WinboxChunkFraming.EncryptedTag), _keys);
 
                 byte[] assembled = _transport.RecvChunked(WinboxChunkFraming.RawTag);
                 return WinboxChunkFraming.StripRawLength(assembled);
@@ -211,23 +211,23 @@ namespace tik4net.Winbox
         /// Decrypts one assembled frame, or throws naming what happened.
         /// </summary>
         /// <remarks>
-        /// <see cref="WinboxStreamCrypto.Decrypt"/> answers <c>null</c> for a wrong key, a bad pad and a
-        /// truncated frame alike, and <c>null</c> is also this channel's word for "the socket closed" — so
+        /// <see cref="WinboxStreamKeys.Decrypt"/> answers <c>null</c> for a wrong key, a bad pad, an HMAC that does not
+        /// match and a truncated frame alike, and <c>null</c> is also this channel's word for "nothing arrived" — so
         /// returning it made a corrupt frame arrive at the caller as an orderly shutdown, with the reader
         /// loop failing every waiter with "the WinBox M2 channel was closed". It is a protocol failure and is
         /// reported as one, the same way <c>RecvChunked</c> reports a frame with the wrong tag: the session
         /// is finished either way, but only one of the two messages sends the reader to the right place.
         /// </remarks>
         /// <param name="assembled">The reassembled ciphertext frame.</param>
-        /// <param name="receiveAesKey">The session's receive-side AES key.</param>
-        internal static byte[] DecryptOrThrow(byte[] assembled, byte[] receiveAesKey)
+        /// <param name="keys">The session's stream keys (the receive-side AES and HMAC keys are used).</param>
+        internal static byte[] DecryptOrThrow(byte[] assembled, WinboxStreamKeys keys)
         {
-            byte[]? plain = WinboxStreamCrypto.Decrypt(assembled, receiveAesKey);
+            byte[]? plain = keys.Decrypt(assembled);
             if (plain == null)
                 throw new InvalidOperationException(
                     $"A {assembled?.Length ?? 0}-byte encrypted WinBox M2 frame could not be decrypted "
-                    + "(wrong key, bad padding, or a truncated frame). The stream cannot be resynchronized, "
-                    + "so this session is finished — open a new connection.");
+                    + "(wrong key, bad padding, a truncated frame, or an HMAC that does not match). The stream cannot be "
+                    + "resynchronized, so this session is finished — open a new connection.");
             return plain;
         }
 

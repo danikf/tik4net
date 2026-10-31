@@ -273,21 +273,24 @@ namespace tik4net.unittests.Golden
                 byte[] msg = Enumerable.Range(0, len).Select(i => (byte)(i * 7 + 3)).ToArray();
                 byte[] frame = WinboxStreamCrypto.Encrypt(msg, aes, hmac, iv);
                 lines.Add("encrypt len=" + len + " " + GoldenFile.Hex(frame));
-                CollectionAssert.AreEqual(msg, WinboxStreamCrypto.Decrypt(frame, aes), "decrypt of len=" + len);
+                CollectionAssert.AreEqual(msg, WinboxStreamCrypto.Decrypt(frame, aes, hmac), "decrypt of len=" + len);
             }
 
             byte[] sample = WinboxStreamCrypto.Encrypt(Encoding.ASCII.GetBytes("M2-golden"), aes, hmac, iv);
             byte[] wrongKey = aes.Select(b => (byte)(b ^ 0xFF)).ToArray();
-            lines.Add("decrypt wrong-key " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(sample, wrongKey)));
-            lines.Add("decrypt truncated " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(sample.Take(sample.Length - 1).ToArray(), aes)));
-            lines.Add("decrypt header-only " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(sample.Take(18).ToArray(), aes)));
-            lines.Add("decrypt null " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(null, aes)));
+            lines.Add("decrypt wrong-key " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(sample, wrongKey, hmac)));
+            lines.Add("decrypt truncated " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(sample.Take(sample.Length - 1).ToArray(), aes, hmac)));
+            lines.Add("decrypt header-only " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(sample.Take(18).ToArray(), aes, hmac)));
+            lines.Add("decrypt null " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(null, aes, hmac)));
+            // X11 / D5: the HMAC is checked — the right AES key and pad under another HMAC key does not decrypt.
+            byte[] wrongHmac = hmac.Select(b => (byte)(b ^ 0xFF)).ToArray();
+            lines.Add("decrypt wrong-hmac " + GoldenFile.Hex(WinboxStreamCrypto.Decrypt(sample, aes, wrongHmac)));
             // The random-IV overload: same length and the same plaintext back, never the same bytes twice.
             byte[] a = WinboxStreamCrypto.Encrypt(Encoding.ASCII.GetBytes("M2-golden"), aes, hmac);
             byte[] b = WinboxStreamCrypto.Encrypt(Encoding.ASCII.GetBytes("M2-golden"), aes, hmac);
             Assert.AreEqual(sample.Length, a.Length);
             CollectionAssert.AreNotEqual(a, b, "two frames of the random-IV overload must differ");
-            CollectionAssert.AreEqual(Encoding.ASCII.GetBytes("M2-golden"), WinboxStreamCrypto.Decrypt(a, aes));
+            CollectionAssert.AreEqual(Encoding.ASCII.GetBytes("M2-golden"), WinboxStreamCrypto.Decrypt(a, aes, hmac));
 
             GoldenFile.AssertMatches("stream-cipher.txt", lines);
         }
@@ -353,11 +356,11 @@ namespace tik4net.unittests.Golden
             /// <summary>Decrypts the client's first encrypted frame and checks its HMAC with the router's receive key.</summary>
             internal void AssertDecryptsToMessage(byte[] frame)
             {
-                byte[]? plain = WinboxStreamCrypto.Decrypt(frame, RecvAes);
+                byte[]? plain = WinboxStreamCrypto.Decrypt(frame, RecvAes, RecvHmac);
                 CollectionAssert.AreEqual(Message(), plain, "the client's frame did not decrypt with the router's receive key");
 
-                // Decrypt strips the HMAC without checking it (X11), so it is checked here: the client's send-HMAC key
-                // is the router's receive-HMAC key.
+                // Decrypt checks the HMAC with the router's receive-HMAC key, which is the client's send-HMAC key; the
+                // check is spelled out here too, independently of Decrypt's.
                 byte[] padded;
                 using (var a = Aes.Create())
                 {

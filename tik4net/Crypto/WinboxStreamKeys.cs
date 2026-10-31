@@ -18,7 +18,7 @@ namespace tik4net.Crypto
         internal byte[] SendHmac { get; }
         internal byte[] ReceiveAes { get; }
 
-        /// <summary>Derived with the others; the receive side does not check the HMAC of a received frame.</summary>
+        /// <summary>Checks the HMAC of a received frame (<see cref="Decrypt"/>).</summary>
         internal byte[] ReceiveHmac { get; }
 
         /// <summary>The keys for one side of the session from the EC-SRP5 shared secret.</summary>
@@ -34,7 +34,10 @@ namespace tik4net.Crypto
         /// <summary>Encrypts one outbound message (<see cref="WinboxStreamCrypto.Encrypt(byte[], byte[], byte[])"/>).</summary>
         internal byte[] Encrypt(byte[] message) => WinboxStreamCrypto.Encrypt(message, SendAes, SendHmac);
 
-        /// <summary>Decrypts one inbound frame, or <c>null</c> when it does not decrypt (<see cref="WinboxStreamCrypto.Decrypt"/>).</summary>
-        internal byte[]? Decrypt(byte[]? frame) => WinboxStreamCrypto.Decrypt(frame, ReceiveAes);
+        /// <summary>
+        /// Decrypts one inbound frame and checks its HMAC, or <c>null</c> when it does not decrypt or the HMAC does not
+        /// match (<see cref="WinboxStreamCrypto.Decrypt"/>).
+        /// </summary>
+        internal byte[]? Decrypt(byte[]? frame) => WinboxStreamCrypto.Decrypt(frame, ReceiveAes, ReceiveHmac);
     }
 }
