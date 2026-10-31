@@ -23,55 +23,55 @@ namespace tik4net.Objects.Ip.Hotspot
         /// Server
         /// </summary>
         [TikProperty("server", IsReadOnly = true, WinboxLabel = "Server")]
-        public TikField<string?> Server { get; set; }
+        public TikField<string?> Server { get; private set; }
 
         /// <summary>
         /// address: IP address
         /// </summary>
         [TikProperty("address", IsReadOnly = true, WinboxLabel = "Address")]
-        public TikField<string?> Address { get; set; }
+        public TikField<string?> Address { get; private set; }
 
         /// <summary>
         /// The active user's name
         /// </summary>
         [TikProperty("user", IsReadOnly = true, WinboxLabel = "User")]
-        public TikField<string?> UserName { get; set; }
+        public TikField<string?> UserName { get; private set; }
 
         /// <summary>
         /// The connection's Mac Address
         /// </summary>
         [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
-        public TikField<string?> MacAddress { get; set; }
+        public TikField<string?> MacAddress { get; private set; }
 
         /// <summary>
         /// The connection's Mac Address
         /// </summary>
         [TikProperty("login-by", IsReadOnly = true, WinboxLabel = "Login By")]
-        public TikField<string?> LoginBy { get; set; }
+        public TikField<string?> LoginBy { get; private set; }
 
         /// <summary>
         /// The amount of time the user has been connected
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
-        public TikField<string?> /*time*/ UpTime { get; set; }
+        public TikField<string?> /*time*/ UpTime { get; private set; }
 
         /// <summary>
         /// The amount of time the connection has been idle
         /// </summary>
         [TikProperty("idle-time", IsReadOnly = true, WinboxLabel = "Idle Time")]
-        public TikField<string?> /*time*/ IdleTime { get; set; }
+        public TikField<string?> /*time*/ IdleTime { get; private set; }
 
         /// <summary>
         /// The amount of time left for the session
         /// </summary>
         [TikProperty("session-time-left", IsReadOnly = true, WinboxLabel = "Session Time Left")]
-        public TikField<string?> /*time*/ SessionTimeLeft { get; set; }
+        public TikField<string?> /*time*/ SessionTimeLeft { get; private set; }
 
         /// <summary>
         /// The amount of time until the connection will timeout if it remains to be idle
         /// </summary>
         [TikProperty("idle-timeout", IsReadOnly = true, WinboxLabel = "Idle Timeout")]
-        public TikField<string?> /*time*/ IdleTimeout { get; set; }
+        public TikField<string?> /*time*/ IdleTimeout { get; private set; }
 
         /// <summary>
         /// bytes-in: 

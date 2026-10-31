@@ -36,7 +36,7 @@ namespace tik4net.Objects.Interface
         /// l2mtu - Layer2 MTU. For VLANS this value is not configurable.
         /// </summary>
         [TikProperty("l2mtu", IsReadOnly = true, WinboxLabel = "L2 MTU")]
-        public TikField<string?> L2Mtu { get; set; }
+        public TikField<string?> L2Mtu { get; private set; }
 
         /// <summary>
         /// mac-address: the router reports it; no <c>add</c> or <c>set</c> of this menu takes it

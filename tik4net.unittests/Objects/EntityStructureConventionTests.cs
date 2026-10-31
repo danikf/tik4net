@@ -464,6 +464,19 @@ namespace tik4net.unittests.Objects
             AssertNoOffenders(offenders, "live counters that are not read-only");
         }
 
+        [TestMethod]
+        public void AReadOnlyPropertyHasNoPublicSetter()
+        {
+            // The mapper sends nothing for a read-only property, so a caller's assignment to a public setter is
+            // dropped without a word. A private setter makes the same mistake a compile error.
+            var offenders = Properties()
+                .Where(x => x.Attribute.IsReadOnly && x.Property.SetMethod != null && x.Property.SetMethod.IsPublic)
+                .Select(x => $"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}')")
+                .ToList();
+
+            AssertNoOffenders(offenders, "read-only properties a caller can assign");
+        }
+
         /// <summary>
         /// The entity-level half of <see cref="TikEntityPropertyAccessor.IsReadOnly"/>: a menu with neither
         /// <c>add</c> nor <c>set</c> has nothing to write its fields with. NOT

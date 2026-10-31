@@ -69,12 +69,12 @@ namespace tik4net.Objects.Ip
         /// Row dynamic property.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public TikField<bool?> Dynamic { get; set; }
+        public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// Row invalid property.
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public TikField<bool?> Invalid { get; set; }
+        public TikField<bool?> Invalid { get; private set; }
     }
 }

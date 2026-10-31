@@ -20,31 +20,31 @@ namespace tik4net.Objects.CapsMan
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string? Id { get; set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// mac-address: MAC address of the registered client
         /// </summary>
         [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
-        public TikField<string?> MACAddress { get; set; }
+        public TikField<string?> MACAddress { get; private set; }
 
         /// <summary>
         /// interface: Name of the wireless interface to which wireless client is associated
         /// </summary>
         [TikProperty("interface", IsReadOnly = true, WinboxLabel = "Interface")]
-        public TikField<string?> Interface { get; set; }
+        public TikField<string?> Interface { get; private set; }
 
         /// <summary>
         /// uptime: time the client is associated with the access point
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
-        public TikField<TimeSpan?> Uptime { get; set; }
+        public TikField<TimeSpan?> Uptime { get; private set; }
 
         /// <summary>
         /// ssid: SSID (service set identifier) is a name that identifies wireless network.
         /// </summary>
         [TikProperty("ssid", IsReadOnly = true, WinboxLabel = "SSID")]
-        public TikField<string?> SSID { get; set; }
+        public TikField<string?> SSID { get; private set; }
 
         /// <summary>
         /// tx-rate: transmit data rate
@@ -62,30 +62,30 @@ namespace tik4net.Objects.CapsMan
         /// rx-rate: receive data rate
         /// </summary>
         [TikProperty("rx-rate", IsReadOnly = true, WinboxLabel = "Rx Rate")]
-        public TikField<string?> RxRate { get; set; }
+        public TikField<string?> RxRate { get; private set; }
 
         /// <summary>
         /// signal-strength: average strength of the client signal recevied by the AP
         /// </summary>
         [TikProperty("rx-signal", IsReadOnly = true, WinboxLabel = "Rx Signal")]
-        public TikField<int?> Signal { get; set; }
+        public TikField<int?> Signal { get; private set; }
 
         /// <summary>
         /// packets: number of sent and received network layer packets
         /// </summary>
         [TikProperty("packets", IsReadOnly = true)]
-        public TikField<string?> Packets { get; set; }
+        public TikField<string?> Packets { get; private set; }
 
         /// <summary>
         /// bytes: number of sent and received packet bytes
         /// </summary>
         [TikProperty("bytes", IsReadOnly = true)]
-        public TikField<string?> Bytes { get; set; }
+        public TikField<string?> Bytes { get; private set; }
 
         /// <summary>
         /// comment: Description of an entry. comment is taken from appropriate Access List entry if specified.
         /// </summary>
         [TikProperty("comment", IsReadOnly = true)]
-        public TikField<string?> Comment { get; set; }
+        public TikField<string?> Comment { get; private set; }
     }
 }
