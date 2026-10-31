@@ -21,7 +21,8 @@ namespace tik4net.Objects.System
         public TikField<bool?> Enabled { get; set; }
 
         /// <summary>
-        /// mode — operational mode for the NTP client.
+        /// mode — operational mode for the NTP client. Writable from RouterOS 7; RouterOS 6 only reports it and refuses
+        /// a write with <c>unknown parameter</c>.
         /// </summary>
         /// <seealso cref="NtpClientMode"/>
         [TikProperty("mode", DefaultValue = "unicast", WinboxLabel = "Mode")]

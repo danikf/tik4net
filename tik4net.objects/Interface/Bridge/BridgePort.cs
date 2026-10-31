@@ -63,10 +63,11 @@ namespace tik4net.Objects.Interface.Bridge
         public TikField<string?> PointToPoint { get; set; }
 
         /// <summary>
-        /// external-fdb: Whether to use wireless registration table to speed up bridge host learning
+        /// external-fdb: Whether the port uses the wireless registration table to speed up bridge host learning. The router
+        /// reports it; no <c>add</c> or <c>set</c> of this menu takes it.
         /// </summary>
-        [TikProperty("external-fdb", DefaultValue = "auto")]
-        public TikField<string?> ExternalFdb { get; set; }
+        [TikProperty("external-fdb", IsReadOnly = true)]
+        public TikField<string?> ExternalFdb { get; private set; }
 
         /// <summary>
         /// auto-isolate: Prevents STP blocking port from erroneously moving into a forwarding state if no BPDU's are received on the bridge.

@@ -20,7 +20,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// name
         /// </summary>
-        [TikProperty("name", WinboxLabel = "Name")]
+        [TikProperty("name", IsReadOnly = true, WinboxLabel = "Name")]
         public TikField<string?> Name { get; private set; }
 
         /// <summary>

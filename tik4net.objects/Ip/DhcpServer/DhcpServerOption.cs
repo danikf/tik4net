@@ -51,7 +51,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// raw-value: Read only field which shows raw dhcp option value (the format actually sent out)
         /// </summary>
-        [TikProperty("raw-value", WinboxLabel = "Raw Value")]
-        public TikField<string?> RawValue { get; set; }
+        [TikProperty("raw-value", IsReadOnly = true, WinboxLabel = "Raw Value")]
+        public TikField<string?> RawValue { get; private set; }
     }
 }

@@ -39,10 +39,10 @@ namespace tik4net.Objects.Interface
         public TikField<string?> L2Mtu { get; set; }
 
         /// <summary>
-        /// mac-address
+        /// mac-address: the router reports it; no <c>add</c> or <c>set</c> of this menu takes it
         /// </summary>
-        [TikProperty("mac-address", WinboxLabel = "MAC Address")]
-        public TikField<string?> MacAddress { get; set; }
+        [TikProperty("mac-address", IsReadOnly = true, WinboxLabel = "MAC Address")]
+        public TikField<string?> MacAddress { get; private set; }
 
         /// <summary>
         /// arp

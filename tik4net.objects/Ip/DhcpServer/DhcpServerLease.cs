@@ -73,10 +73,10 @@ namespace tik4net.Objects.Ip.DhcpServer
         public TikField<string?> MacAddress { get; set; }
 
         /// <summary>
-        /// src-mac-address: Source MAC address
+        /// src-mac-address: Source MAC address. The router reports it; no <c>add</c> or <c>set</c> of this menu takes it.
         /// </summary>
-        [TikProperty("src-mac-address", WinboxLabel = "Src. MAC Address")]
-        public TikField<string?> SrcMacAddress { get; set; }
+        [TikProperty("src-mac-address", IsReadOnly = true, WinboxLabel = "Src. MAC Address")]
+        public TikField<string?> SrcMacAddress { get; private set; }
 
         /// <summary>
         /// use-src-mac: Use this source MAC address instead

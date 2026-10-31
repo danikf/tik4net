@@ -108,10 +108,10 @@ namespace tik4net.Objects.Routing.Bgp
         public TikField<bool?> UseBfd { get; set; }
 
         /// <summary>
-        /// Gets or sets the peer's remote ID (usually some IP address).
+        /// Gets the peer's remote ID (usually some IP address).
         /// </summary>
-        [TikProperty("remote-id")]
-        public TikField<string?> RemoteId { get; set; }
+        [TikProperty("remote-id", IsReadOnly = true)]
+        public TikField<string?> RemoteId { get; private set; }
 
         /// <summary>
         /// Gets or sets the local IP address that is used to communicate to this peer.
