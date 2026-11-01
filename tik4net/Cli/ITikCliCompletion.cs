@@ -242,6 +242,12 @@ namespace tik4net.Cli
                         i = Escape(reaction, i, line, kinds, ref col, ref kind);
                         continue;
                 }
+                // The 8-bit CSI, which RouterOS writes to a client that answers its UTF-8 test as Latin-1 (VtStripper).
+                if (c == '\u009b')
+                {
+                    i = Escape(reaction.Substring(0, i) + "\x1b[" + reaction.Substring(i + 1), i, line, kinds, ref col, ref kind) - 1;
+                    continue;
+                }
                 if (c < ' ')
                     continue;
                 while (line.Length < col) { line.Append(' '); kinds.Add(CliCompletionKind.Unknown); }

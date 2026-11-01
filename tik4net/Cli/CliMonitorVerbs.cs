@@ -97,14 +97,12 @@ namespace tik4net.Cli
         /// <summary>
         /// True when <paramref name="verb"/> names a monitor command whose parameters are the command's own
         /// INPUTS (<c>/ping address=…</c>, <c>/interface monitor-traffic interface=…</c>) rather than a print
-        /// filter — i.e. one that a synchronous read must build with
-        /// <see cref="CliCommandBuilder.BuildMonitorSnapshot"/> instead of <c>BuildPrint</c>.
+        /// filter, and that takes one reading with a snapshot modifier.
         /// </summary>
         /// <remarks>
         /// The shared <see cref="TikMonitorVerbs"/> list, minus <c>torch</c>: torch's <c>as-value</c> form
         /// prints nothing and it rejects the snapshot modifier ("bad parameter once (line 1 column 40)",
-        /// measured on 7.23.2), so over a terminal it has no working one-shot form to route to — see
-        /// <see cref="Kind.FreezeFrame"/> for how the async path drives it instead.
+        /// measured on 7.23.2) — see <see cref="Kind.FreezeFrame"/>.
         /// </remarks>
         public static bool IsSyncMonitorVerb(string verb)
             => TikMonitorVerbs.Contains(verb)

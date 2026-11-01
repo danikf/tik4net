@@ -55,12 +55,13 @@ namespace tik4net.unittests.Cli
                 Expression(FirstLineOfARead("/ip/address/print", "interface", "ether1")));
 
         [DataTestMethod]
-        [DataRow("/ping", ":put [/ping address=127.0.0.1 count=1 as-value]", "address", "127.0.0.1")]
-        [DataRow("/tool/traceroute", ":put [/tool traceroute address=127.0.0.1 count=1 as-value]", "address", "127.0.0.1")]
+        [DataRow("/ping", "/ping address=127.0.0.1 count=1", "address", "127.0.0.1")]
+        [DataRow("/tool/traceroute", "/tool traceroute address=127.0.0.1 count=1", "address", "127.0.0.1")]
         [DataRow("/interface/monitor-traffic", ":put [/interface monitor-traffic interface=ether1 once as-value]", "interface", "ether1")]
         [DataRow("/tool/profile", ":put [/tool profile cpu=all duration=1 as-value]", "cpu", "all")]
         [DataRow("/console/inspect", ":put [/console inspect request=child as-value]", "request", "child")]
         [DataRow("/tool/wol", "/tool wol mac=\"AA:BB:CC:DD:EE:FF\"", "mac", "AA:BB:CC:DD:EE:FF")]
+        [DataRow("/ip/address/find", ":put [/ip address find interface=ether1]", "interface", "ether1")]
         public void AnotherVerbsParametersAreItsInputs(string path, string expected, string name, string value)
             => Assert.AreEqual(expected, FirstLineOfARead(path, name, value));
 

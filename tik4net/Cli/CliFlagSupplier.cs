@@ -341,6 +341,7 @@ namespace tik4net.Cli
                 return true;
             if (output.IndexOf(CliCommandBuilder.ProplistRefusal, StringComparison.OrdinalIgnoreCase) >= 0)
                 return false;
+            CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
             throw new TikCommandTrapException(_host.CommandFor(descriptor),
                 new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
         }

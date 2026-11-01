@@ -47,10 +47,10 @@ namespace tik4net.Cli
     /// matching this table, whereas <c>as-value</c> renders the same field as <c>00:00:00.000060</c>.
     /// </para>
     /// <para>
-    /// The trailing aggregate line (<c>sent=2 received=2 packet-loss=0% min-rtt=…</c>) is recognised and
-    /// dropped rather than emitted as a record: it is a summary of the table, not a row of it, and it
-    /// arrives after the last data row, so its values cannot be attached to the rows the way the binary API
-    /// attaches them. That matches the as-value path, which never carried those fields either.
+    /// The aggregate line (<c>sent=2 received=2 packet-loss=0% min-rtt=…</c>) is not emitted as a record. The router
+    /// prints it after every twentieth reply and at the end, with the header again after it, and it may wrap at the
+    /// terminal's width; a read that holds its rows attaches it to the row it follows (<see cref="TryReadSummary"/>).
+    /// A stream has already delivered that row.
     /// </para>
     /// </remarks>
     internal sealed class CliTableParser
@@ -69,6 +69,24 @@ namespace tik4net.Cli
         // header, and the first column may not own them (RoMON discover, 6.49.13: 'A AA:BB:CC:DD:EE:FF …' read as
         // address='A AA:BB:CC:DD:EE:FF'). The API reports no such field for these rows.
         private bool _flagsLegend;
+
+        /// <summary>
+        /// Reads an aggregate line, or the part of one that wrapped: every token is <c>name=value</c>. <c>packet-loss</c>
+        /// loses its sign, as the binary API writes it.
+        /// </summary>
+        internal static bool TryReadSummary(string line, out List<KeyValuePair<string, string>> fields)
+        {
+            fields = new List<KeyValuePair<string, string>>();
+            foreach (Match token in Tokens(line))
+            {
+                int eq = token.Value.IndexOf('=');
+                if (eq <= 0)
+                    return false;
+                string name = token.Value.Substring(0, eq), value = token.Value.Substring(eq + 1);
+                fields.Add(new KeyValuePair<string, string>(name, name == "packet-loss" ? value.TrimEnd('%') : value));
+            }
+            return fields.Count > 0;
+        }
 
         /// <summary>True once a header row has been seen and the column layout is known.</summary>
         internal bool HasHeader => _columns != null;

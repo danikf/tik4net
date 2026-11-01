@@ -154,7 +154,7 @@ namespace tik4net.unittests.Cli
             {
                 conn.OpenScripted();
 
-                var ex = Assert.ThrowsException<TikCommandTrapException>(() => conn.LoadAll<FlagProbe>().ToList());
+                var ex = Assert.ThrowsException<TikNoSuchCommandException>(() => conn.LoadAll<FlagProbe>().ToList());
                 StringAssert.Contains(ex.Message, "expected end of command");
             }
         }

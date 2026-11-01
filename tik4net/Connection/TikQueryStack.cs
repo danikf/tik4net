@@ -37,8 +37,11 @@ namespace tik4net.Connection
         private static bool EvalPredicate(TikRecordSentence row, string name, string? value)
         {
             char op = name.Length > 0 ? name[0] : '=';
-            string field = (op == '<' || op == '>') ? name.Substring(1) : name;
+            string field = (op == '<' || op == '>' || op == '-') ? name.Substring(1) : name;
             bool has = row.TryGetResponseField(field, out var v);
+            // '?-name': the row has no such property.
+            if (op == '-' && field.Length > 0)
+                return !has || string.IsNullOrEmpty(v);
             if (op == '<' || op == '>')
             {
                 if (!has) return false;

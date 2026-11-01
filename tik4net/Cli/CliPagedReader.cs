@@ -86,6 +86,7 @@ namespace tik4net.Cli
         {
             var all = new List<TikRecordSentence>();
             int interruptions = 0;
+            bool tryJson = wantJson;
 
             for (int offset = 0; ; offset += pageSize)
             {
@@ -95,27 +96,26 @@ namespace tik4net.Cli
                 _host.WindowedReadDepth++;
                 try
                 {
-                    window = await RunOneWindowAsync(descriptor, wantJson, buildExpression, offset, pageSize,
+                    window = await RunOneWindowAsync(descriptor, tryJson, buildExpression, offset, pageSize,
                         cancellationToken).ConfigureAwait(false);
                 }
-                catch (TikCommandException) when (offset == 0 && wantJson && _host.Knowledge.Features.SerializeJson == null)
+                catch (TikCommandException) when (offset == 0 && tryJson && _host.Knowledge.Features.SerializeJson == null)
                 {
-                    // The router refused ':serialize' and we did not yet know whether it can. Nothing has
-                    // been handed back, so settle the question and take the same table again as as-value.
-                    _host.Knowledge.Features.SerializeJson = false;
+                    // The window was refused and whether the router serializes is unknown. Nothing has been handed back,
+                    // so take it again in the plain form: only that form's success says it was ':serialize' (below).
                     TikWireTrace.Emit("cli.json", TikWireDir.Note,
-                        "':serialize to=json' refused inside a paged read — this router is pre-7.13; "
-                            + "re-reading as-value for the rest of this connection");
+                        "a window with ':serialize to=json' was refused — taking it again as-value");
+                    tryJson = false;
                     offset = -pageSize;   // the loop's increment puts it back to 0
                     continue;
                 }
-                catch (TikNoSuchCommandException)
+                catch (TikNoSuchCommandException ex) when (offset == 0
+                    && ex.Message.IndexOf("bad command name find", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    // The menu has no 'find' (a singleton, or a command menu). Nothing to window over, so
-                    // read it the way every read worked before paging — and remember, so the next read of
-                    // this menu does not pay for the discovery again.
-                    if (offset > 0)
-                        throw;   // mid-table: this is a real failure, not a menu that cannot be paged
+                    // The menu has no 'find' (a singleton, or a command menu; 7.25, 7.21.5, 6.49.21 word it alike).
+                    // Nothing to window over, so read it in one command — and remember, so the next read of this menu
+                    // does not pay for the discovery again. Only this wording: the same exception also means
+                    // "syntax error" and "expected end of command", which say nothing about 'find'.
                     _host.Knowledge.LearnFact(_host.Knowledge.MenuFacts.PagingUnavailable, CliRouterKnowledge.FactPagingUnavailable, descriptor.CommandText);
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
                         "'" + descriptor.CommandText + "' has no 'find' verb — reading it in a single command");
@@ -147,6 +147,14 @@ namespace tik4net.Cli
                     continue;
                 }
                 interruptions = 0;
+
+                if (wantJson && !tryJson && window.WindowSize >= 0 && _host.Knowledge.Features.SerializeJson == null)
+                {
+                    _host.Knowledge.Features.SerializeJson = false;
+                    TikWireTrace.Emit("cli.json", TikWireDir.Note,
+                        "the plain window worked where the ':serialize' one did not — this router is pre-7.13; "
+                            + "reading as-value for the rest of this connection");
+                }
 
                 if (window.WindowSize > 0 && !_host.Knowledge.MenuFacts.WindowPrintsNoId.Contains(descriptor.CommandText)
                     && window.Records.All(r => !r.Words.ContainsKey(TikSpecialProperties.Id)))
@@ -277,9 +285,12 @@ namespace tik4net.Cli
                     offset, pageSize, findClause);
 
             string output = await _host.ExecuteAsync(cliText, cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
 
+            // The marker is the script's last output, so an answer ending with it ran to its end and is data, whatever
+            // its rows say. Only an answer without one can be a refusal.
             string body = SplitOffWindowMarker(output, out int windowSize);
+            if (windowSize < 0)
+                CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
             // A bad filter is the caller's error, not a menu that cannot be windowed — unless what the router
             // refused is the window's own 'from=', which a print such as '/log print' does not take.
             if (windowSize < 0 && !IsPrintWithoutFrom(output))
@@ -333,8 +344,9 @@ namespace tik4net.Cli
         /// Removes the trailing <c>#w=</c> line a paged window ends with and reports the number it carried
         /// (<c>-1</c> when the line is absent).
         /// </summary>
-        // CR, LF, the field separator and a space: whatever the marker line was preceded by.
-        private static readonly char[] WindowMarkerTrim = { (char)13, (char)10, ';', ' ' };
+        // The line break the marker's own line starts with. Nothing else: what comes before it is the last row's value,
+        // and a comment may end in ';' or a blank.
+        private static readonly char[] WindowMarkerTrim = { (char)13, (char)10 };
 
         private static string SplitOffWindowMarker(string output, out int windowSize)
         {
@@ -363,7 +375,6 @@ namespace tik4net.Cli
                 {
                     string jsonOutput = await _host.ExecuteAsync(
                         CliCommandBuilder.BuildCountedRead(expression, asJson: true), cancellationToken).ConfigureAwait(false);
-                    CliErrorParser.ThrowIfError(jsonOutput, _host.CommandFor(descriptor));
                     string jsonBody = SplitOffCountMarker(jsonOutput, descriptor, out int expectedJson);
                     IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonBody);
                     _host.Knowledge.Features.SerializeJson = true;
@@ -383,14 +394,12 @@ namespace tik4net.Cli
             {
                 string dsvOutput = await _host.ExecuteAsync(
                     CliCommandBuilder.BuildCountedDsvRead(expression, _host.CliFieldSeparator!), cancellationToken).ConfigureAwait(false);
-                CliErrorParser.ThrowIfError(dsvOutput, _host.CommandFor(descriptor));
                 string dsvBody = SplitOffCountMarker(dsvOutput, descriptor, out int expectedDsv);
                 return EnsureCounted(CliDsvParser.Parse(dsvBody, _host.CliFieldSeparator!), expectedDsv, descriptor, dsvBody);
             }
 
             string output = await _host.ExecuteAsync(
                 CliCommandBuilder.BuildCountedRead(expression, asJson: false), cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
             string body = SplitOffCountMarker(output, descriptor, out int expected);
 
             if (wantJson && _host.Knowledge.Features.SerializeJson == null)
@@ -416,7 +425,8 @@ namespace tik4net.Cli
         /// answer has already ended at a prompt and carried no error, so the router ran the whole line; the
         /// marker is its last output, and an answer missing it has lost something — nothing legitimate reaches
         /// here without one. The marker must also start its own line, so a field value that happens to contain
-        /// the same text cannot be taken for it.
+        /// the same text cannot be taken for it. An answer with the marker is data and gets no phrase check: a comment
+        /// reading <c>no such item</c> is a comment. A refused script stops before the marker, and is told apart here.
         /// </remarks>
         internal string SplitOffCountMarker(string output, TikCommandDescriptor descriptor, out int expected)
         {
@@ -427,7 +437,10 @@ namespace tik4net.Cli
                 expected = CliCommandBuilder.ExpectedRecordCount(text.Substring(at + CliCommandBuilder.CountMarker.Length));
 
             if (expected < 0)
+            {
+                CliErrorParser.ThrowIfError(text, _host.CommandFor(descriptor));
                 _host.ThrowIfSyntaxError(text, descriptor);
+            }
             if (expected < 0)
                 throw new TikConnectionResponseIncompleteException(
                     _host.TransportName + ": the read of '" + descriptor.CommandText + "' ended without the router's "

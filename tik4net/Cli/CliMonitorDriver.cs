@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using tik4net.Connection;
 
 namespace tik4net.Cli
@@ -103,22 +105,22 @@ namespace tik4net.Cli
                             TikRecordSentence? row = table.Feed(line);
                             if (row != null) onRow?.Invoke(row);
                         });
-                    // Checked after the fact rather than per line: an error ends the command, so it is in the
-                    // final output too, and a half-arrived line must never be classified as one.
-                    CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
                     // The table's own header is the acceptance signal: RouterOS prints it before the first
                     // reading, so text that never produced one is the refusal instead. Keyed on the
                     // header rather than on the row count, because a monitor can legitimately be accepted and
-                    // then print no reading.
+                    // then print no reading. Checked after the fact rather than per line: an error ends the
+                    // command, and a half-arrived line must never be classified as one.
                     if (!table.HasHeader && !string.IsNullOrWhiteSpace(output))
+                    {
+                        CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
                         throw new TikCommandTrapException(_host.CommandFor(descriptor),
                             new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
+                    }
                     return;
                 }
 
                 output = _host.Execute(CliCommandBuilder.BuildMonitorSnapshot(
                     descriptor.CommandText, descriptor.Parameters, snapshotModifier));
-                CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
                 PollingMonitorEngine.Emit(_host.ParseRecords(output, descriptor), handle, onRow);
             });
 
@@ -130,45 +132,85 @@ namespace tik4net.Cli
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
             => PollingMonitorEngine.Run(_host, handle, onError, onDone, () =>
             {
-                _host.Knowledge.SchemaStore();
-                bool plain = _host.Knowledge.MenuFacts.TorchWithoutProplist.Contains(descriptor.CommandText);
-                string cliText = CliCommandBuilder.BuildTorchSnapshot(
-                    descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds, withProplist: !plain);
-
                 int incompleteInARow = 0;
                 while (!handle.CancelRequested)
                 {
-                    string output;
+                    IList<TikRecordSentence> frame;
                     // A frame the transport refused as incomplete is skipped: the next one is a whole new frame
                     // (PollingMonitorEngine.MaxIncompletePollsInARow).
-                    try { output = _host.Execute(cliText); }
+                    try
+                    {
+                        frame = ReadTorchFrameAsync(descriptor, TorchFreezeFrameSeconds, includeFilters: false,
+                            CancellationToken.None).GetAwaiter().GetResult();
+                    }
                     catch (TikConnectionResponseIncompleteException)
                         when (++incompleteInARow < PollingMonitorEngine.MaxIncompletePollsInARow)
                     {
                         continue;
                     }
                     incompleteInARow = 0;
-                    if (!plain && CliErrorParser.IsSyntaxErrorOnly(output))
-                    {
-                        // RouterOS 6's torch has no proplist= (6.49.13: "expected end of command (line 1 column 71)",
-                        // the column proplist starts on). Its plain table carries the columns the caller's arguments
-                        // ask for; remembered per command once that answer has a table, so another refusal is not.
-                        string plainText = CliCommandBuilder.BuildTorchSnapshot(
-                            descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds, withProplist: false);
-                        string plainOutput = _host.Execute(plainText);
-                        CliErrorParser.ThrowIfError(plainOutput, _host.CommandFor(descriptor));
-                        if (plainOutput.IndexOf("-- [Q quit", StringComparison.Ordinal) < 0)
-                            throw new TikCommandTrapException(_host.CommandFor(descriptor),
-                                new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
-                        _host.Knowledge.LearnFact(_host.Knowledge.MenuFacts.TorchWithoutProplist, CliRouterKnowledge.FactTorchWithoutProplist, descriptor.CommandText);
-                        plain = true;
-                        cliText = plainText;
-                        output = plainOutput;
-                    }
-                    CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
-                    PollingMonitorEngine.Emit(
-                        plain ? CliTorchParser.ParseTorchTable(output) : CliTorchParser.ParseTorchFrame(output), handle, onRow);
+                    PollingMonitorEngine.Emit(frame, handle, onRow);
                 }
             });
+
+        /// <summary>
+        /// One frame of torch through a read method. The arguments arrive in Filter format there unless the caller named
+        /// the format, and torch has no query, so they are its inputs.
+        /// </summary>
+        internal Task<IList<TikRecordSentence>> ReadTorchFrameAsync(TikCommandDescriptor descriptor, CancellationToken ct)
+            => ReadTorchFrameAsync(descriptor, TorchFreezeFrameSeconds, includeFilters: true, ct);
+
+        /// <summary>
+        /// Torch through <c>ExecuteListUntilDone(timeout)</c>: frames until the deadline, as the binary API reads it until
+        /// the timeout ends the read. Under <see cref="TikCancellationMode.Cooperative"/> the token is seen between frames,
+        /// so a frame takes the shortest time that flushes one (a 1 s interval, 2 s in all), and the deadline is overrun by
+        /// at most that.
+        /// </summary>
+        internal async Task<IList<TikRecordSentence>> ReadTorchUntilCancelledAsync(TikCommandDescriptor descriptor, CancellationToken ct)
+        {
+            var rows = new List<TikRecordSentence>();
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                rows.AddRange(await ReadTorchFrameAsync(descriptor, 1, includeFilters: true, ct).ConfigureAwait(false));
+            }
+        }
+
+        // One frame: the proplist form, or on a router whose torch has none (RouterOS 6.49.13: "expected end of command
+        // (line 1 column 71)", the column proplist starts on) its plain table, which carries the columns the caller's
+        // arguments ask for. Remembered per command once that answer has a table, so another refusal is not.
+        private async Task<IList<TikRecordSentence>> ReadTorchFrameAsync(TikCommandDescriptor descriptor, int freezeFrameSeconds,
+            bool includeFilters, CancellationToken ct)
+        {
+            await _host.Knowledge.EnsureSchemaStoreAsync(ct).ConfigureAwait(false);
+            bool plain = _host.Knowledge.MenuFacts.TorchWithoutProplist.Contains(descriptor.CommandText);
+            string output = await _host.ExecuteAsync(CliCommandBuilder.BuildTorchSnapshot(descriptor.CommandText, descriptor.Parameters,
+                freezeFrameSeconds, withProplist: !plain, includeFilters), ct).ConfigureAwait(false);
+            if (!plain && CliErrorParser.IsSyntaxErrorOnly(output))
+            {
+                output = await _host.ExecuteAsync(CliCommandBuilder.BuildTorchSnapshot(descriptor.CommandText, descriptor.Parameters,
+                    freezeFrameSeconds, withProplist: false, includeFilters), ct).ConfigureAwait(false);
+                if (IsTorchFrame(output))
+                {
+                    _host.Knowledge.LearnFact(_host.Knowledge.MenuFacts.TorchWithoutProplist, CliRouterKnowledge.FactTorchWithoutProplist, descriptor.CommandText);
+                    plain = true;
+                }
+            }
+
+            // Text with no frame in it is the refusal: "input does not match any value of interface" matches no phrase,
+            // and read as no rows it would make a monitor repeat the command at once for as long as it runs. No text at
+            // all is a run that flushed no frame.
+            if (!string.IsNullOrWhiteSpace(output) && !IsTorchFrame(output))
+            {
+                CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
+                throw new TikCommandTrapException(_host.CommandFor(descriptor),
+                    new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
+            }
+            return plain ? CliTorchParser.ParseTorchTable(output) : CliTorchParser.ParseTorchFrame(output);
+        }
+
+        private static bool IsTorchFrame(string output)
+            => output.IndexOf("-- [Q quit", StringComparison.Ordinal) >= 0
+               || output.IndexOf("Columns:", StringComparison.Ordinal) >= 0;
     }
 }

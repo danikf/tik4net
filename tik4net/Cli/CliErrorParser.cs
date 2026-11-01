@@ -4,7 +4,9 @@ using tik4net.Connection;
 namespace tik4net.Cli
 {
     /// <summary>
-    /// Maps RouterOS CLI error text to the appropriate tik4net exception types.
+    /// Maps RouterOS CLI error text to the appropriate tik4net exception types. The phrases are for an answer that may be
+    /// a refusal; a read that shows it ran to its end (a count marker, as-value records, a table header) is data and does
+    /// not come here. <c>get</c> and raw commands do, because one line has no shape to tell the two apart.
     /// </summary>
     internal static class CliErrorParser
     {
@@ -58,7 +60,7 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// True for verbs RouterOS answers with no output at all when they succeed, so that any remaining
+        /// True for verbs RouterOS answers with no output at all when they succeed (<see cref="CliVerbs.IsRowWrite"/>), so that any remaining
         /// text can be treated as an error without matching it against a phrase list.
         /// </summary>
         /// <remarks>
@@ -68,22 +70,7 @@ namespace tik4net.Cli
         /// output. Anything not listed keeps the phrase-matching behaviour — a verb has to be *verified*
         /// silent before it is added here, because a wrong entry turns ordinary output into a thrown error.
         /// </remarks>
-        internal static bool IsSilentOnSuccessVerb(string verb)
-        {
-            switch (verb)
-            {
-                case "set":
-                case "remove":
-                case "enable":
-                case "disable":
-                case "move":
-                case "unset":
-                case "comment":
-                    return true;
-                default:
-                    return false;
-            }
-        }
+        internal static bool IsSilentOnSuccessVerb(string verb) => CliVerbs.IsRowWrite(verb);
 
         /// <summary>
         /// Reads the verb out of a <b>raw</b> CLI line so that the positional error check can apply there

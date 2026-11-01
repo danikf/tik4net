@@ -37,8 +37,8 @@ namespace tik4net.Cli
     /// </remarks>
     internal sealed class CliSchemaStore
     {
-        /// <summary>The store format; part of the directory (<c>cli-schema/v2/</c>), so another format is never read.</summary>
-        internal const int FormatVersion = 2;
+        /// <summary>The store format; part of the directory (<c>cli-schema/v3/</c>), so another format is never read.</summary>
+        internal const int FormatVersion = 3;
 
         internal const string TraceChannel = "cli.schemacache";
 

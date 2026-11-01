@@ -562,16 +562,33 @@ namespace tik4net.Cli
         {
             string? modName = string.IsNullOrEmpty(snapshotModifier) ? null : snapshotModifier.Split('=')[0];
             bool modifierAlreadyPresent = false;
+            foreach (var p in parameters)
+                if (modName != null && string.Equals(p.Name, modName, System.StringComparison.OrdinalIgnoreCase)
+                    && (includeFilters || p.ParameterFormat != TikCommandParameterFormat.Filter))
+                    modifierAlreadyPresent = true;
 
+            AppendInputs(sb, parameters, includeFilters);
+
+            if (!string.IsNullOrEmpty(snapshotModifier) && !modifierAlreadyPresent)
+            {
+                sb.Append(' ');
+                sb.Append(snapshotModifier);
+            }
+        }
+
+        // The command's own inputs, an empty value a bare flag. A Filter-format parameter is one only on the read path, where
+        // the inputs arrive in that format. The names in 'excluded' are the builder's own.
+        private static void AppendInputs(StringBuilder sb, IList<ITikCommandParameter> parameters, bool includeFilters,
+            params string[] excluded)
+        {
             foreach (var p in parameters)
             {
                 if (p.ParameterFormat == TikCommandParameterFormat.Filter && !includeFilters)
                     continue;
                 if (p.Name == TikSpecialProperties.Id || IsSpecialParam(p.Name))
                     continue;
-
-                if (modName != null && string.Equals(p.Name, modName, System.StringComparison.OrdinalIgnoreCase))
-                    modifierAlreadyPresent = true;
+                if (Array.Exists(excluded, name => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
+                    continue;
 
                 sb.Append(' ');
                 sb.Append(p.Name);
@@ -581,12 +598,24 @@ namespace tik4net.Cli
                     sb.Append(QuoteIfNeeded(p.Value));
                 }
             }
+        }
 
-            if (!string.IsNullOrEmpty(snapshotModifier) && !modifierAlreadyPresent)
-            {
-                sb.Append(' ');
-                sb.Append(snapshotModifier);
-            }
+        /// <summary>
+        /// A verb that is neither a table nor anything else listed (<see cref="CliReadShape.Other"/>):
+        /// <c>:put [/path verb inputs]</c>. No <c>as-value</c>, which most verbs take for their first positional argument
+        /// (<c>:put [/ip address find as-value]</c> answers nothing where <c>find</c> answers the ids; 7.25, 7.21.5, 6.49.21),
+        /// and the row, if it names one, by <c>numbers=</c>.
+        /// </summary>
+        internal static string BuildOtherVerbRead(string apiPath, IList<ITikCommandParameter> parameters)
+        {
+            var sb = new StringBuilder(":put [");
+            sb.Append(ApiPathToCli(apiPath));
+            string? id = FindIdParam(parameters);
+            if (!string.IsNullOrEmpty(id))
+                sb.Append(" numbers=").Append(QuoteIfNeeded(id));
+            AppendInputs(sb, parameters, includeFilters: true);
+            sb.Append(']');
+            return sb.ToString();
         }
 
         // ── Torch (freeze-frame) ──────────────────────────────────────────────
@@ -620,32 +649,16 @@ namespace tik4net.Cli
         /// <param name="freezeFrameSeconds">The frame interval; the duration is twice it.</param>
         /// <param name="withProplist"><c>false</c> on a router whose torch has no <c>proplist=</c> (RouterOS 6.49.13 refuses
         /// it: "expected end of command"); it then prints its plain table, read by <see cref="CliTorchParser.ParseTorchTable"/>.</param>
+        /// <param name="includeFilters">Set on the read path, where the inputs arrive in Filter format.</param>
         internal static string BuildTorchSnapshot(string apiPath, IList<ITikCommandParameter> parameters, int freezeFrameSeconds,
-            bool withProplist = true)
+            bool withProplist = true, bool includeFilters = false)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(":put [");
             sb.Append(cliBase);
 
-            foreach (var p in parameters)
-            {
-                if (p.ParameterFormat == TikCommandParameterFormat.Filter)
-                    continue;
-                if (p.Name == TikSpecialProperties.Id || IsSpecialParam(p.Name))
-                    continue;
-                if (string.Equals(p.Name, "duration", System.StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(p.Name, "freeze-frame-interval", System.StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(p.Name, "proplist", System.StringComparison.OrdinalIgnoreCase))
-                    continue; // these are owned by this builder, not the caller
-
-                sb.Append(' ');
-                sb.Append(p.Name);
-                if (!string.IsNullOrEmpty(p.Value))
-                {
-                    sb.Append('=');
-                    sb.Append(QuoteIfNeeded(p.Value));
-                }
-            }
+            // These three are owned by this builder, not the caller.
+            AppendInputs(sb, parameters, includeFilters, "duration", "freeze-frame-interval", "proplist");
 
             sb.Append(" duration=").Append(freezeFrameSeconds * 2);
             sb.Append(" freeze-frame-interval=").Append(freezeFrameSeconds);
@@ -671,70 +684,22 @@ namespace tik4net.Cli
             return sb.ToString();
         }
 
-        // ── Set ────────────────────────────────────────────────────────────────
+        // ── Row verbs ──────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a <c>/path set numbers=*N k=v …</c> command.
+        /// Builds <c>/path verb &lt;record selector&gt; [k=v …]</c> for the verbs that address one row: <c>numbers=*N</c>
+        /// on a row write (<see cref="CliVerbs.IsRowWrite"/>), <c>[find]</c> on any other.
         /// </summary>
-        internal static string BuildSet(string apiPath, IList<ITikCommandParameter> parameters)
+        /// <param name="apiPath">The path, the verb its last segment.</param>
+        /// <param name="verb">The verb; it chooses the record selector.</param>
+        /// <param name="parameters">The row's <c>.id</c> and the verb's inputs.</param>
+        /// <param name="includeFilters">Set on the read path, where the inputs arrive in Filter format.</param>
+        internal static string BuildRowVerb(string apiPath, string verb, IList<ITikCommandParameter> parameters, bool includeFilters = false)
         {
-            string cliBase = ApiPathToCli(apiPath);
-            var sb = new StringBuilder(cliBase);
-
-            string? idValue = FindIdParam(parameters);
-            AppendFindIdentifier(sb, idValue, useNumbers: true);
-
-            AppendNameValueParams(sb, parameters, skipId: true);
+            var sb = new StringBuilder(ApiPathToCli(apiPath));
+            AppendFindIdentifier(sb, FindIdParam(parameters), CliVerbs.IsRowWrite(verb));
+            AppendNameValueParams(sb, parameters, skipId: true, includeFilters: includeFilters);
             return sb.ToString();
-        }
-
-        // ── Remove ─────────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Builds a <c>/path remove numbers=*N</c> command.
-        /// </summary>
-        internal static string BuildRemove(string apiPath, IList<ITikCommandParameter> parameters)
-        {
-            return BuildFindVerb(apiPath, parameters, "remove");
-        }
-
-        // ── Simple verbs (enable / disable / move / unset / comment / run) ─────
-
-        /// <summary>
-        /// Builds <c>/path verb &lt;record selector&gt; [k=v …]</c> for the verbs that address one row.
-        /// </summary>
-        internal static string BuildSimpleVerb(string apiPath, string verb, IList<ITikCommandParameter> parameters)
-        {
-            // apiPath already contains the verb as its last segment; `verb` chooses the record selector.
-            return BuildFindVerb(apiPath, parameters, verb);
-        }
-
-        /// <summary>
-        /// Whether <paramref name="verb"/> selects its row with <c>numbers=</c>. The row-addressing verbs
-        /// do; an <b>action</b> verb does not, and saying so is not cosmetic — <c>/system/script/run
-        /// numbers=*B</c> answers <i>bad parameter numbers (line 1 column 30)</i> while
-        /// <c>run [find where .id=*B]</c> runs the script (measured on 7.24, run-count 0 → 1).
-        /// </summary>
-        /// <remarks>
-        /// An allow-list rather than a deny-list, so a verb nobody has measured keeps the older
-        /// <c>[find]</c> form — which works for every verb, and merely cannot report a row that is not
-        /// there. Wrong in the direction that stays functional.
-        /// </remarks>
-        private static bool TakesNumbers(string? verb)
-        {
-            switch (verb)
-            {
-                case "set":
-                case "remove":
-                case "enable":
-                case "disable":
-                case "move":
-                case "unset":
-                case "comment":
-                    return true;
-                default:
-                    return false;   // action verbs (run, …) and anything unmeasured
-            }
         }
 
         // ── Get ───────────────────────────────────────────────────────────────
@@ -892,34 +857,29 @@ namespace tik4net.Cli
             // on 6.49.13 and 7.24.4 for string, bool, number, address and prefix fields alike.
             // An EMPTY value is '?name=' — "the property equals the empty string" — and is spelled 'name=""'
             // (measured on 7.23.2: '?comment=' and 'where comment=""' both return no row that has a comment).
-            if (val == null)
+            if (val == null && !(name.Length > 1 && name[0] == '-'))
                 return name + "~\".\"";
+
+            // '?-name' is the binary API's "has no such property" (7.25: every row of a table with no comment in it). The
+            // value does not matter: the API sends none.
+            if (name.Length > 1 && name[0] == '-')
+                return "!(" + name.Substring(1) + "~\".\")";
 
             // A comparison is named by the filter, as on the binary API: '?>count=100' is 'count>100'.
             if (name.Length > 1 && (name[0] == '>' || name[0] == '<'))
-                return name.Substring(1) + name[0] + QuoteForWhere(val);
+                return name.Substring(1) + name[0] + QuoteForWhere(val!);
 
             // An id is '*' and hex digits. The API compares '.id' with the value as given, so '?.id=ether1' matches
             // no row; the CLI resolves a name there from 7.25 on ('find where .id=ether1' finds ether1, where 7.21.5
             // and 6.49.13 find nothing). The literal 'false' matches no row on all three and composes like any
             // other predicate ('!(false)' is every row).
-            if (name == ".id" && !IsItemId(val))
+            if (name == ".id" && !CliValueNormalizer.IsRecordId(val!))
                 return "false";
 
             // The value is literal, as on the API, REST and WinBox native: '?src-address=!10.0.0.0/8' asks for the
             // rule whose value IS '!10.0.0.0/8' (7.24.4). "Not equal" is the query stack's '?#!', and a value
             // starting with '>', '<' or '~' is a value too.
-            return name + "=" + QuoteForWhere(BooleanForWhere(val));
-        }
-
-        private static bool IsItemId(string value)
-        {
-            if (value.Length < 2 || value[0] != '*')
-                return false;
-            for (int i = 1; i < value.Length; i++)
-                if (!Uri.IsHexDigit(value[i]))
-                    return false;
-            return true;
+            return name + "=" + QuoteForWhere(BooleanForWhere(val!));
         }
 
         /// <summary>
@@ -978,19 +938,6 @@ namespace tik4net.Cli
                 return value;
 
             return "\"" + EscapeInsideQuotes(value) + "\"";
-        }
-
-        private static string BuildFindVerb(string apiPath, IList<ITikCommandParameter> parameters, string? verb = null)
-        {
-            string cliBase = ApiPathToCli(apiPath);
-            var sb = new StringBuilder(cliBase);
-
-            string? idValue = FindIdParam(parameters);
-            AppendFindIdentifier(sb, idValue, TakesNumbers(verb));
-
-            // Append any remaining NameValue params (e.g. destination for move)
-            AppendNameValueParams(sb, parameters, skipId: true);
-            return sb.ToString();
         }
 
         /// <summary>

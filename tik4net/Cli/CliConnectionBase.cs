@@ -344,8 +344,8 @@ namespace tik4net.Cli
             _completion = new CliCompletion(this);
             _flags = new CliFlagSupplier(this);
             _pagedReader = new CliPagedReader(this);
-            _printDriver = new CliPrintDriver(this, _flags, _pagedReader);
             _monitorDriver = new CliMonitorDriver(this);
+            _printDriver = new CliPrintDriver(this, _flags, _pagedReader, _monitorDriver);
         }
 
         private ICliTerminal? _terminal;
@@ -602,8 +602,10 @@ namespace tik4net.Cli
                && cliText.IndexOf('\n') < 0 && cliText.IndexOf('\r') < 0
                && WriteVerbLine.IsMatch(cliText);
 
+        internal static bool IsEndMarkerVerbLine(string cliText) => WriteVerbLine.IsMatch(cliText);
+
         private static readonly System.Text.RegularExpressions.Regex WriteVerbLine = new System.Text.RegularExpressions.Regex(
-            @"^(:put \[)?/[^\[\];]*?\b(add|set|remove|enable|disable|move|unset|comment)\b",
+            @"^(:put \[)?/(?:[\w.-]+ )*(add|set|remove|enable|disable|move|unset|comment)(?=[ \]]|$)",
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
         private static string NewEndNonce() => Guid.NewGuid().ToString("N").Substring(0, 12);
@@ -864,6 +866,14 @@ namespace tik4net.Cli
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => _printDriver.RunPrintAsync(descriptor, cancellationToken);
 
+        // ExecuteListUntilDone(timeout): torch never ends, so one frame would answer where the binary API reads on until the
+        // timeout ends the read. Every other read is the plain one, under the deadline.
+        internal override Task<IList<TikRecordSentence>> RunPrintUntilDoneAsync(TikCommandDescriptor descriptor,
+            CancellationToken cancellationToken)
+            => !descriptor.IsRaw && CliVerbs.ReadShapeOf(TikPath.Verb(descriptor.CommandText)) == CliReadShape.Torch
+                ? _monitorDriver.ReadTorchUntilCancelledAsync(descriptor, cancellationToken)
+                : RunPrintAsync(descriptor, cancellationToken);
+
         /// <summary>
         /// True while the command on the wire is a read whose answer this class will count against the
         /// router's own statement of its size — a window, a whole-table print, a counted argument read
@@ -936,29 +946,17 @@ namespace tik4net.Cli
             string cliText;
             switch (verb)
             {
-                case "set":
-                    cliText = CliCommandBuilder.BuildSet(descriptor.CommandText, descriptor.Parameters);
-                    break;
-                case "remove":
-                    cliText = CliCommandBuilder.BuildRemove(descriptor.CommandText, descriptor.Parameters);
-                    break;
-                case "enable":
-                case "disable":
-                case "move":
-                case "unset":
-                case "comment":
-                    // 'comment' is a real RouterOS menu command (it appears in Tab-completion next to
-                    // set/remove/move), not a synonym for 'set comment='. It needs the same [find …]
-                    // record selector as the others: without this case it fell through to BuildNonQuery,
-                    // which emitted '/ip firewall filter comment .id=*104 comment=x' and the router
-                    // answered "syntax error (line 1 column 29)" — the column of the bare '.id'.
                 case "run":
-                    // 'run' (e.g. /system/script/run) is an action verb: fire-and-forget over the terminal,
-                    // no result set. ExecuteNonQuery is the supported entry point (ExecuteList throws).
-                    cliText = CliCommandBuilder.BuildSimpleVerb(descriptor.CommandText, verb, descriptor.Parameters);
+                    // An action verb: fire-and-forget over the terminal, no result set. ExecuteNonQuery is the supported
+                    // entry point (ExecuteList throws). It addresses a row, by [find].
+                    cliText = CliCommandBuilder.BuildRowVerb(descriptor.CommandText, verb, descriptor.Parameters);
                     break;
                 default:
-                    cliText = CliCommandBuilder.BuildNonQuery(descriptor.CommandText, descriptor.Parameters);
+                    // 'comment' is a real RouterOS menu command (it appears in Tab-completion next to set/remove/move),
+                    // not a synonym for 'set comment=', and takes the same selector.
+                    cliText = CliVerbs.IsRowWrite(verb)
+                        ? CliCommandBuilder.BuildRowVerb(descriptor.CommandText, verb, descriptor.Parameters)
+                        : CliCommandBuilder.BuildNonQuery(descriptor.CommandText, descriptor.Parameters);
                     break;
             }
 
@@ -979,8 +977,8 @@ namespace tik4net.Cli
         /// The output IS checked for a router error, although raw mode cannot know what counts as one for an
         /// arbitrary command: unchecked, <c>bad command name prnt (line 1 column 12)</c> would be returned as a
         /// successful value, to be assigned and used, while the command never ran. The
-        /// check is <see cref="CliErrorParser"/>'s text-only one — the same the rest of the CLI path relies
-        /// on — and it recognises a router error line rather than the word "error" appearing in a value.
+        /// check is <see cref="CliErrorParser"/>'s phrase list, over the whole answer: a raw answer has no shape to
+        /// tell a value from a refusal, so a value reading <c>no such item</c> is reported as one (findings-cli §10).
         /// <para>
         /// On top of the phrases, an answer that is one parse error and nothing else — a single line ending in
         /// <c>(line N column M)</c>, such as <c>expected yes or no (line 1 column 44)</c> — is the router refusing

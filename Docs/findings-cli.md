@@ -1229,6 +1229,11 @@ there is nothing else it could be. This runs last, after the classified kinds ab
 `remove`/`set` against a nonexistent `.id` (`no such item (4)`, §8) produces `TikNoSuchItemException` rather
 than a generic trap.
 
+An answer that shows it ran to its end is data, and no phrase is looked for in it: one that ends with its count marker
+(a refused script stops before it), a monitor's as-value records, a table with its header. So a comment reading
+`no such item` stays a comment. `get` and raw commands keep the phrase check, because one line has no shape to tell
+the two apart: such a value reads as the refusal.
+
 A counted or windowed read has a positional rule of its own. Its answer always ends with the count marker,
 so an answer without one that consists of a single `(line N column M)` line is the router refusing the
 command, not an answer that lost its end: it is raised as the router's error rather than

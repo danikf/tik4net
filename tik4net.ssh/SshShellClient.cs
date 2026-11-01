@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Renci.SshNet;
 using Renci.SshNet.Common;
 using tik4net.Cli;
+using tik4net.Diagnostics;
 
 namespace tik4net.Ssh
 {
@@ -53,7 +54,9 @@ namespace tik4net.Ssh
             }
             catch (SshAuthenticationException)
             {
-                // Router rejected the '+c' terminal-flag suffix on the user name — retry plain.
+                // Router rejected the '+c' terminal-flag suffix on the user name — retry plain. A wrong password takes the
+                // same route, so it costs two failed logins in the router's log; and a plain login gets a coloured console.
+                TikWireTrace.Emit("ssh.login", TikWireDir.Note, "login with terminal flags refused - retrying the plain user name");
                 SafeDispose(_ssh);
                 _ssh = CreateClient(host, port, user, password, key);
                 try { ConnectOrTimeOut(_ssh); }

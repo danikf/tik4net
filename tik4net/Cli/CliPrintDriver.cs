@@ -18,12 +18,14 @@ namespace tik4net.Cli
         private readonly ICliCommandHost _host;
         private readonly CliFlagSupplier _flags;
         private readonly CliPagedReader _pagedReader;
+        private readonly CliMonitorDriver _monitors;
 
-        internal CliPrintDriver(ICliCommandHost host, CliFlagSupplier flags, CliPagedReader pagedReader)
+        internal CliPrintDriver(ICliCommandHost host, CliFlagSupplier flags, CliPagedReader pagedReader, CliMonitorDriver monitors)
         {
             _host = host;
             _flags = flags;
             _pagedReader = pagedReader;
+            _monitors = monitors;
         }
 
         /// <summary>
@@ -64,62 +66,33 @@ namespace tik4net.Cli
                 return CliOutputParser.ParseAsValue(rawOutput);
             }
 
-            // Action verbs (e.g. /system/script/run) perform an action and produce no result set over a
-            // terminal (no per-record !re output, unlike the binary API) — they belong on the non-query
-            // path. Reject them on the read path so the misuse is explicit instead of silently returning an
-            // empty list; invoke them via ExecuteNonQuery (RunNonQuery handles the 'run' verb).
+            // The verb decides the shape, and only a table takes a 'where': the print builder knows print modifiers and
+            // nothing else, so any other verb sent to it loses its inputs, and 'as-value' lands in its first positional
+            // argument. The read path has rewritten a caller's Default-format parameters to Filter by now, so every shape
+            // but the table takes the Filter ones as inputs.
             string printVerb = TikPath.Verb(descriptor.CommandText);
-            if (IsActionVerb(printVerb))
-                throw ActionVerbOnReadPath(descriptor.CommandText);
-
-            // Actions that the binary API answers with an empty '!re' row (verified live for /tool/wol:
-            // "!re" with no words, then "!done"). Consumers therefore legitimately reach them through a
-            // read method — ToolWol.ExecuteWol uses ExecuteSingleRowOrDefault — so throwing here would
-            // punish correct code. Route them to the non-query builder instead and return no rows;
-            // 'at most one row' is what the callers are written against. This is the opposite treatment
-            // from IsActionVerb ('run'), where a read call really is consumer error.
-            // Without this, BuildPrint silently DROPS the name=value inputs (mac= is not a print
-            // modifier) and appends 'as-value', yielding ':put [/tool wol as-value]' — the router then
-            // rejects it for a missing mac.
-            if (IsEmptyRowAction(printVerb))
+            switch (CliVerbs.ReadShapeOf(printVerb))
             {
-                // includeFilters: the read path rewrote the action's own inputs (mac=, interface=) to
-                // Filter format — see CliCommandBuilder.BuildNonQuery.
-                string actionText = CliCommandBuilder.BuildNonQuery(
-                    descriptor.CommandText, descriptor.Parameters, includeFilters: true);
-                string actionOutput = await _host.ExecuteAsync(actionText, cancellationToken).ConfigureAwait(false);
-                // An empty-row action (wol) is silent when it succeeds and prints its complaint when it does
-                // not — e.g. "input does not match any value of interface", which no phrase list caught, so
-                // WolWithInvalidInterfaceWillFail saw a failed send reported as success.
-                CliErrorParser.ThrowIfError(actionOutput, _host.CommandFor(descriptor), silentOnSuccess: true);
-                return new List<TikRecordSentence>();
+                case CliReadShape.Action:
+                    // A verb with no result set over a terminal: the misuse is explicit rather than an empty list.
+                    throw ActionVerbOnReadPath(descriptor.CommandText);
+                case CliReadShape.EmptyRowAction:
+                    return await RunEmptyRowActionAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                case CliReadShape.SelfTerminatingMonitor:
+                    return await RunSelfTerminatingMonitorAsync(descriptor, CliMonitorVerbs.SnapshotModifier(printVerb), cancellationToken).ConfigureAwait(false);
+                case CliReadShape.Monitor:
+                    return await RunMonitorSnapshotAsync(descriptor, CliMonitorVerbs.SnapshotModifier(printVerb), includeFilters: true, cancellationToken).ConfigureAwait(false);
+                case CliReadShape.Torch:
+                    return await _monitors.ReadTorchFrameAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                case CliReadShape.Get:
+                    return await RunGetAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                case CliReadShape.ArgumentRead:
+                    return await RunArgumentReadAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                case CliReadShape.RowWrite:
+                    return await RunRowWriteAsync(descriptor, printVerb, cancellationToken).ConfigureAwait(false);
+                case CliReadShape.Other:
+                    return await RunOtherVerbAsync(descriptor, cancellationToken).ConfigureAwait(false);
             }
-
-            // Monitor commands (/ping, /tool/traceroute, /interface/monitor-traffic, …) reached through a READ
-            // method. Their parameters are the command's own INPUTS, but BuildPrint only understands print
-            // modifiers and a 'where' clause, so it dropped every one of them: '/ping =address=127.0.0.1
-            // =count=2' went out as ':put [/ping as-value]' → "failure: resolve failed". The async path
-            // never had the bug — it has always used BuildMonitorSnapshot, which is what is used here too.
-            if (CliMonitorVerbs.IsSyncMonitorVerb(printVerb))
-                return await RunMonitorSnapshotAsync(descriptor, printVerb, cancellationToken).ConfigureAwait(false);
-
-            // The `get` verb. BuildPrint cannot express it: it drops the .id and value-name inputs (neither
-            // is a print modifier) and appends as-value, so `/interface/get =.id=*2 =value-name=name` went
-            // out as `:put [/interface get as-value]` — a singleton read of a list menu, answered "no such
-            // item". The singleton form was broken the same way, and worse: `as-value` landed where the
-            // value name goes, so `/system/identity/get =value-name=name` was refused with "input does not
-            // match any value of value-name". The binary API honours both, and ITikCommand is the level
-            // whose whole promise is that one command runs everywhere, so this is ours to translate.
-            if (printVerb == "get")
-                return await RunGetAsync(descriptor, cancellationToken).ConfigureAwait(false);
-
-            // A command whose rows answer a question its own arguments ask — /console/inspect request=child
-            // path=ip,route,add. BuildPrint knows only print modifiers and 'where', so it dropped request= and
-            // path= and sent ':put [/console inspect as-value]', which the router answered with no rows: an empty
-            // answer indistinguishable from a real one. The monitor snapshot passes the arguments through; with no
-            // modifier it is ':put [/console inspect request=child path=ip,route,add as-value]' (7.24.4: 14 rows).
-            if (IsArgumentRead(printVerb))
-                return await RunArgumentReadAsync(descriptor, cancellationToken).ConfigureAwait(false);
 
             // .proplist: the fields the caller asked for, and only those — the binary API's contract. It never
             // reaches the wire: the CLI's own proplist= refuses the whole read when one name is unknown
@@ -183,7 +156,9 @@ namespace tik4net.Cli
                 wantSensitive = false;
             }
 
-            if (_host.Knowledge.MenuFacts.PrintWithoutAsValue.Contains(descriptor.CommandText))
+            // Only for an unfiltered read, as when it was learnt: the table cannot carry the caller's arguments, and would
+            // answer a filter with the whole table. A filtered read goes on to the router's refusal.
+            if (_host.Knowledge.MenuFacts.PrintWithoutAsValue.Contains(descriptor.CommandText) && IsUnfiltered(descriptor))
                 return await RunPlainTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false)
                     ?? throw new TikCommandTrapException(_host.CommandFor(descriptor),
                         new TikTrapSentenceResult("the plain print of " + descriptor.CommandText + " printed no table"));
@@ -196,7 +171,7 @@ namespace tik4net.Cli
                     cancellationToken).ConfigureAwait(false);
             }
             catch (TikCommandTrapException ex) when (CliErrorParser.RefusedArgumentLine.IsMatch(ex.Message.Trim())
-                                                     && descriptor.Parameters.All(p => p.Name.StartsWith(".", StringComparison.Ordinal)))
+                                                     && IsUnfiltered(descriptor))
             {
                 // A print with no as-value: RouterOS 6's '/routing bgp advertisements print' completes only file,
                 // interval, peer and where, so 'as-value' is taken for a peer name ("input does not match any value
@@ -326,6 +301,9 @@ namespace tik4net.Cli
             return merged;
         }
 
+        private static bool IsUnfiltered(TikCommandDescriptor descriptor)
+            => descriptor.Parameters.All(p => p.Name.StartsWith(".", StringComparison.Ordinal));
+
         private static TikCommandDescriptor WithoutParameter(TikCommandDescriptor descriptor, string name)
             => new TikCommandDescriptor(descriptor.CommandText, descriptor.Parameters.Where(p => p.Name != name).ToList());
 
@@ -336,19 +314,89 @@ namespace tik4net.Cli
         private static bool IsDetailRefusal(string? response)
             => response != null && response.IndexOf("bad parameter detail", StringComparison.OrdinalIgnoreCase) >= 0;
 
+        // An action the binary API answers with an empty '!re' row (/tool/wol): consumers reach it through a read method
+        // (ToolWol uses ExecuteSingleRowOrDefault), so it is run and answers no rows. Silent when it succeeds, and what it
+        // prints otherwise is its complaint, e.g. "input does not match any value of interface", which no phrase catches.
+        private async Task<IList<TikRecordSentence>> RunEmptyRowActionAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
+            string output = await _host.ExecuteAsync(CliCommandBuilder.BuildNonQuery(
+                descriptor.CommandText, descriptor.Parameters, includeFilters: true), cancellationToken).ConfigureAwait(false);
+            CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor), silentOnSuccess: true);
+            return new List<TikRecordSentence>();
+        }
+
+        // A row write reached through a read method (ExecuteScalar of /ip/address/set): it runs as the write it is, and
+        // answers nothing, as the API's bare !done does.
+        private async Task<IList<TikRecordSentence>> RunRowWriteAsync(TikCommandDescriptor descriptor, string verb, CancellationToken cancellationToken)
+        {
+            string output = await _host.ExecuteAsync(CliCommandBuilder.BuildRowVerb(
+                descriptor.CommandText, verb, descriptor.Parameters, includeFilters: true), cancellationToken).ConfigureAwait(false);
+            CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor), silentOnSuccess: true);
+            return new List<TikRecordSentence>();
+        }
+
+        // A verb nobody listed (CliReadShape.Other). Records if the answer is records, otherwise the text is one 'ret' value,
+        // what the binary API puts in =ret=, unless it is the router's complaint. Nothing at all is no rows.
+        private async Task<IList<TikRecordSentence>> RunOtherVerbAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
+            string output = await _host.ExecuteAsync(CliCommandBuilder.BuildOtherVerbRead(
+                descriptor.CommandText, descriptor.Parameters), cancellationToken).ConfigureAwait(false);
+            string value = output.Trim();
+            if (value.Length == 0)
+                return new List<TikRecordSentence>();
+            IList<TikRecordSentence> rows = CliOutputParser.ParseAsValue(output);
+            if (CliOutputParser.AreRecords(rows))
+                return rows;
+            CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
+            CliErrorParser.ThrowIfSyntaxError(output, _host.CommandFor(descriptor));
+            return TikGetResult.One(TikSpecialProperties.Ret, value);
+        }
+
         /// <summary>
-        /// Runs one monitor snapshot synchronously and returns its records — the read-method counterpart of
-        /// <see cref="CliMonitorDriver"/>'s poll loop's single iteration.
+        /// A monitor that ends by itself, through its table on every router: the same <c>time</c> as the binary API
+        /// (<c>100us</c>, where as-value writes <c>00:00:00.000100</c>), no <c>.id</c>, which as-value invents, and the summary
+        /// as-value does not print. The bare form, because <c>:put</c> around it adds the command's return value as a line
+        /// after the table.
         /// </summary>
         /// <remarks>
-        /// <c>includeFilters</c> is what makes this correct on the read path: by the time a descriptor gets
-        /// here, <c>TikGenericCommand.ResolveParamsForRead</c> has rewritten the caller's parameters to Filter
-        /// format, and a monitor has no query semantics for them to mean anything else.
+        /// The binary API prints <c>sent</c>, <c>received</c>, <c>packet-loss</c> and the round trips on every row; a terminal
+        /// prints them after every twentieth reply and at the end, and those rows carry them. Other rows lack them: these
+        /// would be numbers the router did not print.
         /// </remarks>
-        private Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(
-            TikCommandDescriptor descriptor, string verb, CancellationToken cancellationToken)
-            => RunMonitorSnapshotAsync(descriptor, CliMonitorVerbs.SnapshotModifier(verb), includeFilters: true,
-                cancellationToken);
+        private async Task<IList<TikRecordSentence>> RunSelfTerminatingMonitorAsync(TikCommandDescriptor descriptor, string modifier,
+            CancellationToken cancellationToken)
+        {
+            string output = await _host.ExecuteAsync(CliCommandBuilder.BuildInteractiveMonitor(
+                descriptor.CommandText, descriptor.Parameters, modifier, includeFilters: true), cancellationToken).ConfigureAwait(false);
+            var table = new CliTableParser();
+            var rows = new List<TikRecordSentence>();
+            foreach (string line in output.Split((char)10))
+            {
+                string text = line.TrimEnd((char)13);
+                TikRecordSentence? row = table.Feed(text);
+                if (row != null)
+                    rows.Add(row);
+                else if (rows.Count > 0 && CliTableParser.TryReadSummary(text, out var summary))
+                    rows[rows.Count - 1] = WithFields(rows[rows.Count - 1], summary);
+            }
+            if (!table.HasHeader && !string.IsNullOrWhiteSpace(output))
+            {
+                CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
+                throw new TikCommandTrapException(_host.CommandFor(descriptor),
+                    new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
+            }
+            return rows;
+        }
+
+        private static TikRecordSentence WithFields(TikRecordSentence row, IEnumerable<KeyValuePair<string, string>> fields)
+        {
+            var words = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var word in row.Words)
+                words[word.Key] = word.Value;
+            foreach (var field in fields)
+                words[field.Key] = field.Value;
+            return new TikRecordSentence(words);
+        }
 
         /// <summary>
         /// One monitor snapshot — the as-value form, or on a router that refuses it (RouterOS 6) the plain table —
@@ -365,10 +413,7 @@ namespace tik4net.Cli
 
                 string output = await _host.ExecuteAsync(cliText, cancellationToken).ConfigureAwait(false);
                 if (!CliErrorParser.IsSyntaxErrorOnly(output))
-                {
-                    CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
                     return ParseRecords(output, descriptor);
-                }
             }
 
             // RouterOS 6 has no as-value on its monitors: 6.49.13 answers ':put [/ping address=… count=2 as-value]'
@@ -378,7 +423,6 @@ namespace tik4net.Cli
             string plainText = CliCommandBuilder.BuildInteractiveMonitor(
                 descriptor.CommandText, descriptor.Parameters, modifier, includeFilters);
             string plain = await _host.ExecuteAsync(plainText, cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(plain, _host.CommandFor(descriptor));
 
             var table = new CliTableParser();
             var rows = new List<TikRecordSentence>();
@@ -391,8 +435,11 @@ namespace tik4net.Cli
             // The header is the acceptance signal, as on the streaming path: text that never produced one is the
             // router's refusal.
             if (!table.HasHeader && !string.IsNullOrWhiteSpace(plain))
+            {
+                CliErrorParser.ThrowIfError(plain, _host.CommandFor(descriptor));
                 throw new TikCommandTrapException(_host.CommandFor(descriptor),
                     new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(plain)));
+            }
             _host.Knowledge.LearnFact(_host.Knowledge.MenuFacts.MonitorWithoutAsValue, CliRouterKnowledge.FactMonitorWithoutAsValue, descriptor.CommandText);
             return rows;
         }
@@ -455,7 +502,7 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Parses <c>as-value</c> output, treating text that yields no record as the router's refusal
-        /// rather than as an empty result.
+        /// rather than as an empty result, classified as the router's error is everywhere.
         /// </summary>
         /// <remarks>
         /// The positional rule in its general form, and it needs no phrase list: as-value output is
@@ -482,11 +529,14 @@ namespace tik4net.Cli
         /// </remarks>
         internal IList<TikRecordSentence> ParseRecords(string output, TikCommandDescriptor descriptor)
         {
+            if (string.IsNullOrWhiteSpace(output))
+                return new List<TikRecordSentence>();
             IList<TikRecordSentence> rows = CliOutputParser.ParseAsValue(output);
-            if (rows.Count == 0 && !string.IsNullOrWhiteSpace(output))
-                throw new TikCommandTrapException(_host.CommandFor(descriptor),
-                    new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
-            return rows;
+            if (CliOutputParser.AreRecords(rows))
+                return rows;
+            CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
+            throw new TikCommandTrapException(_host.CommandFor(descriptor),
+                new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
         }
 
         /// <summary>
@@ -613,18 +663,8 @@ namespace tik4net.Cli
             }
         }
 
-        // True for verbs that perform an action rather than read records (no result set over a terminal).
-        private static bool IsActionVerb(string verb) => verb == "run";
-
-        // Actions reached through a read method because the binary API returns an empty row for them.
-        // Kept minimal and explicit (like CliCommandBuilder.CliPresenceFlagFields); extend as more surface.
-        private static bool IsEmptyRowAction(string verb) => verb == "wol";
-
-        // Reads whose arguments are the question, not a filter over a table (see RunPrintCoreAsync).
-        private static bool IsArgumentRead(string verb) => verb == "inspect";
-
         /// <summary>
-        /// A read whose arguments are the question (<see cref="IsArgumentRead"/>), as per-row DSV where the router takes
+        /// A read whose arguments are the question (<see cref="CliReadShape.ArgumentRead"/>), as per-row DSV where the router takes
         /// it: inspect's completion rows carry values as-value cannot frame — <c>completion="</c>, which opened a quote
         /// that swallowed the rest of the answer (7.24.4), and free text with spaces. Elsewhere the as-value snapshot.
         /// </summary>
@@ -649,7 +689,6 @@ namespace tik4net.Cli
                 {
                     _host.CountedReadDepth--;
                 }
-                CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
                 string body = _pagedReader.SplitOffCountMarker(output, descriptor, out int expected);
                 return _pagedReader.EnsureCounted(CliDsvParser.Parse(body, _host.CliFieldSeparator), expected, descriptor, body);
             }
@@ -658,7 +697,6 @@ namespace tik4net.Cli
             // per-character echo cost.
             string asValue = await _host.ExecuteAsync(CliCommandBuilder.BuildMonitorSnapshot(descriptor.CommandText,
                 descriptor.Parameters, string.Empty, includeFilters: true), cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(asValue, _host.CommandFor(descriptor));
             return ParseRecords(asValue, descriptor);
         }
 

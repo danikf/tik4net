@@ -72,9 +72,25 @@ namespace tik4net.Cli
         }
 
         /// <summary>
+        /// True when <paramref name="rows"/> are as-value records rather than the router's complaint read as one: the
+        /// text in front of a <c>=</c> in a complaint (<c>failure: already have such address=1.2.3.4</c>) is no field name.
+        /// </summary>
+        internal static bool AreRecords(IList<TikRecordSentence> rows)
+            => rows.Count > 0 && rows.All(row => row.Words.Keys.All(IsFieldName));
+
+        private static bool IsFieldName(string key)
+        {
+            foreach (char c in key)
+                if (!char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
+                    return false;
+            return key.Length > 0;
+        }
+
+        /// <summary>
         /// Parses a <c>key=value;…</c> string into an ordered list of pairs (preserving record order
-        /// and duplicate <c>.id</c> keys so callers can split into records). Quote-aware: values in
-        /// double-quotes may contain embedded ';'.
+        /// and duplicate <c>.id</c> keys so callers can split into records). A <c>"</c> is an ordinary character:
+        /// as-value has no quoting, and a comment reading <c>"a;b</c> is written with no closing quote and no escape
+        /// (7.25, 7.21.5, 6.49.21).
         /// </summary>
         internal static List<KeyValuePair<string, string>> ParseOrderedFields(string line)
         {
@@ -124,42 +140,16 @@ namespace tik4net.Cli
                 pos = eq + 1;
 
                 string value;
-                if (pos < len && line[pos] == '"')
+                int semi = line.IndexOf(';', pos);
+                if (semi < 0)
                 {
-                    // Quoted value: scan for closing '"' (RouterOS escapes embedded quotes with backslash).
-                    int closeQuote = pos + 1;
-                    while (closeQuote < len)
-                    {
-                        if (line[closeQuote] == '"' && line[closeQuote - 1] != '\\')
-                            break;
-                        closeQuote++;
-                    }
-                    if (closeQuote >= len)
-                    {
-                        value = line.Substring(pos + 1);
-                        pos = len;
-                    }
-                    else
-                    {
-                        value = line.Substring(pos + 1, closeQuote - pos - 1).Replace("\\\"", "\"");
-                        pos = closeQuote + 1;
-                        if (pos < len && line[pos] == ';')
-                            pos++;
-                    }
+                    value = line.Substring(pos);
+                    pos = len;
                 }
                 else
                 {
-                    int semi = line.IndexOf(';', pos);
-                    if (semi < 0)
-                    {
-                        value = line.Substring(pos);
-                        pos = len;
-                    }
-                    else
-                    {
-                        value = line.Substring(pos, semi - pos);
-                        pos = semi + 1;
-                    }
+                    value = line.Substring(pos, semi - pos);
+                    pos = semi + 1;
                 }
 
                 if (!string.IsNullOrEmpty(key))

@@ -36,8 +36,8 @@ namespace tik4net.Cli
         /// telling the time — and as-value spells both the same way, which is the one distinction a reader
         /// cannot make by looking. Measured across the 154 audited paths (the audit reports the set as
         /// <c>CLOCK-SHAPED api values</c>), the whole list is these two. Matched by field NAME rather than
-        /// by path because the parser is handed words, not a menu — the risk that costs is a duration field
-        /// literally called <c>time</c>, and RouterOS has none.
+        /// by path because the parser is handed words, not a menu — which costs the one duration field called
+        /// <c>time</c>: a monitor's, and a read through the table does not come here (<see cref="CliTableParser"/>).
         /// </remarks>
         private static readonly string[] ClockTimeFields = { "time", "start-time" };
 
