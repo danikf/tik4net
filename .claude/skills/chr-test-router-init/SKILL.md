@@ -237,7 +237,7 @@ was really signed, not just created). Self-signed is fine — `App.config` sets
 ## Step 5 — Second full-privilege account (recovery escape hatch)
 
 Create a second `full`-group account so the account in `App.config` is not the only way in. The lab
-convention is the user `recovery` with an **empty password** — the same as the lab account in `App.config`,
+convention is the user `recovery` with an **empty password** — the same as CHR's and CHR2's lab account in `App.config`,
 so there is no second secret to keep anywhere:
 
 ```
@@ -363,6 +363,9 @@ Provision it with steps 0–6 like the first, with these differences:
   target's id.
 - **CHR3 is the RoMON target of the `chr2` profile** (CHR2 relays to it: a RouterOS 6 agent, a 7.x target), in
   `chr2.romonTarget*`. After re-provisioning CHR3, enable RoMON there and pin its id the same way.
+- **CHR3's `admin` has a password** (`chr3.pass`, `romonSshTargetPass`, `chr2.romonTargetPass` in `App.config`): the
+  production-like login of the lab. After re-provisioning it, set it again with `/user/set`; the `recovery` account stays
+  without one.
 - Verify with `run-integration-tests.ps1 -Router @('default','chr2') -Transport @('api') -Filter
   'FullyQualifiedName~RomonRelayTest'` — 40 tests per profile, three agent transports each, about 5 min.
 - **The lab keeps it on RouterOS 6.49.21**, the oldest 6.x with the fixes for the September 2026 SSH

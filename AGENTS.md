@@ -189,7 +189,7 @@ contain: a real address in a comment is no less published than one in code, and 
 that pasting captures is fine.
 
 **The lab subnet and login are not secrets.** `192.168.4.x` — the lab routers' own addresses included — and
-`admin` with an empty password are the published lab setup. They may appear anywhere: test data, comments,
+`admin` with an empty password, or `pass` on CHR3, are the published lab setup. They may appear anywhere: test data, comments,
 `Docs/`, the examples' `App.config`. Do not flag them and do not replace them; the rule above is about real
 MACs, real credentials and machine-local paths.
 

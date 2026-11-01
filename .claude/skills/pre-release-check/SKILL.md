@@ -198,7 +198,7 @@ Expected, not findings — **do not "fix" them**:
 * **The lab subnet `192.168.4.x`**, the lab routers' addresses included, in tests, code comments, Docs,
   `tik4net.examples/App.config` and anywhere else. It is the published lab setup (a private network nobody
   outside can reach), not a secret; test data and comments quote it because that is what the router printed.
-* **`admin` with an empty password** — the RouterOS default login the lab uses.
+* **`admin` with an empty password** — the RouterOS default login the lab uses — and **`admin` / `pass`** on CHR3.
 * Documentation-only addresses (`10.0.0.1`, `192.0.2.x`, `192.168.88.1`) and placeholder MACs
   (`AA:BB:CC:DD:EE:FF`).
 
