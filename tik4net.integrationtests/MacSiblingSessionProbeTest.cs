@@ -379,7 +379,7 @@ namespace tik4net.integrationtests
                 ladder = env.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
 
             Log("=== P2.55 idle ladder: how long may a MAC console sit unread? ===");
-            foreach (var transport in new[] { TikConnectionType.WinboxCliMac, TikConnectionType.MacTelnet })
+            foreach (var transport in new[] { TikConnectionType.WinboxCliMac, TikConnectionType.WinboxNativeMac, TikConnectionType.MacTelnet })
             {
                 Log("-- " + transport);
                 foreach (int seconds in ladder)

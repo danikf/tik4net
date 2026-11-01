@@ -11,8 +11,10 @@
 // plus TIK4NET_PROBE_LOG). Run per router with -Router.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Renci.SshNet;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using tik4net.Diagnostics;
@@ -103,6 +105,49 @@ namespace tik4net.integrationtests
                     lock (sink.Received) received = sink.Received.ToString();
                     bool coloured = Regex.IsMatch(received, @"\x1b\[(\d+;)*3[0-7](;\d+)*m");
                     Log($"  {type,-10} {loginName,-14} {result}; terminal {(coloured ? "IN COLOUR" : "no colour")} ({received.Length} B received)");
+                }
+        }
+
+        /// <summary>
+        /// Whether SSH takes the name's options, with the library's retry out of the way: SSH.NET directly, so a refused
+        /// name stays refused. The console draws nothing beyond its cursor probe until that is answered, unless the name's
+        /// <c>+t</c> was read and the probe skipped, so the bytes of the first seconds say which happened.
+        /// </summary>
+        [TestMethod]
+        public void Probe_SshLoginName_AcceptedAndHonoured()
+        {
+            string user = LabConfig.Get("user");
+            Log("SSH login name, router profile " + (Environment.GetEnvironmentVariable("TIK4NET_ROUTER") ?? "default"));
+            using (var api = new TikConnectionSetup(TestBase.LabAddress(TikConnectionType.Api), user, LabConfig.Get("pass") ?? "").Create(TikConnectionType.Api))
+                foreach (string loginName in new[] { user, user + "+c", user + "+t", user + "+tc" })
+                {
+                    try
+                    {
+                        using (var ssh = new SshClient(LabConfig.Get("host"), loginName, LabConfig.Get("pass") ?? ""))
+                        {
+                            ssh.Connect();
+                            using (var shell = ssh.CreateShellStream("vt100", 80, 25, 640, 480, 8192))
+                            {
+                                var received = new StringBuilder();
+                                var clock = System.Diagnostics.Stopwatch.StartNew();
+                                while (clock.ElapsedMilliseconds < 5000)
+                                {
+                                    string text = shell.Read();
+                                    if (text.Length > 0) received.Append(text);
+                                    else System.Threading.Thread.Sleep(50);
+                                }
+                                string names = string.Join(",", api.CreateCommand("/user/active/print").ExecuteList()
+                                    .Where(r => r.GetResponseFieldOrDefault("via", "") == "ssh")
+                                    .Select(r => r.GetResponseField("name")));
+                                Log($"  {loginName,-12} accepted; /user/active ssh names [{names}]; {received.Length} B in 5 s");
+                            }
+                            ssh.Disconnect();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"  {loginName,-12} FAILED {ex.GetType().Name}: {ex.Message.Split('\n')[0]}");
+                    }
                 }
         }
 
