@@ -95,7 +95,7 @@ namespace tik4net.Cli
         /// the receive deadline: RouterOS writes nothing for a Tab with nothing more to list (the Tab after a listing that
         /// left nothing out, 6.49.13's second Tab on <c>print where </c> of a menu without fields). A Tab that follows
         /// typed text is never silent — its echo comes first. The quiet window itself follows the link: twice the
-        /// connection's measured Tab response, never under 300 ms (<c>CliConnectionBase.SettleTab</c>).
+        /// connection's measured Tab response, never under 300 ms (<c>CliCompletion.SettleTab</c>).
         /// </summary>
         internal const int NoReactionQuietFactor = 4;
 

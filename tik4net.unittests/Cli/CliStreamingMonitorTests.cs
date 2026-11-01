@@ -84,8 +84,6 @@ namespace tik4net.unittests.Cli
         {
             var streamer = new CliLineStreamer(null);
             streamer.Feed("anything\n");   // must not throw
-
-            Assert.IsFalse(streamer.IsActive);
         }
 
         // ── CliTableParser ─────────────────────────────────────────────────────

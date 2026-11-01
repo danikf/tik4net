@@ -47,13 +47,10 @@ namespace tik4net.Cli
     /// (<c>"23 (telnet)"</c>) — is handled by <see cref="CliOutputParser.ParseTorchFrame"/> consuming the
     /// parenthesised annotation as an extra (discarded) token rather than by whitespace-splitting alone.
     /// <see cref="Kind.FreezeFrame"/> flags <c>torch</c> for this dedicated builder/parser pair (see
-    /// <see cref="CliConnectionBase"/>'s <c>TorchFreezeFrameLoop</c>).</para>
+    /// <see cref="CliMonitorDriver"/>'s <c>TorchFreezeFrameLoop</c>).</para>
     /// </summary>
     internal static class CliMonitorVerbs
     {
-        /// <summary>RouterOS's default monitor snapshot modifier, used for any verb not specially mapped.</summary>
-        public const string DefaultModifier = "once";
-
         // Monitors driven by the dedicated freeze-frame builder/parser pair instead of once/as-value.
         private static readonly HashSet<string> FreezeFrame =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "torch" };
@@ -88,8 +85,8 @@ namespace tik4net.Cli
         /// bare (<c>once</c>), a valued one becomes <c>name=value</c> (<c>count=1</c>). Only the spelling lives
         /// here; which parameter bounds which verb is transport-neutral and is answered in one place, so a
         /// verb that gets a measured bound for one transport cannot silently keep the wrong one on another.
-        /// <c>torch</c> is the exception that never reaches this method — <see cref="Kind.FreezeFrame"/> drives
-        /// it instead — so its shared entry (<c>duration=2</c>) is unused over a terminal.
+        /// <c>torch</c>'s shared entry (<c>duration=2</c>) is asked for and left unused over a terminal:
+        /// <see cref="Kind.FreezeFrame"/> sets its own bound.
         /// </remarks>
         public static string SnapshotModifier(string verb)
         {

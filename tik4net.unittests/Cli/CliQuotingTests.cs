@@ -194,7 +194,6 @@ namespace tik4net.unittests.Cli
         public void QuoteForWhere_Empty_BecomesTheExplicitEmptyLiteral()
         {
             Assert.AreEqual("\"\"", CliCommandBuilder.QuoteForWhere(""));
-            Assert.IsNull(CliCommandBuilder.QuoteForWhere(null));
         }
 
         // ── BuildWhereClause: '?name' (is set) vs '?name=' (equals empty) ───────

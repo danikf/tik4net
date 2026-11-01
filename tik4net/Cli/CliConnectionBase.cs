@@ -204,8 +204,7 @@ namespace tik4net.Cli
                 throw new ArgumentException("commandRows must contain a CLI command.", nameof(commandRows));
 
             // Raw means native syntax, sent as given: no end marker is appended to it.
-            string output = await ExecuteCliCommandCoreAsync(cliText, cancellationToken, mayMarkEnd: false).ConfigureAwait(false)
-                            ?? string.Empty;
+            string output = await ExecuteCliCommandCoreAsync(cliText, cancellationToken, mayMarkEnd: false).ConfigureAwait(false);
 
             // Raw mode is handed a finished line rather than building one, but the verb is IN that line —
             // so a plain '/path set …' still gets the positional check, and only a line the reader cannot
@@ -810,21 +809,15 @@ namespace tik4net.Cli
             }
             catch (TikNoSuchCommandException)
             {
-                // RouterOS predates scriptable /safe-mode → fall back to the control key.
+                // RouterOS predates scriptable /safe-mode.
             }
 
-            SafeModeUnrollByControlKey();
+            // Before 7.18 no way to unroll in place exists: Close answers /quit's question with 'y', which unrolls.
+            Close();
         }
 
         /// <inheritdoc/>
         public bool SafeModeGet() => SafeModeHeld;
-
-        /// <summary>
-        /// Unrolls on a router without the scriptable <c>/safe-mode/unroll</c> (before 7.18) by ending the session:
-        /// <see cref="TikConnectionBase.Close"/> answers <c>/quit</c>'s Safe Mode question with <c>y</c>, which unrolls. See
-        /// <see cref="SafeModeUnroll"/> for why no in-place key exists.
-        /// </summary>
-        private protected virtual void SafeModeUnrollByControlKey() => Close();
 
         // ── Tab completion and the help key (CliCompletion) ────────────────────
 
@@ -1174,7 +1167,7 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Runs one monitor snapshot synchronously and returns its records — the read-method counterpart of
-        /// <c>MonitorPollLoop</c>'s single iteration.
+        /// <see cref="CliMonitorDriver"/>'s poll loop's single iteration.
         /// </summary>
         /// <remarks>
         /// <c>includeFilters</c> is what makes this correct on the read path: by the time a descriptor gets
@@ -1213,7 +1206,7 @@ namespace tik4net.Cli
             // once the plain form has answered with its table, so a syntax error the inputs caused is not.
             string plainText = CliCommandBuilder.BuildInteractiveMonitor(
                 descriptor.CommandText, descriptor.Parameters, modifier, includeFilters);
-            string plain = await ExecuteCliCommandAsync(plainText, cancellationToken).ConfigureAwait(false) ?? string.Empty;
+            string plain = await ExecuteCliCommandAsync(plainText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(plain, CommandFor(descriptor));
 
             var table = new CliTableParser();
@@ -1255,7 +1248,7 @@ namespace tik4net.Cli
             string menu = print.Substring(0, print.LastIndexOf(' '));
             string plain = await ExecuteCliCommandAsync(
                 ":put (\"" + PlainTableIdsMarker + "\" . [:tostr [" + menu + " find]]); :put [" + print + "]",
-                cancellationToken).ConfigureAwait(false) ?? string.Empty;
+                cancellationToken).ConfigureAwait(false);
             var table = new CliTableParser();
             var rows = new List<TikRecordSentence>();
             string[]? ids = null;
@@ -1395,8 +1388,8 @@ namespace tik4net.Cli
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
 
-            string value = (output ?? string.Empty).Trim();
-            if (string.IsNullOrEmpty(value))
+            string value = output.Trim();
+            if (value.Length == 0)
                 return new List<TikRecordSentence>();
 
             return TikGetResult.One(string.IsNullOrEmpty(valueName) ? TikSpecialProperties.Ret : valueName!, value);
@@ -1625,7 +1618,7 @@ namespace tik4net.Cli
             string rawCli = descriptor.WrapAsValue
                 ? WrapRawAsValue(descriptor.CommandText)
                 : descriptor.CommandText;
-            string output = (await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false) ?? string.Empty).Trim();
+            string output = (await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false)).Trim();
             CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
             ThrowIfSyntaxError(output, descriptor);
             return output;
@@ -1674,7 +1667,7 @@ namespace tik4net.Cli
                 }
                 CliErrorParser.ThrowIfError(output, CommandFor(descriptor));
                 string body = _pagedReader.SplitOffCountMarker(output, descriptor, out int expected);
-                return _pagedReader.EnsureCounted(_pagedReader.ParseDsvRecords(body, descriptor), expected, descriptor, body);
+                return _pagedReader.EnsureCounted(CliDsvParser.Parse(body, CliFieldSeparator), expected, descriptor, body);
             }
             // As-value, once. Not the monitor path's plain-table retry: that is for RouterOS 6's monitors, and the only
             // argument read, inspect, does not exist there at all — the retry would repeat the refusal, at 6.x's

@@ -31,16 +31,6 @@ namespace tik4net.Cli
                && !(wantJson && _host.Knowledge.Features.SerializeJson != false)
                && !_host.Knowledge.MenuFacts.WindowPrintsNoId.Contains(descriptor.CommandText);
 
-        // ParseRecords for a DSV answer: output that yields no record is the router's complaint, as there.
-        internal IList<TikRecordSentence> ParseDsvRecords(string output, TikCommandDescriptor descriptor)
-        {
-            IList<TikRecordSentence> rows = CliDsvParser.Parse(output, _host.CliFieldSeparator!);
-            if (rows.Count == 0 && !string.IsNullOrWhiteSpace(output))
-                throw new TikCommandTrapException(_host.CommandFor(descriptor),
-                    new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
-            return rows;
-        }
-
         /// <summary>
         /// Whether this read may be windowed. Paging is an optimisation for reading a whole table, and
         /// several shapes of read are not that.
@@ -148,7 +138,7 @@ namespace tik4net.Cli
                                 + descriptor.CommandText + "' " + interruptions + " times in a row — rows are "
                                 + "vanishing between the window's 'find' and its 'print' faster than it can be "
                                 + "taken. A table that turns over this quickly reads reliably as one command: set "
-                                + "_host.CliReadPageSize to 0 for it, or use a transport that is not on the MAC layer.",
+                                + "CliReadPageSize to 0 for it, or use a transport that is not on the MAC layer.",
                             0, window.Response);
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
                         "window at offset " + offset + " of '" + descriptor.CommandText
@@ -300,7 +290,7 @@ namespace tik4net.Cli
             IList<TikRecordSentence> parsed = asJson
                 ? CliJsonParser.ParseJson(body)
                 : asDsv
-                    ? ParseDsvRecords(body, descriptor)
+                    ? CliDsvParser.Parse(body, _host.CliFieldSeparator!)
                     : _host.ParseRecords(body, descriptor);
             if (idPerRow)
                 parsed = parsed.Select(WithoutNextId).ToList();
@@ -395,7 +385,7 @@ namespace tik4net.Cli
                     CliCommandBuilder.BuildCountedDsvRead(expression, _host.CliFieldSeparator!), cancellationToken).ConfigureAwait(false);
                 CliErrorParser.ThrowIfError(dsvOutput, _host.CommandFor(descriptor));
                 string dsvBody = SplitOffCountMarker(dsvOutput, descriptor, out int expectedDsv);
-                return EnsureCounted(ParseDsvRecords(dsvBody, descriptor), expectedDsv, descriptor, dsvBody);
+                return EnsureCounted(CliDsvParser.Parse(dsvBody, _host.CliFieldSeparator!), expectedDsv, descriptor, dsvBody);
             }
 
             string output = await _host.ExecuteAsync(

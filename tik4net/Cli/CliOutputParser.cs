@@ -19,11 +19,9 @@ namespace tik4net.Cli
     /// Newline-separated input (one record per line, as other transports may produce) is also
     /// accepted — newlines are treated as field separators and records are still split at <c>.id</c>.</para>
     ///
-    /// <para>Limitations (v0.2):
-    ///   - Quote-aware: values enclosed in "…" may contain embedded ';' without issue.
-    ///   - Embedded ';' in unquoted list-type fields (route-count, wireless ranges, BGP stats) can
-    ///     still cause incorrect splits. Ask the router for an unambiguous delimiter in that case:
-    ///     <c>:serialize delimiter="#"</c>.
+    /// <para>Limitations:
+    ///   - A <c>;</c> inside a value splits it: as-value has no escape. On RouterOS 7 the reads use DSV
+    ///     (<see cref="CliDsvParser"/>) for that reason.
     ///   - A list entity that has no <c>.id</c> at all collapses into one record.</para>
     /// </summary>
     internal static class CliOutputParser
@@ -71,19 +69,6 @@ namespace tik4net.Cli
                     result.Add(new TikRecordSentence(rec));
 
             return result;
-        }
-
-        /// <summary>
-        /// Parses a single <c>key=value;key2=value2;…</c> line into a dictionary (last value wins).
-        /// Retained for callers/tests that expect a flat dictionary.
-        /// </summary>
-        internal static Dictionary<string, string> ParseFields(string line)
-        {
-            var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kv in ParseOrderedFields(line))
-                if (!TikEmptyComment.IsNoComment(kv.Key, kv.Value))
-                    fields[kv.Key] = CliValueNormalizer.Normalize(kv.Key, kv.Value);
-            return fields;
         }
 
         /// <summary>

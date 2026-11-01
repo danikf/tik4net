@@ -674,7 +674,7 @@ namespace tik4net.Cli
         // ── Set ────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a <c>/path set [find where .id=*N] k=v …</c> command.
+        /// Builds a <c>/path set numbers=*N k=v …</c> command.
         /// </summary>
         internal static string BuildSet(string apiPath, IList<ITikCommandParameter> parameters)
         {
@@ -813,9 +813,8 @@ namespace tik4net.Cli
         // ── Where clause ──────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a <c>where name=value &amp;&amp; …</c> clause from Filter-format parameters.
-        /// Supports negation (<c>!value</c>), comparison (<c>&gt;value</c>, <c>&lt;value</c>),
-        /// and regex (<c>~pattern</c>) prefixes.
+        /// Builds a <c>where name=value &amp;&amp; …</c> clause from Filter-format parameters. A value is literal;
+        /// a comparison is named by the filter (<c>?&gt;count=100</c>) and "not equal" is the stack's <c>?#!</c>.
         /// <para>The same text serves as a window's <c>find</c> clause, where it is parenthesised rather
         /// than introduced by <c>where</c> — see <see cref="BuildPagedWindow"/>.</para>
         /// </summary>
@@ -961,10 +960,9 @@ namespace tik4net.Cli
         internal static string QuoteForWhere(string value)
         {
             // Empty → the explicit empty literal, for the same reason as in QuoteIfNeeded: a bare
-            // 'where comment=' does not parse. (A null never reaches here — BuildCondition emits the bare
-            // field name for it, which is the CLI's "property is set" test.)
-            if (string.IsNullOrEmpty(value))
-                return value == null ? null! : "\"\""; // value is never actually null here (see comment above)
+            // 'where comment=' does not parse.
+            if (value.Length == 0)
+                return "\"\"";
 
             bool safe = true;
             foreach (char c in value)
@@ -1239,7 +1237,7 @@ namespace tik4net.Cli
             || c == '-' || c == '_' || c == '.';
 
         /// <summary>
-        /// Escapes the three characters that are special inside a RouterOS double-quoted string.
+        /// Escapes the characters that are special inside a RouterOS double-quoted string.
         /// Shared by <see cref="QuoteIfNeeded"/> (name=value arguments) and
         /// <see cref="QuoteForWhere"/> (where-clause operands) so the two cannot drift apart.
         /// </summary>

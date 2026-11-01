@@ -25,7 +25,6 @@ namespace tik4net.Cli
         /// </summary>
         internal static string InjectWithoutPaging(string command)
         {
-            if (command == null) return command!; // defensive guard only; callers never pass null (all three consumers assign the result to a non-nullable local)
             if (command.TrimStart().StartsWith(":put", StringComparison.OrdinalIgnoreCase))
                 return command;
             if (command.IndexOf(WithoutPaging, StringComparison.OrdinalIgnoreCase) >= 0)
@@ -107,8 +106,7 @@ namespace tik4net.Cli
                     // lines, so skipping them here loses nothing it did not already lose.
                     || IsRouterLogLine(line)
                     || (cmdCore.Length > 0
-                        && (cmdCore.IndexOf(lineCore, StringComparison.OrdinalIgnoreCase) >= 0
-                            || cmdCore.StartsWith(lineCore, StringComparison.OrdinalIgnoreCase)));
+                        && cmdCore.IndexOf(lineCore, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (!isEcho)
                     break;
                 start++;

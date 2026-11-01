@@ -45,9 +45,6 @@ namespace tik4net.Cli
             _onLine = onLine;
         }
 
-        /// <summary>True when this streamer actually delivers anything (i.e. a callback was supplied).</summary>
-        internal bool IsActive => _onLine != null;
-
         /// <summary>
         /// Reports every line of <paramref name="strippedSoFar"/> that has been completed by a newline and
         /// not yet delivered. Text after the last newline is a partial line and is deliberately withheld —

@@ -9,28 +9,21 @@ namespace tik4net.Cli
     internal static class CliErrorParser
     {
         /// <summary>
-        /// Inspects <paramref name="output"/> (and optional <paramref name="exitCode"/>) for known
+        /// Inspects <paramref name="output"/> for known
         /// RouterOS error patterns and throws the corresponding tik4net exception if one is found.
         /// Does nothing if the output appears to be a successful response.
         /// </summary>
         /// <param name="output">Raw CLI output text (after ANSI stripping).</param>
         /// <param name="cmd">The command that produced the output — used to construct exceptions.</param>
-        /// <param name="exitCode">Optional SSH exit code. Non-zero signals an error even if the output text is ambiguous.</param>
         /// <param name="silentOnSuccess">
         /// Set for a command RouterOS answers with <b>nothing at all</b> when it succeeds — see
         /// <see cref="IsSilentOnSuccessVerb"/>. Any leftover text is then an error by position, with no
         /// phrase list involved.
         /// </param>
-        internal static void ThrowIfError(string output, ITikCommand cmd, int? exitCode = null,
-                                          bool silentOnSuccess = false)
+        internal static void ThrowIfError(string output, ITikCommand cmd, bool silentOnSuccess = false)
         {
             if (string.IsNullOrWhiteSpace(output))
-            {
-                // Non-zero exit with no output → generic trap
-                if (exitCode.HasValue && exitCode.Value != 0)
-                    throw new TikCommandTrapException(cmd, new TikTrapSentenceResult($"CLI command failed with exit code {exitCode.Value}."));
                 return;
-            }
 
             // RouterOS error lines typically start with a known prefix or contain known substrings.
             // Check is case-insensitive. The specific-kind classification (no such item/command/already have)
@@ -44,10 +37,6 @@ namespace tik4net.Cli
             // Generic "failure:" or "error:" prefix
             if (lower.Contains("failure:") || lower.Contains("error:"))
                 throw new TikCommandTrapException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
-
-            // Non-zero exit code with any non-empty output → treat as trap
-            if (exitCode.HasValue && exitCode.Value != 0)
-                throw new TikCommandTrapException(cmd, new TikTrapSentenceResult(output.Trim()));
 
             // Positional detection. The CLI has no structural error channel — output and errors are
             // the same text — so phrase matching can never be complete, and every phrase it misses is

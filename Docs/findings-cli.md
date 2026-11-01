@@ -859,8 +859,8 @@ every other CLI transport — SSH only adds the transport layer (~280 LOC), spli
   EOF convention; RouterOS's SSH server closes the channel on it regardless of the raw terminal modes
   (Telnet has no such convention — a bare byte there just reaches the console). Safe Mode unroll
   therefore goes through the scriptable `/safe-mode/unroll` (RouterOS 7.18+), a normal command that
-  keeps the channel alive; older routers fall back to Ctrl+D as rollback-by-disconnect
-  (`SshConnection.SafeModeUnrollByControlKey`). Take/Release (Ctrl+X) work fine in place over SSH.
+  keeps the channel alive; on an older router the connection is closed, and `/quit`'s question is answered
+  with `y`, which unrolls. Take/Release (Ctrl+X) work fine in place over SSH.
 - **`ShellStream.DataAvailable` polling**, same pattern as `NetworkStream` on Telnet (see §7) — a
   blocking read on .NET Framework respects neither `ReadTimeout` nor `CancellationToken` once pending
   with no data, so both transports poll instead.
@@ -1136,9 +1136,8 @@ monitor path (`RunMonitorAsync`) never had this gap — it always built through
 ### A monitor's success is recognised by producing a record, not by phrase
 
 No phrase classifier in `CliErrorParser` catches every rejection text a monitor can produce (e.g.
-"input does not match any value of interface"). Instead, `ParseMonitorSnapshot` treats a **successful**
-snapshot as always emitting at least one `.id=…` record, and a rejected one as printing only its
-complaint — so output with zero records is the router's refusal, regardless of wording. Empty output on
+"input does not match any value of interface"). Instead, text that parses to no record is the router's
+refusal, regardless of wording (`CliConnectionBase.ParseRecords`). Empty output on
 its own is *not* an error: torch's `as-value` form legitimately prints nothing, which is exactly why it
 is excluded from this path (§1).
 
