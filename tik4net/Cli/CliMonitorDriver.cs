@@ -184,11 +184,11 @@ namespace tik4net.Cli
         {
             await _host.Knowledge.EnsureSchemaStoreAsync(ct).ConfigureAwait(false);
             bool plain = _host.Knowledge.MenuFacts.TorchWithoutProplist.Contains(descriptor.CommandText);
-            string output = await _host.ExecuteAsync(CliCommandBuilder.BuildTorchSnapshot(descriptor.CommandText, descriptor.Parameters,
+            string output = await _host.ExecuteReadAsync(CliCommandBuilder.BuildTorchSnapshot(descriptor.CommandText, descriptor.Parameters,
                 freezeFrameSeconds, withProplist: !plain, includeFilters), ct).ConfigureAwait(false);
             if (!plain && CliErrorParser.IsSyntaxErrorOnly(output))
             {
-                output = await _host.ExecuteAsync(CliCommandBuilder.BuildTorchSnapshot(descriptor.CommandText, descriptor.Parameters,
+                output = await _host.ExecuteReadAsync(CliCommandBuilder.BuildTorchSnapshot(descriptor.CommandText, descriptor.Parameters,
                     freezeFrameSeconds, withProplist: false, includeFilters), ct).ConfigureAwait(false);
                 if (IsTorchFrame(output))
                 {

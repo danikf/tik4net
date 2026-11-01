@@ -43,6 +43,8 @@ namespace tik4net.Cli
         /// <summary>The first session's login: what the open awaits.</summary>
         internal Task Login(CancellationToken ct) => _firstLogin(ct);
 
+        public void RequestInterrupt() => _current.RequestInterrupt();
+
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             // A rebuild re-runs the command from the start, so it is safe only while nothing has reached the caller:

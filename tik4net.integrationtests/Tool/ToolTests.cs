@@ -323,6 +323,26 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// Under Cooperative a cancelled read is interrupted with Ctrl-C and read on to its prompt, so it returns at once and
+        /// the terminal stays in step: the next command gets its own answer.
+        /// </summary>
+        [TestMethod]
+        public void ADeadlineInterruptsACliRead_AndTheNextCommandReadsItsOwnAnswer()
+        {
+            if (!(Connection is tik4net.Cli.CliConnectionBase))
+                Assert.Inconclusive("Ctrl-C is about a terminal.");
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var cmd = Connection.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "127.0.0.1", "count", "20");
+            Assert.ThrowsException<TikCommandAbortException>(() => cmd.ExecuteListUntilDone(timeout: TimeSpan.FromSeconds(2)));
+            watch.Stop();
+            Assert.IsTrue(watch.Elapsed < TimeSpan.FromSeconds(10), "the 20 s ping was cut short: " + watch.Elapsed);
+
+            string identity = Connection.CreateCommand("/system/identity/print").ExecuteScalar("name");
+            Assert.IsFalse(string.IsNullOrEmpty(identity));
+        }
+
+        /// <summary>
         /// The deadline ends the HTTP read, but the router's REST session stays busy with the abandoned command and answers
         /// nothing, new connections included, for about a minute (Docs/findings-rest-api.md §12). So this test holds the
         /// router and waits that out; left to itself, the abandoned torch fails the next test's connect.

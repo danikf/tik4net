@@ -24,9 +24,11 @@ namespace tik4net
     {
         /// <summary>
         /// Default. A token cancelled after dispatch takes effect at the next safe point: the response is
-        /// read to its end, and <see cref="System.OperationCanceledException"/> is thrown once the channel is
-        /// back in step. The connection is always left consistent and reusable — but the call does not return
-        /// any sooner than the command itself would have.
+        /// read to its prompt, and <see cref="System.OperationCanceledException"/> is thrown once the channel is
+        /// back in step, so the connection is always left consistent and reusable. A running read is interrupted with
+        /// Ctrl-C, which brings the prompt in about 50 ms (a <c>ping</c>, a long <c>print</c>, a monitor). A write is
+        /// never interrupted, because its outcome would become unknown, and the call then does not return any sooner
+        /// than the command itself would have. Neither is a command the library does not know to be a read.
         /// </summary>
         Cooperative,
 

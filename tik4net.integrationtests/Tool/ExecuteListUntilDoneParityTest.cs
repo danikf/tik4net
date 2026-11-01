@@ -56,8 +56,12 @@ namespace tik4net.integrationtests
             Assert.AreEqual(3, api.Count, "the API's own ping");
             CollectionAssert.AreEqual(api.Select(Stable).ToList(), untilDone.Select(Stable).ToList(), "ExecuteListUntilDone");
             CollectionAssert.AreEqual(api.Select(Stable).ToList(), list.Select(Stable).ToList(), "ExecuteList");
-            // The field sets are reported, not asserted: the CLI's `ping as-value` prints no running statistics, which
-            // is the CLI review's parity finding. The rows themselves are the same.
+            // The last row carries the router's summary on every transport; an earlier CLI row does not (findings-cli §9).
+            foreach (string field in new[] { "sent", "received", "packet-loss", "min-rtt", "avg-rtt", "max-rtt" })
+                Assert.IsFalse(string.IsNullOrEmpty(list[2].GetResponseFieldOrDefault(field, null)), field + " on the last row");
+            Assert.IsFalse(list.Any(r => r.Words.ContainsKey(TikSpecialProperties.Id)), "the API's ping row has no .id");
+            StringAssert.EndsWith(list[0].GetResponseField("time"), "s", "the API's spelling: 100us, not a clock");
+            // The field sets of an early row are reported, not asserted.
             var apiFields = new HashSet<string>(api[0].Words.Keys.Where(k => k != TikSpecialProperties.Tag));
             var ownFields = new HashSet<string>(untilDone[0].Words.Keys.Where(k => k != TikSpecialProperties.Tag));
             Console.WriteLine("fields the API has and this transport does not: " + string.Join(",", apiFields.Except(ownFields).OrderBy(k => k, StringComparer.Ordinal)));

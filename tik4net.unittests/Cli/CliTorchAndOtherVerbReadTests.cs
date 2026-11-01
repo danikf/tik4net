@@ -333,6 +333,90 @@ Assert.AreEqual(marked, CliConnectionBase.IsEndMarkerVerbLine(line));
             Assert.IsTrue(router.Sent.Any(l => l.Contains(" detail ")), "both forms failed, so nothing is concluded about the word");
         }
 
+        // ── D7: Ctrl-C on a cancelled read ─────────────────────────────────────
+
+        private sealed class CancellableRouter : ScriptedCliConnectionBase
+        {
+            internal readonly ScriptedCliTerminal Terminal;
+            private readonly TaskCompletionSource<string> _answer = new TaskCompletionSource<string>();
+            internal readonly List<string> Sent = new List<string>();
+
+            internal CancellableRouter(TikCancellationMode mode)
+            {
+                CliFieldSeparator = null;
+                CancellationMode = mode;
+                Terminal = new ScriptedCliTerminal(
+                    (line, ct) =>
+                    {
+                        Sent.Add(line);
+                        return line.StartsWith("/ping") || line.Contains("/ip address")
+                            ? _answer.Task
+                            : Task.FromResult(".id=*1;disabled=false");
+                    },
+                    (raw, ct) => Task.FromResult(string.Empty), () => { });
+                Terminal.OnInterrupt = () => _answer.TrySetResult("interrupted");
+                OpenScripted(Terminal);
+            }
+
+            public override void Open(string host, string user, string password) { }
+            public override void Open(string host, int port, string user, string password) { }
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) => Task.FromResult(0);
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) => Task.FromResult(0);
+
+            internal void Finish() => _answer.TrySetResult(string.Empty);
+        }
+
+        [TestMethod]
+        public async Task ACancelledReadIsInterrupted_AndEndsInTheCancel()
+        {
+            using var router = new CancellableRouter(TikCancellationMode.Cooperative);
+            using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+            var command = (ITikCommandAsync)router.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "127.0.0.1");
+
+            await Assert.ThrowsExceptionAsync<OperationCanceledException>(() => command.ExecuteListAsync(cancel.Token));
+
+            Assert.AreEqual(1, router.Terminal.InterruptRequests);
+        }
+
+        [TestMethod]
+        public async Task AWriteIsNeverInterrupted()
+        {
+            using var router = new CancellableRouter(TikCancellationMode.Cooperative);
+            using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+            var command = (ITikCommandAsync)router.CreateCommandAndParameters("/ip/address/set", TikCommandParameterFormat.NameValue, ".id", "*1", "comment", "x");
+
+            var write = command.ExecuteNonQueryAsync(cancel.Token);
+            await Task.Delay(200);
+            Assert.IsFalse(write.IsCompleted, "the write reads to its end");
+            router.Finish();
+
+            await Assert.ThrowsExceptionAsync<OperationCanceledException>(() => write);
+            Assert.AreEqual(0, router.Terminal.InterruptRequests);
+        }
+
+        [TestMethod]
+        public void AbandonAndCloseSendsNoKey()
+        {
+            using var router = new CancellableRouter(TikCancellationMode.AbandonAndClose);
+            router.Finish();
+
+            router.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "127.0.0.1").ExecuteList();
+
+            Assert.AreEqual(0, router.Terminal.InterruptRequests);
+        }
+
+        [TestMethod]
+        public void AfterAnInterruptThePromptEndsTheRead_WithoutTheEchoOrTheCountLine()
+        {
+            const string sent = ":local d [/ip address print as-value]; :put $d; :put (\"#n=\" . [:len $d])";
+            var settle = new CliPromptSettle(sent, settleMs: 0);
+
+            Assert.AreEqual(CliPromptSettle.Outcome.Reading, settle.Observe("[admin@CHR2] > ", true, 10, 15), "no echo yet: a repaint");
+            settle.Interrupted();
+            Assert.AreEqual(CliPromptSettle.Outcome.Reading, settle.Observe("[admin@CHR2] > ", false, 20, 15), "the settle window starts");
+            Assert.AreEqual(CliPromptSettle.Outcome.Settled, settle.Observe("[admin@CHR2] > ", false, 30, 15));
+        }
+
         // ── D8: the flag supplier's and the window's refusals ──────────────────
 
         [TestMethod]

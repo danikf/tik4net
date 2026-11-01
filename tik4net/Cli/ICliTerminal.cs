@@ -23,6 +23,13 @@ namespace tik4net.Cli
         bool SupportsLineStreaming { get; }
 
         /// <summary>
+        /// Asks the read in progress to send Ctrl-C and read on to its prompt. Any thread. The key goes out from the read
+        /// loop, which owns the writes (the replies to the console's probes are written there too), at its next poll. A read
+        /// that has ended ignores it: the next command starts by clearing the request.
+        /// </summary>
+        void RequestInterrupt();
+
+        /// <summary>
         /// Ends the console session — <c>/quit</c>, answering the Safe Mode question with <c>y</c> when held — and
         /// releases the carrier. Never throws. <see cref="IDisposable.Dispose"/> releases it without answering the
         /// question (Telnet and SSH still type <c>/quit</c>; the MAC-layer and WinBox clients just drop the carrier).

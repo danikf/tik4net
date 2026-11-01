@@ -138,6 +138,11 @@ namespace tik4net.WinboxCli
         internal Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
             => SendCommandAndReadAsync(command, null, ct);
 
+        /// <inheritdoc cref="Cli.ICliTerminal.RequestInterrupt"/>
+        public void RequestInterrupt() => System.Threading.Interlocked.Exchange(ref _interruptRequested, 1);
+
+        private int _interruptRequested;
+
         /// <summary>
         /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
@@ -158,6 +163,7 @@ namespace tik4net.WinboxCli
 
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
             ThrowIfTerminalClosed(cmd);
+            System.Threading.Interlocked.Exchange(ref _interruptRequested, 0);
             SendInput(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
             return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
@@ -493,6 +499,11 @@ namespace tik4net.WinboxCli
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
                 ct.ThrowIfCancellationRequested();
+                if (sentCommand != null && System.Threading.Interlocked.Exchange(ref _interruptRequested, 0) != 0)
+                {
+                    SendInput(new[] { Cli.CliTerminalText.CtrlC });
+                    settle.Interrupted();
+                }
                 bool gotData = false;
                 if (_session.DataAvailable)
                 {

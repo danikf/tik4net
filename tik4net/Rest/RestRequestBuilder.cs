@@ -45,6 +45,7 @@ namespace tik4net.Rest
                      // READ method because it answers with a row. RestCallKind.NonQuery does not cover that
                      // case, so this entry is still what keeps it off the implicit-'print' path (which
                      // POSTed /tool/wol/print and got "no such command").
+            "find",      // /interface/find answers {"ret":"*2;*3"} (7.25); read as a path, /interface/find/print is 400
             "inspect",   // /console/inspect — the same shape: its rows answer a query named by its inputs
                          // (request=, path=). The implicit 'print' sent POST /rest/console/inspect/print → 400 "no
                          // such command"; POST /rest/console/inspect answers (7.24.4).

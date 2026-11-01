@@ -187,6 +187,11 @@ namespace tik4net.MacTelnet
         internal Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
             => SendCommandAndReadAsync(command, null, ct);
 
+        /// <inheritdoc cref="ICliTerminal.RequestInterrupt"/>
+        public void RequestInterrupt() => System.Threading.Interlocked.Exchange(ref _interruptRequested, 1);
+
+        private int _interruptRequested;
+
         /// <summary>
         /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
@@ -205,6 +210,7 @@ namespace tik4net.MacTelnet
             ThrowIfRouterEnded(cmd);
             ResetReadBuffer();
             ResetDataHoles();
+            System.Threading.Interlocked.Exchange(ref _interruptRequested, 0);
             SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
             return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
@@ -493,6 +499,12 @@ namespace tik4net.MacTelnet
                 ct.ThrowIfCancellationRequested();
                 ThrowIfPumpFaulted();
                 _rxSignal.Reset();
+
+                if (sentCommand != null && System.Threading.Interlocked.Exchange(ref _interruptRequested, 0) != 0)
+                {
+                    SendTerminalBytes(new[] { CliTerminalText.CtrlC });
+                    settle.Interrupted();
+                }
 
                 string stripped = Snapshot(out int length);
                 streamer.Feed(stripped);

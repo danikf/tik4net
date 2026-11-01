@@ -35,6 +35,7 @@ namespace tik4net.Cli
         private readonly int _settleMs;
         private readonly Action<string>? _note;
         private bool _echoSeen;
+        private bool _interrupted;
         private long? _settleUntilMs;
 
         /// <param name="sentCommand">The command being answered; <c>null</c> for a control key.</param>
@@ -45,6 +46,17 @@ namespace tik4net.Cli
             _sentCommand = sentCommand;
             _settleMs = settleMs;
             _note = note;
+        }
+
+        /// <summary>
+        /// A Ctrl-C went out: the answer is cut wherever it had got to. The echo may never complete (RouterOS 6 repaints the
+        /// typed line per character, and the key can land inside it), and a counted read's last line will not come, so
+        /// the prompt ends the read on its own.
+        /// </summary>
+        internal void Interrupted()
+        {
+            _interrupted = true;
+            _settleUntilMs = null;
         }
 
         /// <summary>The text ends at a completion prompt and the settle window is running. WinBox CLI does not pull then.</summary>
@@ -61,14 +73,14 @@ namespace tik4net.Cli
         internal Outcome Observe(string stripped, bool newData, long elapsedMs, int rawLength)
         {
             if (newData) _settleUntilMs = null;
-            if (!_echoSeen) _echoSeen = CliOutputHelper.ContainsEcho(stripped, _sentCommand);
+            if (!_echoSeen) _echoSeen = _interrupted || CliOutputHelper.ContainsEcho(stripped, _sentCommand);
             if (!_echoSeen || !CliOutputHelper.EndsWithCompletionPrompt(stripped, _sentCommand))
             {
                 _settleUntilMs = null;
                 return Outcome.Reading;
             }
 
-            switch (CliOutputHelper.JudgePrompt(stripped, _sentCommand))
+            switch (_interrupted ? CliOutputHelper.PromptVerdict.Settle : CliOutputHelper.JudgePrompt(stripped, _sentCommand))
             {
                 case CliOutputHelper.PromptVerdict.Complete:
                     _note?.Invoke("count line + prompt -> return @" + elapsedMs + "ms (bytes=" + rawLength + ")");

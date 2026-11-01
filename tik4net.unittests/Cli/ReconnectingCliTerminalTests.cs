@@ -25,6 +25,8 @@ namespace tik4net.unittests.Cli
             public Func<byte[], Task<string>> Raw = raw => Task.FromResult("keys");
             public bool Disposed, Ended;
 
+            public void RequestInterrupt() { }
+
             public Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
                 => Command(command, onLine);
             public Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct) => Raw(raw);

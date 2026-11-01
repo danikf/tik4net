@@ -337,15 +337,17 @@ transport query translation), `PollingMonitorEngine` + `TikMonitorHandle` (poll+
 `Listen` where it isn't native), `TikRawCommandExtensions` (`CreateRawCommand` on `ITikRawSentenceConnection`),
 `TikCommandModel` (normalized command/params representation).
 
-CLI specifics live in `Cli/`: `CliCommandBuilder`, `CliOutputParser`, `CliErrorParser`,
-`CliMonitorVerbs`, `CliSafeModeParser`, `VtStripper`/`Vt100State` (terminal emulation),
-`RouterOsCliLogin`, `ITikCliCompletion`.
+CLI specifics live in `Cli/`: `CliCommandBuilder`, `CliVerbs` (what a verb is: which address a row, what shape a read
+of each takes), `CliOutputParser`, `CliTorchParser`, `CliTableParser`, `CliDsvParser`, `CliJsonParser`, `CliErrorParser`,
+`CliMonitorVerbs`, `CliSafeModeParser`, `VtStripper`/`Vt100State` (terminal emulation), `RouterOsCliLogin` (its RoMON relay
+in `RouterOsCliLogin.Romon.cs`), `CliLoginScreen` (the one rule for the screen a login lands on), `ITikCliCompletion`.
 
 Under the base, every console is one `ICliTerminal`: Telnet and SSH run theirs on `CliPtySession` over an
 `ICliByteStream` (the socket, the shell channel), MAC-Telnet and WinBox CLI drive their own carriers, and the two
 MAC-layer leaves wrap theirs in `ReconnectingCliTerminal`. All four clients end a command's read by one rule,
 `CliPromptSettle`: the command's echo seen, a completion prompt last, then either a counted read's own count line or
-the settle window with the prompt still last.
+the settle window with the prompt still last. A cancelled read under `Cooperative` gets Ctrl-C from its read loop, which
+owns the writes (`ICliTerminal.RequestInterrupt`), and then ends on the prompt alone. A write never does.
 
 `CliConnectionBase` keeps the driver (the terminal, the guarded execute path, Safe Mode), the CRUD dispatch and
 the write path. Each other concern is an internal collaborator in `Cli/` that reaches the connection through
@@ -357,6 +359,8 @@ the write path. Each other concern is an internal collaborator in `Cli/` that re
   with the settle window it learns from the link.
 - `CliFlagSupplier` — the flag fields on RouterOS before 7.20, whose `print as-value` leaves them out: a second
   print by name where `proplist=` exists, the id list of each flag (`find`) on RouterOS 6.
+- `CliPrintDriver` — what a read method runs: the verb's shape (`CliVerbs.ReadShapeOf`), a table read with `detail` and
+  its stats and flags, the monitor snapshots, `get`, the argument reads.
 - `CliPagedReader` — the counted and windowed print reads: a window of rows at a time where the read may be
   windowed, else one counted command, each answer held to the router's own count; `RunPrintQueryAsync` picks.
 - `CliMonitorDriver` — the monitor loops: a snapshot polled on a timer, a self-terminating monitor streamed once,

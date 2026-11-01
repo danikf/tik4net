@@ -95,6 +95,8 @@ namespace tik4net.Cli
         int ICliCommandHost.CountedReadDepth { get => _countedReadDepth; set => _countedReadDepth = value; }
         string ICliCommandHost.Execute(string cliText) => ExecuteCliCommand(cliText);
         Task<string> ICliCommandHost.ExecuteAsync(string cliText, CancellationToken ct) => ExecuteCliCommandAsync(cliText, ct);
+        Task<string> ICliCommandHost.ExecuteReadAsync(string cliText, CancellationToken ct)
+            => ExecuteCliCommandCoreAsync(cliText, ct, mayMarkEnd: true, interruptible: true);
         TikMenuSchema ICliCommandHost.DescribeMenuLive(string path) => DescribeMenuLive(path);
         TikMenuSchemaCache ICliCommandHost.MenuSchemas => MenuSchemas;
         ICliTerminal? ICliCommandHost.Terminal => _terminal;
@@ -514,7 +516,8 @@ namespace tik4net.Cli
         private protected Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
             => ExecuteCliCommandCoreAsync(cliText, ct, mayMarkEnd: true);
 
-        private async Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct, bool mayMarkEnd)
+        private async Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct, bool mayMarkEnd,
+            bool interruptible = false)
         {
             var terminal = _terminal ?? throw NotOpen();
             string? endLine = null;
@@ -528,7 +531,15 @@ namespace tik4net.Cli
             {
                 ct.ThrowIfCancellationRequested();   // level 0 — nothing written yet
                 FireWriteRow(cliText);
-                string result = await SendGuardedAsync(terminal, cliText, null, TransportToken(ct), ct).ConfigureAwait(false);
+                string result;
+                // Under Cooperative a read still ends by its prompt, so the terminal stays in step: the key only makes the
+                // prompt come sooner (measured on 7.21.5 and 6.49.21 over Telnet: ~50 ms, and the next command read its own answer).
+                using (interruptible && CancellationMode == TikCancellationMode.Cooperative && ct.CanBeCanceled
+                    ? ct.Register(terminal.RequestInterrupt)
+                    : default(CancellationTokenRegistration))
+                {
+                    result = await SendGuardedAsync(terminal, cliText, null, TransportToken(ct), ct).ConfigureAwait(false);
+                }
                 if (endLine != null)
                     result = CliOutputHelper.WithoutEndMarker(result, endLine);
                 FireReadRow(result);
@@ -559,6 +570,12 @@ namespace tik4net.Cli
                 // in step again.
                 CloseAfterAbandonedRead();
                 throw;
+            }
+            catch (TikConnectionResponseIncompleteException) when (callerToken.IsCancellationRequested
+                                                                   && CancellationMode == TikCancellationMode.Cooperative)
+            {
+                // An interrupted read is short by design, and a transport that vets its answers says so. The caller asked.
+                throw new OperationCanceledException(callerToken);
             }
             catch (TikConnectionReceiveTimeoutException)
             {

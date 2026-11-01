@@ -266,7 +266,7 @@ namespace tik4net.Cli
                             buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.WindowVariable), asJson),
                     offset, pageSize, findClause);
 
-            string output = await _host.ExecuteAsync(cliText, cancellationToken).ConfigureAwait(false);
+            string output = await _host.ExecuteReadAsync(cliText, cancellationToken).ConfigureAwait(false);
 
             // The marker is the script's last output, so an answer ending with it ran to its end and is data, whatever
             // its rows say. Only an answer without one can be a refusal.
@@ -355,7 +355,7 @@ namespace tik4net.Cli
             {
                 try
                 {
-                    string jsonOutput = await _host.ExecuteAsync(
+                    string jsonOutput = await _host.ExecuteReadAsync(
                         CliCommandBuilder.BuildCountedRead(expression, asJson: true), cancellationToken).ConfigureAwait(false);
                     string jsonBody = SplitOffCountMarker(jsonOutput, descriptor, out int expectedJson);
                     IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonBody);
@@ -374,13 +374,13 @@ namespace tik4net.Cli
 
             if (UsesDsv(descriptor, wantJson))
             {
-                string dsvOutput = await _host.ExecuteAsync(
+                string dsvOutput = await _host.ExecuteReadAsync(
                     CliCommandBuilder.BuildCountedDsvRead(expression, _host.CliFieldSeparator!), cancellationToken).ConfigureAwait(false);
                 string dsvBody = SplitOffCountMarker(dsvOutput, descriptor, out int expectedDsv);
                 return EnsureCounted(CliDsvParser.Parse(dsvBody, _host.CliFieldSeparator!), expectedDsv, descriptor, dsvBody);
             }
 
-            string output = await _host.ExecuteAsync(
+            string output = await _host.ExecuteReadAsync(
                 CliCommandBuilder.BuildCountedRead(expression, asJson: false), cancellationToken).ConfigureAwait(false);
             string body = SplitOffCountMarker(output, descriptor, out int expected);
 

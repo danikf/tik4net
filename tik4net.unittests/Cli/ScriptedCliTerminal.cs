@@ -42,6 +42,18 @@ namespace tik4net.unittests.Cli
 
         public Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct) => _sendRaw(raw, ct);
 
+        /// <summary>How many times a read was asked to send Ctrl-C.</summary>
+        internal int InterruptRequests { get; private set; }
+
+        /// <summary>Runs when a read is asked to send Ctrl-C.</summary>
+        internal Action? OnInterrupt { get; set; }
+
+        public void RequestInterrupt()
+        {
+            InterruptRequests++;
+            OnInterrupt?.Invoke();
+        }
+
         public Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
             => (_settle ?? throw new NotSupportedException("no settle driver"))(raw, quietMs, ct);
 

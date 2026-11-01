@@ -201,6 +201,8 @@ namespace tik4net.Ssh
 
         // ── ICliTerminal ──────────────────────────────────────────────────────
 
+        public void RequestInterrupt() => _pty.RequestInterrupt();
+
         public Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
             => _pty.SendCommandAndReadAsync(command, onLine, ct);
 

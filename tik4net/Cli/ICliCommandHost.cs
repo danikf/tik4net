@@ -30,6 +30,12 @@ namespace tik4net.Cli
         /// <summary>Async counterpart of <see cref="Execute"/>.</summary>
         Task<string> ExecuteAsync(string cliText, CancellationToken ct);
 
+        /// <summary>
+        /// As <see cref="ExecuteAsync"/>, for a read: under <see cref="TikCancellationMode.Cooperative"/> a cancel interrupts it
+        /// with Ctrl-C. Never a write, whose outcome the key would make unknown.
+        /// </summary>
+        Task<string> ExecuteReadAsync(string cliText, CancellationToken ct);
+
         /// <summary>Describes a menu by asking the router (<c>/console/inspect</c>, else Tab completion).</summary>
         TikMenuSchema DescribeMenuLive(string path);
 

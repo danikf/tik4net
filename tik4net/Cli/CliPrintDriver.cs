@@ -58,7 +58,7 @@ namespace tik4net.Cli
                 string rawCli = descriptor.WrapAsValue
                     ? CliConnectionBase.WrapRawAsValue(descriptor.CommandText)
                     : descriptor.CommandText;
-                string rawOutput = await _host.ExecuteAsync(rawCli, cancellationToken).ConfigureAwait(false);
+                string rawOutput = await _host.ExecuteReadAsync(rawCli, cancellationToken).ConfigureAwait(false);
                 // A command that did not run must not come back as an empty table: 0 rows is
                 // indistinguishable from a table with nothing in it. Same check the low-level
                 // CallCommandSync applies, so the two halves of the raw promise agree about failure.
@@ -244,7 +244,7 @@ namespace tik4net.Cli
                     string output;
                     try
                     {
-                        output = await _host.ExecuteAsync(
+                        output = await _host.ExecuteReadAsync(
                             CliCommandBuilder.BuildFreeTextQuery(descriptor.CommandText, id ?? string.Empty, field),
                             cancellationToken).ConfigureAwait(false);
                     }
@@ -358,7 +358,7 @@ namespace tik4net.Cli
         private async Task<IList<TikRecordSentence>> RunSelfTerminatingMonitorAsync(TikCommandDescriptor descriptor, string modifier,
             CancellationToken cancellationToken)
         {
-            string output = await _host.ExecuteAsync(CliCommandBuilder.BuildInteractiveMonitor(
+            string output = await _host.ExecuteReadAsync(CliCommandBuilder.BuildInteractiveMonitor(
                 descriptor.CommandText, descriptor.Parameters, modifier, includeFilters: true), cancellationToken).ConfigureAwait(false);
             var table = new CliTableParser();
             var rows = new List<TikRecordSentence>();
@@ -403,7 +403,7 @@ namespace tik4net.Cli
                 string cliText = CliCommandBuilder.BuildMonitorSnapshot(
                     descriptor.CommandText, descriptor.Parameters, modifier, includeFilters);
 
-                string output = await _host.ExecuteAsync(cliText, cancellationToken).ConfigureAwait(false);
+                string output = await _host.ExecuteReadAsync(cliText, cancellationToken).ConfigureAwait(false);
                 if (!CliErrorParser.IsSyntaxErrorOnly(output))
                     return ParseRecords(output, descriptor);
             }
@@ -414,7 +414,7 @@ namespace tik4net.Cli
             // once the plain form has answered with its table, so a syntax error the inputs caused is not.
             string plainText = CliCommandBuilder.BuildInteractiveMonitor(
                 descriptor.CommandText, descriptor.Parameters, modifier, includeFilters);
-            string plain = await _host.ExecuteAsync(plainText, cancellationToken).ConfigureAwait(false);
+            string plain = await _host.ExecuteReadAsync(plainText, cancellationToken).ConfigureAwait(false);
 
             var table = new CliTableParser();
             var rows = table.ReadAll(plain);
@@ -450,7 +450,7 @@ namespace tik4net.Cli
         {
             string print = CliCommandBuilder.ApiPathToCli(descriptor.CommandText);
             string menu = CliCommandBuilder.MenuPathToCli(descriptor.CommandText);
-            string plain = await _host.ExecuteAsync(
+            string plain = await _host.ExecuteReadAsync(
                 ":put (\"" + PlainTableIdsMarker + "\" . [:tostr [" + menu + " find]]); :put [" + print + "]",
                 cancellationToken).ConfigureAwait(false);
             var table = new CliTableParser();
@@ -548,7 +548,7 @@ namespace tik4net.Cli
                 return;
             }
 
-            string answer = await _host.ExecuteAsync(
+            string answer = await _host.ExecuteReadAsync(
                 CliCommandBuilder.BuildDsvProbe(separator), cancellationToken).ConfigureAwait(false);
             _host.Knowledge.Features.DsvProbedSeparator = separator;
             _host.Knowledge.Features.Dsv = CliCommandBuilder.IsDsvProbeAccepted(answer);
@@ -579,7 +579,7 @@ namespace tik4net.Cli
             string? valueName = TikGetResult.FindInput(descriptor.Parameters, "value-name");
 
             string cliText = CliCommandBuilder.BuildGet(descriptor.CommandText, id, valueName);
-            string output = await _host.ExecuteAsync(cliText, cancellationToken).ConfigureAwait(false);
+            string output = await _host.ExecuteReadAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
 
             string value = output.Trim();
@@ -665,7 +665,7 @@ namespace tik4net.Cli
                 _host.CountedReadDepth++;   // counted below, exactly — the MAC-layer loss heuristic stands down
                 try
                 {
-                    output = await _host.ExecuteAsync(
+                    output = await _host.ExecuteReadAsync(
                         CliCommandBuilder.BuildCountedDsvRead(expression, _host.CliFieldSeparator!), cancellationToken).ConfigureAwait(false);
                 }
                 finally
@@ -678,7 +678,7 @@ namespace tik4net.Cli
             // As-value, once. Not the monitor path's plain-table retry: that is for RouterOS 6's monitors, and the only
             // argument read, inspect, does not exist there at all — the retry would repeat the refusal, at 6.x's
             // per-character echo cost.
-            string asValue = await _host.ExecuteAsync(CliCommandBuilder.BuildMonitorSnapshot(descriptor.CommandText,
+            string asValue = await _host.ExecuteReadAsync(CliCommandBuilder.BuildMonitorSnapshot(descriptor.CommandText,
                 descriptor.Parameters, string.Empty, includeFilters: true), cancellationToken).ConfigureAwait(false);
             return ParseRecords(asValue, descriptor);
         }
