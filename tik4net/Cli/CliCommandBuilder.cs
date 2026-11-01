@@ -430,9 +430,11 @@ namespace tik4net.Cli
         /// of a router with User Manager's files then carried a 103 KB SQLite WAL and a PNG, ~216 KB in all, and
         /// MAC-Telnet's session died under it; WinBox-over-MAC read the binary PNG the API leaves out. The
         /// <c>where</c> form costs a pass over the table per window, which is why it is not the default.
+        /// <para><c>/log</c>: its print refuses <c>from=</c>, and as one command its ~100 KB is more than MAC-Telnet carries
+        /// (<c>Docs/findings-mactelnet.md</c> §9.6): refused 2 reads in 3 on 7.21.5, with or without <c>detail</c>.</para>
         /// </remarks>
         private static readonly HashSet<string> WindowByWhere =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "/file" };
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "/file", "/log" };
 
         /// <summary>The rows of window <see cref="WindowVariable"/>, as a <c>where</c> clause (7.21.5).</summary>
         internal const string WindowWhereClause = "([:typeof [:find $w $\".id\"]]=\"num\")";

@@ -859,6 +859,34 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// A cancelled read through the relay is interrupted as on a direct terminal (D7), and the Ctrl-C reaches the target's
+        /// command, not the relay: the read returns well before the command would, and the next reads answer from the target.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet)]
+        [DataRow(TikConnectionType.Ssh)]
+        [DataRow(TikConnectionType.MacTelnet)]
+        [DataRow(TikConnectionType.WinboxCli)]
+        [DataRow(TikConnectionType.WinboxCliMac)]
+        public void Relay_ACancelledRead_IsInterrupted_AndStaysInStepOnTheTarget(TikConnectionType agentTransport)
+        {
+            RequireTarget();
+
+            using (var relay = OpenRelay(agentTransport))
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                var cmd = relay.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "127.0.0.1", "count", "30");
+                Assert.ThrowsException<TikCommandAbortException>(() => cmd.ExecuteListUntilDone(timeout: TimeSpan.FromSeconds(3)));
+                watch.Stop();
+                Assert.IsTrue(watch.Elapsed < TimeSpan.FromSeconds(20), "the 30 s ping was not cut short: " + watch.Elapsed);
+
+                Assert.IsTrue(relay.IsOpened, "the Ctrl-C ended the relay");
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId.Value, true,
+                    "after the cancel the relay answered from the agent, or read someone else's output");
+            }
+        }
+
         // ── Tab-completion ────────────────────────────────────────────────────
 
         /// <summary>

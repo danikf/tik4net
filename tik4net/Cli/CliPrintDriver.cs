@@ -538,7 +538,21 @@ namespace tik4net.Cli
         {
             // Every read passes here first, so this is where a connection meets its build's stored facts.
             await _host.Knowledge.EnsureSchemaStoreAsync(cancellationToken).ConfigureAwait(false);
-            string? separator = _host.CliFieldSeparator;
+            await ProbeDsvAsync(_host.CliFieldSeparator, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The same question for a connection with no separator, asked by its first write: its reads stay as-value, and
+        /// the answer decides whether a write takes the end marker. Asked of the default separator.
+        /// </summary>
+        internal async Task EnsureEndMarkerKnownAsync(CancellationToken cancellationToken)
+        {
+            await _host.Knowledge.EnsureSchemaStoreAsync(cancellationToken).ConfigureAwait(false);
+            await ProbeDsvAsync(TikConnectionSetup.DefaultCliFieldSeparator, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task ProbeDsvAsync(string? separator, CancellationToken cancellationToken)
+        {
             if (separator == null || (_host.Knowledge.Features.Dsv != null && _host.Knowledge.Features.DsvProbedSeparator == separator))
                 return;
             if (_host.Knowledge.Store != null && _host.Knowledge.Store.TryGetFeature(CliRouterKnowledge.FeatureDsv + separator, out bool stored))

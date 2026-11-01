@@ -72,6 +72,45 @@ namespace tik4net.unittests.MacTelnet
             }
         }
 
+        // The channel of a login past its confirmation, whose router then ended the session.
+        private sealed class EndedChannel : IWinboxM2Channel
+        {
+            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0) { }
+            public void Dispose() { }
+            public bool IsEncrypted => true;
+            public bool DataAvailable => false;
+            public bool SupportsStaleDrain => false;
+            public bool SendAbandoned => false;
+            public bool SendStalled => false;
+            public long BytesReceived => 0;
+            public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, 1);
+            public void Send(byte[] m2) { }
+            public byte[] Receive(int timeoutMs) => throw new WinboxMacSessionEndedException();
+            public byte[] SendReceive(byte[] m2, int timeoutMs) => throw new NotSupportedException();
+            public byte[] ReceiveNextFrame() => null;
+            public void StartIdleServicing() { }
+        }
+
+        [TestMethod]
+        public void AnEndWhileTheTerminalOpens_IsRetried_BecauseNoCommandHasRun()
+        {
+            var channel = new EndedChannel();
+            var client = new tik4net.WinboxCli.WinboxCliClient(channel, System.Text.Encoding.UTF8, tik4net.Cli.CliClientTimeouts.Fixed(1000));
+            var thrown = Assert.ThrowsException<MacLayerLoginClosedSilentlyException>(() => client.OpenTerminalSession("", "vt102", 80, 25));
+            Assert.IsTrue(TikOpenRetry.IsTransientRefusal(thrown));
+        }
+
+        [TestMethod]
+        public void TheSessionsEndIsAnIOExceptionOfItsOwnType()
+        {
+            using (var session = new WinboxMacM2Session(null))
+            {
+                typeof(WinboxMacM2Session).GetField("_routerEnded", Flags).SetValue(session, true);
+                Assert.ThrowsException<WinboxMacSessionEndedException>(() => session.Receive(100));
+            }
+            Assert.IsInstanceOfType(new WinboxMacSessionEndedException(), typeof(System.IO.IOException));
+        }
+
         private static void Set(object o, string field, object value)
             => typeof(MacLayerTransport).GetField(field, Flags).SetValue(o, value);
     }

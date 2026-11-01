@@ -217,7 +217,7 @@ namespace tik4net.Api
             try
             {
                 var targetParameterInArray = target != null ? new ITikCommandParameter[] { new TikCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) } : new ITikCommandParameter[] { };
-                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue, targetParameterInArray);
+                string[] commandRows = ConstructCommandText(ScalarParameterFormat(), targetParameterInArray);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(Session.CallCommandSync(commandRows));
                 return InterpretScalar(response, target, allowReturnDefault, defaultValue);
             }
@@ -226,6 +226,20 @@ namespace tik4net.Api
                 EndRun();
             }
         }
+
+        // A scalar sends an unformatted parameter as =name=value, which is what add and get take. A print refuses that
+        // (unknown parameter name, 7.25), so there it is a filter, as through ExecuteList and on every other transport.
+        // Unless the caller named one of print's own arguments: then the parameters are arguments.
+        private TikCommandParameterFormat ScalarParameterFormat()
+            => TikPath.Verb(CommandText) == "print" && !Parameters.Any(p => PrintArguments.Contains(p.Name))
+                ? TikCommandParameterFormat.Filter
+                : TikCommandParameterFormat.NameValue;
+
+        private static readonly HashSet<string> PrintArguments = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "count-only", "detail", "from", "stats", "without-paging", "where", "file", "interval", "follow", "follow-only",
+            "append", "brief", "terse", "value-list", "as-value", "oid", "show-ids", "show-sensitive",
+        };
 
         // ── Response interpretation, shared by the sync and async surfaces ────
         //
@@ -355,7 +369,7 @@ namespace tik4net.Api
                 ? new ITikCommandParameter[] { new TikCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) }
                 : new ITikCommandParameter[] { };
             // InterpretScalar genuinely returns null when allowReturnDefault is set and defaultValue is null.
-            return RunAsync(TikCommandParameterFormat.NameValue, targetParameter,
+            return RunAsync(ScalarParameterFormat(), targetParameter,
                 r => InterpretScalar(r, target, allowReturnDefault, defaultValue), cancellationToken, forceTag);
         }
 

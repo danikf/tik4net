@@ -43,7 +43,7 @@
   MacTelnet.pump sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=False
 == END
   WinboxMac.DataAvailable available=False sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0 routerEnded=True
-  WinboxMac.Receive throws IOException sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0 routerEnded=True
+  WinboxMac.Receive throws WinboxMacSessionEndedException sent-back nothing | haveAck=False highestAck=0 inCounter=0 rxBuf=0 bytesReceived=0 routerEnded=True
   MacTelnet.DrainSync sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=True
   MacTelnet.pump sent-back nothing | haveAck=False highestAck=0 inCounter=0 rx='' routerEnded=True
 == own echo DATA

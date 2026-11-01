@@ -100,7 +100,7 @@ namespace tik4net.unittests.MacTelnet
                 Wire(session);
                 SendToClient(session, PktEnd, OurKey, 0, null);
                 var sw = Stopwatch.StartNew();
-                Assert.ThrowsException<System.IO.IOException>(() => session.Receive(3000));
+                Assert.ThrowsException<tik4net.Winbox.WinboxMacSessionEndedException>(() => session.Receive(3000));
                 Assert.IsTrue(sw.ElapsedMilliseconds < 2000, $"took {sw.ElapsedMilliseconds} ms");
             }
         }

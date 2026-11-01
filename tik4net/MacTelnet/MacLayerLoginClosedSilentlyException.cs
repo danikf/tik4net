@@ -10,7 +10,8 @@ namespace tik4net.MacTelnet
     /// <c>PKT_END</c> 1–4 ms later without waiting for its acknowledgement (measured on 7.24); WinBox's
     /// <c>invalid user name or password (6)</c> in place of the confirmation, followed by the session's end. A session
     /// that ends with that datagram missing is therefore a refusal whose text was lost, and <c>TikOpenRetry</c> retries
-    /// it as it retries a refusal. Internal: when the closure persists, the caller sees the
+    /// it as it retries a refusal. WinBox over MAC also raises it when the router ends the session while the terminal
+    /// opens, after the confirmation: not known to be a refusal, but no command has run. Internal: when the closure persists, the caller sees the
     /// <see cref="TikConnectionSessionClosedException"/> it always did.
     /// </remarks>
     internal sealed class MacLayerLoginClosedSilentlyException : TikConnectionSessionClosedException

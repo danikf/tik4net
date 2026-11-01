@@ -274,7 +274,10 @@ namespace tik4net.WinboxCli
             while (true)
             {
                 int left = FrameTimeoutMs - (int)deadline.ElapsedMilliseconds;
-                byte[]? frame = left > 0 ? _session.Receive(left) : null;
+                byte[]? frame;
+                // No command has run yet, so an open the router ended can be retried (seen once, cause unknown).
+                try { frame = left > 0 ? _session.Receive(left) : null; }
+                catch (Winbox.WinboxMacSessionEndedException) { throw new MacTelnet.MacLayerLoginClosedSilentlyException("WinBox over MAC"); }
                 if (frame == null)
                 {
                     if (skipped.Count == 0)

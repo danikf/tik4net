@@ -29,6 +29,8 @@ namespace tik4net.Cli
         /// <summary>
         /// Whether <c>:serialize to=dsv</c> takes <see cref="DsvProbedSeparator"/> (RouterOS 7; see
         /// <see cref="ITikCliFieldSeparatorConnection"/>), asked by <c>CliConnectionBase.EnsureDsvSupportKnownAsync</c>.
+        /// A connection with no separator asks it for the default one at its first write: its reads stay as-value, and
+        /// this answer decides whether a write takes the end marker (<c>CliConnectionBase.TakesEndMarker</c>).
         /// </summary>
         internal bool? Dsv;
 

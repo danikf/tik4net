@@ -176,7 +176,7 @@ namespace tik4net.unittests.Cli
 
             command.ExecuteScalarOrDefault("none");
 
-            Assert.AreEqual("/ip address set numbers=*2 comment=x", router.Sent.Single());
+            Assert.AreEqual("/ip address set numbers=*2 comment=x", router.Sent.Last(), "after the first write's question about the end marker");
         }
 
         // ── Self-terminating monitors go through the table ─────────────────────
@@ -415,6 +415,21 @@ Assert.AreEqual(marked, CliConnectionBase.IsEndMarkerVerbLine(line));
             settle.Interrupted();
             Assert.AreEqual(CliPromptSettle.Outcome.Reading, settle.Observe("[admin@CHR2] > ", false, 20, 15), "the settle window starts");
             Assert.AreEqual(CliPromptSettle.Outcome.Settled, settle.Observe("[admin@CHR2] > ", false, 30, 15));
+        }
+
+        // RouterOS 6 answers the key with the prompt and repaints it on the same line, and the read waited out its deadline
+        // on that (6.49.21, a cancelled /ping over Telnet and WinBox CLI: the prompt 50 ms after the key, the read 30 s).
+        [TestMethod]
+        public void AfterAnInterruptAPromptRepaintedOnItsLineEndsTheRead()
+        {
+            const string sent = "/ping address=127.0.0.1 count=20";
+            const string answer = sent + "\r\n    0 127.0.0.1  56  64 0ms\r\n    sent=1 received=1\r\n\r\n\r\r\r[admin@CHR2] > \r[admin@CHR2] > ";
+            var settle = new CliPromptSettle(sent, settleMs: 0);
+
+            Assert.AreEqual(CliPromptSettle.Outcome.Reading, settle.Observe(answer, true, 10, answer.Length), "without a key this is still an echo's repaint");
+            settle.Interrupted();
+            Assert.AreEqual(CliPromptSettle.Outcome.Reading, settle.Observe(answer, false, 20, answer.Length), "the settle window starts");
+            Assert.AreEqual(CliPromptSettle.Outcome.Settled, settle.Observe(answer, false, 30, answer.Length));
         }
 
         // ── D8: the flag supplier's and the window's refusals ──────────────────

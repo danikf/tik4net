@@ -145,6 +145,31 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void WithNoSeparator_ReadsStayAsValue_AndAWriteStillCarriesTheMarker()
+        {
+            using (var router = new WriteRouter { CliFieldSeparator = null })
+            {
+                router.OpenScripted();
+                router.CreateCommand("/ip/address/print").ExecuteList();
+                Assert.IsFalse(router.Sent.Any(s => s.Contains(":serialize to=dsv") && s.Contains(" print ")), string.Join("\n", router.Sent));
+                Remove(router);
+                Assert.IsNotNull(CliOutputHelper.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
+            }
+        }
+
+        [TestMethod]
+        public void WithNoSeparator_OnRouterOs6_NoMarkerIsSent()
+        {
+            using (var router = new WriteRouter { CliFieldSeparator = null, RefusesSerialize = true })
+            {
+                router.OpenScripted();
+                router.CreateCommand("/ip/address/print").ExecuteList();
+                Remove(router);
+                Assert.IsNull(CliOutputHelper.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
+            }
+        }
+
+        [TestMethod]
         public void BeforeTheVersionIsKnown_NoMarkerIsSent()
         {
             using (var router = new WriteRouter())

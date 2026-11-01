@@ -240,8 +240,7 @@ namespace tik4net.Winbox
         private void ThrowIfRouterEnded()
         {
             if (_routerEnded)
-                throw new System.IO.IOException(
-                    "WinBox over MAC: the router ended this session (PKT_END). Open a new connection to continue.");
+                throw new WinboxMacSessionEndedException();
         }
 
         public byte[] NextReqIdField()

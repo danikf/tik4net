@@ -83,6 +83,7 @@ namespace tik4net
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and ensures that operation returns one value (=ret parameter) or single value in single !re row, which is returned as result.
+        /// An unformatted parameter of a <c>print</c> is a filter, as through <see cref="ExecuteList()"/>, unless the parameters name one of print's own arguments (<c>count-only</c>, <c>detail</c>, …).
         /// </summary>
         /// <remarks>
         /// On a one-row answer with no <c>=ret=</c> the value is the row's one field other than <c>.id</c> and <c>.tag</c>;

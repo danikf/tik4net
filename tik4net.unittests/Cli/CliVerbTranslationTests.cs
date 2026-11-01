@@ -38,7 +38,13 @@ namespace tik4net.unittests.Cli
 
             internal void OpenScripted()
                 => OpenScripted(_ => Task.FromResult(0),
-                    (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(CountedReadFake.Answer(cliText, Reply)); },
+                    (cliText, ct) =>
+                    {
+                        if (cliText == CliCommandBuilder.BuildDsvProbe(TikConnectionSetup.DefaultCliFieldSeparator))
+                            return Task.FromResult("bad command name serialize");   // a first write's question, not what these tests look at
+                        Sent.Add(cliText);
+                        return Task.FromResult(CountedReadFake.Answer(cliText, Reply));
+                    },
                     (rawBytes, ct) => Task.FromResult(string.Empty),
                     () => { });
 

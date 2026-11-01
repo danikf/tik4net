@@ -621,6 +621,19 @@ namespace tik4net.WinboxNative
             TakeLabelHints(descriptor);   // here, not in RunPrintAsync: background workers enter the core directly
             EnsureNativeOpen();
 
+            // M2 has no find, and a getall holds what it answers: the ids of the rows, as the API's =ret=*1;*2.
+            if (string.Equals(TikPath.Verb(descriptor.CommandText), "find", StringComparison.Ordinal))
+            {
+                var found = await RunPrintCoreAsync(new TikCommandDescriptor(TikPath.Parent(TikPath.Normalize(descriptor.CommandText)) + "/print", descriptor.Parameters),
+                    cancellationToken).ConfigureAwait(false);
+                if (found.Count == 0)
+                    return found;
+                return new List<TikRecordSentence> { new TikRecordSentence(new Dictionary<string, string>
+                {
+                    [TikSpecialProperties.Ret] = string.Join(";", found.Select(r => r.GetResponseField(TikSpecialProperties.Id))),
+                }) };
+            }
+
             string apiPath = ApiPathOf(descriptor.CommandText);
             if (!(_handlerMap.Resolve(apiPath) is WinboxHandler handler))
             {

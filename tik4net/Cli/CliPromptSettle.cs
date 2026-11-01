@@ -74,7 +74,8 @@ namespace tik4net.Cli
         {
             if (newData) _settleUntilMs = null;
             if (!_echoSeen) _echoSeen = _interrupted || CliOutputHelper.ContainsEcho(stripped, _sentCommand);
-            if (!_echoSeen || !CliOutputHelper.EndsWithCompletionPrompt(stripped, _sentCommand))
+            // After the key the line break no longer matters: RouterOS 6 repaints its prompt on the same line.
+            if (!_echoSeen || !CliOutputHelper.EndsWithCompletionPrompt(stripped, _interrupted ? null : _sentCommand))
             {
                 _settleUntilMs = null;
                 return Outcome.Reading;

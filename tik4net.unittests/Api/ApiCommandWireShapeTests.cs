@@ -127,7 +127,22 @@ namespace tik4net.unittests.Api
                 else cmd.ExecuteScalar("name");
             }, OneRowThenDone);
 
-            AssertWords(words, "/ip/address/print", "=name=a", "=comment=b", "=.proplist=name");
+            AssertWords(words, "/ip/address/print", "?name=a", "?comment=b", "=.proplist=name");
+        }
+
+        [DataTestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void AScalarPrintNamingPrintsOwnArgument_KeepsItsArguments(bool async)
+        {
+            var words = Exchange(c =>
+            {
+                var cmd = c.CreateCommandAndParameters("/ip/address/print", "count-only", "");
+                if (async) cmd.ExecuteScalarAsync().GetAwaiter().GetResult();
+                else cmd.ExecuteScalar();
+            }, (s, tag) => s.WriteSentence("!done", $"{TikSpecialProperties.Tag}={tag}", "=ret=3"));
+
+            AssertWords(words, "/ip/address/print", "=count-only=");
         }
 
         [DataTestMethod]

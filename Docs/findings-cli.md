@@ -131,7 +131,7 @@ A read can be split into windows instead of asking for the whole table at once �
 | combines with | `detail`, and with `where` |
 | prints more than the API | on `/file`, the `contents` of **every** row it names; the API, REST and a print without `from=` stop at 4095 bytes (a file of 4096 bytes or more has no `contents`), measured on 7.21.5 with files of 4094–4097 bytes. 6.49.13 does not do this |
 
-A `/file` window therefore names its rows with a `where` over the window's ids instead,
+A `/file` window (and a `/log` one, whose print refuses `from=`) therefore names its rows with a `where` over the window's ids instead,
 `where ([:typeof [:find $w $".id"]]="num")` — the same rows in the same order, and the API's `contents` rule,
 at the cost of one pass over the table per window (`CliCommandBuilder.WindowByWhere`). With `from=`, a router
 with User Manager's files sent ~216 KB for one read (a 103 KB SQLite WAL among them), and RouterOS dropped its
@@ -777,8 +777,11 @@ machine for every PTY transport; each transport supplies only the raw byte I/O.
   interactive exchange. To a name that already carries options the flag joins that group
   (`RouterOsCliLogin.WithTerminalLoginFlags`: `admin+t` → `admin+tc`), on Telnet, SSH and the WinBox CLI as on
   MAC-Telnet: RouterOS reads one `+` group, and `admin+t+c` logs in with the console in colour (measured on 7.25,
-  7.21.5 and 6.49.21 with `MacTelnetLoginOptionsProbe`; on 7.25 the SSH console is in colour whatever the name
-  carries). `+c` disables ANSI colour; **terminal width is deliberately not pinned** to a
+  7.21.5 and 6.49.21 with `MacTelnetLoginOptionsProbe`). On 7.25 the SSH console ignores the name's options and is in
+  colour whatever it carries, and the name is accepted first time, so no retry hides it. The terminal type changes nothing:
+  `vt100`, `dumb`, `xterm`, `xterm-256color`, `linux`, `ansi` and none draw the same bytes, on 7.25 and on 7.21.5, where
+  `+c` does remove the colour. SGR is stripped before parsing, so only `CliCompletionKind` differs: it is known there.
+  `+c` disables ANSI colour; **terminal width is deliberately not pinned** to a
   fixed value such as `80` — the transport instead answers RouterOS's VT100 cursor-probe negotiation
   (§6) advertising a wide terminal, because a narrow one makes RouterOS wrap long `:put` as-value
   records and insert `\r\n` into the data.
@@ -1166,8 +1169,9 @@ versions (7.25, 7.21.5, 6.49.21):
 
 An answer to `other` is records if it reads as `name=value;…`, otherwise one `ret` value, as the API's `=ret=`.
 
-Parameters of a scalar `print` differ on purpose: the API sends them as `=name=x`, which it refuses (`unknown parameter
-name`, 7.25), and the CLI sends them as `where name=x`. The same parameter through `ExecuteList` is a filter on both.
+An unformatted parameter of a scalar `print` is a filter on every transport, as through `ExecuteList`: `=name=x` is refused
+on the API (`unknown parameter name`, 7.25). When the parameters name one of `print`'s own arguments (`count-only`,
+`detail`, `from`, …) the API sends them as arguments.
 
 ### `/tool/torch`
 
@@ -1179,6 +1183,10 @@ what is wrong.
 
 `ExecuteList` reads one frame. `ExecuteListUntilDone(timeout)` reads frames of the 2 s minimum until the deadline, so the
 abort comes at most one frame late under `Cooperative`.
+
+A Ctrl-C ends a running command at once on 7.25, 7.21.5 and 6.49.21. RouterOS 6 then draws the prompt and repaints it on
+the same line (`[admin@X] > CR [admin@X] > ESC[K`), which outside a cancel is what its echo looks like, so after the key
+any prompt that stays last ends the read.
 
 ### Monitor commands reached through a read method must keep their own inputs
 
@@ -1328,8 +1336,12 @@ command, not an answer that lost its end: it is raised as the router's error rat
 missing, a record whose text happens to end the same way cannot trigger it.
 
 One parse error is the menu rather than the caller: `bad parameter from (line 1 column N)` is what a window
-gets from a menu whose `print` takes no `from=` — `/log print` on 7.24. That menu cannot be windowed, and
-like one without `find` it is read in a single command, and remembered for the connection.
+gets from a menu whose `print` takes no `from=`. Like a menu without `find` it is read in a single command, and
+remembered for the connection. `/log print` is the known one (7.25, 7.21.5, 6.49.21), and it is windowed with a `where`
+over the window's ids instead: as one command its ~100 KB is more than MAC-Telnet carries (§9.6 of
+[findings-mactelnet.md](findings-mactelnet.md)). 10 library reads of 1000 rows per router, 2026-11-01: one command 3 of
+10 on 7.21.5 and 4 of 10 on 6.49.21, the rest refused or timed out, with or without `detail`; windowed 10 of 10 on 7.25,
+7.21.5 and 6.49.21, in 2 s, 2 s and 6 s.
 
 ---
 
@@ -1451,7 +1463,7 @@ merges what it adds. A name listing is not cut otherwise: 6.49.13 lists all 103 
 `/interface wireless print where` in one Tab.
 
 **The colour says what a word is**, Linux-style, on a terminal that has colour (WinBox CLI, MAC-Telnet; Telnet and
-SSH log in with `+c` and get none):
+SSH log in with `+c` and get none, except SSH on 7.25):
 
 | SGR | Word |
 |---|---|

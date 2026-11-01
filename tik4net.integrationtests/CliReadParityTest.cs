@@ -100,6 +100,64 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>A key landing inside RouterOS 6's repainted echo: the read still ends, and the next command reads its own answer.</summary>
+        [TestMethod]
+        [TestCategory(TestCategories.AnyRouter)]
+        public void ACancelInsideTheEchoLeavesTheTerminalInStep()
+        {
+            if (!(Connection is tik4net.Cli.CliConnectionBase))
+                Assert.Inconclusive("Ctrl-C is about a terminal.");
+
+            string name = AddListRow("t4n-echo");
+            try
+            {
+                foreach (int afterMs in new[] { 0, 5, 20, 50, 100, 200, 400 })
+                {
+                    var command = Connection.CreateCommandAndParameters("/interface/list/print", TikCommandParameterFormat.Filter, "name", name, "comment", "t4n-echo");
+                    using (var cancel = new System.Threading.CancellationTokenSource(afterMs))
+                    {
+                        try { ((ITikCommandAsync)command).ExecuteListAsync(cancel.Token).GetAwaiter().GetResult(); }
+                        catch (OperationCanceledException) { }
+                    }
+                    var row = Connection.CreateCommandAndParameters("/interface/list/print", TikCommandParameterFormat.Filter, "name", name)
+                        .ExecuteList().Single();
+                    Assert.AreEqual(name, row.GetResponseField("name"), "cancel after " + afterMs + " ms");
+                }
+            }
+            finally
+            {
+                RemoveListRow(name);
+            }
+        }
+
+        /// <summary>The whole log is read on every transport, as many rows as the API counts give or take what was logged meanwhile.</summary>
+        [TestMethod]
+        [TestCategory(TestCategories.AnyRouter)]
+        public void AWholeLogIsRead()
+        {
+            var rows = Connection.CreateCommand("/log/print").ExecuteList().ToList();
+            int apiCount;
+            using (var api = LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api))
+                apiCount = api.CreateCommand("/log/print").ExecuteList().Count();
+            Assert.IsTrue(Math.Abs(rows.Count - apiCount) < 100, $"{rows.Count} rows here, {apiCount} on the API");
+            Assert.AreEqual(rows.Count, rows.Select(r => r.GetId()).Distinct().Count(), "a row read twice");
+        }
+
+        /// <summary>The same unformatted parameter through a scalar and through a list is the same filter.</summary>
+        [TestMethod]
+        public void AnUnformattedParameterOfAScalarPrintIsAFilter()
+        {
+            string name = AddListRow("t4n-scalar");
+            try
+            {
+                Assert.AreEqual("t4n-scalar", Connection.CreateCommandAndParameters("/interface/list/print", "name", name).ExecuteScalar("comment"));
+            }
+            finally
+            {
+                RemoveListRow(name);
+            }
+        }
+
         [TestMethod]
         public void ASingletonAnswersAGenericPrint()
             => Assert.IsFalse(string.IsNullOrEmpty(Connection.CreateCommand("/system/identity/print").ExecuteScalar("name")));
@@ -107,10 +165,6 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void AVerbTheLibraryHasNoShapeForAnswersItsValue()
         {
-            // M2 has no verb of that name, and no window maps to it.
-            var type = ResolveConnectionType();
-            if (type == TikConnectionType.WinboxNative || type == TikConnectionType.WinboxNativeMac)
-                Assert.Inconclusive("WinBox native addresses windows, and find is no window.");
             string ids = Connection.CreateCommand("/interface/find").ExecuteScalarOrDefault(null);
             StringAssert.StartsWith(ids ?? "(none)", "*");
         }

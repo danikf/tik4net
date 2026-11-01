@@ -521,6 +521,8 @@ namespace tik4net.Cli
         {
             var terminal = _terminal ?? throw NotOpen();
             string? endLine = null;
+            if (mayMarkEnd && CliFieldSeparator == null && _knowledge.Features.Dsv == null && IsMarkableWrite(cliText))
+                await _printDriver.EnsureEndMarkerKnownAsync(ct).ConfigureAwait(false);
             if (mayMarkEnd && TakesEndMarker(cliText))
             {
                 cliText = CliOutputHelper.WithEndMarker(cliText, NewEndNonce());
@@ -611,12 +613,15 @@ namespace tik4net.Cli
         /// was about half of what such a command cost (SSH, 800 writes of a full suite leg, 2026-10-01). Not on
         /// RouterOS 6, which repaints the whole line after every typed character: 30 characters more echo cost more
         /// than the settle they save. Not on a command that may ask a question (<c>reboot</c>) — only the verbs
-        /// above — and not on a raw command, which is sent as written.
+        /// above — and not on a raw command, which is sent as written. A connection with a separator knows from its first
+        /// read, and one that only writes stays unmarked rather than pay the probe; a connection with no separator asks at
+        /// its first write (<c>CliPrintDriver.EnsureEndMarkerKnownAsync</c>).
         /// </remarks>
         private bool TakesEndMarker(string cliText)
-            => _knowledge.Features.Dsv == true
-               && cliText.IndexOf('\n') < 0 && cliText.IndexOf('\r') < 0
-               && WriteVerbLine.IsMatch(cliText);
+            => _knowledge.Features.Dsv == true && IsMarkableWrite(cliText);
+
+        private static bool IsMarkableWrite(string cliText)
+            => cliText.IndexOf('\n') < 0 && cliText.IndexOf('\r') < 0 && WriteVerbLine.IsMatch(cliText);
 
         internal static bool IsEndMarkerVerbLine(string cliText) => WriteVerbLine.IsMatch(cliText);
 

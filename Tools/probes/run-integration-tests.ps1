@@ -271,6 +271,18 @@ function Get-LogSummary($leg) {
 # A leg hung after its summary: a dump for the diagnosis (when dotnet-dump is installed), then its process tree is
 # killed. Bounded, so a dump that hangs itself cannot hold the run either.
 function Stop-HungLeg($job) {
+    # Who is still alive under the leg, written first: a dump cannot say whether it waits for a child.
+    $all = @(Get-CimInstance Win32_Process)
+    $alive = @($job.Process.Id); $tree = @()
+    while ($alive.Count -gt 0) {
+        $now = @($all | Where-Object { $alive -contains $_.ProcessId })
+        $tree += $now
+        $alive = @($all | Where-Object { $alive -contains $_.ParentProcessId } | ForEach-Object { $_.ProcessId })
+    }
+    $treeFile = Join-Path $job.Leg.ResultsPath ("hang_{0}_{1}.tree.txt" -f $job.Leg.Name, $job.Process.Id)
+    $tree | ForEach-Object { '{0} (parent {1}) {2} {3}' -f $_.ProcessId, $_.ParentProcessId, $_.Name, $_.CommandLine } | Set-Content -Path $treeFile -Encoding utf8
+    Write-Host ("  tree    {0} ({1} process(es))" -f $treeFile, $tree.Count) -ForegroundColor DarkYellow
+
     $tool = Get-Command dotnet-dump -ErrorAction SilentlyContinue
     if (-not $tool) {
         $candidate = Join-Path $env:USERPROFILE '.dotnet\tools\dotnet-dump.exe'
@@ -278,7 +290,7 @@ function Stop-HungLeg($job) {
     }
     if ($tool) {
         $dump = Join-Path $job.Leg.ResultsPath ("hang_{0}_{1}.dmp" -f $job.Leg.Name, $job.Process.Id)
-        $d = Start-Process -FilePath $tool.Source -ArgumentList @('collect', '-p', $job.Process.Id, '--type', 'Heap', '-o', ('"' + $dump + '"')) `
+        $d = Start-Process -FilePath $tool.Source -ArgumentList @('collect', '-p', $job.Process.Id, '--type', 'Full', '-o', ('"' + $dump + '"')) `
                            -NoNewWindow -PassThru -RedirectStandardOutput "$dump.log" -RedirectStandardError "$dump.err"
         if (-not $d.WaitForExit(120000)) { try { $d.Kill() } catch { } }
         if (Test-Path $dump) {

@@ -132,9 +132,10 @@ namespace tik4net.Cli
 
         private void LoadStoredFacts(CliSchemaStore store)
         {
-            if (_host.CliFieldSeparator != null && _features.Dsv == null && store.TryGetFeature(FeatureDsv + _host.CliFieldSeparator, out bool dsv))
+            string separator = _host.CliFieldSeparator ?? TikConnectionSetup.DefaultCliFieldSeparator;
+            if (_features.Dsv == null && store.TryGetFeature(FeatureDsv + separator, out bool dsv))
             {
-                _features.DsvProbedSeparator = _host.CliFieldSeparator;
+                _features.DsvProbedSeparator = separator;
                 _features.Dsv = dsv;
             }
             if (_features.AsValueOmitsFlags == null && store.TryGetFeature(FeatureAsValueOmitsFlags, out bool omits))

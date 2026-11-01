@@ -52,7 +52,7 @@ namespace tik4net.Cli
     /// <summary>What a completion word is, from the colour the router drew it in.</summary>
     internal enum CliCompletionKind
     {
-        /// <summary>Drawn without a colour that says (Telnet and SSH log in with <c>+c</c>).</summary>
+        /// <summary>Drawn without a colour that says (Telnet and SSH log in with <c>+c</c>, which SSH on 7.25 ignores).</summary>
         Unknown,
         /// <summary>Cyan: a sub-menu, <c>..</c> included.</summary>
         Submenu,
@@ -152,7 +152,7 @@ namespace tik4net.Cli
         /// <summary>
         /// <see cref="Tokens"/> with what each one is, read from the colour the router drew it in (findings-cli §14):
         /// cyan a sub-menu, magenta a command, green an argument or field. <see cref="CliCompletionKind.Unknown"/> on a
-        /// terminal without colour (Telnet and SSH log in with <c>+c</c>).
+        /// terminal without colour (Telnet and SSH log in with <c>+c</c>, which SSH on 7.25 ignores).
         /// </summary>
         internal static IReadOnlyList<CliCompletionItem> Items(string reaction, string partialInput)
         {
