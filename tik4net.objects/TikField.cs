@@ -84,6 +84,11 @@ namespace tik4net.Objects
             _core = new TikFieldCore<T>(content);
         }
 
+        internal TikField(TikFieldCore<T> core)
+        {
+            _core = core;
+        }
+
         internal TikFieldCore<T> Core => _core;
 
         /// <summary>Whether the field was printed, and whether its value could be read.</summary>
@@ -102,8 +107,6 @@ namespace tik4net.Objects
 
         /// <summary>The router's word when <see cref="State"/> is <see cref="TikFieldState.Unparsed"/>; otherwise <c>null</c>.</summary>
         public string? RawValue => _core.RawValue;
-
-        internal static TikField<T> FromPresent(T value) => new TikField<T>(value);
 
         /// <summary>True when the router printed the field (or the caller assigned it) and the value was read.</summary>
         public bool IsPresent => State == TikFieldState.Present;
@@ -152,8 +155,6 @@ namespace tik4net.Objects
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="word"/> is <c>null</c>.</exception>
         public static TikField<T> FromWire(string word) => new TikField<T>(TikValue<T>.FromWire(word));
-
-        internal static TikField<T> FromUnparsed(string raw) => new TikField<T>(TikValue<T>.FromWire(raw));
 
         /// <summary>
         /// True when <paramref name="a"/> is present and holds <paramref name="b"/>. Compared with <c>null</c> it means "has

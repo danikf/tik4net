@@ -4,9 +4,8 @@
 // WHY THIS EXISTS. The model reads such a value as Unparsed(raw) and writes the raw word back unchanged, so the
 // word has to be the router's own on every transport — WinBox native in particular renders words from the .jg
 // catalog's maps, not from what the API prints. On the lab routers almost every word is one the shipped enums
-// know, so the probe forces the case: each enum below knows ONE word and has an Unknown member, over fields whose
-// rows use many words. Every other word is then an unknown one, and its kept word (GetUnknownWord) is compared
-// against the API's for the same .id. Read-only.
+// know, so the probe forces the case: each enum below knows ONE word, over fields whose rows use many words. Every
+// other word is then Unparsed, and its kept word (RawValue) is compared against the API's for the same .id. Read-only.
 //
 // Environment: TIK4NET_V3_TRANSPORTS (comma list, default every non-API transport), TIK4NET_V2_ROUTER ("lab" or
 // "romonTarget"), TIK4NET_V3_OUT (report path).
@@ -29,39 +28,39 @@ namespace tik4net.integrationtests
     [TestCategory(TestCategories.LegIndependent)]
     public class EntityUnparsedWordProbe : LockedTestBase
     {
-        public enum OneType { [TikEnum("ether")] Ether, [TikEnumUnknown] Unknown = -1 }
-        public enum OneKind { [TikEnum("pfifo")] Pfifo, [TikEnumUnknown] Unknown = -1 }
-        public enum OneTarget { [TikEnum("memory")] Memory, [TikEnumUnknown] Unknown = -1 }
-        public enum OneAction { [TikEnum("accept")] Accept, [TikEnumUnknown] Unknown = -1 }
-        public enum OneChain { [TikEnum("input")] Input, [TikEnumUnknown] Unknown = -1 }
+        public enum OneType { [TikEnum("ether")] Ether }
+        public enum OneKind { [TikEnum("pfifo")] Pfifo }
+        public enum OneTarget { [TikEnum("memory")] Memory }
+        public enum OneAction { [TikEnum("accept")] Accept }
+        public enum OneChain { [TikEnum("input")] Input }
 
         [TikEntity("/interface", IncludeDetails = true, SupportedOperations = TikEntityOperations.None)]
         public class V3Interface
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string Id { get; private set; }
-            [TikProperty("type")] public OneType? Type { get; set; }
+            [TikProperty("type")] public TikField<OneType?> Type { get; set; }
         }
 
         [TikEntity("/queue/type", SupportedOperations = TikEntityOperations.None)]
         public class V3QueueType
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string Id { get; private set; }
-            [TikProperty("kind")] public OneKind? Kind { get; set; }
+            [TikProperty("kind")] public TikField<OneKind?> Kind { get; set; }
         }
 
         [TikEntity("/system/logging/action", SupportedOperations = TikEntityOperations.None)]
         public class V3LoggingAction
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string Id { get; private set; }
-            [TikProperty("target")] public OneTarget? Target { get; set; }
+            [TikProperty("target")] public TikField<OneTarget?> Target { get; set; }
         }
 
         [TikEntity("/ip/firewall/filter", IncludeDetails = true, SupportedOperations = TikEntityOperations.None)]
         public class V3Filter
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string Id { get; private set; }
-            [TikProperty("action")] public OneAction? Action { get; set; }
-            [TikProperty("chain")] public OneChain? Chain { get; set; }
+            [TikProperty("action")] public TikField<OneAction?> Action { get; set; }
+            [TikProperty("chain")] public TikField<OneChain?> Chain { get; set; }
         }
 
         [TestMethod]
@@ -133,24 +132,24 @@ namespace tik4net.integrationtests
         private static Dictionary<string, Dictionary<string, string>> Read(ITikConnection c)
         {
             var result = new Dictionary<string, Dictionary<string, string>>();
-            void Add<T>(string field, IEnumerable<T> rows, Func<T, string> id, Func<T, object> value, string property)
+            void Add<T, TValue>(string field, IEnumerable<T> rows, Func<T, string> id, Func<T, TikField<TValue>> value)
             {
                 var words = new Dictionary<string, string>();
                 foreach (var row in rows)
                 {
-                    object v = value(row);
-                    words[id(row)] = v == null ? "<null>"
-                        : v.ToString() == "Unknown" ? "?" + (row.GetUnknownWord(property) ?? "<no word>")
-                        : v.ToString().ToLowerInvariant();
+                    TikField<TValue> v = value(row);
+                    words[id(row)] = v.State == TikFieldState.Absent ? "<null>"
+                        : v.State == TikFieldState.Unparsed ? "?" + v.RawValue
+                        : v.ToString();
                 }
                 result[field] = words;
             }
-            Add("/interface type", c.LoadAll<V3Interface>(), r => r.Id, r => r.Type, nameof(V3Interface.Type));
-            Add("/queue/type kind", c.LoadAll<V3QueueType>(), r => r.Id, r => r.Kind, nameof(V3QueueType.Kind));
-            Add("/system/logging/action target", c.LoadAll<V3LoggingAction>(), r => r.Id, r => r.Target, nameof(V3LoggingAction.Target));
+            Add("/interface type", c.LoadAll<V3Interface>(), r => r.Id, r => r.Type);
+            Add("/queue/type kind", c.LoadAll<V3QueueType>(), r => r.Id, r => r.Kind);
+            Add("/system/logging/action target", c.LoadAll<V3LoggingAction>(), r => r.Id, r => r.Target);
             var filter = c.LoadAll<V3Filter>().ToList();
-            Add("/ip/firewall/filter action", filter, r => r.Id, r => r.Action, nameof(V3Filter.Action));
-            Add("/ip/firewall/filter chain", filter, r => r.Id, r => r.Chain, nameof(V3Filter.Chain));
+            Add("/ip/firewall/filter action", filter, r => r.Id, r => r.Action);
+            Add("/ip/firewall/filter chain", filter, r => r.Id, r => r.Chain);
             return result;
         }
 

@@ -61,25 +61,14 @@ namespace tik4net
         public static bool TryParse(string? value, out TikPortRange result)
         {
             result = default;
-            if (string.IsNullOrWhiteSpace(value))
+            if (!TikRangeText.TryParse(value, out long from, out long to) || from > 65535 || to > 65535)
                 return false;
-            string text = value!.Trim();
-            int dash = text.IndexOf('-');
-            string first = dash < 0 ? text : text.Substring(0, dash);
-            string last = dash < 0 ? text : text.Substring(dash + 1);
-            if (!int.TryParse(first, NumberStyles.None, CultureInfo.InvariantCulture, out int from)
-                || !int.TryParse(last, NumberStyles.None, CultureInfo.InvariantCulture, out int to)
-                || from > 65535 || to > 65535 || to < from)
-                return false;
-            result = new TikPortRange(from, to);
+            result = new TikPortRange((int)from, (int)to);
             return true;
         }
 
         /// <summary><c>22</c>, or <c>1000-2000</c> for a range — the router's spelling.</summary>
-        public override string ToString()
-            => IsRange
-                ? From.ToString(CultureInfo.InvariantCulture) + "-" + To.ToString(CultureInfo.InvariantCulture)
-                : From.ToString(CultureInfo.InvariantCulture);
+        public override string ToString() => TikRangeText.Format(From, To);
 
         /// <inheritdoc/>
         public bool Equals(TikPortRange other) => From == other.From && To == other.To;

@@ -110,37 +110,23 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>
-        /// A duration is a wire value in both directions.
+        /// A duration is a wire value in both directions. Its alphabet is <c>w d h m s</c> and its digits are 0-9, so neither
+        /// the Turkish dotless i nor a comma separator has anything to bite on; a pin that fails if the format widens.
         /// </summary>
-        /// <remarks>
-        /// <b>This one passes against the unfixed code, and the honest reading is that it had to.</b>
-        /// <see cref="TikTimeHelper"/> did format its numbers through the current culture and normalise its
-        /// input with a culture-sensitive <c>ToLower()</c> — but a duration's alphabet is <c>w d h m s</c>
-        /// and its digits are 0-9, so neither the Turkish dotless i nor a comma separator has anything to
-        /// bite on. Those calls were made invariant because a fixed wire format has no business reading the
-        /// caller's regional settings at all, not because a user was hitting it.
-        /// <para>
-        /// Kept as a pin: it costs nothing and it fails if someone later widens the format to a token where
-        /// the difference does show.
-        /// </para>
-        /// </remarks>
         [TestMethod]
         public void ADurationRoundTripsIdenticallyInEveryCulture()
         {
-            const int Seconds = 90061;   // 1d 1h 1m 1s
-            string expected = TikTimeHelper.ToTikTime(Seconds);
+            var duration = TikDuration.FromTimeSpan(new TimeSpan(1, 1, 1, 1));
+            string expected = duration.ToString();
 
             foreach (string cultureName in HostileCultures)
             {
                 InCulture(cultureName, () =>
                 {
-                    Assert.AreEqual(expected, TikTimeHelper.ToTikTime(Seconds),
+                    Assert.AreEqual(expected, duration.ToString(),
                         "the wire spelling of a duration changed under " + cultureName);
-                    Assert.AreEqual(Seconds, TikTimeHelper.FromTikTimeToSeconds(expected),
+                    Assert.AreEqual(duration, TikDuration.Parse(expected),
                         "a duration the router sent did not read back under " + cultureName);
-                    Assert.AreEqual(Seconds, TikTimeHelper.FromTikTimeToSeconds(expected.ToUpperInvariant()),
-                        "an upper-cased duration did not read back under " + cultureName
-                        + " (tr-TR lower-cases the ASCII capital I to a dotless small i)");
                 });
             }
         }

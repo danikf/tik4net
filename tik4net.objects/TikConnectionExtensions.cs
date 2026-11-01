@@ -518,8 +518,6 @@ namespace tik4net.Objects
 
         /// <summary>
         /// Saves entity to mikrotik router. Does insert (/add) whan entity has empty id and update(/set + /unset) when id is present).
-        /// Behavior of save is modified via <see cref="TikPropertyAttribute"/> on properties.
-        /// See <see cref="TikPropertyAttribute.DefaultValue"/>, <see cref="TikPropertyAttribute.UnsetOnDefault"/>.
         /// <para>
         /// A <see cref="TikField{T}"/> says by its state what an update does with it: <see cref="TikField{T}.Absent"/> is
         /// never sent, even where the load read a value; an assigned <c>null</c> is unset (a <c>comment</c> is cleared
@@ -603,9 +601,8 @@ namespace tik4net.Objects
         // — and a second copy of them would be a second set of rules the moment either is touched.
 
         /// <summary>
-        /// The nullable fields the caller cleared, which an update should <c>/unset</c> on the router: a
-        /// <see cref="TikField{T}"/> holding an assigned <c>null</c>, unless the load saw the field unprinted; a plain
-        /// nullable property loaded with a value and now <c>null</c>.
+        /// The fields the caller cleared, which an update should <c>/unset</c> on the router: a <see cref="TikField{T}"/>
+        /// holding an assigned <c>null</c>, unless the load saw the field unprinted.
         /// </summary>
         /// <remarks>
         /// A <see cref="TikField{T}"/> says by its state what the caller meant: <see cref="TikFieldState.Absent"/> is
@@ -613,10 +610,6 @@ namespace tik4net.Objects
         /// connection never loaded) and outside a partial <c>.proplist</c> too, where nothing says whether the router
         /// holds a value — the caller asked for it, and the router takes an unset of an unset field. Only a field the
         /// load read as unprinted is left alone, since there is evidence that there is nothing to clear.
-        /// <para>
-        /// A plain nullable property cannot tell the two apart: its <c>null</c> is a clearing only against a snapshot
-        /// that holds a value, and silence everywhere else.
-        /// </para>
         /// </remarks>
         internal static ISet<string> ResolveClearedFields<TEntity>(ITikConnection connection, TEntity entity,
             TikEntityMetadata metadata)
@@ -627,20 +620,10 @@ namespace tik4net.Objects
 
             foreach (var property in metadata.Properties)
             {
-                if (property.IsReadOnly || !property.IsNullable)
+                if (property.IsReadOnly || property.GetEntityValue(entity!) != null || property.IsAbsent(entity!))
                     continue;
-                if (property.GetEntityValue(entity!) != null || property.IsAbsent(entity!))
-                    continue;
-                if (property.IsWrapped && (snapshot == null || !snapshot.IsTracked(property.FieldName)))
-                {
-                    cleared.Add(property.FieldName);
-                    continue;
-                }
-                if (snapshot == null)
-                    continue;
-                if (!snapshot.IsTracked(property.FieldName))
-                    continue;   // never loaded, so nothing is known to have been cleared
-                if (snapshot.TryGetValue(property.FieldName, out string? previous) && previous != null)
+                if (snapshot == null || !snapshot.IsTracked(property.FieldName)
+                    || (snapshot.TryGetValue(property.FieldName, out string? previous) && previous != null))
                     cleared.Add(property.FieldName);
             }
 
@@ -676,18 +659,10 @@ namespace tik4net.Objects
                 .Where(pm => !pm.IsReadOnly)
                 .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
             {
-                // Send non-default values; always send mandatory fields, since the router
-                // requires them on /add even when their value happens to equal the default
-                // (e.g. an enum whose mandatory selection is also its zero/default member).
-                if (!property.HasDefaultValue(entity!) || property.IsMandatory)
-                {
-                    string? value = property.GetEntityValue(entity!);
-                    // A mandatory field the caller left null is the one case where the two conditions
-                    // disagree: there is nothing to send, and sending the word without a value would be
-                    // worse than letting the router say what it requires.
-                    if (value != null)
-                        createCmd.AddParameter(property.WriteName(entity!), value);
-                }
+                // Null is Absent or an assigned null: on a row that does not exist yet, both leave the choice to the router.
+                string? value = property.GetEntityValue(entity!);
+                if (value != null)
+                    createCmd.AddParameter(property.WriteName(entity!), value);
             }
 
             TikWriteValidation.Validate(connection, metadata, new[] { createCmd });
@@ -802,9 +777,7 @@ namespace tik4net.Objects
                 .Where(pm => !pm.IsReadOnly)
                 .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
             {
-                if (property.HasDefaultValue(entity!) && property.UnsetOnDefault)
-                    fieldsToUnset.Add(property.WriteName(entity!));
-                else if (clearedFields.Contains(property.FieldName))
+                if (clearedFields.Contains(property.FieldName))
                 {
                     // Loaded with a value, set to null → unset. Except a comment: RouterOS clears one with
                     // comment="" on every menu (an empty comment is no comment - TikEmptyComment), while menus
@@ -817,9 +790,9 @@ namespace tik4net.Objects
                 else
                 {
                     string? value = property.GetEntityValue(entity!);
-                    // Null that is NOT a clearing: the caller never said anything about this field (only a
-                    // nullable property can say that). Sending it would put the word on the wire with no
-                    // value, and unsetting it would destroy what the router holds on the strength of silence.
+                    // Null that is NOT a clearing: the caller never said anything about this field. Sending it would put
+                    // the word on the wire with no value, and unsetting it would destroy what the router holds on the
+                    // strength of silence.
                     if (value != null)
                     {
                         if (property.SetKeepsUnnamedHalf && !connection.Supports(TikConnectionCapability.StructuredWrites))

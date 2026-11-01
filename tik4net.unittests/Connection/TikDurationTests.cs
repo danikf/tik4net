@@ -71,7 +71,7 @@ namespace tik4net.unittests.Connection
             // The trap this type exists to avoid: "none" is a state of the field, not a duration of zero.
             // A TimeSpan-typed property cannot tell the two apart, and the old parser answered zero for
             // both — turning "this timeout is off" into "this timeout is instant".
-            foreach (var word in new[] { "none", "disabled", "auto", "any", "always", "dynamic" })
+            foreach (var word in new[] { "none", "disabled", "auto", "never", "immediately", "forever" })
             {
                 var duration = TikDuration.Parse(word);
                 Assert.IsFalse(duration.HasValue, word + " should not be a length of time");
@@ -90,11 +90,11 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void FromTikTimeToTimeSpanReadsBothFormsAndRefusesTheRest()
+        public void ParseTimeSpanReadsBothFormsAndRefusesTheRest()
         {
-            Assert.AreEqual(TimeSpan.FromSeconds(10), TikTimeHelper.FromTikTimeToTimeSpan("10s"));
-            Assert.AreEqual(TimeSpan.FromSeconds(10), TikTimeHelper.FromTikTimeToTimeSpan("00:00:10"));
-            Assert.ThrowsException<FormatException>(() => TikTimeHelper.FromTikTimeToTimeSpan("none"));
+            Assert.AreEqual(TimeSpan.FromSeconds(10), TikDuration.ParseTimeSpan("10s"));
+            Assert.AreEqual(TimeSpan.FromSeconds(10), TikDuration.ParseTimeSpan("00:00:10"));
+            Assert.ThrowsException<FormatException>(() => TikDuration.ParseTimeSpan("none"));
         }
 
         [TestMethod]
@@ -149,10 +149,13 @@ namespace tik4net.unittests.Connection
                 Assert.AreEqual(expected, d.Special, word);
             }
 
-            TikDuration gap = TikDuration.Parse("totally-made-up");
+            Assert.ThrowsException<FormatException>(() => TikDuration.Parse("totally-made-up"));
+            Assert.IsFalse(TikDuration.TryParse("totally-made-up", out _));
+
+            // A word only the caller vouches for: sent as it is.
+            TikDuration gap = TikDuration.FromToken("totally-made-up");
             Assert.AreEqual(TikValueKind.Unknown, gap.Kind);
             Assert.IsNull(gap.Special);
-            // Still lossless: unknown is a gap in the library, never a reason to lose the router's value.
             Assert.AreEqual("totally-made-up", gap.ToString());
         }
 

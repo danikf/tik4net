@@ -96,7 +96,7 @@ namespace tik4net.unittests.Objects
             TikField<TikFieldMapperTests.Mode?> field = TikField<TikFieldMapperTests.Mode?>.FromWire("ec2n155");
             Assert.AreEqual(TikFieldState.Unparsed, field.State);
             Assert.AreEqual("ec2n155", field.RawValue);
-            Assert.AreEqual(TikField<TikFieldMapperTests.Mode?>.FromUnparsed("ec2n155"), field);
+            Assert.AreEqual(TikField<TikFieldMapperTests.Mode?>.FromWire("ec2n155"), field);
         }
     }
 }

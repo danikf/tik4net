@@ -424,13 +424,11 @@ namespace tik4net.Winbox
                     // the field: /queue/simple's rate fields resolved to their keys, were encoded, and never
                     // moved. Suffixes are accepted here because the API accepts them (max-limit=1M).
                     //
-                    // TikDataRate.TryParse is the STRICT half of that type on purpose, and this is the
-                    // caller it is strict for: a word like 'auto' or 'unlimited' has to go out as a string,
-                    // and a parse that turned it into a token would put a 64-bit integer on the wire for it
-                    // — which the router accepts and then ignores, the same silent no-op this whole case
-                    // exists to prevent.
-                    if (TikDataRate.TryParse(value, out TikDataRate rate) && rate.Value.HasValue)
-                        result.Add(M2Message.U64Sys(key, unchecked((ulong)rate.Value.Value)));
+                    // Only a number goes out as a u64: a word like 'auto' or 'unlimited' has to go out as a string, and
+                    // a 64-bit integer in its place is accepted by the router and then ignored, the same silent no-op
+                    // this whole case exists to prevent.
+                    if (TikDataRate.TryParseNumber(value, out long rate))
+                        result.Add(M2Message.U64Sys(key, unchecked((ulong)rate)));
                     else
                         result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
                     break;
@@ -1174,7 +1172,7 @@ namespace tik4net.Winbox
                 if (!TryParseDuration(rateText.Substring(slash + 1), 1, out period) || period < 1 || period > uint.MaxValue) return false;
                 rateText = rateText.Substring(0, slash);
             }
-            if (!TikDataRate.TryParse(rateText, out TikDataRate rate) || !rate.Value.HasValue || rate.Value.Value < 0) return false;
+            if (!TikDataRate.TryParseNumber(rateText, out long rate) || rate < 0) return false;
 
             var encoded = new List<byte[]>();
             if (dst)
@@ -1185,9 +1183,9 @@ namespace tik4net.Winbox
                 if (at >= 0) { expire = by.Substring(at + 1); by = by.Substring(0, at); }
                 var member = FirewallDstLimitBy.FirstOrDefault(kv => string.Equals(kv.Value, by, StringComparison.OrdinalIgnoreCase));
                 if (member.Value == null || !TryParseDuration(expire, 100, out long expireTicks)
-                    || expireTicks < 0 || expireTicks > uint.MaxValue || rate.Value.Value > uint.MaxValue)
+                    || expireTicks < 0 || expireTicks > uint.MaxValue || rate > uint.MaxValue)
                     return false;
-                encoded.Add(EncodeU32(0x36, (uint)rate.Value.Value));
+                encoded.Add(EncodeU32(0x36, (uint)rate));
                 encoded.Add(EncodeU32(0x39, (uint)period));
                 encoded.Add(EncodeU32(0x37, burst));
                 encoded.Add(EncodeU32(0x38, (uint)member.Key));
@@ -1203,7 +1201,7 @@ namespace tik4net.Winbox
                 if (modeValue < 0
                     || !uint.TryParse(parts[1].Substring(0, colon), NumberStyles.None, CultureInfo.InvariantCulture, out uint burst))
                     return false;
-                encoded.Add(M2Message.U64Sys(0x87, unchecked((ulong)rate.Value.Value)));
+                encoded.Add(M2Message.U64Sys(0x87, unchecked((ulong)rate)));
                 encoded.Add(EncodeU32(0x11, (uint)period));
                 encoded.Add(EncodeU32(0x12, burst));
                 encoded.Add(EncodeU32(0x86, (uint)modeValue));

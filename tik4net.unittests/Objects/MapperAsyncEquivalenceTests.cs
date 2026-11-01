@@ -167,8 +167,8 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public async Task SaveAsyncSendsTheUnsetsBeforeTheSetJustAsSaveDoes()
         {
-            // FirewallFilter carries UnsetOnDefault fields; an empty one is unset rather than set, and the
-            // unsets must precede the /set. Ordering is invisible to a result assertion.
+            // An assigned null is unset rather than set, and the unsets must precede the /set. Ordering is invisible to
+            // a result assertion.
             var syncConn = new TikFakeConnection()
                 .WithNonQuery(rows => rows.First().EndsWith("/set"))
                 .WithNonQuery(rows => rows.First().EndsWith("/unset"));

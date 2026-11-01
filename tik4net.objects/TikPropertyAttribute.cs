@@ -34,7 +34,7 @@ namespace tik4net.Objects
         public string[]? AlternateNames { get; set; }
 
         /// <summary>
-        /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
+        /// Whether a row must carry this field — for the <c>.id</c>, the row's key: a load of a row without one throws.
         /// </summary>
         /// <value><c>true</c> if mandatory; otherwise, <c>false</c>.</value>
         /// <remarks>
@@ -51,50 +51,14 @@ namespace tik4net.Objects
         public bool IsReadOnly { get; set; }
 
         /// <summary>
-        /// The property's default, written <b>the way the router spells it</b> — <c>"no"</c>/<c>"yes"</c> for a
+        /// The router's default for the field, written <b>the way the router spells it</b> — <c>"no"</c>/<c>"yes"</c> for a
         /// <see cref="bool"/>, the <c>[TikEnum]</c> value for an enum, never a C# literal like <c>"False"</c>.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// The mapper serializes the property and compares the result against this string to decide whether
-        /// the field is worth sending on <c>/add</c>: equal means "leave it out and let the router choose".
-        /// A value the serializer can never produce — the C# spelling of a bool, say — therefore matches
-        /// nothing, and the field is sent on every create and every set.
-        /// </para>
-        /// <para>
-        /// <b>Whose default this is depends on whether the property can be null.</b> A nullable property
-        /// distinguishes "untouched" from a value, so the <i>router's</i> default belongs here. A
-        /// non-nullable one cannot: an untouched <c>bool</c> is <c>false</c>, and declaring the router's
-        /// <c>"yes"</c> makes the comparison fail forever, so the field is sent on every create and the row
-        /// gets the opposite of what the router would have chosen. 56 properties are in that position today
-        /// (see <c>EntityDefaultValueConventionTests</c>); the fix is <c>bool?</c>, not a different string,
-        /// because declaring <c>"no"</c> instead would silently drop an <i>explicitly assigned</i>
-        /// <c>false</c>, which is worse: a two-state type cannot carry the protocol's three states.
-        /// </para>
-        /// <para>
-        /// <b>It is also what a field the row does not carry reads as</b> — a field this RouterOS version does not
-        /// have, or one a CLI print leaves out. With no default declared, a nullable property (<c>string?</c>,
-        /// <c>int?</c>, an enum <c>?</c>) reads <c>null</c> and a non-nullable one its type's default. A
-        /// property that must be able to say "the router did not print this" is therefore nullable and declares
-        /// none. (A reference type counts as nullable when it is annotated so; one compiled without nullable
-        /// annotations reads <c>""</c>.)
-        /// </para>
-        /// <para>
-        /// <b>On a <see cref="TikField{T}"/> property it is documentation only</b> — the router's default, for the
-        /// reader and the entity catalog. It is never read into the property (a field the row lacks is
-        /// <see cref="TikFieldState.Absent"/>) and never compared on a save (an add sends what was assigned).
-        /// </para>
+        /// Documentation only, for the reader and the entity catalog. It is never read into the property (a field the row
+        /// lacks is <see cref="TikFieldState.Absent"/>) and never compared on a save (an add sends what was assigned).
         /// </remarks>
         public string? DefaultValue { get; set; }
-
-        /// <summary>
-        /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).
-        /// </summary>
-        /// <remarks>
-        /// Not allowed on a <see cref="TikField{T}"/> property: assigning <c>null</c> to a loaded value unsets it, and an
-        /// Absent value — which "equals the default" to this rule — must never be unset on the strength of silence.
-        /// </remarks>
-        public bool UnsetOnDefault { get; set; }
 
         /// <summary>
         /// Marks a property whose value is free-form text and may therefore contain the CLI output
@@ -132,10 +96,11 @@ namespace tik4net.Objects
         /// binary API reports it as <c>name=</c> (the word is present, the value empty) when the flag is
         /// set, and omits the word entirely when it is not.
         /// <para>
-        /// Without this marker the empty value parses as <c>false</c>, so such a field reads back as
-        /// <c>false</c> whatever its true state is. With it, an empty value means <b>true</b> — which is
-        /// what the router said. Absence still leaves a nullable property <c>null</c>: the router reported
-        /// nothing, and the mapper does not invent a <c>false</c>.
+        /// Being printed is the value here, so an empty value means <b>true</b> — which is what the router
+        /// said. A field the row lacks still reads <see cref="TikFieldState.Absent"/>: the router reported
+        /// nothing, and the mapper does not invent a <c>false</c>. A <see cref="bool"/> printed empty and not
+        /// marked reads <see cref="TikFieldState.Unparsed"/>, so the diagnostics show the missing marker;
+        /// on any other type an empty value carries nothing and reads Absent.
         /// </para>
         /// <para>
         /// Only the binary API and REST use the valueless form; the CLI transports and
@@ -225,33 +190,10 @@ namespace tik4net.Objects
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="fieldName">Name of the property (on mikrotik).</param>
-        /// <param name="isMandatory">If this property is mandatory - should be present in loading resultset</param>
-        /// <param name="isReadOnly">If the property is R/O (should not be updated during save modified entity).</param>
-        /// <param name="defaultValue">Property default value (if is different from type default).</param>
-        /// <param name="unsetOnDefault">If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).</param>
-        public TikPropertyAttribute(string fieldName, bool isMandatory, bool isReadOnly, string defaultValue, bool unsetOnDefault)
-        {
-            Guard.ArgumentNotNullOrEmptyString(fieldName, "fieldName");
-
-            FieldName = fieldName;
-            IsMandatory = isMandatory;
-            IsReadOnly = isReadOnly;
-            DefaultValue = defaultValue;
-            UnsetOnDefault = unsetOnDefault;
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
-        /// </summary>
-        /// <param name="fieldName">Name of the property (on mikrotik).</param>
         public TikPropertyAttribute(string fieldName)
         {
             Guard.ArgumentNotNullOrEmptyString(fieldName, "fieldName");
             FieldName = fieldName;
-            IsMandatory = false;
-            IsReadOnly = false;
-            DefaultValue = null;
-            UnsetOnDefault = false;
         }
     }
 }

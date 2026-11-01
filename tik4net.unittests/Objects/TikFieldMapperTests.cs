@@ -20,13 +20,12 @@ namespace tik4net.unittests.Objects
         /// <summary>A plain enum: the members of a list property (see <see cref="Box.State"/>).</summary>
         public enum Conn { [TikEnum("new")] New, [TikEnum("established")] Established }
 
-        /// <summary>A [Flags] enum, which only a plain (not TikField) property can still hold.</summary>
+        /// <summary>A [Flags] enum, which no mapped property can hold.</summary>
         [Flags]
         public enum States
         {
             [TikEnum("new")] New = 1,
             [TikEnum("established")] Established = 2,
-            [TikEnumUnknown] Unknown = 1 << 30,
         }
 
         [TikEntity("/box")]
@@ -285,31 +284,6 @@ namespace tik4net.unittests.Objects
             Assert.IsTrue(clone.Name == "n");
         }
 
-        [TikEntity("/box")]
-        public class PlainFlagsBox
-        {
-            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-            public string? Id { get; private set; }
-
-            [TikProperty("state")]
-            public States? State { get; set; }
-        }
-
-        [TestMethod]
-        public void CloneEntity_OfAPlainFlagsProperty_KeepsItsUnknownWord()
-        {
-            // A design review claimed a clone loses the word its Unknown bit stood for. It does not: a plain clone goes
-            // through the string form, which carries the word, and the clone records it again. Kept as the guard for
-            // that.
-            var connection = new TikFakeConnection()
-                .WithResponse(cmd => cmd.FirstOrDefault() == "/box/print",
-                    _ => new ITikSentence[] { new TikFakeReSentence(Row(("state", "new,untracked"))), new TikFakeDoneSentence() });
-            var clone = connection.LoadAll<PlainFlagsBox>().Single().CloneEntity();
-
-            var state = TikEntityMetadataCache.GetMetadata<PlainFlagsBox>().Properties.Single(p => p.FieldName == "state");
-            StringAssert.Contains(state.GetEntityValue(clone), "untracked");
-        }
-
         [TestMethod]
         public void TikFieldOfANonNullableValueType_IsRefused_WithTheFix()
         {
@@ -332,13 +306,6 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void UnsetOnDefaultOnATikField_IsRefused()
-        {
-            var ex = Assert.ThrowsException<ArgumentException>(() => TikEntityMetadataCache.GetMetadata<UnsetBox>());
-            StringAssert.Contains(ex.Message, "UnsetOnDefault");
-        }
-
-        [TestMethod]
         public void ARowWithoutAFieldTheEntityRelied_OnStillLoads()
         {
             // A field that was IsMandatory on the plain property. Absent, and the load succeeds.
@@ -351,13 +318,6 @@ namespace tik4net.unittests.Objects
         {
             [TikProperty("name", IsMandatory = true)]
             public TikField<string?> Name { get; set; }
-        }
-
-        [TikEntity("/bad")]
-        public class UnsetBox
-        {
-            [TikProperty("comment", UnsetOnDefault = true)]
-            public TikField<string?> Comment { get; set; }
         }
     }
 }

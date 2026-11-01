@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 using tik4net.Connection;
 
 namespace tik4net.Cli
@@ -171,8 +170,8 @@ namespace tik4net.Cli
             foreach (TikRecordSentence row in rows)
                 foreach (string field in fields!)
                     if (row.TryGetResponseField(field, out string value)
-                        && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong number))
-                        row.SetField(field, "0x" + number.ToString("X", CultureInfo.InvariantCulture));
+                        && long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out long number))
+                        row.SetField(field, new TikHexNumber(number).ToString());
         }
 
         /// <summary>
@@ -204,8 +203,8 @@ namespace tik4net.Cli
                 return scaled!;
 
             if (Contains(HexFields, field)
-                && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong hex))
-                return "0x" + hex.ToString("X", CultureInfo.InvariantCulture);
+                && long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out long hex))
+                return new TikHexNumber(hex).ToString();
 
             // A rate range the terminal abbreviates and the API does not: connection-rate=0-100k over the CLI,
             // 0-100000 over the API and REST (7.24.4). Decimal units, as webfig's types.unit spells them.
@@ -233,20 +232,18 @@ namespace tik4net.Cli
                 return value.Substring(7);
 
             if (Contains(ClockTimeFields, field)) return value;
-            return TryParseAsValueDuration(value, out string? apiForm)
-                ? (apiForm == "0s" && Contains(MillisecondZeroFields, field) ? "0ms" : apiForm!)
-                : value;
+            // A zero cannot be spelled exactly: the API prints 0s for a second-resolution field and 0ms for a millisecond
+            // one, as-value gives 00:00:00 for both, and nothing in the value carries the field's resolution.
+            if (!TikDuration.TryParseStrictClock(value, out TikDuration duration))
+                return value;
+            string apiForm = duration.ToString();
+            return apiForm == "0s" && Contains(MillisecondZeroFields, field) ? "0ms" : apiForm;
         }
 
         /// <summary>
         /// Rewrites the JSON read's <c>1970-01-01</c>-based date into the <c>[Nd]HH:MM:SS</c> as-value
         /// spelling, so one duration parser serves both read formats.
         /// </summary>
-        /// <remarks>
-        /// The day count is folded into weeks here, because the duration renderer emits the components it
-        /// is given rather than normalising them: handing it 365 days produced <c>365d</c> where the API
-        /// says <c>52w1d</c>.
-        /// </remarks>
         private static bool TryConvertEpochDateToDuration(string value, out string? asValueForm)
         {
             asValueForm = null;
@@ -257,8 +254,7 @@ namespace tik4net.Cli
             var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
             if (when < epoch) return false;
             int days = (when.Date - epoch.Date).Days;
-            asValueForm = (days / 7 > 0 ? (days / 7).ToString(CultureInfo.InvariantCulture) + "w" : string.Empty)
-                        + (days % 7 > 0 ? (days % 7).ToString(CultureInfo.InvariantCulture) + "d" : string.Empty)
+            asValueForm = (days > 0 ? days.ToString(CultureInfo.InvariantCulture) + "d" : string.Empty)
                         + when.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
             return true;
         }
@@ -275,12 +271,13 @@ namespace tik4net.Cli
             for (int i = 0; i < ends.Length; i++)
             {
                 string end = ends[i];
-                int scale = end.EndsWith("k", StringComparison.Ordinal) ? 1 : end.EndsWith("M", StringComparison.Ordinal) ? 2
-                          : end.EndsWith("G", StringComparison.Ordinal) ? 3 : 0;
-                string digits = scale == 0 ? end : end.Substring(0, end.Length - 1);
-                if (!ulong.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out ulong n)) return false;
-                for (int s = 0; s < scale; s++) n *= 1000;
-                changed |= scale > 0;
+                // Only these spellings: a lower-case m here is a period (1M/1m), not a rate suffix.
+                bool suffixed = end.EndsWith("k", StringComparison.Ordinal) || end.EndsWith("M", StringComparison.Ordinal)
+                             || end.EndsWith("G", StringComparison.Ordinal);
+                if ((!suffixed && !long.TryParse(end, NumberStyles.None, CultureInfo.InvariantCulture, out _))
+                    || !TikDataRate.TryParseNumber(end, out long n))
+                    return false;
+                changed |= suffixed;
                 ends[i] = n.ToString(CultureInfo.InvariantCulture);
             }
             plain = sign + string.Join("-", ends);
@@ -360,108 +357,6 @@ namespace tik4net.Cli
                 else return false;
             }
             return parts == 3 && digits > 0;
-        }
-
-        /// <summary>
-        /// Parses <c>[Nw][Nd]HH:MM:SS[.fff]</c> and renders it the way the API prints a duration.
-        /// </summary>
-        /// <remarks>
-        /// Hand-parsed rather than by regex, and strict about it: the whole string must be consumed, the
-        /// clock part must be exactly two digits per component, and anything else is left untouched. A
-        /// loose match here would rewrite values that only resemble a duration — a timestamp
-        /// (<c>2026-08-24 00:27:30</c>), an IPv6 address, a MAC.
-        /// </remarks>
-        internal static bool TryParseAsValueDuration(string value, out string? apiForm)
-        {
-            apiForm = null;
-            int pos = 0, len = value.Length;
-            long weeks = 0, days = 0;
-
-            if (!TryTakeUnit(value, ref pos, 'w', out weeks)) return false;
-            if (!TryTakeUnit(value, ref pos, 'd', out days)) return false;
-
-            // HH:MM:SS — the clock part is mandatory, which is what keeps "1w" (already an API form) and a
-            // bare number out.
-            if (pos + 8 > len) return false;
-            if (!TryTakeTwoDigits(value, ref pos, out long hours)) return false;
-            if (pos >= len || value[pos] != ':') return false;
-            pos++;
-            if (!TryTakeTwoDigits(value, ref pos, out long minutes)) return false;
-            if (pos >= len || value[pos] != ':') return false;
-            pos++;
-            if (!TryTakeTwoDigits(value, ref pos, out long seconds)) return false;
-
-            long millis = 0;
-            if (pos < len && value[pos] == '.')
-            {
-                pos++;
-                int start = pos;
-                while (pos < len && value[pos] >= '0' && value[pos] <= '9') pos++;
-                if (pos == start || pos - start > 3) return false;
-                // '.1' is a tenth of a second, not one millisecond — pad on the right, not the left.
-                string frac = value.Substring(start, pos - start).PadRight(3, '0');
-                millis = long.Parse(frac, CultureInfo.InvariantCulture);
-            }
-
-            if (pos != len) return false;
-
-            apiForm = Render(weeks, days, hours, minutes, seconds, millis);
-            return true;
-        }
-
-        // A leading "<digits><unit>" if present; absent is success with zero. Only fails on digits that are
-        // NOT followed by the unit letter, which means the string is something else entirely.
-        private static bool TryTakeUnit(string value, ref int pos, char unit, out long count)
-        {
-            count = 0;
-            int start = pos, len = value.Length;
-            int i = start;
-            while (i < len && value[i] >= '0' && value[i] <= '9') i++;
-            if (i == start || i >= len || char.ToLowerInvariant(value[i]) != unit) return true;   // not this unit
-            // A two-digit run followed by ':' is the hour, not a count of weeks.
-            count = long.Parse(value.Substring(start, i - start), CultureInfo.InvariantCulture);
-            pos = i + 1;
-            return true;
-        }
-
-        private static bool TryTakeTwoDigits(string value, ref int pos, out long number)
-        {
-            number = 0;
-            if (pos + 2 > value.Length) return false;
-            char a = value[pos], b = value[pos + 1];
-            if (a < '0' || a > '9' || b < '0' || b > '9') return false;
-            number = (a - '0') * 10 + (b - '0');
-            pos += 2;
-            return true;
-        }
-
-        /// <summary>
-        /// The API's spelling: every non-zero component largest first, each with its unit and no separators
-        /// (<c>1d1h9m51s</c>), and <c>0s</c> when there is nothing to say.
-        /// </summary>
-        /// <remarks>
-        /// A zero cannot be spelled exactly. The API prints <c>0s</c> for a second-resolution field and
-        /// <c>0ms</c> for a millisecond one (<c>/interface/bonding</c> <c>down-delay</c>), and as-value
-        /// gives plain <c>00:00:00</c> for both — the resolution is a property of the field, and nothing in
-        /// the value carries it. <c>0s</c> is the common case; the handful of millisecond fields read
-        /// <c>0s</c> where the API says <c>0ms</c>, which is the same duration spelled in a different unit
-        /// rather than a different value.
-        /// </remarks>
-        private static string Render(long weeks, long days, long hours, long minutes, long seconds, long millis)
-        {
-            var sb = new StringBuilder();
-            Append(sb, weeks, "w");
-            Append(sb, days, "d");
-            Append(sb, hours, "h");
-            Append(sb, minutes, "m");
-            Append(sb, seconds, "s");
-            Append(sb, millis, "ms");
-            return sb.Length == 0 ? "0s" : sb.ToString();
-        }
-
-        private static void Append(StringBuilder sb, long n, string unit)
-        {
-            if (n != 0) sb.Append(n.ToString(CultureInfo.InvariantCulture)).Append(unit);
         }
     }
 }

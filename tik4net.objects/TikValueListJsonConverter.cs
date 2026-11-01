@@ -35,8 +35,7 @@ namespace tik4net.Objects
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "tik4net.objects is not AOT-compatible; see its project file.")]
     internal sealed class TikValueListJsonConverter<T> : JsonConverter<TikValueList<T>>
     {
-        private const string RawProperty = "$raw";
-        private static readonly TikWireConverter Item = new TikWireConverter(typeof(T), false, "TikValueList<" + typeof(T).Name + ">", "json");
+        private static readonly TikWireConverter Item = new TikWireConverter(typeof(T), "TikValueList<" + typeof(T).Name + ">", "json");
 
         public override TikValueList<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
@@ -44,28 +43,25 @@ namespace tik4net.Objects
                 throw new JsonException("A TikValueList is a JSON array.");
             var items = new List<TikValue<T>>();
             while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
-                items.Add(ReadItem(ref reader));
+                items.Add(ReadItem(ref reader, options));
             return new TikValueList<T>(items);
         }
 
-        private static TikValue<T> ReadItem(ref Utf8JsonReader reader)
+        private static TikValue<T> ReadItem(ref Utf8JsonReader reader, JsonSerializerOptions options)
         {
             if (reader.TokenType == JsonTokenType.String)
-                return (T)Item.ConvertFromString(reader.GetString()!, out _)!;
-            if (reader.TokenType != JsonTokenType.StartObject)
-                throw new JsonException("A TikValueList item is a string in the router's spelling or {\"" + RawProperty + "\":\"word\"}.");
-
-            TikValue<T>? result = null;
-            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
             {
-                string? name = reader.GetString();
-                reader.Read();
-                if (name == RawProperty)
-                    result = TikValue<T>.FromWire(reader.GetString()!);
-                else
-                    reader.Skip();
+                // As a load reads the same item: a value, or the word when the type cannot hold it.
+                string word = reader.GetString()!;
+                return TikValueListWire.TryParseItem(word, Item, out T value, out _) ? value : TikValue<T>.FromWire(word);
             }
-            return result ?? throw new JsonException("A TikValueList item object must carry \"" + RawProperty + "\".");
+            if (reader.TokenType != JsonTokenType.StartObject)
+                throw new JsonException("A TikValueList item is a string in the router's spelling or {\"" + TikFieldJson<T>.RawProperty + "\":\"word\"}.");
+
+            var item = TikFieldJson<T>.Read(ref reader, options);
+            if (item.State != TikFieldState.Unparsed)
+                throw new JsonException("A TikValueList item object must carry \"" + TikFieldJson<T>.RawProperty + "\".");
+            return item.Content;
         }
 
         public override void Write(Utf8JsonWriter writer, TikValueList<T> value, JsonSerializerOptions options)
@@ -81,7 +77,7 @@ namespace tik4net.Objects
             if (item.IsWord)
             {
                 writer.WriteStartObject();
-                writer.WriteString(RawProperty, item.RawValue);
+                writer.WriteString(TikFieldJson<T>.RawProperty, item.RawValue);
                 writer.WriteEndObject();
             }
             else

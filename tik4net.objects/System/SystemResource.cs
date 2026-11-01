@@ -15,7 +15,7 @@ namespace tik4net.Objects.System
         /// uptime: time interval elapsed since system boot-up.
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
-        public TikField<TimeSpan?> Uptime { get; private set; }
+        public TikField<TikDuration?> Uptime { get; private set; }
 
         /// <summary>
         /// version: installed RouterOS release number.

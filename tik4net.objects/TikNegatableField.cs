@@ -1,8 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using System.Runtime.ExceptionServices;
 
 namespace tik4net.Objects
 {
@@ -79,7 +77,7 @@ namespace tik4net.Objects
         /// The <c>!</c> negates the whole value, a list included. On a list whose members the router negates one by one
         /// (<c>tcp-flags=syn,!ack</c>) each member's <c>!</c> is that item's <see cref="TikNegatableValue{T}.IsNegated"/>.
         /// </remarks>
-        public bool IsNegated => _core.IsNegated;
+        public bool IsNegated => _core.Negated;
 
         /// <summary>This value with <see cref="IsNegated"/> cleared — the matcher it negates.</summary>
         public TikNegatableField<T> WithoutNegation() => new TikNegatableField<T>(_core.WithoutNegation());
@@ -117,25 +115,41 @@ namespace tik4net.Objects
             Type valueType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
             if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(TikValueList<>))
                 return ParseList(text, valueType);
-            bool negated = text.Length > 0 && text[0] == '!';
-            string word = negated ? text.Substring(1) : text;
-            if (negated && word.Length == 0)
+            if (text == TikNegation.Bang)
                 throw new FormatException("\"!\" negates nothing.");
+            bool negated = TikNegation.TrySplit(text, out string word);
             object? value;
-            string? unknownWord;
             try
             {
-                value = new TikWireConverter(valueType, valueType != typeof(T), "TikNegatableField<" + valueType.Name + ">", "Parse")
-                    .ConvertFromString(word, out unknownWord);
+                value = new TikWireConverter(valueType, "TikNegatableField<" + valueType.Name + ">", "Parse").ConvertFromString(word);
             }
             catch (FormatException e)
             {
-                throw new FormatException("\"" + word + "\" is not a " + valueType.Name + ".", e);
+                throw new FormatException("\"" + word + "\" is not a " + valueType.Name
+                    + (valueType.IsEnum ? "; a word from another RouterOS version goes in as TikNegatableField<" + valueType.Name + "?>.FromWire(\"" + text + "\")." : "."), e);
             }
-            if (unknownWord != null)
-                throw new FormatException("\"" + word + "\" is not a " + valueType.Name + "; a word from another RouterOS version goes in as "
-                    + "TikNegatableField<" + valueType.Name + "?>.FromWire(\"" + text + "\").");
-            return FromPresent((T)value!, negated);
+            if (value == null)
+                throw new FormatException("\"\" is not a " + valueType.Name + ".");
+            return FromPresent((T)value, negated);
+        }
+
+        /// <summary><see cref="Parse"/> without the exception: false for text <see cref="Parse"/> refuses, <c>null</c> included.</summary>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
+        public static bool TryParse(string? text, out TikNegatableField<T> result)
+        {
+            result = default;
+            if (text == null)
+                return false;
+            try
+            {
+                result = Parse(text);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
         }
 
         [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
@@ -143,32 +157,15 @@ namespace tik4net.Objects
         private static TikNegatableField<T> ParseList(string text, Type listType)
         {
             bool membersNegatable = TikNegatableValue.IsNegatableValue(listType.GetGenericArguments()[0]);
-            bool negated;
-            string items;
-            if (membersNegatable)
-            {
-                negated = text == "!" || text.StartsWith("!,", StringComparison.Ordinal);
-                items = negated ? text.Substring(1).TrimStart(',') : text;
-            }
-            else
-            {
-                negated = text.Length > 0 && text[0] == '!';
-                items = negated ? text.Substring(1) : text;
-            }
-            if (negated && items.Trim().Length == 0)
+            bool negated = TikNegation.SplitWholeList(text, membersNegatable, out string items);
+            if (negated && TikNegation.NegatesNothing(items))
                 throw new FormatException("\"" + text + "\" negates nothing.");
-            object list;
-            try
-            {
-                list = listType.GetMethod(nameof(TikValueList<int>.Parse), new[] { typeof(string) })!.Invoke(null, new object[] { items })!;
-            }
-            catch (TargetInvocationException e) when (e.InnerException != null)
-            {
-                ExceptionDispatchInfo.Capture(e.InnerException).Throw();
-                throw;
-            }
-            return FromPresent((T)list, negated);
+            _parseList ??= (Func<string, T>)listType.GetMethod(nameof(TikValueList<int>.Parse), new[] { typeof(string) })!.CreateDelegate(typeof(Func<string, T>));
+            return FromPresent(_parseList(items), negated);
         }
+
+        // T's TikValueList<>.Parse, bound once per list type: a delegate rather than an Invoke, so its exceptions arrive as they are.
+        private static Func<string, T>? _parseList;
 
         internal static TikNegatableField<T> FromPresent(T value, bool negated)
             => new TikNegatableField<T>(value, negated);
@@ -222,13 +219,11 @@ namespace tik4net.Objects
         /// <exception cref="ArgumentNullException"><paramref name="word"/> is <c>null</c>.</exception>
         public static TikNegatableField<T> FromWire(string word) => new TikNegatableField<T>(TikValue<T>.FromWire(word));
 
-        internal static TikNegatableField<T> FromUnparsed(string raw) => new TikNegatableField<T>(TikValue<T>.FromWire(raw));
-
         // A string's leading '!' is the router's negation: a negatable field has no literal '!' to send (the mapper reads a
         // loaded one the same way). A bare "!" stays text, as a load leaves it.
         private static TikFieldCore<T> Spelled(T value)
-            => value is string text && text.Length > 1 && text[0] == '!'
-                ? new TikFieldCore<T>((T)(object)text.Substring(1), negated: true)
+            => value is string text && TikNegation.TrySplit(text, out string rest)
+                ? new TikFieldCore<T>((T)(object)rest, negated: true)
                 : new TikFieldCore<T>(value);
 
         /// <summary>

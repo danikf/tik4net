@@ -13,8 +13,8 @@ namespace tik4net.Objects
     /// </para>
     /// <para>
     /// <b>A converter cannot override a built-in type.</b> The mapper's own handling of <c>string</c>,
-    /// <c>int</c>, <c>long</c>, <c>byte</c>, <c>uint</c>, <c>ulong</c>, <c>bool</c>, <c>TimeSpan</c>,
-    /// <c>DateTime</c>, <c>MacAddress</c> and enums is tried first, and a converter is consulted only for a
+    /// <c>int</c>, <c>long</c>, <c>byte</c>, <c>uint</c>, <c>ulong</c>, <c>bool</c>,
+    /// <c>DateTime</c>, <c>MacAddress</c>, the <c>Tik*</c> value types and enums is tried first, and a converter is consulted only for a
     /// type none of them claims. This is deliberate: a converter that answered
     /// <see cref="CanConvert"/> for <c>string</c> or <c>bool</c> would silently re-route every entity in the
     /// process, including entities it knows nothing about, and the failure would surface as wrong data on
@@ -22,9 +22,9 @@ namespace tik4net.Objects
     /// type of your own.
     /// </para>
     /// <para>
-    /// A converter is asked about the <b>underlying</b> type of a nullable property, and never sees
-    /// <c>null</c>: an absent field and an unassigned nullable are decided by the mapper before conversion
-    /// (see <see cref="TikEntityPropertyAccessor.IsNullable"/>).
+    /// A converter is asked about the <b>underlying</b> type of a nullable property, and never sees <c>null</c> or an
+    /// empty word: a field the row lacks, an assigned <c>null</c> and an empty value all read or write as no value before
+    /// conversion (<see cref="TikFieldState.Absent"/>).
     /// </para>
     /// <para>Implementations must be thread-safe and free of per-call state — one instance serves the whole process.</para>
     /// </remarks>

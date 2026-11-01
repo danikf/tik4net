@@ -257,19 +257,18 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// The production path for <c>unset</c>: the O/R mapper emits it on <c>Save</c> for a property marked
-        /// <c>UnsetOnDefault</c> whose value has gone back to the default. This is how a consumer actually
-        /// reaches the verb — <see cref="Verb_Unset_ClearsTheField"/> covers the same wire call directly.
+        /// The production path for <c>unset</c>: the O/R mapper emits it on <c>Save</c> for a loaded field assigned
+        /// <c>null</c>. This is how a consumer actually reaches the verb — <see cref="Verb_Unset_ClearsTheField"/> covers the same wire call directly.
         /// </summary>
         [TestMethod]
-        public void Verb_Unset_ViaMapperSaveOfAnUnsetOnDefaultProperty()
+        public void Verb_Unset_ViaMapperSaveOfAnAssignedNull()
         {
             var rule = new FirewallFilter
             {
                 Chain = "forward",
                 Action = FirewallFilter.ActionType.Accept,
                 SrcAddress = "192.0.2.79",
-                ConnectionMark = "t4n-mark",   // [TikProperty("connection-mark", UnsetOnDefault = true)]
+                ConnectionMark = "t4n-mark",
                 Disabled = true,
                 Comment = _stamp + "-unset-mapper",
             };
@@ -278,11 +277,11 @@ namespace tik4net.integrationtests
             Assert.AreEqual("t4n-mark", Connection.LoadById<FirewallFilter>(rule.Id).ConnectionMark,
                 "precondition: connection-mark was stored");
 
-            rule.ConnectionMark = null;   // back to the default → Save must emit /unset value-name=connection-mark
+            rule.ConnectionMark = null;   // Save must emit /unset value-name=connection-mark
             Connection.Save(rule);
 
             Assert.IsTrue(string.IsNullOrEmpty(Connection.LoadById<FirewallFilter>(rule.Id).ConnectionMark.Value),
-                "Save() of a defaulted UnsetOnDefault property left the value on the router");
+                "Save() of an assigned null left the value on the router");
         }
 
         // ── comment ───────────────────────────────────────────────────────────

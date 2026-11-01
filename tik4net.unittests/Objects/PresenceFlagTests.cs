@@ -8,14 +8,11 @@ namespace tik4net.unittests.Objects
     /// <summary>
     /// A field RouterOS stores as a valueless PRESENCE FLAG is reported by the binary API and REST as
     /// <c>name=</c> — the word present, the value empty — and omitted entirely when the flag is clear.
-    /// Parsed as an ordinary bool, that empty value is <c>false</c>, so the field read back as
-    /// <c>false</c> whatever the router said.
     /// </summary>
     /// <remarks>
-    /// Measured on the lab CHR (RouterOS 7.24) before the fix, on the same row read four ways:
-    /// binary API <c>=fib=</c>, REST <c>"fib": ""</c>, Telnet <c>fib=true</c>, WinboxNative
-    /// <c>fib=true</c>. So the CLI and native transports were never wrong and needed no change — the
-    /// marker makes the API and REST agree with them.
+    /// Measured on the lab CHR (RouterOS 7.24), on the same row read four ways: binary API <c>=fib=</c>,
+    /// REST <c>"fib": ""</c>, Telnet <c>fib=true</c>, WinboxNative <c>fib=true</c>. The marker makes the API and
+    /// REST agree with the rest.
     /// </remarks>
     [TestClass]
     public class PresenceFlagTests
@@ -24,10 +21,10 @@ namespace tik4net.unittests.Objects
         internal class FlagEntity
         {
             [TikProperty("fib", IsPresenceFlag = true)]
-            public bool? Fib { get; set; }
+            public TikField<bool?> Fib { get; set; }
 
             [TikProperty("plain")]
-            public bool? Plain { get; set; }
+            public TikField<bool?> Plain { get; set; }
         }
 
         private static TikEntityPropertyAccessor Accessor(string propertyName)
@@ -40,17 +37,21 @@ namespace tik4net.unittests.Objects
         {
             var entity = new FlagEntity();
             Accessor("Fib").SetEntityValue(entity, "");
-            Assert.AreEqual(true, entity.Fib,
-                "the binary API spells a set presence flag as an empty value — reading it as false loses the state");
+            Assert.IsTrue(entity.Fib == true,
+                "the binary API spells a set presence flag as an empty value — reading it as anything else loses the state");
         }
 
-        /// <summary>The marker must not leak: an ordinary bool's empty value is still false.</summary>
+        /// <summary>
+        /// The marker must not leak, and an empty value on an unmarked bool must not vanish either: if the router really
+        /// prints one, being printed may be its value, so it stays visible rather than reading as "nothing".
+        /// </summary>
         [TestMethod]
-        public void AnEmptyValueOnAnOrdinaryBoolIsStillFalse()
+        public void AnEmptyValueOnAnOrdinaryBoolStaysTheRoutersWord()
         {
             var entity = new FlagEntity();
             Accessor("Plain").SetEntityValue(entity, "");
-            Assert.AreEqual(false, entity.Plain);
+            Assert.AreEqual(TikFieldState.Unparsed, entity.Plain.State);
+            Assert.AreEqual("", entity.Plain.RawValue);
         }
 
         /// <summary>
@@ -62,26 +63,25 @@ namespace tik4net.unittests.Objects
         {
             var entity = new FlagEntity();
             Accessor("Fib").SetEntityValue(entity, "true");
-            Assert.AreEqual(true, entity.Fib);
+            Assert.IsTrue(entity.Fib == true);
 
             Accessor("Fib").SetEntityValue(entity, "no");
-            Assert.AreEqual(false, entity.Fib);
+            Assert.IsTrue(entity.Fib == false);
 
             entity.Fib = true;
             Assert.AreEqual("yes", Accessor("Fib").GetEntityValue(entity));
         }
 
         /// <summary>
-        /// Absence is not falsehood. A row that does not carry the word leaves a nullable property
-        /// <c>null</c> — the router reported nothing, and the mapper does not invent a value that
-        /// <c>Save</c> would then have to decide about.
+        /// Absence is not falsehood. A row that does not carry the word reads Absent — the router reported
+        /// nothing, and the mapper does not invent a value that <c>Save</c> would then have to decide about.
         /// </summary>
         [TestMethod]
-        public void AnAbsentPresenceFlagStaysNull()
+        public void AnAbsentPresenceFlagStaysAbsent()
         {
             var entity = new FlagEntity();
             Accessor("Fib").SetEntityValue(entity, null);
-            Assert.IsNull(entity.Fib);
+            Assert.AreEqual(TikFieldState.Absent, entity.Fib.State);
         }
 
         /// <summary>The live property this exists for is actually marked.</summary>
@@ -94,7 +94,7 @@ namespace tik4net.unittests.Objects
 
             var table = new RoutingTable();
             fib.SetEntityValue(table, "");
-            Assert.AreEqual(true, table.Fib, "the router's 'main' table has fib set, and reports it as 'fib='");
+            Assert.IsTrue(table.Fib == true, "the router's 'main' table has fib set, and reports it as 'fib='");
         }
     }
 }

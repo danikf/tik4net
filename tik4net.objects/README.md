@@ -34,9 +34,8 @@ They are documented in [ARCHITECTURE.md](../ARCHITECTURE.md#adding-an-entity).
 Two rules that cause failures when missed:
 
 - `Id` is always `[TikProperty(".id", IsReadOnly = true, IsMandatory = true)]`.
-- A `bool` property's `DefaultValue` must be the wire form `"no"`/`"yes"`, never `"false"`/`"true"` —
-  the mapper emits `yes`/`no` and compares that against `DefaultValue`, so a wrong default never
-  matches and the field is sent on every add.
+- Every other mapped property is a `TikField<T?>` or a `TikNegatableField<T?>`; anything else is refused when the
+  entity is first used.
 
 ## Careful
 

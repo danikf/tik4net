@@ -23,19 +23,19 @@ namespace tik4net.integrationtests
             public string Id { get; private set; }
 
             [TikProperty("dst-address")]
-            public string DstAddress { get; set; }
+            public TikField<string> DstAddress { get; set; }
 
             [TikProperty("gateway")]
-            public string Gateway { get; set; }
+            public TikField<string> Gateway { get; set; }
 
             [TikProperty("disabled")]
-            public bool? Disabled { get; set; }
+            public TikField<bool?> Disabled { get; set; }
 
             [TikProperty("comment")]
-            public string Comment { get; set; }
+            public TikField<string> Comment { get; set; }
 
             [TikProperty("t4n-bogus")]
-            public string Bogus { get; set; }
+            public TikField<string> Bogus { get; set; }
         }
 
         private ITikConnection OpenValidating()

@@ -27,13 +27,13 @@ namespace tik4net.unittests.Objects
         internal class SignedEntity
         {
             [TikProperty("offset")]
-            public int Offset { get; set; }
+            public TikField<int?> Offset { get; set; }
 
             [TikProperty("big-offset")]
-            public long BigOffset { get; set; }
+            public TikField<long?> BigOffset { get; set; }
 
             [TikProperty("distance")]
-            public byte Distance { get; set; }
+            public TikField<byte?> Distance { get; set; }
         }
 
         private static TikEntityPropertyAccessor Accessor(string propertyName)
@@ -98,25 +98,21 @@ namespace tik4net.unittests.Objects
             {
                 var entity = new SignedEntity();
                 Accessor("Offset").SetEntityValue(entity, "-970");
-                Assert.AreEqual(-970, entity.Offset,
+                Assert.AreEqual(-970, entity.Offset.Value,
                     "the router sends U+002D, so parsing must not be looking for the culture's sign");
 
                 Accessor("BigOffset").SetEntityValue(entity, "-5000000000");
-                Assert.AreEqual(-5000000000L, entity.BigOffset);
+                Assert.AreEqual(-5000000000L, entity.BigOffset.Value);
             });
         }
 
-        /// <summary>
-        /// A <c>byte</c> property parses on the way in and had no branch at all on the way out, so writing
-        /// one fell through to the converter lookup and threw. <c>InterfacePppoeClient.DefaultRouteDistance</c>
-        /// is a live example of the type.
-        /// </summary>
+        /// <summary>A byte the mapper can read is one it can write: <c>InterfacePppoeClient.DefaultRouteDistance</c>.</summary>
         [TestMethod]
         public void AByteRoundTrips()
         {
             var entity = new SignedEntity();
             Accessor("Distance").SetEntityValue(entity, "10");
-            Assert.AreEqual((byte)10, entity.Distance);
+            Assert.AreEqual((byte)10, entity.Distance.Value);
             Assert.AreEqual("10", Accessor("Distance").GetEntityValue(entity),
                 "a byte the mapper can read must also be one it can write");
         }

@@ -17,7 +17,7 @@ dotnet test tik4net.unittests/tik4net.unittests.csproj
 ## What belongs here
 
 Anything testable without a router: the sentence and word codecs, `CliOutputParser`,
-`VtStripper`/`Vt100State`, `TikTimeHelper`, `EcSrp5`, `M2Message`, property and enum conversion,
+`VtStripper`/`Vt100State`, `EcSrp5`, `M2Message`, property and enum conversion,
 change-tracker diffing, and `TikFakeConnection`-based consumer scenarios.
 
 Internals of `tik4net` are visible here (`InternalsVisibleTo`, declared in

@@ -27,29 +27,29 @@ namespace tik4net.unittests.Objects
         internal class TypedEntity
         {
             [TikProperty("counter")]
-            public uint Counter { get; set; }
+            public TikField<uint?> Counter { get; set; }
 
             [TikProperty("bytes")]
-            public ulong Bytes { get; set; }
+            public TikField<ulong?> Bytes { get; set; }
 
             [TikProperty("when")]
-            public DateTime When { get; set; }
+            public TikField<DateTime?> When { get; set; }
 
             [TikProperty("when-optional")]
-            public DateTime? WhenOptional { get; set; }
+            public TikField<DateTime?> WhenOptional { get; set; }
 
             [TikProperty("mac")]
-            public MacAddress Mac { get; set; }
+            public TikField<MacAddress> Mac { get; set; }
 
             [TikProperty("text")]
-            public string Text { get; set; }
+            public TikField<string> Text { get; set; }
         }
 
         [TikEntity("/test/unsupported-entity")]
         internal class UnsupportedEntity
         {
             [TikProperty("endpoint")]
-            public IPAddress Endpoint { get; set; }
+            public TikField<IPAddress> Endpoint { get; set; }
         }
 
         private static TikEntityPropertyAccessor Accessor(string propertyName)
@@ -65,7 +65,7 @@ namespace tik4net.unittests.Objects
 
             // The point of the type: 3000000000 does not fit in an int, and RouterOS counters reach it.
             Accessor("Counter").SetEntityValue(entity, "3000000000");
-            Assert.AreEqual(3000000000u, entity.Counter);
+            Assert.AreEqual(3000000000u, entity.Counter.Value);
             Assert.AreEqual("3000000000", Accessor("Counter").GetEntityValue(entity));
         }
 
@@ -75,7 +75,7 @@ namespace tik4net.unittests.Objects
             var entity = new TypedEntity();
 
             Accessor("Bytes").SetEntityValue(entity, "18446744073709551615");
-            Assert.AreEqual(ulong.MaxValue, entity.Bytes);
+            Assert.AreEqual(ulong.MaxValue, entity.Bytes.Value);
             Assert.AreEqual("18446744073709551615", Accessor("Bytes").GetEntityValue(entity));
         }
 
@@ -87,7 +87,7 @@ namespace tik4net.unittests.Objects
             var entity = new TypedEntity();
 
             Accessor("When").SetEntityValue(entity, "2026-07-25 10:24:52");
-            Assert.AreEqual(new DateTime(2026, 7, 25, 10, 24, 52), entity.When);
+            Assert.AreEqual(new DateTime(2026, 7, 25, 10, 24, 52), entity.When.Value);
         }
 
         [TestMethod]
@@ -116,10 +116,10 @@ namespace tik4net.unittests.Objects
             var entity = new TypedEntity();
 
             Accessor("When").SetEntityValue(entity, "jul/25/2026 10:24:52");
-            Assert.AreEqual(new DateTime(2026, 7, 25, 10, 24, 52), entity.When);
+            Assert.AreEqual(new DateTime(2026, 7, 25, 10, 24, 52), entity.When.Value);
 
             Accessor("When").SetEntityValue(entity, "2026-08-16");
-            Assert.AreEqual(new DateTime(2026, 8, 16), entity.When, "a date alone — /system/clock prints one");
+            Assert.AreEqual(new DateTime(2026, 8, 16), entity.When.Value, "a date alone — /system/clock prints one");
         }
 
         [TestMethod]
@@ -130,16 +130,17 @@ namespace tik4net.unittests.Objects
             // The router's string has no zone, and what it MEANS is per field: /system/clock is local time,
             // a certificate's invalid-before is UTC. Applying either would corrupt the other.
             Accessor("When").SetEntityValue(entity, "2026-07-25 10:24:52");
-            Assert.AreEqual(DateTimeKind.Unspecified, entity.When.Kind);
+            Assert.AreEqual(DateTimeKind.Unspecified, entity.When.Value!.Value.Kind);
         }
 
         [TestMethod]
-        public void AnUnparseableDateNamesTheProperty()
+        public void AnUnparseableDateStaysTheRoutersWord()
         {
-            var ex = Assert.ThrowsException<FormatException>(
-                () => Accessor("When").SetEntityValue(new TypedEntity(), "not-a-date"));
+            var entity = new TypedEntity();
+            Accessor("When").SetEntityValue(entity, "not-a-date");
 
-            StringAssert.Contains(ex.Message, "When(when)");
+            Assert.AreEqual(TikFieldState.Unparsed, entity.When.State);
+            Assert.AreEqual("not-a-date", entity.When.RawValue);
         }
 
         [TestMethod]
@@ -150,7 +151,7 @@ namespace tik4net.unittests.Objects
             Assert.IsNull(Accessor("WhenOptional").GetEntityValue(entity));
 
             Accessor("WhenOptional").SetEntityValue(entity, "2026-07-25 10:24:52");
-            Assert.AreEqual(new DateTime(2026, 7, 25, 10, 24, 52), entity.WhenOptional);
+            Assert.AreEqual(new DateTime(2026, 7, 25, 10, 24, 52), entity.WhenOptional.Value);
         }
 
         [TestMethod]
@@ -182,17 +183,18 @@ namespace tik4net.unittests.Objects
             var entity = new TypedEntity();
 
             Accessor("Mac").SetEntityValue(entity, "AA:BB:CC:DD:EE:FF");
-            Assert.AreEqual("AA:BB:CC:DD:EE:FF", entity.Mac.Address);
+            Assert.AreEqual("AA:BB:CC:DD:EE:FF", entity.Mac.Value.Address);
             Assert.AreEqual("AA:BB:CC:DD:EE:FF", Accessor("Mac").GetEntityValue(entity));
         }
 
         [TestMethod]
-        public void AnInvalidMacIsRejectedByTheTypeThatValidatesIt()
+        public void AnInvalidMacIsRefusedByTheTypeThatValidatesIt()
         {
-            var ex = Assert.ThrowsException<FormatException>(
-                () => Accessor("Mac").SetEntityValue(new TypedEntity(), "not-a-mac"));
+            var entity = new TypedEntity();
+            Accessor("Mac").SetEntityValue(entity, "not-a-mac");
 
-            StringAssert.Contains(ex.Message, "Mac(mac)");
+            Assert.AreEqual(TikFieldState.Unparsed, entity.Mac.State);
+            Assert.AreEqual("not-a-mac", entity.Mac.RawValue);
         }
 
         // ── The extension point ─────────────────────────────────────────────────
@@ -234,7 +236,7 @@ namespace tik4net.unittests.Objects
                 var entity = new UnsupportedEntity();
 
                 accessor.SetEntityValue(entity, "10.0.0.1");
-                Assert.AreEqual(IPAddress.Parse("10.0.0.1"), entity.Endpoint);
+                Assert.AreEqual(IPAddress.Parse("10.0.0.1"), entity.Endpoint.Value);
                 Assert.AreEqual("10.0.0.1", accessor.GetEntityValue(entity));
             }
             finally
@@ -259,7 +261,7 @@ namespace tik4net.unittests.Objects
             try
             {
                 accessor.SetEntityValue(entity, "10.0.0.1");
-                Assert.AreEqual(IPAddress.Parse("10.0.0.1"), entity.Endpoint);
+                Assert.AreEqual(IPAddress.Parse("10.0.0.1"), entity.Endpoint.Value);
             }
             finally
             {
@@ -283,7 +285,7 @@ namespace tik4net.unittests.Objects
                 Assert.AreEqual("jul/25/2026 10:24:52", Accessor("When").GetEntityValue(entity));
 
                 Accessor("Counter").SetEntityValue(entity, "42");
-                Assert.AreEqual(42u, entity.Counter);
+                Assert.AreEqual(42u, entity.Counter.Value);
             }
             finally
             {

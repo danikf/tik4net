@@ -41,7 +41,7 @@ rather than guessing.
 | `routerMac`      | string   | Router MAC `AA:BB:CC:DD:EE:FF` — only MacTelnet / WinboxCliMac (else MNDP discovery, ~5 s) |
 | `allowInvalidCertificate` | bool | `ApiSsl` / `RestSsl`: accept the router's self-signed certificate (default `false` — a lab router's certificate is refused without it) |
 | `traceLevel`     | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame wire trace) — see [Wire tracing & router-log](#wire-tracing--router-log-debugging) |
-| `traceChannels`  | string[] | `bytes` only: keep just these emit-site channels (`wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`, `value.token`); omit = all |
+| `traceChannels`  | string[] | `bytes` only: keep just these emit-site channels (`wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`); omit = all |
 | `includeRawTrace`| bool     | Back-compat alias for `traceLevel='words'`, default false |
 | `includeRouterLog`| bool    | Also append the router's own `/log` lines emitted during the command (`--- ROUTER LOG ---`), read over a separate API connection; default false |
 | `routerLogTail`  | int      | `includeRouterLog` only: cap on kept log lines, default 200 |
@@ -89,10 +89,7 @@ transport that disagrees with the API baseline — turn on tracing instead of gu
   the cleaned word — exact bytes, WinBox-CLI `mepty` pull cadence, VT100 negotiation, M2 frame chunking,
   and the prompt/settle/timeout **decisions**. This is the layer a terminal hang/desync actually lives in
   (it's what pinned the WinBox-CLI large-output stall). Filter noise with `traceChannels`, e.g.
-  `["wbxcli.mepty"]`. Channels: `wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`,
-  and `value.token` — the last is notes only, raised when a typed value (`TikDuration`, `TikDataRate`)
-  reads text it cannot parse and does not know as a RouterOS word. **Watch for it against a real router:**
-  the value still round-trips verbatim, so this note is the only sign that tik4net is missing a spelling.
+  `["wbxcli.mepty"]`. Channels: `wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`.
   Events read `[+<ms>] <channel> >>/<</-- <escaped-bytes>  (<note>)`. Run **one** `bytes` call at a time
   (process-wide sink).
 

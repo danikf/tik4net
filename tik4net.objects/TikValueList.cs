@@ -89,7 +89,7 @@ namespace tik4net.Objects
                     throw new ArgumentException("The list item \"" + text + "\" contains ',', which separates the router's "
                         + "items: pass one argument per item, or TikValueList<" + typeof(T).Name + ">.Parse(\"" + text
                         + "\") for text in the router's spelling.", nameof(items));
-                if (MembersNegatable && !item.IsWord && text == "!")
+                if (MembersNegatable && !item.IsWord && text == TikNegation.Bang)
                     // On these lists a bare '!' is the router's whole-list negation, not a member.
                     throw new ArgumentException("A bare '!' is not a member: a '!' on the whole list is written "
                         + "TikValueList<T>.Not(list).", nameof(items));
@@ -132,30 +132,39 @@ namespace tik4net.Objects
                 throw new ArgumentNullException(nameof(text));
             if (text.Trim().Length == 0)
                 return Empty;
-            var converter = new TikWireConverter(typeof(T), false, "TikValueList<" + typeof(T).Name + ">", "Parse");
+            var converter = new TikWireConverter(typeof(T), "TikValueList<" + typeof(T).Name + ">", "Parse");
             var items = new List<TikValue<T>>();
             foreach (string element in text.Split(','))
             {
                 string word = element.Trim();
                 if (word.Length == 0)
                     throw new FormatException("\"" + text + "\" has an empty item.");
-                if (MembersNegatable && word == "!")
+                if (MembersNegatable && word == TikNegation.Bang)
                     throw new FormatException("\"" + text + "\" has a bare '!': a '!' on the whole list is written TikValueList<T>.Not(list).");
-                object? value;
-                string? unknownWord;
-                try
-                {
-                    value = converter.ConvertFromString(word, out unknownWord);
-                }
-                catch (FormatException e)
-                {
-                    throw NotAnItem(word, e);
-                }
-                if (unknownWord != null || value == null)
-                    throw NotAnItem(word, null);
-                items.Add((T)value);
+                if (!TikValueListWire.TryParseItem(word, converter, out T value, out FormatException? failure))
+                    throw NotAnItem(word, failure);
+                items.Add(value);
             }
             return new TikValueList<T>(items);
+        }
+
+        /// <summary><see cref="Parse"/> without the exception: false for text <see cref="Parse"/> refuses, <c>null</c> included.</summary>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
+        public static bool TryParse(string? text, out TikValueList<T>? result)
+        {
+            result = null;
+            if (text == null)
+                return false;
+            try
+            {
+                result = Parse(text);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
         }
 
         private static FormatException NotAnItem(string word, Exception? inner)

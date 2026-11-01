@@ -387,10 +387,6 @@ diagnoses that turned out wrong — is in [`Docs/HISTORY.md`](../../../Docs/HIST
 - **A field no WinBox window exposes has no M2 key** and is refused by name — `/routing/ospf/instance`
   `use-dn` is the worked example. Check the `.jg` before assuming it is ours: `ft-preserve-vlanid` and
   `radius-accounting` looked API-only and were label gaps.
-- **A `bool` entity `DefaultValue` must be the wire form `"no"`/`"yes"`**, never `"false"`/`"true"`.
-  The mapper emits `yes`/`no` and compares that against `DefaultValue`, so a wrong default never
-  matches, the field is sent on every add, and native then has no M2 key for it. This surfaces as a
-  native-only failure while looking like a missing catalog entry.
 
 ## Skip guards
 

@@ -208,7 +208,7 @@ namespace tik4net.unittests.Objects
             public string Id { get; private set; }
 
             [TikProperty("comment")]
-            public string Comment { get; set; }
+            public TikField<string> Comment { get; set; }
         }
 
         [TestMethod]
@@ -225,7 +225,7 @@ namespace tik4net.unittests.Objects
             Assert.ThrowsException<InvalidOperationException>(
                 () => connection.SaveListDifferences(modified, loaded.CloneEntityList()));
 
-            CollectionAssert.AreEquivalent(new[] { "A", "B", "N" }, table.Load(connection).Select(r => r.Comment).ToArray());
+            CollectionAssert.AreEquivalent(new[] { "A", "B", "N" }, table.Load(connection).Select(r => r.Comment.ToString()).ToArray());
             Assert.AreEqual(0, table.AppliedCommands.Count(c => c.Contains("/move")));
         }
 
@@ -314,10 +314,10 @@ namespace tik4net.unittests.Objects
             public string Id { get; private set; }
 
             [TikProperty("comment")]
-            public string Comment { get; set; }
+            public TikField<string> Comment { get; set; }
 
             [TikProperty("name")]
-            public string Name { get; set; }
+            public TikField<string> Name { get; set; }
         }
 
         private static (TikFakeConnection Connection, FakeRouterTable<SetlessRow> Table, List<SetlessRow> Original) SetlessTable()
@@ -330,12 +330,12 @@ namespace tik4net.unittests.Objects
 
         private static TikListMerge<SetlessRow> SetlessMerge(ITikConnection connection, List<SetlessRow> original)
             => connection.CreateMerge(new[] { new SetlessRow { Comment = "A", Name = "changed" } }, original)
-                .WithKey(r => r.Comment).Field(r => r.Name);   // update A, delete B
+                .WithKey(r => r.Comment.ToString()).Field(r => r.Name);   // update A, delete B
 
         private static void AssertNothingWasSent(FakeRouterTable<SetlessRow> table, TikFakeConnection connection)
         {
             Assert.AreEqual(0, table.AppliedCommands.Count, "sent: " + string.Join(" / ", table.AppliedCommands));
-            CollectionAssert.AreEqual(new[] { "A", "B" }, table.Load(connection).Select(r => r.Comment).ToArray());
+            CollectionAssert.AreEqual(new[] { "A", "B" }, table.Load(connection).Select(r => r.Comment.ToString()).ToArray());
         }
 
         [TestMethod]
@@ -378,13 +378,13 @@ namespace tik4net.unittests.Objects
             public string Id { get; set; }
 
             [TikProperty("comment")]
-            public string Comment { get; set; }
+            public TikField<string> Comment { get; set; }
 
             [TikProperty("name")]
-            public string Name { get; set; }
+            public TikField<string> Name { get; set; }
 
             [TikProperty("refused")]
-            public string Refused { get; set; }
+            public TikField<string> Refused { get; set; }
         }
 
         /// <summary>
@@ -471,12 +471,12 @@ namespace tik4net.unittests.Objects
             };                                                                   // and delete B
 
             var ex = Assert.ThrowsException<TikUnknownFieldException>(() =>
-                connection.CreateMerge(expected, original).WithKey(r => r.Comment)
+                connection.CreateMerge(expected, original).WithKey(r => r.Comment.ToString())
                     .Field(r => r.Name).Field(r => r.Refused).Save());
 
             CollectionAssert.AreEqual(new[] { "refused" }, ex.Fields.ToArray());
             Assert.AreEqual(0, connection.Calls.Count, "sent: " + string.Join(" / ", connection.Calls));
-            Assert.AreEqual("x", original[0].Name, "the update was checked on a copy: the caller's row is unchanged");
+            Assert.IsTrue(original[0].Name == "x", "the update was checked on a copy: the caller's row is unchanged");
         }
 
 #nullable enable

@@ -50,7 +50,7 @@ namespace tik4net.unittests.Connection
         [TestMethod]
         public void SomethingThatIsNotARateIsRefused()
         {
-            foreach (var text in new[] { "none", "1M5", "fast", "1//2", "M" })
+            foreach (var text in new[] { "1M5", "fast", "1//2", "M" })
                 Assert.IsFalse(TikDataRate.TryParse(text, out _), text);
         }
 
@@ -157,8 +157,7 @@ namespace tik4net.unittests.Connection
             // But a bare fraction is NOT a rate — /queue/simple's bucket-size is '0.1/0.1', and reading it
             // as the 0 it rounds to would be worse than refusing it.
             Assert.IsFalse(TikDataRate.TryParse("0.1", out _));
-            Assert.IsFalse(TikDataRate.Parse("0.1").HasValue);
-            Assert.AreEqual("0.1", TikDataRate.Parse("0.1").Token);
+            Assert.ThrowsException<FormatException>(() => TikDataRate.Parse("0.1"));
         }
 
         // ── words ─────────────────────────────────────────────────────────────
@@ -188,14 +187,13 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void TryParseStaysStrictSoTheEncoderCanTellANumberFromAWord()
+        public void TryParseNumberIsHowTheEncoderTellsANumberFromAWord()
         {
             // WinboxFieldResolver picks the M2 encoding from this answer: a number goes out as a u64 and a
-            // word as a string. If TryParse accepted 'unlimited' as a token, the encoder would put a
-            // 64-bit integer on the wire for it, which the router accepts and then ignores.
-            Assert.IsFalse(TikDataRate.TryParse("unlimited", out _));
-            Assert.IsFalse(TikDataRate.TryParse("auto", out _));
-            Assert.IsTrue(TikDataRate.TryParse("1Gbps", out _));
+            // word as a string. A 64-bit integer in place of 'unlimited' is accepted by the router and ignored.
+            Assert.IsFalse(TikDataRate.TryParseNumber("unlimited", out _));
+            Assert.IsFalse(TikDataRate.TryParseNumber("auto", out _));
+            Assert.IsTrue(TikDataRate.TryParseNumber("1Gbps", out _));
         }
 
         [TestMethod]
@@ -219,7 +217,8 @@ namespace tik4net.unittests.Connection
             Assert.AreEqual(TikValueKind.Special, unlimited.Kind);
             Assert.AreEqual(TikDataRateSpecial.Unlimited, unlimited.Special);
 
-            TikDataRate gap = TikDataRate.Parse("made-up-rate");
+            Assert.ThrowsException<FormatException>(() => TikDataRate.Parse("made-up-rate"));
+            TikDataRate gap = TikDataRate.FromToken("made-up-rate");
             Assert.AreEqual(TikValueKind.Unknown, gap.Kind);
             Assert.IsNull(gap.Special);
             Assert.AreEqual("made-up-rate", gap.ToString());

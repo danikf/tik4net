@@ -140,9 +140,8 @@ namespace tik4net.Objects.Queue
         /// The idle spelling agrees on every transport (<c>0/0</c>), and what the CLI writes for a NON-zero
         /// packet rate has never been read — a simple queue counts forwarded traffic only and the lab CHR
         /// forwards none. That is no longer a reason to leave the field a <c>string</c>: a spelling
-        /// <see cref="TikDataRate"/> does not recognise is kept as a <see cref="TikDataRate.Token"/> rather
-        /// than throwing, so an unexpected form degrades this one property instead of failing the load of
-        /// the whole entity.
+        /// <see cref="TikDataRate"/> does not recognise reads <see cref="TikFieldState.Unparsed"/>, so an unexpected
+        /// form degrades this one property instead of failing the load of the whole entity.
         /// </remarks>
         [TikProperty("packet-rate", IsReadOnly = true)]
         public TikField<TikRatePair?> PacketRate { get; private set; }

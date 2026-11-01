@@ -29,10 +29,10 @@ namespace tik4net.unittests.Cli
             public string? Id { get; set; }
 
             [TikProperty("name")]
-            public string? Name { get; set; }
+            public TikField<string?> Name { get; set; }
 
             [TikProperty("secret", IsSensitive = true)]
-            public string? Secret { get; set; }
+            public TikField<string?> Secret { get; set; }
         }
 
         [TikEntity("/box")]
@@ -42,7 +42,7 @@ namespace tik4net.unittests.Cli
             public string? Id { get; set; }
 
             [TikProperty("name")]
-            public string? Name { get; set; }
+            public TikField<string?> Name { get; set; }
         }
 
         [TestMethod]
@@ -54,7 +54,7 @@ namespace tik4net.unittests.Cli
 
                 var rows = conn.LoadAll<SecretBox>().ToList();
 
-                CollectionAssert.AreEqual(new[] { "s0", "s1" }, rows.Select(r => r.Secret).ToList());
+                CollectionAssert.AreEqual(new[] { "s0", "s1" }, rows.Select(r => r.Secret.Value).ToList());
                 Assert.IsTrue(conn.Reads.All(s => s.Contains(" show-sensitive")), string.Join(" | ", conn.Reads));
             }
         }
@@ -81,7 +81,7 @@ namespace tik4net.unittests.Cli
 
                 var rows = conn.LoadAll<SecretBox>().ToList();
 
-                CollectionAssert.AreEqual(new[] { "s0", "s1" }, rows.Select(r => r.Secret).ToList());
+                CollectionAssert.AreEqual(new[] { "s0", "s1" }, rows.Select(r => r.Secret.Value).ToList());
             }
         }
 

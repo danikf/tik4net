@@ -27,6 +27,12 @@ namespace tik4net
     /// error. <see cref="Token"/> keeps them, verbatim.
     /// </para>
     /// <para>
+    /// <see cref="Parse(string)"/> and <see cref="TryParse(string, out TikDuration)"/> read what the type knows: a length
+    /// of time in either form, or a word <see cref="TikDurationSpecial"/> names. Anything else is refused, and a mapped
+    /// field then keeps the router's word as its unparsed value. <see cref="FromToken"/> is how to send a word the library
+    /// does not know.
+    /// </para>
+    /// <para>
     /// <see cref="ToString"/> always renders the compact form, which is what RouterOS accepts on write over
     /// every transport, so a value read over the CLI and written back is not silently reformatted into
     /// something the router would read as a different field shape.
@@ -47,48 +53,35 @@ namespace tik4net
             @"^(?:(?<w>\d+)w)?(?:(?<d>\d+)d)?(?<h>\d+):(?<m>\d{1,2}):(?<s>\d{1,2})(?:\.(?<frac>\d{1,7}))?$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-        private readonly TimeSpan? _value;
-        private readonly string? _token;
+        // The clock form exactly as as-value prints it: two digits per part and at most three of a fraction. What
+        // CliValueNormalizer rewrites, so a value that only resembles a duration (a timestamp, an IPv6 address, a MAC) stays.
+        private static readonly Regex StrictClockPattern = new Regex(
+            @"^(?:(?<w>[0-9]+)[wW])?(?:(?<d>[0-9]+)[dD])?(?<h>[0-9]{2}):(?<m>[0-9]{2}):(?<s>[0-9]{2})(?:\.(?<frac>[0-9]{1,3}))?$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        private readonly TikValueOrToken<TimeSpan> _core;
 
         private TikDuration(TimeSpan? value, string? token)
         {
-            _value = value;
-            _token = token;
+            _core = new TikValueOrToken<TimeSpan>(value, token);
         }
 
         /// <summary>The length of time, or <c>null</c> when the field carries a <see cref="Token"/> instead.</summary>
-        public TimeSpan? Value => _value;
+        public TimeSpan? Value => _core.Value;
 
         /// <summary>
-        /// The word the router used in place of a duration (<c>none</c>, <c>auto</c>, <c>disabled</c>,
-        /// <c>any</c>, …), or <c>null</c> when the field carries a real <see cref="Value"/>.
+        /// The word the router used in place of a duration (<c>none</c>, <c>auto</c>, <c>disabled</c>, …), or <c>null</c> when the field carries a real <see cref="Value"/>.
         /// </summary>
-        public string? Token => _token;
+        public string? Token => _core.Token;
 
         /// <summary>Whether this is a real length of time rather than a word.</summary>
-        public bool HasValue => _value.HasValue;
+        public bool HasValue => _core.Value.HasValue;
 
         /// <summary>
         /// What this actually holds: a <see cref="Value"/>, a <see cref="Special"/> word the library
-        /// recognises, or <see cref="TikValueKind.Unknown"/> text it does not.
+        /// recognises, or <see cref="TikValueKind.Unknown"/> text it does not (only <see cref="FromToken"/> makes one).
         /// </summary>
-        /// <remarks>
-        /// <b><see cref="TikValueKind.Unknown"/> is a gap in tik4net, not a state of the router.</b> The
-        /// value still survives verbatim and still writes back unchanged, so nothing breaks — but it is
-        /// also reported on the <c>value.token</c> trace channel, because a token that behaves perfectly
-        /// is exactly how a missing word stays missing.
-        /// </remarks>
-        public TikValueKind Kind
-        {
-            get
-            {
-                if (_value.HasValue) return TikValueKind.Value;
-                if (_token == null) return TikValueKind.Empty;
-                return TikSpecialWords.TryReadDuration(_token, out _)
-                    ? TikValueKind.Special
-                    : TikValueKind.Unknown;
-            }
-        }
+        public TikValueKind Kind => _core.Kind(_core.Token != null && TikSpecialWords.TryReadDuration(_core.Token, out _));
 
         /// <summary>
         /// The router word this field carries, when it is one the library recognises — otherwise
@@ -96,7 +89,7 @@ namespace tik4net
         /// and case vary by transport, the enum member does not.
         /// </summary>
         public TikDurationSpecial? Special
-            => _token != null && TikSpecialWords.TryReadDuration(_token, out TikDurationSpecial s)
+            => _core.Token != null && TikSpecialWords.TryReadDuration(_core.Token, out TikDurationSpecial s)
                 ? s
                 : (TikDurationSpecial?)null;
 
@@ -129,12 +122,15 @@ namespace tik4net
 
         /// <summary>
         /// Reads a duration in <b>either</b> of the forms RouterOS writes: compact (<c>10s</c>, <c>1d2h</c>,
-        /// <c>200ms</c>) or clock (<c>00:00:10</c>, <c>1d00:00:00</c>, <c>00:00:00.200</c>). A bare number is
-        /// read as seconds, which is what the router accepts on write. Anything else is kept as a
-        /// <see cref="Token"/>.
+        /// <c>200ms</c>) or clock (<c>00:00:10</c>, <c>1d00:00:00</c>, <c>00:00:00.200</c>), or a word
+        /// <see cref="TikDurationSpecial"/> names (<c>none</c>, <c>disabled</c>, …). A bare number is read as seconds,
+        /// which is what the router accepts on write.
         /// </summary>
         /// <param name="value">The value as the router wrote it.</param>
         /// <exception cref="ArgumentException"><paramref name="value"/> is null or empty.</exception>
+        /// <exception cref="FormatException">
+        /// <paramref name="value"/> is neither a duration nor a word the library knows. <see cref="FromToken"/> takes such a word.
+        /// </exception>
         public static TikDuration Parse(string value)
         {
             Guard.ArgumentNotNullOrEmptyString(value, nameof(value));
@@ -142,16 +138,26 @@ namespace tik4net
             if (TryParse(value, out TikDuration result))
                 return result;
 
-            // Unreachable in practice — TryParse only fails on null/empty, which Guard has ruled out —
-            // but stated rather than assumed, so a change to TryParse cannot make this return a wrong value.
             throw new FormatException($"'{value}' is not a RouterOS duration.");
         }
 
         /// <summary>
-        /// <see cref="Parse"/> without the exception. Fails only on a null or empty <paramref name="value"/>:
-        /// a non-empty value the duration grammars do not match is a <see cref="Token"/>, not a failure,
-        /// because that is what the router does with <c>none</c> and its relatives.
+        /// A duration of exactly this length.
         /// </summary>
+        /// <param name="value">The length of time.</param>
+        /// <exception cref="FormatException">
+        /// The compact form cannot spell <paramref name="value"/> exactly: it counts whole microseconds.
+        /// <see cref="FromTimeSpan"/> and the implicit conversion drop what is finer.
+        /// </exception>
+        public static TikDuration Parse(TimeSpan value)
+        {
+            if (TryParse(value, out TikDuration result))
+                return result;
+
+            throw new FormatException($"{value} is not a RouterOS duration: the router counts whole microseconds.");
+        }
+
+        /// <summary><see cref="Parse(string)"/> without the exception.</summary>
         /// <param name="value">The value as the router wrote it.</param>
         /// <param name="result">The parsed duration.</param>
         public static bool TryParse(string? value, out TikDuration result)
@@ -169,10 +175,64 @@ namespace tik4net
             }
 
             if (!TikSpecialWords.TryReadDuration(text, out _))
-                TikSpecialWords.TraceUnknown(nameof(TikDuration), text);
+                return false;
 
             result = new TikDuration(null, text);
             return true;
+        }
+
+        /// <summary><see cref="Parse(TimeSpan)"/> without the exception.</summary>
+        /// <param name="value">The length of time.</param>
+        /// <param name="result">The duration.</param>
+        public static bool TryParse(TimeSpan value, out TikDuration result)
+        {
+            result = default;
+            if (value == TimeSpan.MinValue || value.Ticks % (TimeSpan.TicksPerMillisecond / 1000) != 0)
+                return false;
+
+            result = new TikDuration(value, null);
+            return true;
+        }
+
+        /// <summary>
+        /// Reads the length of time out of either router form, refusing a word: a field that can hold one reads as a
+        /// <see cref="TikDuration"/>, which keeps it.
+        /// </summary>
+        /// <param name="value">The value as the router wrote it.</param>
+        /// <returns>The length of time.</returns>
+        /// <exception cref="FormatException">
+        /// <paramref name="value"/> is not a duration, including the words the router uses in place of one
+        /// (<c>none</c>, <c>disabled</c>, …): those are a real state of the field, not a zero.
+        /// </exception>
+        public static TimeSpan ParseTimeSpan(string value)
+        {
+            if (TryParseTimeSpan(value, out TimeSpan result))
+                return result;
+
+            throw new FormatException(
+                $"'{value}' is not a MikroTik duration. Expected either the compact form (10s, 1d2h, 200ms) "
+                + "or the clock form the CLI transports report (00:00:10, 1d00:00:00, 00:00:00.200).");
+        }
+
+        /// <summary>
+        /// Reads <c>[Nw][Nd]HH:MM:SS[.fff]</c> and nothing else: the shape <c>as-value</c> prints, which
+        /// <c>CliValueNormalizer</c> rewrites. A loose match there would rewrite values that only resemble a duration.
+        /// </summary>
+        internal static bool TryParseStrictClock(string value, out TikDuration result)
+        {
+            result = default;
+            var clock = StrictClockPattern.Match(value);
+            if (!clock.Success)
+                return false;
+            try
+            {
+                result = new TikDuration(TimeSpan.FromTicks(ClockTicks(clock)), null);
+                return true;
+            }
+            catch (OverflowException)
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -220,18 +280,7 @@ namespace tik4net
             var clock = ClockPattern.Match(text);
             if (clock.Success)
             {
-                long ticks = Ticks(clock, "w", TimeSpan.TicksPerDay * 7)
-                           + Ticks(clock, "d", TimeSpan.TicksPerDay)
-                           + Ticks(clock, "h", TimeSpan.TicksPerHour)
-                           + Ticks(clock, "m", TimeSpan.TicksPerMinute)
-                           + Ticks(clock, "s", TimeSpan.TicksPerSecond);
-
-                // ".200" is 200 MILLISECONDS, not 200 of anything else: the CLI writes the fraction of a
-                // second, so its scale depends on how many digits there are (seven are a tick each).
-                var frac = clock.Groups["frac"];
-                if (frac.Success)
-                    ticks += long.Parse(frac.Value.PadRight(7, '0'), NumberStyles.None, CultureInfo.InvariantCulture);
-
+                long ticks = ClockTicks(clock);
                 result = TimeSpan.FromTicks(negative ? -ticks : ticks);
                 return true;
             }
@@ -254,6 +303,22 @@ namespace tik4net
             }
 
             return false;
+        }
+
+        private static long ClockTicks(Match clock)
+        {
+            long ticks = Ticks(clock, "w", TimeSpan.TicksPerDay * 7)
+                       + Ticks(clock, "d", TimeSpan.TicksPerDay)
+                       + Ticks(clock, "h", TimeSpan.TicksPerHour)
+                       + Ticks(clock, "m", TimeSpan.TicksPerMinute)
+                       + Ticks(clock, "s", TimeSpan.TicksPerSecond);
+
+            // ".200" is 200 MILLISECONDS, not 200 of anything else: the CLI writes the fraction of a
+            // second, so its scale depends on how many digits there are (seven are a tick each).
+            var frac = clock.Groups["frac"];
+            if (frac.Success)
+                ticks += long.Parse(frac.Value.PadRight(7, '0'), NumberStyles.None, CultureInfo.InvariantCulture);
+            return ticks;
         }
 
         private static long Ticks(Match match, string name, long ticksPerUnit)
@@ -281,10 +346,10 @@ namespace tik4net
         /// </remarks>
         public override string ToString()
         {
-            if (_token != null) return _token;
-            if (!_value.HasValue) return string.Empty;
+            if (_core.Token != null) return _core.Token;
+            if (!_core.Value.HasValue) return string.Empty;
 
-            TimeSpan t = _value.Value;
+            TimeSpan t = _core.Value.Value;
             bool negative = t < TimeSpan.Zero;
             if (negative) t = t.Negate();
 
@@ -344,22 +409,13 @@ namespace tik4net
         /// equal — which is the whole point of the type.
         /// </summary>
         /// <param name="other">The duration to compare with.</param>
-        public bool Equals(TikDuration other)
-            => Nullable.Equals(_value, other._value)
-            && string.Equals(_token, other._token, StringComparison.OrdinalIgnoreCase);
+        public bool Equals(TikDuration other) => _core.Equals(other._core);
 
         /// <inheritdoc/>
         public override bool Equals(object? obj) => obj is TikDuration other && Equals(other);
 
         /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                int h = _value.HasValue ? _value.Value.GetHashCode() : 0;
-                return (h * 397) ^ (_token == null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(_token));
-            }
-        }
+        public override int GetHashCode() => _core.GetHashCode();
 
         /// <summary>Equality operator — see <see cref="Equals(TikDuration)"/>.</summary>
         public static bool operator ==(TikDuration left, TikDuration right) => left.Equals(right);

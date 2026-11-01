@@ -6,25 +6,15 @@ using tik4net.Objects;
 namespace tik4net.unittests.Objects
 {
     /// <summary>
-    /// The mapper path for a <see cref="TikDuration"/>-typed property — <c>ConvertFromString</c>,
-    /// <c>ConvertToString</c> and <see cref="TikEntityPropertyAccessor.HasDefaultValue"/> at the point where
-    /// they branch on <c>ValueType == typeof(TikDuration)</c> — none of which any test exercised before this
-    /// file. <see cref="TikDurationTests"/> covers the struct itself thoroughly; it never goes through
-    /// <see cref="TikEntityPropertyAccessor"/>, so the 24 entity fields already declared <c>TikDuration?</c>
-    /// rested on untested wiring.
+    /// A <see cref="TikDuration"/> field through <see cref="TikEntityPropertyAccessor"/>;
+    /// <see cref="TikDurationTests"/> covers the struct itself.
     /// </summary>
     /// <remarks>
-    /// <para>
     /// The point of <see cref="TikDuration"/> is that the router's two spellings of the same duration —
     /// <c>10s</c> over the API/REST/native WinBox and <c>00:00:10</c> over the CLI transports, which read
     /// <c>print as-value</c> — read back as the SAME value. A test that only ever feeds the mapper one
     /// spelling could not tell a real fix from one that merely stopped throwing on the other, so every
     /// round-trip case here is asserted from both spellings.
-    /// </para>
-    /// <para>
-    /// Modelled on <see cref="MapperValueSemanticsTests"/>: a small entity local to this file, one shape
-    /// exercised per test, comments that say why the case matters rather than what the code does.
-    /// </para>
     /// </remarks>
     [TestClass]
     public class MapperTikDurationTests
@@ -36,14 +26,7 @@ namespace tik4net.unittests.Objects
             public string Id { get; private set; }
 
             [TikProperty("plain-duration")]
-            public TikDuration? PlainDuration { get; set; }
-
-            // The declared default is written in the CLOCK form on purpose — several shipped entities do
-            // this (e.g. SystemScheduler's DefaultValue="00:00:00") — while the router and the caller both
-            // deal in the compact form on every other transport. NormalizeDefaultValue exists to make the
-            // two comparable.
-            [TikProperty("duration-with-clock-default", DefaultValue = "00:05:00")]
-            public TikDuration? DurationWithClockDefault { get; set; }
+            public TikField<TikDuration?> PlainDuration { get; set; }
         }
 
         private static TikEntityPropertyAccessor Accessor(string propertyName)
@@ -101,67 +84,40 @@ namespace tik4net.unittests.Objects
                 var entity = new DurationEntity();
                 accessor.SetEntityValue(entity, word);
 
-                Assert.IsFalse(entity.PlainDuration!.Value.HasValue,
+                Assert.IsFalse(entity.PlainDuration.Value!.Value.HasValue,
                     $"'{word}' is not zero time, it is the router saying the feature is off");
                 Assert.AreEqual(word, accessor.GetEntityValue(entity),
                     "and it has to go back out exactly as the router sent it, not as a normalized spelling");
             }
         }
 
+        // ── A word the library does not know ────────────────────────────────────
+
+        [TestMethod]
+        public void AWordTheLibraryDoesNotKnow_IsKeptAsTheRoutersWord()
+        {
+            var accessor = Accessor("PlainDuration");
+            var entity = new DurationEntity();
+
+            accessor.SetEntityValue(entity, "someday");
+
+            Assert.AreEqual(TikFieldState.Unparsed, entity.PlainDuration.State);
+            Assert.AreEqual("someday", accessor.GetEntityValue(entity), "written back as it came");
+        }
+
         // ── Absence stays absence ───────────────────────────────────────────────
 
         [TestMethod]
-        public void AnAbsentFieldLeavesThePropertyNullNotTimeSpanZero()
+        public void AnAbsentFieldIsNotTimeSpanZero()
         {
             var accessor = Accessor("PlainDuration");
             var entity = new DurationEntity();
 
             accessor.SetEntityValue(entity, null);
 
-            Assert.IsNull(entity.PlainDuration, "the router did not report this field — that is not the same "
-                                               + "state as a real zero-length duration");
-        }
-
-        [TestMethod]
-        public void ANullDurationIsNotSent()
-        {
-            var accessor = Accessor("PlainDuration");
-            var entity = new DurationEntity();
-
+            Assert.AreEqual(TikFieldState.Absent, entity.PlainDuration.State, "the router did not report this field — that is "
+                                               + "not the same state as a real zero-length duration");
             Assert.IsNull(accessor.GetEntityValue(entity), "nothing to say about it, so nothing is sent");
-            Assert.IsTrue(accessor.HasDefaultValue(entity), "and Save must not treat silence as a change");
-        }
-
-        // ── DefaultValue comparison works across the two spellings ─────────────
-
-        [TestMethod]
-        public void ADefaultDeclaredInClockFormIsNormalizedToTheCompactFormOnce()
-        {
-            // Otherwise every comparison below would fail even though the value the router reports and the
-            // declared default are the same duration — the comparison is a plain string compare downstream.
-            Assert.AreEqual("5m", Accessor("DurationWithClockDefault").DefaultValue,
-                "the declared \"00:05:00\" is normalized to the compact spelling once, at metadata build time");
-        }
-
-        [TestMethod]
-        public void ADefaultValuedDurationCountsAsUnchangedRegardlessOfWhichFormItArrivedIn()
-        {
-            var accessor = Accessor("DurationWithClockDefault");
-
-            // This is "Save sees a default-valued field as changed" made concrete: a field sitting at the
-            // router's default must not become CHANGED merely because this load happened to come from the
-            // CLI (clock form) instead of the API (compact form), or vice-versa.
-            var loadedViaApi = new DurationEntity();
-            accessor.SetEntityValue(loadedViaApi, "5m");
-            Assert.IsTrue(accessor.HasDefaultValue(loadedViaApi), "compact-form default reads back as default");
-
-            var loadedViaCli = new DurationEntity();
-            accessor.SetEntityValue(loadedViaCli, "00:05:00");
-            Assert.IsTrue(accessor.HasDefaultValue(loadedViaCli), "clock-form default reads back as default too");
-
-            var changed = new DurationEntity();
-            accessor.SetEntityValue(changed, "10m");
-            Assert.IsFalse(accessor.HasDefaultValue(changed), "a real change is still detected as one");
         }
     }
 }

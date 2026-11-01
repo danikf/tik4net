@@ -49,7 +49,7 @@ namespace tik4net
         /// </summary>
         /// <param name="value">The value as the router wrote it.</param>
         /// <exception cref="ArgumentException"><paramref name="value"/> is null or empty.</exception>
-        /// <exception cref="FormatException"><paramref name="value"/> is not a rate or a pair of them.</exception>
+        /// <exception cref="FormatException"><paramref name="value"/> is not a rate, a word <see cref="TikDataRateSpecial"/> names, or a pair of them.</exception>
         public static TikRatePair Parse(string value)
         {
             Guard.ArgumentNotNullOrEmptyString(value, nameof(value));
@@ -81,7 +81,8 @@ namespace tik4net
 
             if (slash < 0)
             {
-                TikDataRate single = ParseHalf(text);
+                if (!TikDataRate.TryParse(text, out TikDataRate single))
+                    return false;
 
                 // A bare NUMBER is the upload side with download zero — measured: writing 'max-limit=1M'
                 // reads back '1000000/0'. A bare WORD is not: 'unlimited' says the whole field is
@@ -95,23 +96,13 @@ namespace tik4net
 
             string upText = text.Substring(0, slash);
             string downText = text.Substring(slash + 1);
-            if (upText.Length == 0 || downText.Length == 0)
+            // A half is allowed to be a word: /interface/ethernet bandwidth defaults to unlimited/unlimited.
+            if (!TikDataRate.TryParse(upText, out TikDataRate up) || !TikDataRate.TryParse(downText, out TikDataRate down))
                 return false;
 
-            result = new TikRatePair(ParseHalf(upText), ParseHalf(downText));
+            result = new TikRatePair(up, down);
             return true;
         }
-
-        /// <summary>
-        /// One side of the pair, which may be a number or one of the router's words.
-        /// </summary>
-        /// <remarks>
-        /// This uses <see cref="TikDataRate.Parse"/> rather than its strict <c>TryParse</c>, because a half
-        /// is genuinely allowed to be a word: <c>/interface/ethernet bandwidth</c> defaults to
-        /// <c>unlimited/unlimited</c>. Refusing that would leave the field a <c>string</c> forever, which is
-        /// where it sat on the convention backlog until the type learned words.
-        /// </remarks>
-        private static TikDataRate ParseHalf(string text) => TikDataRate.Parse(text);
 
         /// <summary>
         /// <c>upload/download</c> in plain numbers — the spelling the binary API uses, accepted on write by

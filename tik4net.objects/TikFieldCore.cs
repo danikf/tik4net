@@ -27,8 +27,6 @@ namespace tik4net.Objects
 
         internal string? RawValue => Printed ? Content.RawValue : null;
 
-        internal bool IsNegated => Negated;
-
         internal object? BoxedValue => State == TikFieldState.Present ? Content.Value : null;
 
         internal T ValueOrDefault(T fallback) => State == TikFieldState.Present ? Content.Value : fallback;

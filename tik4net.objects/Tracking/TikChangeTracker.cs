@@ -135,7 +135,7 @@ namespace tik4net.Objects.Tracking
         /// A <see cref="TikField{T}"/> that is <see cref="TikFieldState.Absent"/> is never a change: Absent says nothing,
         /// even where the load saw a value. One outside a partial <c>.proplist</c> load that the caller assigned — a value,
         /// or <c>null</c> — is always a change, with <c>Old</c> <c>null</c>: the load did not read it, so there is nothing
-        /// to compare with. A plain property outside the list cannot say whether it was assigned and is skipped.
+        /// to compare with.
         /// </remarks>
         public IReadOnlyDictionary<string, (string? Old, string? New)> GetChanges<TEntity>(
             TEntity entity, TikEntityMetadata metadata)
@@ -151,8 +151,7 @@ namespace tik4net.Objects.Tracking
                     continue;
                 if (!snapshot.IsTracked(prop.FieldName))
                 {
-                    if (prop.IsWrapped)
-                        result[prop.FieldName] = (null, prop.GetEntityValue(entity!));
+                    result[prop.FieldName] = (null, prop.GetEntityValue(entity!));
                     continue;
                 }
 

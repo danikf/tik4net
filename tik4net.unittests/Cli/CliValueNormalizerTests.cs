@@ -37,6 +37,10 @@ namespace tik4net.unittests.Cli
         {
             Assert.AreEqual("1w", N("cache-max-ttl", "1w00:00:00"));
             Assert.AreEqual("1d", N("ttl", "1d00:00:00"));
+            // The renderer folds what as-value leaves unfolded, as the API prints it.
+            Assert.AreEqual("2d", N("ttl", "48:00:00"));
+            Assert.AreEqual("2w", N("ttl", "14d00:00:00"));
+            Assert.AreEqual("1h39m", N("ttl", "00:99:00"));
             Assert.AreEqual("1w2d3h4m5s", N("ttl", "1w2d03:04:05"));
         }
 

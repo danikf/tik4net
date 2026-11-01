@@ -33,23 +33,27 @@ namespace tik4net
     /// values into one string, <c>dst-limit</c> on a firewall rule packs a count, a burst and a mode, and
     /// <c>rates</c> on a CapsMan configuration is a comma-separated list. Those stay strings.
     /// </para>
+    /// <para>
+    /// <see cref="Parse"/> and <see cref="TryParse"/> read what the type knows: a number or a word
+    /// <see cref="TikDataRateSpecial"/> names. Anything else is refused, and a mapped field then keeps the router's word as
+    /// its unparsed value. <see cref="TryParseNumber"/> is the question "is it a number"; <see cref="FromToken"/> is how
+    /// to send a word the library does not know.
+    /// </para>
     /// </remarks>
     public readonly struct TikDataRate : IEquatable<TikDataRate>
     {
-        private readonly long? _value;
-        private readonly string? _token;
+        private readonly TikValueOrToken<long> _core;
 
         private TikDataRate(long? value, string? token)
         {
-            _value = value;
-            _token = token;
+            _core = new TikValueOrToken<long>(value, token);
         }
 
         /// <summary>
         /// The value, in bits per second — or in bytes, for the fields RouterOS measures that way — or
         /// <c>null</c> when the field carries a <see cref="Token"/> instead.
         /// </summary>
-        public long? Value => _value;
+        public long? Value => _core.Value;
 
         /// <summary>
         /// The word the router used in place of a rate (<c>unlimited</c>, <c>auto</c>, …), or <c>null</c>
@@ -61,32 +65,16 @@ namespace tik4net
         /// such a field be typed at all: the alternative is a <see cref="FormatException"/> that fails the
         /// load of the WHOLE entity, not just the one property.
         /// </remarks>
-        public string? Token => _token;
+        public string? Token => _core.Token;
 
         /// <summary>Whether this is a real rate rather than a word.</summary>
-        public bool HasValue => _value.HasValue;
+        public bool HasValue => _core.Value.HasValue;
 
         /// <summary>
         /// What this actually holds: a <see cref="Value"/>, a <see cref="Special"/> word the library
-        /// recognises, or <see cref="TikValueKind.Unknown"/> text it does not.
+        /// recognises, or <see cref="TikValueKind.Unknown"/> text it does not (only <see cref="FromToken"/> makes one).
         /// </summary>
-        /// <remarks>
-        /// <b><see cref="TikValueKind.Unknown"/> is a gap in tik4net, not a state of the router.</b> The
-        /// value survives verbatim and writes back unchanged, so nothing breaks — and it is reported on the
-        /// <c>value.token</c> trace channel, because a token that behaves perfectly is exactly how a
-        /// missing spelling stays missing.
-        /// </remarks>
-        public TikValueKind Kind
-        {
-            get
-            {
-                if (_value.HasValue) return TikValueKind.Value;
-                if (_token == null) return TikValueKind.Empty;
-                return TikSpecialWords.TryReadRate(_token, out _)
-                    ? TikValueKind.Special
-                    : TikValueKind.Unknown;
-            }
-        }
+        public TikValueKind Kind => _core.Kind(_core.Token != null && TikSpecialWords.TryReadRate(_core.Token, out _));
 
         /// <summary>
         /// The router word this field carries, when it is one the library recognises — otherwise
@@ -94,7 +82,7 @@ namespace tik4net
         /// vary by transport, the enum member does not.
         /// </summary>
         public TikDataRateSpecial? Special
-            => _token != null && TikSpecialWords.TryReadRate(_token, out TikDataRateSpecial s)
+            => _core.Token != null && TikSpecialWords.TryReadRate(_core.Token, out TikDataRateSpecial s)
                 ? s
                 : (TikDataRateSpecial?)null;
 
@@ -125,11 +113,14 @@ namespace tik4net
 
         /// <summary>
         /// Reads a rate in any of the forms RouterOS writes: plain (<c>1000000</c>), with a decimal suffix
-        /// (<c>1M</c>, <c>500k</c>, <c>2G</c>), or with a <c>bps</c> unit (<c>0bps</c>, <c>1Gbps</c>).
-        /// Anything else is kept as a <see cref="Token"/>.
+        /// (<c>1M</c>, <c>500k</c>, <c>2G</c>), with a <c>bps</c> unit (<c>0bps</c>, <c>1Gbps</c>), or a word
+        /// <see cref="TikDataRateSpecial"/> names (<c>unlimited</c>, …).
         /// </summary>
         /// <param name="value">The value as the router wrote it.</param>
         /// <exception cref="ArgumentException"><paramref name="value"/> is null or empty.</exception>
+        /// <exception cref="FormatException">
+        /// <paramref name="value"/> is neither a rate nor a word the library knows. <see cref="FromToken"/> takes such a word.
+        /// </exception>
         public static TikDataRate Parse(string value)
         {
             Guard.ArgumentNotNullOrEmptyString(value, nameof(value));
@@ -137,27 +128,10 @@ namespace tik4net
             if (TryParse(value, out TikDataRate result))
                 return result;
 
-            // Not a number, so it is a word. A word the library knows is a state; one it does not know is
-            // a gap in the library, and saying so on the trace is the only way that gap ever surfaces —
-            // the token itself round-trips perfectly either way.
-            string token = value.Trim();
-            if (!TikSpecialWords.TryReadRate(token, out _))
-                TikSpecialWords.TraceUnknown(nameof(TikDataRate), token);
-
-            return FromToken(token);
+            throw new FormatException($"'{value}' is not a RouterOS rate.");
         }
 
-        /// <summary>
-        /// Reads a value that is a <b>number</b>, and fails on one that is not — <c>unlimited</c> included.
-        /// </summary>
-        /// <remarks>
-        /// This is the strict half of the type, and it is strict on purpose: callers that have to decide
-        /// how to put a value ON THE WIRE need to know whether it is a number, because the answer picks the
-        /// encoding. `WinboxFieldResolver` encodes a numeric rate as an M2 <c>u64</c> and a word as a
-        /// string, and a <c>TryParse</c> that accepted everything would send <c>auto</c> as a 64-bit
-        /// integer — which the router accepts and silently ignores. Use <see cref="Parse"/> when reading a
-        /// value the router wrote, where a word is a legitimate answer rather than a failure.
-        /// </remarks>
+        /// <summary><see cref="Parse"/> without the exception.</summary>
         /// <param name="value">The value as the router wrote it.</param>
         /// <param name="result">The parsed rate.</param>
         public static bool TryParse(string? value, out TikDataRate result)
@@ -166,18 +140,38 @@ namespace tik4net
             if (string.IsNullOrWhiteSpace(value))
                 return false;
 
-            if (!TryParseNumber(value!.Trim(), out long number))
+            string text = value!.Trim();
+            if (TryParseNumber(text, out long number))
+                result = new TikDataRate(number, null);
+            else if (TikSpecialWords.TryReadRate(text, out _))
+                result = new TikDataRate(null, text);
+            else
                 return false;
-
-            result = new TikDataRate(number, null);
             return true;
+        }
+
+        /// <summary>
+        /// Reads a value that is a <b>number</b>, and fails on one that is not — <c>unlimited</c> included, and a number
+        /// too large for a <see cref="long"/>.
+        /// </summary>
+        /// <remarks>
+        /// For callers that have to decide how to put a value ON THE WIRE, because the answer picks the
+        /// encoding: `WinboxFieldResolver` encodes a numeric rate as an M2 <c>u64</c> and a word as a string, and
+        /// sending <c>auto</c> as a 64-bit integer is accepted by the router and silently ignored.
+        /// </remarks>
+        /// <param name="value">The value as the router wrote it.</param>
+        /// <param name="result">The number, with its suffix applied.</param>
+        public static bool TryParseNumber(string? value, out long result)
+        {
+            result = 0;
+            return !string.IsNullOrWhiteSpace(value) && TryParseNumberCore(value!.Trim(), out result);
         }
 
         /// <summary>
         /// The numeric grammar, applied whole — no partial match, so <c>1M5</c> is not a rate rather than
         /// being read as one.
         /// </summary>
-        private static bool TryParseNumber(string text, out long result)
+        private static bool TryParseNumberCore(string text, out long result)
         {
             result = 0;
             if (text.Length == 0)
@@ -231,7 +225,9 @@ namespace tik4net
             if (!long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out long number))
                 return false;
 
-            result = number * multiplier;
+            // Checked: 99999999999T does not fit, and a number that wrapped would read as a different rate.
+            try { result = checked(number * multiplier); }
+            catch (OverflowException) { return false; }
             return true;
         }
 
@@ -243,9 +239,9 @@ namespace tik4net
         /// </summary>
         public override string ToString()
         {
-            if (_token != null) return _token;
-            if (!_value.HasValue) return string.Empty;
-            return _value.Value.ToString(CultureInfo.InvariantCulture);
+            if (_core.Token != null) return _core.Token;
+            if (!_core.Value.HasValue) return string.Empty;
+            return _core.Value.Value.ToString(CultureInfo.InvariantCulture);
         }
 
         /// <summary>Reads a bare string as a rate, so <c>MaxLimit = "1M"</c> keeps working.</summary>
@@ -274,22 +270,13 @@ namespace tik4net
         /// of the type. Two tokens are equal when they are the same word, ignoring case.
         /// </summary>
         /// <param name="other">The rate to compare with.</param>
-        public bool Equals(TikDataRate other)
-            => Nullable.Equals(_value, other._value)
-            && string.Equals(_token, other._token, StringComparison.OrdinalIgnoreCase);
+        public bool Equals(TikDataRate other) => _core.Equals(other._core);
 
         /// <inheritdoc/>
         public override bool Equals(object? obj) => obj is TikDataRate other && Equals(other);
 
         /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                int h = _value.HasValue ? _value.Value.GetHashCode() : 0;
-                return (h * 397) ^ (_token == null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(_token));
-            }
-        }
+        public override int GetHashCode() => _core.GetHashCode();
 
         /// <summary>Equality operator — see <see cref="Equals(TikDataRate)"/>.</summary>
         public static bool operator ==(TikDataRate left, TikDataRate right) => left.Equals(right);

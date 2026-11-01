@@ -61,6 +61,25 @@ namespace tik4net.Objects
             _address = mac;
         }
 
+        /// <summary>Reads <c>AA:BB:CC:DD:EE:FF</c>.</summary>
+        /// <exception cref="FormatException"><paramref name="mac"/> is not a MAC address.</exception>
+        public static MacAddress Parse(string mac)
+        {
+            if (mac != null && MacRegex.IsMatch(mac))
+                return new MacAddress(mac);
+            throw new FormatException(string.Format("Invalid MAC address '{0}'.", mac));
+        }
+
+        /// <summary><see cref="Parse"/> without the exception.</summary>
+        public static bool TryParse(string? mac, out MacAddress? result)
+        {
+            result = mac != null && MacRegex.IsMatch(mac) ? new MacAddress(mac) : null;
+            return result != null;
+        }
+
+        /// <summary>The address in format 00:00:00:00:00:00, as the router spells it.</summary>
+        public override string ToString() => _address;
+
         private static Regex MacRegex = new Regex(@"^[\da-f]{2}:[\da-f]{2}:[\da-f]{2}:[\da-f]{2}:[\da-f]{2}:[\da-f]{2}$", RegexOptions.IgnoreCase);
         private static void EnsureValidMac(string mac)
         {

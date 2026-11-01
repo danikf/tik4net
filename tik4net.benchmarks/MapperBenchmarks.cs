@@ -110,9 +110,7 @@ namespace tik4net.Benchmarks
                 var entity = new FirewallFilter();
                 foreach (var property in _metadata.Properties)
                 {
-                    string value;
-                    if (!row.TryGetValue(property.FieldName, out value))
-                        value = property.DefaultValue;
+                    row.TryGetValue(property.FieldName, out string value);
                     property.SetEntityValue(entity, value);
                 }
                 count++;

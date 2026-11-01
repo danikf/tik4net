@@ -12,21 +12,8 @@ namespace tik4net.unittests.Objects
     /// <c>Enum.GetNames</c> and asking every member for its attribute on every value converted.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// This whole file is a behaviour pin, and every method in it was run against the old conversion code
-    /// first — an optimisation's tests are supposed to pass before it lands, and one that did not would mean
-    /// the tables had changed something rather than cached it. What the file is really for is the edges the
-    /// old chain got right by accident of the LINQ it was written in: <c>Single()</c> rejecting a duplicate
-    /// wire value, an unknown value throwing rather than returning member zero, and the zero member of a
-    /// <c>[Flags]</c> enum formatting as its own declared value.
-    /// </para>
-    /// <para>
-    /// One difference is deliberate and asserted below: formatting a value that is not a defined member used
-    /// to raise <see cref="ArgumentNullException"/> — <c>GetRuntimeField</c> returned null and
-    /// <c>GetCustomAttribute</c> is an extension method, so the null arrived as an argument — and now raises
-    /// a <see cref="FormatException"/> that says which value and which type. It is the only method here that
-    /// fails against the old code, which is what makes it the only one that is evidence of anything.
-    /// </para>
+    /// An unknown value does not fall back to member zero, a duplicate wire value is rejected, and formatting a value
+    /// that is not a defined member says which value and which type.
     /// </remarks>
     [TestClass]
     public class EnumMetadataTests
@@ -36,22 +23,6 @@ namespace tik4net.unittests.Objects
             [TikEnum("accept")] Accept,
             [TikEnum("drop")] Drop,
             [TikEnum("add-src-to-address-list")] AddSrcToAddressList,
-        }
-
-        [Flags]
-        public enum FlagType
-        {
-            [TikEnum("")] Empty = 0,
-            [TikEnum("established")] Established = 1,
-            [TikEnum("invalid")] Invalid = 2,
-            [TikEnum("new")] New = 4,
-        }
-
-        [Flags]
-        public enum FlagTypeWithoutZeroMember
-        {
-            [TikEnum("established")] Established = 1,
-            [TikEnum("invalid")] Invalid = 2,
         }
 
         public enum AmbiguousType
@@ -64,19 +35,13 @@ namespace tik4net.unittests.Objects
         internal class EnumEntity
         {
             [TikProperty("plain")]
-            public PlainType Plain { get; set; }
-
-            [TikProperty("flags")]
-            public FlagType Flags { get; set; }
-
-            [TikProperty("flags-no-zero")]
-            public FlagTypeWithoutZeroMember FlagsNoZero { get; set; }
+            public TikField<PlainType?> Plain { get; set; }
 
             [TikProperty("ambiguous")]
-            public AmbiguousType Ambiguous { get; set; }
+            public TikField<AmbiguousType?> Ambiguous { get; set; }
 
             [TikProperty("nullable-plain")]
-            public PlainType? NullablePlain { get; set; }
+            public TikField<PlainType?> NullablePlain { get; set; }
         }
 
         private static TikEntityPropertyAccessor Accessor(string propertyName)
@@ -91,48 +56,34 @@ namespace tik4net.unittests.Objects
             var entity = new EnumEntity();
 
             Accessor("Plain").SetEntityValue(entity, "add-src-to-address-list");
-            Assert.AreEqual(PlainType.AddSrcToAddressList, entity.Plain);
+            Assert.IsTrue(entity.Plain == PlainType.AddSrcToAddressList);
 
             // The router's casing is not guaranteed, and the old lookup compared OrdinalIgnoreCase.
             Accessor("Plain").SetEntityValue(entity, "DROP");
-            Assert.AreEqual(PlainType.Drop, entity.Plain);
+            Assert.IsTrue(entity.Plain == PlainType.Drop);
         }
 
         [TestMethod]
-        public void AFlagsEnumParsesEachCommaSeparatedPart()
+        public void AnUnknownValueIsNeverMemberZero()
         {
             var entity = new EnumEntity();
 
-            Accessor("Flags").SetEntityValue(entity, "established,new");
-            Assert.AreEqual(FlagType.Established | FlagType.New, entity.Flags);
+            Accessor("Plain").SetEntityValue(entity, "no-such-action");
 
-            // A single part takes the non-flags branch (no comma) and must land on the same member.
-            Accessor("Flags").SetEntityValue(entity, "invalid");
-            Assert.AreEqual(FlagType.Invalid, entity.Flags);
-        }
-
-        [TestMethod]
-        public void AnUnknownValueThrowsRatherThanFallingBackToMemberZero()
-        {
-            var entity = new EnumEntity();
-
-            var ex = Assert.ThrowsException<FormatException>(
-                () => Accessor("Plain").SetEntityValue(entity, "no-such-action"));
-            StringAssert.Contains(ex.Message, "Plain(plain)", "the caller's wrapper still names the property");
-
-            Assert.ThrowsException<FormatException>(
-                () => Accessor("Flags").SetEntityValue(entity, "established,no-such-state"));
+            Assert.AreEqual(TikFieldState.Unparsed, entity.Plain.State);
+            Assert.AreEqual("no-such-action", entity.Plain.RawValue);
+            Assert.ThrowsException<FormatException>(() => TikEnumMetadata.Get(typeof(PlainType)).Parse("no-such-action"));
         }
 
         [TestMethod]
         public void ADuplicateWireValueIsRejectedRatherThanResolvedArbitrarily()
         {
-            // Two members declaring one wire value is an entity defect, and the old Single() turned it into
-            // an exception. Nothing in the shipped entity set has the shape today (all 150 enums checked),
-            // which is exactly why it is worth pinning: a cache is the natural place to lose it, since a
-            // dictionary would otherwise just keep the last writer.
-            Assert.ThrowsException<FormatException>(
-                () => Accessor("Ambiguous").SetEntityValue(new EnumEntity(), "same"));
+            // Two members declaring one wire value is an entity defect. Nothing in the shipped entity set has the shape
+            // today, which is why it is worth pinning: a dictionary would otherwise just keep the first writer.
+            var entity = new EnumEntity();
+            Accessor("Ambiguous").SetEntityValue(entity, "same");
+            Assert.AreEqual(TikFieldState.Unparsed, entity.Ambiguous.State);
+            Assert.ThrowsException<FormatException>(() => TikEnumMetadata.Get(typeof(AmbiguousType)).Parse("same"));
         }
 
         // ── Formatting ──────────────────────────────────────────────────────────
@@ -145,26 +96,8 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void AFlagsEnumFormatsInDeclarationOrder()
-        {
-            // Declaration order, not the order the caller OR'd them in — the old join walked Enum.GetNames.
-            Assert.AreEqual("established,new",
-                Accessor("Flags").GetEntityValue(new EnumEntity { Flags = FlagType.New | FlagType.Established }));
-        }
-
-        [TestMethod]
-        public void ZeroFormatsAsTheZeroMemberOrAsEmpty()
-        {
-            Assert.AreEqual("", Accessor("Flags").GetEntityValue(new EnumEntity { Flags = FlagType.Empty }),
-                "the zero member declares \"\" and that is what goes on the wire");
-            Assert.AreEqual("", Accessor("FlagsNoZero").GetEntityValue(new EnumEntity()),
-                "an enum with no zero member at all still formats zero as empty rather than throwing");
-        }
-
-        [TestMethod]
         public void AnUndefinedValueSaysWhichValueAndWhichType()
         {
-            // Was an ArgumentNullException out of a null FieldInfo. A caller who casts a raw int gets told.
             var ex = Assert.ThrowsException<FormatException>(
                 () => Accessor("Plain").GetEntityValue(new EnumEntity { Plain = (PlainType)99 }));
             StringAssert.Contains(ex.Message, "PlainType");
@@ -178,11 +111,11 @@ namespace tik4net.unittests.Objects
             Assert.IsNull(Accessor("NullablePlain").GetEntityValue(entity));
 
             Accessor("NullablePlain").SetEntityValue(entity, "drop");
-            Assert.AreEqual(PlainType.Drop, entity.NullablePlain);
+            Assert.IsTrue(entity.NullablePlain == PlainType.Drop);
             Assert.AreEqual("drop", Accessor("NullablePlain").GetEntityValue(entity));
 
             Accessor("NullablePlain").SetEntityValue(entity, null);
-            Assert.IsNull(entity.NullablePlain);
+            Assert.AreEqual(TikFieldState.Absent, entity.NullablePlain.State);
         }
 
         // ── The cache is shared, and it agrees with the entities it serves ──────
@@ -226,8 +159,6 @@ namespace tik4net.unittests.Objects
                     object member = Enum.Parse(enumType, name, true);
                     Assert.AreEqual(wire, table.Format(member), enumType.Name + "." + name + " formats");
 
-                    // A [Flags] zero member parses through the same table but formats via FormatFlags, which
-                    // is covered above; here only the parse direction is common to both shapes.
                     Assert.AreEqual(member, table.Parse(wire), enumType.Name + "." + name + " parses back");
                 }
             }

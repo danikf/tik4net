@@ -124,7 +124,7 @@ namespace tik4net.unittests.Cli
                 StringAssert.Contains(conn.Sent[2], ":pick [/probe find] 4 6");
                 StringAssert.Contains(conn.Sent[0], "from=$w");
                 CollectionAssert.AreEqual(new[] { "r0", "r1", "r2", "r3", "r4" },
-                    rows.Select(r => r.Name).ToList(), "slices concatenate in table order");
+                    rows.Select(r => r.Name.Value).ToList(), "slices concatenate in table order");
             }
         }
 
@@ -173,7 +173,7 @@ namespace tik4net.unittests.Cli
 
                 Assert.AreEqual(1, conn.Sent.Count, string.Join(" | ", conn.Sent));
                 StringAssert.Contains(conn.Sent[0], ":pick [/probe find (name=r3)] 0 2");
-                CollectionAssert.AreEqual(new[] { "r3" }, rows.Select(r => r.Name).ToList());
+                CollectionAssert.AreEqual(new[] { "r3" }, rows.Select(r => r.Name.Value).ToList());
             }
         }
 
@@ -211,7 +211,7 @@ namespace tik4net.unittests.Cli
                 Assert.AreEqual(3, conn.Sent.Count, string.Join(" | ", conn.Sent));
                 StringAssert.Contains(conn.Sent[0], ":pick [/probe find ((name=r3 || name=r7))] 0 1");
                 StringAssert.Contains(conn.Sent[2], ":pick [/probe find ((name=r3 || name=r7))] 2 3");
-                CollectionAssert.AreEqual(new[] { "r3", "r7" }, rows.Select(r => r.Name).ToList());
+                CollectionAssert.AreEqual(new[] { "r3", "r7" }, rows.Select(r => r.Name.Value).ToList());
             }
         }
 
@@ -424,7 +424,7 @@ namespace tik4net.unittests.Cli
 
                 var rows = conn.LoadList<PagedProbe>().ToList();
 
-                CollectionAssert.AreEqual(new[] { "r0", "r1", "r2", "r3", "r4" }, rows.Select(r => r.Name).ToList());
+                CollectionAssert.AreEqual(new[] { "r0", "r1", "r2", "r3", "r4" }, rows.Select(r => r.Name.Value).ToList());
                 CollectionAssert.AreEqual(new[] { "*0", "*1", "*2", "*3", "*4" }, rows.Select(r => r.Id).ToList());
                 Assert.AreEqual(4, conn.Sent.Count,
                     "the first window once as usual, then every window per row — the menu is remembered: "
@@ -481,7 +481,7 @@ namespace tik4net.unittests.Cli
 
                 var rows = conn.LoadList<PagedProbe>().ToList();
 
-                CollectionAssert.AreEqual(new[] { "r0", "r1", "r2", "r3", "r4" }, rows.Select(r => r.Name).ToList());
+                CollectionAssert.AreEqual(new[] { "r0", "r1", "r2", "r3", "r4" }, rows.Select(r => r.Name.Value).ToList());
                 Assert.AreEqual(2, conn.Sent.Count(s => s.Contains(":pick [/probe find] 2 4")),
                     "the interrupted window is asked for again: " + string.Join(" | ", conn.Sent));
             }
@@ -556,7 +556,7 @@ namespace tik4net.unittests.Cli
             public string? Id { get; set; }
 
             [TikProperty("name")]
-            public string? Name { get; set; }
+            public TikField<string?> Name { get; set; }
         }
 
         /// <summary>The same probe menu read through the two-query stats path.</summary>
@@ -567,7 +567,7 @@ namespace tik4net.unittests.Cli
             public string? Id { get; set; }
 
             [TikProperty("name")]
-            public string? Name { get; set; }
+            public TikField<string?> Name { get; set; }
         }
 
         /// <summary>

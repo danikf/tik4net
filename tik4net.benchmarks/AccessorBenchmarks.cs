@@ -31,43 +31,26 @@ namespace tik4net.Benchmarks
             [TikEnum("passthrough")] Passthrough,
         }
 
-        /// <summary>Flags enum, the shape a `,`-joined router value maps onto.</summary>
-        [System.Flags]
-        public enum FlagsShapeType
-        {
-            /// <summary>Nothing set.</summary>
-            [TikEnum("")] Empty = 0,
-            /// <summary>First flag.</summary>
-            [TikEnum("established")] Established = 1,
-            /// <summary>Second flag.</summary>
-            [TikEnum("related")] Related = 2,
-            /// <summary>Third flag.</summary>
-            [TikEnum("new")] New = 4,
-        }
-
         [TikEntity("/benchmark/shapes")]
         internal class ShapeEntity
         {
             [TikProperty("text")]
-            public string Text { get; set; }
+            public TikField<string> Text { get; set; }
 
             [TikProperty("number")]
-            public int Number { get; set; }
+            public TikField<int?> Number { get; set; }
 
             [TikProperty("flag")]
-            public bool? Flag { get; set; }
+            public TikField<bool?> Flag { get; set; }
 
             [TikProperty("shape")]
-            public ShapeType Shape { get; set; }
-
-            [TikProperty("flags-shape")]
-            public FlagsShapeType FlagsShape { get; set; }
+            public TikField<ShapeType?> Shape { get; set; }
         }
 
         private ShapeEntity _entity;
-        private TikEntityPropertyAccessor _text, _number, _flag, _shape, _flagsShape;
+        private TikEntityPropertyAccessor _text, _number, _flag, _shape;
 
-        /// <summary>Resolves the five accessors once — metadata construction is not what is being measured.</summary>
+        /// <summary>Resolves the four accessors once — metadata construction is not what is being measured.</summary>
         [GlobalSetup]
         public void Setup()
         {
@@ -76,7 +59,6 @@ namespace tik4net.Benchmarks
             _number = metadata.Properties.Single(p => p.PropertyName == "Number");
             _flag = metadata.Properties.Single(p => p.PropertyName == "Flag");
             _shape = metadata.Properties.Single(p => p.PropertyName == "Shape");
-            _flagsShape = metadata.Properties.Single(p => p.PropertyName == "FlagsShape");
             _entity = new ShapeEntity();
         }
 
@@ -110,14 +92,6 @@ namespace tik4net.Benchmarks
         {
             for (int i = 0; i < Iterations; i++)
                 _shape.SetEntityValue(_entity, "drop");
-        }
-
-        /// <summary>[Flags] enum — the same scan, once per comma-separated part.</summary>
-        [Benchmark(Description = "set [Flags] enum ×1000")]
-        public void SetFlagsEnum()
-        {
-            for (int i = 0; i < Iterations; i++)
-                _flagsShape.SetEntityValue(_entity, "established,related");
         }
 
         /// <summary>enum, the other direction — <c>GetRuntimeField</c> + <c>GetCustomAttribute</c> per call.</summary>

@@ -36,22 +36,22 @@ namespace tik4net.unittests.Cli
             public string? Id { get; set; }
 
             [TikProperty("name")]
-            public string? Name { get; set; }
+            public TikField<string?> Name { get; set; }
 
             [TikProperty("disabled")]
-            public bool? Disabled { get; set; }
+            public TikField<bool?> Disabled { get; set; }
 
             [TikProperty("running", IsReadOnly = true)]
-            public bool Running { get; set; }
+            public TikField<bool?> Running { get; set; }
 
             // A flag this entity maps but the menu does not have on this version: the router refuses a proplist
             // naming it, so it must be left out of the flags read rather than sink it.
             [TikProperty("slave", IsReadOnly = true)]
-            public bool Slave { get; set; }
+            public TikField<bool?> Slave { get; set; }
 
             // A writable bool is an ordinary field: every version prints it, so it is not a flag.
             [TikProperty("log")]
-            public bool? Log { get; set; }
+            public TikField<bool?> Log { get; set; }
         }
 
         // A singleton with a flag. RouterOS takes no proplist= on a singleton at all — 7.19.6 answers "expected end of
@@ -61,10 +61,10 @@ namespace tik4net.unittests.Cli
         private sealed class SingletonFlagProbe
         {
             [TikProperty("dst-active", IsReadOnly = true)]
-            public bool DstActive { get; set; }
+            public TikField<bool?> DstActive { get; set; }
 
             [TikProperty("time-zone-name")]
-            public string? TimeZoneName { get; set; }
+            public TikField<string?> TimeZoneName { get; set; }
         }
 
         [TikEntity("/ip/route")]
@@ -93,7 +93,7 @@ namespace tik4net.unittests.Cli
             public string? Id { get; set; }
 
             [TikProperty("name")]
-            public string? Name { get; set; }
+            public TikField<string?> Name { get; set; }
         }
 
         // ── RouterOS before 7.20 ─────────────────────────────────────────────
@@ -108,9 +108,9 @@ namespace tik4net.unittests.Cli
                 var rows = conn.LoadAll<FlagProbe>().ToList();
 
                 Assert.AreEqual(3, rows.Count);
-                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running).ToList(),
+                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running.GetValueOrDefault()).ToList(),
                     "running must come from the flags read, not default to false");
-                CollectionAssert.AreEqual(new bool?[] { false, true, false }, rows.Select(r => r.Disabled).ToList());
+                CollectionAssert.AreEqual(new bool?[] { false, true, false }, rows.Select(r => r.Disabled.Value).ToList());
                 Assert.IsTrue(rows.All(r => r.Log == false), "the ordinary field still comes from the first read");
             }
         }
@@ -186,7 +186,7 @@ namespace tik4net.unittests.Cli
 
                 var rows = conn.LoadAll<FlagProbe>().ToList();
 
-                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running).ToList());
+                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running.GetValueOrDefault()).ToList());
                 Assert.AreEqual(2, conn.Sent.Count(s => s.Contains(":pick") && s.Contains(" proplist=")),
                     "three rows at page size 2 are two windows, and the flags read has the same two");
             }
@@ -201,8 +201,8 @@ namespace tik4net.unittests.Cli
 
                 var row = conn.LoadList<FlagProbe>(conn.CreateParameter("name", "e1", TikCommandParameterFormat.Filter)).Single();
 
-                Assert.IsFalse(row.Running);
-                Assert.AreEqual(true, row.Disabled);
+                Assert.IsFalse(row.Running.GetValueOrDefault());
+                Assert.IsTrue(row.Disabled.GetValueOrDefault());
                 string flagsRead = conn.Sent.Single(s => s.Contains(" proplist=") && !s.Contains("where false"));
                 StringAssert.Contains(flagsRead, "where name=e1");
             }
@@ -221,8 +221,8 @@ namespace tik4net.unittests.Cli
 
                 var clock = conn.LoadSingle<SingletonFlagProbe>();
 
-                Assert.IsTrue(clock.DstActive);
-                Assert.AreEqual("Europe/Prague", clock.TimeZoneName);
+                Assert.IsTrue(clock.DstActive.GetValueOrDefault());
+                Assert.AreEqual("Europe/Prague", clock.TimeZoneName.Value);
                 Assert.IsFalse(conn.Sent.Any(s => s.Contains("proplist=")), string.Join(" | ", conn.Sent));
             }
         }
@@ -295,7 +295,7 @@ namespace tik4net.unittests.Cli
                 int first = conn.Sent.Count;
                 conn.LoadAll<FlagProbe>().ToList();
 
-                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running).ToList());
+                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running.GetValueOrDefault()).ToList());
                 Assert.IsFalse(conn.Sent.Any(s => s.Contains(" proplist=")), string.Join(" | ", conn.Sent));
                 Assert.AreEqual(1, conn.Sent.Count - first, "a later read is the one print and nothing else");
             }
@@ -317,9 +317,9 @@ namespace tik4net.unittests.Cli
                 var rows = conn.LoadAll<FlagProbe>().ToList();
 
                 Assert.AreEqual(3, rows.Count);
-                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running).ToList(),
+                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running.GetValueOrDefault()).ToList(),
                     "running must come from the flag id list, not default to false");
-                CollectionAssert.AreEqual(new bool?[] { false, true, false }, rows.Select(r => r.Disabled).ToList());
+                CollectionAssert.AreEqual(new bool?[] { false, true, false }, rows.Select(r => r.Disabled.Value).ToList());
                 Assert.IsTrue(rows.All(r => r.Log == false), "the ordinary field still comes from the first read");
             }
         }
@@ -404,8 +404,8 @@ namespace tik4net.unittests.Cli
 
                 var rows = conn.LoadAll<FlagProbe>().ToList();
 
-                Assert.IsTrue(rows.All(r => !r.Slave), "the refused flag has no value to report");
-                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running).ToList(),
+                Assert.IsTrue(rows.All(r => !r.Slave.GetValueOrDefault()), "the refused flag has no value to report");
+                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running.GetValueOrDefault()).ToList(),
                     "one refused flag must not cost the others");
             }
         }
@@ -534,7 +534,7 @@ namespace tik4net.unittests.Cli
 
                 var row = connection.LoadAll<FlagProbe>().Single();
 
-                Assert.IsTrue(row.Running);
+                Assert.IsTrue(row.Running.GetValueOrDefault());
             }
 
             Assert.IsTrue(serverTask.Wait(5000));

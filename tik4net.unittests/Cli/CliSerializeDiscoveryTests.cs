@@ -24,14 +24,14 @@ namespace tik4net.unittests.Cli
         private sealed class EmptyFreeText
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string? Id { get; set; }
-            [TikProperty("comment", IsFreeText = true)] public string? Comment { get; set; }
+            [TikProperty("comment", IsFreeText = true)] public TikField<string?> Comment { get; set; }
         }
 
         [TikEntity("/full")]
         private sealed class FullFreeText
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string? Id { get; set; }
-            [TikProperty("comment", IsFreeText = true)] public string? Comment { get; set; }
+            [TikProperty("comment", IsFreeText = true)] public TikField<string?> Comment { get; set; }
         }
 
         [TestMethod]
@@ -45,7 +45,7 @@ namespace tik4net.unittests.Cli
                 Assert.AreEqual(0, conn.LoadList<EmptyFreeText>().Count());
                 var rows = conn.LoadList<FullFreeText>().ToList();
 
-                CollectionAssert.AreEqual(new[] { "c0", "c1" }, rows.Select(r => r.Comment).ToList(),
+                CollectionAssert.AreEqual(new[] { "c0", "c1" }, rows.Select(r => r.Comment.Value).ToList(),
                     "the second read must fall back to as-value: " + string.Join(" | ", conn.Sent));
             }
         }

@@ -20,7 +20,6 @@ namespace tik4net.Objects
     public class TikEntityMetadata
     {
         private Dictionary<string, TikEntityPropertyAccessor> _properties; //<field_name_on_mikrotik, propertyAccessor>
-        private Type _entityType;
 
         /// <summary>
         /// All properties of the entity which are decorated by <seealso cref="TikPropertyAttribute"/>
@@ -50,7 +49,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Parameter format (when parameter itself is set to <see cref="TikCommandParameterFormat.Default"/>) during  load operation.
         /// </summary>
-        public TikCommandParameterFormat LoadDefaultParameterFormat { get; set; }
+        public TikCommandParameterFormat LoadDefaultParameterFormat { get; private set; }
 
         /// <summary>
         /// The write verbs the RouterOS menu offers, as the entity declares them.
@@ -123,42 +122,20 @@ namespace tik4net.Objects
         /// as JSON on CLI transports, whose as-value format cannot escape it.
         /// </summary>
         /// <seealso cref="TikPropertyAttribute.IsFreeText"/>
-        public bool HasFreeTextProperties
-        {
-            get { return Properties.Any(p => p.IsFreeText); }
-        }
+        public bool HasFreeTextProperties { get; private set; }
 
         /// <summary>
         /// True when at least one property is a secret (<see cref="TikPropertyAttribute.IsSensitive"/>), so the entity
         /// is read with <c>show-sensitive</c> on CLI transports, which otherwise leave secrets out.
         /// </summary>
         /// <seealso cref="TikPropertyAttribute.IsSensitive"/>
-        public bool HasSensitiveProperties
-        {
-            get { return Properties.Any(p => p.IsSensitive); }
-        }
+        public bool HasSensitiveProperties { get; private set; }
 
         /// <summary>
         /// The entity's WinBox labels as the <see cref="TikSpecialProperties.WinboxLabels"/> marker value
         /// (<c>api-name=Label|…</c>, every name a property is read under), or <c>null</c> when no property declares one.
         /// </summary>
-        internal string? WinboxLabelsMarker
-        {
-            get
-            {
-                if (!_winboxLabelsComputed)
-                {
-                    var pairs = Properties.Where(p => p.WinboxLabel != null)
-                        .SelectMany(p => new[] { p.FieldName }.Concat(p.AlternateNames).Select(name => name + "=" + p.WinboxLabel))
-                        .ToList();
-                    _winboxLabels = pairs.Count > 0 ? string.Join("|", pairs) : null;
-                    _winboxLabelsComputed = true;
-                }
-                return _winboxLabels;
-            }
-        }
-        private string? _winboxLabels;
-        private bool _winboxLabelsComputed;
+        internal string? WinboxLabelsMarker { get; private set; }
 
         /// <summary>
         /// The field names of the entity's flags — <c>disabled</c> and every read-only <c>bool</c> property
@@ -171,16 +148,7 @@ namespace tik4net.Objects
         /// (<c>log=false</c> on a firewall rule, 7.17). A presence flag is left out: it reads back as an empty
         /// value, never <c>true</c>/<c>false</c>.
         /// </remarks>
-        internal IEnumerable<string> CliFlagFields
-        {
-            get
-            {
-                return Properties
-                    .Where(p => p.ValueType == typeof(bool) && !p.IsPresenceFlag
-                                && (p.IsReadOnly || p.FieldName == "disabled"))
-                    .Select(p => p.FieldName);
-            }
-        }
+        internal IEnumerable<string> CliFlagFields { get; private set; }
 
         /// <summary>
         /// If entity exists in single instance.
@@ -191,15 +159,7 @@ namespace tik4net.Objects
         /// The .id property of the entity or null (if no property is decorated by <see cref="TikPropertyAttribute.FieldName"/> = .id).
         /// </summary>
         public TikEntityPropertyAccessor? IdProperty
-        {
-            get
-            {
-                if (HasIdProperty)
-                    return GetPropertyDescriptor(TikSpecialProperties.Id);
-                else
-                    return null;
-            }
-        }
+            => _properties.TryGetValue(TikSpecialProperties.Id, out var id) ? id : null;
 
         /// <summary>
         /// Determines if entity has property for .id field (property which is decorated by <see cref="TikPropertyAttribute.FieldName"/> = .id)
@@ -214,13 +174,11 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="entityType">Type of the entity.</param>
         /// <remarks>Slow operation.</remarks>
-        public TikEntityMetadata(Type entityType)
+        internal TikEntityMetadata(Type entityType)
         {
             TikEntityAttribute? entityAttribute = (TikEntityAttribute?)entityType.GetTypeInfo().GetCustomAttributes(true).FirstOrDefault(a => a is TikEntityAttribute);
             if (entityAttribute == null)
                 throw new ArgumentException("Entity class must be decorated by TikEntityAttribute attribute.");
-
-            _entityType = entityType;
 
             EntityPath = string.IsNullOrEmpty(entityAttribute.EntityPath) || entityAttribute.EntityPath.StartsWith("/", StringComparison.Ordinal)
                 ? entityAttribute.EntityPath
@@ -238,15 +196,18 @@ namespace tik4net.Objects
             _properties = entityType.GetTypeInfo().GetProperties()
                 .Where(propInfo => propInfo.GetCustomAttribute<TikPropertyAttribute>(true) != null)
                 .Select(propInfo => new TikEntityPropertyAccessor(this, propInfo))
-                .ToDictionary(propDescriptor => propDescriptor.FieldName);                
-        }
+                .ToDictionary(propDescriptor => propDescriptor.FieldName);
 
-        private TikEntityPropertyAccessor GetPropertyDescriptor(string fieldName) 
-        {
-            if (_properties.TryGetValue(fieldName, out var result))
-                return result;
-            else
-                throw new KeyNotFoundException(string.Format("Property for field '{0}' not found in '{1}' class.", fieldName, _entityType));
+            HasFreeTextProperties = Properties.Any(p => p.IsFreeText);
+            HasSensitiveProperties = Properties.Any(p => p.IsSensitive);
+            CliFlagFields = Properties
+                .Where(p => p.ValueType == typeof(bool) && !p.IsPresenceFlag && (p.IsReadOnly || p.FieldName == "disabled"))
+                .Select(p => p.FieldName)
+                .ToList();
+            var labels = Properties.Where(p => p.WinboxLabel != null)
+                .SelectMany(p => new[] { p.FieldName }.Concat(p.AlternateNames).Select(name => name + "=" + p.WinboxLabel))
+                .ToList();
+            WinboxLabelsMarker = labels.Count > 0 ? string.Join("|", labels) : null;
         }
     }
 }

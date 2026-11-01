@@ -455,7 +455,7 @@ Entities are plain classes driven entirely by attributes:
 - `[TikEntity("/ip/firewall/filter")]` — API path plus behaviour flags (`IsSingleton`,
   `IsOrdered`, `SupportedOperations`, …).
 - `[TikProperty("src-address")]` — field mapping, with `IsReadOnly`, `DefaultValue`, `AlternateNames`,
-  `WinboxLabel`, … (`IsMandatory` / `UnsetOnDefault` only on plain properties, see below).
+  `WinboxLabel`, … (`IsMandatory` only on the `.id`).
 
 Every mapped property except `.id` is a **`TikField<T?>`** (a **`TikNegatableField<T?>`** for a matcher RouterOS
 negates with `!`) — the entity value model. It records whether the
@@ -464,8 +464,8 @@ apply to), `Present`, or `Unparsed` (printed, but `T` cannot hold the word; `Raw
 it back). Consequences the rest of the layer relies on:
 
 - **An add sends exactly what was assigned.** `DefaultValue` on a `TikField<T>` property documents the router's
-  default and has no runtime effect; `IsMandatory` and `UnsetOnDefault` are refused on one (metadata build),
-  and assigning `null` unsets the field.
+  default and has no runtime effect; `IsMandatory` is refused on one (metadata build), and assigning `null` unsets
+  the field.
 - **Change detection is by canonical snapshot** (`TikChangeTracker`): the wire form a loaded value would write,
   compared with the one taken at load. The wire form of `Absent` and of an assigned `null` is the same `null`, so
   the update rules ask the field's state as well: `Absent` is never sent (and keeps its snapshot value across a
@@ -475,9 +475,15 @@ it back). Consequences the rest of the layer relies on:
 - **Merge** compares wrapped fields by wire form, treats "no value" states alike, and takes a per-field rule
   (`Field(x => x.F, (expected, current) => …)`, helpers `IfAbsent` / `IfPrintedIn`).
 
-A caller's own entity may keep plain `T` / `T?` properties; they keep the older semantics — a missing field
-reads as `DefaultValue`, an add leaves out a value equal to `DefaultValue`, an enum needs a `[TikEnumUnknown]`
-member to survive an unknown word.
+The same holds for a caller's own entity: anything else is refused at metadata build, naming the form to write.
+`[Flags]` enums and `TimeSpan` are refused as a field's value.
+
+**One table of wire types** (`TikWireTypes`): how each type the mapper converts is spelled, whether it travels through
+JSON as the router's string, and whether the empty word is one of its values. `TikWireConverter` picks its parse and
+format from it once, adding enums, `TikNegatableValue<T>` and registered converters; the JSON converters read the same
+table. **An empty word** on a type with no empty value reads `Absent`; a presence flag reads `true`, and a `bool` not
+declared one reads `Unparsed("")`. The `!` rules live in `TikNegation`. On the value types `TryParse` answers whether
+`Parse` would throw, and both refuse a word the type's `*Special` table does not name.
 
 `SupportedOperations` is a `[Flags]` `TikEntityOperations` (`Add`/`Set`/`Remove`/`Move`, default `All`),
 because RouterOS decides verbs **per menu**: `/ppp/active` has `remove` and no `add`/`set`,
@@ -568,8 +574,8 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
    IsMandatory = true)]` — except on a `IsSingleton` entity, whose menu returns no `.id` at all.
 4. **Every other mapped property is `TikField<T?>`** — `TikField<string?>`, `TikField<bool?>`,
    `TikField<long?>`, `TikField<TheEnum?>`, `TikField<TikDuration?>`. A record carries only the fields the router
-   sent (a partial `.proplist` load fewer still), and the value records which. No `IsMandatory` /
-   `UnsetOnDefault` on them; enums have no `[TikEnumUnknown]` member (an unknown word reads `Unparsed`); enum
+   sent (a partial `.proplist` load fewer still), and the value records which. No `IsMandatory` on
+   them; an unknown word of an enum reads `Unparsed`; enum
    members need `TikEnumAttribute` when the wire value isn't the lowercased member name.
 5. **`DefaultValue` is the router's default in its wire spelling** (`"yes"`/`"no"` for a bool) — documentation,
    checked against the router's WinBox catalog and a freshly created row (`EntityJgCatalogProbe`,
@@ -625,7 +631,6 @@ every push, so a new entity that breaks one fails the build rather than the firs
 |---|---|---|
 | `EntityStructureConventionTests` | `.id`, every other property a `TikField<T?>`, paths, enums, read-only counters | pass/fail |
 | `EntityDefaultValueConventionTests` | the `DefaultValue` spelling (point 5) | pass/fail |
-| `TolerantEnumReadTests` | no built-in enum carries an `Unknown` member | pass/fail |
 | `EntityRouterOsRangeTests` | rule 9 — every bound against the measured table, and no bound without a measurement | pass/fail |
 | `EntityDurationConventionTests` | rule 6 — a duration is `TikDuration?`, never `string?` | **ratchet** |
 | `EntityRatePairConventionTests` | rule 7 — a paired rate is `TikRatePair?`, never `string?` | **ratchet, at zero** |
@@ -678,7 +683,7 @@ Tests are split by whether they need hardware.
 
 MSTest, **net8.0**, runs on Linux and Windows, gated by CI on every push and PR. Everything that
 can be tested without a router belongs here: the sentence/word codecs, `CliOutputParser`,
-`VtStripper`/`Vt100State`, `TikTimeHelper`, `EcSrp5`, `M2Message`, property/enum conversion,
+`VtStripper`/`Vt100State`, `EcSrp5`, `M2Message`, property/enum conversion,
 change-tracker diffing, and `TikFakeConnection`-based consumer scenarios.
 
 Internals of `tik4net` are visible to it (`InternalsVisibleTo`, see `tik4net/Properties/AssemblyInfo.cs`),

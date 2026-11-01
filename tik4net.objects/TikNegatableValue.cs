@@ -60,8 +60,8 @@ namespace tik4net.Objects
         /// <c>"!debug"</c> is <c>Not("debug")</c>. A bare <c>"!"</c> stays text.
         /// </summary>
         public static implicit operator TikNegatableValue<T>(T value)
-            => value is string text && text.Length > 1 && text[0] == '!'
-                ? new TikNegatableValue<T>((T)(object)text.Substring(1), negated: true)
+            => value is string text && TikNegation.TrySplit(text, out string rest)
+                ? new TikNegatableValue<T>((T)(object)rest, negated: true)
                 : new TikNegatableValue<T>(value, negated: false);
 
         /// <summary>True when <paramref name="a"/> is the member <paramref name="b"/> spells — <c>"!debug"</c> is the negation.</summary>
@@ -106,7 +106,7 @@ namespace tik4net.Objects
              : throw new ArgumentException("Not a " + nameof(TikNegatableValue<T>) + "<" + typeof(T).Name + ">.", nameof(obj));
 
         /// <summary>The member spelled the way the router prints it, with its <c>!</c>: <c>!ack</c>, <c>debug</c>.</summary>
-        public override string ToString() => (_negated ? "!" : "") + TikWireText.Format(_value);
+        public override string ToString() => (_negated ? TikNegation.Bang : "") + TikWireText.Format(_value);
 
         bool ITikNegatableValue.IsNegated => _negated;
         object? ITikNegatableValue.BoxedValue => _value;

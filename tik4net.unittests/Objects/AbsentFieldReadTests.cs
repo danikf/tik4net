@@ -1,7 +1,5 @@
-// AbsentFieldReadTests.cs — a field the row does not carry reads null where the property can say so.
-//
-// A `string?` with no declared default used to read "" for a field the router did not print: a field another
-// RouterOS version lacks, or one a CLI print leaves out — indistinguishable from a field the router printed empty.
+// AbsentFieldReadTests.cs — a field the row does not carry reads Absent: a field another RouterOS version lacks, or one a
+// CLI print leaves out, distinguishable from a field the router printed empty.
 
 #nullable enable
 
@@ -20,30 +18,14 @@ namespace tik4net.unittests.Objects
         public string? Id { get; private set; }
 
         [TikProperty("plain")]
-        public string? Plain { get; set; }
+        public TikField<string?> Plain { get; set; }
 
         [TikProperty("with-default", DefaultValue = "main")]
-        public string? WithDefault { get; set; }
+        public TikField<string?> WithDefault { get; set; }
 
         [TikProperty("number")]
-        public int? Number { get; set; }
-
-        [TikProperty("counter")]
-        public long Counter { get; set; }
+        public TikField<int?> Number { get; set; }
     }
-
-#nullable disable
-    // An entity compiled without nullable annotations cannot say "may be null", so it keeps the old reading.
-    [TikEntity("/test/absent-oblivious")]
-    public class AbsentFieldObliviousEntity
-    {
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
-
-        [TikProperty("plain")]
-        public string Plain { get; set; }
-    }
-#nullable enable
 
     [TestClass]
     public class AbsentFieldReadTests
@@ -59,38 +41,26 @@ namespace tik4net.unittests.Objects
                 .LoadAll<AbsentFieldEntity>().Single();
 
         [TestMethod]
-        public void AnAbsentNullableString_ReadsNull()
-            => Assert.IsNull(ReadRowWithOnlyAnId().Plain);
+        public void AnAbsentString_ReadsAbsent()
+            => Assert.AreEqual(TikFieldState.Absent, ReadRowWithOnlyAnId().Plain.State);
 
         [TestMethod]
-        public void AnEmptyString_IsStillAValue()
+        public void AnEmptyString_IsAValue()
         {
             var row = Router("/test/absent/print", new Dictionary<string, string> { [".id"] = "*1", ["plain"] = "" })
                 .LoadAll<AbsentFieldEntity>().Single();
 
-            Assert.AreEqual("", row.Plain);
+            Assert.AreEqual(TikFieldState.Present, row.Plain.State);
+            Assert.AreEqual("", row.Plain.Value);
         }
 
         [TestMethod]
-        public void AnAbsentStringWithADeclaredDefault_StillReadsTheDefault()
-            => Assert.AreEqual("main", ReadRowWithOnlyAnId().WithDefault);
+        public void AnAbsentStringWithADeclaredDefault_ReadsAbsent_TheDefaultIsDocumentation()
+            => Assert.AreEqual(TikFieldState.Absent, ReadRowWithOnlyAnId().WithDefault.State);
 
         [TestMethod]
-        public void AnAbsentNullableNumber_ReadsNull_AsBefore()
-            => Assert.IsNull(ReadRowWithOnlyAnId().Number);
-
-        [TestMethod]
-        public void AnAbsentNonNullableNumber_StillReadsItsClrDefault()
-            => Assert.AreEqual(0L, ReadRowWithOnlyAnId().Counter);
-
-        [TestMethod]
-        public void AnObliviousString_KeepsReadingEmpty()
-        {
-            var row = Router("/test/absent-oblivious/print", new Dictionary<string, string> { [".id"] = "*1" })
-                .LoadAll<AbsentFieldObliviousEntity>().Single();
-
-            Assert.AreEqual("", row.Plain);
-        }
+        public void AnAbsentNumber_ReadsAbsent()
+            => Assert.AreEqual(TikFieldState.Absent, ReadRowWithOnlyAnId().Number.State);
 
         [TestMethod]
         public void ALoadedEntityWithAnAbsentString_SavesOnlyWhatChanged()
@@ -108,8 +78,6 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void ANeverLoadedEntity_DoesNotSendAStringNobodySet()
         {
-            // It used to go out as `=plain=` (empty): the unset string?'s default was "", and an update of an
-            // entity with no snapshot sends every non-null value — which cleared the field on the router.
             var connection = Router("/test/absent/print", new Dictionary<string, string> { [".id"] = "*1" });
 
             connection.Save(new AbsentFieldEntityWithId("*1") { Number = 5 });
@@ -128,10 +96,10 @@ namespace tik4net.unittests.Objects
             public string? Id { get; private set; }
 
             [TikProperty("plain")]
-            public string? Plain { get; set; }
+            public TikField<string?> Plain { get; set; }
 
             [TikProperty("number")]
-            public int? Number { get; set; }
+            public TikField<int?> Number { get; set; }
         }
     }
 }

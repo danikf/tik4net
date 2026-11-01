@@ -2,19 +2,11 @@ namespace tik4net
 {
     /// <summary>
     /// What a <see cref="TikDuration"/> / <see cref="TikDataRate"/> is actually holding — a value, one of
-    /// the words RouterOS uses in place of one, or text the type could not read.
+    /// the words RouterOS uses in place of one, or a word only the caller vouches for.
     /// </summary>
     /// <remarks>
-    /// The last two are separate states because conflating them costs twice. A caller would have no way to
-    /// ask "is this field turned off?" except by comparing the raw word, and — worse — <b>a gap in our own
-    /// parsing would be invisible</b>: unreadable text would become a token, round-trip through
-    /// <see cref="object.ToString"/> perfectly, and nobody would learn the type had failed to read it.
-    /// <para>
-    /// <see cref="Special"/> is a word the library recognises as a real router state.
-    /// <see cref="Unknown"/> is the honest fallback — the value survives verbatim, so nothing is lost and
-    /// the entity still loads, but it also raises a <c>value.token</c> note on
-    /// <see cref="Diagnostics.TikWireTrace"/> so the gap can be found instead of guessed at.
-    /// </para>
+    /// <see cref="Special"/> is a word the library recognises as a real router state. <see cref="Unknown"/> is a word
+    /// the caller passed to <c>FromToken</c>; <c>Parse</c> refuses such a word, so a read never makes one.
     /// </remarks>
     public enum TikValueKind
     {
@@ -31,9 +23,8 @@ namespace tik4net
         Special = 2,
 
         /// <summary>
-        /// Text the type could not read and does not recognise as a router word. Kept verbatim in
-        /// <c>Token</c> and written back unchanged, so the round trip is safe — but this is a gap in the
-        /// library, not a state of the router, and it is traced as one.
+        /// A word the library does not recognise, given to <c>FromToken</c>. Kept verbatim in <c>Token</c> and written
+        /// as it is.
         /// </summary>
         Unknown = 3,
     }

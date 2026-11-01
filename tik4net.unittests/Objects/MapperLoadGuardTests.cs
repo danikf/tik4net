@@ -22,7 +22,7 @@ namespace tik4net.unittests.Objects
             public string Id { get; set; }
 
             [TikProperty("name")]
-            public string Name { get; set; }
+            public TikField<string> Name { get; set; }
         }
 
         private static GuardRow Row(string id, string name) => new GuardRow { Id = id, Name = name };

@@ -31,20 +31,33 @@ namespace tik4net.Objects
         }
 
         private static TikValue<TItem> ParseItem<TItem>(string word, TikWireConverter item)
+            => TryParseItem(word, item, out TItem value, out _) ? value : TikValue<TItem>.FromWire(word);
+
+        /// <summary>
+        /// The item <paramref name="word"/> spells. False when the type cannot hold it, with the reason when there is one:
+        /// the empty word on a type with no empty value, a bare <c>!</c> on a list whose members carry their own (the
+        /// router's whole-list negation, not a member), a word the type does not read.
+        /// </summary>
+        internal static bool TryParseItem<TItem>(string word, TikWireConverter item, out TItem value, out FormatException? failure)
         {
-            object? value;
-            string? unknownWord;
+            value = default!;
+            failure = null;
+            if (word == TikNegation.Bang && TikNegatableValue.IsNegatableValue(typeof(TItem)))
+                return false;
+            object? parsed;
             try
             {
-                value = item.ConvertFromString(word, out unknownWord);
+                parsed = item.ConvertFromString(word);
             }
-            catch (FormatException)
+            catch (FormatException e)
             {
-                return TikValue<TItem>.FromWire(word);
+                failure = e;
+                return false;
             }
-            if (unknownWord != null || value == null)
-                return TikValue<TItem>.FromWire(word);
-            return (TItem)value;
+            if (parsed == null)
+                return false;
+            value = (TItem)parsed;
+            return true;
         }
 
         /// <summary>
@@ -56,9 +69,9 @@ namespace tik4net.Objects
             bool plain = false, negated = false;
             foreach (string element in text.Split(','))
             {
-                if (element.Length == 0 || element == "!")
+                if (element.Length == 0 || element == TikNegation.Bang)
                     continue;
-                if (element[0] == '!')
+                if (TikNegation.TrySplit(element, out _))
                     negated = true;
                 else
                     plain = true;

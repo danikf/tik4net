@@ -37,16 +37,16 @@ namespace tik4net.unittests.Objects
             public string Id { get; private set; }
 
             [TikProperty("name")]
-            public string Name { get; set; }
+            public TikField<string> Name { get; set; }
 
             [TikProperty("port")]
-            public int Port { get; set; }
+            public TikField<int?> Port { get; set; }
 
             [TikProperty("enabled", DefaultValue = "yes")]
-            public bool? Enabled { get; set; }
+            public TikField<bool?> Enabled { get; set; }
 
             [TikProperty("read-only-counter", IsReadOnly = true)]
-            public long Packets { get; private set; }
+            public TikField<long?> Packets { get; private set; }
         }
 
         private static TikEntityPropertyAccessor Accessor(string propertyName)
@@ -96,10 +96,10 @@ namespace tik4net.unittests.Objects
             Accessor("Packets").SetEntityValue(entity, "4294967296");
 
             Assert.AreEqual("*1A", entity.Id);
-            Assert.AreEqual("ether1", entity.Name);
-            Assert.AreEqual(8291, entity.Port);
-            Assert.AreEqual(false, entity.Enabled);
-            Assert.AreEqual(4294967296L, entity.Packets);
+            Assert.AreEqual("ether1", entity.Name.Value);
+            Assert.AreEqual(8291, entity.Port.Value);
+            Assert.AreEqual(false, entity.Enabled.Value);
+            Assert.AreEqual(4294967296L, entity.Packets.Value);
         }
 
         [TestMethod]
@@ -113,16 +113,14 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void ANullOnANullablePropertySurvivesTheCompiledSetter()
+        public void ANullSurvivesTheCompiledSetter()
         {
             var entity = new AccessorEntity { Enabled = true };
 
-            // The router did not report the field at all. That has to reach the property as null — a compiled
-            // setter that boxed it into `default(bool)` would turn "nothing was said" into an explicit "no",
-            // which is the conflation bool? removed.
+            // The router did not report the field at all. That has to reach the property as Absent.
             Accessor("Enabled").SetEntityValue(entity, null);
 
-            Assert.IsNull(entity.Enabled);
+            Assert.AreEqual(TikFieldState.Absent, entity.Enabled.State);
             Assert.IsNull(Accessor("Enabled").GetEntityValue(entity));
         }
 
@@ -141,7 +139,7 @@ namespace tik4net.unittests.Objects
         internal class DerivedEntity : BaseEntity
         {
             [TikProperty("name")]
-            public string Name { get; set; }
+            public TikField<string> Name { get; set; }
         }
 
         [TestMethod]
@@ -157,7 +155,7 @@ namespace tik4net.unittests.Objects
                 property.SetEntityValue(entity, "x");
 
             Assert.AreEqual("x", entity.Id);
-            Assert.AreEqual("x", entity.Name);
+            Assert.AreEqual("x", entity.Name.Value);
             Assert.IsTrue(metadata.Properties.All(p => p.UsesCompiledAccessors));
         }
     }

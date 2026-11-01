@@ -192,9 +192,8 @@ printed the field (`Absent`), what it printed (`Present`), or a word `T` cannot 
 
 Important conventions:
 - **The value type is always nullable** (`TikField<int?>`, never `TikField<int>` — the mapper refuses it), and
-  that is the whole add-path story: **an add sends exactly what the caller assigned.** No `IsMandatory`, no
-  `UnsetOnDefault` on a `TikField` property (both refused at metadata build); assigning `null` unsets a field on
-  update. There is no longer a "fresh entity sends its CLR default" trap to design around.
+  that is the whole add-path story: **an add sends exactly what the caller assigned.** No `IsMandatory` on a
+  `TikField` property (refused at metadata build); assigning `null` unsets a field on update. There is no longer a "fresh entity sends its CLR default" trap to design around.
 - **`DefaultValue` is documentation of the ROUTER's default**, in its wire spelling — `"no"`/`"yes"` for a bool,
   never `"false"`/`"true"` (`EntityDefaultValueConventionTests` checks the spelling). It does not act at run time.
   Take it from the router, not the wiki: `EntityJgCatalogProbe` compares it with the WinBox catalog `def`, and a
@@ -215,9 +214,8 @@ Important conventions:
 ### Enums
 
 When a field has a fixed value set, declare a nested enum decorated with `[TikEnum("wire-value")]` and a
-`TikField<TheEnum?>` property; `<seealso cref="...">` the enum from the property. **No `[TikEnumUnknown]` member**
-— a word the enum does not know reads `Unparsed`, the rest of the row and menu still read, and
-`TolerantEnumReadTests` fails when a built-in enum carries one. Pattern (copy from `InterfaceVlan.Arp` or
+`TikField<TheEnum?>` property; `<seealso cref="...">` the enum from the property. A word the enum does not know reads
+`Unparsed`, and the rest of the row and menu still read. Pattern (copy from `InterfaceVlan.Arp` or
 `FirewallFilter.ActionType`):
 
 ```csharp
@@ -344,7 +342,7 @@ public static class FooConnectionExtensions
 
 Add a `ToString()` when there's an obvious human-readable identity (name, address, host→value). Keep it
 short and null-safe. Skip it for entities with no natural single-line summary. Example (`ToolPing`):
-`return string.Format("{0} ....... {1}", Host, TikTimeHelper.FromTikTimeToSeconds(Time));`
+`return string.Format("{0} ....... {1}", Host, Time);`
 
 ## Step 9 — Write the file and validate
 

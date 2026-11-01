@@ -87,7 +87,7 @@ namespace tik4net.integrationtests
                 foreach (var entity in entities)
                 {
                     var metadata = Metadata(entity.Type);
-                    var withDefault = metadata.Properties.Where(p => p.DefaultValue != null).ToList();
+                    var withDefault = metadata.Properties.Where(p => Declared(entity.Type, p) != null).ToList();
                     if (withDefault.Count == 0)
                         continue;
                     nEntities++;
@@ -113,9 +113,10 @@ namespace tik4net.integrationtests
                         var names = new[] { p.FieldName }.Concat(p.AlternateNames).ToArray();
                         var printing = rows.Where(r => names.Any(r.ContainsKey)).ToList();
                         var silent = rows.Where(r => !names.Any(r.ContainsKey)).ToList();
-                        int sameAsDefault = printing.Count(r => names.Where(r.ContainsKey).Select(n => r[n]).First() == p.DefaultValue);
-                        string line = $"{label} {p.FieldName}{(p.IsReadOnly ? " [ro]" : "")} default={Quote(p.DefaultValue)}: "
-                            + $"printed {printing.Count}/{rows.Count}, ={Quote(p.DefaultValue)} on {sameAsDefault}";
+                        string declared = Declared(entity.Type, p);
+                        int sameAsDefault = printing.Count(r => names.Where(r.ContainsKey).Select(n => r[n]).First() == declared);
+                        string line = $"{label} {p.FieldName}{(p.IsReadOnly ? " [ro]" : "")} default={Quote(declared)}: "
+                            + $"printed {printing.Count}/{rows.Count}, ={Quote(declared)} on {sameAsDefault}";
 
                         if (silent.Count == 0)
                         {
@@ -206,6 +207,9 @@ namespace tik4net.integrationtests
         private static TikEntityMetadata Metadata(Type type)
             => (TikEntityMetadata)typeof(TikEntityMetadataCache).GetMethod(nameof(TikEntityMetadataCache.GetMetadata))
                 .MakeGenericMethod(type).Invoke(null, null);
+
+        private static string Declared(Type entity, TikEntityPropertyAccessor property)
+            => entity.GetProperty(property.PropertyName)?.GetCustomAttribute<TikPropertyAttribute>()?.DefaultValue;
 
         private static string Quote(string value) => "\"" + value + "\"";
 

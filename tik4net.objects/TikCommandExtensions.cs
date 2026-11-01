@@ -263,17 +263,13 @@ namespace tik4net.Objects
                         TikEntityNotes.NamesRead.Record(entity, property.FieldName, nameRead);
                     return sentence.GetResponseField(nameRead);
                 }
-                // None of the names: the same outcome as a missing FieldName below (throw when mandatory,
-                // the default otherwise).
+                // None of the names: the same outcome as a missing FieldName below.
             }
 
-            //Read field value (or get default value)
-            if (property.IsMandatory)
-                return sentence.GetResponseField(property.FieldName);
-            else
-                // A nullable property with no declared default has DefaultValue == null, meaning
-                // "absent field stays unset" — which the sentence API now says in its signature.
-                return sentence.GetResponseFieldOrDefault(property.FieldName, property.DefaultValue);
+            // The .id throws when the row lacks it; any other field the row lacks reads Absent.
+            return property.IsMandatory
+                ? sentence.GetResponseField(property.FieldName)
+                : sentence.GetResponseFieldOrDefault(property.FieldName, null);
         }
     }
 }

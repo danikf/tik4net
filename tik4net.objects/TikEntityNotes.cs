@@ -20,12 +20,6 @@ namespace tik4net.Objects
         /// </summary>
         public static readonly TikEntityNotes NamesRead = new TikEntityNotes();
 
-        /// <summary>
-        /// The word a field was printed with when its enum did not know it and it read as the
-        /// <see cref="TikEnumUnknownAttribute"/> member — returned to the caller, and written back unchanged.
-        /// </summary>
-        public static readonly TikEntityNotes UnknownWords = new TikEntityNotes();
-
         private readonly ConditionalWeakTable<object, Dictionary<string, string>> _byEntity
             = new ConditionalWeakTable<object, Dictionary<string, string>>();
 
@@ -36,14 +30,6 @@ namespace tik4net.Objects
             var notes = _byEntity.GetOrCreateValue(entity);
             lock (notes)
                 notes[fieldName] = note;
-        }
-
-        public void Forget(object entity, string fieldName)
-        {
-            if (!_byEntity.TryGetValue(entity, out var notes))
-                return;
-            lock (notes)
-                notes.Remove(fieldName);
         }
 
         public string? Get(object entity, string fieldName)

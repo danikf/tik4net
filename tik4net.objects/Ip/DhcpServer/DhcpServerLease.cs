@@ -130,7 +130,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// expires-after: Time until lease expires
         /// </summary>
         [TikProperty("expires-after", IsReadOnly = true, WinboxLabel = "Expires After")]
-        public TikField<TimeSpan?> ExpiresAfter { get; private set; }
+        public TikField<TikDuration?> ExpiresAfter { get; private set; }
 
         /// <summary>
         /// host-name: Shows host name option from last received DHCP request

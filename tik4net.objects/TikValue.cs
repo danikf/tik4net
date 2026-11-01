@@ -133,7 +133,7 @@ namespace tik4net.Objects
         /// carry their own <c>!</c>, a bare leading element (<c>tcp-flags=!,syn,!ack</c>) — <c>!syn</c> would read as one
         /// negated member; else a <c>!</c> in front of the value (<c>!10.0.0.0/8</c>, <c>dst-port=!22,8291</c>).
         /// </summary>
-        internal static string Negation<T>(T value) => value is ITikValueList list && list.MembersNegatable ? "!," : "!";
+        internal static string Negation<T>(T value) => TikNegation.WholeListPrefix(value is ITikValueList list && list.MembersNegatable);
 
         [UnconditionalSuppressMessage("Trimming", "IL2026",
             Justification = "An enum TikValue<T> holds a value only through the O/R mapper, which carries the same warning.")]
@@ -144,10 +144,7 @@ namespace tik4net.Objects
             object boxed = value;
             Type type = boxed.GetType();
             if (type.IsEnum)
-            {
-                var metadata = TikEnumMetadata.Get(type);
-                return metadata.IsFlags ? metadata.FormatFlags(boxed) : metadata.Format(boxed);
-            }
+                return TikEnumMetadata.Get(type).Format(boxed);
             if (boxed is bool b)
                 return b ? "true" : "false";
             if (boxed is IFormattable formattable)
