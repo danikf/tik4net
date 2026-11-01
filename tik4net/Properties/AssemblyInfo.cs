@@ -23,3 +23,6 @@ using System.Runtime.InteropServices;
 // tik4net.objects ships in the same tik4net package and shares the argument guards and LINQ helpers,
 // which are not part of the public surface.
 [assembly: InternalsVisibleTo("tik4net.objects")]
+// The fake connection throws the exception a transport throws for the same trap text, and the classifier that decides
+// it is not part of the public surface.
+[assembly: InternalsVisibleTo("tik4net.testing")]

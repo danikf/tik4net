@@ -65,7 +65,7 @@ namespace tik4net.Testing
         {
             var trap = sentences.OfType<ITikTrapSentence>().FirstOrDefault();
             if (trap != null)
-                throw new TikCommandTrapException(this, trap);
+                throw TikTrapClassifier.ToException(TikTrapClassifier.Classify(trap.Message), this, trap);
         }
 
         /// <inheritdoc/>
