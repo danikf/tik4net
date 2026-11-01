@@ -107,6 +107,10 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void AVerbTheLibraryHasNoShapeForAnswersItsValue()
         {
+            // M2 has no verb of that name, and no window maps to it.
+            var type = ResolveConnectionType();
+            if (type == TikConnectionType.WinboxNative || type == TikConnectionType.WinboxNativeMac)
+                Assert.Inconclusive("WinBox native addresses windows, and find is no window.");
             string ids = Connection.CreateCommand("/interface/find").ExecuteScalarOrDefault(null);
             StringAssert.StartsWith(ids ?? "(none)", "*");
         }

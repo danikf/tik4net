@@ -59,8 +59,9 @@ namespace tik4net.Cli
                 }
                 string[] cells = Split(values, separator);
                 if (cells.Length != names.Length)
-                    throw Malformed(names.Length + " field names and " + cells.Length + " values — a value holds the "
-                        + "separator '" + separator + "'; choose another CliFieldSeparator", values);
+                    throw Malformed(names.Length + " field names and " + cells.Length + " values — either the answer "
+                        + "lost bytes on the way (a retry reads it whole), or a value holds the separator '" + separator
+                        + "' (choose another CliFieldSeparator)", values);
 
                 var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 for (int k = 0; k < names.Length; k++)

@@ -1315,8 +1315,10 @@ the two apart: such a value reads as the refusal.
 The as-value parser has no quoting: `comment="a;b` comes back as `comment="a;b;name=x`, with no closing quote and no
 escape (7.25, 7.21.5, 6.49.21). A `"` is an ordinary character there.
 
-`bad command name find (line 1 column N)` is the only answer that says a menu cannot be windowed for want of `find`, in
-those words on all three. `expected end of command` and `syntax error` classify the same way and say nothing about it.
+A refused window does not say why. `bad command name find (line 1 column N)` is a menu with no `find`, on all three;
+`expected end of command` at the column of `from=` is a print with no `from=` on 7.21.5 and 6.49.21 (7.25 says
+`bad parameter from`); and a bad filter or `show-sensitive` answer the same way. So the read is taken in one command, and
+only that command's success records the menu as not windowable.
 
 A counted or windowed read has a positional rule of its own. Its answer always ends with the count marker,
 so an answer without one that consists of a single `(line N column M)` line is the router refusing the

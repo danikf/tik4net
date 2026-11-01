@@ -82,7 +82,7 @@ namespace tik4net.Cli
         internal async Task<IList<TikRecordSentence>?> RunPagedPrintQueryAsync(
             TikCommandDescriptor descriptor, bool wantJson,
             Func<IList<ITikCommandParameter>, string?, string> buildExpression,
-            int pageSize, CancellationToken cancellationToken)
+            int pageSize, Action onWindowRefused, CancellationToken cancellationToken)
         {
             var all = new List<TikRecordSentence>();
             int interruptions = 0;
@@ -109,16 +109,15 @@ namespace tik4net.Cli
                     offset = -pageSize;   // the loop's increment puts it back to 0
                     continue;
                 }
-                catch (TikNoSuchCommandException ex) when (offset == 0
-                    && ex.Message.IndexOf("bad command name find", StringComparison.OrdinalIgnoreCase) >= 0)
+                catch (TikNoSuchCommandException) when (offset == 0)
                 {
-                    // The menu has no 'find' (a singleton, or a command menu; 7.25, 7.21.5, 6.49.21 word it alike).
-                    // Nothing to window over, so read it in one command — and remember, so the next read of this menu
-                    // does not pay for the discovery again. Only this wording: the same exception also means
-                    // "syntax error" and "expected end of command", which say nothing about 'find'.
-                    _host.Knowledge.LearnFact(_host.Knowledge.MenuFacts.PagingUnavailable, CliRouterKnowledge.FactPagingUnavailable, descriptor.CommandText);
+                    // A menu with no 'find' ("bad command name find", 7.25, 7.21.5, 6.49.21), one whose print has no
+                    // 'from=' ("expected end of command" at its column, 7.21.5 and 6.49.21), or a bad filter: the wording
+                    // does not tell them apart. So the read is taken in one command, and only that command's success
+                    // says the window was the problem (NoteWindowRefused).
+                    onWindowRefused();
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
-                        "'" + descriptor.CommandText + "' has no 'find' verb — reading it in a single command");
+                        "the window of '" + descriptor.CommandText + "' was refused — taking it in a single command");
                     return null;
                 }
                 finally
@@ -205,6 +204,10 @@ namespace tik4net.Cli
                     return all;
             }
         }
+
+        /// <summary>The one-command read worked where the window was refused: remember, so the next read does not pay for it.</summary>
+        internal void NoteWindowRefused(TikCommandDescriptor descriptor)
+            => _host.Knowledge.LearnFact(_host.Knowledge.MenuFacts.PagingUnavailable, CliRouterKnowledge.FactPagingUnavailable, descriptor.CommandText);
 
         /// <summary>
         /// How many times one window is taken again after RouterOS interrupted it. Measured under heavy

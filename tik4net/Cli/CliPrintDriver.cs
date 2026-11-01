@@ -625,10 +625,11 @@ namespace tik4net.Cli
         {
             await EnsureDsvSupportKnownAsync(cancellationToken).ConfigureAwait(false);
 
+            bool windowRefused = false;
             if (_pagedReader.CanPage(descriptor, wantJson))
             {
                 var paged = await _pagedReader.RunPagedPrintQueryAsync(descriptor, wantJson, buildExpression,
-                    _host.CliReadPageSize, cancellationToken).ConfigureAwait(false);
+                    _host.CliReadPageSize, () => windowRefused = true, cancellationToken).ConfigureAwait(false);
                 if (paged != null)
                     return paged;
             }
@@ -636,9 +637,12 @@ namespace tik4net.Cli
             _host.CountedReadDepth++;
             try
             {
-                return await _pagedReader.RunOnePrintQueryAsync(descriptor, wantJson,
+                var rows = await _pagedReader.RunOnePrintQueryAsync(descriptor, wantJson,
                         buildExpression(descriptor.Parameters, null), cancellationToken)
                     .ConfigureAwait(false);
+                if (windowRefused)
+                    _pagedReader.NoteWindowRefused(descriptor);
+                return rows;
             }
             finally
             {

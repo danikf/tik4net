@@ -140,11 +140,12 @@ namespace tik4net.unittests.Cli
         // ── X4, X5, X6: what is learnt from a refusal ──────────────────────────
 
         [TestMethod]
-        public void OnlyAMissingFindSwitchesPagingOff()
+        public void ARefusedWindowSwitchesPagingOffOnlyIfTheOneCommandReadWorks()
         {
             int windows = 0;
             using var router = new Router(line =>
             {
+                if (line.StartsWith(":local d [")) return "expected end of command (line 1 column 40)";
                 if (!line.StartsWith(":local w [")) return "#n=0/nil";
                 windows++;
                 return "expected end of command (line 1 column 40)";
@@ -154,6 +155,20 @@ namespace tik4net.unittests.Cli
             Assert.ThrowsException<TikNoSuchCommandException>(() => router.CreateCommand("/ip/route/print").ExecuteList());
 
             Assert.AreEqual(4, windows, "the refusal said nothing about 'find', so the second read windows again (each with and without detail)");
+        }
+
+        [TestMethod]
+        public void APrintWithNoFromIsReadInOneCommand()
+        {
+            // 7.21.5 and 6.49.21 refuse from= in these words, where 7.25 says "bad parameter from".
+            using var router = new Router(line => line.StartsWith(":local w [")
+                ? "expected end of command (line 1 column 121)"
+                : ".id=*1;name=a\r\n#n=1/num", pageSize: 20);
+
+            Assert.AreEqual("a", router.CreateCommand("/system/script/print").ExecuteList().Single().GetResponseField("name"));
+            router.Sent.Clear();
+            router.CreateCommand("/system/script/print").ExecuteList();
+            Assert.IsFalse(router.Sent.Any(l => l.StartsWith(":local w [")), "remembered");
         }
 
         [TestMethod]

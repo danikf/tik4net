@@ -285,6 +285,9 @@ namespace tik4net
         /// <see cref="TikCancellationMode.AbandonAndClose"/> it comes at the deadline and the connection is closed. A
         /// custom transport without <see cref="TikConnectionCapability.AsyncCommands"/> cannot be interrupted, so there
         /// the timeout is not honoured and the call is <see cref="ExecuteList()"/>.
+        /// <para>Over REST a deadline on a command that never ends (<c>/tool/torch</c>) leaves that user and source address with no
+        /// answer from the router for about a minute, new connections included: it is the router's session, not the client's.
+        /// Give such a command a <c>duration</c> where the next request cannot wait.</para>
         /// </remarks>
         /// <param name="timeout">
         /// Optional safety timeout. If the command has not ended within this period it is cancelled and
