@@ -341,7 +341,9 @@ via the M2 monitor window), so a test asserting *when* rows arrive has to branch
 **An unfinished command keeps the router's REST session busy, and aborting the socket does not free it.**
 Measured: a `count=30` ping abandoned by the client at 5 s left every further REST request timing out for
 the remaining ~23 s — including opening a *new* connection, because RouterOS reuses one session per (user,
-source address) (§5.1). Closing a tik4net REST connection therefore stops delivery to the caller, but not
+source address) (§5.1). A command with no end of its own holds it for about a minute: after an unbounded
+`/tool/torch` abandoned at 2 s (7.25, curl), nothing answers for ~58 s, one request gets `400 Session closed`,
+and the next is served. Closing a tik4net REST connection therefore stops delivery to the caller, but not
 the router's own work.
 
 ### 12.2 The bound is per verb, and one of them is not one second

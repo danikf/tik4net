@@ -581,7 +581,9 @@ Measured effect on the Safe Mode rollback case from §17:
 A session left idle for the ~30 s RouterOS uses as its own idle-logout threshold for a MAC console still
 loses the session — that is the router's own contract (confirmed symmetrically: `MacTelnet`, which has
 had the pump from the start, wedges at 30 s the same way) — and is handled by the reopen + retry from
-§16, not by servicing.
+§16, not by servicing. The caller's next command costs ~4–4.6 s on all three MAC transports, and that does not
+grow with the idle (`Probe_IdleSession_HowLongBeforeItWedges` on 7.25: 60, 300 and 1800 s alike; 5 s stays at
+3–33 ms).
 
 ---
 
