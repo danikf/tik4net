@@ -8,15 +8,13 @@ namespace tik4net.Cli
     /// know the shell prompt when it comes. Fed the ANSI-stripped text accumulated since the last Ctrl-C.
     /// </summary>
     /// <remarks>
-    /// <para>MAC-Telnet and the WinBox CLI each had a loop of their own, and they answered differently (review D2):
-    /// MAC-Telnet sent one Ctrl-C and then waited out the login timeout on a nag that came back, the WinBox CLI sent
-    /// three and never looked for a refusal, so a refused login waited out the timeout too.</para>
-    /// <para>The refusal is recognised by its text, <c>Login failed</c>, because these two transports have no
-    /// positional signal: their authentication happened below the terminal (EC-SRP5), so there is no <c>Login:</c>
-    /// prompt for the router to re-offer. Narrowly that phrase, not <see cref="RouterOsCliLogin.IsLoginFailure"/>,
-    /// which also matches <c>login failure</c> — the wording of the router's own log lines, which the shipped logging
-    /// rules echo onto any console at any moment (findings-cli.md §11). Telnet and SSH keep their positional rule in
-    /// <see cref="RouterOsCliLogin.ResolveToPromptAsync"/>; aligning them is the CLI review's (D1).</para>
+    /// <para>Every terminal login settles here, and what differs is how a refusal shows (<see cref="RefusalRule"/>).
+    /// MAC-Telnet and the WinBox CLI recognise it by its text, <c>Login failed</c>, because they have no positional
+    /// signal: their authentication happened below the terminal (EC-SRP5), so there is no <c>Login:</c> prompt for the
+    /// router to re-offer. Narrowly that phrase, not <see cref="RouterOsCliLogin.IsLoginFailure"/>, which also matches
+    /// <c>login failure</c> — the wording of the router's own log lines, which the shipped logging rules echo onto any
+    /// console at any moment (findings-cli.md §11). Telnet has the position: credentials have been sent, so a fresh
+    /// <c>Login:</c> is the router refusing them, whatever words it used. SSH's refusal happened in the SSH layer.</para>
     /// <para>An expired password (<c>/user expire-password</c>) shows the same nag — <c>Change your password (Ctrl-C to
     /// skip)</c>, <c>new password&gt;</c> — and one Ctrl-C skips it (measured on 7.25 over MAC-Telnet and the WinBox
     /// CLI). A nag still on screen after the third Ctrl-C would be RouterOS insisting on a new password. Nothing but
@@ -29,7 +27,25 @@ namespace tik4net.Cli
         internal const int MaxNagRounds = 3;
 
         /// <summary>Ctrl-C, the one key sent into the change-password prompt.</summary>
-        internal static readonly byte[] CtrlC = { 0x03 };
+        internal static readonly byte[] CtrlC = { CliTerminalText.CtrlC };
+
+        /// <summary>How the router's refusal shows on this transport's screen.</summary>
+        internal enum RefusalRule
+        {
+            /// <summary>The line <c>Login failed</c>: an authentication below the terminal (MAC-Telnet, WinBox CLI).</summary>
+            Text,
+            /// <summary>A re-offered <c>Login:</c> prompt: credentials typed into the terminal (Telnet).</summary>
+            LoginPrompt,
+            /// <summary>None: the transport refused before the shell started (SSH, a RoMON relay's nag).</summary>
+            None,
+        }
+
+        private readonly RefusalRule _rule;
+
+        internal CliLoginScreen(RefusalRule rule = RefusalRule.Text)
+        {
+            _rule = rule;
+        }
 
         /// <summary>What the caller does next.</summary>
         internal enum Step
@@ -67,7 +83,8 @@ namespace tik4net.Cli
 
             // Checked before the prompt, and on every chunk: the refusal is the last thing the router says before it
             // stops talking, so nothing later will arrive to be examined.
-            if (IsRefusal(stripped))
+            if (_rule == RefusalRule.Text ? IsRefusal(stripped)
+                : _rule == RefusalRule.LoginPrompt && RouterOsCliLogin.IsLoginPrompt(stripped) && !RouterOsCliLogin.IsShellPrompt(stripped))
             {
                 RefusalLine = FirstLine(stripped);
                 return Step.Refused;

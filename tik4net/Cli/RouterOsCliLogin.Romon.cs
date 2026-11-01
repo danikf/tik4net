@@ -179,9 +179,8 @@ namespace tik4net.Cli
                 result = await readUntil(settled, ct).ConfigureAwait(false);
             }
 
-            int nagRounds = 0;
-            while (!IsShellPrompt(result) && !IsPasswordPrompt(result) && IsChangePasswordNag(result)
-                   && nagRounds++ < MaxNagRounds)
+            var screen = new CliLoginScreen(CliLoginScreen.RefusalRule.None);
+            while (!IsShellPrompt(result) && !IsPasswordPrompt(result) && screen.Feed(result) == CliLoginScreen.Step.SendCtrlC)
             {
                 await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);
                 result = await readUntil(settled, ct).ConfigureAwait(false);

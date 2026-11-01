@@ -155,9 +155,8 @@ namespace tik4net.Cli
         }
 
         /// <summary>Ctrl-C — used to dismiss the change-password nag.</summary>
-        private const byte CtrlC = 0x03;
+        private const byte CtrlC = CliTerminalText.CtrlC;
 
-        private const int MaxNagRounds = 3;
 
         // ── Prompt / state detection (pure, unit-testable) ─────────────────────
 
@@ -266,12 +265,12 @@ namespace tik4net.Cli
             //    have been sent by now, so a fresh "Login:" is the router restarting the dialogue — i.e.
             //    a refusal, whatever wording it used.
             await ResolveToPromptAsync(readUntil, sendBytes, ct,
-                loginPromptMeansFailure: true).ConfigureAwait(false);
+                loginPromptMeansFailure: true, transport: "Telnet").ConfigureAwait(false);
         }
 
         /// <summary>
         /// Reads until the RouterOS shell prompt appears, dismissing the "change your password" nag with
-        /// Ctrl-C (up to <see cref="MaxNagRounds"/> times). Shared by transports that authenticate
+        /// Ctrl-C (up to <see cref="CliLoginScreen.MaxNagRounds"/> times). Shared by transports that authenticate
         /// <b>before</b> the shell starts (e.g. SSH, where the transport layer does the login) and so skip
         /// the <c>Login:</c>/<c>Password:</c> exchange but still must settle the terminal to a usable prompt.
         /// Telnet/MAC-Telnet reach this as the final step of <see cref="LoginAsync"/>.
@@ -290,15 +289,17 @@ namespace tik4net.Cli
         /// router's own dialogue state rather than its choice of words, so it holds on a RouterOS whose
         /// refusal text nobody here has ever seen.
         /// </remarks>
-        /// <exception cref="TikConnectionLoginException">Credentials rejected (a re-offered <c>Login:</c>, or the
-        /// change-password nag still on screen after <see cref="MaxNagRounds"/> Ctrl-Cs: the message says the login
-        /// failed), or the shell prompt did not arrive before the read gave up at the receive deadline or the end of the
+        /// <param name="transport">The transport's name in the message of a nag that will not go away.</param>
+        /// <exception cref="TikConnectionLoginException">Credentials rejected (a re-offered <c>Login:</c>: the message says
+        /// the login failed), the change-password nag still on screen after <see cref="CliLoginScreen.MaxNagRounds"/> Ctrl-Cs (the message
+        /// says the password must be changed), or the shell prompt did not arrive before the read gave up at the receive deadline or the end of the
         /// session (the message says so, with how long the read waited and what the router had sent).</exception>
         public static async Task ResolveToPromptAsync(
             Func<Func<string, bool>, CancellationToken, Task<string>> readUntil,
             Func<byte[], CancellationToken, Task> sendBytes,
             CancellationToken ct,
-            bool loginPromptMeansFailure = false)
+            bool loginPromptMeansFailure = false,
+            string transport = "CLI")
         {
             // Deliberately NOT IsLoginFailure: after the password the screen carries the banner, and RouterOS 6
             // prints the account's unseen critical log lines under it — "login failure for user admin … via api"
@@ -311,22 +312,31 @@ namespace tik4net.Cli
             var watch = System.Diagnostics.Stopwatch.StartNew();
             string result = await readUntil(settled, ct).ConfigureAwait(false);
 
-            int nagRounds = 0;
-            while (!IsShellPrompt(result) && IsChangePasswordNag(result) && nagRounds++ < MaxNagRounds)
+            var screen = new CliLoginScreen(loginPromptMeansFailure ? CliLoginScreen.RefusalRule.LoginPrompt : CliLoginScreen.RefusalRule.None);
+            while (true)
             {
-                await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);
-                watch.Restart();
-                result = await readUntil(settled, ct).ConfigureAwait(false);
+                // The nag is judged only while the prompt is not on screen: Telnet's and SSH's reads may still hold the
+                // nag's text when the prompt arrives behind it.
+                if (IsShellPrompt(result))
+                    return;
+                switch (screen.Feed(result))
+                {
+                    case CliLoginScreen.Step.SendCtrlC:
+                        await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);
+                        watch.Restart();
+                        result = await readUntil(settled, ct).ConfigureAwait(false);
+                        continue;
+                    case CliLoginScreen.Step.NagPersists:
+                        throw CliLoginScreen.NagPersisted(transport);
+                    case CliLoginScreen.Step.Refused:
+                        throw LoginException(result);
+                    default:
+                        // A read that returns text none of its predicates accepts gave up: the receive deadline passed or
+                        // the session ended. That is not a refusal — the router may only have been slow to draw the banner —
+                        // and reporting it as "login failed" sent a diagnosis after wrong credentials.
+                        throw PromptNeverArrived(result, watch.ElapsedMilliseconds);
+                }
             }
-
-            if (IsShellPrompt(result))
-                return;
-            // A read that returns text none of its predicates accepts gave up: the receive deadline passed or the
-            // session ended. That is not a refusal — the router may only have been slow to draw the banner — and
-            // reporting it as "login failed" sent a diagnosis after wrong credentials.
-            if (!settled(result))
-                throw PromptNeverArrived(result, watch.ElapsedMilliseconds);
-            throw LoginException(result);
         }
 
         private static TikConnectionLoginException LoginException(string serverText)

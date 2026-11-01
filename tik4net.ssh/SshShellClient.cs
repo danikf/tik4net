@@ -164,7 +164,7 @@ namespace tik4net.Ssh
         /// </summary>
         internal async Task SettleAfterConnectAsync(CancellationToken ct)
         {
-            await RouterOsCliLogin.ResolveToPromptAsync(_pty.ReadUntilAsync, _pty.SendBytesAsync, ct).ConfigureAwait(false);
+            await RouterOsCliLogin.ResolveToPromptAsync(_pty.ReadUntilAsync, _pty.SendBytesAsync, ct, transport: "SSH").ConfigureAwait(false);
 
             // RouterOS performs a VT100 cursor-probe / redraw right after the shell opens and may emit the
             // prompt a second time; consume the residual so it does not leak into the first command's read.
