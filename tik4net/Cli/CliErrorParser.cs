@@ -135,6 +135,56 @@ namespace tik4net.Cli
             return false;
         }
 
+        /// <summary>A line ending in the parser's position: <c>… (line N column M)</c>.</summary>
+        internal static readonly System.Text.RegularExpressions.Regex SyntaxErrorLine =
+            new System.Text.RegularExpressions.Regex(@"\(line \d+ column \d+\)$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// The router's refusal of an argument value it cannot resolve — <c>input does not match any value of peer</c>
+        /// for the <c>as-value</c> a 6.x <c>/routing bgp advertisements print</c> takes for a peer name. A whole answer
+        /// of that one line is the router's error, not a read that lost its count.
+        /// </summary>
+        internal static readonly System.Text.RegularExpressions.Regex RefusedArgumentLine =
+            new System.Text.RegularExpressions.Regex(@"^input does not match any value of [\w-]+$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        private static System.Collections.Generic.List<string> ContentLines(string? output)
+        {
+            var lines = new System.Collections.Generic.List<string>();
+            foreach (string line in (output ?? string.Empty).Split((char)10))
+                if (line.Trim().Length > 0)
+                    lines.Add(line.Trim());
+            return lines;
+        }
+
+        /// <summary>True when the whole answer is one parse error: <c>… (line N column M)</c>.</summary>
+        internal static bool IsSyntaxErrorOnly(string? output)
+        {
+            var lines = ContentLines(output);
+            return lines.Count == 1 && SyntaxErrorLine.IsMatch(lines[0]);
+        }
+
+        /// <summary>
+        /// Throws the router's own complaint when a read's whole answer is one parse error — a line ending in
+        /// <c>(line N column M)</c>, such as <c>expected yes or no (line 1 column 62)</c> for a boolean compared
+        /// with <c>true</c>, or the refusal of an argument value, such as <c>input does not match any value of peer</c>.
+        /// None of the phrases this class knows covers them, so without this the read reported "the
+        /// answer is incomplete", and a window at offset 0 switched paging off for the path.
+        /// </summary>
+        /// <remarks>
+        /// Called where the answer is already known to lack its closing marker, so a record whose text
+        /// happens to end the same way cannot be taken for an error: a real answer always ends with the marker.
+        /// The one other caller is the raw text path, which has no marker: there a one-line answer of that shape is
+        /// taken for the refusal it almost always is.
+        /// </remarks>
+        internal static void ThrowIfSyntaxError(string? output, ITikCommand cmd)
+        {
+            var lines = ContentLines(output);
+            if (lines.Count == 1 && (SyntaxErrorLine.IsMatch(lines[0]) || RefusedArgumentLine.IsMatch(lines[0])))
+                throw new TikCommandTrapException(cmd, new TikTrapSentenceResult(lines[0]));
+        }
+
         /// <summary>
         /// Extracts the first non-blank line from <paramref name="output"/> to use as the error message.
         /// </summary>

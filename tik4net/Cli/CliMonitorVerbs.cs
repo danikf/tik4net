@@ -35,7 +35,7 @@ namespace tik4net.Cli
     ///   <item><c>proplist=…</c> fixes the field set — the default columns omit <c>tx-packets</c>/
     ///         <c>rx-packets</c> — see <see cref="CliCommandBuilder.TorchFields"/>. RouterOS still reorders the
     ///         response to its own canonical order regardless of the requested order, so
-    ///         <see cref="CliOutputParser.ParseTorchFrame"/> reads the actual order back from each frame's own
+    ///         <see cref="CliTorchParser.ParseTorchFrame"/> reads the actual order back from each frame's own
     ///         <c>Columns:</c> declaration.</item>
     ///   <item><c>freeze-frame-interval=N</c> makes torch APPEND a new, terminated <c>Columns:</c>/data block
     ///         every N seconds instead of redrawing the previous one in place over VT100 — turning the output
@@ -44,7 +44,7 @@ namespace tik4net.Cli
     ///         before the command self-terminates (a single interval is not enough).</item>
     /// </list>
     /// The one remaining wrinkle — a resolved <c>DST-PORT</c>/<c>SRC-PORT</c> value can embed a space
-    /// (<c>"23 (telnet)"</c>) — is handled by <see cref="CliOutputParser.ParseTorchFrame"/> consuming the
+    /// (<c>"23 (telnet)"</c>) — is handled by <see cref="CliTorchParser.ParseTorchFrame"/> consuming the
     /// parenthesised annotation as an extra (discarded) token rather than by whitespace-splitting alone.
     /// <see cref="Kind.FreezeFrame"/> flags <c>torch</c> for this dedicated builder/parser pair (see
     /// <see cref="CliMonitorDriver"/>'s <c>TorchFreezeFrameLoop</c>).</para>

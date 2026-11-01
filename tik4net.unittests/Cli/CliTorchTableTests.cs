@@ -37,7 +37,7 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void AFlowRow_ReadsAsTheApiSpellsIt()
         {
-            var rows = CliOutputParser.ParseTorchTable(Frames(FlowFrame));
+            var rows = CliTorchParser.ParseTorchTable(Frames(FlowFrame));
 
             Assert.AreEqual(6, rows.Count);
             var winbox = Row(rows[1]);
@@ -55,7 +55,7 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void TheTotalsRow_HasOnlyTheCounters_AsOverTheApi()
         {
-            var totals = Row(CliOutputParser.ParseTorchTable(Frames(FlowFrame)).Last());
+            var totals = Row(CliTorchParser.ParseTorchTable(Frames(FlowFrame)).Last());
 
             CollectionAssert.AreEquivalent(new[] { "tx", "rx", "tx-packets", "rx-packets" }, totals.Keys.ToList());
             Assert.AreEqual("7200", totals["tx"]);
@@ -66,7 +66,7 @@ namespace tik4net.unittests.Cli
         public void InterfaceAlone_PrintsTheTotalsOnly()
         {
             // 6.49.13, 'interface=ether1' and nothing else: the API answers the same four counters.
-            var rows = CliOutputParser.ParseTorchTable(Frames(new[]
+            var rows = CliTorchParser.ParseTorchTable(Frames(new[]
             {
                 "        TX         RX TX-PACKETS RX-PACKETS",
                 "   7.2kbps    4.4kbps          2          5",
@@ -81,7 +81,7 @@ namespace tik4net.unittests.Cli
         public void OnlyTheLastFrameIsRead()
         {
             var older = new[] { "        TX         RX TX-PACKETS RX-PACKETS", "      0bps       0bps          0          0" };
-            var rows = CliOutputParser.ParseTorchTable(Frames(older, FlowFrame));
+            var rows = CliTorchParser.ParseTorchTable(Frames(older, FlowFrame));
 
             Assert.AreEqual(6, rows.Count);
         }

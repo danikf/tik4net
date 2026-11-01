@@ -148,7 +148,7 @@ namespace tik4net.Cli
                         continue;
                     }
                     incompleteInARow = 0;
-                    if (!plain && CliConnectionBase.IsSyntaxErrorOnly(output))
+                    if (!plain && CliErrorParser.IsSyntaxErrorOnly(output))
                     {
                         // RouterOS 6's torch has no proplist= (6.49.13: "expected end of command (line 1 column 71)",
                         // the column proplist starts on). Its plain table carries the columns the caller's arguments
@@ -167,7 +167,7 @@ namespace tik4net.Cli
                     }
                     CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
                     PollingMonitorEngine.Emit(
-                        plain ? CliOutputParser.ParseTorchTable(output) : CliOutputParser.ParseTorchFrame(output), handle, onRow);
+                        plain ? CliTorchParser.ParseTorchTable(output) : CliTorchParser.ParseTorchFrame(output), handle, onRow);
                 }
             });
     }

@@ -597,7 +597,7 @@ namespace tik4net.Cli
         /// per-row section/time-slice index is not exposed as a torch proplist field). The order listed here
         /// is NOT preserved in the response — confirmed live that RouterOS reorders columns to its own
         /// canonical order (<c>ip-protocol</c> first) regardless of the requested <c>proplist</c> order, so
-        /// <see cref="CliOutputParser.ParseTorchFrame"/> reads the actual order back from each frame's own
+        /// <see cref="CliTorchParser.ParseTorchFrame"/> reads the actual order back from each frame's own
         /// <c>Columns:</c> declaration rather than assuming it matches this list.
         /// </summary>
         internal static readonly string[] TorchFields =
@@ -619,7 +619,7 @@ namespace tik4net.Cli
         /// <c>proplist</c> are owned by this builder.</param>
         /// <param name="freezeFrameSeconds">The frame interval; the duration is twice it.</param>
         /// <param name="withProplist"><c>false</c> on a router whose torch has no <c>proplist=</c> (RouterOS 6.49.13 refuses
-        /// it: "expected end of command"); it then prints its plain table, read by <see cref="CliOutputParser.ParseTorchTable"/>.</param>
+        /// it: "expected end of command"); it then prints its plain table, read by <see cref="CliTorchParser.ParseTorchTable"/>.</param>
         internal static string BuildTorchSnapshot(string apiPath, IList<ITikCommandParameter> parameters, int freezeFrameSeconds,
             bool withProplist = true)
         {

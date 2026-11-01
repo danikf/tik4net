@@ -75,7 +75,7 @@ namespace tik4net.Cli
             IList<TikRecordSentence> flagRecords = await _host.RunPrintQueryAsync(descriptor, false,
                 (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from, proplist),
                 cancellationToken).ConfigureAwait(false);
-            return CliConnectionBase.MergeById(records, flagRecords);
+            return CliPrintDriver.MergeById(records, flagRecords);
         }
 
         /// <summary>
