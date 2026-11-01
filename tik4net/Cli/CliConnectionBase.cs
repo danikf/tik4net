@@ -492,8 +492,7 @@ namespace tik4net.Cli
         {
             // SetClosed FIRST, as WinboxNativeConnection.Close does and for the same reason: a command
             // running on another thread is about to lose its socket, and IsOpened is how it tells "the user
-            // closed this" from "the transport broke". Tearing down first left a window in which the failure
-            // arrived while the connection still looked open, and it was reported as a transport error.
+            // closed this" from "the transport broke", so the failure must not arrive while the connection still looks open.
             SetClosed();
             _knowledge.Store?.Flush();   // never throws, bounded by the store's lock timeout
             // A session holding Safe Mode answers the /quit question (see the clients).
@@ -645,7 +644,7 @@ namespace tik4net.Cli
                 return false;
             try
             {
-                await terminal.SendRawAndReadUntilQuietAsync(new byte[] { 0x03 }, ResyncQuietMs, CancellationToken.None)
+                await terminal.SendRawAndReadUntilQuietAsync(new[] { CliTerminalText.CtrlC }, ResyncQuietMs, CancellationToken.None)
                     .ConfigureAwait(false);
                 for (int attempt = 1; attempt <= ResyncFenceAttempts; attempt++)
                 {

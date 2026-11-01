@@ -24,7 +24,7 @@ namespace tik4net.Cli
         /// <summary>Tab — triggers the RouterOS terminal completion listing. Byte 0x09.</summary>
         private const byte Tab = 0x09;
         /// <summary>Ctrl-C — aborts the current input line (leaving a fresh prompt). Byte 0x03.</summary>
-        private const byte CtrlC = 0x03;
+        private const byte CtrlC = CliTerminalText.CtrlC;
         /// <summary>The least silence (no new bytes) that marks a completion listing as fully arrived (ms).</summary>
         private const int CompletionSettleQuietMs = 300;
 

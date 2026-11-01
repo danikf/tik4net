@@ -584,6 +584,24 @@ form only appears in human-readable `print detail` and is never used for parsing
 
 ---
 
+### `detail` on a generic print
+
+A plain print is the summary columns. The API prints every field, so a table read asks for `detail`, whoever built the
+command. What a menu with no such word answers depends on the version:
+
+| Menu | 7.x | 6.49.21 |
+|---|---|---|
+| a singleton (`/system/identity`, `/ip/dns`, `/snmp`) | `bad parameter detail (line 1 column N)` | `expected end of command (line 1 column N)` |
+| `/routing/bgp/advertisements` | | `input does not match any value of peer` |
+
+Those are the only refusals in a sweep of the 171 entity menus on 6.49.21: 108 answered; 44 said `expected end of command`, the singletons and
+the paths that name a command; 18 are menus that router does not have (`bad command name`), and one is the BGP row above.
+So the wording is not relied on: a parse refusal is tried again without the word, and only that form's success says
+it was the word. A bad filter fails both forms and reaches the caller. Remembered per menu and build. On `/interface`,
+`detail` takes the answer from 414 to 693 characters on 7.25, 311 to 639 on 7.21.5 and 169 to 331 on 6.49.21.
+
+`/user/ssh-keys` prints its `key` only with `detail`; `show-sensitive` is refused there.
+
 ## 2. Quoting and escaping — `where` clauses and `name=value` arguments
 
 ### A filter on a field the menu does not have can match every row
@@ -1115,29 +1133,68 @@ normally repaint the screen until interrupted, which a request/response CLI tran
 the prompt: `once` is the default, but `ping` and `traceroute` have no `once` form and take `count=1`
 instead (traceroute confirmed live: `:put […count=1 once as-value]` → `bad parameter once (line 1
 column 54)`; the same command without `once` returns its hop rows), and `profile` takes `duration=1`
-(it rejects `once` with "expected end of command"). `torch` is the outlier described in §1 — it never
-reaches this modifier at all.
+(it rejects `once` with "expected end of command"). `torch` is the outlier described below.
+
+### A read method runs each verb in its own shape
+
+`CliVerbs.ReadShapeOf` decides. Only a table (`print`) takes a `where`; every other shape takes all parameters as
+inputs, including the Filter-format ones the read path rewrites them to.
+
+| Shape | Verbs | Sent |
+|---|---|---|
+| table | `print`, `getall` | counted `print detail as-value where …` |
+| get | `get` | `:put [/path get number=*N value-name=x]` |
+| monitor | `monitor`, `monitor-traffic`, `profile`, `discover` | `:put [/path inputs once as-value]`, the plain table where as-value is refused |
+| self-terminating monitor | `ping`, `traceroute` | `/path inputs count=1`, the bare table |
+| torch | `torch` | one freeze-frame |
+| empty-row action | `wol` | `/path inputs` |
+| argument read | `inspect` | counted DSV, or `:put [/path inputs as-value]` |
+| row write | `set`, `remove`, `enable`, `disable`, `move`, `unset`, `comment` | `/path verb numbers=*N inputs` |
+| action | `run` | refused: it belongs on `ExecuteNonQuery` |
+| other | any other | `:put [/path verb inputs]` |
+
+The last row has no `as-value` because most verbs take it for their first positional argument, on all three lab
+versions (7.25, 7.21.5, 6.49.21):
+
+| Sent | Answer |
+|---|---|
+| `:put [/tool torch as-value]` | `input does not match any value of interface` |
+| `:put [/ip address find as-value]` | nothing |
+| `:put [/ip address find]` | `*2;*3` |
+| `:put [/ip address set as-value where comment=x]` | `syntax error (line 1 column 23)` |
+| `:put [/tool torch interface=ether1 as-value]` | never returns to the prompt: anything typed next is torch's keyboard input |
+
+An answer to `other` is records if it reads as `name=value;…`, otherwise one `ret` value, as the API's `=ret=`.
+
+Parameters of a scalar `print` differ on purpose: the API sends them as `=name=x`, which it refuses (`unknown parameter
+name`, 7.25), and the CLI sends them as `where name=x`. The same parameter through `ExecuteList` is a filter on both.
+
+### `/tool/torch`
+
+`freeze-frame-interval=N` with `duration=2N` flushes one frame between `-- [Q quit|D dump|C-z pause]` footers, on 7.25
+and 7.21.5 with a 1 s interval too. A refusal has neither the footer nor a `Columns:` line:
+`input does not match any value of interface`, which no phrase matches, so that absence is the test. RouterOS 6 refuses
+`proplist=` with `expected end of command (line 1 column 71)` before it looks at the interface; the plain form then says
+what is wrong.
+
+`ExecuteList` reads one frame. `ExecuteListUntilDone(timeout)` reads frames of the 2 s minimum until the deadline, so the
+abort comes at most one frame late under `Cooperative`.
 
 ### Monitor commands reached through a read method must keep their own inputs
 
 `/ping`, `/tool/traceroute`, `/interface/monitor-traffic` and `/interface/ethernet/monitor` are called
 through a **read** method (`ExecuteList`/`LoadList`) — they return rows — but their parameters are the
-command's own **inputs** (`address=`, `interface=`), not a print filter. `CliConnectionBase.RunPrint`
-recognises these verbs (`CliMonitorVerbs.IsSyncMonitorVerb`) and routes them through
-`CliCommandBuilder.BuildMonitorSnapshot(..., includeFilters: true)` instead of the ordinary print path,
-which otherwise understands only print modifiers and a `where` clause and would silently drop every
-input (`/ping =address=127.0.0.1` sent as `:put [/ping as-value]` fails with `failure: resolve failed`).
+command's own **inputs** (`address=`, `interface=`), not a print filter. The print builder understands only
+print modifiers and a `where` clause and would drop every input, so these verbs have their own shapes (above).
 `includeFilters` is needed because by the time a descriptor reaches this point,
 `TikGenericCommand.ResolveParamsForRead` has already rewritten the caller's parameters into Filter form,
-and a monitor has no query semantics of its own for that rewrite to mean anything else. The async
-monitor path (`RunMonitorAsync`) never had this gap — it always built through
-`BuildMonitorSnapshot`.
+and a monitor has no query semantics of its own for that rewrite to mean anything else.
 
 ### A monitor's success is recognised by producing a record, not by phrase
 
 No phrase classifier in `CliErrorParser` catches every rejection text a monitor can produce (e.g.
 "input does not match any value of interface"). Instead, text that parses to no record is the router's
-refusal, regardless of wording (`CliConnectionBase.ParseRecords`). Empty output on
+refusal, regardless of wording (`CliPrintDriver.ParseRecords`). Empty output on
 its own is *not* an error: torch's `as-value` form legitimately prints nothing, which is exactly why it
 is excluded from this path (§1).
 
@@ -1198,9 +1255,30 @@ one padding character before the column), and a left-aligned value can overflow 
 character before the next header — the one rule `CliTableParser` uses that places both row shapes
 correctly. Field names are the header text, lowercased, which happen to match the binary API's field
 names exactly (`seq`, `host`, `size`, `ttl`, `time`, `status`) — this table form is actually more
-faithful than `as-value`, which renders the same `time` field as `00:00:00.000060` instead of `60us`.
-The trailing summary row (`sent=…/received=…/min-rtt=…`) is discarded, since it describes the whole
-table rather than one row, and arrives after the last record.
+faithful than `as-value`, which renders the same `time` field as `00:00:00.000060` instead of `60us`, and adds an
+`.id` the API does not print. A read of `ping` and `traceroute` therefore goes through this table on every router.
+
+### The ping table's summary
+
+The API prints `sent`, `received`, `packet-loss`, `min-rtt`, `avg-rtt` and `max-rtt` on every row. A terminal prints them
+after every twentieth reply and at the end, then the header again, with no pager on a 30-reply ping (7.25, 7.21.5,
+6.49.21):
+
+```
+  SEQ HOST                                     SIZE TTL TIME       STATUS
+    0 127.0.0.1                                  56  64 100us
+    1 127.0.0.1                                  56  64 176us
+    sent=2 received=2 packet-loss=0% min-rtt=100us avg-rtt=138us
+   max-rtt=176us
+```
+
+The line wraps at the terminal's width on 7.x, and `packet-loss` carries a `%` the API does not. A read attaches the
+summary to the row it follows, so those rows match the API and the others lack the fields: running counts for them would
+be numbers the router did not print. A stream has delivered that row already, and carries none. Total loss prints
+`sent=2 received=0 packet-loss=100%` and no round trips, as the API does.
+
+The form matters: `:put [/ping address=… count=3]` prints the same table and then the command's return value, `3`, on a
+line of its own, which reads as a row. So the read is the bare form.
 
 The interactive `traceroute` table starts with a `#` column — the terminal's own row-sequence number,
 with no equivalent in the binary API (which returns `.id` in its place). `CliTableParser` keeps the
@@ -1233,6 +1311,12 @@ An answer that shows it ran to its end is data, and no phrase is looked for in i
 (a refused script stops before it), a monitor's as-value records, a table with its header. So a comment reading
 `no such item` stays a comment. `get` and raw commands keep the phrase check, because one line has no shape to tell
 the two apart: such a value reads as the refusal.
+
+The as-value parser has no quoting: `comment="a;b` comes back as `comment="a;b;name=x`, with no closing quote and no
+escape (7.25, 7.21.5, 6.49.21). A `"` is an ordinary character there.
+
+`bad command name find (line 1 column N)` is the only answer that says a menu cannot be windowed for want of `find`, in
+those words on all three. `expected end of command` and `syntax error` classify the same way and say nothing about it.
 
 A counted or windowed read has a positional rule of its own. Its answer always ends with the count marker,
 so an answer without one that consists of a single `(line N column M)` line is the router refusing the

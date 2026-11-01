@@ -27,7 +27,7 @@ namespace tik4net.Cli
         // Whether this read is written as DSV: a separator is set, the router takes it, the read is not on the JSON
         // path, and the menu is not one read one id at a time (RouterOS 6 only).
         internal bool UsesDsv(TikCommandDescriptor descriptor, bool wantJson)
-            => _host.CliFieldSeparator != null && _host.Knowledge.Features.Dsv == true && _host.Knowledge.Features.DsvProbedSeparator == _host.CliFieldSeparator
+            => _host.Knowledge.DsvInForce
                && !(wantJson && _host.Knowledge.Features.SerializeJson != false)
                && !_host.Knowledge.MenuFacts.WindowPrintsNoId.Contains(descriptor.CommandText);
 
@@ -234,24 +234,6 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// True when the router refused a window because the menu's <c>print</c> takes no <c>from=</c> —
-        /// <c>bad parameter from (line 1 column N)</c>, which is what <c>/log print</c> answers (7.24). Such a
-        /// menu cannot be windowed and is read in one command, like one without <c>find</c>.
-        /// </summary>
-        private static bool IsPrintWithoutFrom(string? output)
-            => (output ?? string.Empty).Trim().StartsWith("bad parameter from (line ", StringComparison.Ordinal);
-
-        /// <summary>
-        /// True when RouterOS aborted the command line — what it answers, with no rows, no marker and no error
-        /// text, when a window's <c>print from=</c> names an id that vanished after its <c>find</c> (measured on
-        /// 7.24 under conntrack churn; Docs/findings-cli.md §1). The word alone on a line, so a field value
-        /// cannot be mistaken for it.
-        /// </summary>
-        private static bool IsInterruptedAnswer(string? output)
-            => (output ?? string.Empty).Split((char)10)
-                .Any(line => string.Equals(line.Trim(), "interrupted", StringComparison.Ordinal));
-
-        /// <summary>
         /// Takes one window: the caller's filters become the window's <c>find</c> clause, and the print
         /// inside it is built WITHOUT them.
         /// </summary>
@@ -293,10 +275,10 @@ namespace tik4net.Cli
                 CliErrorParser.ThrowIfError(output, _host.CommandFor(descriptor));
             // A bad filter is the caller's error, not a menu that cannot be windowed — unless what the router
             // refused is the window's own 'from=', which a print such as '/log print' does not take.
-            if (windowSize < 0 && !IsPrintWithoutFrom(output))
+            if (windowSize < 0 && !CliErrorParser.IsPrintWithoutFrom(output))
                 _host.ThrowIfSyntaxError(output, descriptor);
             if (windowSize < 0)   // caller decides: take it again if interrupted, otherwise fall back
-                return new PagedWindow(new List<TikRecordSentence>(), -1, output, IsInterruptedAnswer(output));
+                return new PagedWindow(new List<TikRecordSentence>(), -1, output, CliErrorParser.IsInterruptedAnswer(output));
 
             IList<TikRecordSentence> parsed = asJson
                 ? CliJsonParser.ParseJson(body)
@@ -445,7 +427,7 @@ namespace tik4net.Cli
                 throw new TikConnectionResponseIncompleteException(
                     _host.TransportName + ": the read of '" + descriptor.CommandText + "' ended without the router's "
                         + "count of the records it holds, which it always writes last"
-                        + (IsInterruptedAnswer(text) ? " — RouterOS interrupted the command" : "")
+                        + (CliErrorParser.IsInterruptedAnswer(text) ? " — RouterOS interrupted the command" : "")
                         + ". The answer is incomplete, so it is refused rather than returned. Retry the read.",
                     0, output);
 

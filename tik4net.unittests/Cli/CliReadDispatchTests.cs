@@ -51,7 +51,7 @@ namespace tik4net.unittests.Cli
 
         [TestMethod]
         public void APrintsParametersAreAQuery()
-            => Assert.AreEqual("/ip address print as-value where interface=ether1",
+            => Assert.AreEqual("/ip address print detail as-value where interface=ether1",
                 Expression(FirstLineOfARead("/ip/address/print", "interface", "ether1")));
 
         [DataTestMethod]

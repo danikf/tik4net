@@ -77,14 +77,14 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void AReadWithoutProplistIsUnchanged()
+        public void AReadWithoutProplistAsksForDetailToo()
         {
             using (var conn = Open(cli => ".id=*2;arp=enabled;name=ether1" + Lf + "#n=1/num"))
             {
                 var row = conn.CreateCommand("/interface/ethernet/print").ExecuteList().Single();
 
                 Assert.AreEqual("enabled", row.GetResponseField("arp"));
-                Assert.IsFalse(conn.Sent.Single().Contains(" detail "));
+                Assert.IsTrue(conn.Sent.Single().Contains(" detail "));
             }
         }
 

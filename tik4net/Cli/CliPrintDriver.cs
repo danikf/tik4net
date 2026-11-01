@@ -111,37 +111,41 @@ namespace tik4net.Cli
                 if (named.Length > 0 && !rest.Any(p => p.Name == TikSpecialProperties.CliFlags))
                     rest.Add(new TikCommandParameter(TikSpecialProperties.CliFlags, named, TikCommandParameterFormat.NameValue));
                 var plain = new TikCommandDescriptor(descriptor.CommandText, rest);
-                IList<TikRecordSentence> rows;
-                if (rest.Any(p => p.ParameterFormat != TikCommandParameterFormat.Filter
-                                  && string.Equals(p.Name, "detail", StringComparison.OrdinalIgnoreCase)))
-                {
-                    rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    var withDetail = new List<ITikCommandParameter>(rest)
-                    {
-                        new TikCommandParameter("detail", "", TikCommandParameterFormat.NameValue),
-                    };
-                    try
-                    {
-                        rows = await RunPrintAsync(new TikCommandDescriptor(descriptor.CommandText, withDetail),
-                            cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (TikConnectionResponseIncompleteException ex) when (IsDetailRefusal(ex.PartialResponse))
-                    {
-                        rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (TikCommandTrapException ex) when (IsDetailRefusal(ex.Message))
-                    {
-                        // The refusal is a parse error ("… (line 1 column 27)"), which a counted read now reports
-                        // as the router's error rather than as a lost count — see ThrowIfSyntaxError.
-                        rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                return rows;   // the base trims them to .proplist (TikProplist)
+                return await RunPrintCoreAsync(plain, cancellationToken).ConfigureAwait(false);   // the base trims them to .proplist (TikProplist)
             }
 
+            // A plain print is the SUMMARY columns (/interface omits default-name, mtu and last-link-up-time), and the API
+            // prints every field, so a table is read with 'detail'. A singleton refuses it ("bad parameter detail") and prints
+            // every field without it, and RouterOS 6 refuses it on more menus. So a parse refusal is tried again without the
+            // word, and only that form's success says it was the word: a bad filter fails both, and is the caller's to see.
+            // Remembered per menu, so it costs one command per build.
+            if (HasDetail(descriptor) || _host.Knowledge.MenuFacts.DetailRefused.Contains(descriptor.CommandText))
+                return await RunTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false);
+            var withDetail = new List<ITikCommandParameter>(descriptor.Parameters)
+            {
+                new TikCommandParameter("detail", "", TikCommandParameterFormat.NameValue),
+            };
+            try
+            {
+                return await RunTablePrintAsync(new TikCommandDescriptor(descriptor.CommandText, withDetail), cancellationToken).ConfigureAwait(false);
+            }
+            catch (TikConnectionResponseIncompleteException ex) when (CliErrorParser.IsDetailRefusal(ex.PartialResponse))
+            {
+            }
+            catch (TikCommandTrapException ex) when (CliErrorParser.IsParseRefusal(ex.Message))
+            {
+            }
+            var rows = await RunTablePrintAsync(descriptor, cancellationToken).ConfigureAwait(false);
+            _host.Knowledge.LearnFact(_host.Knowledge.MenuFacts.DetailRefused, CliRouterKnowledge.FactDetailRefused, descriptor.CommandText);
+            return rows;
+        }
+
+        private static bool HasDetail(TikCommandDescriptor descriptor)
+            => descriptor.Parameters.Any(p => p.ParameterFormat != TikCommandParameterFormat.Filter
+                                              && string.Equals(p.Name, "detail", StringComparison.OrdinalIgnoreCase));
+
+        private async Task<IList<TikRecordSentence>> RunTablePrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
             bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
 
@@ -290,29 +294,17 @@ namespace tik4net.Cli
                     continue;
                 }
 
-                var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var kv in row.Words)
-                    fields[kv.Key] = kv.Value;
-                foreach (var kv in er.Words)
-                    if (!fields.ContainsKey(kv.Key))
-                        fields[kv.Key] = kv.Value;
-                merged.Add(new TikRecordSentence(fields));
+                merged.Add(WithFields(row, er.Words.Where(w => !row.Words.ContainsKey(w.Key))));
             }
             return merged;
         }
 
         private static bool IsUnfiltered(TikCommandDescriptor descriptor)
-            => descriptor.Parameters.All(p => p.Name.StartsWith(".", StringComparison.Ordinal));
+            => descriptor.Parameters.All(p => p.Name.StartsWith(".", StringComparison.Ordinal)
+                                              || (p.ParameterFormat != TikCommandParameterFormat.Filter && p.Name == "detail"));
 
         private static TikCommandDescriptor WithoutParameter(TikCommandDescriptor descriptor, string name)
             => new TikCommandDescriptor(descriptor.CommandText, descriptor.Parameters.Where(p => p.Name != name).ToList());
-
-        /// <summary>
-        /// Whether a counted read failed because the menu has no <c>detail</c> modifier — a singleton answers
-        /// <c>bad parameter detail (line 1 column 27)</c> and no count marker.
-        /// </summary>
-        private static bool IsDetailRefusal(string? response)
-            => response != null && response.IndexOf("bad parameter detail", StringComparison.OrdinalIgnoreCase) >= 0;
 
         // An action the binary API answers with an empty '!re' row (/tool/wol): consumers reach it through a read method
         // (ToolWol uses ExecuteSingleRowOrDefault), so it is run and answers no rows. Silent when it succeeds, and what it
@@ -425,13 +417,7 @@ namespace tik4net.Cli
             string plain = await _host.ExecuteAsync(plainText, cancellationToken).ConfigureAwait(false);
 
             var table = new CliTableParser();
-            var rows = new List<TikRecordSentence>();
-            foreach (string line in plain.Split((char)10))
-            {
-                TikRecordSentence? row = table.Feed(line.TrimEnd((char)13));
-                if (row != null)
-                    rows.Add(row);
-            }
+            var rows = table.ReadAll(plain);
             // The header is the acceptance signal, as on the streaming path: text that never produced one is the
             // router's refusal.
             if (!table.HasHeader && !string.IsNullOrWhiteSpace(plain))
@@ -463,7 +449,7 @@ namespace tik4net.Cli
             CancellationToken cancellationToken)
         {
             string print = CliCommandBuilder.ApiPathToCli(descriptor.CommandText);
-            string menu = print.Substring(0, print.LastIndexOf(' '));
+            string menu = CliCommandBuilder.MenuPathToCli(descriptor.CommandText);
             string plain = await _host.ExecuteAsync(
                 ":put (\"" + PlainTableIdsMarker + "\" . [:tostr [" + menu + " find]]); :put [" + print + "]",
                 cancellationToken).ConfigureAwait(false);
@@ -490,10 +476,7 @@ namespace tik4net.Cli
                 return rows;
             return rows.Select((row, i) =>
             {
-                var words = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [TikSpecialProperties.Id] = ids[i] };
-                foreach (var word in row.Words)
-                    words[word.Key] = word.Value;
-                return new TikRecordSentence(words);
+                return WithFields(row, new[] { new KeyValuePair<string, string>(TikSpecialProperties.Id, ids[i]) });
             }).ToList();
         }
 
@@ -672,7 +655,7 @@ namespace tik4net.Cli
             CancellationToken cancellationToken)
         {
             await EnsureDsvSupportKnownAsync(cancellationToken).ConfigureAwait(false);
-            if (_host.CliFieldSeparator != null && _host.Knowledge.Features.Dsv == true && _host.Knowledge.Features.DsvProbedSeparator == _host.CliFieldSeparator)
+            if (_host.Knowledge.DsvInForce)
             {
                 // ":put [/console inspect request=… path=… as-value]" → the expression inside the brackets.
                 string snapshot = CliCommandBuilder.BuildMonitorSnapshot(descriptor.CommandText, descriptor.Parameters,
@@ -683,14 +666,14 @@ namespace tik4net.Cli
                 try
                 {
                     output = await _host.ExecuteAsync(
-                        CliCommandBuilder.BuildCountedDsvRead(expression, _host.CliFieldSeparator), cancellationToken).ConfigureAwait(false);
+                        CliCommandBuilder.BuildCountedDsvRead(expression, _host.CliFieldSeparator!), cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
                     _host.CountedReadDepth--;
                 }
                 string body = _pagedReader.SplitOffCountMarker(output, descriptor, out int expected);
-                return _pagedReader.EnsureCounted(CliDsvParser.Parse(body, _host.CliFieldSeparator), expected, descriptor, body);
+                return _pagedReader.EnsureCounted(CliDsvParser.Parse(body, _host.CliFieldSeparator!), expected, descriptor, body);
             }
             // As-value, once. Not the monitor path's plain-table retry: that is for RouterOS 6's monitors, and the only
             // argument read, inspect, does not exist there at all — the retry would repeat the refusal, at 6.x's

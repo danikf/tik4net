@@ -288,6 +288,51 @@ namespace tik4net.unittests.Cli
 Assert.AreEqual(marked, CliConnectionBase.IsEndMarkerVerbLine(line));
         }
 
+        // ── D3: detail on a generic print ──────────────────────────────────────
+
+        [TestMethod]
+        public void AGenericPrintAsksForEveryField()
+        {
+            using var router = new Router(line => line.StartsWith(":local d [") ? ".id=*1;mtu=1500\r\n#n=1/num" : ".id=*1;disabled=false");
+
+            var row = router.CreateCommand("/interface/print").ExecuteList().Single();
+
+            Assert.IsTrue(router.Sent.Any(l => l.StartsWith(":local d [/interface print detail as-value]")));
+            Assert.AreEqual("1500", row.GetResponseField("mtu"));
+        }
+
+        [DataTestMethod]
+        [DataRow("bad parameter detail (line 1 column 27)")]
+        [DataRow("expected end of command (line 1 column 27)")]
+        [DataRow("input does not match any value of peer")]
+        public void AMenuThatRefusesDetailIsReadWithout_AndRemembered(string refusal)
+        {
+            using var router = new Router(line =>
+                line.Contains(" detail ") ? refusal
+                : line.StartsWith(":local d [") ? "name=router\r\n#n=1/nil"
+                : ".id=*1;disabled=false");
+
+            Assert.AreEqual("router", router.CreateCommand("/system/identity/print").ExecuteList().Single().GetResponseField("name"));
+
+            router.Sent.Clear();
+            router.CreateCommand("/system/identity/print").ExecuteList();
+            Assert.IsFalse(router.Sent.Any(l => l.Contains(" detail ")), "asked once");
+        }
+
+        [TestMethod]
+        public void ABadFilterIsStillTheCallersToSee()
+        {
+            using var router = new Router(line => line.StartsWith(":local d [") ? "expected yes or no (line 1 column 53)" : ".id=*1;disabled=false");
+
+            var ex = Assert.ThrowsException<TikCommandTrapException>(
+                () => router.CreateCommandAndParameters("/interface/print", "disabled", "maybe").ExecuteList());
+
+            StringAssert.Contains(ex.Message, "expected yes or no");
+            router.Sent.Clear();
+            try { router.CreateCommand("/interface/print").ExecuteList(); } catch (TikCommandTrapException) { }
+            Assert.IsTrue(router.Sent.Any(l => l.Contains(" detail ")), "both forms failed, so nothing is concluded about the word");
+        }
+
         // ── D8: the flag supplier's and the window's refusals ──────────────────
 
         [TestMethod]

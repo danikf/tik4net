@@ -153,11 +153,39 @@ namespace tik4net.Cli
         }
 
         /// <summary>
+        /// Whether a read failed because the menu has no <c>detail</c> modifier — a singleton answers
+        /// <c>bad parameter detail (line 1 column 27)</c> and no count marker.
+        /// </summary>
+        internal static bool IsDetailRefusal(string? response)
+            => response != null && response.IndexOf("bad parameter detail", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        /// <summary>A one-line refusal of the command's text rather than of what it asks for.</summary>
+        internal static bool IsParseRefusal(string message)
+            => SyntaxErrorLine.IsMatch(message.Trim()) || RefusedArgumentLine.IsMatch(message.Trim());
+
+        /// <summary>
+        /// True when the router refused a window because the menu's <c>print</c> takes no <c>from=</c> —
+        /// <c>bad parameter from (line 1 column N)</c>, which is what <c>/log print</c> answers (7.24). Such a
+        /// menu cannot be windowed and is read in one command, like one without <c>find</c>.
+        /// </summary>
+        internal static bool IsPrintWithoutFrom(string? output)
+            => (output ?? string.Empty).Trim().StartsWith("bad parameter from (line ", StringComparison.Ordinal);
+
+        /// <summary>
+        /// True when RouterOS aborted the command line — what it answers, with no rows, no marker and no error
+        /// text, when a window's <c>print from=</c> names an id that vanished after its <c>find</c> (measured on
+        /// 7.24 under conntrack churn; Docs/findings-cli.md §1). The word alone on a line, so a field value
+        /// cannot be mistaken for it.
+        /// </summary>
+        internal static bool IsInterruptedAnswer(string? output)
+            => ContentLines(output).Contains("interrupted");
+
+        /// <summary>
         /// Throws the router's own complaint when a read's whole answer is one parse error — a line ending in
         /// <c>(line N column M)</c>, such as <c>expected yes or no (line 1 column 62)</c> for a boolean compared
         /// with <c>true</c>, or the refusal of an argument value, such as <c>input does not match any value of peer</c>.
-        /// None of the phrases this class knows covers them, so without this the read reported "the
-        /// answer is incomplete", and a window at offset 0 switched paging off for the path.
+        /// None of the phrases this class knows covers them, and they are the router's error rather than an answer
+        /// that lost its count.
         /// </summary>
         /// <remarks>
         /// Called where the answer is already known to lack its closing marker, so a record whose text

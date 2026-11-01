@@ -63,7 +63,7 @@ namespace tik4net.Cli
             //
             // Only a line before the echo that is real foreign content triggers this; blank lines,
             // repainted prompts, asynchronous log lines and partial echoes are the ordinary head of a
-            // response and are left to the loop below, so the aligned case behaves exactly as before.
+            // response and are left to the loop below.
             start = SkipForeignResidue(lines, sentCommand, start, end);
 
             // Skip ALL leading empty lines and command-echo lines. A PTY transport may echo the
@@ -88,22 +88,15 @@ namespace tik4net.Cli
                     start++;
                     continue;
                 }
-                // Compare with the leading '/' trimmed on BOTH sides. cmdCore already had it removed, but
-                // the terminal echoes the command exactly as sent — "/interface set [find …]" — so for
-                // every command that starts with a slash (i.e. all of set/remove/enable/disable/move) the
-                // two never matched and the echo survived into the "output". That was invisible for as
-                // long as nothing read meaning into leftover text; it becomes a false error the moment a
-                // silent-on-success verb treats residue as a failure.
+                // Compare with the leading '/' trimmed on BOTH sides: the terminal echoes the command exactly as sent —
+                // "/interface set [find …]" — and an echo left in the output is a false error on a silent-on-success
+                // verb, which treats residue as a failure.
                 string lineCore = line.TrimStart('/');
                 bool isEcho =
                     IsPromptPrefixed(line)
                     // An asynchronous log line (see IsRouterLogLine) can land at the HEAD of a response,
-                    // ahead of the echo — the router writes it whenever it is emitted, not where it fits.
-                    // Without this it is the first line that looks like data, so the loop stopped here and
-                    // the command echo behind it survived into the output: a read got the echo prepended to
-                    // its first record, and a silent-on-success write got a non-empty "output" that the
-                    // positional rule reads as the router rejecting it. The join below already discards log
-                    // lines, so skipping them here loses nothing it did not already lose.
+                    // ahead of the echo — the router writes it whenever it is emitted, not where it fits. It is no data line: the
+                    // echo behind it must still be found, and the join below discards log lines anyway.
                     || IsRouterLogLine(line)
                     || (cmdCore.Length > 0
                         && cmdCore.IndexOf(lineCore, StringComparison.OrdinalIgnoreCase) >= 0);
@@ -116,12 +109,8 @@ namespace tik4net.Cli
             // after a command completes, so the tail can carry it MORE THAN ONCE with blank lines between:
             // measured over SSH (channel ssh.pty), a single read returns
             //   ".id=…;list=X<CR><LF><CR><CR><CR><ESC>[9999B[admin@CHR] > <CR><LF><CR><CR><CR><CR><ESC>[9999B[admin@CHR] > "
-            // Removing only the last one left the FIRST prompt inside the data: CliOutputParser turns
-            // newlines into ';' field separators, "[admin@CHR] >" carries no '=', and it was appended to the
-            // preceding field as a multi-value continuation — the read-back of an interface-list member came
-            // out as "t4n-test-926b98b7,[admin@CHR] >". Silent-on-success verbs were never affected,
-            // which is why this hid: with no data line the echo loop above (which treats any prompt-bearing
-            // line as noise) consumes the whole response, so the residue only survives when there IS output.
+            // A prompt left inside the data reads as a value: CliOutputParser turns newlines into ';' field separators,
+            // "[admin@CHR] >" carries no '=', and it is appended to the preceding field as a multi-value continuation.
             while (end >= start)
             {
                 while (end >= start && string.IsNullOrWhiteSpace(lines[end]))
@@ -243,19 +232,20 @@ namespace tik4net.Cli
             return head.TrimEnd('\r', '\n');
         }
 
-        // The last line that is not blank, a prompt or a console log line is exactly <line>.
-        private static bool LastLineIs(string stripped, string expected)
+        // The last line that is not blank, a prompt or a console log line.
+        private static string? LastContentLine(string stripped)
         {
             string[] lines = stripped.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
             for (int i = lines.Length - 1; i >= 0; i--)
             {
                 string line = lines[i].Trim();
-                if (line.Length == 0 || IsPromptLine(line) || IsRouterLogLine(line))
-                    continue;
-                return line == expected;
+                if (line.Length > 0 && !IsPromptLine(line) && !IsRouterLogLine(line))
+                    return line;
             }
-            return false;
+            return null;
         }
+
+        private static bool LastLineIs(string stripped, string expected) => LastContentLine(stripped) == expected;
 
         // A command whose last statement writes the count line — the literal marker in quotes, as CliCommandBuilder
         // writes it (":put (\"#n=\" . …)").
@@ -267,19 +257,13 @@ namespace tik4net.Cli
         // The last line that is not blank, a prompt or a console log line is the count line: "#n=<len>/<kind>" or "#w=<len>".
         private static bool EndsWithCountLine(string stripped)
         {
-            string[] lines = stripped.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            for (int i = lines.Length - 1; i >= 0; i--)
-            {
-                string line = lines[i].Trim();
-                if (line.Length == 0 || IsPromptLine(line) || IsRouterLogLine(line))
-                    continue;
-                if (line.StartsWith(CliCommandBuilder.CountMarker, StringComparison.Ordinal))
-                    return CliCommandBuilder.ExpectedRecordCount(line.Substring(CliCommandBuilder.CountMarker.Length)) >= 0;
-                if (line.StartsWith(CliCommandBuilder.WindowMarker, StringComparison.Ordinal))
-                    return IsDigits(line.Substring(CliCommandBuilder.WindowMarker.Length));
+            string? line = LastContentLine(stripped);
+            if (line == null)
                 return false;
-            }
-            return false;
+            if (line.StartsWith(CliCommandBuilder.CountMarker, StringComparison.Ordinal))
+                return CliCommandBuilder.ExpectedRecordCount(line.Substring(CliCommandBuilder.CountMarker.Length)) >= 0;
+            return line.StartsWith(CliCommandBuilder.WindowMarker, StringComparison.Ordinal)
+                   && IsDigits(line.Substring(CliCommandBuilder.WindowMarker.Length));
         }
 
         private static bool IsDigits(string s)

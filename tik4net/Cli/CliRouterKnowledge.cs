@@ -39,6 +39,10 @@ namespace tik4net.Cli
         private CliSchemaStore? _schemaStore;
         private bool _schemaStoreAsked;
 
+        /// <summary>Whether a read may be written as DSV: a separator is set and the router took it.</summary>
+        internal bool DsvInForce
+            => _host.CliFieldSeparator != null && Features.Dsv == true && Features.DsvProbedSeparator == _host.CliFieldSeparator;
+
         internal CliSchemaStore? SchemaStore()
         {
             if (_schemaStoreAsked)
@@ -118,6 +122,7 @@ namespace tik4net.Cli
         internal const string FeatureConsoleInspect = "consoleInspect";
 
         internal const string FactShowSensitiveRefused = "showSensitiveRefused";
+        internal const string FactDetailRefused = "detailRefused";
         internal const string FactPrintWithoutAsValue = "printWithoutAsValue";
         internal const string FactFlagFieldExists = "flagFieldExists";
         internal const string FactMonitorWithoutAsValue = "monitorWithoutAsValue";
@@ -140,6 +145,7 @@ namespace tik4net.Cli
                 _features.ConsoleInspect = inspect;
 
             _menuFacts.ShowSensitiveRefused.UnionWith(store.Facts(FactShowSensitiveRefused));
+            _menuFacts.DetailRefused.UnionWith(store.Facts(FactDetailRefused));
             _menuFacts.PrintWithoutAsValue.UnionWith(store.Facts(FactPrintWithoutAsValue));
             _menuFacts.FlagFieldExists.UnionWith(store.Facts(FactFlagFieldExists));
             _menuFacts.MonitorWithoutAsValue.UnionWith(store.Facts(FactMonitorWithoutAsValue));

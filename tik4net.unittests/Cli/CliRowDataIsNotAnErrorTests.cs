@@ -153,7 +153,7 @@ namespace tik4net.unittests.Cli
             Assert.ThrowsException<TikNoSuchCommandException>(() => router.CreateCommand("/ip/route/print").ExecuteList());
             Assert.ThrowsException<TikNoSuchCommandException>(() => router.CreateCommand("/ip/route/print").ExecuteList());
 
-            Assert.AreEqual(2, windows, "the refusal said nothing about 'find', so the second read windows again");
+            Assert.AreEqual(4, windows, "the refusal said nothing about 'find', so the second read windows again (each with and without detail)");
         }
 
         [TestMethod]
@@ -189,7 +189,7 @@ namespace tik4net.unittests.Cli
             Assert.ThrowsException<TikCommandTrapException>(() => read().ExecuteList());
             Assert.ThrowsException<TikCommandTrapException>(() => read().ExecuteList());
 
-            Assert.AreEqual(2, jsonWindows, "both forms failed, so whether the router serializes is still unknown");
+            Assert.AreEqual(4, jsonWindows, "both forms failed, so whether the router serializes is still unknown (each read with and without detail)");
         }
 
         // ── X9: the marker's trim ──────────────────────────────────────────────

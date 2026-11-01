@@ -59,6 +59,9 @@ namespace tik4net.Cli
         internal readonly HashSet<string> FlagFieldExists = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Print commands with no <c>as-value</c> (RouterOS 6), read as their plain table instead.</summary>
+        /// <summary>The menus whose print refused <c>detail</c> and answered without it: a singleton, and more on RouterOS 6.</summary>
+        internal readonly HashSet<string> DetailRefused = new HashSet<string>(StringComparer.Ordinal);
+
         internal readonly HashSet<string> PrintWithoutAsValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Torch commands that refused <c>proplist=</c> (RouterOS 6), read as the plain table instead.</summary>

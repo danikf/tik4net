@@ -232,7 +232,7 @@ namespace tik4net.Cli
             if (value.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase) && IsDottedQuad(value, 7))
                 return value.Substring(7);
 
-            if (IsClockTimeField(field)) return value;
+            if (Contains(ClockTimeFields, field)) return value;
             return TryParseAsValueDuration(value, out string? apiForm)
                 ? (apiForm == "0s" && Contains(MillisecondZeroFields, field) ? "0ms" : apiForm!)
                 : value;
@@ -360,14 +360,6 @@ namespace tik4net.Cli
                 else return false;
             }
             return parts == 3 && digits > 0;
-        }
-
-        private static bool IsClockTimeField(string? field)
-        {
-            if (string.IsNullOrEmpty(field)) return false;
-            foreach (string f in ClockTimeFields)
-                if (string.Equals(field, f, StringComparison.OrdinalIgnoreCase)) return true;
-            return false;
         }
 
         /// <summary>

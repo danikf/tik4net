@@ -134,7 +134,7 @@ namespace tik4net.unittests.Cli
             {
                 conn.CreateCommand("/interface/print").ExecuteList();
                 Assert.AreEqual(
-                    ":local d [/interface print as-value]; :put $d; :put (\"#n=\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])",
+                    ":local d [/interface print detail as-value]; :put $d; :put (\"#n=\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])",
                     conn.Sent.Single());
             }
         }

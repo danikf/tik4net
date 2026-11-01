@@ -70,6 +70,19 @@ namespace tik4net.Cli
         // address='A AA:BB:CC:DD:EE:FF'). The API reports no such field for these rows.
         private bool _flagsLegend;
 
+        /// <summary>The rows of a whole answer; <see cref="HasHeader"/> then says whether it held a table.</summary>
+        internal List<TikRecordSentence> ReadAll(string text)
+        {
+            var rows = new List<TikRecordSentence>();
+            foreach (string line in text.Split((char)10))
+            {
+                TikRecordSentence? row = Feed(line.TrimEnd((char)13));
+                if (row != null)
+                    rows.Add(row);
+            }
+            return rows;
+        }
+
         /// <summary>
         /// Reads an aggregate line, or the part of one that wrapped: every token is <c>name=value</c>. <c>packet-loss</c>
         /// loses its sign, as the binary API writes it.

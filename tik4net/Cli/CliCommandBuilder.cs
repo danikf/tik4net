@@ -110,11 +110,7 @@ namespace tik4net.Cli
                 whereClause = string.IsNullOrEmpty(whereClause) ? WindowWhereClause : WindowWhereClause + " && (" + whereClause + ")";
             else
                 AppendFrom(sb, fromIndices);
-            if (!string.IsNullOrEmpty(whereClause))
-            {
-                sb.Append(" where ");
-                sb.Append(whereClause);
-            }
+            AppendWhere(sb, whereClause);
 
             return sb.ToString();
         }
@@ -238,7 +234,9 @@ namespace tik4net.Cli
         internal static string BuildCountedRead(string expression, bool asJson)
             => ":local d [" + expression + "]; "
              + (asJson ? ":put [:serialize to=json $d]; " : ":put $d; ")
-             + ":put (\"" + CountMarker + "\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
+             + CountLine;
+
+        private const string CountLine = ":put (\"" + CountMarker + "\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
 
         /// <summary>Prefix of the trailing line a counted read emits — <c>#n=&lt;len&gt;/&lt;kind&gt;</c>.</summary>
         internal const string CountMarker = "#n=";
@@ -286,8 +284,7 @@ namespace tik4net.Cli
         /// <see cref="BuildCountedRead"/> with every row written as DSV (<see cref="DsvRows"/>) instead of as-value.
         /// </summary>
         internal static string BuildCountedDsvRead(string expression, string separator)
-            => ":local d [" + expression + "]; " + DsvRows(separator, maybeSingleton: true) + "; "
-             + ":put (\"" + CountMarker + "\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
+            => ":local d [" + expression + "]; " + DsvRows(separator, maybeSingleton: true) + "; " + CountLine;
 
         /// <summary>
         /// Whether the router serializes DSV with <paramref name="separator"/>: <c>:put [:typeof [:serialize …]]</c>
@@ -385,11 +382,7 @@ namespace tik4net.Cli
         internal static string BuildPagedWindow(string apiPath, string printCommand, int offset, int pageSize,
                                                 string? findClause = null)
         {
-            string menu = MenuPathToCli(apiPath);
-            string find = string.IsNullOrEmpty(findClause) ? " find" : " find (" + findClause + ")";
-            return ":local w [:pick [" + menu + find + "] "
-                 + offset.ToString(CultureInfo.InvariantCulture) + " "
-                 + (offset + pageSize).ToString(CultureInfo.InvariantCulture) + "]; "
+            return WindowOfIds(apiPath, offset, pageSize, findClause)
                  + ":if ([:len $w] > 0) do={ " + printCommand + " }; "
                  + ":put (\"" + WindowMarker + "\" . [:len $w])";
         }
@@ -409,14 +402,16 @@ namespace tik4net.Cli
         internal static string BuildPagedWindowIdPerRow(string apiPath, string printExpression, int offset,
                                                         int pageSize, string? findClause = null)
         {
-            string menu = MenuPathToCli(apiPath);
-            string find = string.IsNullOrEmpty(findClause) ? " find" : " find (" + findClause + ")";
-            return ":local w [:pick [" + menu + find + "] "
-                 + offset.ToString(CultureInfo.InvariantCulture) + " "
-                 + (offset + pageSize).ToString(CultureInfo.InvariantCulture) + "]; "
+            return WindowOfIds(apiPath, offset, pageSize, findClause)
                  + ":foreach i in=$w do={ :put (\".id=\" . $i . \";\" . [:tostr [" + printExpression + "]]) }; "
                  + ":put (\"" + WindowMarker + "\" . [:len $w])";
         }
+
+        private static string WindowOfIds(string apiPath, int offset, int pageSize, string? findClause)
+            => ":local w [:pick [" + MenuPathToCli(apiPath)
+             + (string.IsNullOrEmpty(findClause) ? " find" : " find (" + findClause + ")") + "] "
+             + offset.ToString(CultureInfo.InvariantCulture) + " "
+             + (offset + pageSize).ToString(CultureInfo.InvariantCulture) + "]; ";
 
         /// <summary>The selector a per-row window's print uses — the one id <see cref="BuildPagedWindowIdPerRow"/> binds.</summary>
         internal const string RowVariable = "$i";
@@ -454,7 +449,7 @@ namespace tik4net.Cli
         internal const string WindowMarker = "#w=";
 
         /// <summary>The menu without its verb — <c>/ip/firewall/mangle/print</c> gives <c>/ip firewall mangle</c>.</summary>
-        private static string MenuPathToCli(string apiPath)
+        internal static string MenuPathToCli(string apiPath)
         {
             string trimmed = (apiPath ?? string.Empty).TrimEnd('/');
             int lastSlash = trimmed.LastIndexOf('/');
@@ -488,14 +483,14 @@ namespace tik4net.Cli
             sb.Append(" stats as-value");
             AppendFrom(sb, fromIndices);
 
-            string whereClause = BuildWhereClause(parameters);
-            if (!string.IsNullOrEmpty(whereClause))
-            {
-                sb.Append(" where ");
-                sb.Append(whereClause);
-            }
-
+            AppendWhere(sb, BuildWhereClause(parameters));
             return sb.ToString();
+        }
+
+        private static void AppendWhere(StringBuilder sb, string whereClause)
+        {
+            if (!string.IsNullOrEmpty(whereClause))
+                sb.Append(" where ").Append(whereClause);
         }
 
         // ── Monitor snapshot ───────────────────────────────────────────────────
@@ -516,8 +511,7 @@ namespace tik4net.Cli
         /// Set on the READ path (<c>ExecuteList</c>/<c>LoadList</c> of <c>/ping</c>, <c>/tool/traceroute</c>, …),
         /// where <c>TikGenericCommand.ResolveParamsForRead</c> has already rewritten the caller's Default-format
         /// parameters to Filter format. A monitor has no query semantics, so a Filter parameter here can only be
-        /// that rewrite — dropping it is how a ping went out as <c>:put [/ping as-value]</c>. Same
-        /// reasoning, and the same flag name, as <see cref="BuildNonQuery"/> uses for <c>/tool/wol</c>.
+        /// that rewrite. Same reasoning, and the same flag name, as <see cref="BuildNonQuery"/> uses for <c>/tool/wol</c>.
         /// </param>
         internal static string BuildMonitorSnapshot(string apiPath, IList<ITikCommandParameter> parameters,
             string snapshotModifier, bool includeFilters = false)
@@ -924,11 +918,7 @@ namespace tik4net.Cli
             if (value.Length == 0)
                 return "\"\"";
 
-            bool safe = true;
-            foreach (char c in value)
-            {
-                if (!IsSafeUnquoted(c)) { safe = false; break; }
-            }
+            bool safe = IsAllSafeUnquoted(value);
 
             // A dotted value is quoted although every character of it is safe: RouterOS before 7.20 parses a bare
             // operand by the field's type, and /ip firewall connection types src-address as address:port, so
@@ -1136,27 +1126,23 @@ namespace tik4net.Cli
             // An EMPTY value must be written as the two-character empty literal — a bare 'name=' is a
             // RouterOS syntax error the moment anything follows it on the line ("/system note set note=
             // show-at-login=yes" → "expected end of command (line 1 column 37)"), and even where it is
-            // accepted (last argument on the line) the intent is clearer spelled out. This is how clearing a
-            // field over a CLI transport failed: nothing in the suite ever saved an empty string, so the
-            // trap only surfaced when a round-trip test restored a field that started out empty.
+            // accepted (last argument on the line) the intent is clearer spelled out.
             if (string.IsNullOrEmpty(value))
                 return value == null ? null : "\"\"";
 
-            bool needsQuote = false;
             // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
-            foreach (char c in value!)
-            {
-                if (!IsSafeUnquoted(c))
-                {
-                    needsQuote = true;
-                    break;
-                }
-            }
-
-            if (!needsQuote)
+            if (IsAllSafeUnquoted(value!))
                 return value;
 
-            return "\"" + EscapeInsideQuotes(value) + "\"";
+            return "\"" + EscapeInsideQuotes(value!) + "\"";
+        }
+
+        private static bool IsAllSafeUnquoted(string value)
+        {
+            foreach (char c in value)
+                if (!IsSafeUnquoted(c))
+                    return false;
+            return true;
         }
 
         /// <summary>

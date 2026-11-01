@@ -42,8 +42,7 @@ namespace tik4net.Cli
 
             // Parse the ordered key=value sequence, then group into records at '.id' boundaries — or, for rows
             // that carry no .id (/console inspect: name=add;node-type=cmd;type=self;name=blackhole;…), where a
-            // key comes round again: a row never holds one field twice, and without this every row merged into
-            // one, the last value of each field winning.
+            // key comes round again: a row never holds one field twice.
             var pairs = ParseOrderedFields(flat.ToString());
 
             var records = new List<Dictionary<string, string>>();

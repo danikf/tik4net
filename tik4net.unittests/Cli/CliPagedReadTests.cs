@@ -31,7 +31,7 @@ namespace tik4net.unittests.Cli
 
         // What an unpaged read of the test menu sends: the print, bound to a variable, and its record count.
         private const string CountedProbeRead =
-            ":local d [/probe print as-value]; :put $d; :put (\"#n=\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
+            ":local d [/probe print detail as-value]; :put $d; :put (\"#n=\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
 
         private static IList<ITikCommandParameter> WithFilter()
             => new List<ITikCommandParameter> { new FakeParam("chain", "prerouting") };
