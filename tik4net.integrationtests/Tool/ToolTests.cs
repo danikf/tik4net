@@ -312,18 +312,53 @@ namespace tik4net.integrationtests
         [ExpectedException(typeof(TikCommandAbortException))]
         public void ExecuteListUntilDone_NeverEndingCommand_ThrowsAbortException()
         {
-            // The API, WinBox native (which reads the torch window until the deadline) and REST (whose buffered response
-            // never arrives, Docs/findings-rest-api.md, so the deadline ends the HTTP read). The CLI family traps on the
-            // read ("input does not match any value of interface"), handed to the CLI review.
+            // The API and WinBox native (which reads the torch window until the deadline). REST has the test below. The
+            // CLI family traps on the read ("input does not match any value of interface"), handed to the CLI review.
             var type = ResolveConnectionType();
+            if (type == TikConnectionType.Rest || type == TikConnectionType.RestSsl)
+                Assert.Inconclusive($"{type}: covered by ExecuteListUntilDone_NeverEndingCommand_OverRest_AbortsAndTheRouterRecovers.");
             if (!Connection.Supports(TikConnectionCapability.Streaming)
-                && type != TikConnectionType.WinboxNative && type != TikConnectionType.WinboxNativeMac
-                && type != TikConnectionType.Rest && type != TikConnectionType.RestSsl)
+                && type != TikConnectionType.WinboxNative && type != TikConnectionType.WinboxNativeMac)
                 Assert.Inconclusive($"{type}: torch through ExecuteListUntilDone is not covered here yet (the CLI review's open item).");
             // /tool/torch never sends !done on its own — timeout must kick in
             var cmd = Connection.CreateCommandAndParameters("/tool/torch", TikCommandParameterFormat.NameValue,
                 "interface", TestConstants.Interface);
             cmd.ExecuteListUntilDone(timeout: TimeSpan.FromSeconds(2));
+        }
+
+        /// <summary>
+        /// The deadline ends the HTTP read, but the router's REST session stays busy with the abandoned command and answers
+        /// nothing, new connections included, for about a minute (Docs/findings-rest-api.md §12). So this test holds the
+        /// router and waits that out; left to itself, the abandoned torch fails the next test's connect.
+        /// </summary>
+        [TestMethod]
+        [TestLock(TestLockScope.Router)]
+        public void ExecuteListUntilDone_NeverEndingCommand_OverRest_AbortsAndTheRouterRecovers()
+        {
+            var type = ResolveConnectionType();
+            if (type != TikConnectionType.Rest && type != TikConnectionType.RestSsl)
+                Assert.Inconclusive($"{type}: this is about REST's session.");
+
+            var cmd = Connection.CreateCommandAndParameters("/tool/torch", TikCommandParameterFormat.NameValue,
+                "interface", TestConstants.Interface);
+            Assert.ThrowsException<TikCommandAbortException>(() => cmd.ExecuteListUntilDone(timeout: TimeSpan.FromSeconds(2)));
+
+            Exception last = null;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (clock.Elapsed < TimeSpan.FromSeconds(120))
+            {
+                try
+                {
+                    Connection.CreateCommand("/system/identity/print").ExecuteList();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    last = ex;
+                    Thread.Sleep(1000);
+                }
+            }
+            Assert.Fail("The router's REST did not answer within 120 s of the abandoned torch: " + last);
         }
 
         #endregion
