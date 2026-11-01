@@ -179,6 +179,7 @@ namespace tik4net.Objects
             {
                 ItemType = ValueType.GetTypeInfo().GenericTypeArguments[0];
                 IsNegatableMembers = TikNegatableValue.IsNegatableValue(ItemType);
+                _isMemberSet = (IsNegatableMembers ? ItemType.GetTypeInfo().GenericTypeArguments[0] : ItemType).GetTypeInfo().IsEnum;
             }
 
             ValidateDeclaration(propertyInfo, attribute, declared);
@@ -273,6 +274,9 @@ namespace tik4net.Objects
 
         private readonly Func<string, object>? _parseList;
         private readonly Func<object, string>? _formatList;
+
+        // A list of an enum's members. RouterOS keeps these as a bitmask and prints its own order, so their order says nothing.
+        private readonly bool _isMemberSet;
 
         private static (Func<string, object>, Func<object, string>) MakeListCodec<TItem>(TikWireConverter item)
             => (text => TikValueListWire.Parse<TItem>(text, item),
@@ -406,16 +410,36 @@ namespace tik4net.Objects
         internal bool IsAbsent(object entity)
             => IsWrapped && ((ITikField)GetWrapped(entity)).State == TikFieldState.Absent;
 
+        /// <summary>
+        /// Whether a list merge leaves this property alone, given what the property holds now and the value it would get
+        /// (both as <see cref="GetRaw"/> returns them): they send the same form, or they are a list of an enum's members
+        /// holding the same members. Any other list compares in order, because that order is configuration: the first
+        /// DNS server a DHCP client gets is its primary. "No value" — Absent, or an assigned <c>null</c> — is one state here.
+        /// </summary>
+        internal bool MergeEquals(object? current, object? merged)
+        {
+            if (!IsWrapped)
+                return (string?)current == (string?)merged;
+            if (FormatWrapped(current!) == FormatWrapped(merged!))
+                return true;
+            var a = (ITikField)current!;
+            var b = (ITikField)merged!;
+            return _isMemberSet && a.State == TikFieldState.Present && b.State == TikFieldState.Present
+                && a.IsNegated == b.IsNegated && Equals(a.BoxedValue, b.BoxedValue);
+        }
+
         /// <summary>An assigned <c>null</c> of this wrapped property, boxed: the intent to unset.</summary>
         internal object AssignedNull() => _wrapPresent!(null, false);
 
         /// <summary>The <see cref="TikField{T}"/> itself, boxed — only for a wrapped property.</summary>
         internal object GetWrapped(object entity) => GetRaw(entity)!;
 
-        private object? GetRaw(object entity)
+        /// <summary>The property's value as it is: a boxed <see cref="TikField{T}"/>, or the plain <c>.id</c>.</summary>
+        internal object? GetRaw(object entity)
             => _getter != null ? _getter(entity) : PropertyInfo.GetValue(entity);
 
-        private void SetRaw(object entity, object? value)
+        /// <summary>Sets the property's value as it is, the counterpart of <see cref="GetRaw"/>.</summary>
+        internal void SetRaw(object entity, object? value)
         {
             if (_setter != null)
                 _setter(entity, value!);    // works even if the setter is private; a plain .id takes a null

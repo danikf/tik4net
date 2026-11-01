@@ -161,6 +161,9 @@ namespace tik4net.Objects
         public TikEntityPropertyAccessor? IdProperty
             => _properties.TryGetValue(TikSpecialProperties.Id, out var id) ? id : null;
 
+        /// <summary>The property of the <c>dynamic</c> field, or <c>null</c> when the entity has none.</summary>
+        internal TikEntityPropertyAccessor? DynamicProperty { get; private set; }
+
         /// <summary>
         /// Determines if entity has property for .id field (property which is decorated by <see cref="TikPropertyAttribute.FieldName"/> = .id)
         /// </summary>
@@ -198,6 +201,7 @@ namespace tik4net.Objects
                 .Select(propInfo => new TikEntityPropertyAccessor(this, propInfo))
                 .ToDictionary(propDescriptor => propDescriptor.FieldName);
 
+            DynamicProperty = _properties.TryGetValue("dynamic", out var dynamicProperty) ? dynamicProperty : null;
             HasFreeTextProperties = Properties.Any(p => p.IsFreeText);
             HasSensitiveProperties = Properties.Any(p => p.IsSensitive);
             CliFlagFields = Properties

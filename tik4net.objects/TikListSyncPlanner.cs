@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 
 namespace tik4net.Objects
@@ -106,44 +105,41 @@ namespace tik4net.Objects
             // The last desired row goes in front of the list's current last row when it is not already in place
             // (see the remarks): that row then has to move itself, so it is left out of the rows that stay put.
             int lastAnchor = Tail;
-            bool lastIsPlaced = n > 0 && desiredKeys[n - 1] != null && fixedRows.Contains(n - 1);
+            bool lastIsPlaced = n > 0 && fixedRows.Contains(n - 1);
             if (n > 0 && !lastIsPlaced && current.Count > 0)
             {
                 lastAnchor = current[current.Count - 1];
                 fixedRows = LongestIncreasingSubsequence(current.Take(current.Count - 1).ToList());
             }
 
-            // Replay target: tracker keys are the desired indexes, so a new row has one too.
-            var tracker = new TikOrderTracker(current.Select(Token));
+            // Replay target: the tracker's rows are the desired indexes, so a new row has one too.
+            var tracker = new TikOrderTracker(current);
             var steps = new List<TikListSyncStep>();
             for (int i = n - 1; i >= 0; i--)
             {
-                bool isNew = desiredKeys[i] == null;
-                if (!isNew && fixedRows.Contains(i))
+                if (fixedRows.Contains(i)) // only ever an existing row
                     continue;
 
+                bool isNew = desiredKeys[i] == null;
                 int anchor = i == n - 1 ? lastAnchor : i + 1;
                 var kind = isNew ? TikListSyncStepKind.Create : TikListSyncStepKind.Move;
-                int oldIndex = isNew ? -1 : tracker.IndexOf(Token(i));
-                int newIndex = anchor == Tail ? tracker.Count : tracker.IndexOf(Token(anchor));
+                int oldIndex = isNew ? -1 : tracker.IndexOf(i);
+                int newIndex = anchor == Tail ? tracker.Count : tracker.IndexOf(anchor);
                 steps.Add(new TikListSyncStep(kind, i, anchor, oldIndex, newIndex));
 
                 if (anchor == Tail)
-                    tracker.MoveToEnd(Token(i));
+                    tracker.MoveToEnd(i);
                 else
-                    tracker.MoveBefore(Token(i), Token(anchor));
+                    tracker.MoveBefore(i, anchor);
             }
 
-            var expected = Enumerable.Range(0, n).Select(Token);
-            if (!tracker.Current.SequenceEqual(expected))
+            if (!tracker.Current.SequenceEqual(Enumerable.Range(0, n)))
                 throw new InvalidOperationException(
                     "TikListSyncPlanner: the ordering plan does not reproduce the desired order — a defect in the planner, "
                     + "caught before any command was sent.");
 
             return steps;
         }
-
-        private static string Token(int desiredIndex) => desiredIndex.ToString(CultureInfo.InvariantCulture);
 
         /// <summary>The values of one longest strictly increasing subsequence of <paramref name="sequence"/>.</summary>
         internal static HashSet<int> LongestIncreasingSubsequence(IList<int> sequence)

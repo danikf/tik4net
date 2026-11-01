@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,10 +50,8 @@ namespace tik4net.Objects
         private Action<TEntity, int, int>? _moveLogCallback; //<Entity, oldIndex, newIndex>
         // oldEntity/newEntity are null for the side that doesn't exist: Insert has no oldEntity, Delete has no newEntity.
         private Func<MergeOperation, TEntity?, TEntity?, bool> _filterCallback = (operation, oldE, newE) => true; //default filter - process all
-        private readonly List<MemberExpression> _fields = new List<MemberExpression>();
-        private readonly List<MemberExpression> _justForInsertFields = new List<MemberExpression>();
-        // Field (property name) -> (expected value, current value) -> the value the row gets.
-        private readonly Dictionary<string, Func<object?, object?, object?>> _fieldMergers = new Dictionary<string, Func<object?, object?, object?>>();
+        private readonly List<MergeField> _fields = new List<MergeField>();
+        private readonly List<TikEntityPropertyAccessor> _justForInsertFields = new List<TikEntityPropertyAccessor>();
 
         internal TikListMerge(ITikConnection connection, IEnumerable<TEntity> expected, IEnumerable<TEntity> original)
         {
@@ -64,14 +61,45 @@ namespace tik4net.Objects
             _original = original;
         }
 
-        private static MemberExpression EnsureBodyIsMemberExpression<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression)
+        /// <summary>A merged field: its property, and what makes (expected value, current value) into the value the row gets.</summary>
+        private sealed class MergeField
+        {
+            public MergeField(TikEntityPropertyAccessor accessor, Func<object?, object?, object?>? merge)
+            {
+                Accessor = accessor;
+                Merge = merge;
+            }
+
+            public TikEntityPropertyAccessor Accessor { get; }
+            public Func<object?, object?, object?>? Merge { get; }
+        }
+
+        // The mapped property the expression names. Anything else is refused here, where the mistake is, and not at Save.
+        private TikEntityPropertyAccessor ResolveField<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression)
         {
             MemberExpression? memberExpression = fieldExpression.Body as MemberExpression;
 
             if (memberExpression == null)
-                throw new ArgumentException("Given expression must be MemberExpression.", "fieldExpression");
+                throw new ArgumentException("Given expression must be MemberExpression.", nameof(fieldExpression));
+            if (!(memberExpression.Expression is ParameterExpression))
+                throw new ArgumentException("The field '" + fieldExpression.Body + "' is not a property of "
+                    + typeof(TEntity).Name + " itself: name the mapped property.", nameof(fieldExpression));
 
-            return memberExpression;
+            return _metadata.Properties.FirstOrDefault(p => p.PropertyName == memberExpression.Member.Name)
+                ?? throw new ArgumentException("The property '" + memberExpression.Member.Name + "' of " + typeof(TEntity).Name
+                    + " has no [TikProperty]: a merge can only compare and write a mapped field.", nameof(fieldExpression));
+        }
+
+        // A field declared again replaces its earlier declaration, in its place.
+        private TikListMerge<TEntity> AddField(TikEntityPropertyAccessor accessor, Func<object?, object?, object?>? merge)
+        {
+            var field = new MergeField(accessor, merge);
+            int declared = _fields.FindIndex(f => f.Accessor == accessor);
+            if (declared >= 0)
+                _fields[declared] = field;
+            else
+                _fields.Add(field);
+            return this;
         }
 
         /// <summary>
@@ -115,17 +143,21 @@ namespace tik4net.Objects
         /// <typeparam name="TProperty">Field property.</typeparam>
         /// <param name="fieldExpression">Field extraction expression. example: (entity=}entity.Name)</param>
         /// <returns>this (fluent like API)</returns>
+        /// <exception cref="ArgumentException">The expression does not name a mapped property of the entity.</exception>
+        /// <remarks>
+        /// A field compares by the form the router is sent, so a list compares in order: the first DNS server a DHCP client
+        /// gets is its primary. The exception is a list of an enum's members (<c>connection-state</c>, <c>tcp-flags</c>):
+        /// RouterOS keeps those as a bitmask and prints its own order, so the same members in any order are no change. A
+        /// plain <c>string</c> field that holds such a set (<c>authentication</c>, <c>policy</c>) has to be spelled in the
+        /// router's order, or the merge updates the row on every run.
+        /// </remarks>
         public TikListMerge<TEntity> Field<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression)
-        {
-            _fields.Add(EnsureBodyIsMemberExpression(fieldExpression));
-
-            return this;
-        }
+            => AddField(ResolveField(fieldExpression), null);
 
         /// <summary>
         /// Defines a merged field whose value the row gets from <paramref name="merge"/> — <c>(expected, current) =&gt;
         /// result</c> — instead of from the expected row as it is. It decides the comparison too: a row whose merged value
-        /// equals its current one is not updated.
+        /// equals its current one is not updated. It runs once per row that is in both lists.
         /// </summary>
         /// <remarks>
         /// By default a field takes the expected value, so an expected row that does not carry a field
@@ -141,24 +173,10 @@ namespace tik4net.Objects
         /// <param name="fieldExpression">Field extraction expression. example: (entity=}entity.Name)</param>
         /// <param name="merge">The value the row gets, from the expected and the current value.</param>
         /// <returns>this (fluent like API)</returns>
+        /// <exception cref="ArgumentException">The expression does not name a mapped property of the entity.</exception>
         public TikListMerge<TEntity> Field<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression,
             Func<TProperty, TProperty, TProperty> merge)
-        {
-            var member = EnsureBodyIsMemberExpression(fieldExpression);
-            _fields.Add(member);
-            _fieldMergers[member.Member.Name] = (expected, current) => merge((TProperty)expected!, (TProperty)current!);
-
-            return this;
-        }
-
-        // The value field `propInfo` gets on `current` from `expected`: the expected value, or what the field's merge makes of it.
-        private object? MergedValue(PropertyInfo propInfo, TEntity current, TEntity expected)
-        {
-            object? expectedValue = propInfo.GetValue(expected);
-            return _fieldMergers.TryGetValue(propInfo.Name, out var merge)
-                ? merge(expectedValue, propInfo.GetValue(current))
-                : expectedValue;
-        }
+            => AddField(ResolveField(fieldExpression), (expected, current) => merge((TProperty)expected!, (TProperty)current!));
 
         /// <summary>
         /// Defines field that will be used just when creating new instance of entity (<see cref="MergeOperation.Insert"/>) (not used for update and compare).
@@ -166,9 +184,10 @@ namespace tik4net.Objects
         /// <typeparam name="TProperty">Field property.</typeparam>
         /// <param name="fieldExpression">Field extraction expression. example: (entity=}entity.Name)</param>
         /// <returns>this (fluent like API)</returns>
+        /// <exception cref="ArgumentException">The expression does not name a mapped property of the entity.</exception>
         public TikListMerge<TEntity> JustForInsertField<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression)
         {
-            _justForInsertFields.Add(EnsureBodyIsMemberExpression(fieldExpression));
+            _justForInsertFields.Add(ResolveField(fieldExpression));
 
             return this;
         }
@@ -185,69 +204,41 @@ namespace tik4net.Objects
             return this;
         }
 
-        private void UpdateEntityFields(TEntity destination, TEntity source)
+        // What each field gets on `current` from `expected`, in the order of _fields: the expected value, or what the
+        // field's merge makes of it. Worked out once per row, so a merge callback runs once.
+        private object?[] MergedValues(TEntity current, TEntity expected)
         {
-            foreach (var field in _fields)
+            var values = new object?[_fields.Count];
+            for (int i = 0; i < values.Length; i++)
             {
-                PropertyInfo propInfo = ((PropertyInfo)field.Member);
-                object? merged = MergedValue(propInfo, destination, source);
+                var field = _fields[i];
+                object? value = field.Accessor.GetRaw(expected!);
+                values[i] = field.Merge != null ? field.Merge(value, field.Accessor.GetRaw(current!)) : value;
+            }
+            return values;
+        }
+
+        private bool HasMergedValues(TEntity row, object?[] values)
+        {
+            for (int i = 0; i < values.Length; i++)
+                if (!_fields[i].Accessor.MergeEquals(_fields[i].Accessor.GetRaw(row!), values[i]))
+                    return false;
+            return true;
+        }
+
+        private void WriteMergedValues(TEntity destination, object?[] values)
+        {
+            for (int i = 0; i < values.Length; i++)
+            {
+                var accessor = _fields[i].Accessor;
+                object? merged = values[i];
                 // The merge's rule is that an Absent expected value unsets the field, while Save leaves an Absent one
                 // alone - so it is written as the assigned null it means here. Onto a row that does not print the field
                 // it stays Absent: there is nothing to unset, and IfPrintedIn's "does not apply to this row" says so.
                 if (merged is ITikField wrapped && wrapped.State == TikFieldState.Absent
-                    && propInfo.GetValue(destination) is ITikField current && current.State != TikFieldState.Absent)
-                    merged = WrappedAccessor(propInfo).AssignedNull();
-                propInfo.SetValue(destination, merged);
-            }
-        }
-
-        private bool EntityFieldEquals(TEntity entity1, TEntity entity2)
-        {
-            foreach (var field in _fields)
-            {
-                PropertyInfo propInfo = ((PropertyInfo)field.Member);
-
-                // entity1 is the row as it is, entity2 the expected one: compare what the row would get.
-                object? val1 = propInfo.GetValue(entity1);
-                object? val2 = MergedValue(propInfo, entity1, entity2);
-
-                // A TikField<T> compares by the form the router is sent, not by ToString, which renders Present("") like
-                // "no value". "No value" — Absent, or an assigned null — is one state here, as it is for == null: an expected
-                // row built in code with Foo = null and a router row without the field agree.
-                if (val1 is ITikField wrapped1 && val2 is ITikField wrapped2)
-                {
-                    var accessor = WrappedAccessor(propInfo);
-                    string? wire1 = accessor.FormatWrapped(val1), wire2 = accessor.FormatWrapped(val2);
-                    bool unparsed1 = wrapped1.State == TikFieldState.Unparsed, unparsed2 = wrapped2.State == TikFieldState.Unparsed;
-                    if (wire1 != wire2 || (unparsed1 != unparsed2 && wire1 != null))
-                        return false;
-                    continue;
-                }
-
-                if (Convert.ToString(val1) != Convert.ToString(val2))
-                    return false;
-            }
-            return true;
-        }
-
-        private static TikEntityPropertyAccessor WrappedAccessor(PropertyInfo property)
-            => TikEntityMetadataCache.GetMetadata<TEntity>().Properties.Single(p => p.PropertyName == property.Name);
-
-        private IEnumerable<string> ResolveFieldsFieldNames()
-        {
-            foreach(var field in _fields)
-            {
-                var attr = ((PropertyInfo)field.Member).GetCustomAttribute<TikPropertyAttribute>(true);
-                yield return attr!.FieldName; // _fields only ever holds members carrying this attribute
-            }
-        }
-
-        private IEnumerable<string> ResolveJustForInsertFieldNames()
-        {
-            foreach (var field in _justForInsertFields)
-            {
-                var attr = ((PropertyInfo)field.Member).GetCustomAttribute<TikPropertyAttribute>(true);
-                yield return attr!.FieldName; // _justForInsertFields only ever holds members carrying this attribute
+                    && accessor.GetRaw(destination!) is ITikField current && current.State != TikFieldState.Absent)
+                    merged = accessor.AssignedNull();
+                accessor.SetRaw(destination!, merged);
             }
         }
 
@@ -270,10 +261,17 @@ namespace tik4net.Objects
         /// Items which are present in both 'expected' and 'original' will be compared and updated (if are different - see <see cref="Field{TProperty}(Expression{Func{TEntity, TProperty}})"/>, <see cref="WithKey"/>).
         /// Items which are not present in 'expected' and are present in 'original' will be deleted from mikrotik router.
         /// </summary>
-        /// <returns>List of final entities on mikrotik router after save operation (with ids).</returns>
+        /// <returns>The rows on the router after the save, as far as this merge knows them (see the remarks).</returns>
         /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called, or the entity does
         /// not offer a verb the merge needs (see the remarks). Nothing has been sent.</exception>
         /// <remarks>
+        /// <para>
+        /// <b>The result.</b> The rows of 'original' that were not deleted, with their new values, and the rows that were
+        /// inserted, with their ids. A row whose delete the filter vetoed and a dynamic row left out of 'expected' are
+        /// there, because they stay on the router; a row whose insert the filter vetoed is not. The rows of 'expected'
+        /// come first, in that order, and the rows only in 'original' follow them, in theirs. That is not the
+        /// router's order when those rows sit among the others: reload when the position matters.
+        /// </para>
         /// <para>
         /// <b>Order.</b> On an ordered entity (<c>IsOrdered</c> — firewall filter, mangle, NAT, simple queues…) the
         /// rows end up in the order of 'expected'. Each row moves at most once, the longest run already in order
@@ -305,7 +303,8 @@ namespace tik4net.Objects
         /// router is. A verb the entity does not offer (<see cref="TikEntityAttribute.SupportedOperations"/>) and,
         /// with <see cref="TikConnectionSetup.ValidateWrites"/>, a field the router does not take are refused before
         /// the first command — and by <see cref="Simulate(out int, out int, out int, out int)"/>, which refuses what
-        /// <c>Save</c> would. A missing <c>move</c> is refused when the ordering pass reaches a move.
+        /// <c>Save</c> would. A missing <c>move</c> is refused at the end of the ordering pass: the creates are sent,
+        /// the moves are skipped, and every row exists with only its order wrong.
         /// </para>
         /// </remarks>
         /// <exception cref="TikUnknownFieldException">With <see cref="TikConnectionSetup.ValidateWrites"/>: an update or
@@ -325,9 +324,9 @@ namespace tik4net.Objects
 
             foreach (var update in plan.Updates)
             {
-                LogDml(MergeOperation.Update, update.Key, update.Value);
-                UpdateEntityFields(update.Key, update.Value);
-                _connection.Save(update.Key, plan.MergedFieldNames);
+                LogDml(MergeOperation.Update, update.Row, update.Expected);
+                WriteMergedValues(update.Row, update.Values);
+                _connection.Save(update.Row, plan.MergedFieldNames);
             }
 
             if (plan.OrderSteps != null)
@@ -348,7 +347,7 @@ namespace tik4net.Objects
         /// remarks on <see cref="Save"/>).
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>List of final entities on mikrotik router after save operation (with ids).</returns>
+        /// <returns>The rows on the router after the save, as far as this merge knows them (see the remarks on <see cref="Save"/>).</returns>
         /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called, or the entity does
         /// not offer a verb the merge needs (see the remarks on <see cref="Save"/>). Nothing has been sent.</exception>
         /// <exception cref="TikUnknownFieldException">With <see cref="TikConnectionSetup.ValidateWrites"/>: an update or
@@ -369,9 +368,9 @@ namespace tik4net.Objects
             foreach (var update in plan.Updates)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                LogDml(MergeOperation.Update, update.Key, update.Value);
-                UpdateEntityFields(update.Key, update.Value);
-                await _connection.SaveAsync(update.Key, plan.MergedFieldNames, cancellationToken: cancellationToken).ConfigureAwait(false);
+                LogDml(MergeOperation.Update, update.Row, update.Expected);
+                WriteMergedValues(update.Row, update.Values);
+                await _connection.SaveAsync(update.Row, plan.MergedFieldNames, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
             if (plan.OrderSteps != null)
@@ -400,7 +399,8 @@ namespace tik4net.Objects
         /// <param name="moveCnt">Number of <c>/move</c> commands <see cref="Save"/> will send (see the remarks on
         /// <see cref="Save"/> for how few). A created item is placed by its create (<c>place-before</c>) and is not
         /// counted here.</param>
-        /// <returns>Expected list of final entities on mikrotik router after save operation.</returns>
+        /// <returns>The rows <see cref="Save"/> would return. An updated row is a copy with its new values, so 'original'
+        /// stays as it was, and a row to be inserted has no <c>.id</c> yet.</returns>
         /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called, or the entity does
         /// not offer a verb <see cref="Save"/> would need.</exception>
         /// <exception cref="TikUnknownFieldException">With <see cref="TikConnectionSetup.ValidateWrites"/>: an update or
@@ -418,7 +418,11 @@ namespace tik4net.Objects
             updateCnt = plan.Updates.Count;
             deleteCnt = plan.Deletes.Count;
             moveCnt = plan.OrderSteps?.Count(s => s.Kind == TikListSyncStepKind.Move) ?? 0;
-            return plan.Result;
+
+            var result = plan.Result.ToList();
+            foreach (var update in plan.Updates)
+                result[update.ResultIndex] = UpdatedCopy(update);
+            return result;
         }
 
         /// <summary>
@@ -430,7 +434,7 @@ namespace tik4net.Objects
         /// <param name="insertCnt">Number of items to be created.</param>
         /// <param name="updateCnt">Number of items to be updated.</param>
         /// <param name="deleteCnt">Number of items to be deleted.</param>
-        /// <returns>Expected list of final entities on mikrotik router after save operation.</returns>
+        /// <returns>The rows <see cref="Save"/> would return (see <see cref="Simulate(out int, out int, out int, out int)"/>).</returns>
         /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
         /// <remarks>
         /// This overload hides the move count. On an ordered entity (<c>IsOrdered</c> — firewall filter, mangle,
@@ -462,31 +466,49 @@ namespace tik4net.Objects
         private void Preflight(MergePlan plan)
         {
             TikConnectionExtensions.EnsureListVerbs(_metadata, plan.Inserts.Count > 0, plan.Deletes.Count > 0, plan.Updates.Count > 0);
-            TikConnectionExtensions.ValidateListWrites(_connection, _metadata, UpdateProbes(plan), plan.Inserts, plan.CreateFieldNames);
+            TikConnectionExtensions.ValidateListWrites(_connection, _metadata,
+                plan.Updates.Select(update => (UpdatedCopy(update), (IEnumerable<string>?)plan.MergedFieldNames)),
+                plan.Inserts, plan.CreateFieldNames);
         }
 
-        private IEnumerable<(TEntity Entity, IEnumerable<string>? Filter)> UpdateProbes(MergePlan plan)
+        // The row as the update leaves it, without touching the row itself.
+        private TEntity UpdatedCopy(MergeUpdate update)
         {
-            var tracker = TikChangeTracker.For(_connection);
-            foreach (var update in plan.Updates)
+            var copy = update.Row.CloneEntity();
+            TikChangeTracker.For(_connection).ShareSnapshot(update.Row!, copy!);   // cleared fields and loaded values, as the row has them
+            WriteMergedValues(copy, update.Values);
+            return copy;
+        }
+
+        /// <summary>One row the merge updates.</summary>
+        private sealed class MergeUpdate
+        {
+            public MergeUpdate(TEntity row, TEntity expected, object?[] values, int resultIndex)
             {
-                var probe = update.Key.CloneEntity();
-                tracker.ShareSnapshot(update.Key!, probe!);   // cleared fields and loaded values, as the row has them
-                UpdateEntityFields(probe, update.Value);
-                yield return (probe, plan.MergedFieldNames);
+                Row = row;
+                Expected = expected;
+                Values = values;
+                ResultIndex = resultIndex;
             }
+
+            public TEntity Row { get; }
+            public TEntity Expected { get; }
+            /// <summary>What the row gets, in the order of the merged fields.</summary>
+            public object?[] Values { get; }
+            /// <summary>Where the row sits in <see cref="MergePlan.Result"/>.</summary>
+            public int ResultIndex { get; }
         }
 
         /// <summary>What <see cref="Save"/> sends, decided before anything is — shared by Save, SaveAsync and Simulate.</summary>
         private sealed class MergePlan
         {
             public List<TEntity> Deletes { get; } = new List<TEntity>();
-            /// <summary>original → expected.</summary>
-            public List<KeyValuePair<TEntity, TEntity>> Updates { get; } = new List<KeyValuePair<TEntity, TEntity>>();
+            public List<MergeUpdate> Updates { get; } = new List<MergeUpdate>();
             public List<TEntity> Inserts { get; } = new List<TEntity>();
             /// <summary>Ordered entity: the rows the ordering pass places, in expected order (inserts included).</summary>
             public List<TEntity> Desired { get; } = new List<TEntity>();
             public IReadOnlyList<TikListSyncStep>? OrderSteps { get; set; }
+            /// <summary>The rows on the router once this is sent; see the remarks on <see cref="Save"/>.</summary>
             public List<TEntity> Result { get; } = new List<TEntity>();
             public string[] MergedFieldNames { get; set; } = new string[0];
             public string[] CreateFieldNames { get; set; } = new string[0];
@@ -502,53 +524,60 @@ namespace tik4net.Objects
                     + "the key decides which router row and which expected row are the same row.");
 
             var plan = new MergePlan();
-            plan.MergedFieldNames = ResolveFieldsFieldNames().ToArray();
-            plan.CreateFieldNames = plan.MergedFieldNames.Concat(ResolveJustForInsertFieldNames()).ToArray();
+            plan.MergedFieldNames = _fields.Select(f => f.Accessor.FieldName).ToArray();
+            plan.CreateFieldNames = plan.MergedFieldNames.Concat(_justForInsertFields.Select(f => f.FieldName)).ToArray();
 
-            Dictionary<string, TEntity> expectedDict = _expected.ToDictionaryEx(keyExtractor);
-            Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(keyExtractor);
+            // Materialized once: each is walked more than once, and a lazy source would read the router twice or hand back
+            // fresh instances.
+            var expected = _expected.ToList();
+            var original = _original.ToList();
+            Dictionary<string, TEntity> expectedByKey = expected.ToDictionaryEx(keyExtractor);
+            Dictionary<string, TEntity> originalByKey = original.ToDictionaryEx(keyExtractor);
 
             //Delete — from the end of the list to the beginning (just for a better show in WinBox). A dynamic row is
             // not the merge's to delete: RouterOS refuses it ("cannot remove builtin").
-            foreach (var originalEntityPair in originalDict.Reverse())
+            var kept = new List<TEntity>();
+            foreach (var entity in Enumerable.Reverse(original))
             {
-                if (!expectedDict.ContainsKey(originalEntityPair.Key)
-                    && !TikListSync.IsDynamic(_metadata, originalEntityPair.Value)
-                    && _filterCallback(MergeOperation.Delete, originalEntityPair.Value, default(TEntity)))
-                    plan.Deletes.Add(originalEntityPair.Value);
+                if (expectedByKey.ContainsKey(keyExtractor(entity)))
+                    continue;
+                if (!TikListSync.IsDynamic(_metadata, entity) && _filterCallback(MergeOperation.Delete, entity, default(TEntity)))
+                    plan.Deletes.Add(entity);
+                else
+                    kept.Insert(0, entity);
             }
 
             //Insert + Update, in expected order
             var desiredKeys = new List<string?>();
-            foreach (var expectedEntityPair in expectedDict)
+            foreach (var expectedEntity in expected)
             {
-                if (originalDict.TryGetValue(expectedEntityPair.Key, out var originalEntity))
+                string key = keyExtractor(expectedEntity);
+                if (originalByKey.TryGetValue(key, out var originalEntity))
                 {
-                    if (!EntityFieldEquals(originalEntity, expectedEntityPair.Value)
-                        && _filterCallback(MergeOperation.Update, originalEntity, expectedEntityPair.Value))
-                        plan.Updates.Add(new KeyValuePair<TEntity, TEntity>(originalEntity, expectedEntityPair.Value));
+                    var values = MergedValues(originalEntity, expectedEntity);
+                    if (!HasMergedValues(originalEntity, values)
+                        && _filterCallback(MergeOperation.Update, originalEntity, expectedEntity))
+                        plan.Updates.Add(new MergeUpdate(originalEntity, expectedEntity, values, plan.Result.Count));
 
                     plan.Result.Add(originalEntity);
                     if (!TikListSync.IsDynamic(_metadata, originalEntity)) // the router refuses to move it, or anything in front of it
                     {
                         plan.Desired.Add(originalEntity);
-                        desiredKeys.Add(expectedEntityPair.Key);
+                        desiredKeys.Add(key);
                     }
                 }
-                else
+                else if (_filterCallback(MergeOperation.Insert, default(TEntity), expectedEntity))
                 {
-                    if (_filterCallback(MergeOperation.Insert, default(TEntity), expectedEntityPair.Value))
-                    {
-                        plan.Inserts.Add(expectedEntityPair.Value);
-                        plan.Desired.Add(expectedEntityPair.Value);
-                        desiredKeys.Add(null);
-                    }
-                    plan.Result.Add(expectedEntityPair.Value);
+                    plan.Inserts.Add(expectedEntity);
+                    plan.Desired.Add(expectedEntity);
+                    desiredKeys.Add(null);
+                    plan.Result.Add(expectedEntity);
                 }
             }
+            plan.Result.AddRange(kept);
 
             if (_metadata.IsOrdered)
-                plan.OrderSteps = TikListSyncPlanner.PlanOrder(desiredKeys, _original.Select(keyExtractor));
+                plan.OrderSteps = TikListSyncPlanner.PlanOrder(desiredKeys, original.Select(keyExtractor));
 
             return plan;
         }

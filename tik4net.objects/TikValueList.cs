@@ -32,7 +32,8 @@ namespace tik4net.Objects
     /// <para>
     /// Two lists are equal when they hold the same items the same number of times, in any order. The router prints some
     /// lists in an order of its own (<c>ack,!syn,fin</c> reads back <c>fin,ack,!syn</c>), so an order-sensitive comparison
-    /// would see a change on every reload. A save sends the items in the order the list holds them.
+    /// would see a change on every reload. A save sends the items in the order the list holds them. A list merge is
+    /// stricter: only a list of an enum's members ignores order there (see the remarks on <c>TikListMerge.Field</c>).
     /// </para>
     /// <para>
     /// An item never contains a <c>,</c>: the router separates the items with it, so <c>"a,b"</c> as one item would be

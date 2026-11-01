@@ -954,8 +954,8 @@ namespace tik4net.Objects
         /// The verbs a list writer's pass needs, checked before its first command, shared by
         /// <see cref="SaveListDifferences"/> and <see cref="TikListMerge{TEntity}"/>. Only the verbs the pass actually
         /// uses: demanding all of them would refuse a pure-delete pass on <c>/ppp/active</c>, which is precisely what
-        /// the menu does allow. <c>move</c> is checked by the ordering pass when it reaches a move, so a field-only
-        /// update on an ordered menu without <c>/move</c> is not refused.
+        /// the menu does allow. <c>move</c> is checked at the end of the ordering pass, so a field-only update on an
+        /// ordered menu without <c>/move</c> is not refused.
         /// </summary>
         internal static void EnsureListVerbs(TikEntityMetadata metadata, bool creates, bool deletes, bool updates)
         {
@@ -1006,10 +1006,10 @@ namespace tik4net.Objects
 
             Dictionary<string, TEntity> modifiedEntities = modifiedItems
                 .Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity!)))
-                .ToDictionary(entity => idProperty.GetEntityValue(entity!)!); //all entities from modified list with ids
+                .ToDictionaryEx(entity => idProperty.GetEntityValue(entity!)!); //all entities from modified list with ids
             Dictionary<string, TEntity> unmodifiedEntities = unmodifiedItems
                 //.Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity))) - entity in unmodified list has id (is loaded from miktrotik)
-                .ToDictionary(entity => idProperty.GetEntityValue(entity!)!); //all entities from unmodified list with ids
+                .ToDictionaryEx(entity => idProperty.GetEntityValue(entity!)!); //all entities from unmodified list with ids
 
             //DELETE — a row the router made itself (dynamic) is not the caller's to delete: RouterOS refuses it
             // ("cannot remove builtin"), and leaving it out of the list is the normal way to not care about it.

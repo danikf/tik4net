@@ -5,7 +5,7 @@ namespace tik4net.Objects
 {
     /// <summary>
     /// A model of an ordered menu's row order that a planned command sequence is replayed on — the check that
-    /// <see cref="TikListSyncPlanner"/> runs on every plan before a command is sent.
+    /// <see cref="TikListSyncPlanner"/> runs on every plan before a command is sent. Rows are the desired list's indexes.
     /// </summary>
     /// <remarks>
     /// <b>A plan has to be checked against the order as each step leaves it, not the starting one.</b> Every
@@ -16,17 +16,17 @@ namespace tik4net.Objects
     /// </remarks>
     internal sealed class TikOrderTracker
     {
-        private readonly List<string> _order;
+        private readonly List<int> _order;
 
         /// <summary>Starts tracking from the order the router holds now.</summary>
-        /// <param name="currentKeys">Row keys, in the router's current order.</param>
-        public TikOrderTracker(IEnumerable<string> currentKeys)
+        /// <param name="currentRows">Rows, in the router's current order.</param>
+        public TikOrderTracker(IEnumerable<int> currentRows)
         {
-            _order = new List<string>(currentKeys);
+            _order = new List<int>(currentRows);
         }
 
         /// <summary>The order as tracked so far.</summary>
-        public IEnumerable<string> Current
+        public IEnumerable<int> Current
         {
             get { return _order; }
         }
@@ -38,30 +38,30 @@ namespace tik4net.Objects
         }
 
         /// <summary>Current index of a row, or -1 when it is not tracked.</summary>
-        public int IndexOf(string key)
+        public int IndexOf(int row)
         {
-            return _order.IndexOf(key);
+            return _order.IndexOf(row);
         }
 
         /// <summary>
-        /// Puts <paramref name="key"/> immediately before <paramref name="anchorKey"/> — a <c>/move</c> of a
+        /// Puts <paramref name="row"/> immediately before <paramref name="anchorRow"/> — a <c>/move</c> of a
         /// tracked row, or a create with <c>place-before</c> of an untracked one.
         /// </summary>
         /// <exception cref="InvalidOperationException">The anchor is not tracked.</exception>
-        public void MoveBefore(string key, string anchorKey)
+        public void MoveBefore(int row, int anchorRow)
         {
-            _order.Remove(key);
-            int anchorIndex = _order.IndexOf(anchorKey);
+            _order.Remove(row);
+            int anchorIndex = _order.IndexOf(anchorRow);
             if (anchorIndex < 0)
-                throw new InvalidOperationException("TikOrderTracker: anchor '" + anchorKey + "' is not tracked.");
-            _order.Insert(anchorIndex, key);
+                throw new InvalidOperationException("TikOrderTracker: anchor row " + anchorRow + " is not tracked.");
+            _order.Insert(anchorIndex, row);
         }
 
-        /// <summary>Puts <paramref name="key"/> after every tracked row.</summary>
-        public void MoveToEnd(string key)
+        /// <summary>Puts <paramref name="row"/> after every tracked row.</summary>
+        public void MoveToEnd(int row)
         {
-            _order.Remove(key);
-            _order.Add(key);
+            _order.Remove(row);
+            _order.Add(row);
         }
     }
 }
