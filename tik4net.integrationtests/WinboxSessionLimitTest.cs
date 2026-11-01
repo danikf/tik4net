@@ -51,10 +51,22 @@ namespace tik4net.integrationtests
                 StringAssert.Contains(refusal.Message, "WinBox/Dude sessions");
                 Console.WriteLine($"[limit] refused after {held.Count} held sessions");
 
-                // Nothing frees a slot: every attempt is refused, and the open gives up only after its retries.
+                // Every attempt is refused, and the open gives up only after its retries. Below 100 held, a slot of
+                // somebody else's is in the count, and it can free during those retries: the open is then rightly
+                // accepted, so hold that slot too and ask again.
                 var watch = Stopwatch.StartNew();
-                var ex2 = Assert.ThrowsException<TikConnectionLoginException>(() => OpenWinbox().Dispose());
-                StringAssert.Contains(ex2.Message, "WinBox/Dude sessions");
+                TikConnectionLoginException ex2 = null;
+                while (ex2 == null && held.Count < MostSlotsTried)
+                {
+                    watch.Restart();
+                    try
+                    {
+                        held.Add(OpenWinbox());
+                        Console.WriteLine($"[limit] a slot not ours freed, accepted after {watch.ElapsedMilliseconds} ms; {held.Count} held");
+                    }
+                    catch (TikConnectionLoginException ex) when (ex.Message.Contains("WinBox/Dude sessions")) { ex2 = ex; }
+                }
+                Assert.IsNotNull(ex2, $"{held.Count} WinBox sessions were accepted without a second refusal.");
                 Assert.IsTrue(watch.ElapsedMilliseconds >= 6500,
                     $"the refusal must be retried (after 1, 2 and 4 s) before it is reported; it took {watch.ElapsedMilliseconds} ms");
 

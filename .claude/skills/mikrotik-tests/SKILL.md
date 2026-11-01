@@ -107,6 +107,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-inte
 | Smoke subset, all transports | `-Smoke -Router default` |
 | Smoke subset, some transports | `-Smoke -Router default -Transport @('rest','telnet','winboxnative')` (needs `-Command`) |
 | The older-RouterOS tests | `-Router chr2` (only category `AnyRouter` runs there) |
+| The whole suite on a secondary router, e.g. CHR3's password login | `-Router chr3 -AllTests` |
 | Hunting an intermittent failure | `-Router default -Transport telnet -Sequential -WireTrace auto` |
 | The lightest parallel load: two lanes per router | `-Pairs` |
 | Is a failure a collision between parallel tests? | the same selection with `-LockAll` |

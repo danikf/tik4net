@@ -122,6 +122,9 @@ Source: `tik4net/Rest/RestRequestBuilder.cs` (`BuildUnset`); tests in
 - 📄 No token/cookie mechanism by default — Basic auth on every request.
 - HTTPS: a certificate on the router is **mandatory** (.NET `SslStream` does not support anonymous-DH); accept
   self-signed certificates via `ServerCertificateCustomValidationCallback`.
+- ✅ **A password change does not reach REST at once** (7.21.5): after admin's password was set, REST still answered 200 to
+  the old empty password 100 s later, while the API refused it and a wrong password got 401. Hours later the old one
+  got 401 as well; the length of the window is not measured.
 
 ### 5.1 Session accounting — the REST session lives above TCP and never logs out (✅ 7.23.2, 2026-07-28/29)
 
