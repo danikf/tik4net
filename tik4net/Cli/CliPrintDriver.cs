@@ -589,8 +589,8 @@ namespace tik4net.Cli
         private async Task<IList<TikRecordSentence>> RunGetAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            string? id = TikGetResult.FindInput(descriptor.Parameters, TikSpecialProperties.Id);
-            string? valueName = TikGetResult.FindInput(descriptor.Parameters, "value-name");
+            string? id = TikParameterFormat.FindInput(descriptor.Parameters, TikSpecialProperties.Id);
+            string? valueName = TikParameterFormat.FindInput(descriptor.Parameters, "value-name");
 
             string cliText = CliCommandBuilder.BuildGet(descriptor.CommandText, id, valueName);
             string output = await _host.ExecuteReadAsync(cliText, cancellationToken).ConfigureAwait(false);

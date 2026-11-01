@@ -67,7 +67,7 @@ namespace tik4net.Connection
         // ('-name', '<count', '>count') is not part of the name.
         private static string? FieldOf(string name)
         {
-            string field = name.TrimStart('?');
+            string field = TikParameterFormat.BareName(name);
             if (field.Length == 0 || field.StartsWith(".", StringComparison.Ordinal) || field.StartsWith("#", StringComparison.Ordinal))
                 return null;
             field = field.TrimStart('-', '<', '>', '=');

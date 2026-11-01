@@ -343,7 +343,7 @@ namespace tik4net.WinboxNative
 
             foreach (var p in descriptor.Parameters)
             {
-                string name = p.Name.TrimStart('?', '=');
+                string name = TikParameterFormat.BareName(p.Name);
                 if (!name.StartsWith(".", StringComparison.Ordinal) && !SnapshotMonitorArguments.Contains(name))
                     throw _host.TrapFor(descriptor, "unknown parameter " + name);
             }
@@ -378,7 +378,7 @@ namespace tik4net.WinboxNative
         {
             foreach (var p in descriptor.Parameters)
             {
-                if (!string.Equals(p.Name.TrimStart('?', '='), WinboxNativeWriter.MonitorDurationParam, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(TikParameterFormat.BareName(p.Name), WinboxNativeWriter.MonitorDurationParam, StringComparison.OrdinalIgnoreCase))
                     continue;
                 if (TikDuration.TryParseTimeSpan(p.Value, out TimeSpan span)) return span;
                 if (int.TryParse(p.Value, System.Globalization.NumberStyles.Integer,

@@ -32,48 +32,26 @@ namespace tik4net.Connection
     internal static class TikGetResult
     {
         /// <summary>
-        /// Reads one of <c>get</c>'s inputs, in whichever format it arrived.
-        /// </summary>
-        /// <remarks>
-        /// Both formats have to be accepted. A parameter the caller declared <c>NameValue</c> keeps that
-        /// format, while an unformatted one is rewritten to <c>Filter</c> on the read path by
-        /// <c>TikGenericCommand.ResolveParamsForRead</c> — so the same command arrives two different ways
-        /// depending only on how it was spelled, and honouring one of them would fix half the callers.
-        /// </remarks>
-        /// <param name="parameters">The command's parameters.</param>
-        /// <param name="name">The input to look for (<c>.id</c> or <c>value-name</c>).</param>
-        internal static string? FindInput(IList<ITikCommandParameter> parameters, string name)
-        {
-            foreach (var p in parameters)
-            {
-                if (string.Equals(p.Name.TrimStart('=', '?'), name, StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrEmpty(p.Value))
-                    return p.Value;
-            }
-            return null;
-        }
-
-        /// <summary>
         /// Narrows the rows a full read produced into what <c>get</c> answers with. Rows of any other verb
         /// are returned untouched.
         /// </summary>
         /// <param name="descriptor">The command being run — its verb decides whether anything happens here.</param>
         /// <param name="rows">The rows the transport's ordinary read produced.</param>
+        /// <param name="rowAddressedByRouter">The router has already picked the row, as REST's URL makes it do: it may
+        /// answer with the row's real <c>.id</c> to a <c>.id</c> that held a name.</param>
         /// <returns>The narrowed result, or <paramref name="rows"/> unchanged.</returns>
         internal static IList<TikRecordSentence> Shape(
-            TikCommandDescriptor descriptor, IList<TikRecordSentence> rows)
+            TikCommandDescriptor descriptor, IList<TikRecordSentence> rows, bool rowAddressedByRouter = false)
         {
             if (TikPath.Verb(descriptor.CommandText) != "get")
                 return rows;
 
-            string? id = FindInput(descriptor.Parameters, TikSpecialProperties.Id);
-            string? valueName = FindInput(descriptor.Parameters, "value-name");
+            string? id = TikParameterFormat.FindInput(descriptor.Parameters, TikSpecialProperties.Id);
+            string? valueName = TikParameterFormat.FindInput(descriptor.Parameters, TikSpecialProperties.UnsetValueName);
 
-            // A row that carries no .id was already selected by the transport and must be kept: REST
-            // addresses the row in the URL and, with ?.proplist=, answers with just the requested field —
-            // so requiring an .id here discarded the very row that had been asked for. Only rows that DO
+            // A row that carries no .id was already selected by the transport and must be kept. Only rows that DO
             // carry one are filtered, which is the case native WinBox needs, where the whole window is read.
-            if (!string.IsNullOrEmpty(id))
+            if (!string.IsNullOrEmpty(id) && !rowAddressedByRouter)
                 rows = rows.Where(r =>
                     !r.TryGetResponseField(TikSpecialProperties.Id, out var rowId)
                     || string.Equals(rowId, id, StringComparison.OrdinalIgnoreCase)).ToList();

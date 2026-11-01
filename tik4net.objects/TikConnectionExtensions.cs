@@ -811,9 +811,10 @@ namespace tik4net.Objects
             {
                 ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset", TikCommandParameterFormat.NameValue);
                 AddWinboxLabels(unsetCmd, metadata);
-                // id: null only for a singleton, and BuildUpdateCommands is only reached past Save's IsCreate
-                // check, which already requires a non-empty id for every non-singleton entity.
-                unsetCmd.AddParameter(TikSpecialProperties.Id, id!, TikCommandParameterFormat.NameValue);
+                // non-null: BuildUpdateCommands is only reached past Save's IsCreate check, which already requires a
+                // non-empty id for every non-singleton entity.
+                if (!metadata.IsSingleton)
+                    unsetCmd.AddParameter(TikSpecialProperties.Id, id!, TikCommandParameterFormat.NameValue);
                 unsetCmd.AddParameter(TikSpecialProperties.UnsetValueName, fld);
                 unsetCommands.Add(unsetCmd);
             }

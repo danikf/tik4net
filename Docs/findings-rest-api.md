@@ -28,6 +28,11 @@ only, not independently verified) — a statement about evidence quality, not ab
 - 📄 **Content-Type must be exactly `application/json`** (without `; charset=utf-8`) on some ROS
   versions — a strict string match there returns **HTTP 415**. `RestConnection` sends
   `application/json` without a charset to stay on the safe side.
+- ✅ **Text is bytes; a JSON escape is not the same text** (7.25). RouterOS stores a raw byte sequence as it arrives
+  and answers with those bytes and no charset: `"ř"` sent as UTF-8 reads back as `c5 99`, as the binary API writes it.
+  `"\u0159"` is stored as the **one byte `f8`**, a code page's `ř` and invalid UTF-8, so the same comment reads
+  differently from one written over the API. ASCII escapes are safe (`\u003E` is `>`). `RestConnection` therefore sends
+  text unescaped, and encodes and decodes the body by `ITikConnection.Encoding`, as the other transports do.
 - ✅ **The router answers only the first of several requests queued on one HTTP connection** (7.24.3,
   `www` and `www-ssl` alike). Three GETs written back-to-back on one keep-alive connection get one
   response — to whichever was first — and the other two are never answered; the connection stays open
@@ -49,8 +54,11 @@ only, not independently verified) — a statement about evidence quality, not ab
 | **add** | `PUT` | `/rest/<path>` | `{"field":"val",...}` | ✅ returns the **entire created object incl. `.id`** (no separate `ret`) |
 | **set** | `PATCH` | `/rest/<path>/{id}` | `{"field":"val",...}` | ✅ `{id}` carries the `*` (`*1`); returns the whole object |
 | **set (singleton, no `.id`)** | `POST` | `/rest/<path>/set` | `{"field":"val",...}` | ✅ for menus with no `.id` (`/system/identity`, `/ip/dns`, `/snmp`, …); `PATCH` on a singleton has no id to put in the URL and answers `400 missing or invalid resource identifier` |
-| **remove** | `DELETE` | `/rest/<path>/{id}` | — | ✅ |
-| **unset (clear a field)** | `POST` | `/rest/<path>/unset` | `{".id":"*X","value-name":"field"}` | ✅ the router's own spelling, same as the binary API — see §4 |
+| **set (several rows)** | `POST` | `/rest/<path>/set` | `{".id":"*X,*Y","field":"val"}` | ✅ `PATCH /rest/<path>/*X,*Y` applies the change and then answers **404**, escaped comma or not |
+| **remove** | `DELETE` | `/rest/<path>/{id}` | — | ✅ also `*X,*Y`, with the comma as `%2C` |
+| **remove (by `numbers`)** | `POST` | `/rest/<path>/remove` | `{"numbers":"*X"}` | ✅ with neither: `400 missing =.id=` |
+| **unset (clear a field)** | `POST` | `/rest/<path>/unset` | `{".id":"*X","value-name":"field"}` | ✅ the router's own spelling, same as the binary API, `numbers` too — see §4. No `value-name`: `400 missing =value-name=` |
+| **get** | `GET` | `/rest/<path>/{id}?.proplist=field` | — | ✅ `{id}` is the API's `.id` or `number` |
 | **move (ordered)** | `POST` | `/rest/<path>/move` | `{".id":"*X","destination":"*Y"}` or `{"numbers":"*X","destination":"*Y"}` | ✅ both forms work; `destination` = `.id` of the element it is inserted **before** |
 | **arbitrary command** | `POST` | `/rest/<path>/<command>` | `{...}` | e.g. `/print`, `/set`, `/move`, `/monitor` |
 
@@ -74,6 +82,10 @@ POST /rest/ip/firewall/filter/move  {".id":"*7","destination":"*6"}  → moves *
 DELETE /rest/ip/firewall/address-list/*1  → 200
 ```
 
+**`{id}` is an id or a name, percent-escaped except its `*`** (✅ 7.25). The router decodes the segment:
+`/rest/interface/list/t4n%2F1%20x%3Fy` addresses the list named `t4n/1 x?y`, for `GET`, `PATCH` and `DELETE`. Unescaped,
+the same name is `400 no such command prefix`, and so is an escaped star (`/rest/interface/list/%2A2000057`).
+
 ---
 
 ## 3. Querying (`print`)
@@ -85,9 +97,9 @@ DELETE /rest/ip/firewall/address-list/*1  → 200
   { ".query": ["name=ether1", "type=ether"], ".proplist": ["name","type",".id"] }
   ```
   `.query` is an **array of conditions**; `.proplist` is an array (or comma-string) of field names.
-- 📄 **Operators in `.query`:** `=`, `<`, `>`, `~` (regex/substring); logical connectives as standalone
-  array elements: `"#|"` (OR), `"#&"` (AND), `"#!"` (NOT). Example:
-  `[".query":["type=ether","type=vlan","#|"]]` = type==ether OR type==vlan.
+- ✅ **Operators in `.query`:** `>name=value`, `<name=value`, `-name` (not set); logical connectives as standalone
+  array elements: `"#|"` (OR). Live: `?>mtu=2000` and `?-type` give the same rows as the API, and
+  `["type=loopback","type=vrrp","#|"]` gives the expected two. 📄 Also `~`, `"#&"` and `"#!"`.
 - ✅ `detail` is a no-op on REST — the full field set is already returned by default, so there is no
   separate "detail" request shape to build.
 - ✅ Filters passed via `?name=value` in the POST/print body **do not work** (→ 400). Only through `.query`.
@@ -190,9 +202,10 @@ anything added there would have no effect on this.
 - ✅ The error response is JSON: `{ "error": <http-status-int>, "message": "<text>", "detail": "<text>" }`.
   The HTTP status matches `error` (400/404/415/500…).
 - ✅ A malformed request (e.g. a filter passed as a `?`-key, POST to the collection root, an unknown body) → **400**.
-- ✅ `RestConnection` classifies the combined `message`/`detail` text through the shared `TikTrapClassifier`
+- ✅ `RestResponseParser` classifies the combined `message`/`detail` text through the shared `TikTrapClassifier`
   (also used by the API and CLI transports), then applies one REST-only rule: a bare `404` with no matching
-  phrase is treated as `NoSuchItem`.
+  phrase is treated as `NoSuchItem`. The status is read before the body, so a failure with an empty body is an
+  error too, not an empty table.
 
   | RouterOS phrase (case-insensitive substring) | Exception |
   |---|---|
@@ -200,13 +213,22 @@ anything added there would have no effect on this.
   | `no such command`, `bad command name`, `expected end of command`, `no such directory`, `syntax error` | `TikNoSuchCommandException` |
   | `already have` + `such`, or `item with such name already` | `TikAlreadyHaveSuchItemException` |
   | anything else | `TikCommandTrapException` |
-- HTTP 401 → `TikConnectionLoginException`.
+- HTTP 401 → `TikConnectionLoginException`: a wrong password, and a user whose group lacks `rest-api` (✅ 7.25).
+- ✅ A user **without `read`** gets `500 {"detail":"std failure: not allowed (9)",…}` on `/system/resource`
+  and on `/console/inspect` (7.25). The login was accepted, so `Open` lets it through.
+- A 2xx whose body is not rows (HTML, a bare word, malformed JSON, an array of non-objects) →
+  `TikCommandUnexpectedResponseException`; on an add, `TikAddIdNotReadException`, since the row was very likely created.
+- `Open` probes `GET /rest/system/resource`, and an answer that is not a JSON object or array, whatever its status, →
+  `TikConnectionProtocolMismatchException`: RouterOS before 7.1 (✅ an HTML 404 on 6.49.21) or something else on the port.
 
-Source: `tik4net/Rest/RestConnection.cs`, `tik4net/TikTrapClassifier.cs`.
+Source: `tik4net/Rest/RestResponseParser.cs`, `tik4net/Rest/RestConnection.cs`, `tik4net/TikTrapClassifier.cs`.
 
 ---
 
 ## 7. Capability gaps
+
+**The wire trace carries the body.** `OnWriteRow` gets `POST /ip/address/print {".query":["address=…"]}`, so `.query`
+and a write's fields can be read from the trace, passwords included, as the API's words carry them.
 
 - **No streaming / follow.** Monitor commands (`/interface/monitor`, `/tool/ping`, etc.) must carry a bound
   — `once`, `count`, or `duration` depending on the verb (§12.2) — otherwise the request hangs with no
@@ -233,18 +255,29 @@ Source: `tik4net/Rest/RestConnection.cs`, `tik4net/TikTrapClassifier.cs`.
      those sections. §10–§12 keep their numbers because tik4net/Rest/RestConnection.cs and
      tik4net.integrationtests/AsyncCommandTest.cs cite §12.1 and §5.1 by number. -->
 
-## 10. Action verbs and menu names have the same shape
+## 10. Commands and menu names have the same shape
 
 `/log/error` and `/ip/address` cannot be told apart by looking at the trailing path segment — both are a
-single word after a menu path. `RestRequestBuilder.Build` resolves this from `RestCallKind`, supplied by the
-caller: `ExecuteNonQuery()` passes `NonQuery`, so an unrecognised trailing segment is posted as an action;
-`ExecuteList`/`ExecuteScalar`/`print` pass `Read`, so an unrecognised trailing segment keeps its other
-meaning — part of the path, with an implicit `print`.
+single word after a menu path. Only `print`, `get`, `add`, `set`, `remove` and `unset` have a REST spelling of their
+own (`RestRequestBuilder.HasOwnShape`), and they are never in doubt. For anything else:
 
-The rule POSTs the path exactly as given rather than splitting off a "verb": for `/tool/wol` the whole path
-is the operation, not a suffix on a menu.
+- **`ExecuteNonQuery`** POSTs the path as given: the caller asked for something to happen, not for a table.
+- **A read** (`ExecuteList`, `ExecuteScalar`) asks the router, once per path and connection:
+  `POST /rest/console/inspect {"request":"child","path":"tool,wol"}`. The row with `type=self` names the node:
 
-**Verified live on 7.23.2:**
+| `node-type` | Example | Request |
+|---|---|---|
+| `cmd` | `/tool/wol`, `/tool/profile`, `/interface/find`, `/console/inspect` | `POST` the path as given, parameters as inputs |
+| `dir`, `path` | `/ip/address`, `/ppp/profile`, `/interface` | implicit `print` |
+| no rows | `/ping`, `/ip/address/listen`, `/nope/nothing` | `POST` the path as given |
+
+**Verified live on 7.25.** The last row is what makes "no rows" a command rather than a menu: `POST /rest/ping` answers
+although inspect lists nothing for `ping`, and a path that does not exist answers
+`400 no such command or directory` alike to `GET` and `POST`. `/console/inspect` itself is never asked about. A router
+that refuses the question (a user without `read` gets `500 not allowed`) leaves the monitor verbs
+(`TikMonitorVerbs`) as commands and anything else as a menu.
+
+The mapper's reads all end in `/print`, so they pay nothing for this.
 
 ```
 GET  /rest/log/error                              → 400 {"detail":"no such command","error":400}
@@ -252,34 +285,27 @@ POST /rest/log/error   {"message":"…"}            → 200 []      and the row 
 POST /rest/log/info    {"message":"…"}            → 200 []      and the row shows up in /log
 POST /rest/log/warning {"message":"…"}            → 200 []      and the row shows up in /log
 POST /rest/log/debug   {"message":"…"}            → 200 []      but NOTHING in /log
+POST /rest/console/inspect/print                  → 400 {"detail":"no such command"}
+POST /rest/console/inspect {"request":"child","path":"ip,route,add"}  → the argument rows
 ```
 
 `debug` is accepted, but the row is only written if `/system/logging` lets it through (not on a default
 configuration) — `200` with nothing in the log is correct router behaviour, not a silent failure.
-
-**`/tool/wol` is reachable through both a read method and `ExecuteNonQuery`** (it returns a row), so it
-stays in `RestRequestBuilder`'s explicit write-verb list rather than relying on `RestCallKind.NonQuery`
-alone; both paths produce the same URL.
-
-**`/console/inspect` is the same shape**: a read whose parameters (`request=`, `path=`) are the question.
-`POST /rest/console/inspect` with `{"request":"child","path":"ip,route,add"}` answers the argument rows (7.24.4);
-the implicit-`print` form `POST /rest/console/inspect/print` answers `400 no such command`. It is on the same list.
 
 **WinBox native cannot write a log row at all** — `/log` maps to handler `[3,4]` with `cmds={}` in the
 `.jg` catalog, and no window across the whole catalog exposes a `doit`/action for it. That transport
 reports `NotSupportedException` rather than attempting the write, so cross-checking against it would not
 have caught this gap either.
 
-Source: `tik4net/Rest/RestRequestBuilder.cs`; tests in
-`tik4net.unittests/Rest/RestRequestBuilderActionVerbTests.cs`.
+Source: `tik4net/Rest/RestConnection.cs` (`TrailingSegmentAsync`), `tik4net/Rest/RestRequestBuilder.cs`; tests in
+`tik4net.unittests/Rest/RestConnectionWireTests.cs`, `RestRequestBuilderActionVerbTests.cs`.
 
 ---
 
 ## 11. Monitor commands are POSTed to their own path, not to `/print`
 
 `/ping`, `/tool/traceroute`, `/interface/monitor-traffic`, `/tool/torch` and `/tool/profile` are invoked
-through a read method (they return rows), so `RestCallKind.NonQuery` does not cover them —
-`RestRequestBuilder` recognises them by name (`TikMonitorVerbs`) and POSTs the path exactly as given,
+through a read method (they return rows). §10 makes them commands, so the path is POSTed exactly as given,
 with the parameters as the command's inputs rather than a print filter.
 
 **Verified live on 7.23.2:**
@@ -293,9 +319,6 @@ POST /rest/interface/monitor-traffic {"interface":"ether1","once":""}
 POST /rest/tool/traceroute {"address":"127.0.0.1","count":"1"}
                                                           → 200 [{address:"127.0.0.1",…}]
 ```
-
-`monitor` (as in `/interface/ethernet/monitor`) is checked by the same rule as the other monitor names,
-and is also on the ordinary write-verb list — both routes produce the same URL for it.
 
 **`once` (or the bound the verb needs) is mandatory for REST** — see §12.2 for why and the exact bound per
 verb. The `tik4net.objects` mapper already supplies it (e.g. `GetInterfaceMonitorTrafficSnapshot`); a

@@ -237,6 +237,14 @@ namespace tik4net
             TlsAttempted = tlsAttempted;
         }
 
+        // REST's: its symptom is an HTTP answer, and the API's advice about ports and services does not apply.
+        internal TikConnectionProtocolMismatchException(int port, bool tlsAttempted, string message)
+            : base(message + " See https://github.com/danikf/tik4net/wiki/Exception-handling.", null)
+        {
+            Port = port;
+            TlsAttempted = tlsAttempted;
+        }
+
         private static string BuildMessage(int port, bool tlsAttempted, int plainPort, int sslPort,
             string symptom)
         {

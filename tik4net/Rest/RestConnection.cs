@@ -1,15 +1,14 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Connection;
-using tik4net.Diagnostics;
 
 namespace tik4net.Rest
 {
@@ -21,7 +20,7 @@ namespace tik4net.Rest
     /// Rides the shared <see cref="TikCommandConnectionBase"/>: the command factory, diagnostics and the
     /// generic <see cref="ITikCommand"/> (<see cref="TikGenericCommand"/>) are inherited. REST only supplies the three
     /// CRUD hooks (<see cref="RunPrint"/>/<see cref="RunAdd"/>/<see cref="RunNonQuery"/>) implemented over HTTP
-    /// plus the request build (<see cref="RestRequestBuilder"/>), JSON parsing and HTTP-status→exception mapping.
+    /// plus the request build (<see cref="RestRequestBuilder"/>) and reading the answer (<see cref="RestResponseParser"/>).
     /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> | <see cref="TikConnectionCapability.Listen"/> |
     /// <see cref="TikConnectionCapability.AsyncCommands"/> | <see cref="TikConnectionCapability.CancelInFlight"/>.
     /// Listen and the callback monitors are emulated by polling, exactly as the CLI and native-WinBox
@@ -97,11 +96,16 @@ namespace tik4net.Rest
         private const int MonitorPollIntervalMs = 1000;
 
         private readonly bool _useSsl;
-        // _baseUrl/_authHeader: assigned in OpenInternalAsync (Open/OpenAsync), not the constructor — nothing
-        // reads them before Open. _httpClient is genuinely nullable: Close() and a failed Open reset it to null.
+        // _baseUrl: assigned in OpenInternalAsync (Open/OpenAsync), not the constructor — nothing
+        // reads it before Open. _httpClient is genuinely nullable: Close() and a failed Open reset it to null.
         private HttpClient? _httpClient;
         private string _baseUrl = null!;
-        private string _authHeader = null!;
+
+        private const string ConsoleInspectPath = "/console/inspect";
+
+        // What the router said a verb-less path's last segment is. Forgotten on Open, as MenuSchemas is.
+        private readonly ConcurrentDictionary<string, RestTrailingSegment> _trailingSegments
+            = new ConcurrentDictionary<string, RestTrailingSegment>(StringComparer.OrdinalIgnoreCase);
 
         // At most this many requests are on the wire at once. RouterOS answers only the first of several requests
         // queued on one HTTP connection (Docs/findings-rest-api.md §1), so a request must never wait on a busy
@@ -169,7 +173,7 @@ namespace tik4net.Rest
             cancellationToken.ThrowIfCancellationRequested();
             string scheme = _useSsl ? "https" : "http";
             _baseUrl = $"{scheme}://{host}:{port}/rest";
-            _authHeader = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{password}"));
+            _trailingSegments.Clear();
 
 #if NETSTANDARD2_0
             // On .NET Framework HttpClientHandler runs on HttpWebRequest, whose per-host limit (2 by default) is what
@@ -203,50 +207,41 @@ namespace tik4net.Rest
             // different settings (ConnectTimeout vs Send/ReceiveTimeout). Leaving it set would make the
             // effective bound the smaller of the two, which is neither of the numbers the caller configured.
             _httpClient = new HttpClient(handler) { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
-            _httpClient.DefaultRequestHeaders.Authorization =
-                AuthenticationHeaderValue.Parse(_authHeader);
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic",
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{password}")));
 
-            // Probe: verify connectivity and credentials. Bounded even with ConnectTimeout <= 0 (TikTimeouts.HandshakeBoundMs).
+            // Probe: verify connectivity, credentials and that this is the REST API. Bounded even with ConnectTimeout <= 0 (TikTimeouts.HandshakeBoundMs).
             int probeMs = TikTimeouts.HandshakeBoundMs(ConnectTimeoutMs, ReceiveTimeoutMs);
+            bool opened = false;
             try
             {
-                await SendHttpAsync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"),
-                    probeMs, cancellationToken).ConfigureAwait(false);
                 // 401 = wrong credentials, already handled by SendHttpAsync → TikConnectionLoginException
+                var (body, statusCode) = await SendHttpAsync(
+                    new RestRequestBuilder.RestRequest(HttpMethod.Get, "/system/resource"), probeMs, cancellationToken).ConfigureAwait(false);
+                // Any JSON answer past the 401 is the REST API with the login accepted, also an error: a user without
+                // 'read' gets 500 "not allowed" here (7.25), and may well have rights to what it came for.
+                if (!RestResponseParser.IsJsonDocument(body))
+                    throw NotTheRestApi(port, statusCode, body);
                 SetOpened();
-            }
-            catch (TikConnectionLoginException)
-            {
-                _httpClient.Dispose();
-                _httpClient = null;
-                throw;
+                opened = true;
             }
             catch (TikConnectionReceiveTimeoutException ex)
             {
                 // The router took the connection and answered the probe with silence: a login with no answer, as on
                 // every transport (TikOpenGuard). The inner exception's "no response received" wording describes a read
                 // on an established connection, not an open that never got that far.
-                _httpClient.Dispose();
-                _httpClient = null;
                 throw new TikConnectionLoginNoAnswerException("REST",
                     $"the open probe GET /rest/system/resource to {host}:{port}, nothing within {probeMs} ms "
                     + "(ConnectTimeout, or ReceiveTimeout when ConnectTimeout is not positive)", ex);
             }
             catch (OperationCanceledException)
             {
-                // The caller's own cancel, and it leaves as itself. Wrapping it like the failures below
-                // would break every catch (OperationCanceledException) written against this transport and
-                // report a caller's deliberate act as a failed open. SendHttpAsync has already separated
-                // this from a timeout — a cancellation nobody asked for becomes
-                // TikConnectionReceiveTimeoutException there — so anything reaching here was asked for.
-                _httpClient.Dispose();
-                _httpClient = null;
+                // The caller's own cancel, and it leaves as itself. SendHttpAsync has already separated this from a
+                // timeout — a cancellation nobody asked for becomes TikConnectionReceiveTimeoutException there.
                 throw;
             }
             catch (Exception ex)
             {
-                _httpClient.Dispose();
-                _httpClient = null;
                 // Nothing answered (refused, unreachable, the connect timed out): the SocketException under HttpClient's
                 // own exception, as the API and the terminals throw it. Anything else is what TikOpenGuard makes of it.
                 for (Exception? inner = ex; inner != null; inner = inner.InnerException)
@@ -254,6 +249,27 @@ namespace tik4net.Rest
                         throw socket;
                 throw TikOpenGuard.Translate(ex);
             }
+            finally
+            {
+                if (!opened)
+                {
+                    _httpClient?.Dispose();
+                    _httpClient = null;
+                }
+            }
+        }
+
+        private TikConnectionProtocolMismatchException NotTheRestApi(int port, int statusCode, string body)
+        {
+            // RouterOS gained /rest in 7.1; before that the www service serves webfig only, and every REST call lands on
+            // the 404 page (measured on 6.49.21).
+            string message = statusCode == 404 && RestResponseParser.IsHtml(body)
+                ? "The router answered the REST probe with an HTML 404 page rather than JSON, so this RouterOS has no REST "
+                  + "API: it was added in 7.1, and before that the www service serves webfig only. Use the binary API or a CLI transport on this router."
+                : $"The REST probe GET /rest/system/resource on port {port} was answered with HTTP {statusCode} and a body that "
+                  + "is not JSON, so what answers there is not the RouterOS REST API. Check the port, and that /ip/service has "
+                  + (_useSsl ? "'www-ssl'" : "'www'") + " on it.";
+            return new TikConnectionProtocolMismatchException(port, _useSsl, message);
         }
 
         /// <inheritdoc/>
@@ -286,28 +302,31 @@ namespace tik4net.Rest
         /// <inheritdoc/>
         protected override async Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            var records = await ExecuteRequestListAsync(descriptor.CommandText, descriptor.Parameters,
-                cancellationToken).ConfigureAwait(false);
+            string body = await ExecuteReadAsync(descriptor, cancellationToken).ConfigureAwait(false);
+            if (!RestResponseParser.TryReadRows(body, out var rows))
+                throw new TikCommandUnexpectedResponseException("The router's answer is not rows: " + body,
+                    CommandFor(descriptor), new TikTrapSentenceResult(body));
             // The router honours ?.proplist= but adds .id to every row whether listed or not (7.24.2); the base trims
             // the rows to .proplist (TikProplist), as the binary API returns them.
-            return TikGetResult.Shape(descriptor, records);
+            return TikGetResult.Shape(descriptor, rows, rowAddressedByRouter: true);
         }
 
         /// <inheritdoc/>
         protected override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            var single = await ExecuteRequestSingleAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken).ConfigureAwait(false);
+            string body = await ExecuteReadAsync(descriptor, cancellationToken).ConfigureAwait(false);
             string? id = null;
-            single?.TryGetResponseField(TikSpecialProperties.Id, out id);
+            bool readable = RestResponseParser.TryReadRows(body, out var rows);
+            if (readable && rows.Count > 0)
+                rows[0].TryGetResponseField(TikSpecialProperties.Id, out id);
             if (id == null || id.Length == 0)
-                throw TikAddIdNotRead.Create(CommandFor(descriptor),
-                    single == null ? null : string.Join(";", single.Words.Select(w => w.Key + "=" + w.Value)));
+                throw TikAddIdNotRead.Create(CommandFor(descriptor), readable && rows.Count == 0 ? null : body);
             return id;
         }
 
         /// <inheritdoc/>
         protected override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => ExecuteRequestAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken);
+            => ExecuteAsync(descriptor, RestTrailingSegment.Command, cancellationToken);
 
         // ── Monitor / async / listen (ITikMonitorTransport) ────────────────────
 
@@ -396,7 +415,7 @@ namespace tik4net.Rest
             TikMonitorVerbs.SnapshotBound(verb, out string name, out string value);
 
             foreach (var p in descriptor.Parameters)
-                if (string.Equals(p.Name.TrimStart('?', '='), name, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(TikParameterFormat.BareName(p.Name), name, StringComparison.OrdinalIgnoreCase))
                     return descriptor;
 
             var parameters = new List<ITikCommandParameter>(descriptor.Parameters)
@@ -408,64 +427,85 @@ namespace tik4net.Rest
 
         // ── HTTP execution ─────────────────────────────────────────────────────
 
-        // Only reached from RunNonQuery, so the builder is told so: an unrecognised trailing segment here is
-        // an action verb, not a menu name (/log/error and friends).
-        private async Task ExecuteRequestAsync(string commandText, IList<ITikCommandParameter> parameters,
+        // A command that expects rows asks the router what a verb-less path is.
+        private async Task<string> ExecuteReadAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
+            EnsureOpened();
+            var trailingSegment = await TrailingSegmentAsync(descriptor.CommandText, cancellationToken).ConfigureAwait(false);
+            return await ExecuteAsync(descriptor, trailingSegment, cancellationToken).ConfigureAwait(false);
+        }
+
+        // A command that expects none is an action whatever its last segment says (/log/error and friends).
+        private async Task<string> ExecuteAsync(TikCommandDescriptor descriptor, RestTrailingSegment trailingSegment,
             CancellationToken cancellationToken)
         {
-            var (body, statusCode) = await SendAndReadAsync(commandText, parameters,
-                RestRequestBuilder.RestCallKind.NonQuery, cancellationToken).ConfigureAwait(false);
-            // parse errors only; we don't return anything
-            ParseErrorOrIgnore(commandText, body, statusCode, parameters);
-        }
-
-        private async Task<IList<TikRecordSentence>> ExecuteRequestListAsync(string commandText,
-            IList<ITikCommandParameter> parameters, CancellationToken cancellationToken)
-        {
-            var (body, statusCode) = await SendAndReadAsync(commandText, parameters,
-                RestRequestBuilder.RestCallKind.Read, cancellationToken).ConfigureAwait(false);
-
-            if (string.IsNullOrWhiteSpace(body) || body == "null" || body == "[]" || body == "{}")
-                return new List<TikRecordSentence>();
-
-            // Try to detect error first
-            ParseErrorOrIgnore(commandText, body, statusCode, parameters);
-
-            return ParseResponseList(body);
-        }
-
-        private async Task<TikRecordSentence?> ExecuteRequestSingleAsync(string commandText,
-            IList<ITikCommandParameter> parameters, CancellationToken cancellationToken)
-        {
-            var (body, statusCode) = await SendAndReadAsync(commandText, parameters,
-                RestRequestBuilder.RestCallKind.Read, cancellationToken).ConfigureAwait(false);
-
-            if (string.IsNullOrWhiteSpace(body) || body == "null" || body == "{}")
-                return null;
-
-            ParseErrorOrIgnore(commandText, body, statusCode, parameters);
-
-            return ParseSingleObject(body);
+            var (body, statusCode) = await SendAndReadAsync(
+                RestRequestBuilder.Build(descriptor.CommandText, descriptor.Parameters, trailingSegment), cancellationToken).ConfigureAwait(false);
+            if (statusCode < 200 || statusCode >= 300)
+                throw RestResponseParser.ToException(CommandFor(descriptor), statusCode, body);
+            return body;
         }
 
         /// <summary>
-        /// Builds the request, sends it and reads the whole body — the single point where this transport touches
-        /// the network, so the request/response tracing and the token handling exist once.
+        /// Whether a path's last segment is a menu or a command, from <c>/console/inspect</c>: <c>node-type</c> of the
+        /// node itself is <c>cmd</c>, <c>dir</c> or <c>path</c>. Asked once per path and connection. What it lists nothing
+        /// for is POSTed as given: <c>/ping</c> answers although inspect does not know it, and a path that does not exist
+        /// gets the same 400 from POST as from GET. See <c>Docs/findings-rest-api.md</c> §10.
         /// </summary>
-        private async Task<(string Body, int StatusCode)> SendAndReadAsync(string commandText,
-            IList<ITikCommandParameter> parameters, RestRequestBuilder.RestCallKind kind, CancellationToken cancellationToken)
+        private async Task<RestTrailingSegment> TrailingSegmentAsync(string commandText, CancellationToken cancellationToken)
+        {
+            string path = TikPath.Normalize(commandText);
+            if (RestRequestBuilder.HasOwnShape(path) || string.Equals(path, ConsoleInspectPath, StringComparison.OrdinalIgnoreCase))
+                return RestTrailingSegment.Command;
+            if (_trailingSegments.TryGetValue(path, out var known))
+                return known;
+
+            var parameters = new List<ITikCommandParameter>
+            {
+                new TikCommandParameter("request", "child", TikCommandParameterFormat.NameValue),
+                new TikCommandParameter("path", path.Trim('/').Replace('/', ','), TikCommandParameterFormat.NameValue),
+            };
+            RestTrailingSegment answer;
+            try
+            {
+                string body = await ExecuteAsync(new TikCommandDescriptor(ConsoleInspectPath, parameters),
+                    RestTrailingSegment.Command, cancellationToken).ConfigureAwait(false);
+                answer = RestResponseParser.TryReadRows(body, out var rows) && rows.Any(IsMenuNode)
+                    ? RestTrailingSegment.Menu : RestTrailingSegment.Command;
+            }
+            catch (TikCommandException)
+            {
+                // The router will not say (a user without 'read' gets 500 "not allowed"). The monitor verbs are the
+                // commands a read reaches for by name; anything else is read as the menu it most likely is.
+                answer = TikMonitorVerbs.Contains(TikPath.Verb(path)) ? RestTrailingSegment.Command : RestTrailingSegment.Menu;
+            }
+            _trailingSegments[path] = answer;
+            return answer;
+        }
+
+        private static bool IsMenuNode(TikRecordSentence row)
+        {
+            if (row.GetResponseFieldOrDefault("type", null) != "self")
+                return false;
+            string? nodeType = row.GetResponseFieldOrDefault("node-type", null);
+            return nodeType == "dir" || nodeType == "path";
+        }
+
+        /// <summary>
+        /// Sends the request and reads the whole body with the tracing around it: every command's single point of
+        /// contact with the network.
+        /// </summary>
+        private async Task<(string Body, int StatusCode)> SendAndReadAsync(RestRequestBuilder.RestRequest request, CancellationToken cancellationToken)
         {
             EnsureOpened();
             cancellationToken.ThrowIfCancellationRequested();
 
-            var req = RestRequestBuilder.Build(commandText, parameters, kind);
-            FireWriteRow(req.Method.Method + " " + req.RelativePath);
+            if (RowTracingEnabled)
+                FireWriteRow(request.Method.Method + " " + request.RelativePath + (request.JsonBody == null ? "" : " " + request.JsonBody));
 
-            var httpResp = await SendHttpAsync(BuildHttpRequest(req), Math.Max(SendTimeoutMs, ReceiveTimeoutMs),
-                cancellationToken).ConfigureAwait(false);
-            var body = await httpResp.Content.ReadAsStringAsync().ConfigureAwait(false);
-            FireReadRow(body);
-            return (body, (int)httpResp.StatusCode);
+            var answer = await SendHttpAsync(request, Math.Max(SendTimeoutMs, ReceiveTimeoutMs), cancellationToken).ConfigureAwait(false);
+            FireReadRow(answer.Body);
+            return answer;
         }
 
         // ── HTTP helpers ───────────────────────────────────────────────────────
@@ -473,10 +513,12 @@ namespace tik4net.Rest
         private HttpRequestMessage BuildHttpRequest(RestRequestBuilder.RestRequest req)
         {
             var httpReq = new HttpRequestMessage(req.Method, _baseUrl + req.RelativePath);
-            httpReq.Headers.Authorization = AuthenticationHeaderValue.Parse(_authHeader);
-
             if (req.JsonBody != null)
-                httpReq.Content = new StringContent(req.JsonBody, Encoding.UTF8, "application/json");
+            {
+                httpReq.Content = new StringContent(req.JsonBody, Encoding);
+                // Not the constructor's overload, which adds a charset: some ROS versions match the media type exactly (findings §1).
+                httpReq.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            }
             return httpReq;
         }
 
@@ -484,10 +526,11 @@ namespace tik4net.Rest
         // bounded by different settings (ConnectTimeout vs Send/ReceiveTimeout), and HttpClient.Timeout can
         // only express one of them. The timeout is therefore a CTS of our own, linked with the caller's token —
         // which is also what lets the catch below say which of the two fired.
-        private async Task<HttpResponseMessage> SendHttpAsync(HttpRequestMessage req, int timeoutMs,
+        private async Task<(string Body, int StatusCode)> SendHttpAsync(RestRequestBuilder.RestRequest request, int timeoutMs,
             CancellationToken cancellationToken)
         {
             HttpResponseMessage response;
+            using (var req = BuildHttpRequest(request))
             using (var timeoutCts = new CancellationTokenSource(timeoutMs > 0 ? timeoutMs : System.Threading.Timeout.Infinite))
             using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token))
             {
@@ -532,131 +575,15 @@ namespace tik4net.Rest
                 }
             }
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                throw new TikConnectionLoginException(new Exception("HTTP 401 Unauthorized — check credentials."));
-
-            return response;
-        }
-
-        // ── Response parsing ───────────────────────────────────────────────────
-
-        private void ParseErrorOrIgnore(string commandText, string body, int statusCode, IList<ITikCommandParameter> parameters)
-        {
-            if (statusCode >= 200 && statusCode < 300)
-                return;
-
-            // Try to parse REST error body
-            string? message = null;
-            string? detail = null;
-            // Falling back to the raw body is honest here — the caller still gets an error carrying whatever
-            // the router said, nothing is invented — but the catch is narrowed to the parse itself so a bug in
-            // this method cannot hide inside it, and a body we could not read is traced.
-            if (!string.IsNullOrEmpty(body))
+            using (response)
             {
-                try
-                {
-                    using (var doc = JsonDocument.Parse(body))
-                    {
-                        if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                        {
-                            // ToString() rather than GetString(): a non-string "message" (RouterOS has been
-                            // seen answering with a number) must render as itself, not throw out of an error
-                            // path whose whole job is to report the error that got us here.
-                            if (doc.RootElement.TryGetProperty("message", out var msgEl))
-                                message = msgEl.ToString();
-                            if (doc.RootElement.TryGetProperty("detail", out var detEl))
-                                detail = detEl.ToString();
-                        }
-                    }
-                }
-                catch (JsonException ex)
-                {
-                    if (TikWireTrace.Enabled)
-                        TikWireTrace.Emit("rest.http", TikWireDir.Note,
-                            $"HTTP {statusCode} body is not JSON ({ex.Message}); reported verbatim");
-                }
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    throw new TikConnectionLoginException(new Exception("HTTP 401 Unauthorized — check credentials."));
+
+                // By the connection's Encoding, not a charset (RouterOS sends none): RouterOS holds bytes as they arrived.
+                byte[] body = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                return (Encoding.GetString(body), (int)response.StatusCode);
             }
-
-            string fullMessage = message ?? body;
-            if (!string.IsNullOrEmpty(detail) && detail != message)
-                fullMessage += ": " + detail;
-
-            // Check both the combined message and the detail field independently for known patterns.
-            // The specific-kind classification is shared with the API and CLI transports via TikTrapClassifier;
-            // only REST's own signal (a bare 404 with no matching message text) is handled here.
-            string checkText = (detail ?? "") + " " + (message ?? "") + " " + fullMessage;
-
-            var fakeCmd = CommandFor(commandText, parameters);
-            var trapSentence = new TikTrapSentenceResult(fullMessage);
-
-            // A 404 whose body is an HTML error page, not JSON, is the web server answering — not the REST API
-            // refusing a row. RouterOS gained /rest in 7.1; before that the www service serves webfig only, and
-            // every REST call lands on the 404 page (measured on 6.49.13). Read as "no such item" it said the
-            // table was empty, which is the one answer that is certainly wrong.
-            if (statusCode == 404 && body != null && body.TrimStart().StartsWith("<", StringComparison.Ordinal))
-                throw new TikNoSuchCommandException(fakeCmd, new TikTrapSentenceResult(
-                    "the router answered the REST request with an HTML 404 page rather than JSON, so this RouterOS "
-                    + "has no REST API: it was added in 7.1, and before that the www service serves webfig only. "
-                    + "Use the binary API or a CLI transport on this router. Request: " + commandText));
-
-            var kind = TikTrapClassifier.Classify(checkText);
-            if (kind == TikTrapKind.Generic && statusCode == 404)
-                kind = TikTrapKind.NoSuchItem;
-
-            throw TikTrapClassifier.ToException(kind, fakeCmd, trapSentence);
-        }
-
-        private static IList<TikRecordSentence> ParseResponseList(string body)
-        {
-            body = body.Trim();
-
-            if (body.StartsWith("["))
-            {
-                // JSON array
-                var result = new List<TikRecordSentence>();
-                using (var doc = JsonDocument.Parse(body))
-                {
-                    foreach (var el in doc.RootElement.EnumerateArray())
-                        result.Add(ParseJsonObject(el));
-                }
-                return result;
-            }
-            if (body.StartsWith("{"))
-            {
-                // Single object returned as list
-                var single = ParseSingleObject(body);
-                return single != null ? new List<TikRecordSentence> { single } : new List<TikRecordSentence>();
-            }
-
-            return new List<TikRecordSentence>();
-        }
-
-        private static TikRecordSentence? ParseSingleObject(string body)
-        {
-            using (var doc = JsonDocument.Parse(body))
-            {
-                if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                    return ParseJsonObject(doc.RootElement);
-                if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var el in doc.RootElement.EnumerateArray())
-                        return ParseJsonObject(el);
-                }
-            }
-            return null;
-        }
-
-        private static TikRecordSentence ParseJsonObject(JsonElement el)
-        {
-            var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var prop in el.EnumerateObject())
-            {
-                string val = prop.Value.ValueKind == JsonValueKind.Null
-                    ? string.Empty
-                    : prop.Value.ToString();
-                fields[prop.Name] = val;
-            }
-            return new TikRecordSentence(fields);
         }
     }
 }

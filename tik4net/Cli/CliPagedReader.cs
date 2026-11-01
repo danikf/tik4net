@@ -55,7 +55,7 @@ namespace tik4net.Cli
             if (_host.CliReadPageSize <= 0)
                 return false;
 
-            if (TikGetResult.FindInput(descriptor.Parameters, TikSpecialProperties.Id) != null)
+            if (TikParameterFormat.FindInput(descriptor.Parameters, TikSpecialProperties.Id) != null)
                 return false;
             // A FILTERED read is windowed like any other: its clause goes into the window's own 'find', so
             // the windows cover matching rows only (RunOneWindowAsync). What is refused is applying the

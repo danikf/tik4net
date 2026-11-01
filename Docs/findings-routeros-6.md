@@ -16,7 +16,7 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 | `Telnet`, `Ssh`, `MacTelnet` | all pass | — |
 | `WinboxCli`, `WinboxCliMac` | all pass | — |
 | `WinboxNative`, `WinboxNativeMac` | all pass | — (the path-map audit finds fields still missing — open problem 1) |
-| `Rest`, `RestSsl` | all Inconclusive | RouterOS 6 has no REST API (§3); `TestBase` skips every test on the router's refusal (problem 2) |
+| `Rest`, `RestSsl` | all Inconclusive | RouterOS 6 has no REST API (§3); `TestBase` skips every test on the refused open (problem 2) |
 
 Beyond the smoke subset, the path-map audit has been run over every transport 6.x has (open problems 1 and 4),
 and `CliFlagFieldsTest` over every CLI transport (open problem 4).
@@ -58,8 +58,7 @@ list meant for both versions puts the names only the newer one has last.
 ## 3. No REST API
 
 `/rest` arrived in 7.1. On 6.49.13 the `www` service serves webfig only, and every REST request gets its HTML
-404 page. `RestConnection` refuses that as `TikNoSuchCommandException` naming the version floor, rather than
-reading a 404 as "no such item" — which for a print looks exactly like an empty table.
+404 page. `RestConnection.Open` refuses that as `TikConnectionProtocolMismatchException` naming the version floor.
 
 ## 4. WinBox native: the catalog, and the windows that moved
 

@@ -31,7 +31,7 @@ namespace tik4net.unittests.Rest
         public void PingIsPostedToItsOwnPathWithItsInputs()
         {
             var req = RestRequestBuilder.Build("/ping",
-                Params(TikCommandParameterFormat.NameValue, ("address", "127.0.0.1"), ("count", "2")));
+                Params(TikCommandParameterFormat.NameValue, ("address", "127.0.0.1"), ("count", "2")), RestTrailingSegment.Command);
 
             Assert.AreEqual("POST", req.Method.Method);
             Assert.AreEqual("/ping", req.RelativePath);
@@ -42,7 +42,7 @@ namespace tik4net.unittests.Rest
         public void TracerouteIsPostedToItsOwnPath()
         {
             var req = RestRequestBuilder.Build("/tool/traceroute",
-                Params(TikCommandParameterFormat.NameValue, ("address", "127.0.0.1"), ("count", "1")));
+                Params(TikCommandParameterFormat.NameValue, ("address", "127.0.0.1"), ("count", "1")), RestTrailingSegment.Command);
 
             Assert.AreEqual("POST", req.Method.Method);
             Assert.AreEqual("/tool/traceroute", req.RelativePath);
@@ -52,7 +52,7 @@ namespace tik4net.unittests.Rest
         public void MonitorTrafficIsPostedToItsOwnPath()
         {
             var req = RestRequestBuilder.Build("/interface/monitor-traffic",
-                Params(TikCommandParameterFormat.NameValue, ("interface", "ether1"), ("once", "")));
+                Params(TikCommandParameterFormat.NameValue, ("interface", "ether1"), ("once", "")), RestTrailingSegment.Command);
 
             Assert.AreEqual("POST", req.Method.Method);
             Assert.AreEqual("/interface/monitor-traffic", req.RelativePath);
@@ -64,9 +64,9 @@ namespace tik4net.unittests.Rest
         {
             // TikGenericCommand.ResolveParamsForRead turns the caller's parameters into Filter format before
             // the transport sees them. For an operation there is nothing to filter, so they are its arguments —
-            // the same rule BuildGenericPost already applies for /tool/wol.
+            // the same rule as for /tool/wol.
             var req = RestRequestBuilder.Build("/ping",
-                Params(TikCommandParameterFormat.Filter, ("address", "127.0.0.1"), ("count", "2")));
+                Params(TikCommandParameterFormat.Filter, ("address", "127.0.0.1"), ("count", "2")), RestTrailingSegment.Command);
 
             Assert.AreEqual("POST", req.Method.Method);
             Assert.AreEqual("/ping", req.RelativePath);
@@ -76,9 +76,8 @@ namespace tik4net.unittests.Rest
         [TestMethod]
         public void EthernetMonitorKeepsTheUrlItAlreadyHad()
         {
-            // 'monitor' was already a known verb, so the verb split and the new branch must agree on the URL.
             var req = RestRequestBuilder.Build("/interface/ethernet/monitor",
-                Params(TikCommandParameterFormat.NameValue, ("numbers", "ether1"), ("once", "")));
+                Params(TikCommandParameterFormat.NameValue, ("numbers", "ether1"), ("once", "")), RestTrailingSegment.Command);
 
             Assert.AreEqual("POST", req.Method.Method);
             Assert.AreEqual("/interface/ethernet/monitor", req.RelativePath);
@@ -87,7 +86,7 @@ namespace tik4net.unittests.Rest
         [TestMethod]
         public void AnOrdinaryTableIsStillAGet()
         {
-            // The guard against over-reach: only the listed monitor names change shape.
+            // The guard against over-reach: a menu is read, not posted.
             var req = RestRequestBuilder.Build("/ip/address", new List<ITikCommandParameter>());
 
             Assert.AreEqual("GET", req.Method.Method);

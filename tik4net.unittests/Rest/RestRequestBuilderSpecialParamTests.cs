@@ -56,14 +56,14 @@ namespace tik4net.unittests.Rest
         [TestMethod]
         public void AMonitorCommandDropsThem()
         {
-            AssertNoMarkers(RestRequestBuilder.Build("/tool/romon/discover", WithMarkers(("duration", "3"))), "monitor");
+            AssertNoMarkers(RestRequestBuilder.Build("/tool/romon/discover", WithMarkers(("duration", "3")), RestTrailingSegment.Command), "monitor");
         }
 
         [TestMethod]
         public void AnActionPostDropsThem()
         {
             AssertNoMarkers(RestRequestBuilder.Build("/log/error", WithMarkers(("message", "m")),
-                RestRequestBuilder.RestCallKind.NonQuery), "action");
+                RestTrailingSegment.Command), "action");
         }
 
         [TestMethod]
@@ -83,7 +83,7 @@ namespace tik4net.unittests.Rest
         [TestMethod]
         public void TheRealParametersSurvive()
         {
-            var req = RestRequestBuilder.Build("/tool/romon/discover", WithMarkers(("duration", "3")));
+            var req = RestRequestBuilder.Build("/tool/romon/discover", WithMarkers(("duration", "3")), RestTrailingSegment.Command);
 
             Assert.AreEqual("{\"duration\":\"3\"}", req.JsonBody);
         }

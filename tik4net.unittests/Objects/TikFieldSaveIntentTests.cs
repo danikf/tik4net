@@ -284,5 +284,28 @@ namespace tik4net.unittests.Objects
 
             CollectionAssert.AreEquivalent(new[] { "=name=b", "=.id=*1" }, Set(connection));
         }
+
+        [TikEntity("/single", IsSingleton = true)]
+        public class Single
+        {
+            [TikProperty("name")]
+            public TikField<string?> Name { get; set; }
+        }
+
+        [TestMethod]
+        public void Update_AClearedFieldOfASingleton_SendsNoId()
+        {
+            var connection = new TikFakeConnection()
+                .WithResponse(cmd => cmd.FirstOrDefault() == "/single/print",
+                    _ => new ITikSentence[] { new TikFakeReSentence(new Dictionary<string, string> { ["name"] = "a" }), new TikFakeDoneSentence() })
+                .WithNonQuery(cmd => cmd.First() == "/single/unset");
+            var single = connection.LoadSingle<Single>();
+
+            single.Name = null;
+            connection.Save(single);
+
+            CollectionAssert.AreEqual(new[] { "/single/unset", "=value-name=name" },
+                connection.SentCommands.Single(x => x.First() == "/single/unset").ToArray());
+        }
     }
 }

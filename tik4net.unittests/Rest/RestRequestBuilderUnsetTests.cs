@@ -45,10 +45,13 @@ namespace tik4net.unittests.Rest
         }
 
         [TestMethod]
-        public void Unset_WithoutValueName_FailsLoudly()
+        public void Unset_WithoutValueName_IsTheRoutersToRefuse()
         {
-            Assert.ThrowsException<System.InvalidOperationException>(
-                () => RestRequestBuilder.Build("/ip/firewall/filter/unset", Params((TikSpecialProperties.Id, "*1"))));
+            // 400 "missing =value-name=" (7.25), and the API forwards the same command.
+            var req = RestRequestBuilder.Build("/ip/firewall/filter/unset", Params((TikSpecialProperties.Id, "*1")));
+
+            Assert.AreEqual("/ip/firewall/filter/unset", req.RelativePath);
+            Assert.AreEqual("{\".id\":\"*1\"}", req.JsonBody);
         }
 
         [TestMethod]
@@ -57,7 +60,7 @@ namespace tik4net.unittests.Rest
             // 'comment' is a real RouterOS menu command, not a synonym for 'set comment=' — REST already
             // routed it to POST /<path>/comment; this pins that alongside the CLI/native fixes.
             var req = RestRequestBuilder.Build("/ip/firewall/filter/comment",
-                Params((TikSpecialProperties.Id, "*1"), ("comment", "web")));
+                Params((TikSpecialProperties.Id, "*1"), ("comment", "web")), RestTrailingSegment.Command);
 
             Assert.AreEqual("POST", req.Method.Method);
             Assert.AreEqual("/ip/firewall/filter/comment", req.RelativePath);

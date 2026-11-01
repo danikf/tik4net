@@ -1,73 +1,43 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
 using tik4net.Connection;
 
 namespace tik4net.Rest
 {
+    /// <summary>
+    /// What a command path's trailing segment names, when it is not a verb with its own REST spelling
+    /// (<see cref="RestRequestBuilder.HasOwnShape"/>). <c>/log/error</c> and <c>/ip/address</c> are the same shape, so
+    /// the text alone cannot say; <see cref="RestConnection"/> decides (<c>Docs/findings-rest-api.md</c> §10).
+    /// </summary>
+    internal enum RestTrailingSegment
+    {
+        /// <summary>A menu: the command is an implicit <c>print</c> of it.</summary>
+        Menu,
+
+        /// <summary>A command: its path is POSTed as given, with the parameters as its inputs.</summary>
+        Command,
+    }
+
     /// <summary>
     /// Translates a MikroTik API command (path + parameters) into an HTTP request for the RouterOS REST API.
     /// Pure logic — no network dependency, unit-testable standalone.
     /// </summary>
     internal static class RestRequestBuilder
     {
-        /// <summary>
-        /// Which command method the caller invoked. The builder cannot tell a path from an action verb by
-        /// looking at the text alone — <c>/log/error</c> and <c>/ip/address</c> are the same shape — so the
-        /// caller has to say whether it expects rows back. Without it every unrecognised trailing segment
-        /// became part of the path with an implicit <c>print</c>, which is how <c>/log/error</c> went out as
-        /// <c>GET /rest/log/error</c> and came back <c>400 no such command</c>.
-        /// </summary>
-        internal enum RestCallKind
+        // The verbs REST spells in a way of its own. Every other command is a POST to its path.
+        private static readonly HashSet<string> OwnShapeVerbs = new HashSet<string>(StringComparer.Ordinal)
         {
-            /// <summary>Rows are expected (<c>print</c>/<c>ExecuteList</c>/<c>ExecuteScalar</c>/add).</summary>
-            Read,
-
-            /// <summary>No rows are expected (<c>ExecuteNonQuery</c>) — an unknown trailing segment is an action.</summary>
-            NonQuery,
-        }
-
-        // Verbs recognised as the trailing segment of a MikroTik API command path.
-        private static readonly HashSet<string> _writeVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "add", "set", "remove", "unset", "move",
-            "enable", "disable", "comment",
-            "cancel", "shutdown", "reboot", "poweroff",
-            "flush", "reset", "reset-counters",
-            "export", "reload", "run", "check", "test",
-            "monitor", "start", "stop", "install", "upgrade",
-            "take", "release", "unroll",   // /safe-mode/* actions
-            "generate-key", "export-pub-key", "import",   // /ip/ipsec/key/rsa/* actions
-            "wol",   // /tool/wol — an action, not a table, and one that is legitimately invoked through a
-                     // READ method because it answers with a row. RestCallKind.NonQuery does not cover that
-                     // case, so this entry is still what keeps it off the implicit-'print' path (which
-                     // POSTed /tool/wol/print and got "no such command").
-            "find",      // /interface/find answers {"ret":"*2;*3"} (7.25); read as a path, /interface/find/print is 400
-            "inspect",   // /console/inspect — the same shape: its rows answer a query named by its inputs
-                         // (request=, path=). The implicit 'print' sent POST /rest/console/inspect/print → 400 "no
-                         // such command"; POST /rest/console/inspect answers (7.24.4).
+            "print", "get", "add", "set", "remove", "unset",
         };
-
-        private static readonly HashSet<string> _readVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "print", "listen", "get",
-        };
-
-        // Monitor commands (see TikMonitorVerbs) are POSTed to the path as given: their trailing segment IS the
-        // operation and their parameters are its INPUTS, not a print query. They are legitimately invoked
-        // through a READ method (they answer with rows), so RestCallKind.NonQuery does not cover them and the
-        // implicit-'print' branch claimed them instead — POST /rest/ping/print → 400 "no such command".
-        // Verified live on 7.23.2 that POST /rest/ping with {"address":…,"count":…} returns the echo rows, and
-        // the same for traceroute and monitor-traffic. 'monitor' is in the shared list AND in _writeVerbs; both
-        // routes produce the same URL for it, so the overlap is harmless.
 
         internal sealed class RestRequest
         {
             public HttpMethod Method { get; }
-            public string RelativePath { get; }   // e.g. /rest/ip/address
+            public string RelativePath { get; }   // e.g. /ip/address, relative to the /rest base URL
             public string? JsonBody { get; }      // null for GET/DELETE
 
             internal RestRequest(HttpMethod method, string relativePath, string? jsonBody = null)
@@ -78,409 +48,202 @@ namespace tik4net.Rest
             }
         }
 
+        /// <summary>Whether the command's last segment is a verb REST spells itself, so that nothing has to be asked about it.</summary>
+        internal static bool HasOwnShape(string commandText) => OwnShapeVerbs.Contains(TikPath.Verb(commandText));
+
         /// <summary>
         /// Builds a <see cref="RestRequest"/> from a MikroTik API command.
         /// </summary>
         /// <param name="commandText">API command path, e.g. /ip/address/print</param>
         /// <param name="parameters">Command parameters.</param>
-        /// <param name="kind">
-        /// Which command method the caller invoked; see <see cref="RestCallKind"/>. Defaults to
-        /// <see cref="RestCallKind.Read"/> so an unrecognised trailing segment keeps its historic meaning
-        /// (part of the path, implicit <c>print</c>) on every read path.
-        /// </param>
+        /// <param name="trailingSegment">What the last segment names when it has no shape of its own.</param>
         public static RestRequest Build(string commandText, IList<ITikCommandParameter> parameters,
-            RestCallKind kind = RestCallKind.Read)
+            RestTrailingSegment trailingSegment = RestTrailingSegment.Menu)
         {
-            // Normalise: ensure leading slash, no trailing slash
-            commandText = commandText.Trim();
-            if (!commandText.StartsWith("/"))
-                commandText = "/" + commandText;
+            string path = TikPath.Normalize(commandText);
+            string menu = TikPath.Parent(path);
 
-            string[] segments = commandText.TrimStart('/').Split('/');
-            string lastSeg = segments.Last();
-
-            string verb;
-            string apiPath;
-
-            // A monitor command: POST the path as given, with the parameters as the body. Checked before the
-            // verb split for the same reason the NonQuery branch does not split — the whole path is the
-            // operation, and splitting would guess at which segment names it.
-            if (TikMonitorVerbs.Contains(lastSeg))
-                return BuildGenericPost("/" + string.Join("/", segments), parameters);
-
-            if (_readVerbs.Contains(lastSeg) || _writeVerbs.Contains(lastSeg))
-            {
-                verb = lastSeg.ToLowerInvariant();
-                apiPath = "/" + string.Join("/", segments.Take(segments.Length - 1));
-            }
-            else if (kind == RestCallKind.NonQuery)
-            {
-                // An unknown trailing segment on a call that expects NO rows back is an action — the caller
-                // asked for something to happen, not for a table to be listed. /log/error, /log/info,
-                // /log/warning and /log/debug are the worked examples: RouterOS answers POST /rest/log/error
-                // with 200 and writes the line (measured on 7.23.2), while the implicit-'print' reading sent
-                // GET /rest/log/error and got 400 "no such command".
-                //
-                // The rule is deliberately "POST the path we were given", NOT "split off the last segment as
-                // a verb". Both produce the same URL here, because BuildGenericPost joins path and verb
-                // straight back together — but the split is a guess about WHICH segment names the operation,
-                // and for /tool/wol the whole path IS the operation (the same trap CLAUDE.md records for wol
-                // under 'print'). Not splitting means never having to make that guess.
-                return BuildGenericPost("/" + string.Join("/", segments), parameters);
-            }
-            else
-            {
-                // No explicit verb → implicit print (read)
-                verb = "print";
-                apiPath = "/" + string.Join("/", segments);
-            }
-
-            // restBase is relative to the /rest base URL (e.g. "/interface", not "/rest/interface")
-            string restBase = apiPath;
-
-            switch (verb)
+            switch (TikPath.Verb(path))
             {
                 case "print":
-                    return BuildPrint(restBase, parameters);
-
+                    return BuildPrint(menu, parameters);
                 case "get":
-                    return BuildGet(restBase, parameters);
-
+                    return BuildGet(menu, parameters);
                 case "add":
-                    return BuildAdd(restBase, parameters);
-
+                    return BuildAdd(menu, parameters);
                 case "set":
-                    return BuildSet(restBase, parameters);
-
+                    return BuildSet(menu, parameters);
                 case "remove":
-                    return BuildRemove(restBase, parameters);
-
+                    return BuildRemove(menu, parameters);
                 case "unset":
-                    return BuildUnset(restBase, parameters);
-
+                    return BuildCommandPost(path, parameters);
                 default:
-                    // Generic command — POST to /rest/path/verb
-                    return BuildGenericPost(restBase + "/" + verb, parameters);
+                    return trailingSegment == RestTrailingSegment.Command
+                        ? BuildCommandPost(path, parameters)
+                        : BuildPrint(path, parameters);
             }
         }
 
+        // ── READ ─────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds the <c>get</c> verb: <c>GET /rest/path/*ID</c>, narrowed with
-        /// <c>?.proplist=field</c> when a <c>value-name</c> was given.
+        /// Builds the <c>get</c> verb: <c>GET /rest/path/row</c>, narrowed with <c>?.proplist=field</c> when a
+        /// <c>value-name</c> was given. The row is <c>.id</c> or <c>number</c>, both of which take a name; a singleton
+        /// menu has neither. REST has no <c>get</c> of its own (<c>POST /rest/interface/get</c> answers
+        /// <c>400 no such command</c>), so the verb is translated rather than forwarded.
         /// </summary>
-        /// <remarks>
-        /// REST has no <c>get</c> of its own — it addresses a row by URL — so the verb is translated rather
-        /// than forwarded. Measured on RouterOS 7.24: <c>GET /rest/interface/*2?.proplist=name</c> answers
-        /// <c>{"name":"ether1"}</c>, <c>GET /rest/system/identity?.proplist=name</c> answers
-        /// <c>{"name":"CHR"}</c> for a singleton menu, and the id-only form returns the whole row object.
-        /// <para>
-        /// Without this the trailing segment fell through to the generic POST branch, so
-        /// <c>/interface/get</c> went out as <c>POST /rest/interface/get</c> and RouterOS answered
-        /// <c>400 no such command</c> — the one transport that refused a command the API and all five CLI
-        /// transports honour.
-        /// </para>
-        /// <para>
-        /// The id is placed in the path unescaped: RouterOS ids are <c>*</c> plus hex, and
-        /// <c>Uri.EscapeDataString</c> would percent-encode the <c>*</c> into a URL the router does not
-        /// match.
-        /// </para>
-        /// </remarks>
-        private static RestRequest BuildGet(string restBase, IList<ITikCommandParameter> parameters)
+        private static RestRequest BuildGet(string menu, IList<ITikCommandParameter> parameters)
         {
-            string? id = FindInput(parameters, TikSpecialProperties.Id);
-            string? valueName = FindInput(parameters, "value-name");
+            string? row = TikParameterFormat.FindInput(parameters, TikSpecialProperties.Id)
+                          ?? TikParameterFormat.FindInput(parameters, "number");
+            string? valueName = TikParameterFormat.FindInput(parameters, TikSpecialProperties.UnsetValueName);
 
-            string path = restBase;
-            if (!string.IsNullOrEmpty(id))
-                path += "/" + id;
-            if (!string.IsNullOrEmpty(valueName))
-                path += "?.proplist=" + Uri.EscapeDataString(valueName!);
+            string path = row != null ? RowPath(menu, row) : menu;
+            if (valueName != null)
+                path += "?.proplist=" + Uri.EscapeDataString(valueName);
 
             return new RestRequest(HttpMethod.Get, path);
         }
 
-        /// <summary>
-        /// Reads one of <c>get</c>'s inputs, in whichever format it arrived — a parameter the caller
-        /// declared <c>NameValue</c> keeps that format, while an unformatted one is rewritten to
-        /// <c>Filter</c> on the read path, so accepting only one of the two would honour half the callers.
-        /// </summary>
-        private static string? FindInput(IList<ITikCommandParameter> parameters, string name)
+        private static RestRequest BuildPrint(string menu, IList<ITikCommandParameter> parameters)
         {
+            var query = new List<string>();
+            var inputs = new Dictionary<string, string>();
+            string? proplist = null;
+
             foreach (var p in parameters)
             {
-                if (string.Equals(NormaliseParamName(p.Name), name, StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrEmpty(p.Value))
-                    return p.Value;
-            }
-            return null;
-        }
-        // ── READ ─────────────────────────────────────────────────────────────
-
-        private static RestRequest BuildPrint(string restBase, IList<ITikCommandParameter> parameters)
-        {
-            var filterParams = parameters
-                .Where(p => IsFilterParam(p))
-                .Where(p => !IsSpecialParam(p.Name))
-                .ToList();
-
-            var proplist = parameters
-                .FirstOrDefault(p => p.Name == TikSpecialProperties.Proplist);
-
-            // NameValue params that are NOT special: command input params (e.g. /tool/wol mac=...)
-            var dataParams = parameters
-                .Where(p => !IsFilterParam(p) && !IsSpecialParam(p.Name))
-                .Where(p => p.ParameterFormat == TikCommandParameterFormat.NameValue
-                            || p.Name.StartsWith("="))
-                .Select(p => new { Name = NormaliseParamName(p.Name), p.Value })
-                .ToList();
-
-            bool hasFilters  = filterParams.Count > 0;
-            bool hasProplist = proplist != null;
-            bool hasData     = dataParams.Count > 0;
-
-            // Neither filters nor data → GET (with optional ?proplist= query param)
-            if (!hasFilters && !hasData)
-            {
-                if (!hasProplist)
-                    return new RestRequest(HttpMethod.Get, restBase);
-
-                // GET /rest/path?.proplist=a,b,c
-                // Non-null twice over: hasProplist (checked above) is proplist != null, and a
-                // .proplist parameter is always built with its field list — only a bare '?name'
-                // FILTER has a null Value.
-                string query = "?.proplist=" + Uri.EscapeDataString(proplist!.Value!);
-                return new RestRequest(HttpMethod.Get, restBase + query);
+                string name = TikParameterFormat.BareName(p.Name);
+                if (name == TikSpecialProperties.Proplist)
+                    proplist = p.Value;
+                else if (IsSpecialParam(name))
+                    continue;
+                else if (IsFilterParam(p))
+                    // A NULL value is the API's bare '?name' — "this property is set" — which REST's .query spells as the
+                    // bare name too. 'name=' would ask for the property equal to the EMPTY STRING.
+                    query.Add(p.Value == null ? name : name + "=" + p.Value);
+                else if (p.ParameterFormat == TikCommandParameterFormat.NameValue || p.Name.StartsWith("=", StringComparison.Ordinal))
+                    inputs[name] = p.Value ?? string.Empty;   // a command input (e.g. /tool/wol mac=...)
             }
 
-            // Has filters or data params → POST /rest/path/print with body
-            var bodyObj = new Dictionary<string, object>();
+            if (query.Count == 0 && inputs.Count == 0)
+                return new RestRequest(HttpMethod.Get,
+                    proplist == null ? menu : menu + "?.proplist=" + Uri.EscapeDataString(proplist));
 
-            if (filterParams.Count > 0)
-            {
-                // A NULL value is the API's bare '?name' — "this property is set" — which RouterOS's REST
-                // .query spells as the bare name too. Writing 'name=' instead would ask for the property
-                // equal to the EMPTY STRING, which is the opposite question and answers a different set.
-                var queries = filterParams
-                    .Select(p => p.Value == null
-                        ? NormaliseParamName(p.Name)
-                        : NormaliseParamName(p.Name) + "=" + p.Value)
-                    .ToList();
-                bodyObj[".query"] = queries;
-            }
-
-            if (proplist != null)
-            {
-                var fields = proplist.Value!.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries); // a .proplist parameter always carries its field list
-                bodyObj[".proplist"] = fields;
-            }
-
-            // Command input params go as regular JSON fields alongside filters
-            foreach (var dp in dataParams)
-                bodyObj[dp.Name] = dp.Value ?? string.Empty;
-
-            return new RestRequest(HttpMethod.Post, restBase + "/print", SerialiseBody(bodyObj));
+            return new RestRequest(HttpMethod.Post, menu + "/print", WriteBody(inputs, query, proplist));
         }
 
         // ── WRITE ─────────────────────────────────────────────────────────────
 
-        private static RestRequest BuildAdd(string restBase, IList<ITikCommandParameter> parameters)
+        private static RestRequest BuildAdd(string menu, IList<ITikCommandParameter> parameters)
+            => new RestRequest(HttpMethod.Put, menu, WriteBody(BuildInputs(parameters, includeFilters: false)));
+
+        private static RestRequest BuildSet(string menu, IList<ITikCommandParameter> parameters)
         {
-            var body = BuildNameValueBody(parameters, exclude: null);
-            return new RestRequest(HttpMethod.Put, restBase, SerialiseBody(body));
+            string? id = TikParameterFormat.FindInput(parameters, TikSpecialProperties.Id);
+
+            // PATCH addresses one record. No .id is a singleton (or 'numbers') and has nothing to put in the URL: PATCH
+            // answers 400 "missing or invalid resource identifier" there. A list of ids in the URL is applied and then
+            // answered with 404 (7.25). POST /set is the router's own spelling of both.
+            if (id == null || id.IndexOf(',') >= 0)
+                return new RestRequest(HttpMethod.Post, menu + "/set", WriteBody(BuildInputs(parameters, includeFilters: false)));
+
+            var body = BuildInputs(parameters, includeFilters: false);
+            body.Remove(TikSpecialProperties.Id);
+            return new RestRequest(new HttpMethod("PATCH"), RowPath(menu, id), WriteBody(body));
         }
 
-        private static RestRequest BuildSet(string restBase, IList<ITikCommandParameter> parameters)
+        private static RestRequest BuildRemove(string menu, IList<ITikCommandParameter> parameters)
         {
-            string? id = GetIdFromParams(parameters);
-
-            var body = BuildNameValueBody(parameters, exclude: TikSpecialProperties.Id);
-
-            if (!string.IsNullOrEmpty(id))
-            {
-                // PATCH /rest/path/{id}
-                return new RestRequest(new HttpMethod("PATCH"), restBase + "/" + id, SerialiseBody(body));
-            }
-            else
-            {
-                // Singleton (/system/identity, /ip/dns, /snmp, …) — POST /rest/path/set, the router's own
-                // spelling and identical to the binary API's. It is NOT PATCH /rest/path: RouterOS answers
-                // that with 400 "missing or invalid resource identifier", because PATCH addresses a record
-                // and a singleton has no .id to put in the URL (measured on 7.23.2; the POST form clears the
-                // same 400 on /system/identity, /ip/dns and /snmp alike). No test covered a singleton WRITE
-                // over REST, which is why the wrong verb survived.
-                return new RestRequest(HttpMethod.Post, restBase + "/set", SerialiseBody(body));
-            }
-        }
-
-        private static RestRequest BuildRemove(string restBase, IList<ITikCommandParameter> parameters)
-        {
-            string? id = GetIdFromParams(parameters);
-            if (string.IsNullOrEmpty(id))
-                throw new InvalidOperationException("REST remove requires .id parameter.");
-
-            return new RestRequest(HttpMethod.Delete, restBase + "/" + id);
-        }
-
-        private static RestRequest BuildUnset(string restBase, IList<ITikCommandParameter> parameters)
-        {
-            string? id = GetIdFromParams(parameters);
-            if (string.IsNullOrEmpty(id))
-                throw new InvalidOperationException("REST unset requires .id parameter.");
-
-            string? fieldName = parameters
-                .FirstOrDefault(p => string.Equals(p.Name, TikSpecialProperties.UnsetValueName, StringComparison.OrdinalIgnoreCase))
-                ?.Value;
-
-            if (string.IsNullOrEmpty(fieldName))
-                throw new InvalidOperationException("REST unset requires value-name parameter.");
-
-            // POST /rest/path/unset with {".id": id, "value-name": field} — the router's own spelling,
-            // identical to the binary API's. This used to be PATCH /rest/path/{id} with {field: null},
-            // which only ever worked for free-text fields: RouterOS validates the null against the
-            // property's TYPE first, so unsetting a typed one answered 400 "value of range expects range
-            // of ip addresses" (measured on 7.23.2 for src-address). Verified live that the POST form
-            // clears the same field.
-            var body = $"{{\"{TikSpecialProperties.Id}\":\"{id}\",\"{TikSpecialProperties.UnsetValueName}\":\"{fieldName}\"}}";
-            return new RestRequest(HttpMethod.Post, restBase + "/unset", body);
+            string? id = TikParameterFormat.FindInput(parameters, TikSpecialProperties.Id);
+            return id != null
+                ? new RestRequest(HttpMethod.Delete, RowPath(menu, id))
+                : BuildCommandPost(menu + "/remove", parameters);
         }
 
         /// <remarks>
-        /// includeFilters: an action POST has no query semantics in REST, so a Filter-format parameter
-        /// here can only be a read-path artifact — <c>TikGenericCommand.ResolveParamsForRead</c> rewrites
-        /// Default-format parameters to Filter, and actions that return a row (<c>/tool/wol</c>) are
-        /// legitimately invoked through a read method. Dropping them made RouterOS answer
-        /// "missing =mac=" for a call that did supply the mac.
+        /// A Filter-format parameter is an input here, as it is for the API: <c>TikGenericCommand.ResolveParamsForRead</c>
+        /// rewrites Default-format parameters to Filter, and commands that return a row (<c>/tool/wol</c>) are legitimately
+        /// invoked through a read method. Dropped, RouterOS answers "missing =mac=" for a call that did supply the mac.
         /// </remarks>
-        private static RestRequest BuildGenericPost(string url, IList<ITikCommandParameter> parameters)
+        private static RestRequest BuildCommandPost(string path, IList<ITikCommandParameter> parameters)
         {
-            var body = BuildNameValueBody(parameters, exclude: null, includeFilters: true);
-            string? json = body.Count > 0 ? SerialiseBody(body) : null;
-            return new RestRequest(HttpMethod.Post, url, json);
+            var body = BuildInputs(parameters, includeFilters: true);
+            return new RestRequest(HttpMethod.Post, path, body.Count > 0 ? WriteBody(body) : null);
         }
 
         // ── HELPERS ───────────────────────────────────────────────────────────
 
+        // The row's URL. An id is a '*' plus hex or a name, which may hold '/', '?' or '#'. The router decodes all of them
+        // but '*': /rest/interface/list/%2A2000057 answers 400 "no such command prefix" (7.25).
+        private static string RowPath(string menu, string row)
+            => menu + "/" + Uri.EscapeDataString(row).Replace("%2A", "*");
+
         private static bool IsFilterParam(ITikCommandParameter p)
-        {
-            if (p.Name.StartsWith("?"))
-                return true;
-            return p.ParameterFormat == TikCommandParameterFormat.Filter;
-        }
+            => p.Name.StartsWith("?", StringComparison.Ordinal) || p.ParameterFormat == TikCommandParameterFormat.Filter;
 
         /// <summary>
         /// Parameters that are NOT emitted as plain data words: the client-side markers
         /// (<see cref="TikTransportMarkers.IsClientMarker"/>; REST answers in JSON with the flags and the secrets, so
         /// it needs none of them), plus REST's own three:
-        ///   <c>.proplist</c> — picked up separately and turned into the <c>?.proplist=</c> URL query.
+        ///   <c>.proplist</c> — picked up separately by <see cref="BuildPrint"/>.
         ///   <c>.tag</c>      — no tag protocol over REST.
         ///   <c>detail</c>    — no-op in REST (full details are returned by default).
         /// </summary>
-        private static bool IsSpecialParam(string name)
+        private static bool IsSpecialParam(string bareName)
         {
-            return name == TikSpecialProperties.Tag
-                || name == TikSpecialProperties.Proplist
-                || TikTransportMarkers.IsClientMarker(name)
-                || string.Equals(name, "detail", StringComparison.OrdinalIgnoreCase);
+            return bareName == TikSpecialProperties.Tag
+                || bareName == TikSpecialProperties.Proplist
+                || TikTransportMarkers.IsClientMarker(bareName)
+                || string.Equals(bareName, "detail", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string NormaliseParamName(string name)
-        {
-            // Strip leading ? or ?= to get bare field name
-            if (name.StartsWith("?="))
-                return name.Substring(2);
-            if (name.StartsWith("?"))
-                return name.Substring(1);
-            return name;
-        }
-
-        private static string? GetIdFromParams(IList<ITikCommandParameter> parameters)
-        {
-            return parameters
-                .FirstOrDefault(p => string.Equals(NormaliseParamName(p.Name), TikSpecialProperties.Id, StringComparison.OrdinalIgnoreCase))
-                ?.Value;
-        }
-
-        /// <summary>
-        /// Builds the JSON body dict from NameValue parameters, excluding special ones.
-        /// </summary>
-        private static Dictionary<string, string> BuildNameValueBody(IList<ITikCommandParameter> parameters,
-            string? exclude, bool includeFilters = false)
+        // The JSON fields of a command's parameters. An .id without a value says nothing (a singleton has none).
+        private static Dictionary<string, string> BuildInputs(IList<ITikCommandParameter> parameters, bool includeFilters)
         {
             var body = new Dictionary<string, string>();
             foreach (var p in parameters)
             {
-                if (IsFilterParam(p) && !includeFilters)
-                    continue;  // filter params don't go in body (except on action POSTs — see BuildGenericPost)
-
-                string name = NormaliseParamName(p.Name);
-
-                if (IsSpecialParam(name))
-                    continue;   // the same list BuildPrint uses — a marker is an instruction, not a data word
-
-                if (!string.IsNullOrEmpty(exclude)
-                    && string.Equals(name, exclude, StringComparison.OrdinalIgnoreCase))
+                string name = TikParameterFormat.BareName(p.Name);
+                if ((IsFilterParam(p) && !includeFilters) || IsSpecialParam(name))
                     continue;
-
+                if (name == TikSpecialProperties.Id && string.IsNullOrEmpty(p.Value))
+                    continue;
                 body[name] = p.Value ?? string.Empty;
             }
             return body;
         }
 
-        private static string SerialiseBody(Dictionary<string, string> body)
+        // Written by hand because every encoder of Utf8JsonWriter sends some text as \uXXXX (the relaxed one, what lies
+        // outside the BMP), and RouterOS stores an escape as one code-page byte but raw text as it arrives
+        // (Docs/findings-rest-api.md §1): an escape reads back as something else on every transport.
+        private static string WriteBody(Dictionary<string, string> fields, List<string>? query = null, string? proplist = null)
         {
-            using (var ms = new System.IO.MemoryStream())
-            using (var writer = new Utf8JsonWriter(ms))
-            {
-                writer.WriteStartObject();
-                foreach (var kv in body)
-                {
-                    writer.WriteString(kv.Key, kv.Value);
-                }
-                writer.WriteEndObject();
-                writer.Flush();
-                return Encoding.UTF8.GetString(ms.ToArray());
-            }
+            var members = new List<string>();
+            if (query != null && query.Count > 0)
+                members.Add(JsonString(".query") + ":" + JsonArray(query));
+            if (proplist != null)
+                members.Add(JsonString(".proplist") + ":" + JsonArray(proplist.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)));
+            foreach (var field in fields)
+                members.Add(JsonString(field.Key) + ":" + JsonString(field.Value));
+            return "{" + string.Join(",", members) + "}";
         }
 
-        private static string SerialiseBody(Dictionary<string, object> body)
-        {
-            using (var ms = new System.IO.MemoryStream())
-            using (var writer = new Utf8JsonWriter(ms))
-            {
-                WriteObjectValue(writer, body);
-                writer.Flush();
-                return Encoding.UTF8.GetString(ms.ToArray());
-            }
-        }
+        private static string JsonArray(IEnumerable<string> values) => "[" + string.Join(",", values.Select(JsonString)) + "]";
 
-        private static void WriteObjectValue(Utf8JsonWriter writer, Dictionary<string, object> obj)
+        private static string JsonString(string text)
         {
-            writer.WriteStartObject();
-            foreach (var kv in obj)
+            var json = new StringBuilder(text.Length + 2).Append('"');
+            foreach (char c in text)
             {
-                writer.WritePropertyName(kv.Key);
-                if (kv.Value is IEnumerable<string> strList)
-                {
-                    writer.WriteStartArray();
-                    foreach (var s in strList)
-                        writer.WriteStringValue(s);
-                    writer.WriteEndArray();
-                }
-                else if (kv.Value is string s2)
-                {
-                    writer.WriteStringValue(s2);
-                }
-                else if (kv.Value == null)
-                {
-                    writer.WriteNullValue();
-                }
+                if (c == '"' || c == '\\')
+                    json.Append('\\').Append(c);
+                else if (c < ' ')
+                    json.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
                 else
-                {
-                    writer.WriteStringValue(kv.Value.ToString());
-                }
+                    json.Append(c);
             }
-            writer.WriteEndObject();
+            return json.Append('"').ToString();
         }
     }
 }

@@ -217,9 +217,10 @@ type before accepting it, and `null` is no exception.
 ### Key classes
 
 ```
-tik4net/Rest/RestConnection.cs        — ITikConnection + ITikConnectionCapabilities; HTTP-status/body -> trap-kind classification
+tik4net/Rest/RestConnection.cs        — ITikConnection + ITikConnectionCapabilities; HTTP, asking the router what a verb-less path is
 tik4net/Connection/TikGenericCommand.cs — ITikCommand (shared by REST, the CLI family and WinBox native)
 tik4net/Rest/RestRequestBuilder.cs    — mapping of API path → HTTP verb/URL/JSON
+tik4net/Rest/RestResponseParser.cs    — the rows of a 2xx body; HTTP-status/body -> trap-kind classification
 tik4net/TikTrapClassifier.cs          — message-text -> TikTrapKind, shared with the API and CLI transports
 tik4net/TikConnectionSetup.cs         — CreateRestConnection() / CreateRestSslConnection()
 ```

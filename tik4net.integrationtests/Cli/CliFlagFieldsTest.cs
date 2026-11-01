@@ -33,24 +33,26 @@ namespace tik4net.integrationtests.Cli
         [DataRow(TikConnectionType.WinboxNative)]
         public void FlagsMatchTheBinaryApi(TikConnectionType transport)
         {
+            ITikConnection opened;
+            try
+            {
+                opened = TestBase.LabSetup(transport).Create(transport);
+            }
+            catch (TikConnectionProtocolMismatchException ex) when (transport == TikConnectionType.Rest)
+            {
+                // RouterOS 6 (CHR2) has no REST API: the www service answers webfig's 404 page.
+                Assert.Inconclusive("this router has no REST API: " + ex.Message);
+                return;
+            }
+
             using (var api = TestBase.LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api))
-            using (var other = TestBase.LabSetup(transport).Create(transport))
+            using (var other = opened)
             {
                 var apiInterfaces = api.LoadAll<Interface>().ToList();
                 Assert.IsTrue(apiInterfaces.Any(i => i.Running.GetValueOrDefault()),
                     "no interface is running on this router, so a Running that defaulted to false would pass unseen");
 
-                List<Interface> otherInterfaces;
-                try
-                {
-                    otherInterfaces = other.LoadAll<Interface>().ToList();
-                }
-                catch (TikNoSuchCommandException ex) when (transport == TikConnectionType.Rest)
-                {
-                    // RouterOS 6 (CHR2) has no REST API: the www service answers webfig's 404 page.
-                    Assert.Inconclusive("this router has no REST API: " + ex.Message);
-                    return;
-                }
+                List<Interface> otherInterfaces = other.LoadAll<Interface>().ToList();
 
                 Compare("interface", apiInterfaces, otherInterfaces, i => i.Id,
                     i => new object[] { i.Running, i.Disabled });

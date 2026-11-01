@@ -59,6 +59,10 @@ default configuration (itself correct router behaviour, not a silent failure).
 than splitting off "the verb" — for `/tool/wol` the whole path *is* the operation, so guessing which
 segment names it would have reintroduced the same class of bug.
 
+**Superseded in 5.0.** `RestCallKind` and what was left of the allow-list (it had grown `wol`, `find` and `inspect`,
+each a past `400 no such command`) gave way to asking the router: a read of a path with no verb reads `node-type` from
+`/console/inspect`. That also separated `/ppp/profile` from `/tool/profile`, which the verb list had read as one.
+
 **Cross-transport note that turned out to be a dead end:** WinBox native cannot be used to double-check
 this class of gap, because it cannot write a log row at all — `/log` maps to handler `[3,4]` with an
 empty `cmds={}` in the `.jg` catalog across the entire catalog (18 plugins, 805 windows). It reports

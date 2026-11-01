@@ -111,10 +111,26 @@ namespace tik4net.integrationtests
                     }
                     compared++;
                     AllowedExtras.TryGetValue(path, out var allowList);
-                    var extra = ownNames.Except(apiNames, StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal).ToList();
                     KnownOpen.TryGetValue(path, out var openList);
-                    var unexplained = extra.Where(n => (allowList == null || !allowList.ContainsKey(n))
+                    List<string> Extra() => ownNames.Except(apiNames, StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal).ToList();
+                    List<string> Unexplained(List<string> names) => names.Where(n => (allowList == null || !allowList.ContainsKey(n))
                                                        && (openList == null || !openList.ContainsKey(n))).ToList();
+                    var extra = Extra();
+                    var unexplained = Unexplained(extra);
+                    if (unexplained.Count > 0)
+                    {
+                        // The two reads are two moments, and a parallel leg's row between them (21:51:19, /ip/pool, in a
+                        // sweep of 21:51:10-21) looks like a leak. A leak is there in a second pair of reads as well.
+                        var apiAgain = FieldNames(api, path, out _);
+                        var ownAgain = FieldNames(Connection, path, out _);
+                        if (apiAgain != null && ownAgain != null)
+                        {
+                            apiNames = apiAgain;
+                            ownNames = ownAgain;
+                            extra = Extra();
+                            unexplained = Unexplained(extra);
+                        }
+                    }
                     allowed += extra.Count(n => allowList != null && allowList.ContainsKey(n));
                     open += extra.Count(n => openList != null && openList.ContainsKey(n));
                     if (openList != null && openList.Keys.Any(n => !extra.Contains(n)))
