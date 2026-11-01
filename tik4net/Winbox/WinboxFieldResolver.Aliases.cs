@@ -690,7 +690,8 @@ namespace tik4net.Winbox
 
                 // The window's General Type and No Key Export, which the API's /certificate menu does not have (get
                 // traps, 7.25).
-                ["/certificate"] = new FieldAliasSet(notReportedNames: new[] { "general-type", "no-key-export" }),
+                // dynamic: on 7.21.5 the row carries the flag; the API's print has no such field on 7.21.5 or 7.25.
+                ["/certificate"] = new FieldAliasSet(notReportedNames: new[] { "general-type", "no-key-export", "dynamic" }),
 
                 // The router's note on the row, which the API prints on a list row (/ip/dhcp-server) and on neither of
                 // these singletons, whose notes say PPTP is unsafe and that cloud is not on a CHR free licence (7.25).

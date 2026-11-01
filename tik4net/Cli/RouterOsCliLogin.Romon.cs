@@ -82,6 +82,17 @@ namespace tik4net.Cli
             "before the read gave up (each step of the relay login waits up to the connection's ReceiveTimeout; "
             + "a slow agent or target needs a longer one)";
 
+        // A cancel while the target is answering: closing the agent's console now leaves the target a session nothing ends,
+        // so wait for the answer, within a bound. The bound, or a failed read: the caller's cancel is reported either way.
+        private static async Task WaitOutTargetAnswerAsync(Func<Func<string, bool>, CancellationToken, Task<string>> readUntil, Func<string, bool> answered)
+        {
+            using (var grace = new CancellationTokenSource(RelayCancelGraceMs))
+            {
+                try { await readUntil(answered, grace.Token).ConfigureAwait(false); }
+                catch { }
+            }
+        }
+
         private static async Task<string> RomonSshLoginCoreAsync(
             string id,
             string user,
@@ -134,11 +145,7 @@ namespace tik4net.Cli
                 // the target a session that finishes its login a moment later and that nothing ever ends (a 7.25
                 // agent and a 7.21.5 target, measured: findings-romon.md §4). Once the target has answered, the agent
                 // ends that session with its console, so the cancel waits for the answer, within a bound.
-                using (var grace = new CancellationTokenSource(RelayCancelGraceMs))
-                {
-                    try { await readUntil(relayAnswered, grace.Token).ConfigureAwait(false); }
-                    catch { /* the bound, or a failed read: the caller's cancel is reported either way */ }
-                }
+                await WaitOutTargetAnswerAsync(readUntil, relayAnswered).ConfigureAwait(false);
                 throw;
             }
             bool loggedInWithoutPassword = !IsPasswordPrompt(opened) && IsChangePasswordNag(opened) && !IsRomonRelayEnd(opened);
@@ -176,7 +183,16 @@ namespace tik4net.Cli
                 // 2. The target's password. Traced as a secret, like the ordinary login's.
                 using (Diagnostics.TikWireTrace.Secret())
                     await sendLine(password, ct).ConfigureAwait(false);
-                result = await readUntil(settled, ct).ConfigureAwait(false);
+                try
+                {
+                    result = await readUntil(settled, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // The same race as the cancel above: the target is finishing a login nothing would ever end.
+                    await WaitOutTargetAnswerAsync(readUntil, settled).ConfigureAwait(false);
+                    throw;
+                }
             }
 
             var screen = new CliLoginScreen(CliLoginScreen.RefusalRule.None);

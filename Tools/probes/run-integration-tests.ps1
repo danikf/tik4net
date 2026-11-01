@@ -72,6 +72,10 @@
     Run the already-built test assembly (dotnet test --no-build). A parallel run always builds once up
     front and starts every leg with --no-build; this skips that build too.
 
+.PARAMETER AllTests
+    Run every test on a secondary router too, not only category AnyRouter. It has none of the default
+    router's topology, so expect failures from that: read them for what its login or version changes.
+
 .PARAMETER HangMinutes
     How long a leg's `dotnet test` may stay alive after printing its run summary. A process that outlives it is
     hung on the way out (seen 2026-10-01: three legs printed their summary, never wrote the TRX and never
@@ -111,6 +115,7 @@ param(
     [switch]   $Pairs,
     [switch]   $LockAll,
     [switch]   $NoIndependentLeg,
+    [switch]   $AllTests,
     [switch]   $NoBuild,
     [string]   $ResultsDirectory = 'TestResults',
     [int]      $HangMinutes = 3,
@@ -193,7 +198,7 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $legs = @()
 foreach ($r in $Router) {
     $secondary   = ($r -ne 'default')
-    $routerFilter = if ($secondary) { 'TestCategory=AnyRouter' } else { $null }
+    $routerFilter = if ($secondary -and -not $AllTests) { 'TestCategory=AnyRouter' } else { $null }
     # A secondary router always gets a folder of its own: its legs have the same TRX names as the default's.
     $resultsRel  = if ($secondary) { Join-Path $ResultsDirectory $r } else { $ResultsDirectory }
     $resultsPath = Join-Path $repoRoot $resultsRel

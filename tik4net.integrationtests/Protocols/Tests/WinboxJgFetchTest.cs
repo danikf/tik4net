@@ -115,6 +115,7 @@ namespace tik4net.integrationtests
 
                 var elapsed = new List<long>();
                 var handlerCounts = new List<int>();
+                var cacheStates = new List<string>();
                 long lastRead = -1;
                 for (int i = 0; i < 4; i++)
                 {
@@ -137,6 +138,9 @@ namespace tik4net.integrationtests
                     elapsed.Add(sw.ElapsedMilliseconds);
 
                     string d = Path.Combine(cacheDir, "plugins");
+                    cacheStates.Add(Directory.Exists(d)
+                        ? string.Join("|", Directory.GetFiles(d).OrderBy(f => f).Select(f => Path.GetFileName(f) + "@" + File.GetLastWriteTimeUtc(f).Ticks))
+                        : "");
                     Console.WriteLine($"open #{i}: {sw.ElapsedMilliseconds} ms, rows={lastRead}, " +
                         $"handlers={handlerCounts[i]}, cached plugins=" +
                         (Directory.Exists(d) ? Directory.GetFiles(d).Length : 0));
@@ -191,11 +195,13 @@ namespace tik4net.integrationtests
                 // and the FOURTH did the cold fetch failed for having no warm connect to be faster than —
                 // measured live 31353/35051/34768/39120 ms with handlers 0/0/0/1361. There is no warm
                 // measurement to make in that shape, so make none.
-                int firstServed = handlerCounts.FindIndex(h => h > 0);
+                // Asked of the cache, not the clock: an idle router on the LAN serves the whole set in 300 ms
+                // (638/337/350/327 ms on 7.21.5), so "twice as fast" says nothing about whether it downloaded again.
+                int firstServed = handlerCounts.FindIndex(h => h == handlerCounts.Max());
                 if (firstServed >= 0 && firstServed < elapsed.Count - 1)
                 {
-                    Assert.IsTrue(elapsed.Last() * 2 < elapsed[firstServed],
-                        "a warm cache should open far faster than the cold connect that filled it " +
+                    Assert.AreEqual(cacheStates[firstServed], cacheStates.Last(),
+                        "a warm connect must not download what the cold connect cached " +
                         $"({string.Join("/", elapsed)} ms, handlers {string.Join("/", handlerCounts)})");
                 }
                 else

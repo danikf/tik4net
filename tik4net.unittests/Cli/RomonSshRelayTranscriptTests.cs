@@ -347,6 +347,36 @@ namespace tik4net.unittests.Cli
                     (bytes, ct) => Task.FromResult(0),
                     CancellationToken.None));
 
+        // Over a password the target finishes its login whether or not the caller still wants it, and once the agent's
+        // console is gone nothing ends that session (a 7.25 agent and a 7.21.5 target with a password: one by-romon row left).
+        [TestMethod]
+        public async Task Relay_ACancelAfterThePasswordWaitsForTheTargetsAnswer()
+        {
+            string last = "";
+            int readsAfterPassword = 0;
+            bool lastReadUncancelled = false;
+            await Assert.ThrowsExceptionAsync<OperationCanceledException>(() =>
+                RouterOsCliLogin.RomonSshLoginAsync(Target, "test", Password, true,
+                    (answered, ct) =>
+                    {
+                        if (last == Password)
+                        {
+                            if (++readsAfterPassword == 1) throw new OperationCanceledException();
+                            lastReadUncancelled = !ct.IsCancellationRequested && answered("[test@Target] > ");
+                            return Task.FromResult("[test@Target] > ");
+                        }
+                        if (last == IdQuery) return Task.FromResult(IdAnswer(AgentId, "[admin@Agent] > "));
+                        if (last == SshCommand) return Task.FromResult(PasswordPrompt);
+                        return Task.FromResult(EnabledAnswer("true"));
+                    },
+                    (line, ct) => { last = line; return Task.FromResult(0); },
+                    (bytes, ct) => Task.FromResult(0),
+                    CancellationToken.None));
+
+            Assert.AreEqual(2, readsAfterPassword, "the cancel must read on to the target's answer");
+            Assert.IsTrue(lastReadUncancelled);
+        }
+
         // ── the id is spliced into a command line ─────────────────────────────
 
         [DataTestMethod]

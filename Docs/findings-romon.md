@@ -131,6 +131,7 @@ agent and a 7.21.5 target, cancelling every 60 ms across an open, exactly the on
 `by-romon` row, still there after 30 minutes. A cancel from the target's first byte on is cleaned up by the agent
 with its console. So `RouterOsCliLogin.RomonSshLoginAsync` lets a cancel in that step wait for the target's answer
 (its login prompt, the nag, or the relay's end), up to 3 s, before throwing — the cancel then returns 0.1–0.4 s late.
+The same holds between the target's password and its prompt, so a cancel there waits for that answer too.
 The wait relies on the VT100 replies going out whole: `CliPtySession` sends them without the caller's token, since a
 cancel between the device-attributes reply and the cursor-position reply leaves the target waiting for the second.
 

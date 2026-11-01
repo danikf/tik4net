@@ -65,6 +65,31 @@ namespace tik4net.unittests.Winbox
                 .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 
+        // ── a word the field's own vocabulary does not have ────────────────────
+
+        // Mangle's action=drop on 7.21.5: not in that version's map, and refused by the API. Text on the numeric key went
+        // out, the router answered status 0 and made a rule with no action. A rule that was not asked for is worse than a refusal.
+        private const string ActionWindow =
+            "[{name:'Firewall',title:'Firewall',group:'IP',c:[" +
+            "{name:'Filter Rule',title:'Filter Rules',type:'map',path:[ 12,1 ],c:[" +
+              "{name:'Action',type:'enm',id:'u28',values:{type:'static',map:{36:'mark-routing',40:'fasttrack-connection'}}}" +
+            "]}]}]";
+
+        [TestMethod]
+        public void AWordTheEnumDoesNotHaveIsRefused_NotSentAsTextOnItsNumericKey()
+        {
+            var ex = Assert.ThrowsException<WinboxFieldValueException>(() => Resolver(Parse(ActionWindow)).EncodeField("action", "drop"));
+            StringAssert.Contains(ex.Message, "input does not match any value of action");
+        }
+
+        [TestMethod]
+        public void AnEnumMemberAndANumberStillGoOutAsNumbers()
+        {
+            var resolver = Resolver(Parse(ActionWindow));
+            Assert.AreEqual(36L, Num(Decoded(resolver.EncodeField("action", "mark-routing"))[0x28]));
+            Assert.AreEqual(40L, Num(Decoded(resolver.EncodeField("action", "40"))[0x28]));
+        }
+
         // ── the members of a tri-state live on its element type ────────────────
 
         [TestMethod]

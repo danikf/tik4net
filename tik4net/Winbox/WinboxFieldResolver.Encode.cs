@@ -412,6 +412,10 @@ namespace tik4net.Winbox
                     break;
                 case M2Type.U32:
                     if (long.TryParse(value, out long n)) result.Add(EncodeU32(key, (uint)n));
+                    // Not one of the map's words (checked above). Text on this key is answered with status 0 and makes
+                    // a row without the field: mangle's action=drop on 7.21.5, which has no drop and the API refuses.
+                    else if (value.Length > 0 && jg?.EnumMap != null && string.Equals(uiType, "enm", StringComparison.OrdinalIgnoreCase))
+                        throw new WinboxFieldValueException($"input does not match any value of {apiName}");
                     else result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
                     break;
                 case M2Type.U64:
