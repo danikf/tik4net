@@ -5,7 +5,7 @@ without a live MikroTik router.
 
 | | |
 |---|---|
-| Target | `netstandard2.0` |
+| Target | `netstandard2.0`, `net8.0` |
 | Ships as | the **`tik4net.testing`** NuGet package |
 | Dependency | `tik4net` (via [`tik4net.package`](../tik4net.package/README.md)) |
 
@@ -13,13 +13,11 @@ without a live MikroTik router.
 dotnet add package tik4net.testing
 ```
 
-`TikFakeConnection` implements `ITikConnection`, so anything written against the contract — including
-the O/R mapper — works against it. It also implements `ITikRawSentenceConnection` and
-`ITikSafeModeConnection`, and declares `TikConnectionCapability.SafeMode` in its default capability
-set, so code that drives `CallCommandSync`/`SafeModeTake`/`SafeModeRelease`/`SafeModeUnroll`/`SafeModeGet`
-against it works the same as against a real transport. It does not implement `ITikTaggedConnection` —
-a fake has no wire to tag, so `SendTagWithSyncCommand` does not exist on it. Register the responses your
-code expects and assert on what it sent.
+`TikFakeConnection` implements `ITikConnection` and every typed connection facet, so anything written against
+the contract — including the O/R mapper — works against it. Its commands send the rows the binary API's own
+command sends and read the scripted answer by the same rules, so what a test asserts holds against a router;
+`FakeCommandParityTests` in `tik4net.unittests` keeps the two together. Register the responses your code expects
+and assert on what it sent.
 
 See [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Unit-testing-without-a-router)
 in the wiki for usage.

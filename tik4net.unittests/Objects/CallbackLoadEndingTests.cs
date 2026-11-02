@@ -112,14 +112,14 @@ namespace tik4net.unittests.Objects
         public void TheExistingCallShapesBindAsBefore()
         {
             // (callback) and (callback, onException, filter...) are the old overload's shapes; they compile unchanged
-            // and send the same command as before (the fake answers every row whatever the filter).
+            // and send the same command as before: both rows, then the one the filter selects.
             var conn = TwoAddresses();
             var loaded = 0;
             var cmd1 = conn.LoadWithCallback<IpAddress>(_ => Interlocked.Increment(ref loaded));
             var cmd2 = conn.LoadWithCallback<IpAddress>(_ => Interlocked.Increment(ref loaded), ex => Assert.Fail(ex.ToString()),
                 conn.CreateParameter("address", "192.168.4.2/24"));
 
-            Assert.IsTrue(SpinWait.SpinUntil(() => Volatile.Read(ref loaded) == 4, Wait), "loaded " + loaded);
+            Assert.IsTrue(SpinWait.SpinUntil(() => Volatile.Read(ref loaded) == 3, Wait), "loaded " + loaded);
             cmd1.CancelAndJoin();
             cmd2.CancelAndJoin();
             Assert.IsTrue(conn.SentCommands.Last().Contains("?address=192.168.4.2/24"));

@@ -35,7 +35,7 @@ namespace tik4net.Testing
     /// <example>
     /// <code>
     /// var conn = new TikFakeConnection()
-    ///     .WithEntities(new IpAddress { Id = "*1", Address = "10.0.0.1/24", Interface = "ether1" })
+    ///     .WithEntities(new IpAddress { Address = "10.0.0.1/24", Interface = "ether1" }.WithId("*1"))
     ///     .WithScalarResponse(rows => rows.First() == "/ip/address/add", "*2")
     ///     .WithNonQuery(rows => rows.First() == "/ip/address/set");
     ///
@@ -53,6 +53,12 @@ namespace tik4net.Testing
 
         private readonly List<string[]> _sentCommands = new List<string[]>();
         private readonly HashSet<string> _cancelledTags = new HashSet<string>();
+        private readonly HashSet<string> _runningTags = new HashSet<string>();   // guarded by _cancelledTags
+        private volatile bool _isOpened = true;
+        private TikConnectionCapability _capabilities =
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.SafeMode
+            | TikConnectionCapability.Tagging | TikConnectionCapability.RawCommand;
 
         // ── Builder methods ────────────────────────────────────────────────────
 
@@ -85,6 +91,7 @@ namespace tik4net.Testing
         /// returns the supplied entities serialized to !re sentences via the entity's metadata.
         /// </summary>
         /// <param name="entities">Entities to return. Supports dynamic factories via the overload with <see cref="Func{T}"/>.</param>
+        /// <remarks>See <see cref="WithEntities{TEntity}(Func{IEnumerable{TEntity}})"/> for how the read is evaluated.</remarks>
         public TikFakeConnection WithEntities<TEntity>(params TEntity[] entities)
             where TEntity : new()
         {
@@ -96,6 +103,15 @@ namespace tik4net.Testing
         /// evaluates <paramref name="entityFactory"/> each time the command is called.
         /// Useful for stateful tests where the entity list changes between calls.
         /// </summary>
+        /// <remarks>
+        /// <para>The read is answered as a router answers it: a filter selects the rows (<c>?name=value</c> by the field's
+        /// wire text, <c>?name</c> when the field is printed, <c>?-name</c> when it is not; several filters must all hold),
+        /// and <c>=.proplist=</c> keeps only the fields it names. A property left unassigned is not printed.</para>
+        /// <para>A read this cannot evaluate — the stack operators (<c>?#</c>), <c>?&gt;</c>, <c>?&lt;</c>, or a print
+        /// argument that changes the rows (<c>count-only</c>, <c>from</c>, <c>where</c>, …) — throws
+        /// <see cref="InvalidOperationException"/> rather than answer it wrongly; script such a read with
+        /// <see cref="WithResponse(Func{IEnumerable{string},bool},Func{IEnumerable{string},IEnumerable{ITikSentence}})"/>.</para>
+        /// </remarks>
         public TikFakeConnection WithEntities<TEntity>(Func<IEnumerable<TEntity>> entityFactory)
             where TEntity : new()
         {
@@ -104,8 +120,9 @@ namespace tik4net.Testing
 
             return WithResponse(
                 predicate: rows => rows.First() == commandPath,
-                response: _ =>
+                response: rows =>
                 {
+                    var read = TikFakeRead.Parse(rows);
                     var sentences = new List<ITikSentence>();
                     foreach (var entity in entityFactory())
                     {
@@ -117,7 +134,8 @@ namespace tik4net.Testing
                             .Select(p => new { p.FieldName, Value = p.GetEntityValue(entity!) })
                             .Where(p => p.Value != null)
                             .ToDictionary(p => p.FieldName, p => p.Value!);
-                        sentences.Add(new TikFakeReSentence(words));
+                        if (read.Matches(words))
+                            sentences.Add(new TikFakeReSentence(read.Project(words)));
                     }
                     sentences.Add(new TikFakeDoneSentence());
                     return sentences;
@@ -185,6 +203,15 @@ namespace tik4net.Testing
                 new TikFakeDoneSentence()
             });
         }
+
+        /// <summary>
+        /// Registers a handler that answers with a lost connection (<c>!fatal</c>), as a router does after
+        /// <c>/system/reboot</c> or when the link drops. See <see cref="TikFakeFatalSentence"/> for what each command makes of it.
+        /// </summary>
+        /// <param name="predicate">Matches the command rows to answer so.</param>
+        /// <param name="message">Why the session ended.</param>
+        public TikFakeConnection WithFatal(Func<IEnumerable<string>, bool> predicate, string message)
+            => WithResponse(predicate, _ => new ITikSentence[] { new TikFakeFatalSentence(message) });
 
         // ── Assertion helpers ──────────────────────────────────────────────────
 
@@ -260,27 +287,38 @@ namespace tik4net.Testing
         /// the interfaces it implements would answer the same question two ways. Clear a flag to test the branch
         /// where a transport lacks that feature.
         /// </para>
+        /// <para>
+        /// <see cref="TikConnectionCapability.Streaming"/> is not in the default set. Add it on the net8.0 build, where the
+        /// fake's commands implement <c>ITikStreamingCommand</c>: the stream yields the scripted rows, then ends as the binary
+        /// API's does.
+        /// </para>
         /// </summary>
-        public TikConnectionCapability Capabilities { get; set; } =
-            TikConnectionCapability.Crud | TikConnectionCapability.Listen
-            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.Tagging | TikConnectionCapability.RawCommand;
+        /// <exception cref="ArgumentException">The value holds <see cref="TikConnectionCapability.MenuSchema"/>: the fake
+        /// cannot describe a menu, and a flag it could not back would fail later with an exception no transport throws.</exception>
+        public TikConnectionCapability Capabilities
+        {
+            get => _capabilities;
+            set
+            {
+                if ((value & TikConnectionCapability.MenuSchema) != 0)
+                    throw new ArgumentException("TikFakeConnection cannot describe a menu, so it cannot declare "
+                        + "TikConnectionCapability.MenuSchema.", nameof(value));
+                _capabilities = value;
+            }
+        }
 
         // ── ITikConnection ─────────────────────────────────────────────────────
 
         /// <inheritdoc/>
         public bool DebugEnabled { get; set; }
 
-        /// <inheritdoc/>
-        public bool IsOpened => true;
+        /// <summary>True from creation, after <c>Open</c>, and until <see cref="Close"/> or <see cref="Dispose"/>.</summary>
+        /// <remarks>A command on a closed fake throws <see cref="TikConnectionNotOpenException"/>, as on every transport.</remarks>
+        public bool IsOpened => _isOpened;
 
         /// <inheritdoc/>
-        public Encoding Encoding { get; set; } = Encoding.ASCII;
-
-        // SendTagWithSyncCommand lives on ITikTaggedConnection since 4.0, and this fake implements it (and
-        // declares TikConnectionCapability.Tagging) so a test can exercise the branch that reads it. There is
-        // no wire underneath, so setting it changes nothing about what the fake returns — which is the point:
-        // code under test can set it without knowing it is talking to a fake.
+        /// <remarks>Recorded, not used: the fake has no bytes to encode. UTF-8 by default, as on every transport.</remarks>
+        public Encoding Encoding { get; set; } = Encoding.UTF8;
 
         /// <inheritdoc/>
         public TimeSpan SendTimeout { get; set; }
@@ -292,19 +330,20 @@ namespace tik4net.Testing
         /// <remarks>Accepted and ignored — the fake connection reaches no router to be slow.</remarks>
         public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
 
-        /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow { add { } remove { } }
+        /// <summary>Fires for each word of an answer, as the binary API reads it: the sentence type (<c>!re</c>, <c>!done</c>,
+        /// …), then each field as <c>=name=value</c>.</summary>
+        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
 
-        /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow { add { } remove { } }
+        /// <summary>Fires for each row a command sends.</summary>
+        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
 
-        /// <summary>No-op — fake connection is always "open".</summary>
-        public void Open(string host, string user, string password) { }
+        /// <summary>Opens the fake again after <see cref="Close"/>; it reaches no router.</summary>
+        public void Open(string host, string user, string password) => _isOpened = true;
 
-        /// <summary>No-op — fake connection is always "open".</summary>
-        public void Open(string host, int port, string user, string password) { }
+        /// <summary>Opens the fake again after <see cref="Close"/>; it reaches no router.</summary>
+        public void Open(string host, int port, string user, string password) => _isOpened = true;
 
-        /// <summary>No-op — fake connection is always "open" — but an already-cancelled token still throws.</summary>
+        /// <summary>Opens the fake again after <see cref="Close"/> — and an already-cancelled token throws.</summary>
         /// <remarks>
         /// The cancellation check is not ceremony: a double that ignored the token would let a test of
         /// "cancel the open" pass while the real connection throws, which is the one thing a test double must
@@ -314,6 +353,7 @@ namespace tik4net.Testing
             System.Threading.CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            _isOpened = true;
             return System.Threading.Tasks.Task.CompletedTask;
         }
 
@@ -322,11 +362,23 @@ namespace tik4net.Testing
             System.Threading.CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            _isOpened = true;
             return System.Threading.Tasks.Task.CompletedTask;
         }
 
-        /// <summary>No-op.</summary>
-        public void Close() { }
+        /// <summary>
+        /// Closes the fake: later commands throw <see cref="TikConnectionNotOpenException"/>, and a running
+        /// <c>ExecuteWithCallback</c> ends in its <c>onDone</c>, as the caller's own close ends it on every transport.
+        /// </summary>
+        public void Close()
+        {
+            _isOpened = false;
+            string[] running;
+            lock (_cancelledTags)
+                running = _runningTags.ToArray();
+            foreach (var tag in running)
+                CancelTag(tag);
+        }
 
         /// <summary>Number of times <see cref="SafeModeTake"/> was called (for test assertions).</summary>
         public int SafeModeTakeCount { get; private set; }
@@ -352,8 +404,8 @@ namespace tik4net.Testing
         /// <summary>Returns whether safe mode is currently held (client-side bookkeeping).</summary>
         public bool SafeModeGet() => SafeModeActive;
 
-        /// <summary>No-op.</summary>
-        public void Dispose() { }
+        /// <summary>Closes the fake, as <see cref="Close"/>.</summary>
+        public void Dispose() => Close();
 
         /// <inheritdoc/>
         public ITikCommand CreateCommand()
@@ -381,15 +433,16 @@ namespace tik4net.Testing
 
         /// <inheritdoc/>
         public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
-            => CreateCommandAndParameters(commandText, TikCommandParameterFormat.NameValue, parameterNamesAndValues);
+            => CreateCommandAndParameters(commandText, TikCommandParameterFormat.Default, parameterNamesAndValues);
 
         /// <inheritdoc/>
         public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
         {
-            TikFakeCommand.EnsurePaired(parameterNamesAndValues);
+            Guard.NamesAndValuesArePaired(parameterNamesAndValues, nameof(parameterNamesAndValues));
+            // The parameters are created unformatted and resolved when the command runs, as on every transport.
             var cmd = new TikFakeCommand(this) { CommandText = commandText, DefaultParameterFormat = defaultParameterFormat };
             for (int i = 0; i + 1 < parameterNamesAndValues.Length; i += 2)
-                cmd.Parameters.Add(CreateParameter(parameterNamesAndValues[i], parameterNamesAndValues[i + 1], defaultParameterFormat));
+                cmd.Parameters.Add(CreateParameter(parameterNamesAndValues[i], parameterNamesAndValues[i + 1]));
             return cmd;
         }
 
@@ -410,19 +463,47 @@ namespace tik4net.Testing
         /// Throws <see cref="InvalidOperationException"/> if no handler matches — which helps catch
         /// unregistered commands early in tests.
         /// </summary>
+        /// <exception cref="TikConnectionNotOpenException">The fake was closed.</exception>
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
+            => Dispatch(commandRows.ToArray());
+
+        // Every command goes through here, the commands' own and the raw ones: the open check, the record, the row events,
+        // and the first handler that matches.
+        internal IList<ITikSentence> Dispatch(string[] rows)
         {
-            var rows = commandRows.ToArray();
+            if (!_isOpened)
+                throw new TikConnectionNotOpenException("Fake connection is not open.");
             lock (_sentCommands)
                 _sentCommands.Add(rows);
+            var write = OnWriteRow;
+            if (write != null)
+                foreach (var row in rows)
+                    write(this, new TikConnectionCommCallbackEventArgs(row));
 
             var handler = _handlers.FirstOrDefault(h => h.Predicate(rows));
             if (handler.Response == null)
                 throw new InvalidOperationException(
                     $"TikFakeConnection: no handler registered for command '{rows.FirstOrDefault()}'. " +
-                    "Register one via WithResponse / WithEntities / WithScalarResponse / WithNonQuery / WithTrap.");
+                    "Register one via WithResponse / WithEntities / WithScalarResponse / WithNonQuery / WithTrap / WithFatal.");
+            var answer = handler.Response(rows).ToList();
 
-            return handler.Response(rows).ToList();
+            var read = OnReadRow;
+            if (read != null)
+                foreach (var sentence in answer)
+                    foreach (var word in WordsOf(sentence))
+                        read(this, new TikConnectionCommCallbackEventArgs(word));
+            return answer;
+        }
+
+        private static IEnumerable<string> WordsOf(ITikSentence sentence)
+        {
+            yield return sentence is ITikReSentence ? "!re"
+                : sentence is ITikDoneSentence ? "!done"
+                : sentence is ITikTrapSentence ? "!trap"
+                : sentence is TikFakeFatalSentence ? "!fatal"
+                : "!" + sentence.GetType().Name;
+            foreach (var word in sentence.Words)
+                yield return "=" + word.Key + "=" + word.Value;
         }
 
         /// <inheritdoc/>
@@ -444,43 +525,44 @@ namespace tik4net.Testing
             return Task.FromResult<IList<ITikSentence>>(CallCommandSync(commandRows).ToList());
         }
 
-        // Async variant — runs the fake sentences on a background thread, calling oneResponseCallback for
-        // each sentence until the thread is cancelled. A command that has not ended (no !done delivered: cancelled
-        // part-way, or a script that stops short of one, as a running monitor does) runs until it is cancelled and
-        // then ends in a !done, as the binary API ends a cancelled command. Internal since 4.0, mirroring the real connections:
-        // the Thread-returning entry point left ITikConnection, and TikFakeCommand (same assembly) is the
-        // only caller left, driving ITikCommand.ExecuteWithCallback exactly as ApiCommand does.
+        // The callback form: the answer is delivered on a background thread, one sentence at a time. A command that has not
+        // ended (no !done or !fatal delivered: cancelled part-way, or a script that stops short of one, as a running monitor
+        // does) runs until it is cancelled or the connection closed, and then ends in a !done, as the binary API ends a
+        // cancelled command. TikFakeCommand.ExecuteWithCallback is the one caller.
         internal Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
         {
-            var rows = commandRows.ToArray();
-            lock (_sentCommands)
-                _sentCommands.Add(rows);
-
-            var handler = _handlers.FirstOrDefault(h => h.Predicate(rows));
-            if (handler.Response == null)
-                throw new InvalidOperationException(
-                    $"TikFakeConnection: no handler registered for async command '{rows.FirstOrDefault()}'. " +
-                    "Register one via WithResponse / WithEntities / WithScalarResponse / WithNonQuery / WithTrap.");
-
-            var sentences = handler.Response(rows).ToList();
+            var sentences = Dispatch(commandRows.ToArray());
+            lock (_cancelledTags)
+                _runningTags.Add(tag);
 
             var thread = new Thread(() =>
             {
-                foreach (var sentence in sentences)
+                try
                 {
-                    bool cancelled;
-                    lock (_cancelledTags)
-                        cancelled = _cancelledTags.Contains(tag);
-                    if (cancelled) break;
-                    oneResponseCallback(sentence);
-                    if (sentence is ITikDoneSentence)
-                        return;
-                }
+                    foreach (var sentence in sentences)
+                    {
+                        bool cancelled;
+                        lock (_cancelledTags)
+                            cancelled = _cancelledTags.Contains(tag);
+                        if (cancelled) break;
+                        oneResponseCallback(sentence);
+                        if (sentence is ITikDoneSentence || sentence is TikFakeFatalSentence)
+                            return;
+                    }
 
-                lock (_cancelledTags)
-                    while (!_cancelledTags.Contains(tag))
-                        Monitor.Wait(_cancelledTags);
-                oneResponseCallback(new TikFakeDoneSentence());
+                    lock (_cancelledTags)
+                        while (!_cancelledTags.Contains(tag))
+                            Monitor.Wait(_cancelledTags);
+                    oneResponseCallback(new TikFakeDoneSentence());
+                }
+                finally
+                {
+                    lock (_cancelledTags)
+                    {
+                        _runningTags.Remove(tag);
+                        _cancelledTags.Remove(tag);
+                    }
+                }
             });
             thread.IsBackground = true;
             thread.Start();
@@ -491,13 +573,9 @@ namespace tik4net.Testing
         //
         // The wiki tells people to prefer a typed connection - `ITikCliConnection cli =
         // setup.CreateTelnetConnection()` - over a runtime Supports() check, because it turns a missing
-        // feature into a compile error. That advice was unusable in a test: a method taking
-        // ITikApiConnection or ITikCliConnection had nothing to pass it, since this class implemented
-        // only ITikConnection and two facets and is sealed. The library steered users toward a shape its
-        // own testing package could not stand in for.
-        //
-        // So the fake implements every facet and every composite. It is not claiming to BE an API or a
-        // CLI connection - a double stands in for whatever the code under test asked for, and the
+        // feature into a compile error. A method taking ITikApiConnection or ITikCliConnection needs a double
+        // it can be given, so the fake implements every facet and every composite. It is not claiming to BE an
+        // API or a CLI connection - a double stands in for whatever the code under test asked for, and the
         // capability set (Capabilities, settable per test) is still the thing that answers "can it".
 
         /// <summary>Per-command tagging. Settable; the fake does not act on it.</summary>

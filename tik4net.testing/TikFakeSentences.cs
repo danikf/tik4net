@@ -88,6 +88,35 @@ namespace tik4net.Testing
     }
 
     /// <summary>
+    /// A lost connection (<c>!fatal</c>) for use with <see cref="TikFakeConnection"/>: the router closed the session, or
+    /// the link went down. Use <see cref="TikFakeConnection.WithFatal"/> to register it.
+    /// </summary>
+    /// <remarks>
+    /// The commands answer it as a real one: a read throws <see cref="TikCommandFatalException"/>, a bounded read ends
+    /// in <see cref="TikCommandAbortException"/> carrying it, <c>ExecuteNonQuery</c> takes it as success (a reboot ends
+    /// the session that ran it), and <c>ExecuteWithCallback</c> reports <see cref="Message"/> to the error callback.
+    /// </remarks>
+    public sealed class TikFakeFatalSentence : ITikSentence
+    {
+        /// <inheritdoc/>
+        public IReadOnlyDictionary<string, string> Words { get; }
+
+        /// <summary>Always the empty string: a <c>!fatal</c> answers the session, not one command.</summary>
+        public string Tag => string.Empty;
+
+        /// <summary>Why the session ended, as the router or the reader would say it.</summary>
+        public string Message { get; }
+
+        /// <summary>Creates a fake <c>!fatal</c>.</summary>
+        /// <param name="message">Why the session ended (e.g. "session terminated on request").</param>
+        public TikFakeFatalSentence(string message)
+        {
+            Message = message ?? string.Empty;
+            Words = new Dictionary<string, string> { { "message", Message } };
+        }
+    }
+
+    /// <summary>
     /// Fake implementation of <see cref="ITikTrapSentence"/> for use with <see cref="TikFakeConnection"/>.
     /// Use <see cref="TikFakeConnection.WithTrap"/> to register trap responses.
     /// </summary>

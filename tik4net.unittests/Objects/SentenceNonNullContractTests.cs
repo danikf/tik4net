@@ -49,6 +49,7 @@ namespace tik4net.unittests.Objects
             yield return ("TikFakeReSentence", new TikFakeReSentence(new Dictionary<string, string>()));
             yield return ("TikFakeDoneSentence", new TikFakeDoneSentence());
             yield return ("TikFakeTrapSentence", new TikFakeTrapSentence("no such item"));
+            yield return ("TikFakeFatalSentence", new TikFakeFatalSentence("session terminated on request"));
         }
 
         [TestMethod]

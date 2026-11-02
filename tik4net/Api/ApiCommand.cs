@@ -230,8 +230,12 @@ namespace tik4net.Api
         // A scalar sends an unformatted parameter as =name=value, which is what add and get take. A print refuses that
         // (unknown parameter name, 7.25), so there it is a filter, as through ExecuteList and on every other transport.
         // Unless the caller named one of print's own arguments: then the parameters are arguments.
-        private TikCommandParameterFormat ScalarParameterFormat()
-            => TikPath.Verb(CommandText) == "print" && !Parameters.Any(p => PrintArguments.Contains(p.Name))
+        // tik4net.testing's fake command applies the same rule, so it sends what this class sends.
+        private TikCommandParameterFormat ScalarParameterFormat() => ScalarParameterFormat(CommandText, Parameters);
+
+        internal static TikCommandParameterFormat ScalarParameterFormat(string commandText,
+            IEnumerable<ITikCommandParameter> parameters)
+            => TikPath.Verb(commandText) == "print" && !parameters.Any(p => PrintArguments.Contains(p.Name))
                 ? TikCommandParameterFormat.Filter
                 : TikCommandParameterFormat.NameValue;
 
