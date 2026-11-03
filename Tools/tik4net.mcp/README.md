@@ -126,13 +126,13 @@ confusable.
 | `port`            | int      | TCP/UDP port; `0` = transport default |
 | `routerMac`       | string   | Router MAC — only the MAC-layer transports `MacTelnet` / `WinboxCliMac` / `WinboxNativeMac` (else MNDP discovery) |
 | `allowInvalidCertificate` | bool | `ApiSsl` / `RestSsl`: accept a self-signed or invalid router certificate (default `false` — validated against the OS trust store) |
-| `traceLevel`      | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame-level wire trace: pre-ANSI terminal bytes, mepty `PULL`/prompt/settle notes, M2 frame chunks, socket I/O) |
-| `traceChannels`   | string[] | `bytes` only: keep just these channels (`wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`); omit = all |
+| `traceLevel`      | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame-level wire trace: pre-ANSI terminal bytes, mepty `PULL`/prompt/settle notes, M2 frame chunks, socket I/O). The byte trace is process-wide: a second `bytes` call while one runs is refused with `ERROR (argument): another byte trace is running` |
+| `traceChannels`   | string[] | `bytes` only: keep just these channels; omit = all. The set is not closed — the main ones are `api.word`, `rest.http`, `telnet.sock`, `ssh.pty`, `mactelnet.udp`, `login`, `wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `wbx.codec`, `wbx.session`, `wbx.romon` and the CLI family's `cli.*` (`cli.page`, `cli.json`, `cli.dsv`, `cli.resync`, `cli.cancel`); run once unfiltered to see what a transport emits |
 | `includeRawTrace` | bool     | Back-compat alias for `traceLevel='words'` |
-| `includeRouterLog`| bool     | Also append the router's own `/log` lines emitted **during** the command, as a `--- ROUTER LOG ---` section — captured over a **separate** API connection (TCP 8728) so it never perturbs the transport under test; through a RoMON agent, over a second relayed session |
+| `includeRouterLog`| bool     | Also append the router's own `/log` lines emitted **during** the command, as a `--- ROUTER LOG ---` section — captured over a **separate** API connection (TCP 8728, or the given `port` when the transport is `Api`) so it never perturbs the transport under test and stays out of the wire trace; through a RoMON agent, over a second relayed session |
 | `routerLogTail`   | int      | Max router-log lines to keep (`includeRouterLog` only), default `200` |
-| `executeMode`     | string   | `auto` (default) or `nonquery` (force `ExecuteNonQuery()` for action verbs like `/system/script/run`) |
-| `romonAgentHost`  | string   | RoMON: the agent to go through — IP/hostname, or on `MacTelnet` its MAC. When set, `host` is the **target's RoMON id** and `username`/`password` are the **target's**. `Telnet`, `Ssh`, `MacTelnet` only |
+| `executeMode`     | string   | `auto` (default: `add` through `ExecuteScalar`, `set`/`unset`/`remove`/`move`/`enable`/`disable`/`comment` through `ExecuteNonQuery`, any other verb as a read through `ExecuteList`) or `nonquery` (force `ExecuteNonQuery()` for action verbs like `/system/script/run`, which the read refuses with `NotSupportedException` on the command transports) |
+| `romonAgentHost`  | string   | RoMON: the agent to go through — IP/hostname, or on `MacTelnet` its MAC. When set, `host` is the **target's RoMON id** and `username`/`password` are the **target's**. `Telnet`, `Ssh`, `MacTelnet` (through `/tool romon ssh`) and the four `Winbox*` transports (through the agent's WinBox relay); not `Api`/`Rest` |
 | `romonAgentUsername` | string | RoMON: user on the agent (required with `romonAgentHost`) |
 | `romonAgentPassword` | string | RoMON: password on the agent (may be empty) |
 | `romonAgentPort`  | int      | RoMON: the agent's port; `0` = transport default (`port` and `routerMac` are refused through RoMON) |
@@ -140,6 +140,14 @@ confusable.
 
 All transports accept the same `command` / `parameters` format. Only `Api` / `ApiSsl` support
 Listen/Streaming.
+
+**The answer.** A read answers with a JSON array of its rows, or `OK (no data returned)` when there are none.
+`get` answers with one row named after its `value-name` (`[{"name": "CHR"}]`), or `ret` — the whole row as one
+as-value string — without one; a row that is not there is no rows. `add` answers `[{"ret": "*AB"}]`, the new
+`.id` under the API's own word. A write answers `OK (no data returned)`, `nonquery` `OK (action executed, no
+data returned)`, and a failure one `ERROR (<kind>): <message>` line — `argument`, `auth`, `network`, `trap`,
+`romon: …`, `cancelled`, or the exception's type name. A call the client cancels cancels the running command
+on every transport (each runs commands asynchronously); connecting is not cancelled.
 
 ### The build stamp
 
@@ -200,7 +208,8 @@ directory to be behind, so it never carries the note.
   "romonAgentHost": "192.168.88.1", "romonAgentUsername": "admin", "romonAgentPassword": "agent-pw" }
 ```
 
-**Through RoMON.** The connection logs in to the agent and continues with `/tool romon ssh`; see the wiki's
+**Through RoMON.** The connection logs in to the agent and continues with `/tool romon ssh` (`Telnet`, `Ssh`,
+`MacTelnet`) or through the agent's WinBox relay (the four `Winbox*` transports); see the wiki's
 *RoMON connection* page for what the routers need. A relay failure answers `ERROR (romon: <Reason>)` —
 `TargetUnreachable`, `TargetRefusedLogin`, `RomonNotEnabledOnAgent`, … — and a relay that ends mid-command
 `ERROR (romon: relay ended, commandMayHaveRun=…)`. `includeRouterLog` reads the target's log over a second
@@ -250,8 +259,9 @@ MikroTiks share the segment and picking the wrong one would be a coin flip.
 | `timeoutSeconds`     | int  | How long to listen; default `6`, clamped to 1–60. 5–8 is plenty — devices re-broadcast every few seconds |
 | `stopWhenFirstFound` | bool | Return on the first answer. Faster, but you get whichever device broadcast first — do **not** use it when choosing between routers |
 
-Returns `{ timeoutSeconds, count, routers[] }`, each router carrying `identity`, `ipv4`, `ipv6`, `mac`,
-`version`, `platform`, `boardName`, `uptime`, `softwareId` and `interfaceName`. The `mac` is what the
+Returns `{ serverBuild, timeoutSeconds, count, routers[] }`, each router carrying `identity`, `ipv4`, `ipv6`, `mac`,
+`version`, `platform`, `boardName`, `uptime`, `softwareId` (the RouterOS software id, which licensing names the
+device by) and `interfaceName` (the router's interface the announcement left by). The `mac` is what the
 MAC-layer transports (`MacTelnet`, `WinboxCliMac`, `WinboxNativeMac`) need.
 
 > **Zero rows is ambiguous, and usually not an empty segment.** The common cause is the *host* firewall

@@ -119,7 +119,7 @@ internal static class DevRelay
 
         _child = next;
         Retire(current);
-        lock (Pending) Pending.Clear();
+        FailPending("the server process exited before answering; the rebuilt one answers the next call");
         Note($"now serving the build of {built:yyyy-MM-dd HH:mm:ss} from {next.StageDir}");
         WriteClient("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/tools/list_changed\"}");
     }
@@ -159,20 +159,28 @@ internal static class DevRelay
                 $"{DateTime.Now:yyyyMMdd-HHmmss}-{Environment.ProcessId}-child{Interlocked.Increment(ref _stagings)}");
             Note($"every slot is in use; staging to {stage}, a path the firewall has not seen");
         }
-        CopyDirectory(_sourceDir, stage);
-
-        string exe = Path.Combine(stage, "tik4net.mcp.exe");
-        var psi = File.Exists(exe)
-            ? new ProcessStartInfo(exe)
-            : new ProcessStartInfo("dotnet", "\"" + Path.Combine(stage, "tik4net.mcp.dll") + "\"");
-        psi.UseShellExecute = false;
-        psi.RedirectStandardInput = true;
-        psi.RedirectStandardOutput = true;      // stderr is inherited: the child's logs reach the client's log
-        psi.StandardOutputEncoding = new UTF8Encoding(false);
-        psi.StandardInputEncoding = new UTF8Encoding(false);
-
         var child = new Child { StageDir = stage, SlotLock = slotLock, BuiltAt = built };
-        child.Process = Process.Start(psi) ?? throw new InvalidOperationException("the server process did not start");
+        try
+        {
+            CopyDirectory(_sourceDir, stage);
+
+            string exe = Path.Combine(stage, "tik4net.mcp.exe");
+            var psi = File.Exists(exe)
+                ? new ProcessStartInfo(exe)
+                : new ProcessStartInfo("dotnet", "\"" + Path.Combine(stage, "tik4net.mcp.dll") + "\"");
+            psi.UseShellExecute = false;
+            psi.RedirectStandardInput = true;
+            psi.RedirectStandardOutput = true;      // stderr is inherited: the child's logs reach the client's log
+            psi.StandardOutputEncoding = new UTF8Encoding(false);
+            psi.StandardInputEncoding = new UTF8Encoding(false);
+
+            child.Process = Process.Start(psi) ?? throw new InvalidOperationException("the server process did not start");
+        }
+        catch
+        {
+            slotLock?.Dispose();   // a slot whose child never started is free again
+            throw;
+        }
         _ = Task.Run(() => PumpAsync(child));
         return child;
     }
@@ -194,6 +202,23 @@ internal static class DevRelay
                 lock (Pending) Pending.Remove(id);
             WriteClient(line);
         }
+        // The child is gone. What it still owed would otherwise never be answered: the client waits on its own timeout.
+        if (!child.Retired)
+            FailPending("the server process exited before answering");
+    }
+
+    // Answers every call still owed with a JSON-RPC error, so the client sees a failure rather than waiting for ever.
+    private static void FailPending(string reason)
+    {
+        string[] ids;
+        lock (Pending)
+        {
+            ids = Pending.ToArray();
+            Pending.Clear();
+        }
+        foreach (string id in ids)
+            WriteClient("{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"error\":{\"code\":-32603,\"message\":"
+                        + JsonSerializer.Serialize("tik4net.mcp relay: " + reason) + "}}");
     }
 
     private static void Retire(Child child)

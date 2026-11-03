@@ -79,6 +79,29 @@ namespace tik4net.Connection
         }
 
         /// <summary>
+        /// The binary API's answer to <c>get</c> as rows. The API answers every <c>get</c> with a single <c>!done</c>
+        /// carrying the value in <c>=ret=</c> (the whole row as one <c>as-value</c> string when no <c>value-name</c> was
+        /// given), and with a bare <c>!done</c> for a row that is not there or a field it leaves unset (7.25).
+        /// </summary>
+        /// <param name="parameters">The command's parameters; <c>value-name</c> among them names the field.</param>
+        /// <param name="ret">The <c>!done</c>'s <c>=ret=</c> word, or <c>null</c> when it carried none.</param>
+        /// <returns>One record named as <see cref="Shape"/> names it, or no rows when there was no value.</returns>
+        internal static IList<TikRecordSentence> FromRet(IEnumerable<ITikCommandParameter> parameters, string? ret)
+            => ret == null
+                ? new List<TikRecordSentence>()
+                : One(TikParameterFormat.FindInput(parameters, TikSpecialProperties.UnsetValueName) ?? TikSpecialProperties.Ret, ret);
+
+        /// <summary>
+        /// The parameter format a list read of <paramref name="commandText"/> sends an unformatted parameter with:
+        /// <see cref="TikCommandParameterFormat.NameValue"/> for <c>get</c>, whose <c>.id</c> and <c>value-name</c> are
+        /// its arguments, and <see cref="TikCommandParameterFormat.Filter"/> for every other read.
+        /// </summary>
+        internal static TikCommandParameterFormat ListParameterFormat(string? commandText)
+            => TikPath.Verb(commandText ?? string.Empty) == "get"
+                ? TikCommandParameterFormat.NameValue
+                : TikCommandParameterFormat.Filter;
+
+        /// <summary>
         /// One record of one field. The field is named after what was asked for, which is what makes both
         /// scalar spellings work: <c>ExecuteScalar()</c> reads the row's one field, and
         /// <c>ExecuteScalar("name")</c> asks for it by name.

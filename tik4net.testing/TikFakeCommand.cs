@@ -269,7 +269,12 @@ namespace tik4net.Testing
                     throw new TikCommandUnexpectedResponseException("!re sentence expected as result.", this, answer[i]);
             }
             EnsureDone(answer[answer.Count - 1]);
-            return answer.Take(answer.Count - 1).Cast<ITikReSentence>().ToList();
+            var rows = answer.Take(answer.Count - 1).Cast<ITikReSentence>().ToList();
+            // get answers in the !done's =ret= word, as ApiCommand reads it.
+            if (rows.Count == 0 && Verb == "get")
+                return TikGetResult.FromRet(_parameters, ((ITikDoneSentence)answer[answer.Count - 1]).GetResponseWordOrDefault(null))
+                    .Cast<ITikReSentence>().ToList();
+            return rows;
         }
 
         // ── ITikCommand ───────────────────────────────────────────────────────
@@ -302,13 +307,13 @@ namespace tik4net.Testing
 
         /// <inheritdoc/>
         public IEnumerable<ITikReSentence> ExecuteList()
-            => Run(TikCommandParameterFormat.Filter, new ITikCommandParameter[0], List);
+            => Run(TikGetResult.ListParameterFormat(CommandText), new ITikCommandParameter[0], List);
 
         /// <inheritdoc/>
         public IEnumerable<ITikReSentence> ExecuteList(params string[] proplistFields)
         {
             Guard.ArgumentNotNull(proplistFields, nameof(proplistFields));
-            return Run(TikCommandParameterFormat.Filter, Only(FieldList(proplistFields)), List);
+            return Run(TikGetResult.ListParameterFormat(CommandText), Only(FieldList(proplistFields)), List);
         }
 
         // ── Bounded reads ─────────────────────────────────────────────────────

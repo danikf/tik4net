@@ -28,6 +28,13 @@
   <ItemGroup Condition=" '$(TargetFramework)' == 'net48' ">
     <!-- ExecuteListWithDurationAsync / ExecuteListUntilDoneAsync are #if NET8_0_OR_GREATER in ApiCommand. -->
     <Compile Remove="Api\ApiAsyncStreamingTests.cs" />
+    <!-- tik4net.mcp is a net8.0 program. -->
+    <Compile Remove="Mcp\**" />
+  </ItemGroup>
+
+  <!-- The MCP server's tools, run over FakeRouterServer (Mcp\MikroTikToolsTests). -->
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
+    <ProjectReference Include="..\Tools\tik4net.mcp\tik4net.mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

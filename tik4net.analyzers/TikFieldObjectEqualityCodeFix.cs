@@ -11,7 +11,8 @@ namespace tik4net.Analyzers
 {
     /// <summary>
     /// The fix for TIK001 and TIK002: use the wrapper's <c>.Value</c>, so an equality compares two plain values and a null
-    /// check sees the value rather than a box.
+    /// check sees the value rather than a box — <c>?.Value</c> for a <c>Nullable&lt;&gt;</c> of one. A value list has no
+    /// <c>.Value</c>, so its TIK001 has no fix.
     /// </summary>
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(TikFieldObjectEqualityCodeFix)), Shared]
     public sealed class TikFieldObjectEqualityCodeFix : CodeFixProvider
@@ -33,16 +34,19 @@ namespace tik4net.Analyzers
                 return;
             foreach (var diagnostic in context.Diagnostics)
             {
+                if (diagnostic.Properties.ContainsKey(TikFieldObjectEqualityAnalyzer.ListProperty))
+                    continue;
                 if (!(root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true) is ExpressionSyntax wrapped))
                     continue;
+                bool nullable = diagnostic.Properties.ContainsKey(TikFieldObjectEqualityAnalyzer.NullableProperty);
                 context.RegisterCodeFix(
                     CodeAction.Create(Title, _ => Task.FromResult(context.Document.WithSyntaxRoot(
-                        root.ReplaceNode(wrapped, WithValue(wrapped)))), equivalenceKey: Title),
+                        root.ReplaceNode(wrapped, WithValue(wrapped, nullable)))), equivalenceKey: Title),
                     diagnostic);
             }
         }
 
-        private static ExpressionSyntax WithValue(ExpressionSyntax wrapped)
+        private static ExpressionSyntax WithValue(ExpressionSyntax wrapped, bool nullable)
         {
             // A primary expression takes '.Value' as it stands; anything looser ('a ?? b', a cast) is parenthesised first.
             ExpressionSyntax receiver = wrapped is IdentifierNameSyntax || wrapped is MemberAccessExpressionSyntax
@@ -50,9 +54,10 @@ namespace tik4net.Analyzers
                 || wrapped is ParenthesizedExpressionSyntax
                 ? wrapped.WithoutTrivia()
                 : SyntaxFactory.ParenthesizedExpression(wrapped.WithoutTrivia());
-            return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, receiver,
-                    SyntaxFactory.IdentifierName("Value"))
-                .WithTriviaFrom(wrapped);
+            ExpressionSyntax withValue = nullable
+                ? SyntaxFactory.ConditionalAccessExpression(receiver, SyntaxFactory.MemberBindingExpression(SyntaxFactory.IdentifierName("Value")))
+                : SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, receiver, SyntaxFactory.IdentifierName("Value"));
+            return withValue.WithTriviaFrom(wrapped);
         }
     }
 }

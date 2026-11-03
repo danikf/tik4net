@@ -318,10 +318,17 @@ namespace tik4net.Api
             ThrowPossibleResponseError(response.ToArray());
 
             EnsureReResponse(response.Take(response.Count() - 1).ToArray());   //!re  - reapeating
-            EnsureDoneResponse(response.Last()); //!done
+            ApiDoneSentence done = EnsureDoneResponse(response.Last()); //!done
 
-            return response.Take(response.Count() - 1).Cast<ITikReSentence>().ToList();
+            var rows = response.Take(response.Count() - 1).Cast<ITikReSentence>().ToList();
+            // get answers in the !done's =ret= word, not in a row; read as the rows every other transport answers with.
+            if (rows.Count == 0 && tik4net.Connection.TikPath.Verb(CommandText) == "get")
+                return TikGetResult.FromRet(Parameters, done.GetResponseWordOrDefault(null)).Cast<ITikReSentence>().ToList();
+            return rows;
         }
+
+        // A list read sends an unformatted parameter as a filter, except of get, whose parameters are its arguments.
+        private TikCommandParameterFormat ListParameterFormat() => TikGetResult.ListParameterFormat(CommandText);
 
         // ── ITikCommandAsync ───────────────────────────────────
         //
@@ -351,18 +358,18 @@ namespace tik4net.Api
 
         async Task<ITikReSentence?> ITikCommandAsync.ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken)
         {
-            var rows = await RunAsync(TikCommandParameterFormat.Filter, null, InterpretList, cancellationToken)
+            var rows = await RunAsync(ListParameterFormat(), null, InterpretList, cancellationToken)
                 .ConfigureAwait(false);
             return TikCommandResult.SingleRow(this, rows, throwIfMissing: false);
         }
 
         Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(CancellationToken cancellationToken)
-            => RunAsync(TikCommandParameterFormat.Filter, null, InterpretList, cancellationToken);
+            => RunAsync(ListParameterFormat(), null, InterpretList, cancellationToken);
 
         Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(string[] proplistFields, CancellationToken cancellationToken)
         {
             Guard.ArgumentNotNull(proplistFields, nameof(proplistFields));
-            return RunAsync(TikCommandParameterFormat.Filter, null, InterpretList, cancellationToken,
+            return RunAsync(ListParameterFormat(), null, InterpretList, cancellationToken,
                 proplistFields: proplistFields);
         }
 
@@ -462,7 +469,7 @@ namespace tik4net.Api
             BeginRun();
             try
             {
-                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter, ProplistParameters(proplist));
+                string[] commandRows = ConstructCommandText(ListParameterFormat(), ProplistParameters(proplist));
                 return InterpretList(EnsureApiSentences(Session.CallCommandSync(commandRows)));
             }
             finally

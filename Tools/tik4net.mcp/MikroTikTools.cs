@@ -136,6 +136,62 @@ public sealed class MikroTikTools
     private static string Stamp(string body)
         => body + Environment.NewLine + Environment.NewLine + "--- MCP SERVER --- " + ServerBuild;
 
+    // ── Parameter descriptions shared by the tools ───────────────────────────────
+
+    private const string ConnectionStringDescription =
+        "The whole connection as one tik4net connection string instead of the separate connection parameters " +
+        "(host, username, password, transport, port, routerMac, allowInvalidCertificate, romonAgent*) " +
+        "(TikConnectionSetup.FromConnectionString): " +
+        "'transport=ApiSsl;host=192.168.88.1;user=admin;password=secret;allowInvalidCertificate=true'. " +
+        "ADO.NET syntax, case-insensitive keys; a value holding ';' or '=' is quoted. Keys include transport, " +
+        "host, routerMac, user, password, port, the timeouts, and romon.host/romon.user/romon.password/romon.port " +
+        "for a router behind a RoMON agent (host is then its RoMON id). An unknown key is refused. Without " +
+        "'transport' the tool's default transport is used. Giving it together with any of those parameters " +
+        "is refused.";
+
+    private const string HostDescription =
+        "IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
+        "Through a RoMON agent (romonAgentHost set): the router's RoMON id instead (AA:BB:CC:DD:EE:FF, its /tool/romon current-id).";
+
+    private const string UsernameDescription =
+        "Username for authentication — on the router named by host (through RoMON: on the target, not the agent)";
+
+    private const string PasswordDescription =
+        "Password for authentication — on the router named by host (through RoMON: the target's)";
+
+    private const string PortDescription = "TCP/UDP port. 0 = use the transport default";
+
+    private const string RouterMacDescription =
+        "Router MAC 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports (MacTelnet / WinboxCliMac / WinboxNativeMac). " +
+        "When omitted the router MAC is discovered via MNDP (up to 5 s).";
+
+    private const string AllowInvalidCertificateDescription =
+        "ApiSsl / RestSsl only: when true, accept a self-signed or otherwise invalid router certificate " +
+        "(a RouterOS device usually presents a self-signed one). Default false — the certificate is " +
+        "validated against the OS trust store. The connection stays encrypted either way, but the " +
+        "router's identity is not checked, so use it for a lab or a network you trust.";
+
+    private const string RomonAgentHostDescription =
+        "RoMON: the agent to reach the router through — its IP address or hostname, or on the MAC-layer " +
+        "transports its MAC (AA:BB:CC:DD:EE:FF). When set, host is the target's RoMON id and username/password are " +
+        "the target's; the connection logs in to the agent and continues through it — Telnet, Ssh and MacTelnet " +
+        "with /tool/romon/ssh (the target user needs the 'ssh' policy), the four Winbox* transports through the " +
+        "agent's WinBox relay (the 'winbox' policy). The API and REST transports do not relay. port and routerMac " +
+        "are not used — see romonAgentPort. Omit for a direct connection.";
+
+    private const string RomonAgentUsernameDescription = "RoMON: user name on the agent (required with romonAgentHost).";
+
+    private const string RomonAgentPasswordDescription = "RoMON: password on the agent (may be empty).";
+
+    private const string RomonAgentPortDescription = "RoMON: the agent's port for the transport; 0 = transport default.";
+
+    // ── mikrotik_call ─────────────────────────────────────────────────────────────
+
+    // 1 while a byte trace runs. TikWireTrace has one process-wide sink, and the server runs calls at once: a second
+    // byte trace would see the first one's bytes and, ending in the other order, leave its collector installed for
+    // the life of the process. It is refused rather than queued, since a queue would hide a trace that hangs.
+    private static int _byteTraceRunning;
+
     [McpServerTool]
     [Description(
         "Execute a MikroTik command against a router over any supported transport and return the results. " +
@@ -143,38 +199,33 @@ public sealed class MikroTikTools
         "translates it into each transport's own language), so the command " +
         "and parameters format is identical regardless of transport — this is the tool for debugging/comparing " +
         "the protocol across transports. " +
-        "Returns JSON array of !re records, 'OK (no data returned)' for commands with no output, or an ERROR/TRAP message. " +
+        "Returns a JSON array of records, 'OK (no data returned)' for commands with no output, or an ERROR message. " +
+        "A read (print, get) answers with its rows; get answers with one row named after its value-name " +
+        "(or 'ret', the whole row as one as-value string, without one). add answers [{\"ret\": \"<new .id>\"}]. " +
         "Parameters use MikroTik API format: filter words start with '?' (e.g. '?disabled=yes'), " +
         "name-value words start with '=' (e.g. '=address=192.168.1.1/24'). " +
         "Use executeMode='nonquery' for ACTION verbs that perform work and return no rows " +
-        "(e.g. /system/script/run, /system/reboot): over command transports (Telnet/MacTelnet/WinboxCli/WinboxNative) " +
-        "the default 'auto' path routes such verbs to the read/print path and throws NotSupportedException, " +
-        "whereas 'nonquery' invokes ExecuteNonQuery(), which runs the command (dispatching the action/SYS_CMD) and discards any rows it prints, on every transport. " +
+        "(e.g. /system/script/run, /system/reboot): over the command transports (Telnet, Ssh, MacTelnet, the WinBox " +
+        "transports) the default 'auto' path reads such a verb, and the read refuses it with NotSupportedException " +
+        "before anything is sent, whereas 'nonquery' invokes ExecuteNonQuery(), which runs the command (dispatching the action/SYS_CMD) and discards any rows it prints, on every transport. " +
         "Set traceLevel='words' to also get the raw words exchanged with the router (per-transport wire/CLI form) " +
         "for the command exchange, or traceLevel='bytes' to additionally capture a byte/frame-level wire trace " +
         "(pre-ANSI-strip terminal bytes, mepty pull/settle decisions, M2 frame chunking, socket reads/writes) — " +
-        "the layer a terminal/transport desync actually lives in. Use traceChannels to filter the byte trace to " +
+        "the layer a terminal/transport desync actually lives in. One byte trace runs at a time: a second one while " +
+        "another runs is refused. Use traceChannels to filter the byte trace to " +
         "specific emit sites (e.g. ['wbxcli.mepty']). (includeRawTrace=true is a back-compat alias for traceLevel='words'.) " +
         "Set includeRouterLog=true to also append the router's own /log lines emitted during the command (captured over " +
         "a separate API connection), giving the device-side view next to the wire trace. " +
+        "A call the client cancels cancels the running command. " +
         "Every answer ends with a '--- MCP SERVER ---' line naming the version, build timestamp and path of the " +
         "assembly that answered: this server can be replaced while a client is connected, so that line is how you " +
         "confirm a rebuild actually took effect before trusting the answer to reflect it.")]
-    public string MikrotikCall(
+    public async Task<string> MikrotikCall(
         [Description("API command path, e.g. /ip/address/print or /system/resource/print or /ip/address/add")] string command,
-        [Description("The whole connection as one tik4net connection string instead of host/username/password/transport/" +
-                     "port/routerMac/allowInvalidCertificate/romonAgent* (TikConnectionSetup.FromConnectionString): " +
-                     "'transport=ApiSsl;host=192.168.88.1;user=admin;password=secret;allowInvalidCertificate=true'. " +
-                     "ADO.NET syntax, case-insensitive keys; a value holding ';' or '=' is quoted. Keys include transport, " +
-                     "host, routerMac, user, password, port, the timeouts, and romon.host/romon.user/romon.password/romon.port " +
-                     "for a router behind a RoMON agent (host is then its RoMON id). An unknown key is refused. Without " +
-                     "'transport' the tool's default transport is used. Giving it together with any of those parameters " +
-                     "is refused.")]
-        string? connectionString = null,
-        [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
-                     "Through a RoMON agent (romonAgentHost set): the router's RoMON id instead (AA:BB:CC:DD:EE:FF, its /tool/romon current-id).")] string? host = null,
-        [Description("Username for authentication — on the router named by host (through RoMON: on the target, not the agent)")] string? username = null,
-        [Description("Password for authentication — on the router named by host (through RoMON: the target's)")] string? password = null,
+        [Description(ConnectionStringDescription)] string? connectionString = null,
+        [Description(HostDescription)] string? host = null,
+        [Description(UsernameDescription)] string? username = null,
+        [Description(PasswordDescription)] string? password = null,
         [Description("Transport to use (case-insensitive): Api (default, TCP 8728), ApiSsl (TCP 8729), " +
                      "Rest (HTTP 80), RestSsl (HTTPS 443), Telnet (TCP 23), Ssh (TCP 22), MacTelnet (UDP 20561), " +
                      "WinboxCli (TCP 8291, encrypted terminal), WinboxCliMac (UDP 20561, encrypted terminal over MAC), " +
@@ -182,16 +233,9 @@ public sealed class MikroTikTools
                      "All transports accept the same command/parameters format. " +
                      "Telnet/MacTelnet/Winbox* do not support Listen/Streaming.")]
         string? transport = null,
-        [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
-        [Description("Router MAC address 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports " +
-                     "(MacTelnet / WinboxCliMac / WinboxNativeMac). " +
-                     "When omitted the router MAC is discovered via MNDP (up to 5 s).")]
-        string? routerMac = null,
-        [Description("ApiSsl / RestSsl only: when true, accept a self-signed or otherwise invalid router certificate " +
-                     "(a RouterOS device usually presents a self-signed one). Default false — the certificate is " +
-                     "validated against the OS trust store. The connection stays encrypted either way, but the " +
-                     "router's identity is not checked, so use it for a lab or a network you trust.")]
-        bool allowInvalidCertificate = false,
+        [Description(PortDescription)] int port = 0,
+        [Description(RouterMacDescription)] string? routerMac = null,
+        [Description(AllowInvalidCertificateDescription)] bool allowInvalidCertificate = false,
         [Description("Back-compat alias for traceLevel='words': when true, also return the raw words exchanged " +
                      "with the router for the command. Default: false. Prefer traceLevel.")]
         bool includeRawTrace = false,
@@ -199,17 +243,22 @@ public sealed class MikroTikTools
                      "'words' (the raw words/CLI lines exchanged — same as includeRawTrace=true), or " +
                      "'bytes' (words PLUS a byte/frame-level trace: pre-ANSI terminal bytes, mepty PULL/prompt/" +
                      "settle/timeout decisions, WinBox M2 frame chunks, telnet/mactelnet socket I/O, API word bytes). " +
-                     "Use 'bytes' to diagnose a transport-level hang or desync.")]
+                     "Use 'bytes' to diagnose a transport-level hang or desync. The byte trace is process-wide, so " +
+                     "a second 'bytes' call while one runs is refused.")]
         string traceLevel = "off",
         [Description("Optional filter for the byte trace (traceLevel='bytes' only): only emit sites whose channel " +
-                     "id is in this list are kept. Channels: 'wbxcli.mepty', 'wbxtcp.frame', 'wbxtcp.sock' " +
-                     "(the socket reads under those frames — the layer that shows a reader waiting mid-frame), " +
-                     "'telnet.sock', 'mactelnet.udp', 'api.word'. Omit to keep all channels.")]
+                     "id is in this list are kept. The list of channels is not closed; the main ones are " +
+                     "'api.word', 'rest.http', 'telnet.sock', 'ssh.pty', 'mactelnet.udp', 'login', " +
+                     "'wbxcli.mepty', 'wbxtcp.frame', 'wbxtcp.sock' (the socket reads under those frames — the layer " +
+                     "that shows a reader waiting mid-frame), 'wbx.codec', 'wbx.session', 'wbx.romon', and the CLI " +
+                     "family's 'cli.*' decisions ('cli.page', 'cli.json', 'cli.dsv', 'cli.resync', 'cli.cancel'). " +
+                     "Run once unfiltered to see which a transport emits. Omit to keep all channels.")]
         string[]? traceChannels = null,
         [Description("When true, also append the router's own /log lines that appeared DURING the command, as a " +
                      "'--- ROUTER LOG ---' section — the device-side story next to the wire trace. Captured over a " +
-                     "SEPARATE binary-API connection (TCP 8728, never the transport under test), so it does not " +
-                     "perturb a CLI/terminal session being debugged; through a RoMON agent, over a second relayed session " +
+                     "SEPARATE binary-API connection (TCP 8728, or the port given when the transport is Api; never " +
+                     "the session under test), so it does not perturb a CLI/terminal session being debugged and is " +
+                     "not part of the wire trace; through a RoMON agent, over a second relayed session " +
                      "to the target. Note: log resolution is coarse and many actions " +
                      "log nothing by default (a successful /tool/wol is silent; a bad MAC or an ipsec error is logged). " +
                      "If the side connection cannot be opened it degrades to '(router log unavailable)'. Default: false.")]
@@ -217,31 +266,24 @@ public sealed class MikroTikTools
         [Description("Max number of router-log lines to keep (includeRouterLog only), guarding against a chatty " +
                      "router flooding the window. Default 200.")]
         int routerLogTail = 200,
-        [Description("Execution path (case-insensitive): 'auto' (default) dispatches by verb over ITikCommand " +
-                     "and is right for print/get and CRUD (add/set/remove/enable/disable/move). " +
+        [Description("Execution path (case-insensitive): 'auto' (default) dispatches by verb over ITikCommand: " +
+                     "add through ExecuteScalar, set/unset/remove/move/enable/disable/comment through ExecuteNonQuery, " +
+                     "and every other verb as a read through ExecuteList — right for print, get and the monitors. " +
                      "'nonquery' forces ExecuteNonQuery() — required for ACTION verbs that yield no result set " +
-                     "(e.g. /system/script/run, /system/reboot, /system/reset-configuration) over command transports, " +
-                     "where 'auto' would treat the verb as a read and throw NotSupportedException. " +
+                     "(e.g. /system/script/run, /system/reboot, /system/reset-configuration) over the command transports, " +
+                     "where 'auto' would read the verb and the read refuses it with NotSupportedException. " +
                      "On success 'nonquery' returns 'OK (action executed, no data returned)'; rows the command printed are discarded, as ADO.NET's ExecuteNonQuery does.")]
         string executeMode = "auto",
-        [Description("RoMON: the agent to reach the router through — its IP address or hostname, or on the MAC-layer " +
-                     "transports its MAC (AA:BB:CC:DD:EE:FF). When set, host is the target's RoMON id and username/password are " +
-                     "the target's; the connection logs in to the agent and continues through it — Telnet, Ssh and MacTelnet " +
-                     "with /tool/romon/ssh (the target user needs the 'ssh' policy), the four Winbox* transports through the " +
-                     "agent's WinBox relay (the 'winbox' policy). The API and REST transports do not relay. port and routerMac " +
-                     "are not used — see romonAgentPort. Omit for a direct connection.")]
-        string? romonAgentHost = null,
-        [Description("RoMON: user name on the agent (required with romonAgentHost).")]
-        string? romonAgentUsername = null,
-        [Description("RoMON: password on the agent (may be empty).")]
-        string? romonAgentPassword = null,
-        [Description("RoMON: the agent's port for the transport; 0 = transport default.")]
-        int romonAgentPort = 0,
+        [Description(RomonAgentHostDescription)] string? romonAgentHost = null,
+        [Description(RomonAgentUsernameDescription)] string? romonAgentUsername = null,
+        [Description(RomonAgentPasswordDescription)] string? romonAgentPassword = null,
+        [Description(RomonAgentPortDescription)] int romonAgentPort = 0,
         [Description("Optional command parameters in MikroTik API sentence format. " +
                      "Filter: '?name=value'. NameValue: '=name=value'. " +
                      "Example for set: ['=.id=*1', '=disabled=yes']. " +
                      "Example for filtered print: ['?disabled=yes'].")]
-        string[]? parameters = null)
+        string[]? parameters = null,
+        CancellationToken cancellationToken = default)
     {
         TikConnectionSetup setup;
         try
@@ -260,150 +302,186 @@ public sealed class MikroTikTools
                        + string.Join(", ", SupportedTransports));
         }
 
-        bool nonQuery;
+        string? refusal = ParseCallOptions(executeMode, traceLevel, includeRawTrace,
+            out bool nonQuery, out bool wantWords, out bool wantBytes);
+        if (refusal != null)
+            return Stamp($"ERROR (argument): {refusal}");
+
+        if (wantBytes && Interlocked.CompareExchange(ref _byteTraceRunning, 1, 0) != 0)
+            return Stamp("ERROR (argument): another byte trace is running. The byte trace is process-wide, so two at once "
+                         + "would each hold the other's bytes; run this one when it has finished, or use traceLevel='words'.");
+        try
+        {
+            var trace = wantWords ? new List<string>() : null;
+            var wireCollector = wantBytes ? new WireTraceCollector(traceChannels) : null;
+
+            // Anchor the router-log window BEFORE the command runs (over a separate API connection so it never
+            // perturbs the transport under test). Remember the newest log .id; the window is everything after it.
+            string? logAnchorId = includeRouterLog ? TryReadLogAnchorId(setup) : null;
+
+            string body;
+            // The byte-level sink is installed around the WHOLE call (login handshake included) so a hang during
+            // connect is visible too, and removed before the log window is read: the side connection's bytes are not
+            // the command's.
+            using (wantBytes ? TikWireTrace.Capture(wireCollector!) : null)
+            {
+                try
+                {
+                    body = await DispatchAsync(setup, transportType, command, parameters, nonQuery, trace, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    body = ErrorText(ex);
+                }
+            }
+
+            // Read on success and on error alike, so both see the device-side lines emitted during the call.
+            string? routerLog = includeRouterLog ? TryReadRouterLogWindow(setup, logAnchorId, routerLogTail) : null;
+            return Stamp(WithTraceSections(body, transportType, trace, wireCollector, routerLog));
+        }
+        finally
+        {
+            if (wantBytes)
+                Interlocked.Exchange(ref _byteTraceRunning, 0);
+        }
+    }
+
+    // executeMode and traceLevel, or the reason they are refused.
+    private static string? ParseCallOptions(string? executeMode, string? traceLevel, bool includeRawTrace,
+        out bool nonQuery, out bool wantWords, out bool wantBytes)
+    {
+        nonQuery = wantWords = wantBytes = false;
         switch ((executeMode ?? "auto").Trim().ToLowerInvariant())
         {
             case "auto": case "": nonQuery = false; break;
             case "nonquery": case "non-query": nonQuery = true; break;
-            default:
-                return Stamp($"ERROR (argument): unknown executeMode '{executeMode}'. Use 'auto' or 'nonquery'.");
+            default: return $"unknown executeMode '{executeMode}'. Use 'auto' or 'nonquery'.";
         }
 
-        bool wantWords, wantBytes;
         switch ((traceLevel ?? "off").Trim().ToLowerInvariant())
         {
             case "off": case "": wantWords = includeRawTrace; wantBytes = false; break;
-            case "words": wantWords = true;  wantBytes = false; break;
-            case "bytes": wantWords = true;  wantBytes = true;  break;
-            default:
-                return Stamp($"ERROR (argument): unknown traceLevel '{traceLevel}'. Use 'off', 'words' or 'bytes'.");
+            case "words": wantWords = true; wantBytes = false; break;
+            case "bytes": wantWords = true; wantBytes = true; break;
+            default: return $"unknown traceLevel '{traceLevel}'. Use 'off', 'words' or 'bytes'.";
         }
+        return null;
+    }
 
-        var trace = wantWords ? new List<string>() : null;
-        var wireCollector = wantBytes ? new WireTraceCollector(traceChannels) : null;
+    // Mid level (ITikCommand), NOT CallCommandSync. This tool's promise is that one command and parameter format works
+    // on every transport, and that is what ITikCommand gives: the API-shaped path and '?'/'=' words are translated into
+    // each transport's own language. CallCommandSync is the LOW level and takes the transport's own language instead —
+    // API sentence words on Api/ApiSsl, CLI text on a terminal, and nothing at all on REST or WinBox native, which have
+    // no command language to write.
+    //
+    // Dispatching by verb here is deliberate: a client may translate, the library may not. A transport that runs
+    // commands asynchronously gets the client's cancellation; on any other one the command runs to its own end.
+    private static async Task<string> DispatchAsync(TikConnectionSetup setup, TikConnectionType transportType,
+        string command, string[]? parameters, bool nonQuery, List<string>? trace, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var connection = setup.Create(transportType);
+        connection.DebugEnabled = false;
 
-        // Anchor the router-log window BEFORE the command runs (over a separate API connection so it never
-        // perturbs the transport under test). Remember the newest log .id; the window is everything after it.
-        string? logAnchorId = includeRouterLog ? TryReadLogAnchorId(setup) : null;
-        string? routerLog = null;
-        bool routerLogCaptured = false;
-
-        string WithTrace(string body)
+        if (trace != null)
         {
-            // Capture the log window exactly once, at the first exit after the command was attempted, so
-            // success and error paths both see the device-side lines emitted during the call.
-            if (includeRouterLog && !routerLogCaptured)
-            {
-                routerLogCaptured = true;
-                routerLog = TryReadRouterLogWindow(setup, logAnchorId, routerLogTail);
-            }
-
-            bool hasWords = trace is { Count: > 0 };
-            bool hasBytes = wireCollector is { Count: > 0 };
-            bool hasLog = !string.IsNullOrEmpty(routerLog);
-            if (!hasWords && !hasBytes && !hasLog)
-                return Stamp(body);
-
-            var sb = new StringBuilder(body);
-            if (hasWords)
-            {
-                sb.AppendLine().AppendLine();
-                sb.AppendLine($"--- RAW TRACE ({transportType}, {trace!.Count} rows) ---");
-                foreach (var row in trace)
-                    sb.AppendLine(row);
-            }
-            if (hasBytes)
-            {
-                sb.AppendLine().AppendLine();
-                sb.AppendLine($"--- WIRE TRACE (bytes) ({transportType}, {wireCollector!.Count} events) ---");
-                wireCollector.AppendTo(sb);
-            }
-            if (hasLog)
-            {
-                sb.AppendLine().AppendLine();
-                sb.AppendLine("--- ROUTER LOG ---");
-                sb.Append(routerLog);
-            }
-            return Stamp(sb.ToString());
+            connection.OnWriteRow += (_, e) => trace.Add(">> " + e.Word);
+            connection.OnReadRow += (_, e) => trace.Add("<< " + e.Word);
         }
 
+        var call = connection.CreateCommand(command, ParseParameters(parameters));
+        bool cancellable = connection.Supports(TikConnectionCapability.AsyncCommands);
+
+        if (nonQuery)
+        {
+            // Action verbs (e.g. /system/script/run) and writes that return no rows. Over command transports the verb
+            // is dispatched via RunNonQuery (CLI types the line; WinboxNative invokes the .jg doit/SYS_CMD), which a
+            // read would not run.
+            if (cancellable) await call.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            else call.ExecuteNonQuery();
+            return "OK (action executed, no data returned)";
+        }
+
+        string verb = TikPath.Verb(command);
+
+        if (verb == "add")
+        {
+            // The API's own word for an add's answer, in the shape every other answer has: a JSON array of records.
+            string newId = cancellable
+                ? await call.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)
+                : call.ExecuteScalar();
+            return FormatRows(new[] { new Dictionary<string, string> { [TikSpecialProperties.Ret] = newId } });
+        }
+
+        if (verb is "remove" or "set" or "unset" or "move" or "enable" or "disable" or "comment")
+        {
+            if (cancellable) await call.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            else call.ExecuteNonQuery();
+            return "OK (no data returned)";
+        }
+
+        var rows = cancellable
+            ? await call.ExecuteListAsync(cancellationToken).ConfigureAwait(false)
+            : call.ExecuteList().ToList();
+        return FormatRows(rows.Select(r => new Dictionary<string, string>(r.Words)));
+    }
+
+    // The body followed by the sections the call asked for: the words, the bytes, the router's log.
+    private static string WithTraceSections(string body, TikConnectionType transportType, List<string>? trace,
+        WireTraceCollector? wireCollector, string? routerLog)
+    {
+        bool hasWords = trace is { Count: > 0 };
+        bool hasBytes = wireCollector is { Count: > 0 };
+        bool hasLog = !string.IsNullOrEmpty(routerLog);
+        if (!hasWords && !hasBytes && !hasLog)
+            return body;
+
+        var sb = new StringBuilder(body);
+        if (hasWords)
+        {
+            sb.AppendLine().AppendLine();
+            sb.AppendLine($"--- RAW TRACE ({transportType}, {trace!.Count} rows) ---");
+            foreach (var row in trace)
+                sb.AppendLine(row);
+        }
+        if (hasBytes)
+        {
+            sb.AppendLine().AppendLine();
+            sb.AppendLine($"--- WIRE TRACE (bytes) ({transportType}, {wireCollector!.Count} events) ---");
+            wireCollector.AppendTo(sb);
+        }
+        if (hasLog)
+        {
+            sb.AppendLine().AppendLine();
+            sb.AppendLine("--- ROUTER LOG ---");
+            sb.Append(routerLog);
+        }
+        return sb.ToString();
+    }
+
+    // What every tool answers a failure with: one line naming the kind of failure, then the library's message.
+    private static string ErrorText(Exception ex) => ex switch
+    {
+        TikRomonRelayException e => $"ERROR (romon: {e.Reason}): {e.Message}",
+        TikRomonRelayEndedException e => $"ERROR (romon: relay ended, commandMayHaveRun={e.CommandMayHaveRun}): {e.Message}",
+        TikConnectionLoginException e => $"ERROR (auth): {e.Message}",
+        System.Net.Sockets.SocketException e => $"ERROR (network): {e.Message}",
+        TikCommandTrapException e => $"ERROR (trap): {e.Message}",
+        OperationCanceledException => "ERROR (cancelled): the client cancelled the call",
+        _ => $"ERROR ({ex.GetType().Name}): {ex.Message}",
+    };
+
+    // Runs a tool whose answer carries its own serverBuild; a failure is the stamped error line.
+    private static string Guarded(Func<string> body)
+    {
         try
         {
-            // Install the byte-level sink around the WHOLE call (login handshake included) so a hang during
-            // connect is visible too. No-op when wantBytes is false. Process-wide sink — trace one call at a time.
-            using var wireCapture = wantBytes ? TikWireTrace.Capture(wireCollector!) : null;
-
-            using var connection = setup.Create(transportType);
-
-            connection.DebugEnabled = false;
-
-            if (trace != null)
-            {
-                connection.OnWriteRow += (_, e) => trace.Add(">> " + e.Word);
-                connection.OnReadRow += (_, e) => trace.Add("<< " + e.Word);
-            }
-
-            if (nonQuery)
-            {
-                // ExecuteNonQuery() path: action verbs (e.g. /system/script/run) and writes that return no
-                // rows. Over command transports the verb is dispatched via RunNonQuery (CLI types the line;
-                // WinboxNative invokes the .jg doit/SYS_CMD), which CallCommandSync's read path would reject.
-                var cmd = connection.CreateCommand(command, ParseParameters(connection, parameters));
-                cmd.ExecuteNonQuery();
-                return WithTrace("OK (action executed, no data returned)");
-            }
-
-            // Mid level (ITikCommand), NOT CallCommandSync. This tool's promise is that one command and
-            // parameter format works on every transport, and that is what ITikCommand gives: the API-shaped
-            // path and '?'/'=' words below are translated into each transport's own language. CallCommandSync
-            // is the LOW level and takes the transport's own language instead — API sentence words on
-            // Api/ApiSsl, CLI text on a terminal, and nothing at all on REST or WinBox native, which have no
-            // command language to write. Sending these rows there would fail on three transports and mean
-            // something different on five more.
-            //
-            // Dispatching by verb here is deliberate: a client may translate, the library may not. This
-            // mirrors what the read/add/non-query split does so the answer shape stays what it always was.
-            var call = connection.CreateCommand(command, ParseParameters(connection, parameters));
-            string verb = TikPath.Verb(command);
-
-            if (verb == "add")
-            {
-                string newId = call.ExecuteScalar();
-                return WithTrace(FormatResponse(new List<ITikSentence> { new McpDoneSentence(newId) }));
-            }
-
-            if (verb is "remove" or "set" or "unset" or "move" or "enable" or "disable" or "comment")
-            {
-                call.ExecuteNonQuery();
-                return WithTrace("OK (no data returned)");
-            }
-
-            var sentences = call.ExecuteList().Cast<ITikSentence>().ToList();
-            return WithTrace(FormatResponse(sentences));
-        }
-        catch (TikRomonRelayException ex)
-        {
-            return WithTrace($"ERROR (romon: {ex.Reason}): {ex.Message}");
-        }
-        catch (TikRomonRelayEndedException ex)
-        {
-            return WithTrace($"ERROR (romon: relay ended, commandMayHaveRun={ex.CommandMayHaveRun}): {ex.Message}");
-        }
-        catch (TikConnectionLoginException ex)
-        {
-            return WithTrace($"ERROR (auth): {ex.Message}");
-        }
-        catch (System.Net.Sockets.SocketException ex)
-        {
-            return WithTrace($"ERROR (network): {ex.Message}");
-        }
-        catch (TikCommandTrapException ex)
-        {
-            return WithTrace($"ERROR (trap): {ex.Message}");
+            return body();
         }
         catch (Exception ex)
         {
-            return WithTrace($"ERROR ({ex.GetType().Name}): {ex.Message}");
+            return Stamp(ErrorText(ex));
         }
     }
 
@@ -440,39 +518,20 @@ public sealed class MikroTikTools
                      "'/system/resource ' (the singleton's verbs/fields). RouterOS 6 completes only the space form of a " +
                      "menu path ('/ip firewall filter add ') and answers nothing after the slash form; RouterOS 7 takes both.")]
         string input,
-        [Description("The whole connection as one tik4net connection string instead of host/username/password/transport/" +
-                     "port/routerMac/romonAgent* (TikConnectionSetup.FromConnectionString): " +
-                     "'transport=Ssh;host=192.168.88.1;user=admin;password=secret'. " +
-                     "ADO.NET syntax, case-insensitive keys; a value holding ';' or '=' is quoted. Keys include transport, " +
-                     "host, routerMac, user, password, port, the timeouts, and romon.host/romon.user/romon.password/romon.port " +
-                     "for a router behind a RoMON agent (host is then its RoMON id). An unknown key is refused. Without " +
-                     "'transport' the tool's default transport is used. Giving it together with any of those parameters " +
-                     "is refused.")]
-        string? connectionString = null,
-        [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
-                     "Through a RoMON agent (romonAgentHost set): the router's RoMON id instead (AA:BB:CC:DD:EE:FF, its /tool/romon current-id).")] string? host = null,
-        [Description("Username for authentication — on the router named by host (through RoMON: on the target, not the agent)")] string? username = null,
-        [Description("Password for authentication — on the router named by host (through RoMON: the target's)")] string? password = null,
+        [Description(ConnectionStringDescription)] string? connectionString = null,
+        [Description(HostDescription)] string? host = null,
+        [Description(UsernameDescription)] string? username = null,
+        [Description(PasswordDescription)] string? password = null,
         [Description("CLI transport to use (default Telnet): Telnet (TCP 23), Ssh (TCP 22), WinboxCli (TCP 8291), " +
                      "MacTelnet (UDP 20561), WinboxCliMac (UDP 20561). Api/Rest/WinboxNative* are rejected — " +
                      "they have no terminal to complete on.")]
         string? transport = null,
-        [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
-        [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports (else MNDP discovery).")]
-        string? routerMac = null,
-        [Description("RoMON: the agent to reach the router through — its IP address or hostname, or on the MAC-layer " +
-                     "transports its MAC (AA:BB:CC:DD:EE:FF). When set, host is the target's RoMON id and username/password are " +
-                     "the target's; the connection logs in to the agent and continues through it — Telnet, Ssh and MacTelnet " +
-                     "with /tool/romon/ssh (the target user needs the 'ssh' policy), the four Winbox* transports through the " +
-                     "agent's WinBox relay (the 'winbox' policy). The API and REST transports do not relay. port and routerMac " +
-                     "are not used — see romonAgentPort. Omit for a direct connection.")]
-        string? romonAgentHost = null,
-        [Description("RoMON: user name on the agent (required with romonAgentHost).")]
-        string? romonAgentUsername = null,
-        [Description("RoMON: password on the agent (may be empty).")]
-        string? romonAgentPassword = null,
-        [Description("RoMON: the agent's port for the transport; 0 = transport default.")]
-        int romonAgentPort = 0)
+        [Description(PortDescription)] int port = 0,
+        [Description(RouterMacDescription)] string? routerMac = null,
+        [Description(RomonAgentHostDescription)] string? romonAgentHost = null,
+        [Description(RomonAgentUsernameDescription)] string? romonAgentUsername = null,
+        [Description(RomonAgentPasswordDescription)] string? romonAgentPassword = null,
+        [Description(RomonAgentPortDescription)] int romonAgentPort = 0)
     {
         TikConnectionSetup setup;
         try
@@ -491,7 +550,7 @@ public sealed class MikroTikTools
                        + "transport: " + string.Join(", ", CompletionTransports));
         }
 
-        try
+        return Guarded(() =>
         {
             using var connection = setup.Create(transportType);
             connection.DebugEnabled = false;
@@ -505,23 +564,7 @@ public sealed class MikroTikTools
             return JsonSerializer.Serialize(
                 new { serverBuild = ServerBuild, input, transport = transportType.ToString(), tokens, raw },
                 new JsonSerializerOptions { WriteIndented = true });
-        }
-        catch (TikRomonRelayException ex)
-        {
-            return Stamp($"ERROR (romon: {ex.Reason}): {ex.Message}");
-        }
-        catch (TikConnectionLoginException ex)
-        {
-            return Stamp($"ERROR (auth): {ex.Message}");
-        }
-        catch (System.Net.Sockets.SocketException ex)
-        {
-            return Stamp($"ERROR (network): {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            return Stamp($"ERROR ({ex.GetType().Name}): {ex.Message}");
-        }
+        });
     }
 
     [McpServerTool]
@@ -533,8 +576,9 @@ public sealed class MikroTikTools
         "share the segment and picking the wrong one would be a coin flip. " +
         "Returns a JSON object { serverBuild, timeoutSeconds, count, routers[] } — serverBuild names the version, " +
         "build timestamp and path of the assembly that answered. Each router carries identity, ipv4, " +
-        "ipv6, mac, version, platform, boardName, uptime and interfaceName — mac is what the MAC-layer " +
-        "transports (MacTelnet, WinboxCliMac, WinboxNativeMac) need. " +
+        "ipv6, mac, version, platform, boardName, uptime, softwareId (the RouterOS software id, which licensing " +
+        "names the device by) and interfaceName (the router's own interface the announcement left by) — mac is what " +
+        "the MAC-layer transports (MacTelnet, WinboxCliMac, WinboxNativeMac) need. " +
         "IMPORTANT: zero rows almost always means the HOST firewall is dropping the inbound UDP 5678 " +
         "broadcast, not that no router is present — it fails silently and looks identical to an empty " +
         "segment. A router on a different subnet is also invisible: MNDP does not cross a router.")]
@@ -581,14 +625,14 @@ public sealed class MikroTikTools
         }
         catch (System.Net.Sockets.SocketException ex)
         {
-            // The usual one is AddressAlreadyInUse: something else already holds UDP 5678 (WinBox's own
-            // neighbour list, MndpTray, a second copy of this server).
-            return Stamp($"ERROR (network): {ex.Message} — UDP {5678} may already be held by another "
-                       + "MNDP listener (WinBox's Neighbors tab, MndpTray), or blocked by the host firewall.");
+            // The listener shares UDP 5678 (SO_REUSEADDR), so WinBox's Neighbors tab or a second copy of this server
+            // does not stop it; what does is a listener that took the port exclusively.
+            return Stamp($"ERROR (network): {ex.Message} — another program may hold UDP 5678 exclusively, "
+                       + "or the host firewall blocks it.");
         }
         catch (Exception ex)
         {
-            return Stamp($"ERROR ({ex.GetType().Name}): {ex.Message}");
+            return Stamp(ErrorText(ex));
         }
     }
 
@@ -607,15 +651,7 @@ public sealed class MikroTikTools
         "(/tool/romon/set enabled=yes) AND on the routers to be found, and it is off by default. " +
         "A neighbour appears only while it is running: this is a live scan, not a stored table.")]
     public string MikrotikRomonDiscover(
-        [Description("The whole connection as one tik4net connection string instead of host/username/password/transport/" +
-                     "port/routerMac/allowInvalidCertificate (TikConnectionSetup.FromConnectionString): " +
-                     "'transport=ApiSsl;host=192.168.88.1;user=admin;password=secret;allowInvalidCertificate=true'. " +
-                     "ADO.NET syntax, case-insensitive keys; a value holding ';' or '=' is quoted. Keys include transport, " +
-                     "host, routerMac, user, password, port, the timeouts, and romon.host/romon.user/romon.password/romon.port " +
-                     "for a router behind a RoMON agent (host is then its RoMON id). An unknown key is refused. Without " +
-                     "'transport' the tool's default transport is used. Giving it together with any of those parameters " +
-                     "is refused.")]
-        string? connectionString = null,
+        [Description(ConnectionStringDescription)] string? connectionString = null,
         [Description("IP address or hostname of the router to scan FROM — the one whose RoMON overlay is wanted " +
                      "(this is the router that would relay, i.e. the agent). On the MAC-layer transports its MAC " +
                      "address (AA:BB:CC:DD:EE:FF) may be given instead.")] string? host = null,
@@ -627,11 +663,9 @@ public sealed class MikroTikTools
         [Description("How long to scan, in seconds. Clamped to 2-30; below 2 the CLI transports report nothing. " +
                      "3 is enough on a small overlay — a neighbour is reported about once a second.")]
         int durationSeconds = 3,
-        [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
-        [Description("ApiSsl / RestSsl only: when true, accept a self-signed or otherwise invalid router certificate.")]
-        bool allowInvalidCertificate = false,
-        [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports (else MNDP discovery).")]
-        string? routerMac = null)
+        [Description(PortDescription)] int port = 0,
+        [Description(AllowInvalidCertificateDescription)] bool allowInvalidCertificate = false,
+        [Description(RouterMacDescription)] string? routerMac = null)
     {
         TikConnectionSetup setup;
         try
@@ -653,7 +687,7 @@ public sealed class MikroTikTools
         if (durationSeconds < 2) durationSeconds = 2;
         if (durationSeconds > 30) durationSeconds = 30;
 
-        try
+        return Guarded(() =>
         {
             using var connection = setup.Create(transportType);
             connection.DebugEnabled = false;
@@ -705,19 +739,7 @@ public sealed class MikroTikTools
                     neighbours,
                 },
                 new JsonSerializerOptions { WriteIndented = true });
-        }
-        catch (TikConnectionLoginException ex)
-        {
-            return Stamp($"ERROR (auth): {ex.Message}");
-        }
-        catch (System.Net.Sockets.SocketException ex)
-        {
-            return Stamp($"ERROR (network): {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            return Stamp($"ERROR ({ex.GetType().Name}): {ex.Message}");
-        }
+        });
     }
 
     // A word the router did not send is null in the JSON rather than an empty string: a field a transport
@@ -726,10 +748,10 @@ public sealed class MikroTikTools
         => words.TryGetValue(name, out var value) ? value : null;
 
     // Parses MCP-format parameter rows ('=name=value' NameValue, '?name=value' Filter) into typed command
-    // parameters for the ExecuteNonQuery() path. The rules live in tik4net (TikCommandRow) rather than
-    // here: a second copy of them drifts, and this is the copy that would go on silently dropping a row
-    // the other one has started calling an error.
-    private static ITikCommandParameter[] ParseParameters(ITikConnection connection, string[]? parameters)
+    // parameters, for every verb. The rules live in tik4net (TikCommandRow) rather than here: a second copy of
+    // them drifts, and this is the copy that would go on silently dropping a row the other one has started
+    // calling an error.
+    private static ITikCommandParameter[] ParseParameters(string[]? parameters)
         => parameters == null
             ? new ITikCommandParameter[0]
             : tik4net.Connection.TikCommandRow.ParseParameters(parameters, 0).ToArray();
@@ -824,8 +846,8 @@ public sealed class MikroTikTools
     // window is an .id-diff — the newest log .id before the command, everything after it — which is exact
     // and independent of the router's log time format (which varies with /system/logging settings).
 
-    // Directly, the side channel is the binary API to the same host. Through a RoMON agent the host is a RoMON id the
-    // API cannot dial, and the agent's log is not the target's: the side channel is then a second relayed session to
+    // Directly, the side channel is the binary API to the same host — on the port the call named when the call is over
+    // the binary API itself, and on 8728 otherwise. Through a RoMON agent the host is a RoMON id the API cannot dial, and the agent's log is not the target's: the side channel is then a second relayed session to
     // the target, through the same agent and agent transport — a session of its own, so the one being traced is
     // still left alone.
     private static ITikConnection? TryOpenSide(TikConnectionSetup target)
@@ -834,7 +856,9 @@ public sealed class MikroTikTools
         {
             if (target.RomonAgentSetup != null)
                 return target.Create(target.ConnectionType!.Value);
-            var setup = new TikConnectionSetup(target.Address, target.User, target.Password);   // API default port (8728)
+            var setup = new TikConnectionSetup(target.Address, target.User, target.Password);
+            if (target.ConnectionType == TikConnectionType.Api)
+                setup.Port = target.Port;
             return setup.CreateApiConnection();
         }
         catch
@@ -914,43 +938,10 @@ public sealed class MikroTikTools
         }
     }
 
-    // Carries an add's new .id back into FormatResponse as a !done/ret, which is the shape this tool has
-    // always answered an add with. The transports build their own; this one exists because the verb
-    // dispatch above lives here rather than in the library.
-    private sealed class McpDoneSentence : ITikDoneSentence
+    // Records as a JSON array, or the no-data line when there are none.
+    private static string FormatRows(IEnumerable<Dictionary<string, string>> rows)
     {
-        private readonly string? _ret;
-
-        internal McpDoneSentence(string? ret) => _ret = ret;
-
-        public IReadOnlyDictionary<string, string> Words
-            => _ret == null
-                ? new Dictionary<string, string>()
-                : new Dictionary<string, string> { [TikSpecialProperties.Ret] = _ret };
-
-        public string Tag => string.Empty;
-
-        public string GetResponseWord() => _ret ?? string.Empty;
-
-        public string? GetResponseWordOrDefault(string? defaultValue) => _ret ?? defaultValue;
-    }
-
-    private string FormatResponse(List<ITikSentence> sentences)
-    {
-        var records = new List<Dictionary<string, string>>();
-
-        foreach (var sentence in sentences)
-        {
-            switch (sentence)
-            {
-                case ITikReSentence re:
-                    records.Add(new Dictionary<string, string>(re.Words));
-                    break;
-                case ITikTrapSentence trap:
-                    return $"TRAP [{trap.CategoryCode}]: {trap.Message}";
-            }
-        }
-
+        var records = rows.ToList();
         if (records.Count == 0)
             return "OK (no data returned)";
 

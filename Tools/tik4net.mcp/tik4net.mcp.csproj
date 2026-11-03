@@ -28,10 +28,12 @@
     <None Include="../../Assets/tik4net-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <!-- Exact versions: a floating one is decided by what the feed holds when the tool is packed, and the published
+       tool bundles whatever that was. -->
   <ItemGroup>
-    <PackageReference Include="ModelContextProtocol" Version="0.3.*" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.*" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.*" />
+    <PackageReference Include="ModelContextProtocol" Version="1.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>

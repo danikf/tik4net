@@ -41,6 +41,13 @@ namespace tik4net.Objects
         public override bool Equals(object obj) => obj is TikValue<T>;
         public override int GetHashCode() => 0;
     }
+    public readonly struct TikNegatableValue<T>
+    {
+        public T Value => default(T);
+        public static implicit operator TikNegatableValue<T>(T value) => default(TikNegatableValue<T>);
+        public override bool Equals(object obj) => obj is TikNegatableValue<T>;
+        public override int GetHashCode() => 0;
+    }
 }
 static class Assert
 {
@@ -55,7 +62,7 @@ static class Assert
 }
 static class Check { public static void IsNull<T>(T value) { } }
 class Row { public tik4net.Objects.TikField<string> Name; public tik4net.Objects.TikField<int?> Mtu; public object Any;
-            public tik4net.Objects.TikValue<string> Item; }
+            public tik4net.Objects.TikValue<string> Item; public tik4net.Objects.TikNegatableValue<string> Member; }
 ";
 
         private static string Body(string statements) => Stubs + @"
@@ -73,6 +80,7 @@ class Subject
         [DataRow("Assert.Null(row.Name);", "row.Name", DisplayName = "xUnit Null")]
         [DataRow("Assert.NotNull(row.Item);", "row.Item", DisplayName = "a TikValue<T> in xUnit NotNull")]
         [DataRow("Assert.IsNull(flag ? row.Name : other.Name);", "flag ? row.Name : other.Name", DisplayName = "a conditional of two wrappers")]
+        [DataRow("Assert.IsNull(row.Member);", "row.Member", DisplayName = "a TikNegatableValue<T>")]
         public void AWrapperHandedToANullCheckAsObjectIsReported(string statement, string wrapped)
         {
             var diagnostics = Analyze(Body(statement));

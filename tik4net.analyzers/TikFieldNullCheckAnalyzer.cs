@@ -15,8 +15,10 @@ namespace tik4net.Analyzers
     /// absent one, so the assertion checks nothing at all.
     /// <para>
     /// Reported where a method named <c>IsNull</c>, <c>IsNotNull</c>, <c>Null</c> or <c>NotNull</c> (MSTest, NUnit and
-    /// xUnit spell them so) receives a <c>TikField&lt;T&gt;</c> or <c>TikValue&lt;T&gt;</c> as an <c>object</c>
-    /// argument. A constraint such as NUnit's <c>Assert.That(x, Is.Null)</c> is not a call the analyzer can see.
+    /// xUnit spell them so) receives one of the four struct wrappers (<c>TikField&lt;T&gt;</c>,
+    /// <c>TikNegatableField&lt;T&gt;</c>, <c>TikValue&lt;T&gt;</c>, <c>TikNegatableValue&lt;T&gt;</c>) as an <c>object</c>
+    /// argument. A <c>Nullable&lt;&gt;</c> of one is not reported: it boxes to null when it has no value. A constraint
+    /// such as NUnit's <c>Assert.That(x, Is.Null)</c> is not a call the analyzer can see.
     /// </para>
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -49,11 +51,8 @@ namespace tik4net.Analyzers
             context.EnableConcurrentExecution();
             context.RegisterCompilationStartAction(start =>
             {
-                var wrappers = new[] { TikFieldObjectEqualityAnalyzer.TikFieldMetadataName, TikFieldObjectEqualityAnalyzer.TikNegatableFieldMetadataName, TikFieldObjectEqualityAnalyzer.TikValueMetadataName }
-                    .Select(start.Compilation.GetTypeByMetadataName)
-                    .Where(t => t != null)
-                    .Select(t => t!)
-                    .ToImmutableArray();
+                var wrappers = TikFieldObjectEqualityAnalyzer.Resolve(start.Compilation,
+                    TikFieldObjectEqualityAnalyzer.StructWrapperMetadataNames);
                 if (wrappers.IsEmpty)
                     return; // tik4net.objects is not referenced: nothing here can hold a TikField or a TikValue.
                 start.RegisterOperationAction(ctx => AnalyzeInvocation(ctx, wrappers), OperationKind.Invocation);

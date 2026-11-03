@@ -101,6 +101,10 @@ backwards:
 * A **stability marker on a feature** (WinboxNative is *experimental*) does not. It changes only when the
   feature does.
 
+A **stable** release also ships the analyzer rules: move every row of
+`tik4net.analyzers/AnalyzerReleases.Unshipped.md` into a `## Release <version>` section of
+`AnalyzerReleases.Shipped.md`. An alpha, beta or RC tag leaves them unshipped.
+
 ## 1.3 Culture independence
 
 RouterOS has one fixed wire format. Nothing the library reads from it or writes to it may depend on the

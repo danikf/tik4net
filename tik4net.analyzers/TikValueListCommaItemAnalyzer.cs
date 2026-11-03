@@ -14,7 +14,8 @@ namespace tik4net.Analyzers
     /// The router separates a list's items with <c>,</c>, so <c>new TikValueList&lt;string&gt;("a,b")</c> is not the
     /// two-item list it looks like: the constructor refuses it with an <c>ArgumentException</c> at run time. This reports
     /// the constant case at compile time — an item argument of the constructor, of <c>With</c> or of the whole-list
-    /// <c>TikValueList&lt;T&gt;.Not</c>, given directly or through <c>TikNegatableValue&lt;T&gt;.Not</c> /
+    /// <c>TikValueList&lt;T&gt;.Not</c>, one by one, in an array passed whole or in a collection initializer,
+    /// given directly or through <c>TikNegatableValue&lt;T&gt;.Not</c> /
     /// <c>TikValue&lt;T&gt;.FromWire</c>. A string only known at run time is the constructor's to refuse; text that holds
     /// several items goes through <c>TikValueList&lt;T&gt;.Parse</c>.
     /// </remarks>
@@ -84,12 +85,18 @@ namespace tik4net.Analyzers
                     Check(context, TikFieldObjectEqualityAnalyzer.Unconvert(element), items);
         }
 
-        // A params argument is an implicit array: its items are the initializer's elements.
+        // The items an argument holds: a params argument's implicit array, an array passed whole and a collection
+        // initializer all reach the constructor's check item by item.
         private static IEnumerable<IOperation> Elements(IArgumentOperation argument)
         {
-            if (argument.ArgumentKind == ArgumentKind.ParamArray
-                && argument.Value is IArrayCreationOperation array && array.Initializer != null)
+            var value = TikFieldObjectEqualityAnalyzer.Unconvert(argument.Value);
+            if (value is IArrayCreationOperation array && array.Initializer != null)
                 return array.Initializer.ElementValues;
+            if (value is IObjectCreationOperation creation && creation.Initializer != null)
+                return creation.Initializer.Initializers
+                    .OfType<IInvocationOperation>()
+                    .Where(add => add.TargetMethod.Name == "Add" && add.Arguments.Length == 1)
+                    .Select(add => add.Arguments[0].Value);
             return new[] { argument.Value };
         }
 

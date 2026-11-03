@@ -55,6 +55,11 @@ namespace tik4net.Objects
         public override bool Equals(object obj) => obj is TikNegatableValue<T>;
         public override int GetHashCode() => 0;
     }
+    public sealed class TikValueList<T>
+    {
+        public override bool Equals(object obj) => obj is TikValueList<T>;
+        public override int GetHashCode() => 0;
+    }
 }
 static class Assert
 {
@@ -63,7 +68,8 @@ static class Assert
     public static void AreNotEqual(object notExpected, object actual) { }
 }
 class Row { public tik4net.Objects.TikField<string> Name; public tik4net.Objects.TikField<int?> Mtu; public object Any;
-            public tik4net.Objects.TikValue<string> Item; public tik4net.Objects.TikNegatableValue<string> Member; }
+            public tik4net.Objects.TikValue<string> Item; public tik4net.Objects.TikNegatableValue<string> Member;
+            public tik4net.Objects.TikField<string>? Maybe; public tik4net.Objects.TikValueList<string> List; }
 ";
 
         private static string Body(string statements) => Stubs + @"
@@ -85,6 +91,9 @@ class Subject
         [DataRow("object.Equals(\"x\", row.Item);", "row.Item", DisplayName = "a TikValue<T> the same way")]
         [DataRow("Assert.AreNotEqual(\"x\", row.Item);", "row.Item", DisplayName = "a TikValue<T> in AreNotEqual(object, object)")]
         [DataRow("object.Equals(\"x\", row.Member);", "row.Member", DisplayName = "a TikNegatableValue<T> the same way")]
+        [DataRow("object.Equals(null, row.Name);", "row.Name", DisplayName = "a null literal: a box is never null")]
+        [DataRow("object.Equals(\"x\", row.Maybe);", "row.Maybe", DisplayName = "a TikField<T>? boxes the same way")]
+        [DataRow("object.Equals(\"x,y\", row.List);", "row.List", DisplayName = "a TikValueList<T> never equals its text")]
         public void AnObjectTypedComparisonOfAWrapperAndAValueIsReported(string statement, string wrapped)
         {
             var diagnostics = Analyze(Body(statement));
@@ -100,7 +109,10 @@ class Subject
         [DataRow("object.Equals(\"x\", row.Name.Value);", DisplayName = "the value compared")]
         [DataRow("object.Equals(row.Name, other.Name);", DisplayName = "two wrappers")]
         [DataRow("object.Equals(row.Any, row.Name);", DisplayName = "an object-typed side says nothing")]
-        [DataRow("object.Equals(null, row.Name);", DisplayName = "a null literal has no type")]
+        [DataRow("Assert.AreEqual(row.Name, null);", DisplayName = "generic AreEqual converts null into the wrapper")]
+        [DataRow("object.Equals(null, row.Maybe);", DisplayName = "a TikField<T>? can be null")]
+        [DataRow("object.Equals(null, row.List);", DisplayName = "a TikValueList<T> is a class and can be null")]
+        [DataRow("object.Equals(row.List, other.List);", DisplayName = "two lists")]
         [DataRow("bool b = row.Name == \"x\";", DisplayName = "the == operator")]
         [DataRow("string s = string.Format(\"{0}{1}\", \"x\", row.Name);", DisplayName = "not an equality method")]
         public void AComparisonThatWorksIsNotReported(string statement)
@@ -124,6 +136,8 @@ class Subject
         [DataRow("object.Equals(\"x\", flag ? row.Name : other.Name);", "object.Equals(\"x\", (flag ? row.Name : other.Name).Value);")]
         [DataRow("object.Equals(\"x\", /* kept */ row.Name);", "object.Equals(\"x\", /* kept */ row.Name.Value);")]
         [DataRow("object.Equals(\"x\", row.Item);", "object.Equals(\"x\", row.Item.Value);")]
+        [DataRow("object.Equals(null, row.Name);", "object.Equals(null, row.Name.Value);")]
+        [DataRow("object.Equals(\"x\", row.Maybe);", "object.Equals(\"x\", row.Maybe?.Value);", DisplayName = "a TikField<T>? takes '?.Value'")]
         public void TheFixComparesTheValue(string statement, string expected)
         {
             string source = Body(statement);

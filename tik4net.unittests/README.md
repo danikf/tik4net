@@ -18,7 +18,9 @@ dotnet test tik4net.unittests/tik4net.unittests.csproj
 
 Anything testable without a router: the sentence and word codecs, `CliOutputParser`,
 `VtStripper`/`Vt100State`, `EcSrp5`, `M2Message`, property and enum conversion,
-change-tracker diffing, and `TikFakeConnection`-based consumer scenarios.
+change-tracker diffing, and `TikFakeConnection`-based consumer scenarios. The analyzers' rules and fixes
+(`Analyzers/`), and the MCP server's tools over `FakeRouterServer` (`Mcp/`, net8.0 only: `tik4net.mcp` is a
+net8.0 program).
 
 Internals of `tik4net` are visible here (`InternalsVisibleTo`, declared in
 `tik4net/Properties/AssemblyInfo.cs`), so codec-level types can be tested directly without widening the

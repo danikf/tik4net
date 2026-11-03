@@ -38,6 +38,7 @@ namespace tik4net.Objects
     {
         public TikValueList(params T[] items) { }
         public TikValueList(params TikValue<T>[] items) { }
+        public TikValueList(System.Collections.Generic.IEnumerable<TikValue<T>> items) { }
         public static TikValueList<T> Parse(string text) => null;
         public TikValueList<T> With(params T[] items) => this;
         public TikValueList<T> With(params TikValue<T>[] items) => this;
@@ -67,6 +68,9 @@ class Subject
         [DataRow("var x = new tik4net.Objects.TikValueList<tik4net.Objects.TikNegatableValue<string>>(\"info,!debug\");", "\"info,!debug\"", DisplayName = "a negatable member")]
         [DataRow("var x = tik4net.Objects.TikValueList<string>.Not(\"a,b\");", "\"a,b\"", DisplayName = "the whole-list Not")]
         [DataRow("var x = new tik4net.Objects.TikValueList<tik4net.Objects.Flag>(tik4net.Objects.TikValue<tik4net.Objects.Flag>.FromWire(\"syn,ack\"));", "\"syn,ack\"", DisplayName = "inside FromWire")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<string>(new[] { \"x\", \"a,b\" });", "\"a,b\"", DisplayName = "an array passed whole")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<string>(new tik4net.Objects.TikValue<string>[] { \"a,b\" });", "\"a,b\"", DisplayName = "an array of TikValue<T>")]
+        [DataRow("var x = new tik4net.Objects.TikValueList<string>(new System.Collections.Generic.List<tik4net.Objects.TikValue<string>> { \"a,b\" });", "\"a,b\"", DisplayName = "a collection initializer as the IEnumerable")]
         public void AConstantItemWithACommaIsReported(string statement, string item)
         {
             var diagnostics = Analyze(Body(statement));

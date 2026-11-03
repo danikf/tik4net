@@ -206,6 +206,11 @@ namespace tik4net
         /// <remarks>
         /// The rows are read in full before the method returns: the result is a materialised list behind the
         /// <c>IEnumerable&lt;T&gt;</c>, so enumerating it twice sends nothing twice.
+        /// <para>A <c>get</c> answers with one row of one field, named after its <c>value-name</c>, or <c>ret</c> — the
+        /// whole row as one <c>as-value</c> string — without one; a row that is not there, or a field it leaves unset,
+        /// is no rows. The same on every transport: the binary API, which puts the value in the <c>!done</c>'s
+        /// <c>=ret=</c>, is read into that row. An unformatted parameter of a <c>get</c> is sent as a value
+        /// (<c>=value-name=name</c>), of any other read as a filter.</para>
         /// </remarks>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
