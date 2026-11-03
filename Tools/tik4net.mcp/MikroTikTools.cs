@@ -575,7 +575,7 @@ public sealed class MikroTikTools
         "the router's address, when a rebuilt VM may have changed IP/MAC/identity, or when several MikroTiks " +
         "share the segment and picking the wrong one would be a coin flip. " +
         "Returns a JSON object { serverBuild, timeoutSeconds, count, routers[] } — serverBuild names the version, " +
-        "build timestamp and path of the assembly that answered. Each router carries identity, ipv4, " +
+        "build timestamp and path of the assembly that answered. Each router (one per MAC) carries identity, ipv4 (null when none announced), " +
         "ipv6, mac, version, platform, boardName, uptime, softwareId (the RouterOS software id, which licensing " +
         "names the device by) and interfaceName (the router's own interface the announcement left by) — mac is what " +
         "the MAC-layer transports (MacTelnet, WinboxCliMac, WinboxNativeMac) need. " +
@@ -606,7 +606,7 @@ public sealed class MikroTikTools
                 .Select(r => new
                 {
                     identity = r.Identity,
-                    ipv4 = r.IPv4?.ToString(),
+                    ipv4 = r.IPv4 == null || System.Net.IPAddress.Any.Equals(r.IPv4) ? null : r.IPv4.ToString(),   // Any = none announced
                     ipv6 = string.IsNullOrEmpty(r.IPv6) ? null : r.IPv6,
                     mac = r.Mac,
                     version = r.Version,

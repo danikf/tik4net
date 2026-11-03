@@ -55,6 +55,23 @@ namespace tik4net.unittests
         }
 
         [TestMethod]
+        public void AnIpv4MappedAddressIsMaskedAsTheIpv4AddressItIs()
+        {
+            // A dual-mode socket (new TcpClient() on net8.0, the binary API's) reports its IPv4 local endpoint in
+            // this form. The last ':' part of it is the whole IPv4 address.
+            var mapped = new IPEndPoint(IPAddress.Parse("::ffff:192.168.4.31"), 60968);
+
+            Assert.AreEqual("xx.xx.xx.31:60968", TikEndpointText.Describe(mapped));
+        }
+
+        [TestMethod]
+        public void AnIpv4MappedLoopbackIsStillLoopback()
+        {
+            Assert.AreEqual("127.0.0.1:8728",
+                TikEndpointText.Describe(new IPEndPoint(IPAddress.Parse("::ffff:127.0.0.1"), 8728)));
+        }
+
+        [TestMethod]
         public void AnIpv6ScopeIdIsDroppedBecauseItNamesALocalInterface()
         {
             Assert.IsFalse(TikEndpointText.Describe(IPAddress.Parse("fe80::1%12")).Contains("%"));

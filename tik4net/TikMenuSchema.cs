@@ -32,28 +32,27 @@ namespace tik4net
     /// <para><see cref="ReadableFields"/> is the names <c>get value-name=</c> takes. It matched every field the API
     /// printed in the menus measured (<c>/ip/route</c> on 7.24.4 and 6.49.13); that it holds for every menu is not
     /// proven.</para>
-    /// <para>Each list is asked the first time it is read and remembered.</para>
+    /// <para>Each list is asked the first time it is read and remembered. A read that fails (a timeout, a lost
+    /// connection) is not remembered: the next read asks again.</para>
     /// </remarks>
     public sealed class TikMenuSchema
     {
-        private readonly Func<string, string, IReadOnlyList<string>>? _values;
-        private readonly Dictionary<string, IReadOnlyList<string>> _valuesCache
-            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        private readonly Func<(IReadOnlyCollection<string> Commands, IReadOnlyCollection<string>? Submenus)> _tree;
+        private readonly Memo<(IReadOnlyCollection<string> Commands, IReadOnlyCollection<string>? Submenus)> _treeMemo
+            = new Memo<(IReadOnlyCollection<string>, IReadOnlyCollection<string>?)>();
 
+        private readonly Func<IReadOnlyCollection<string>?> _readable, _unset;
         private readonly Func<string, IReadOnlyCollection<string>?> _arguments;
-        private readonly Dictionary<string, IReadOnlyCollection<string>?> _argumentsCache
-            = new Dictionary<string, IReadOnlyCollection<string>?>(StringComparer.Ordinal);
+        private readonly Memo<IReadOnlyCollection<string>?> _names = new Memo<IReadOnlyCollection<string>?>();
+
+        private readonly Func<string, string, IReadOnlyList<string>>? _values;
+        private readonly Memo<IReadOnlyList<string>> _valuesMemo = new Memo<IReadOnlyList<string>>();
 
         private readonly Func<string?, IReadOnlyDictionary<string, string>>? _explanations;
-        private readonly Dictionary<string, IReadOnlyDictionary<string, string>> _explanationsCache
-            = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+        private readonly Memo<IReadOnlyDictionary<string, string>> _explanationsMemo = new Memo<IReadOnlyDictionary<string, string>>();
 
         private readonly Func<string, string, IReadOnlyList<string>>? _grammar;
-        private readonly Dictionary<string, IReadOnlyList<string>> _grammarCache
-            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-
-        private readonly Lazy<(IReadOnlyCollection<string> Commands, IReadOnlyCollection<string>? Submenus)> _tree;
-        private readonly Lazy<IReadOnlyCollection<string>?> _readable, _unset;
+        private readonly Memo<IReadOnlyList<string>> _grammarMemo = new Memo<IReadOnlyList<string>>();
 
         // A schema from fixed lists: a test's, or one a source knows whole.
         internal TikMenuSchema(string path, TikMenuSchemaSource source, IReadOnlyCollection<string> commands,
@@ -78,10 +77,10 @@ namespace tik4net
         {
             Path = path;
             Source = source;
-            _tree = new Lazy<(IReadOnlyCollection<string>, IReadOnlyCollection<string>?)>(tree);
+            _tree = tree;
             _arguments = arguments;
-            _readable = new Lazy<IReadOnlyCollection<string>?>(readableFields);
-            _unset = new Lazy<IReadOnlyCollection<string>?>(unsetFields);
+            _readable = readableFields;
+            _unset = unsetFields;
             _values = values;
             _explanations = explanations;
             _grammar = grammar;
@@ -106,13 +105,13 @@ namespace tik4net
         /// </summary>
         /// <remarks>On a RouterOS 6 CLI without colour (Telnet, SSH) the router does not say which listed word is a
         /// sub-menu, so the first read asks one Tab per word.</remarks>
-        public IReadOnlyCollection<string> Commands => _tree.Value.Commands;
+        public IReadOnlyCollection<string> Commands => _treeMemo.Get("", _tree).Commands;
 
         /// <summary>
         /// The menu's sub-menus (<c>/ip/route</c>: <c>rule</c>, <c>vrf</c>, …), or <c>null</c> on WinBox native, which
         /// cannot say. See <see cref="Commands"/> for the cost on a RouterOS 6 CLI.
         /// </summary>
-        public IReadOnlyCollection<string>? Submenus => _tree.Value.Submenus;
+        public IReadOnlyCollection<string>? Submenus => _treeMemo.Get("", _tree).Submenus;
 
         /// <summary>
         /// Whether the rows' order is part of the configuration (the menu has <c>move</c>: firewall rules, queues, …), or
@@ -127,15 +126,7 @@ namespace tik4net
         public IReadOnlyCollection<string>? Arguments(string verb)
         {
             Guard.ArgumentNotNullOrEmptyString(verb, nameof(verb));
-            lock (_argumentsCache)
-            {
-                if (_argumentsCache.TryGetValue(verb, out var cached))
-                    return cached;
-            }
-            var arguments = _arguments(verb);
-            lock (_argumentsCache)
-                _argumentsCache[verb] = arguments;
-            return arguments;
+            return _names.Get("arguments " + verb, () => _arguments(verb));
         }
 
         /// <summary>The arguments <c>add</c> takes, or <c>null</c> when the menu has no <c>add</c>.</summary>
@@ -148,7 +139,7 @@ namespace tik4net
         /// Fields the router says it can read and filter on (<c>get value-name=</c>), or <c>null</c> when the menu has no
         /// <c>get</c> to ask — see the remarks.
         /// </summary>
-        public IReadOnlyCollection<string>? ReadableFields => _readable.Value;
+        public IReadOnlyCollection<string>? ReadableFields => _names.Get("readable", _readable);
 
         /// <summary>
         /// The names <c>unset value-name=</c> takes: the fields that can be cleared back to "not set" (a firewall rule's
@@ -156,7 +147,7 @@ namespace tik4net
         /// native, which cannot say. The router's own list: 7.24.4 also offers <c>all</c>, <c>dynamic</c> and
         /// <c>static</c> on <c>/ip/firewall/filter</c>.
         /// </summary>
-        public IReadOnlyCollection<string>? UnsetFields => _unset.Value;
+        public IReadOnlyCollection<string>? UnsetFields => _names.Get("unset", _unset);
 
         /// <summary>
         /// The words <paramref name="argument"/> of <paramref name="verb"/> suggests: an enum's members, or the names a
@@ -171,16 +162,7 @@ namespace tik4net
             Guard.ArgumentNotNullOrEmptyString(verb, nameof(verb));
             if (_values == null)
                 return Array.Empty<string>();
-            string key = verb + " " + argument;
-            lock (_valuesCache)
-            {
-                if (_valuesCache.TryGetValue(key, out var cached))
-                    return cached;
-            }
-            var values = _values(verb, argument);
-            lock (_valuesCache)
-                _valuesCache[key] = values;
-            return values;
+            return _valuesMemo.Get(verb + " " + argument, () => _values(verb, argument));
         }
 
         /// <summary>
@@ -218,16 +200,7 @@ namespace tik4net
             Guard.ArgumentNotNullOrEmptyString(verb, nameof(verb));
             if (_grammar == null)
                 return Array.Empty<string>();
-            string key = verb + " " + argument;
-            lock (_grammarCache)
-            {
-                if (_grammarCache.TryGetValue(key, out var cached))
-                    return cached;
-            }
-            var grammar = _grammar(verb, argument);
-            lock (_grammarCache)
-                _grammarCache[key] = grammar;
-            return grammar;
+            return _grammarMemo.Get(verb + " " + argument, () => _grammar(verb, argument));
         }
 
         // Every description the router gives for one level: the menu's words (verb null) or one command's arguments.
@@ -235,27 +208,39 @@ namespace tik4net
         {
             if (_explanations == null)
                 return EmptyExplanations;
-            string key = verb ?? "";
-            lock (_explanationsCache)
-            {
-                if (_explanationsCache.TryGetValue(key, out var cached))
-                    return cached;
-            }
-            var explanations = _explanations(verb);
-            lock (_explanationsCache)
-                _explanationsCache[key] = explanations;
-            return explanations;
+            return _explanationsMemo.Get(verb ?? "", () => _explanations(verb));
         }
 
         private static readonly IReadOnlyDictionary<string, string> EmptyExplanations
             = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        /// <inheritdoc/>
-        public override string ToString()
-            => Path + " (" + Source + "): add " + Count(AddArguments) + ", set " + Count(SetArguments) + ", readable "
-               + Count(ReadableFields) + ", unset " + Count(UnsetFields);
+        /// <summary>The menu and where its description comes from (<c>/ip/route (ConsoleInspect)</c>).</summary>
+        /// <remarks>It asks the router nothing, so a log line or a debugger never sends a command.</remarks>
+        public override string ToString() => Path + " (" + Source + ")";
 
-        private static string Count(IReadOnlyCollection<string>? names) => names == null ? "-" : names.Count.ToString();
+        // One remembered answer per key, asked outside the lock (an ask is a round trip). A failed ask is not
+        // remembered, and when two threads ask at once the first answer stored is the one every reader gets.
+        private sealed class Memo<TValue>
+        {
+            private readonly Dictionary<string, TValue> _answers = new Dictionary<string, TValue>(StringComparer.Ordinal);
+
+            internal TValue Get(string key, Func<TValue> ask)
+            {
+                lock (_answers)
+                {
+                    if (_answers.TryGetValue(key, out var cached))
+                        return cached;
+                }
+                var answer = ask();
+                lock (_answers)
+                {
+                    if (_answers.TryGetValue(key, out var first))
+                        return first;
+                    _answers[key] = answer;
+                }
+                return answer;
+            }
+        }
     }
 
     /// <summary>A connection that can describe a menu (<see cref="TikConnectionCapability.MenuSchema"/>).</summary>
@@ -317,7 +302,8 @@ namespace tik4net
         private readonly Dictionary<string, TikMenuSchema> _byPath = new Dictionary<string, TikMenuSchema>(StringComparer.Ordinal);
 
         // A refusal is remembered too: RouterOS 6 over the API refuses /console/inspect, and every filtered read asks
-        // before it is sent — without this each one would pay a round trip for the same refusal.
+        // before it is sent — without this each one would pay a round trip for the same refusal. Each throw is a new
+        // exception: one object thrown again keeps only its last stack trace, and is shared between threads.
         private readonly Dictionary<string, TikNoSuchCommandException> _refused
             = new Dictionary<string, TikNoSuchCommandException>(StringComparer.Ordinal);
 
@@ -329,7 +315,8 @@ namespace tik4net
                 if (_byPath.TryGetValue(key, out var schema))
                     return schema;
                 if (_refused.TryGetValue(key, out var refusal))
-                    throw refusal;
+                    throw new TikNoSuchCommandException(refusal.Command,
+                        new TikTrapSentenceResult(refusal.Message, refusal.Code, refusal.CodeDescription));
             }
             TikMenuSchema described;
             try

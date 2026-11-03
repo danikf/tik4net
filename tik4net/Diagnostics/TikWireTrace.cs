@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
@@ -54,6 +55,12 @@ namespace tik4net.Diagnostics
     /// the WinBox-native multiplexer reads on its own thread, which an <c>AsyncLocal</c> flow would not
     /// reach. The diagnostic use is one command at a time (the MCP tool wraps a single call), so a single
     /// process sink is the correct and simplest model. Not intended for always-on production logging.
+    /// <para>
+    /// What a trace leaves out: the login credentials and the password words of the binary API (see
+    /// <see cref="IsSecretWord"/>), and the password a terminal transport types at login. Not every other secret a
+    /// command can carry — <c>=secret=</c>, a pre-shared key, a private key, a password typed into a terminal
+    /// command — so review a trace before you paste it anywhere.
+    /// </para>
     /// </remarks>
     public static class TikWireTrace
     {
@@ -67,16 +74,24 @@ namespace tik4net.Diagnostics
         /// <see cref="IDisposable"/> that restores the previously-installed sink (usually none) on
         /// dispose. Wrap the call you want to trace:
         /// <code>using (TikWireTrace.Capture(mySink)) { /* run the command */ }</code>
-        /// Nesting restores the outer sink; concurrent captures on different threads are not supported
-        /// (there is one process-wide sink) and are not a design goal — trace one command at a time.
+        /// Nesting restores the outer sink. Captures that overlap on different threads share the one process-wide
+        /// sink — the latest capture still open gets every event — so trace one command at a time; closing a capture
+        /// always uninstalls its own sink, whichever order the captures close in.
         /// </summary>
         public static IDisposable Capture(ITikWireTraceSink sink)
         {
             if (sink == null) throw new ArgumentNullException(nameof(sink));
-            var previous = _sink;
-            _sink = sink;
-            return new Restorer(previous);
+            var capture = new OpenCapture(sink);
+            lock (_open)
+            {
+                _open.Add(capture);
+                _sink = sink;
+            }
+            return capture;
         }
+
+        // The captures not yet closed, oldest first; the last one's sink is installed.
+        private static readonly List<OpenCapture> _open = new List<OpenCapture>();
 
         private static readonly AsyncLocal<bool> _secret = new AsyncLocal<bool>();
 
@@ -115,6 +130,11 @@ namespace tik4net.Diagnostics
         /// rendered — the plaintext <c>=password=</c> of the 6.43+ login, the <c>=response=</c> of the older
         /// challenge protocol (equivalent to the password for replay), and a password being changed.
         /// </summary>
+        /// <remarks>
+        /// Login credentials only, by design: other configured secrets (<c>=secret=</c>, <c>=passphrase=</c>, …) are
+        /// not listed, because the terminal transports carry the same values as unnamed bytes, and a list that
+        /// redacted them on one transport would promise what the others cannot keep.
+        /// </remarks>
         internal static bool IsSecretWord(string? word)
         {
             if (string.IsNullOrEmpty(word)) return false;
@@ -220,18 +240,22 @@ namespace tik4net.Diagnostics
             }
         }
 
-        private sealed class Restorer : IDisposable
+        private sealed class OpenCapture : IDisposable
         {
-            private ITikWireTraceSink? _previous;
+            private readonly ITikWireTraceSink _sink;
             private int _disposed;
 
-            internal Restorer(ITikWireTraceSink? previous) => _previous = previous;
+            internal OpenCapture(ITikWireTraceSink sink) => _sink = sink;
 
+            // Not "restore what was installed on entry": with A and B open, closing A then B would put A back.
             public void Dispose()
             {
                 if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-                _sink = _previous;
-                _previous = null;
+                lock (_open)
+                {
+                    _open.Remove(this);
+                    TikWireTrace._sink = _open.Count == 0 ? null : _open[_open.Count - 1]._sink;
+                }
             }
         }
     }

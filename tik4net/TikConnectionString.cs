@@ -79,6 +79,9 @@ namespace tik4net
             string? romonHost = Take("romon.host");
 
             TikRouterAddress address;
+            if (romonHost != null && mac != null)
+                throw new ArgumentException("'routerMac' is not used through a RoMON agent: the MAC-layer session goes to "
+                    + "the agent, so give the agent's MAC as 'romon.host'.", nameof(connectionString));
             if (romonHost != null)
                 address = TikRouterAddress.FromRomonId(host ?? throw new ArgumentException(
                     "A RoMON connection string names the target's RoMON id as 'host'.", nameof(connectionString)));
@@ -171,10 +174,18 @@ namespace tik4net
 
         // Seconds, ADO.NET's way ("15", "2.5"), or a TimeSpan ("00:00:15").
         private static TimeSpan ParseTime(string key, string v)
-            => double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds) && seconds >= 0
-                ? TimeSpan.FromSeconds(seconds)
-             : TimeSpan.TryParse(v, CultureInfo.InvariantCulture, out TimeSpan span) && span >= TimeSpan.Zero ? span
-             : throw new ArgumentException($"'{key}={v}' is neither seconds nor a TimeSpan.", "connectionString");
+        {
+            if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds) && seconds >= 0)
+            {
+                try { return TimeSpan.FromSeconds(seconds); }
+                catch (OverflowException ex)
+                {
+                    throw new ArgumentException($"'{key}={v}' is more seconds than a TimeSpan holds.", "connectionString", ex);
+                }
+            }
+            return TimeSpan.TryParse(v, CultureInfo.InvariantCulture, out TimeSpan span) && span >= TimeSpan.Zero ? span
+                : throw new ArgumentException($"'{key}={v}' is neither seconds nor a TimeSpan.", "connectionString");
+        }
 
         private static TEnum ParseEnum<TEnum>(string key, string v) where TEnum : struct
             => Enum.TryParse(v, ignoreCase: true, out TEnum value) && Enum.IsDefined(typeof(TEnum), value) && !int.TryParse(v, out _)

@@ -134,6 +134,34 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
+        public void ARouterMacWithARomonAgentIsRefused_AsTheSetupRefusesIt()
+        {
+            // The MAC-layer session goes to the agent, so a target MAC would be dropped without a word.
+            var ex = Assert.ThrowsException<ArgumentException>(() => TikConnectionSetup.FromConnectionString(
+                "transport=MacTelnet;host=AA:BB:CC:DD:EE:01;routerMac=AA:BB:CC:DD:EE:02;user=t;romon.host=192.0.2.9;romon.user=a"));
+            StringAssert.Contains(ex.Message, "routerMac");
+        }
+
+        [TestMethod]
+        public void ATimeoutTooLongForATimeSpanIsAnArgumentException()
+        {
+            foreach (string value in new[] { "Infinity", "1e20" })
+            {
+                var ex = Assert.ThrowsException<ArgumentException>(
+                    () => TikConnectionSetup.FromConnectionString("host=192.0.2.1;user=u;connectTimeout=" + value), value);
+                StringAssert.Contains(ex.Message, "connectTimeout");
+            }
+        }
+
+        [TestMethod]
+        public void AnAliasAndItsKeyTogetherAreRefused_TheSameSpellingTwiceKeepsTheLast()
+        {
+            Assert.ThrowsException<ArgumentException>(() => TikConnectionSetup.FromConnectionString("host=a;server=b;user=u"));
+            // DbConnectionStringBuilder's own rule, documented rather than overridden.
+            Assert.AreEqual("b", TikConnectionSetup.FromConnectionString("host=a;host=b;user=u").Host);
+        }
+
+        [TestMethod]
         public void ToStringMasksThePasswords_AndReadsBack()
         {
             var setup = TikConnectionSetup.FromConnectionString(

@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
 
 namespace tik4net.Mndp
 {
@@ -24,13 +21,13 @@ namespace tik4net.Mndp
         /// <summary>Mikrotik board (eq. RB800)</summary>
         public string BoardName { get; }
         /// <summary>
-        /// Raw MNDP field 15, kept verbatim because its meaning is not established. It is surfaced rather
+        /// Raw MNDP field 14, kept verbatim because its meaning is not established. It is surfaced rather
         /// than dropped so that a caller who works out what a router puts here is not blocked by us.
         /// </summary>
         public string Unpack { get; }
         /// <summary>Mikrotik interface MAC</summary>
         public string Mac { get; }
-        /// <summary>Mikrotik interface IP</summary>
+        /// <summary>Mikrotik interface IP; <see cref="IPAddress.Any"/> (<c>0.0.0.0</c>) when the announcement carries none.</summary>
         public IPAddress IPv4 { get; }
         /// <summary>Mikrotik interface IPv6 (can be empty)</summary>
         public string IPv6 { get; }
@@ -63,10 +60,10 @@ namespace tik4net.Mndp
         {
             get
             {
-                if (IPv4 != IPAddress.Any)
+                if (IPv4 != null && !IPAddress.Any.Equals(IPv4))
                     return IPv4.ToString();
                 else if (!string.IsNullOrWhiteSpace(IPv6))
-                    return IPv6.ToString();
+                    return IPv6;
                 else
                     return Mac;
             }

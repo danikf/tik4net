@@ -347,8 +347,9 @@ namespace tik4net
         /// </param>
         /// <remarks>
         /// <c>user</c> and one of <c>host</c> / <c>routerMac</c> are required; <c>password</c> defaults to empty. An unknown
-        /// key, a key named twice or a value of the wrong kind throws, rather than open a connection with a default the
-        /// configuration did not ask for. <see cref="CertificateValidationCallback"/> is code and has no key: set it on
+        /// key, a key and its alias together (<c>host</c> and <c>server</c>), <c>routerMac</c> with <c>romon.host</c>, or a
+        /// value of the wrong kind throws, rather than open a connection with a default the configuration did not ask
+        /// for. The same spelling twice (<c>host=a;host=b</c>) is the ADO.NET parser's rule: the last one wins. <see cref="CertificateValidationCallback"/> is code and has no key: set it on
         /// the returned setup. <see cref="ToString"/> writes the setup back with the passwords masked.
         /// </remarks>
         /// <exception cref="ArgumentException">The string is empty, or names an unknown key, or a value it cannot read.</exception>

@@ -21,7 +21,7 @@ namespace tik4net.Diagnostics
     /// <para>
     /// So the leading parts are masked and the last one kept — <c>xx.xx.xx.31:56864</c>. The final octet
     /// stays because on one segment it is what tells two client machines apart, and a message that named no
-    /// host at all would be worse at the job than the one being replaced.
+    /// host at all would not let the reader find the row.
     /// </para>
     /// <para>
     /// This is for messages that travel. Wire traces are not routed through it: they are opt-in, read on the
@@ -62,13 +62,19 @@ namespace tik4net.Diagnostics
         /// IPv6 is masked the same way and by the same rule — every group but the last — rather than by
         /// counting bits: an address written <c>fe80::215:5dff:fe04:1f03</c> is masked to
         /// <c>xx:…:xx:1f03</c>, which keeps one group to tell hosts apart and drops the prefix that names
-        /// the network. A scope id (<c>%12</c>) is dropped with it: it names a local interface.
+        /// the network. A scope id (<c>%12</c>) is dropped with it: it names a local interface. An IPv4-mapped
+        /// address (<c>::ffff:192.168.4.31</c>, what a dual-mode socket reports) is masked as the IPv4 address it
+        /// carries.
         /// </remarks>
         /// <param name="address">The address to mask.</param>
         internal static string Describe(IPAddress? address)
         {
             if (address == null)
                 return "unknown";
+
+            // The last ':' part of ::ffff:a.b.c.d is the whole IPv4 address.
+            if (address.IsIPv4MappedToIPv6)
+                address = address.MapToIPv4();
 
             // Loopback is not information about anyone's network, and masking it costs a reader the one
             // thing the line was saying — that the connection never left the machine.

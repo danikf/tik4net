@@ -147,5 +147,45 @@ namespace tik4net.unittests.Connection
             Assert.IsFalse(sink.Lines[0].Contains("VISIBLE"), "the scope did not survive the await");
             Assert.IsTrue(sink.Lines[1].Contains("VISIBLE"), "the scope did not end with its using block");
         }
+
+        /// <summary>
+        /// Two captures that overlap rather than nest (the MCP server runs calls at once): closing both uninstalls
+        /// both, whichever closes first.
+        /// </summary>
+        [TestMethod]
+        public void OverlappingCapturesLeaveNoSinkInstalled()
+        {
+            var a = new CapturingSink();
+            var b = new CapturingSink();
+
+            var captureA = TikWireTrace.Capture(a);
+            var captureB = TikWireTrace.Capture(b);
+            captureA.Dispose();
+            TikWireTrace.Emit("test", TikWireDir.Note, "while B is open");
+            captureB.Dispose();
+            TikWireTrace.Emit("test", TikWireDir.Note, "after both closed");
+
+            Assert.IsFalse(TikWireTrace.Enabled, "a closed capture's sink is still installed");
+            Assert.AreEqual(0, a.Lines.Count, "A got events after it closed: " + a.All);
+            Assert.AreEqual(1, b.Lines.Count, b.All);
+        }
+
+        [TestMethod]
+        public void ANestedCaptureRestoresTheOuterOne()
+        {
+            var outer = new CapturingSink();
+            var inner = new CapturingSink();
+
+            using (TikWireTrace.Capture(outer))
+            {
+                using (TikWireTrace.Capture(inner))
+                    TikWireTrace.Emit("test", TikWireDir.Note, "inner");
+                TikWireTrace.Emit("test", TikWireDir.Note, "outer");
+            }
+
+            Assert.IsFalse(TikWireTrace.Enabled);
+            Assert.AreEqual(1, inner.Lines.Count, inner.All);
+            Assert.AreEqual(1, outer.Lines.Count, outer.All);
+        }
     }
 }

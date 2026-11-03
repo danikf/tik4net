@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -29,23 +28,27 @@ namespace tik4net.Mndp
         /// <summary>
         /// Discovers the MAC address of the router at <paramref name="host"/> (IPv4 string) via MNDP, as
         /// <c>AA:BB:CC:DD:EE:FF</c>, or <c>null</c> if no router announced that address within
-        /// <paramref name="timeout"/> (default 5 s).
+        /// <paramref name="timeout"/> (default 5 s), or more than one did.
         /// </summary>
         /// <remarks>
-        /// A string, because that is the spelling every other MAC in this library uses — it can be assigned
+        /// <para>A string, because that is the spelling every other MAC in this library uses — it can be assigned
         /// straight to <see cref="ITikMacLayerConnection.RouterMac"/> or passed to
-        /// <see cref="TikRouterAddress.FromMac(string)"/>. It used to return <c>byte[]</c>, which was the
-        /// one shape nothing else accepted: a caller had to re-format the result of the discovery helper
-        /// before handing it to the thing the helper exists to feed. The bytes were themselves produced by
-        /// parsing this string, so nothing is lost by not making the round trip.
+        /// <see cref="TikRouterAddress.FromMac(string)"/>.</para>
+        /// <para>It listens for the whole <paramref name="timeout"/>, because two routers can announce one address
+        /// (factory-default ones all announce <c>192.168.88.1</c>), and a MAC-layer session opened to whichever
+        /// answered first could write to the wrong router. When two do, the answer is <c>null</c>: name the router by
+        /// its MAC instead. Setting <see cref="ITikMacLayerConnection.RouterMac"/> skips the lookup altogether.</para>
         /// </remarks>
         public static string? FindMacByHost(string host, TimeSpan? timeout = null)
         {
             var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(5);
             var encoding = Encoding.GetEncoding("iso-8859-1");
-            var found = Discover(effectiveTimeout, encoding, stopWhenFirstFound: false)
-                .FirstOrDefault(r => r.IPv4?.ToString() == host);
-            return string.IsNullOrEmpty(found.Mac) ? null : found.Mac;
+            var macs = Discover(effectiveTimeout, encoding, stopWhenFirstFound: false)
+                .Where(r => r.IPv4?.ToString() == host)
+                .Select(r => r.Mac)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return macs.Count == 1 ? macs[0] : null;
         }
 
         /// <summary>
@@ -86,15 +89,19 @@ namespace tik4net.Mndp
         /// Discover with specified timeout and encoding.
         /// </summary>
         /// <remarks>
-        /// <para>Solicits once a second for <paramref name="timeout"/> and collects every router that answers; with
-        /// <paramref name="stopWhenFirstFound"/>, returns at the first one.</para>
+        /// <para>Solicits once a second for <paramref name="timeout"/> and collects every router that answers, one
+        /// result per MAC; with <paramref name="stopWhenFirstFound"/>, returns at the first one. Routers that share an
+        /// IP address (factory-default ones all announce <c>192.168.88.1</c>) are each returned.</para>
         /// <para>Answers are received on the calling thread, between solicitations, so a discovery does not depend on
         /// the thread pool — a receiver queued to a busy pool would not start before the window is over. The MNDP port is bound shared, so two discoveries can run at once (in this process or
         /// another): RouterOS broadcasts its answers, and every socket bound to the port receives them. A packet that
         /// is not a whole announcement — no MAC, a field cut short — is skipped rather than failing the discovery.</para>
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="encoding"/> is <c>null</c>.</exception>
+        /// <exception cref="SocketException">The MNDP port (UDP 5678) cannot be bound.</exception>
         public static IEnumerable<TikInstanceDescriptor> Discover(TimeSpan timeout, Encoding encoding, bool stopWhenFirstFound = false)
         {
+            Guard.ArgumentNotNull(encoding, nameof(encoding));
             var result = new List<TikInstanceDescriptor>();
 
             using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true })
@@ -125,7 +132,7 @@ namespace tik4net.Mndp
 
                     if (!TryParseResponsePacket(buffer, length, encoding, out var routerDescriptor))
                         continue;
-                    if (!result.Any(r => r.IpDescription == routerDescriptor.IpDescription))
+                    if (!result.Any(r => string.Equals(r.Mac, routerDescriptor.Mac, StringComparison.Ordinal)))
                         result.Add(routerDescriptor);
                     if (stopWhenFirstFound)
                         break;
@@ -170,8 +177,9 @@ namespace tik4net.Mndp
         /// <para>
         /// Failures are swallowed per interface deliberately: an adapter that cannot be bound or has no route
         /// is simply not a candidate, and one of those must not stop the others from being solicited. If no
-        /// interface can be enumerated at all the original unbound send is still attempted, which on a host
-        /// where enumeration is unavailable beats sending nothing.
+        /// interface can be enumerated at all an unbound send is still attempted, which on a host where
+        /// enumeration is unavailable beats sending nothing; where that fails too (no network at all), the
+        /// discovery keeps listening and keeps what it has heard.
         /// </para>
         /// </remarks>
         private static void SendMndpBroadcast()
@@ -198,9 +206,16 @@ namespace tik4net.Mndp
 
             if (sent == 0)
             {
-                using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+                try
                 {
-                    socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
+                    using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+                    {
+                        socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
+                    }
+                }
+                catch (SocketException)
+                {
+                    // No route at all. The next solicitation tries again.
                 }
             }
 
@@ -235,12 +250,7 @@ namespace tik4net.Mndp
         /// every interface but one — the same defect one level down.
         /// </para>
         /// <para>
-        /// The target is that address's own subnet broadcast where one can be derived, and the limited
-        /// broadcast where it cannot. An address whose <see cref="UnicastIPAddressInformation.IPv4Mask"/> is
-        /// absent or all-zero is reported by real adapters (some VPN and virtual ones), and skipping it would
-        /// silently drop that segment. The socket is still bound to the address either way, which is what
-        /// decides the interface the datagram leaves by — the limited broadcast only loses the ability to be
-        /// forwarded, which MNDP does not use.
+        /// The target is <see cref="SolicitationTarget"/>, which says why an address without a mask is kept.
         /// </para>
         /// </remarks>
         private static IEnumerable<KeyValuePair<IPAddress, IPAddress>> EnumerateBroadcastNics()
@@ -263,7 +273,7 @@ namespace tik4net.Mndp
         /// </summary>
         /// <remarks>
         /// The fallback is the point. An address whose mask is missing or all-zero is reported by real
-        /// adapters, and dropping it would leave that segment as unsolicited as the unbound socket left every
+        /// adapters (some VPN and virtual ones), and dropping it would leave that segment as unsolicited as the unbound socket left every
         /// segment but one. Binding the socket to the address is what decides which interface the datagram
         /// leaves by; the limited broadcast merely gives up being forwarded, which MNDP does not use anyway.
         /// </remarks>
@@ -285,57 +295,6 @@ namespace tik4net.Mndp
                 yield return index;
             }
         }
-
-        //private static UdpClient CreateUdpClient()
-        //{
-        //    var result = new UdpClient();
-        //    result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-        //    result.Client.ExclusiveAddressUse = false;
-        //    result.Client.Bind(new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT));
-
-        //    //var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        //    //socket.ExclusiveAddressUse = false;
-        //    ////socket.NoDelay = true;
-        //    //socket.EnableBroadcast = true;
-
-        //    //socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-        //    //socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, 1);
-        //    //socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
-        //    //socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, true);
-
-
-        //    //socket.Bind(new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT));
-        //    //result.Client = socket;
-
-        //    //Not possible to use on android :-/
-        //    //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-        //    //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, 1);
-        //    //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
-        //    //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, true);
-
-        //    //result.Client.ExclusiveAddressUse = false;
-        //    //result.Client.NoDelay = true;
-        //    //result.Client.EnableBroadcast = true;
-        //    //DontRoute ??
-
-        //    return result;
-        //}
-
-        //private static void SendMndpBroadcasts(UdpClient udpClient)
-        //{
-        //    for (int i = 0; i < 3; i++) //send a few packets
-        //    {
-        //        //inspiration: https://hadler.me/cc/mikrotik-neighbor-discovery-mndp/
-        //        var dataToBroadcast = new byte[] { 0, 0, 0, 0 };
-
-        //        //using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
-        //        {
-
-        //            //socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
-        //        }
-        //        //udpClient.SendAsync(dataToBroadcast, dataToBroadcast.Length, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
-        //    }
-        //}
 
         /// <summary>
         /// Reads an MNDP announcement: a 4-byte header, then type-length-value items (big-endian type and length).

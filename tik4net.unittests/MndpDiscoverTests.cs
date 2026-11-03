@@ -110,6 +110,38 @@ namespace tik4net.unittests
             }
         }
 
+        [TestMethod]
+        public void TwoRoutersSharingAnIp_AreBothReturned()
+        {
+            // Two factory-default routers both announce 192.168.88.1; the MAC is what tells them apart.
+            using (Announce(Announcement(Mac(0x01), "probe-a"), Announcement(Mac(0x02), "probe-b")))
+            {
+                var found = MndpHelper.Discover(Window, Latin1).Where(r => AnnouncedIPv4.Equals(r.IPv4)).ToList();
+                CollectionAssert.AreEquivalent(new[] { "probe-a", "probe-b" }, found.Select(r => r.Identity).ToArray());
+            }
+        }
+
+        [TestMethod]
+        public void FindMacByHost_NamesTheOneRouterOnTheIp()
+        {
+            using (Announce(Announcement(Mac(0x01), "probe-a")))
+                Assert.AreEqual("AA:BB:CC:DD:EE:01", MndpHelper.FindMacByHost(AnnouncedIPv4.ToString(), Window));
+        }
+
+        [TestMethod]
+        public void FindMacByHost_RefusesToChooseBetweenTwoRoutersOnTheIp()
+        {
+            // A MAC-layer session would open to whichever answered first, and a write would go to the wrong router.
+            using (Announce(Announcement(Mac(0x01), "probe-a"), Announcement(Mac(0x02), "probe-b")))
+                Assert.IsNull(MndpHelper.FindMacByHost(AnnouncedIPv4.ToString(), Window));
+        }
+
+        [TestMethod]
+        public void Discover_WithoutAnEncoding_ThrowsBeforeListening()
+        {
+            Assert.ThrowsException<ArgumentNullException>(() => MndpHelper.Discover(Window, null));
+        }
+
         // A thread of its own (not the pool) sends the packets to the MNDP port on loopback every 100 ms until disposed.
         //
         // Held under a machine-wide lock: `dotnet test` runs the net8.0 and net48 legs at once, in two processes, and
@@ -149,9 +181,13 @@ namespace tik4net.unittests
             public void Dispose() => _stop();
         }
 
-        private static byte[] Announcement() => Packet(
-            Tlv(1, new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF }),
-            Tlv(5, Latin1.GetBytes("fake-router")),
+        private static byte[] Mac(byte last) => new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, last };
+
+        private static byte[] Announcement() => Announcement(Mac(0xFF), "fake-router");
+
+        private static byte[] Announcement(byte[] mac, string identity) => Packet(
+            Tlv(1, mac),
+            Tlv(5, Latin1.GetBytes(identity)),
             Tlv(7, Latin1.GetBytes("7.24")),
             Tlv(8, Latin1.GetBytes("MikroTik")),
             Tlv(10, BitConverter.GetBytes((uint)3600)),
