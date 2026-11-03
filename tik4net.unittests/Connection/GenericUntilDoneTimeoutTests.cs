@@ -19,12 +19,14 @@ namespace tik4net.unittests.Connection
         /// <summary>
         /// A transport whose print takes <see cref="PrintTime"/> on both paths: the async one honours its token, the sync
         /// one cannot be interrupted. Every built-in generic transport's sync print is its async print awaited with no
-        /// token, so the async path is the one a deadline can reach.
+        /// token, so the async path is the one a deadline can reach. The default print outlasts the tests' 20 s bounds by far
+        /// more than a loaded CI runner's scheduling delay (2.7 s once against a 3 s print with a 2 s bound), so only a read
+        /// that waited the print out can cross them.
         /// </summary>
         private sealed class SlowTransport : TikCommandConnectionBase
         {
             private readonly TikConnectionCapability _capabilities;
-            public TimeSpan PrintTime = TimeSpan.FromSeconds(3);
+            public TimeSpan PrintTime = TimeSpan.FromSeconds(60);
             public readonly List<string> Calls = new List<string>();
 
             public SlowTransport(TikConnectionCapability capabilities) { _capabilities = capabilities; }
@@ -79,7 +81,7 @@ namespace tik4net.unittests.Connection
 
             Assert.AreEqual("Command did not finish within 0.2 second(s).", ex.Message, "the API's wording");
             Assert.IsNull(ex.InnerException);
-            Assert.IsTrue(sw.Elapsed < TimeSpan.FromSeconds(2), $"took {sw.ElapsedMilliseconds} ms");
+            Assert.IsTrue(sw.Elapsed < TimeSpan.FromSeconds(20), $"took {sw.ElapsedMilliseconds} ms");
             Assert.IsFalse(cmd.IsRunning, "the run ended with the abort");
         }
 
@@ -143,7 +145,7 @@ namespace tik4net.unittests.Connection
                 {
                 }
             });
-            Assert.IsTrue(sw.Elapsed < TimeSpan.FromSeconds(2), $"took {sw.ElapsedMilliseconds} ms");
+            Assert.IsTrue(sw.Elapsed < TimeSpan.FromSeconds(20), $"took {sw.ElapsedMilliseconds} ms");
         }
 
         [TestMethod]
