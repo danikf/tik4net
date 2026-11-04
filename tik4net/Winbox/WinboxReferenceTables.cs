@@ -64,7 +64,7 @@ namespace tik4net.Winbox
         /// 'Type Name' at <c>0x16</c>, and <c>/queue/simple</c>'s queue read back as <c>*FFFFFFFA</c> where the API says
         /// pcq-upload-default (7.24.2).
         /// </remarks>
-        internal (int NameKey, int NameValKey) NameKeysOf(WinboxHandler table)
+        private (int NameKey, int NameValKey) NameKeysOf(WinboxHandler table)
         {
             lock (_lock)
                 if (_nameKeys.TryGetValue(table, out var cached)) return cached;
@@ -81,7 +81,7 @@ namespace tik4net.Winbox
         /// <see cref="RefNameKeys"/> over a key map the caller already holds — a command path's own resolver, whose
         /// session overrides and label hints the lookup of its <c>.id</c> honours.
         /// </summary>
-        internal static (int nameKey, int nameValKey) NameKeysOf(WinboxJgCatalog catalog, WinboxHandler handler,
+        private static (int nameKey, int nameValKey) NameKeysOf(WinboxJgCatalog catalog, WinboxHandler handler,
             IReadOnlyDictionary<int, string> keyToApiName)
         {
             int nameKey = NameKeyOf(keyToApiName);
@@ -98,7 +98,7 @@ namespace tik4net.Winbox
         /// <summary>
         /// The M2 key of a table's <c>name</c> field, or -1 when it has none.
         /// </summary>
-        internal static int NameKeyOf(IReadOnlyDictionary<int, string> keyToApiName)
+        private static int NameKeyOf(IReadOnlyDictionary<int, string> keyToApiName)
         {
             if (keyToApiName != null)
                 foreach (var kv in keyToApiName)
@@ -121,7 +121,7 @@ namespace tik4net.Winbox
         /// raw instead of picking up a neighbour's name; traced, because a cached map makes such an omission permanent
         /// and invisible.</para>
         /// </remarks>
-        internal static bool TryReadIdAndName(
+        private static bool TryReadIdAndName(
             M2Record row, int nameKey, out int id, out string? name)
         {
             id = 0;

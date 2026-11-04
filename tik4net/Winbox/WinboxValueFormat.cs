@@ -272,7 +272,7 @@ namespace tik4net.Winbox
         // Octet-LSB u32 (the M2/webfig packing) → the same address as a numerically ORDERED value. Comparing
         // or subtracting the packed form directly compares the last octet first, which makes 192.0.2.255 look
         // smaller than 192.0.2.0.
-        internal static uint ToBigEndian(uint v)
+        private static uint ToBigEndian(uint v)
             => (v >> 24) | ((v >> 8) & 0xFF00u) | ((v << 8) & 0xFF0000u) | (v << 24);
 
         // Netmask as octet-LSB u32: dotted "255.255.255.0" → packed, or prefix length "24" → len2netmask.
@@ -384,7 +384,7 @@ namespace tik4net.Winbox
         /// two-part "05:00" could as reasonably mean five minutes as five hours — a guess on a value the
         /// caller is writing to the router, so it is refused instead.
         /// </remarks>
-        internal static bool TryParseClock(long hours, string rest, out long milliseconds)
+        private static bool TryParseClock(long hours, string rest, out long milliseconds)
         {
             milliseconds = 0;
             string[] parts = rest.Split(':');
@@ -519,7 +519,7 @@ namespace tik4net.Winbox
         // looking like something the router said. There is no honest substitute, so this throws — and
         // it means our .jg UI type and the value the router sent disagree, which is our bug to fix, not the
         // caller's to work around.
-        internal static uint ToU32(object value, string what)
+        private static uint ToU32(object value, string what)
         {
             if (TryToInt64(value, out long v)) return unchecked((uint)v);
             throw new WinboxFieldResolutionException(

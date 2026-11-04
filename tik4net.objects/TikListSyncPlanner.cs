@@ -142,7 +142,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>The values of one longest strictly increasing subsequence of <paramref name="sequence"/>.</summary>
-        internal static HashSet<int> LongestIncreasingSubsequence(IList<int> sequence)
+        private static HashSet<int> LongestIncreasingSubsequence(IList<int> sequence)
         {
             // Patience sorting, O(n log n): tails[k] is the index (into sequence) of the smallest possible last
             // element of an increasing run of length k+1; parent links rebuild one run of the maximum length.

@@ -93,7 +93,7 @@ namespace tik4net.Winbox
         internal static bool IsArray(this M2Type type) => type >= M2Type.BoolArray && type <= M2Type.RawArray;
 
         /// <summary>The array form of a scalar type.</summary>
-        internal static M2Type ArrayOf(this M2Type scalar) => scalar + 16;
+        private static M2Type ArrayOf(this M2Type scalar) => scalar + 16;
 
         /// <summary>
         /// The webfig ftype number, as the unset list names a field by it (bits 27+ of

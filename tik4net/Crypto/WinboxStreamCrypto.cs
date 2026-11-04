@@ -43,7 +43,7 @@ namespace tik4net.Crypto
         // Custom HKDF from winbox_terminal_client.py:
         // h1 = HMAC-SHA1(key=0x00*64, data=msg)
         // round_i = HMAC-SHA1(key=h1, data=prev_round || (i+1))
-        internal static byte[] HkdfExpand(byte[] message)
+        private static byte[] HkdfExpand(byte[] message)
         {
             byte[] h1;
             using (var hmac = new HMACSHA1(new byte[0x40]))

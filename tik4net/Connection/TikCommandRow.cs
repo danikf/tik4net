@@ -49,7 +49,7 @@ namespace tik4net.Connection
         /// One row as a parameter, or <c>null</c> for an API sentence marker this transport ignores.
         /// </summary>
         /// <exception cref="ArgumentException">The row is neither.</exception>
-        internal static ITikCommandParameter? ParseRow(string row)
+        private static ITikCommandParameter? ParseRow(string row)
         {
             if (string.IsNullOrEmpty(row))
                 throw Malformed(row, "an empty row is not a word");

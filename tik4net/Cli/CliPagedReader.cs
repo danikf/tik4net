@@ -26,7 +26,7 @@ namespace tik4net.Cli
 
         // Whether this read is written as DSV: a separator is set, the router takes it, the read is not on the JSON
         // path, and the menu is not one read one id at a time (RouterOS 6 only).
-        internal bool UsesDsv(TikCommandDescriptor descriptor, bool wantJson)
+        private bool UsesDsv(TikCommandDescriptor descriptor, bool wantJson)
             => _host.Knowledge.DsvInForce
                && !(wantJson && _host.Knowledge.Features.SerializeJson != false)
                && !_host.Knowledge.MenuFacts.WindowPrintsNoId.Contains(descriptor.CommandText);

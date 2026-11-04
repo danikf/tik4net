@@ -69,10 +69,10 @@ namespace tik4net.MacTelnet
             return true;
         }
 
-        internal static uint ReadUInt32BE(byte[] b, int at)
+        private static uint ReadUInt32BE(byte[] b, int at)
             => ((uint)b[at] << 24) | ((uint)b[at + 1] << 16) | ((uint)b[at + 2] << 8) | b[at + 3];
 
-        internal static void WriteUInt32BE(byte[] b, int at, uint v)
+        private static void WriteUInt32BE(byte[] b, int at, uint v)
         {
             b[at] = (byte)(v >> 24); b[at + 1] = (byte)(v >> 16);
             b[at + 2] = (byte)(v >> 8); b[at + 3] = (byte)v;

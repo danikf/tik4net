@@ -256,7 +256,7 @@ namespace tik4net.Cli
         internal void RequestInterrupt() => Interlocked.Exchange(ref _interruptRequested, 1);
 
         /// <summary>A new command starts with no interrupt pending: a request that came after the last read ended is void.</summary>
-        internal void ClearInterrupt() => Interlocked.Exchange(ref _interruptRequested, 0);
+        private void ClearInterrupt() => Interlocked.Exchange(ref _interruptRequested, 0);
 
         /// <summary>
         /// Reads a command's response until <see cref="CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),

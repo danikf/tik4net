@@ -104,7 +104,7 @@ namespace tik4net.Connection
         }
 
         /// <summary>The message of <see cref="ScalarOfRow"/>'s refusal of a row with several value fields.</summary>
-        internal static string MultiFieldMessage(IList<string> fields)
+        private static string MultiFieldMessage(IList<string> fields)
             => $"ExecuteScalar() needs a row with one value field; the row has {fields.Count} ({string.Join(", ", fields)}). "
                + "Name the field with ExecuteScalar(target), or read the row with ExecuteSingleRow().";
 

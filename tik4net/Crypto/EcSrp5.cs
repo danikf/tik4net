@@ -130,7 +130,7 @@ namespace tik4net.Crypto
         }
 
         // Tonelli-Shanks modular square root; returns [r, P-r] or null if not QR
-        internal static BigInteger[]? ModSqrt(BigInteger a)
+        private static BigInteger[]? ModSqrt(BigInteger a)
         {
             a = ((a % P) + P) % P;
             if (a == 0) return new[] { BigInteger.Zero, BigInteger.Zero };
@@ -162,7 +162,7 @@ namespace tik4net.Crypto
             }
         }
 
-        internal static BigInteger ModInverse(BigInteger a, BigInteger p)
+        private static BigInteger ModInverse(BigInteger a, BigInteger p)
         {
             BigInteger r = ((a % p) + p) % p, r2 = p, s = 1, s2 = 0;
             while (r2 != 0)
@@ -198,7 +198,7 @@ namespace tik4net.Crypto
             return padded;
         }
 
-        internal static BigInteger HexToBI(string hex)
+        private static BigInteger HexToBI(string hex)
         {
             byte[] be = Enumerable.Range(0, hex.Length / 2)
                 .Select(i => Convert.ToByte(hex.Substring(i * 2, 2), 16)).ToArray();

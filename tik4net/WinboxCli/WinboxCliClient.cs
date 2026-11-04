@@ -305,7 +305,7 @@ namespace tik4net.WinboxCli
             }
         }
 
-        internal static bool IsTerminalOpenReply(byte[] frame, int requestId)
+        private static bool IsTerminalOpenReply(byte[] frame, int requestId)
         {
             int? echoed = M2Message.ParseSysReqId(frame);
             if (echoed.HasValue)

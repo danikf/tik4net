@@ -491,7 +491,7 @@ namespace tik4net.Cli
         }
 
         /// <summary>Saves every store of the process; never throws.</summary>
-        internal static void FlushAll()
+        private static void FlushAll()
         {
             foreach (var store in Registry.Values)
                 store.Flush();

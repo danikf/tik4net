@@ -241,7 +241,7 @@ namespace tik4net.WinboxNative
         // Encode every NameValue parameter (except client-side markers and, optionally, .id) into M2 fields.
         // A network field expands to two entries (address + mask); a dynamic enum reference is resolved
         // name→id by resolveRef.
-        internal List<byte[]> EncodeNameValueFields(
+        private List<byte[]> EncodeNameValueFields(
             WinboxHandler handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
             Func<WinboxHandler, string, int?> resolveRef,
             bool allowReadOnly = false, bool includeFilters = false, bool skipSnapshotModifier = false)

@@ -140,7 +140,7 @@ namespace tik4net.Cli
             => WalkItems(completion, line).Select(i => i.Name).ToList();
 
         /// <summary><see cref="Walk"/>, each word with what its colour says it is.</summary>
-        internal static List<CliCompletionItem> WalkItems(ITikCliCompletion completion, string line)
+        private static List<CliCompletionItem> WalkItems(ITikCliCompletion completion, string line)
         {
             var found = new List<CliCompletionItem>();
             var seen = new HashSet<string>(StringComparer.Ordinal);

@@ -91,7 +91,7 @@ namespace tik4net.Cli
         /// as-value has no quoting, and a comment reading <c>"a;b</c> is written with no closing quote and no escape
         /// (7.25, 7.21.5, 6.49.21).
         /// </summary>
-        internal static List<KeyValuePair<string, string>> ParseOrderedFields(string line)
+        private static List<KeyValuePair<string, string>> ParseOrderedFields(string line)
         {
             var pairs = new List<KeyValuePair<string, string>>();
             if (string.IsNullOrEmpty(line))

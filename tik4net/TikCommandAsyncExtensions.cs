@@ -79,7 +79,7 @@ namespace tik4net
         /// same capability: the connection does not declare <see cref="TikConnectionCapability.AsyncCommands"/>, or
         /// the command object does not implement <see cref="ITikCommandAsync"/> at all (a consumer's own fake, say).
         /// </summary>
-        internal static ITikCommandAsync AsAsync(this ITikCommand command)
+        private static ITikCommandAsync AsAsync(this ITikCommand command)
         {
             Guard.ArgumentNotNull(command, "command");
             if (command.Connection == null)

@@ -412,7 +412,7 @@ namespace tik4net.Winbox
             => Sync(GetOneAsync(handler, id, CancellationToken.None));
 
         /// <inheritdoc cref="GetOne"/>
-        internal async Task<M2Record> GetOneAsync(
+        private async Task<M2Record> GetOneAsync(
             WinboxHandler handler, int id, CancellationToken cancellationToken)
             => InterpretRecord(await SendReceiveAsync(BuildGetOne(handler, id), cancellationToken).ConfigureAwait(false));
 

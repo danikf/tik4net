@@ -611,7 +611,7 @@ namespace tik4net.Objects
         /// holds a value — the caller asked for it, and the router takes an unset of an unset field. Only a field the
         /// load read as unprinted is left alone, since there is evidence that there is nothing to clear.
         /// </remarks>
-        internal static ISet<string> ResolveClearedFields<TEntity>(ITikConnection connection, TEntity entity,
+        private static ISet<string> ResolveClearedFields<TEntity>(ITikConnection connection, TEntity entity,
             TikEntityMetadata metadata)
         {
             var cleared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

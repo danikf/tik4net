@@ -379,7 +379,7 @@ namespace tik4net.Objects
         /// The wire form of a boxed <see cref="TikField{T}"/> of this property: <c>null</c> for Absent (it has none), the
         /// router's own word for Unparsed, the formatted value for Present.
         /// </summary>
-        internal string? FormatWrapped(object boxedTikField)
+        private string? FormatWrapped(object boxedTikField)
         {
             var wrapped = (ITikField)boxedTikField;
             if (wrapped.State == TikFieldState.Absent)

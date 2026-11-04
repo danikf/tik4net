@@ -442,7 +442,7 @@ namespace tik4net.Winbox
         }
 
         /// <summary>The first top-level field with <paramref name="fullKey"/>, by <see cref="Walk"/>.</summary>
-        internal static bool TryFindField(byte[]? m2, int fullKey, out M2Field field)
+        private static bool TryFindField(byte[]? m2, int fullKey, out M2Field field)
         {
             foreach (var f in Walk(m2))
             {
