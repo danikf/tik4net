@@ -117,6 +117,11 @@ namespace tik4net.Winbox
         // "1" is a WinBox wire spelling, not a RouterOS one, so it stays here rather than in TikBoolText.
         private static bool ParseBool(string v) => v == "1" || TikBoolText.IsTrue(v);
 
+        // A macaddr value: a MAC in any spelling the router accepts (2:3:4:5:6:7 is 02:03:04:05:06:07, which stripping
+        // the separators would send as the three bytes 12 34 56), otherwise the raw reading.
+        private static byte[] ParseMacOrRaw(string v)
+            => TikMacText.TryParse(v, lenient: true, out byte[]? mac) ? mac! : ParseRaw(v);
+
         // Parse a MAC ("AA:BB:..."/"AABB...") or hex blob into raw bytes.
         private static byte[] ParseRaw(string v)
         {

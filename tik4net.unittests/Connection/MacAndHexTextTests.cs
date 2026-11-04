@@ -49,15 +49,19 @@ namespace tik4net.unittests.Connection
         [DataRow("AA:BB:CC:DD:EE:FF", "AABBCCDDEEFF")]
         [DataRow("aa:bb:cc:dd:ee:ff", "AABBCCDDEEFF")]
         [DataRow("1:2:3:4:5:6", "010203040506")]
-        public void TheWinboxParser_ReadsSixColonGroups(string text, string expected)
+        [DataRow("AA-BB-CC-DD-EE-FF", "AABBCCDDEEFF")]
+        [DataRow("1-2-3-4-5-6", "010203040506")]
+        [DataRow("aabbccddeeff", "AABBCCDDEEFF")]
+        public void TheWinboxParser_ReadsWhatTheRouterAccepts(string text, string expected)
         {
             Assert.IsTrue(TikMacText.TryParse(text, lenient: true, out byte[]? mac));
             Assert.AreEqual(expected, Hex(mac));
         }
 
         [DataTestMethod]
-        [DataRow("AA-BB-CC-DD-EE-FF")]
-        [DataRow("AABBCCDDEEFF")]
+        [DataRow("AA:BB-CC:DD:EE:FF")]
+        [DataRow("AABBCCDDEEF")]
+        [DataRow("AABBCCDDEEFF00")]
         [DataRow("1:2:3:4:5")]
         [DataRow("1:2:3:4:5:6:7")]
         [DataRow("100:2:3:4:5:6")]
@@ -72,24 +76,24 @@ namespace tik4net.unittests.Connection
             Assert.IsNull(mac);
         }
 
-        // ── WinBox native's macaddr encoder (ParseRaw) ────────────────────────
+        // ── WinBox native's macaddr encoder ───────────────────────────────────
 
         private const string MacWindow =
             "[{name:'DHCP Server',title:'DHCP Server',group:'IP',c:[" +
             "{name:'DHCP Network',title:'Networks',type:'map',path:[ 20,6 ],c:[" +
-              "{name:'Admin MAC',type:'macaddr',id:'R7'}]}" +
+              "{name:'Admin MAC',type:'macaddr',id:'R7'}," +
+              "{name:'Valid Servers',type:'multiraw',id:'R2',c:[{type:'macaddr'}]}]}" +
             "]}]";
 
-        private static string EncodedMac(string value)
+        private static string EncodedMac(string value, string apiName = "admin-mac")
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(MacWindow), "the trimmed window must parse");
             var resolver = new WinboxFieldResolver("/ip/dhcp-server/network", new[] { 20, 6 }, catalog, new Dictionary<string, int>());
-            var encoded = resolver.EncodeField("admin-mac", value);
+            var encoded = resolver.EncodeField(apiName, value);
             Assert.AreEqual(1, encoded.Count, "expected exactly one encoded field");
             var field = M2Message.ParseAllFields(M2Message.BuildM2(encoded.ToArray())).Single();
-            Assert.AreEqual("raw", field.Value.TraceName);
-            return Convert.ToString(field.Value.Value)!;
+            return field.Value.TraceName + " " + Convert.ToString(field.Value.Value);
         }
 
         [DataTestMethod]
@@ -97,12 +101,19 @@ namespace tik4net.unittests.Connection
         [DataRow("aa-bb-cc-dd-ee-ff", "AABBCCDDEEFF")]
         [DataRow("AABBCCDDEEFF", "AABBCCDDEEFF")]
         [DataRow("AA BB CC DD EE FF", "AABBCCDDEEFF")]
-        [DataRow("1:2:3:4:5:6", "123456")]
+        [DataRow("1:2:3:4:5:6", "010203040506")]
+        [DataRow("1-2-3-4-5-6", "010203040506")]
         [DataRow("xyz", "78797A")]
         [DataRow("ABC", "414243")]
-        public void TheMacaddrEncoder_StripsSeparatorsAndFallsBackToTheText(string value, string expected)
+        public void TheMacaddrEncoder_ReadsAMacAndFallsBackToTheText(string value, string expected)
         {
-            Assert.AreEqual(expected, EncodedMac(value));
+            Assert.AreEqual("raw " + expected, EncodedMac(value));
+        }
+
+        [TestMethod]
+        public void AMacListReadsEachElementAsAMac()
+        {
+            Assert.AreEqual("raw[] [010203040506,AABBCCDDEEFF]", EncodedMac("1:2:3:4:5:6,AA:BB:CC:DD:EE:FF", "valid-servers"));
         }
 
         // ── WinBox native's MAC renderer ──────────────────────────────────────

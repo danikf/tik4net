@@ -640,7 +640,7 @@ namespace tik4net.Winbox
         private bool EncodeMacAddr(int key, string value, List<byte[]> result)
         {
             if (value.Length == 0) return true;
-            result.Add(M2Message.RawSys(key, ParseRaw(value)));
+            result.Add(M2Message.RawSys(key, ParseMacOrRaw(value)));
             return true;
         }
 
@@ -1559,7 +1559,11 @@ namespace tik4net.Winbox
                 case M2Type.StringArray:
                     return M2Message.StringArraySys(key, items);
                 case M2Type.RawArray:
-                    return M2Message.RawArraySys(key, items.Select(ParseRaw).ToList());
+                {
+                    Func<string, byte[]> parse = string.Equals(jg.ElementUiType, "macaddr", StringComparison.OrdinalIgnoreCase)
+                        ? ParseMacOrRaw : ParseRaw;
+                    return M2Message.RawArraySys(key, items.Select(parse).ToList());
+                }
                 case M2Type.Addr6Array:
                     return M2Message.Addr6ArraySys(key, items.Select(t =>
                         PackIpV6(t.Split('/')[0]) ?? throw new WinboxFieldValueException(

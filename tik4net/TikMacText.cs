@@ -7,7 +7,8 @@ namespace tik4net
     /// <remarks>
     /// The strict reader is what decides whether a bare string is an address (<see cref="TikRouterAddress.Parse"/>), so it
     /// takes only the two spellings an address is written in. The lenient one is for a value already known to be a MAC,
-    /// and takes the single-digit groups the router itself accepts (<c>2:3:4:5:6:7</c> is set as <c>02:03:04:05:06:07</c>).
+    /// and takes what the router itself accepts for one: single-digit groups (<c>2:3:4:5:6:7</c> is set as
+    /// <c>02:03:04:05:06:07</c>), either separator, and a bare run of twelve digits.
     /// </remarks>
     internal static class TikMacText
     {
@@ -35,14 +36,17 @@ namespace tik4net
 
         /// <summary>
         /// <see cref="TryParse(string, out byte[])"/>, or with <paramref name="lenient"/> six groups of one or two hex
-        /// digits separated by <c>:</c>.
+        /// digits separated by <c>:</c> or <c>-</c> (the same separator throughout), or twelve digits with none.
         /// </summary>
         internal static bool TryParse(string? text, bool lenient, out byte[]? mac)
         {
             if (!lenient) return TryParse(text, out mac);
 
             mac = null;
-            var groups = (text ?? "").Split(':');
+            if (text == null) return false;
+            if (text.Length == 12) return TikHexText.TryParse(text, out mac);
+
+            var groups = text.Split(text.IndexOf(':') >= 0 ? ':' : '-');
             if (groups.Length != 6) return false;
 
             var bytes = new byte[6];
