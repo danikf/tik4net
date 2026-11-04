@@ -63,6 +63,39 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
+        public void Api_ARouterWithoutTheSafeModeMenu_IsRefusedWithTheVersionItNeeds()
+        {
+            // RouterOS 6 and 7 before 7.18 have no /safe-mode menu (measured on 6.49.13, 2026-10-05). The refusal keeps
+            // its type and the router's words, and says which version the API needs.
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                server.AcceptClient();
+                server.ReadSentence();                    // login
+                server.WriteSentence("!done");
+                server.ReadSentence();                    // /safe-mode/take
+                server.WriteSentence("!trap", "=message=no such command or directory (safe-mode)");
+                server.WriteSentence("!done");
+                server.ReadSentence();                    // /quit
+                server.WriteSentence("!fatal", "=message=session terminated on request");
+            });
+
+            using (var connection = new ApiConnection(false))
+            {
+                connection.Open("127.0.0.1", server.Port, "admin", "");
+
+                var ex = Assert.ThrowsException<TikNoSuchCommandException>(() => connection.SafeModeTake());
+                StringAssert.Contains(ex.Message, "no such command or directory (safe-mode)");
+                StringAssert.Contains(ex.Message, "RouterOS 7.18");
+                Assert.IsFalse(connection.SafeModeGet());
+
+                connection.Close();
+            }
+
+            Assert.IsTrue(serverTask.Wait(5000));
+        }
+
+        [TestMethod]
         public void WinboxNative_UnrollIsNotRefused()
         {
             // Native has no in-place unroll; its unroll closes the connection, which rolls back. Unopened, that is the

@@ -48,9 +48,10 @@ namespace tik4net.unittests.Objects
             cmd.ExecuteWithCallback(_ => Interlocked.Increment(ref rows), _ => Assert.Fail("no error expected"),
                 () => Interlocked.Increment(ref done));
 
-            WaitUntilEnded(cmd);
+            // onDone itself, not the end of the run: like ApiCommand, the fake stops running before it calls onDone, so a
+            // wait on IsRunning can read the count first (net48, under the full suite).
+            Assert.IsTrue(SpinWait.SpinUntil(() => Volatile.Read(ref done) == 1, Wait), "onDone was called");
             Assert.AreEqual(1, Volatile.Read(ref rows));
-            Assert.AreEqual(1, Volatile.Read(ref done));
         }
 
         /// <summary>A scripted monitor: rows and no !done, so it runs until it is cancelled.</summary>

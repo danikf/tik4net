@@ -339,6 +339,10 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      native, the route fields of problem 1b, which it reads now (`winbox-native-m2-protocol.md` §35.1); and a
      single-item menu's `add` refusal, which native now reports as
      *no such command* like the API (`winbox-native-m2-protocol.md` §6).
+   - **Safe Mode over WinBox native works on 6.x**; only the binary API needs 7.18. Take, release and the rollback
+     of a session dropped while holding it pass over `WinboxNative` and `WinboxNativeMac` (`SafeModeTest`, 6.49.13
+     and 6.49.21). The API answers `/safe-mode/take` with *no such command or directory (safe-mode)*, which
+     `TikNoSuchCommandException` carries with the 7.18 floor appended.
 
    **`RomonRelayTest` with the 6.49.13 target: 37 of 37 pass (2026-10-06)**, over all three agent transports.
    - **Safe Mode through the relay works on 6.x.** The target has no `/safe-mode` menu, so where the hold sits is

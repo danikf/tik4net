@@ -165,19 +165,33 @@ namespace tik4net.Api
             // RouterOS 7.18+ scriptable safe-mode. Bound to this API session: an unexpected disconnect (without a
             // SafeModeRelease) rolls back everything changed since. A take while held is not sent: the router would
             // answer it with a bare !done (no =ret=) and do nothing either.
-            => SafeModeTransition(true, () => CreateCommand("/safe-mode/take").ExecuteNonQuery());
+            => SafeModeTransition(true, () => RunSafeModeCommand("/safe-mode/take"));
 
         /// <inheritdoc/>
         public void SafeModeRelease()
-            => SafeModeTransition(false, () => CreateCommand("/safe-mode/release").ExecuteNonQuery());
+            => SafeModeTransition(false, () => RunSafeModeCommand("/safe-mode/release"));
 
         /// <inheritdoc/>
         public void SafeModeUnroll()
         {
             EnsureOpened();
             if (!SafeModeHeld) return;
-            CreateCommand("/safe-mode/unroll").ExecuteNonQuery();
+            RunSafeModeCommand("/safe-mode/unroll");
             SafeModeHeld = false;
+        }
+
+        // A router before 7.18 has no /safe-mode menu and answers "no such command or directory (safe-mode)". Supports
+        // answers for the transport, not the router (Connection types and capabilities), so the refusal names the floor.
+        private void RunSafeModeCommand(string path)
+        {
+            try { CreateCommand(path).ExecuteNonQuery(); }
+            catch (TikNoSuchCommandException ex) when (ex.GetType() == typeof(TikNoSuchCommandException))
+            {
+                var trap = new TikTrapSentenceResult(
+                    ex.Message + "; Safe Mode over the API needs RouterOS 7.18 or later (the scriptable /safe-mode menu).",
+                    ex.Code, ex.CodeDescription);
+                throw new TikNoSuchCommandException(ex.Command, trap, ex);
+            }
         }
 
         /// <inheritdoc/>

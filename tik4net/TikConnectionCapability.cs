@@ -41,7 +41,7 @@ namespace tik4net
         /// (<see cref="ITikSafeModeConnection.SafeModeTake"/> / <see cref="ITikSafeModeConnection.SafeModeRelease"/> /
         /// <see cref="ITikSafeModeConnection.SafeModeUnroll"/> / <see cref="ITikSafeModeConnection.SafeModeGet"/>).
         /// Requires a persistent, session-bound channel: binary API, a CLI terminal (via <c>Ctrl+X</c>, works on
-        /// any RouterOS) or native WinBox M2 (RouterOS 7.18+). Stateless REST does not report it.
+        /// any RouterOS) or native WinBox M2 (RouterOS 6 and 7). Stateless REST does not report it.
         /// </summary>
         SafeMode     = 32,
         /// <summary>

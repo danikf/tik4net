@@ -141,9 +141,9 @@ and the per-transport factories return it:
 no session to bind Safe Mode to, and it has a request shape rather than a command language so neither raw
 level exists. Those members are **absent**, so the mistake is a compile error.
 
-**The type says what the transport implements; `Supports()` says what the router allows.** The second
-question does not go away — Safe Mode over native WinBox needs RouterOS 7.18+, REST needs 7.1+ — and no
-type can answer it. `TypedConnectionTests` pins that the facets and the flags agree wherever the flag is a
+**The type and `Supports()` both say what the transport implements, not what this router allows.** The
+second question does not go away — Safe Mode over the API needs RouterOS 7.18+, REST needs 7.1+ — and the
+call answers it, with an exception. `TypedConnectionTests` pins that the facets and the flags agree wherever the flag is a
 property of the transport alone.
 
 `ITikCommand` is ADO.NET-shaped: `ExecuteNonQuery`, `ExecuteScalar`, `ExecuteSingleRow`,

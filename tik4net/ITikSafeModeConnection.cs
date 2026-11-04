@@ -14,8 +14,8 @@ namespace tik4net
     /// Safe mode is connection-wide state, not a per-command option: any command issued while it is held
     /// takes part in it, and it must not be driven from two threads.
     /// </para>
-    /// <para>The binary-API / native-WinBox paths use the scriptable <c>/safe-mode</c> mechanism
-    /// (RouterOS 7.18+); the CLI terminals use the <c>Ctrl+X</c>/<c>Ctrl+D</c> control keys, which also work
+    /// <para>The binary API uses the scriptable <c>/safe-mode</c> menu (RouterOS 7.18+); native WinBox uses
+    /// the M2 Safe Mode toggle, as WinBox does, on RouterOS 6 too; the CLI terminals use the <c>Ctrl+X</c>/<c>Ctrl+D</c> control keys, which also work
     /// on older RouterOS.</para>
     /// </remarks>
     public interface ITikSafeModeConnection
@@ -28,6 +28,9 @@ namespace tik4net
         /// </summary>
         /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
         /// <exception cref="TikCommandException">RouterOS refused to take safe mode (e.g. already held by another session).</exception>
+        /// <exception cref="TikNoSuchCommandException">Over the binary API, a router before 7.18, which has no
+        /// <c>/safe-mode</c> menu; the message names that floor. <see cref="TikConnectionCapabilityExtensions.Supports"/>
+        /// answers for the transport, not for the router.</exception>
         void SafeModeTake();
 
         /// <summary>

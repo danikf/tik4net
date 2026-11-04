@@ -159,6 +159,12 @@ namespace tik4net
         public TikNoSuchCommandException(ITikCommand command, ITikTrapSentence trapSentence) : base(command, trapSentence)
         {
         }
+
+        // Library-internal: the router's refusal restated with what the client knows about it, the original underneath.
+        internal TikNoSuchCommandException(ITikCommand command, ITikTrapSentence trapSentence, Exception? innerException)
+            : base(command, trapSentence, innerException)
+        {
+        }
     }
 
 
