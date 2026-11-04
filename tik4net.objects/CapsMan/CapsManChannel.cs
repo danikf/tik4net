@@ -8,7 +8,7 @@ namespace tik4net.Objects.CapsMan
     /// <summary>
     /// /caps-man/channel
     ///
-    /// CAPsMAN channel profile (legacy CAPsMAN, RouterOS 6.x).  A channel profile groups
+    /// CAPsMAN channel profile (legacy CAPsMAN: RouterOS 6.x, and 7.x with the <c>wireless</c> package).  A channel profile groups
     /// radio frequency channel settings — band, frequency, channel width, extension channel,
     /// TX power, DFS handling, and automatic channel re-selection — that can be referenced by
     /// name from a /caps-man/configuration profile (via the "channel" field) or overridden

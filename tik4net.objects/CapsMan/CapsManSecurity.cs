@@ -8,7 +8,7 @@ namespace tik4net.Objects.CapsMan
     /// <summary>
     /// /caps-man/security
     ///
-    /// CAPsMAN security profile (legacy CAPsMAN, RouterOS 6.x).  A security profile defines the
+    /// CAPsMAN security profile (legacy CAPsMAN: RouterOS 6.x, and 7.x with the <c>wireless</c> package).  A security profile defines the
     /// authentication, encryption, and key-management settings applied to client associations on a
     /// CAP radio.  Profiles are referenced by name from /caps-man/configuration (security field) or
     /// used inline via the security.* dotted-notation overrides on a configuration profile.

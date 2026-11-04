@@ -8,7 +8,7 @@ namespace tik4net.Objects.CapsMan
     /// <summary>
     /// /caps-man/configuration
     ///
-    /// CAPsMAN configuration profile (legacy CAPsMAN, RouterOS 6.x).  A configuration profile is a
+    /// CAPsMAN configuration profile (legacy CAPsMAN: RouterOS 6.x, and 7.x with the <c>wireless</c> package).  A configuration profile is a
     /// reusable preset of wireless, radio, security, and datapath settings that can be assigned to
     /// CAP radios during provisioning via /caps-man/provisioning.
     ///

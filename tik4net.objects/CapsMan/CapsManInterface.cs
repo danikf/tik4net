@@ -6,8 +6,8 @@ using System.Text;
 namespace tik4net.Objects.CapsMan
 {
     /// <summary>
-    /// /caps-man/interface: Managed CAP radio interfaces on the CAPsMAN controller (legacy CAPsMAN,
-    /// RouterOS 6.x). Each entry represents one wireless radio interface bound from a CAP device.
+    /// /caps-man/interface: Managed CAP radio interfaces on the CAPsMAN controller (legacy CAPsMAN:
+    /// RouterOS 6.x, and 7.x with the <c>wireless</c> package). Each entry represents one wireless radio interface bound from a CAP device.
     /// Most entries are dynamic (created automatically when a CAP connects) and are effectively
     /// read-only; manual/master entries can be pre-created and have configuration assigned.
     /// Flags: M=master, D=dynamic, B=bound, X=disabled, I=inactive, R=running.

@@ -383,7 +383,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> Time { get; set; }
 
         /// <summary>
-        /// tls-host: Matches TLS SNI hostname (RouterOS 7+).
+        /// tls-host: Matches TLS SNI hostname.
         /// </summary>
         [TikProperty("tls-host", WinboxLabel = "TLS Host")]
         public TikNegatableField<string?> TlsHost { get; set; }

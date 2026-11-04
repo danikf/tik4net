@@ -8,7 +8,7 @@ namespace tik4net.Objects.CapsMan
     /// <summary>
     /// /caps-man/provisioning
     ///
-    /// CAPsMAN provisioning rules (legacy CAPsMAN, RouterOS 6.x).  Provisioning rules form
+    /// CAPsMAN provisioning rules (legacy CAPsMAN: RouterOS 6.x, and 7.x with the <c>wireless</c> package).  Provisioning rules form
     /// an ordered list that is matched top-down when a Controlled Access Point (CAP) radio
     /// joins the CAPsMAN controller and no master interface binding exists for that radio's
     /// MAC address.  The first matching rule determines what interface(s) are created for

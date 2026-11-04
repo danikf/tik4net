@@ -8,7 +8,7 @@ namespace tik4net.Objects.CapsMan
     /// <summary>
     /// /caps-man/access-list
     ///
-    /// CAPsMAN access-list rules (legacy CAPsMAN, RouterOS 6.x).  Rules form an
+    /// CAPsMAN access-list rules (legacy CAPsMAN: RouterOS 6.x, and 7.x with the <c>wireless</c> package).  Rules form an
     /// ordered list that is evaluated top-down for every wireless client that
     /// tries to associate with any CAP interface managed by this CAPsMAN controller.
     /// The first matching rule determines whether the client is accepted, rejected,

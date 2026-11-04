@@ -8,7 +8,7 @@ namespace tik4net.Objects.CapsMan
     /// <summary>
     /// /caps-man/datapath
     ///
-    /// CAPsMAN datapath profile (legacy CAPsMAN, RouterOS 6.x).  A datapath profile controls
+    /// CAPsMAN datapath profile (legacy CAPsMAN: RouterOS 6.x, and 7.x with the <c>wireless</c> package).  A datapath profile controls
     /// how client traffic is forwarded — either locally on the CAP itself (local-forwarding) or
     /// centrally via the CAPsMAN controller (manager forwarding) — and configures bridge
     /// membership, VLAN tagging, client-to-client forwarding, MTU, and ARP behaviour for the

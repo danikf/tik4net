@@ -6,7 +6,7 @@ using System.Text;
 namespace tik4net.Objects.CapsMan
 {
     /// <summary>
-    /// /caps-man/manager: Global CAPsMAN controller settings (legacy CAPsMAN, RouterOS 6.x).
+    /// /caps-man/manager: Global CAPsMAN controller settings (legacy CAPsMAN: RouterOS 6.x, and 7.x with the <c>wireless</c> package).
     /// Controls whether the CAPsMAN controller is active on this router, which certificates
     /// are used for CAP authentication, where upgrade packages are stored, and the upgrade
     /// policy applied to connecting CAPs.
