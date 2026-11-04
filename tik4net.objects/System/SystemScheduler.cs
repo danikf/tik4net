@@ -57,11 +57,11 @@ namespace tik4net.Objects.System
         public TikField<string?> OnEvent { get; set; }
 
         /// <summary>
-        /// policy — comma-separated list of user policies this script runs under
-        /// (e.g. <c>read,write,policy,test</c>). Combination of flags, kept as string.
+        /// policy — the policies the event's script runs under (<c>read,write,test</c>).
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("policy", WinboxLabel = "Policy")]
-        public TikField<string?> Policy { get; set; }
+        public TikField<TikValueList<SystemScriptPolicy>?> Policy { get; set; }
 
         /// <summary>
         /// owner — user that owns/created the scheduled task (read-only).

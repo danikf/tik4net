@@ -103,11 +103,11 @@ namespace tik4net.Objects.Interface.Wireless
         public TikField<string?> Wpa2PreSharedKey { get; set; }
 
         /// <summary>
-        /// authentication-types
-        /// Comma separated string
+        /// authentication-types — the WPA authentication types the profile accepts; empty for none.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("authentication-types", WinboxLabel = "Authentication Types")]
-        public TikField<string?> AuthenticationTypes { get; set; }
+        public TikField<TikValueList<WirelessAuthenticationType>?> AuthenticationTypes { get; set; }
 
         /// <summary>
         /// group-ciphers

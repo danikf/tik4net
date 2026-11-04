@@ -836,6 +836,11 @@ value exactly. Its neighbour `system-offset` is an `integer` of whole millisecon
 where the API says `-21.508`: the sign is right and the fraction is simply not on the wire — an information
 difference rather than a decode gap, on a value that drifts continuously anyway.
 
+`bigdecimal` (a 64-bit `q` key) is signed too: `types.bigdecimal.tostr` prints `val<0?'-':''`. RouterOS 6's
+`/system/ntp/client` `last-adjustment` is one with `postfix:'us'`, so `18446744073709506350` is -45266 µs and reads
+`-45ms266us`, the API's spelling. 7.x catalogs have no `us` `bigdecimal`; a `bigdecimal` without a time postfix
+(the interface counters) stays a plain number.
+
 ### 26.3 "Not set" is an absent field, not an empty one
 
 Three ways the router says a field is not set, and in all of them the API answers by leaving the field

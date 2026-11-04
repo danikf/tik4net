@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Ppp;
 
 namespace tik4net.Objects.Interface.Vpn
 {
@@ -19,12 +20,12 @@ namespace tik4net.Objects.Interface.Vpn
         // ---- Writable properties ----
 
         /// <summary>
-        /// authentication — comma-separated list of permitted PPP authentication methods the server will accept.
-        /// Valid values: pap, chap, mschap1, mschap2.
-        /// Default: mschap1,mschap2
+        /// authentication — the PPP authentication protocols the server accepts.
+        /// The router keeps it as a set and prints it in its own order (pap, chap, mschap1, mschap2), so a list
+        /// merge compares it by members.
         /// </summary>
         [TikProperty("authentication", DefaultValue = "mschap1,mschap2", WinboxLabel = "Authentication")]
-        public TikField<string?> Authentication { get; set; }
+        public TikField<TikValueList<PppAuthentication>?> Authentication { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new PPTP sessions.

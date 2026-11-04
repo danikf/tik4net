@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Ppp;
 
 namespace tik4net.Objects.Interface.Vpn
 {
@@ -82,12 +83,12 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<string?> Profile { get; set; }
 
         /// <summary>
-        /// authentication — comma-separated list of permitted PPP authentication protocols.
-        /// Valid values: pap, chap, mschap1, mschap2 (multi-value field, kept as string).
-        /// Default: pap,chap,mschap1,mschap2
+        /// authentication — the PPP authentication protocols the client allows.
+        /// The router keeps it as a set and prints it in its own order (pap, chap, mschap1, mschap2), so a list
+        /// merge compares it by members.
         /// </summary>
         [TikProperty("authentication", DefaultValue = "pap,chap,mschap1,mschap2")]
-        public TikField<string?> Authentication { get; set; }
+        public TikField<TikValueList<PppAuthentication>?> Authentication { get; set; }
 
         /// <summary>
         /// certificate — name of the client TLS certificate; <c>none</c> disables certificate-based auth.

@@ -41,12 +41,11 @@ namespace tik4net.Objects.System
         public TikField<string?> Source { get; set; }
 
         /// <summary>
-        /// policy — comma-separated list of applicable policies this script runs under
-        /// (ftp, reboot, read, write, policy, test, password, sniff, sensitive, romon).
-        /// Kept as string because it is a multi-value bitmask. Default: ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon.
+        /// policy — the policies the script runs under (<c>read,write,test</c>); a new script gets all of them.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("policy", WinboxLabel = "Policy")]
-        public TikField<string?> Policy { get; set; }
+        public TikField<TikValueList<SystemScriptPolicy>?> Policy { get; set; }
 
         /// <summary>
         /// dont-require-permissions — bypass the permissions check when the script executes;

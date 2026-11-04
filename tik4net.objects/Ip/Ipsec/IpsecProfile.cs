@@ -82,14 +82,11 @@ namespace tik4net.Objects.Ip.Ipsec
         public TikField<string?> EncAlgorithm { get; set; }
 
         /// <summary>
-        /// dh-group — comma-separated list of Diffie-Hellman groups offered during Phase 1
-        /// (multi-value, kept as string).
-        /// Allowed values: modp768, modp1024, modp1536, modp2048, modp3072, modp4096,
-        /// modp6144, modp8192, ecp256, ecp384, ecp521.
-        /// Default: "modp2048,modp1024"
+        /// dh-group — the Diffie-Hellman groups offered in phase 1.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("dh-group", DefaultValue = "modp2048,modp1024", WinboxLabel = "DH Group")]
-        public TikField<string?> DhGroup { get; set; }
+        public TikField<TikValueList<IpsecDhGroup>?> DhGroup { get; set; }
 
         /// <summary>
         /// lifetime — how long the Phase 1 SA is considered valid before re-keying.

@@ -134,14 +134,12 @@ namespace tik4net.Objects.Interface.Wifi
         // ── Authentication ────────────────────────────────────────────────────
 
         /// <summary>
-        /// authentication-types — comma-separated list of enabled authentication methods.
-        /// Valid values: owe, wpa-eap, wpa-psk, wpa2-eap, wpa2-psk, wpa2-psk-sha2,
-        /// wpa3-eap, wpa3-eap-192, wpa3-psk.
-        /// Default: empty (open network / no authentication).
+        /// authentication-types — the authentication types the network accepts; empty for an open network.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// WinBox: "Authentication Types"
         /// </summary>
         [TikProperty("authentication-types", WinboxLabel = "Types")]
-        public TikField<string?> AuthenticationTypes { get; set; }
+        public TikField<TikValueList<WifiAuthenticationType>?> AuthenticationTypes { get; set; }
 
         /// <summary>
         /// passphrase — PSK passphrase for WPA2-PSK / WPA3-PSK authentication.
@@ -263,12 +261,13 @@ namespace tik4net.Objects.Interface.Wifi
         // ── DH groups (SAE/EAP) ───────────────────────────────────────────────
 
         /// <summary>
-        /// dh-groups — comma-separated list of elliptic-curve DH group identifiers for SAE/EAP-PWD.
-        /// Valid values: 19 (P-256), 20 (P-384), 21 (P-521).
+        /// dh-groups — the elliptic-curve groups for SAE and EAP-PWD.
+        /// The router keeps it as a set and prints it in its own order (<c>21,19</c> reads back <c>19,21</c>), so a list
+        /// merge compares it by members.
         /// WinBox: "DH Groups"
         /// </summary>
         [TikProperty("dh-groups", WinboxLabel = "DH Groups")]
-        public TikField<string?> DhGroups { get; set; }
+        public TikField<TikValueList<WifiDhGroup>?> DhGroups { get; set; }
 
         // ── EAP settings ──────────────────────────────────────────────────────
 

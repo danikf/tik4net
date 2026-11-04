@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Ppp;
 
 namespace tik4net.Objects.Interface
 {
@@ -51,10 +52,12 @@ namespace tik4net.Objects.Interface
         public TikField<string?> Mrru { get; set; }
 
         /// <summary>
-        /// authentication - Authentication algorithm  (mschap2 | mschap1 | chap | pap); Default: "mschap2, mschap1, chap, pap)
+        /// authentication — the PPP authentication protocols the server accepts.
+        /// The router keeps it as a set and prints it in its own order (pap, chap, mschap1, mschap2), so a list
+        /// merge compares it by members.
         /// </summary>
         [TikProperty("authentication", DefaultValue = "pap,chap,mschap1,mschap2", WinboxLabel = "Authentication")]
-        public TikField<string?> Authentication { get; set; }
+        public TikField<TikValueList<PppAuthentication>?> Authentication { get; set; }
 
         /// <summary>
         /// keepalive-timeout - Defines the time period (in seconds) after which the router is starting to send keepalive packets every second. If there is no traffic and no keepalive responses arrive for that period of time (i.e. 2 * keepalive-timeout), the non responding client is proclaimed disconnected.

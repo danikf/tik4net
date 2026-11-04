@@ -572,6 +572,26 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>
+        /// RouterOS 6's <c>last-adjustment</c> is a <c>bigdecimal</c> of microseconds (<c>postfix:'us'</c>) on a 64-bit key, and
+        /// it is signed: 18446744073709506350 is -45266 us, which the API prints as <c>-45ms266us</c>.
+        /// </summary>
+        [TestMethod]
+        public void AMicrosecondBigDecimalIsASignedDuration()
+        {
+            var catalog = Parse("[{name:'NTP Client',type:'item',path:[ 24,9 ],c:[" +
+                "{name:'Last Adjustment',type:'bigdecimal',id:'q65',opt:1,postfix:'us',ro:1}," +
+                "{name:'Packets',type:'bigdecimal',id:'q66',ro:1}]}]");
+
+            Assert.AreEqual("-45ms266us",
+                Decode(catalog, new[] { 24, 9 }, Rec((0x65, M2Type.U64, 18446744073709506350ul)))["last-adjustment"]);
+            Assert.AreEqual("1s2ms5us",
+                Decode(catalog, new[] { 24, 9 }, Rec((0x65, M2Type.U64, 1002005ul)))["last-adjustment"]);
+            Assert.AreEqual("123456",
+                Decode(catalog, new[] { 24, 9 }, Rec((0x66, M2Type.U64, 123456ul)))["packets"],
+                "a bigdecimal with no time postfix is a number");
+        }
+
+        /// <summary>
         /// TRAILING zeros are trimmed, which is where this deliberately departs from webfig.
         /// </summary>
         /// <remarks>

@@ -123,6 +123,20 @@ namespace tik4net.Winbox
                         }
                         return NumToInt(signed).ToString(CultureInfo.InvariantCulture);
                     }
+                    case "bigdecimal" when string.Equals(jf.Postfix, "us", StringComparison.Ordinal):
+                    {
+                        // A 64-bit count of microseconds, and signed: types.bigdecimal.tostr prints a '-'. RouterOS 6's
+                        // /system/ntp/client last-adjustment (q65) read 18446744073709506350 where the API prints
+                        // -45ms266us. Read-only wherever it occurs, so the encoder has no counterpart.
+                        long micros;
+                        if (value is ulong u) micros = unchecked((long)u);
+                        else if (!WinboxValueFormat.TryToInt64(value, out micros))
+                        {
+                            TraceNonNumeric("bigdecimal", value);
+                            break;
+                        }
+                        return FormatDuration(micros, 1000000, "us");
+                    }
                     case "kbytes":
                     {
                         // The wire value is in KIBIBYTES and the API prints BYTES. webfig hides the

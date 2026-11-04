@@ -1,3 +1,5 @@
+using tik4net.Objects.Ppp;
+
 namespace tik4net.Objects.Interface
 {
     /// <summary>
@@ -18,9 +20,13 @@ namespace tik4net.Objects.Interface
         [TikProperty("add-default-route", DefaultValue = "false", WinboxLabel = "Add Default Route")]
         public TikField<YesNoOptions?> AddDefaultRoute { get; set; }
 
-        /// <summary>allow — Allowed authentication methods (comma-separated).</summary>
-        [TikProperty("allow", DefaultValue = "mschap2,mschap1,chap,pap", WinboxLabel = "Allow")]
-        public TikField<string?> Allow { get; set; }
+        /// <summary>
+        /// allow — the PPP authentication protocols the client allows.
+        /// The router keeps it as a set and prints it in its own order (pap, chap, mschap1, mschap2), so a list
+        /// merge compares it by members.
+        /// </summary>
+        [TikProperty("allow", DefaultValue = "pap,chap,mschap1,mschap2", WinboxLabel = "Allow")]
+        public TikField<TikValueList<PppAuthentication>?> Allow { get; set; }
 
         /// <summary>default-route-distance — Distance metric of the default route created by add-default-route.</summary>
         [TikProperty("default-route-distance", DefaultValue = "1", WinboxLabel = "Default Route Distance")]

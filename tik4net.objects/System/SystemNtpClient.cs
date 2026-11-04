@@ -8,7 +8,8 @@ namespace tik4net.Objects.System
     /// <summary>
     /// /system/ntp/client — NTP client configuration and status (singleton).
     /// RouterOS NTP client based on RFC 5905. Manages time synchronization with
-    /// one or more NTP servers. Writable fields: enabled, mode, servers, vrf.
+    /// one or more NTP servers. Writable fields: enabled, mode, servers, vrf on RouterOS 7; enabled, primary-ntp,
+    /// secondary-ntp, server-dns-names on RouterOS 6, whose menu has a status of its own.
     /// Read-only status fields reflect the current synchronization state.
     /// </summary>
     [TikEntity("/system/ntp/client", IsSingleton = true)]
@@ -30,7 +31,7 @@ namespace tik4net.Objects.System
 
         /// <summary>
         /// servers — comma-separated list of NTP server addresses (FQDN, IPv4, IPv6, or IPv6 link-local).
-        /// ROS 7 unified field (replaces ROS 6 primary-ntp / secondary-ntp).
+        /// RouterOS 7; RouterOS 6 has <see cref="PrimaryNtp"/>, <see cref="SecondaryNtp"/> and <see cref="ServerDnsNames"/>.
         /// </summary>
         [TikProperty("servers", WinboxLabel = "NTP Servers", MinRouterOs = "7")]
         public TikField<TikValueList<string>?> Servers { get; set; }
@@ -41,7 +42,63 @@ namespace tik4net.Objects.System
         [TikProperty("vrf", DefaultValue = "main", WinboxLabel = "VRF", MinRouterOs = "7")]
         public TikField<string?> Vrf { get; set; }
 
+        /// <summary>
+        /// primary-ntp — RouterOS 6: the first NTP server's IP address; <c>0.0.0.0</c> for none. RouterOS 7 has
+        /// <see cref="Servers"/> instead.
+        /// </summary>
+        [TikProperty("primary-ntp", DefaultValue = "0.0.0.0", MaxRouterOs = "6")]
+        public TikField<string?> PrimaryNtp { get; set; }
+
+        /// <summary>
+        /// secondary-ntp — RouterOS 6: the second NTP server's IP address; <c>0.0.0.0</c> for none.
+        /// </summary>
+        [TikProperty("secondary-ntp", DefaultValue = "0.0.0.0", MaxRouterOs = "6")]
+        public TikField<string?> SecondaryNtp { get; set; }
+
+        /// <summary>
+        /// server-dns-names — RouterOS 6: NTP servers by DNS name, resolved into <see cref="DynamicServers"/>.
+        /// </summary>
+        [TikProperty("server-dns-names", MaxRouterOs = "6")]
+        public TikField<TikValueList<string>?> ServerDnsNames { get; set; }
+
         // --- Read-only status fields ---
+
+        /// <summary>
+        /// dynamic-servers — RouterOS 6: the addresses <see cref="ServerDnsNames"/> resolved to, read-only.
+        /// </summary>
+        [TikProperty("dynamic-servers", IsReadOnly = true, MaxRouterOs = "6")]
+        public TikField<TikValueList<string>?> DynamicServers { get; private set; }
+
+        /// <summary>
+        /// poll-interval — RouterOS 6: the current interval between two requests to the server, read-only.
+        /// </summary>
+        [TikProperty("poll-interval", IsReadOnly = true, MaxRouterOs = "6")]
+        public TikField<TikDuration?> PollInterval { get; private set; }
+
+        /// <summary>
+        /// active-server — RouterOS 6: the address of the server the client synchronizes with, read-only.
+        /// </summary>
+        [TikProperty("active-server", IsReadOnly = true, MaxRouterOs = "6")]
+        public TikField<string?> ActiveServer { get; private set; }
+
+        /// <summary>
+        /// last-update-from — RouterOS 6: the address of the server that sent the last accepted update, read-only.
+        /// </summary>
+        [TikProperty("last-update-from", IsReadOnly = true, MaxRouterOs = "6")]
+        public TikField<string?> LastUpdateFrom { get; private set; }
+
+        /// <summary>
+        /// last-update-before — RouterOS 6: how long ago the last update was accepted, read-only.
+        /// </summary>
+        [TikProperty("last-update-before", IsReadOnly = true, MaxRouterOs = "6")]
+        public TikField<TikDuration?> LastUpdateBefore { get; private set; }
+
+        /// <summary>
+        /// last-adjustment — RouterOS 6: the clock correction the last update made, negative when the clock was set
+        /// back, read-only.
+        /// </summary>
+        [TikProperty("last-adjustment", IsReadOnly = true, MaxRouterOs = "6")]
+        public TikField<TikDuration?> LastAdjustment { get; private set; }
 
         /// <summary>
         /// freq-drift — fractional frequency drift per unit time (ppm), read-only.

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Ppp;
 
 namespace tik4net.Objects.Interface.Vpn
 {
@@ -17,19 +18,6 @@ namespace tik4net.Objects.Interface.Vpn
     public class L2tpClient
     {
         // ---- Enums ----
-
-        /// <summary>Permitted authentication methods for <see cref="Allow"/>.</summary>
-        public enum AuthMethod
-        {
-            /// <summary>pap — Password Authentication Protocol (plaintext, weakest).</summary>
-            [TikEnum("pap")] Pap,
-            /// <summary>chap — Challenge Handshake Authentication Protocol.</summary>
-            [TikEnum("chap")] Chap,
-            /// <summary>mschap1 — Microsoft CHAP version 1.</summary>
-            [TikEnum("mschap1")] Mschap1,
-            /// <summary>mschap2 — Microsoft CHAP version 2 (recommended).</summary>
-            [TikEnum("mschap2")] Mschap2,
-        }
 
         /// <summary>L2TP protocol version for <see cref="L2tpProtoVersion"/>.</summary>
         public enum L2tpProtoVersionType
@@ -111,12 +99,12 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<string?> Profile { get; set; }
 
         /// <summary>
-        /// allow — comma-separated list of permitted authentication methods.
-        /// Default: mschap2,mschap1,chap,pap (all methods allowed).
-        /// Note: the router stores and returns this as a comma-joined string; map as string.
+        /// allow — the PPP authentication protocols the client allows.
+        /// The router keeps it as a set and prints it in its own order (pap, chap, mschap1, mschap2), so a list
+        /// merge compares it by members.
         /// </summary>
-        [TikProperty("allow", DefaultValue = "mschap2,mschap1,chap,pap", WinboxLabel = "Allow")]
-        public TikField<string?> Allow { get; set; }
+        [TikProperty("allow", DefaultValue = "pap,chap,mschap1,mschap2", WinboxLabel = "Allow")]
+        public TikField<TikValueList<PppAuthentication>?> Allow { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the L2TP remote address as a default route.

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Ppp;
 
 namespace tik4net.Objects.Interface.Vpn
 {
@@ -107,12 +108,12 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<bool?> AllowFastPath { get; set; }
 
         /// <summary>
-        /// authentication — comma-separated list of authentication protocols the server accepts.
-        /// Valid values: pap, chap, mschap1, mschap2.
-        /// Default: mschap1,mschap2
+        /// authentication — the PPP authentication protocols the server accepts.
+        /// The router keeps it as a set and prints it in its own order (pap, chap, mschap1, mschap2), so a list
+        /// merge compares it by members.
         /// </summary>
         [TikProperty("authentication", DefaultValue = "mschap1,mschap2", WinboxLabel = "Authentication")]
-        public TikField<string?> Authentication { get; set; }
+        public TikField<TikValueList<PppAuthentication>?> Authentication { get; set; }
 
         /// <summary>
         /// caller-id-type — how connected clients are identified when multiple share the same source IP.

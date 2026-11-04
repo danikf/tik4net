@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Interface.Wireless;
 
 namespace tik4net.Objects.CapsMan
 {
@@ -64,12 +65,11 @@ namespace tik4net.Objects.CapsMan
         // ── Authentication ────────────────────────────────────────────────────
 
         /// <summary>
-        /// authentication-types — comma-separated list of accepted authentication protocols.
-        /// Possible values: wpa-psk, wpa2-psk, wpa-eap, wpa2-eap.
-        /// Empty string means open (no authentication).
+        /// authentication-types — the WPA authentication types accepted; empty for an open network.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("authentication-types", WinboxLabel = "Authentication Type")]
-        public TikField<string?> AuthenticationTypes { get; set; }
+        public TikField<TikValueList<WirelessAuthenticationType>?> AuthenticationTypes { get; set; }
 
         // ── Unicast encryption ────────────────────────────────────────────────
 

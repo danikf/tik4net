@@ -45,6 +45,15 @@ mangle `connection-nat-state=srcnat,!dstnat` the same.
 - **Ports keep what they were given:** `8291,22,1000-2000,80` and `22,22,80,20-30` read back unchanged.
 - **Bitmask lists come back in the router's order:** plain members in bit order, then the negated ones.
   `ack,!syn,fin` reads `fin,ack,!syn`; `topics` `system,!debug,firewall,!info` reads `system,firewall,!debug,!info`.
+- **So do the sets of words** (6.49.21, 7.21.5 and 7.24, over the API, on throwaway rows): PPP `authentication` and
+  `allow` (`mschap2,pap,chap` → `pap,chap,mschap2`), IPsec profile `dh-group` (`ecp256,modp1024,modp2048` →
+  `ecp256,modp2048,modp1024`), script and scheduler `policy` (`write,read,test` → `read,write,test`), wireless, CAPsMAN
+  and wifi `authentication-types` (`wpa2-psk,wpa-psk` → `wpa-psk,wpa2-psk`) and wifi `dh-groups` (`21,19` → `19,21`).
+  A `set` replaces each of them, and a member `!` is refused (`invalid value for argument`).
+- **A user group's `policy` holds every policy:** an add of `write,read,!ftp,test` reads
+  `read,write,test,!local,!telnet,…`, the ones not granted negated. A text `set` changes only the policies it names:
+  `set policy=ftp` grants ftp and keeps the rest, `!write` denies write, and an empty value changes nothing. A write
+  that names every policy, as a loaded value does, is exact.
 
 So a list is compared without regard to order (or a reload would look like a change), and a write sends the
 caller's order.

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Ppp;
 
 namespace tik4net.Objects.Interface.Vpn
 {
@@ -63,12 +64,12 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<string?> Profile { get; set; }
 
         /// <summary>
-        /// allow — comma-separated list of permitted authentication methods (pap, chap, mschap1, mschap2).
-        /// Default: pap,chap,mschap1,mschap2 (all methods allowed).
-        /// Note: the router stores and returns this as a comma-joined string.
+        /// allow — the PPP authentication protocols the client allows.
+        /// The router keeps it as a set and prints it in its own order (pap, chap, mschap1, mschap2), so a list
+        /// merge compares it by members.
         /// </summary>
         [TikProperty("allow", DefaultValue = "pap,chap,mschap1,mschap2", WinboxLabel = "Allow")]
-        public TikField<string?> Allow { get; set; }
+        public TikField<TikValueList<PppAuthentication>?> Allow { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the PPTP remote address as a default route.
