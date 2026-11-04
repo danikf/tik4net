@@ -363,7 +363,7 @@ Provision it with steps 0–6 like the first, with these differences:
   target's id.
 - **CHR3 is the RoMON target of the `chr2` profile** (CHR2 relays to it: a RouterOS 6 agent, a 7.x target), in
   `chr2.romonTarget*`. After re-provisioning CHR3, enable RoMON there and pin its id the same way.
-- **CHR3's `admin` has a password** (`chr3.pass`, `romonSshTargetPass`, `chr2.romonTargetPass` in `App.config`): the
+- **CHR3's `admin` has a password** (`chr3.pass`, `chr2.romonTargetPass` in `App.config`): the
   production-like login of the lab. After re-provisioning it, set it again with `/user/set`; the `recovery` account stays
   without one.
 - Verify with `run-integration-tests.ps1 -Router @('default','chr2') -Transport @('api') -Filter

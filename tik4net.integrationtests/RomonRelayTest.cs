@@ -2,8 +2,8 @@
 //
 // Two lab routers: the agent is the router the whole suite talks to (host/user/pass/routerMac in App.config),
 // the target is the second one (romonTarget* in App.config). The relays over /tool romon ssh may have a target of
-// their own (romonSshTarget*): a RouterOS 7.25 agent cannot SSH to a RouterOS 6 target, so the default profile
-// sends its terminal relays to a 7.x router and keeps the WinBox relays on the RouterOS 6 one (known accepted gap).
+// their own (romonSshTarget*), for an agent whose SSH client cannot reach the target: a RouterOS 7.25.0 agent and a
+// RouterOS 6 target ("packet not aligned"). The lab leaves it empty, so every row relays to romonTarget*.
 // Every test opens the target through the agent over
 // each transport that relays (Telnet, SSH, MAC-Telnet to the agent and /tool romon ssh beyond it; the four WinBox
 // transports through the agent's WinBox relay) — whatever

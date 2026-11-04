@@ -71,7 +71,7 @@ namespace tik4net.Cli
     /// <c>stem-...</c> by its stem. A listing of names is not cut (6.49.13 lists all 103 fields of <c>/interface
     /// wireless print where</c> in one Tab), so no Tab per initial is asked: each Tab costs a settle window of its own.
     /// <para>What a listed word is — sub-menu, command, argument — is in its colour (cyan, magenta, green), which the
-    /// colour terminals (WinBox CLI, MAC-Telnet) show and Telnet and SSH do not (they log in with <c>+c</c>, which SSH on 7.25 ignores). Without it a
+    /// colour terminals (WinBox CLI, MAC-Telnet) show and Telnet and SSH do not (they log in with <c>+c</c>, which SSH on 7.25.0 ignores). Without it a
     /// word is told by a Tab on itself: a sub-menu lists <c>..</c>, a command its arguments.</para>
     /// </remarks>
     internal static class CliCompletionSchemaReader

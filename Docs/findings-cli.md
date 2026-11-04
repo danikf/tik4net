@@ -777,10 +777,11 @@ machine for every PTY transport; each transport supplies only the raw byte I/O.
   interactive exchange. To a name that already carries options the flag joins that group
   (`RouterOsCliLogin.WithTerminalLoginFlags`: `admin+t` → `admin+tc`), on Telnet, SSH and the WinBox CLI as on
   MAC-Telnet: RouterOS reads one `+` group, and `admin+t+c` logs in with the console in colour (measured on 7.25,
-  7.21.5 and 6.49.21 with `MacTelnetLoginOptionsProbe`). On 7.25 the SSH console ignores the name's options and is in
-  colour whatever it carries, and the name is accepted first time, so no retry hides it. The terminal type changes nothing:
-  `vt100`, `dumb`, `xterm`, `xterm-256color`, `linux`, `ansi` and none draw the same bytes, on 7.25 and on 7.21.5, where
-  `+c` does remove the colour. SGR is stripped before parsing, so only `CliCompletionKind` differs: it is known there.
+  7.21.5 and 6.49.21 with `MacTelnetLoginOptionsProbe`). On 7.25.0 the SSH console ignores the name's options and is in
+  colour whatever it carries, and the name is accepted first time, so no retry hides it; 7.25.1 honours them again
+  (its changelog: "custom SSH client login parameters being ignored"). The terminal type changes nothing:
+  `vt100`, `dumb`, `xterm`, `xterm-256color`, `linux`, `ansi` and none draw the same bytes, on 7.25.0 and on 7.21.5,
+  where `+c` does remove the colour. SGR is stripped before parsing, so only `CliCompletionKind` differs: it is known there.
   `+c` disables ANSI colour; **terminal width is deliberately not pinned** to a
   fixed value such as `80` — the transport instead answers RouterOS's VT100 cursor-probe negotiation
   (§6) advertising a wide terminal, because a narrow one makes RouterOS wrap long `:put` as-value

@@ -156,7 +156,7 @@ namespace tik4net.Cli
                     throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id,
                         "the agent did not answer /tool romon ssh with a password prompt " + WithinReceiveTimeout, opened);
                 // An id the agent cannot reach prints nothing before 'Welcome back!'. A line there is the agent's own
-                // SSH client refusing the session — the target IS in the overlay (7.25 agent to a 6.x target:
+                // SSH client refusing the session — the target IS in the overlay (7.25.0 agent to a 6.x target:
                 // "packet not aligned").
                 string agentSaid = RomonRelayAgentMessage(opened, relayCommand);
                 throw Relay(TikRomonRelayFailure.TargetUnreachable, id,
