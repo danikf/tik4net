@@ -119,7 +119,7 @@ namespace tik4net.Winbox
                 throw new TikRomonRelayException(TikRomonRelayFailure.RomonNotEnabledOnAgent,
                     "RoMON is not enabled on the agent " + host + " (/tool romon set enabled=yes), so it cannot reach "
                     + _target.RomonId + ".");
-            return string.Join(":", id.Select(x => x.ToString("X2")));
+            return TikMacText.Format(id);
         }
 
         private int Connect(string host, int timeoutMs)

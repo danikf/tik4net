@@ -130,7 +130,7 @@ namespace tik4net
         public static TikRouterAddress Parse(string value)
         {
             Guard.ArgumentNotNullOrEmptyString(value, nameof(value));
-            return TryParseMac(value, out _)
+            return TikMacText.TryParse(value, out _)
                 ? new TikRouterAddress(null, NormalizeMacOrThrow(value, nameof(value)))
                 : new TikRouterAddress(value, null);
         }
@@ -161,41 +161,13 @@ namespace tik4net
         /// <param name="value">Host name, IP address or MAC address.</param>
         public static implicit operator TikRouterAddress(string value) => Parse(value);
 
-        /// <summary>
-        /// Whether <paramref name="value"/> has the shape of a MAC address: six hex pairs separated by
-        /// <c>:</c> or <c>-</c>. Deliberately strict — this is what decides how a bare string is read.
-        /// </summary>
-        /// <param name="value">The string to test.</param>
-        /// <param name="mac">The six address bytes, or <c>null</c>.</param>
-        internal static bool TryParseMac(string? value, out byte[]? mac)
-        {
-            mac = null;
-            if (value == null || value.Length != 17) return false;
-
-            char sep = value[2];
-            if (sep != ':' && sep != '-') return false;
-
-            var bytes = new byte[6];
-            for (int i = 0; i < 6; i++)
-            {
-                int p = i * 3;
-                if (i > 0 && value[p - 1] != sep) return false;
-                if (!byte.TryParse(value.Substring(p, 2), NumberStyles.HexNumber,
-                        CultureInfo.InvariantCulture, out bytes[i]))
-                    return false;
-            }
-
-            mac = bytes;
-            return true;
-        }
-
         private static string NormalizeMacOrThrow(string value, string paramName)
         {
-            if (!TryParseMac(value, out byte[]? bytes))
+            if (!TikMacText.TryParse(value, out byte[]? bytes))
                 throw new ArgumentException(
                     "'" + value + "' is not a MAC address. The expected form is \"AA:BB:CC:DD:EE:FF\".", paramName);
 
-            return string.Join(":", Array.ConvertAll(bytes!, b => b.ToString("X2", CultureInfo.InvariantCulture)));
+            return TikMacText.Format(bytes!);
         }
 
         /// <summary>The coordinates this address carries, for diagnostics and error messages.</summary>

@@ -329,7 +329,7 @@ namespace tik4net.Mndp
 
             string Text(ushort type) => items.TryGetValue(type, out byte[]? v) ? encoding.GetString(v) : string.Empty;
 
-            var mac = string.Join(":", macBytes.Select(b => b.ToString("X2")).ToArray());                                // 1  = MAC
+            var mac = TikMacText.Format(macBytes);                                                                       // 1  = MAC
             var uptime = items.TryGetValue(10, out byte[]? up) && up.Length >= 4
                 ? TimeSpan.FromSeconds(BitConverter.ToUInt32(up, 0)) : TimeSpan.Zero;                                   // 10 = Uptime
             var ipv6 = items.TryGetValue(15, out byte[]? v6) ? FormatIpAddress(v6) : string.Empty;                      // 15 = IPv6

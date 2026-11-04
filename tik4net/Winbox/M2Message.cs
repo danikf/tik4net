@@ -300,7 +300,7 @@ namespace tik4net.Winbox
             if (m2.Length < 2 || m2[0] != 'M' || m2[1] != '2')
             {
                 int n = Math.Min(m2.Length, 16);
-                string hex = n > 0 ? BitConverter.ToString(m2, 0, n).Replace("-", "") : "";
+                string hex = TikHexText.Format(m2, 0, n);
                 return $"({m2.Length}B non-M2{(n < m2.Length ? "…" : "")}: {hex})";
             }
 
@@ -358,7 +358,7 @@ namespace tik4net.Winbox
                 case byte[] bytes:
                     // An FT_ADDR6 value is a byte array; ToString() renders it as "System.Byte[]", which in a
                     // wire trace hides exactly the bytes the trace exists to show.
-                    return BitConverter.ToString(bytes).Replace("-", "");
+                    return TikHexText.Format(bytes);
                 default:
                     return value.ToString()!; // 'case null' above already excluded null
             }
@@ -386,7 +386,7 @@ namespace tik4net.Winbox
         }
 
         private static string Hex(byte[] d, int pos, int len)
-            => len <= 0 ? "" : BitConverter.ToString(d, pos, len).Replace("-", "");
+            => len <= 0 ? "" : TikHexText.Format(d, pos, len);
 
         private static bool IsM2(byte[]? m2) => m2 != null && m2.Length >= 2 && m2[0] == 'M' && m2[1] == '2';
 

@@ -113,7 +113,7 @@ namespace tik4net.Cli
                 safe.Append(char.IsLetterOrDigit(c) || c == '.' || c == '-' ? c : '_');
             string hash;
             using (var sha = SHA256.Create())
-                hash = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(key))).Replace("-", "").Substring(0, 8).ToLowerInvariant();
+                hash = TikHexText.Format(sha.ComputeHash(Encoding.UTF8.GetBytes(key)), 0, 4).ToLowerInvariant();
             return Path.Combine(cacheDirectory, "cli-schema", "v" + FormatVersion, safe.ToString(), hash + ".json");
         }
 

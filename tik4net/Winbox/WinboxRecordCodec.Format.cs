@@ -950,8 +950,7 @@ namespace tik4net.Winbox
                     // The IPv6 pair, by the same rule the scalar network6 part follows: the second half is
                     // the PREFIX LENGTH itself rather than a mask, and it is printed at every length,
                     // /128 included — RouterOS prints what webfig's tostr hides.
-                    byte[]? raw = HexToBytes(a);
-                    string addr6 = raw != null ? WinboxValueFormat.IpV6FromBytes(raw) : a;
+                    string addr6 = TikHexText.TryParse(a, out byte[]? raw) ? WinboxValueFormat.IpV6FromBytes(raw!) : a;
                     rendered.Add(long.TryParse(b, out long plen)
                         ? addr6 + "/" + plen.ToString(CultureInfo.InvariantCulture)
                         : addr6);
@@ -1143,8 +1142,7 @@ namespace tik4net.Winbox
                     return WinboxValueFormat.MacFromBytes(element);
                 case "ip6addr":
                 {
-                    byte[]? raw = HexToBytes(element);
-                    return raw != null ? WinboxValueFormat.IpV6FromBytes(raw) : element;
+                    return TikHexText.TryParse(element, out byte[]? raw) ? WinboxValueFormat.IpV6FromBytes(raw!) : element;
                 }
                 default:
                     return element;

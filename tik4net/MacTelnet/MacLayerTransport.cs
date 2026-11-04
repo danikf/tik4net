@@ -323,7 +323,7 @@ namespace tik4net.MacTelnet
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
                     "NIC ADOPTED local=" + _udp.Client.LocalEndPoint
-                    + " srcMac=" + BitConverter.ToString(_localMac)
+                    + " srcMac=" + TikMacText.Format(_localMac)
                     + " bcast=" + _routerEp.Address + TraceTag);
         }
 
@@ -347,7 +347,7 @@ namespace tik4net.MacTelnet
                 {
                     Udp.Send(pkt, pkt.Length, Broadcast);
                     Trace?.Invoke("PROBE SEND sessionstart local=" + Udp.Client.LocalEndPoint
-                        + " dst=" + Broadcast + " srcMac=" + BitConverter.ToString(LocalMac)
+                        + " dst=" + Broadcast + " srcMac=" + TikMacText.Format(LocalMac)
                         + " key=" + SessionKey.ToString("x4"));
                 }
                 catch (SocketException ex)
@@ -372,7 +372,7 @@ namespace tik4net.MacTelnet
                             + (parsed
                                 ? " type=0x" + reply.Type.ToString("x2")
                                   + " key=" + reply.SessionKey.ToString("x4")
-                                  + " srcMac=" + BitConverter.ToString(reply.SrcMac)
+                                  + " srcMac=" + TikMacText.Format(reply.SrcMac)
                                 : ""));
 
                         if (!parsed || reply.Type != PKT_ACK) continue;
@@ -536,7 +536,7 @@ namespace tik4net.MacTelnet
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
                     "SESSION OPEN key=0x" + _sessionKey.ToString("x4")
                     + " local=" + _udp.Client.LocalEndPoint
-                    + " srcMac=" + BitConverter.ToString(_localMac)
+                    + " srcMac=" + TikMacText.Format(_localMac)
                     + " clientType=0x" + _clientType.ToString("x4"));
         }
 
@@ -1318,7 +1318,7 @@ namespace tik4net.MacTelnet
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
                     payload, 0, payload.Length,
                     "type=0x" + type.ToString("x2") + " counter=" + counter
-                    + " from=" + ep + " srcMac=" + BitConverter.ToString(srcMac) + TraceTag);
+                    + " from=" + ep + " srcMac=" + TikMacText.Format(srcMac) + TraceTag);
             return true;
         }
 
@@ -1417,7 +1417,7 @@ namespace tik4net.MacTelnet
             if (!string.IsNullOrEmpty(RouterMacOverride))
             {
                 // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
-                if (TikRouterAddress.TryParseMac(RouterMacOverride!, out byte[]? parsed))
+                if (TikMacText.TryParse(RouterMacOverride!, out byte[]? parsed))
                     return parsed!;
 
                 throw new InvalidOperationException(
@@ -1436,7 +1436,7 @@ namespace tik4net.MacTelnet
             // MNDP discovery via the public core helper (waits up to 5 s). It answers in the same string
             // spelling as RouterMac, so the parse below is the one already used for the override above.
             string? found = MndpHelper.FindMacByHost(host!);
-            if (found != null && TikRouterAddress.TryParseMac(found, out byte[]? discovered))
+            if (found != null && TikMacText.TryParse(found, out byte[]? discovered))
                 return discovered!;
 
             throw new InvalidOperationException(

@@ -69,8 +69,8 @@ namespace tik4net.Winbox
                 sub.Add(M2Message.StringSys(AddrDnsSubKey, value));
             else if (allow.IndexOf('R') >= 0)
                 sub.Add(M2Message.StringSys(AddrRdSubKey, head));
-            else if (allow.IndexOf('m') >= 0 && TryParseMac(head, out byte[]? mac))
-                sub.Add(M2Message.RawSys(AddrMacSubKey, mac!)); // non-null: TryParseMac only returns true after setting mac
+            else if (allow.IndexOf('m') >= 0 && TikMacText.TryParse(head, lenient: true, out byte[]? mac))
+                sub.Add(M2Message.RawSys(AddrMacSubKey, mac!)); // non-null: TikMacText.TryParse only returns true after setting mac
             else
                 throw new WinboxFieldValueException(
                     $"input does not match any value of {apiName}");
@@ -121,13 +121,8 @@ namespace tik4net.Winbox
         private static byte[] ParseRaw(string v)
         {
             string hex = (v ?? "").Replace(":", "").Replace("-", "").Replace(" ", "");
-            if (hex.Length % 2 != 0) return Encoding.UTF8.GetBytes(v ?? "");
-            var bytes = new byte[hex.Length / 2];
-            for (int i = 0; i < bytes.Length; i++)
-                if (!byte.TryParse(hex.Substring(i * 2, 2), System.Globalization.NumberStyles.HexNumber,
-                        System.Globalization.CultureInfo.InvariantCulture, out bytes[i]))
-                    return Encoding.UTF8.GetBytes(v ?? "");
-            return bytes;
+            if (hex.Length == 0) return new byte[0];
+            return TikHexText.TryParse(hex, out byte[]? bytes) ? bytes! : Encoding.UTF8.GetBytes(v ?? "");
         }
     }
 }

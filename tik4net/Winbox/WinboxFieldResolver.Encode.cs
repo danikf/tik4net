@@ -887,10 +887,10 @@ namespace tik4net.Winbox
                 if (isMac)
                 {
                     var mp = t.Split('/');
-                    if (!TryParseMac(mp[0], out byte[]? mac)) throw NotThisPart(apiName, t);
+                    if (!TikMacText.TryParse(mp[0], lenient: true, out byte[]? mac)) throw NotThisPart(apiName, t);
                     byte[] mask = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-                    if (mp.Length > 1 && !TryParseMac(mp[1], out mask!)) throw NotThisPart(apiName, t);
-                    macs.Add(mac!);       // non-null: TryParseMac sets it before returning true
+                    if (mp.Length > 1 && !TikMacText.TryParse(mp[1], lenient: true, out mask!)) throw NotThisPart(apiName, t);
+                    macs.Add(mac!);       // non-null: TikMacText.TryParse sets it before returning true
                     macMasks.Add(mask);
                     continue;
                 }
@@ -1445,8 +1445,8 @@ namespace tik4net.Winbox
                 }
                 case "macaddr":
                 {
-                    if (!TryParseMac(value, out byte[]? mac)) throw NotThisPart(apiName, value);
-                    fields.Add(M2Message.RawSys(part.Key, mac!)); // non-null: TryParseMac sets it before true
+                    if (!TikMacText.TryParse(value, lenient: true, out byte[]? mac)) throw NotThisPart(apiName, value);
+                    fields.Add(M2Message.RawSys(part.Key, mac!)); // non-null: TikMacText.TryParse sets it before true
                     return fields;
                 }
                 case "macnetwork":
@@ -1455,12 +1455,12 @@ namespace tik4net.Winbox
                     // maskid). A bare MAC is the all-ones mask - the exact address - which is also the form
                     // RouterOS prints it back in.
                     var mp = value.Split('/');
-                    if (!TryParseMac(mp[0], out byte[]? mac)) throw NotThisPart(apiName, value);
-                    fields.Add(M2Message.RawSys(part.Key, mac!)); // non-null: TryParseMac sets it before true
+                    if (!TikMacText.TryParse(mp[0], lenient: true, out byte[]? mac)) throw NotThisPart(apiName, value);
+                    fields.Add(M2Message.RawSys(part.Key, mac!)); // non-null: TikMacText.TryParse sets it before true
                     if (part.MaskKey != 0)
                     {
                         byte[] mask = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-                        if (mp.Length > 1 && !TryParseMac(mp[1], out mask!)) throw NotThisPart(apiName, value);
+                        if (mp.Length > 1 && !TikMacText.TryParse(mp[1], lenient: true, out mask!)) throw NotThisPart(apiName, value);
                         fields.Add(M2Message.RawSys(part.MaskKey, mask));
                     }
                     return fields;

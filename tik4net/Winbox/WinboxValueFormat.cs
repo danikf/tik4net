@@ -57,21 +57,6 @@ namespace tik4net.Winbox
             return bytes;
         }
 
-        // "AA:BB:CC:DD:EE:FF" → 6 raw bytes (webfig string2macaddr). Returns false when it is not a MAC.
-        internal static bool TryParseMac(string s, out byte[]? mac)
-        {
-            mac = null;
-            var p = (s ?? "").Split(':');
-            if (p.Length != 6) return false;
-            var bytes = new byte[6];
-            for (int i = 0; i < 6; i++)
-                if (!byte.TryParse(p[i], System.Globalization.NumberStyles.HexNumber,
-                        System.Globalization.CultureInfo.InvariantCulture, out bytes[i]))
-                    return false;
-            mac = bytes;
-            return true;
-        }
-
         // "a.b.c.d" → u32 packed octet-LSB (a | b<<8 | c<<16 | d<<24), matching webfig string2ipaddr.
         // Returns null when the text is not a dotted IPv4 quad.
         internal static uint? PackIpV4(string s)
@@ -174,7 +159,7 @@ namespace tik4net.Winbox
         internal static string MacFromBytes(object value)
         {
             if (value is byte[] b && b.Length > 0)
-                return string.Join(":", b.Select(x => x.ToString("X2")));
+                return TikMacText.Format(b);
 
             // The wire form this actually arrives in. M2Message renders an FT_RAW value as unseparated
             // uppercase hex ("AABBCCDDEEFF") rather than a byte[], so every macaddr field — which is a raw
@@ -183,9 +168,8 @@ namespace tik4net.Winbox
             // /tool/romon all read this way; the .jg types them macaddr correctly, so the .jg was never the
             // problem.
             string s = value?.ToString() ?? "";
-            if (s.Length >= 2 && s.Length % 2 == 0 && s.IndexOf(':') < 0 && IsHex(s))
-                return string.Join(":", Enumerable.Range(0, s.Length / 2)
-                                                  .Select(i => s.Substring(i * 2, 2).ToUpperInvariant()));
+            if (TikHexText.TryParse(s, out byte[]? bytes))
+                return TikMacText.Format(bytes!);
             return s;
         }
 
@@ -437,19 +421,6 @@ namespace tik4net.Winbox
                  + (frac.Length > 0 ? "." + frac : "");
         }
 
-        // Hex text (as M2Message renders a raw/addr6 element) back to bytes; null when it is not hex, which
-        // leaves the caller with the original text rather than a wrong address.
-        internal static byte[]? HexToBytes(string hex)
-        {
-            if (hex.Length == 0 || hex.Length % 2 != 0) return null;
-            var bytes = new byte[hex.Length / 2];
-            for (int i = 0; i < bytes.Length; i++)
-                if (!byte.TryParse(hex.Substring(i * 2, 2), NumberStyles.HexNumber,
-                        CultureInfo.InvariantCulture, out bytes[i]))
-                    return null;
-            return bytes;
-        }
-
         /// <summary>
         /// Renders a wire duration as the text RouterOS's own API prints for it: the non-zero units only,
         /// largest first, concatenated without separators — <c>1w</c>, <c>5m</c>, <c>2d17h30m3s</c>,
@@ -504,14 +475,6 @@ namespace tik4net.Winbox
             // is expressed in, not in seconds: a bonding down-delay of nothing reads `0ms`, not `0s`.
             if (sb.Length == 0 || (negative && sb.Length == 1)) sb.Append("0").Append(zeroUnit);
             return sb.ToString();
-        }
-
-        internal static bool IsHex(string s)
-        {
-            foreach (char c in s)
-                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
-                    return false;
-            return true;
         }
 
         // Numeric read on a path whose fallback would be INDISTINGUISHABLE from a real answer: an unreadable
