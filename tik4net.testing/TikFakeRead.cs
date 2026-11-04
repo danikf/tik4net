@@ -69,7 +69,7 @@ namespace tik4net.Testing
 
         // A boolean is the same value in either spelling: the mapper writes yes/no, the API prints true/false.
         private static string Canonical(string word)
-            => word == "yes" ? "true" : word == "no" ? "false" : word;
+            => TikBoolText.TryParse(word, out bool value) ? (value ? "true" : "false") : word;
 
         private static string NameOf(string nameAndValue)
         {

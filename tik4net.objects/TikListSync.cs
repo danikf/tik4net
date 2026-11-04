@@ -38,12 +38,8 @@ namespace tik4net.Objects
             if (entity == null)
                 return false;
             var property = metadata.DynamicProperty;
-            return property != null && IsTrue(property.GetEntityValue(entity));
+            return property != null && TikBoolText.IsTrue(property.GetEntityValue(entity));
         }
-
-        private static bool IsTrue(string? value)
-            => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
 
         /// <summary><c>/move</c> of one row, in front of <paramref name="idToMoveBefore"/> or to the end when null.</summary>
         internal static ITikCommand BuildMoveCommand(ITikConnection connection, TikEntityMetadata metadata,

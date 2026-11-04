@@ -168,9 +168,8 @@ namespace tik4net
                : throw new ArgumentException($"'{key}={v}' is not a whole number.", "connectionString");
 
         private static bool ParseBool(string key, string v)
-            => string.Equals(v, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(v, "yes", StringComparison.OrdinalIgnoreCase) ? true
-             : string.Equals(v, "false", StringComparison.OrdinalIgnoreCase) || string.Equals(v, "no", StringComparison.OrdinalIgnoreCase) ? false
-             : throw new ArgumentException($"'{key}={v}' is not true or false.", "connectionString");
+            => TikBoolText.TryParse(v, out bool value) ? value
+               : throw new ArgumentException($"'{key}={v}' is not true or false.", "connectionString");
 
         // Seconds, ADO.NET's way ("15", "2.5"), or a TimeSpan ("00:00:15").
         private static TimeSpan ParseTime(string key, string v)

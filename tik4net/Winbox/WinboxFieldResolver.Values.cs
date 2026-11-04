@@ -114,10 +114,8 @@ namespace tik4net.Winbox
         //   anything else                    → "192.0.2.10-192.0.2.20"
         // Matching that exactly is the whole point: the same record must read identically over every transport.
 
-        private static bool ParseBool(string v)
-            => v == "true" || v == "yes" || v == "1" ||
-               string.Equals(v, "true", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(v, "yes", StringComparison.OrdinalIgnoreCase);
+        // "1" is a WinBox wire spelling, not a RouterOS one, so it stays here rather than in TikBoolText.
+        private static bool ParseBool(string v) => v == "1" || TikBoolText.IsTrue(v);
 
         // Parse a MAC ("AA:BB:..."/"AABB...") or hex blob into raw bytes.
         private static byte[] ParseRaw(string v)

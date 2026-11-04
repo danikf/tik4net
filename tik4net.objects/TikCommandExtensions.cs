@@ -170,8 +170,7 @@ namespace tik4net.Objects
                 reSentence =>
                 {
                     // RouterOS documents =.dead=yes but sends =.dead=true in practice — accept both
-                    var deadValue = reSentence.GetResponseFieldOrDefault(".dead", null);
-                    if (deadValue == "yes" || deadValue == "true")
+                    if (TikBoolText.IsTrue(reSentence.GetResponseFieldOrDefault(".dead", null)))
                     {
                         if (onDeletedCallback != null)
                             onDeletedCallback(reSentence.GetResponseField(TikSpecialProperties.Id));

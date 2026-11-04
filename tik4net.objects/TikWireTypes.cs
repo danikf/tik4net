@@ -62,7 +62,7 @@ namespace tik4net.Objects
             // yes/no is accepted for every boolean argument, including fields the router itself prints as true/false
             // (disable-running-check=no measured on Api, Rest, Telnet; disabled=no on WinboxNative). A field that must be
             // READ as a word other than these four is modelled as an enum with [TikEnum] instead.
-            [typeof(bool)] = Plain(ParseBool, value => value ? "yes" : "no"),
+            [typeof(bool)] = Plain(ParseBool, TikBoolText.ToCli),
         };
 
         internal static TikWireType? Find(Type type) => Table.TryGetValue(type, out TikWireType? found) ? found : null;
@@ -74,12 +74,7 @@ namespace tik4net.Objects
             => new TikWireType(word => parse(word), value => format((T)value), isWireString: false, holdsEmptyWord: false);
 
         private static bool ParseBool(string word)
-        {
-            if (string.Equals(word, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(word, "yes", StringComparison.OrdinalIgnoreCase))
-                return true;
-            if (string.Equals(word, "false", StringComparison.OrdinalIgnoreCase) || string.Equals(word, "no", StringComparison.OrdinalIgnoreCase))
-                return false;
-            throw new FormatException("'" + word + "' is not a bool: the router prints true, false, yes or no.");
-        }
+            => TikBoolText.TryParse(word, out bool value) ? value
+               : throw new FormatException("'" + word + "' is not a bool: the router prints true, false, yes or no.");
     }
 }

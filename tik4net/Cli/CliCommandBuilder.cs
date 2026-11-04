@@ -887,8 +887,9 @@ namespace tik4net.Cli
         /// </remarks>
         private static string BooleanForWhere(string value)
         {
-            if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)) return "yes";
-            if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)) return "no";
+            // Only true/false is translated: a yes/no word is left as written, as a string field may hold it.
+            if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)) return TikBoolText.ToCli(true);
+            if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)) return TikBoolText.ToCli(false);
             return value;
         }
 
@@ -1069,7 +1070,7 @@ namespace tik4net.Cli
                 // truthy value emits the bare name, a falsy value is omitted (absence = false).
                 if (IsCliPresenceFlag(p.Name))
                 {
-                    if (IsTruthy(p.Value))
+                    if (TikBoolText.IsTrue(p.Value))
                     {
                         sb.Append(' ');
                         sb.Append(p.Name);
@@ -1092,10 +1093,6 @@ namespace tik4net.Cli
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "fib" };
 
         private static bool IsCliPresenceFlag(string name) => CliPresenceFlagFields.Contains(name);
-
-        private static bool IsTruthy(string? value)
-            => string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Wraps a value in double-quotes unless every character of it is plainly safe bare
