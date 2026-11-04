@@ -232,24 +232,12 @@ namespace tik4net.Cli
         /// RouterOS's display value is itself already rounded to one decimal place, so the round-trip through
         /// this conversion is an approximation of the true counter — there is no lossless alternative available
         /// from the plain-text torch display. Returns the input unchanged if it doesn't match the expected
-        /// <c>&lt;number&gt;&lt;unit&gt;</c> shape (letting the O/R mapper's own error surface any real mismatch).
+        /// <c>&lt;number&gt;&lt;unit&gt;</c> shape, or is a fraction of a bit, which no rate is
+        /// (<see cref="TikDataRate.TryParseNumber"/>), letting the O/R mapper's own error surface any real mismatch.
         /// </summary>
-        internal static string ParseBitrate(string token)
-        {
-            var m = BitrateToken.Match(token);
-            if (!m.Success)
-                return token;
-
-            double num = double.Parse(m.Groups["num"].Value, CultureInfo.InvariantCulture);
-            double multiplier;
-            switch (m.Groups["unit"].Value)
-            {
-                case "kbps": multiplier = 1_000d; break;
-                case "Mbps": multiplier = 1_000_000d; break;
-                case "Gbps": multiplier = 1_000_000_000d; break;
-                default: multiplier = 1d; break; // bps
-            }
-            return ((long)Math.Round(num * multiplier)).ToString(CultureInfo.InvariantCulture);
-        }
+        private static string ParseBitrate(string token)
+            => BitrateToken.IsMatch(token) && TikDataRate.TryParseNumber(token, out long bitsPerSecond)
+                ? bitsPerSecond.ToString(CultureInfo.InvariantCulture)
+                : token;
     }
 }
