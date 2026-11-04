@@ -280,7 +280,7 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// Parses a RouterOS duration into the <paramref name="scale"/>-per-second unit the wire carries —
-        /// the inverse of <see cref="FormatDuration"/>, which is why the unit table and the
+        /// the inverse of <see cref="TikDurationText.Format(long, int, string)"/>, which is why the unit table and the
         /// millisecond handling are the same ones.
         /// </summary>
         /// <remarks>
@@ -419,62 +419,6 @@ namespace tik4net.Winbox
                 .PadLeft(digits, '0').TrimEnd('0');
             return sign + (abs / scale).ToString(CultureInfo.InvariantCulture)
                  + (frac.Length > 0 ? "." + frac : "");
-        }
-
-        /// <summary>
-        /// Renders a wire duration as the text RouterOS's own API prints for it: the non-zero units only,
-        /// largest first, concatenated without separators — <c>1w</c>, <c>5m</c>, <c>2d17h30m3s</c>,
-        /// <c>518w1d18h55m42s</c> — and a zero in <paramref name="zeroUnit"/> when the whole thing is zero.
-        /// </summary>
-        /// <param name="ticks">The wire value.</param>
-        /// <param name="scale">Wire units per second (the <c>.jg</c> <c>scale</c>, 1 when undeclared).</param>
-        /// <param name="zeroUnit">
-        /// The unit a zero is spelled in — the unit the FIELD is expressed in, not seconds: a bonding
-        /// down-delay of nothing reads <c>0ms</c>.
-        /// </param>
-        /// <remarks>
-        /// Deliberately not webfig's <c>interval2string</c>, which renders <c>1d 02:03:04</c>: that is what
-        /// the WinBox UI shows, and the API is what every other transport in this library reports. The unit
-        /// set and the omit-zeroes rule are read off the API's own output on 7.23.2 (604800 → <c>1w</c>,
-        /// 300 → <c>5m</c>, 0 → <c>0s</c>).
-        /// </remarks>
-        internal static string FormatDuration(long ticks, int scale, string zeroUnit = "s")
-        {
-            if (scale < 1) scale = 1;
-            bool negative = ticks < 0;
-            if (negative) ticks = -ticks;
-
-            long seconds = ticks / scale;
-            long remainder = ticks % scale;
-
-            var sb = new System.Text.StringBuilder();
-            if (negative) sb.Append('-');
-            long[] sizes = { 604800, 86400, 3600, 60 };
-            string[] units = { "w", "d", "h", "m" };
-            for (int i = 0; i < sizes.Length; i++)
-            {
-                long n = seconds / sizes[i];
-                if (n > 0) sb.Append(n).Append(units[i]);
-                seconds %= sizes[i];
-            }
-            if (seconds > 0) sb.Append(seconds).Append('s');
-
-            // A scaled field can carry a sub-second remainder (scale:100 counts hundredths); RouterOS spells
-            // that in milliseconds. Dropping it would report a value the router did not give us. A field finer
-            // than a millisecond carries microseconds too, and the API writes them: a ping's 105488 (a
-            // fixedpoint of milliseconds, scale:1000) is 105ms488us.
-            if (remainder > 0 && scale > 1000)
-            {
-                long micros = remainder * 1000000 / scale;
-                if (micros >= 1000) sb.Append(micros / 1000).Append("ms");
-                if (micros % 1000 > 0) sb.Append(micros % 1000).Append("us");
-            }
-            else if (remainder > 0) sb.Append(remainder * 1000 / scale).Append("ms");
-
-            // Everything was zero — which is a value, and the API prints it as a zero in the unit the FIELD
-            // is expressed in, not in seconds: a bonding down-delay of nothing reads `0ms`, not `0s`.
-            if (sb.Length == 0 || (negative && sb.Length == 1)) sb.Append("0").Append(zeroUnit);
-            return sb.ToString();
         }
 
         // Numeric read on a path whose fallback would be INDISTINGUISHABLE from a real answer: an unreadable

@@ -349,29 +349,7 @@ namespace tik4net
             if (_core.Token != null) return _core.Token;
             if (!_core.Value.HasValue) return string.Empty;
 
-            TimeSpan t = _core.Value.Value;
-            bool negative = t < TimeSpan.Zero;
-            if (negative) t = t.Negate();
-
-            long weeks = (long)t.TotalDays / 7;
-            t -= TimeSpan.FromDays(weeks * 7);
-
-            var sb = new StringBuilder();
-            if (negative) sb.Append('-');
-            if (weeks != 0) sb.Append(weeks.ToString(CultureInfo.InvariantCulture)).Append('w');
-            if (t.Days != 0) sb.Append(t.Days.ToString(CultureInfo.InvariantCulture)).Append('d');
-            if (t.Hours != 0) sb.Append(t.Hours.ToString(CultureInfo.InvariantCulture)).Append('h');
-            if (t.Minutes != 0) sb.Append(t.Minutes.ToString(CultureInfo.InvariantCulture)).Append('m');
-            if (t.Seconds != 0) sb.Append(t.Seconds.ToString(CultureInfo.InvariantCulture)).Append('s');
-            if (t.Milliseconds != 0) sb.Append(t.Milliseconds.ToString(CultureInfo.InvariantCulture)).Append("ms");
-            long micros = t.Ticks % TimeSpan.TicksPerMillisecond / 10;   // a ping's time and round trips: 1ms52us
-            if (micros != 0) sb.Append(micros.ToString(CultureInfo.InvariantCulture)).Append("us");
-
-            // Every part was zero, so the value is zero — and something has to be written.
-            if (sb.Length == 0 || (negative && sb.Length == 1))
-                sb.Append("0s");
-
-            return sb.ToString();
+            return TikDurationText.Format(_core.Value.Value);
         }
 
         /// <summary>A duration of the given length.</summary>

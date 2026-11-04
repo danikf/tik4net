@@ -135,7 +135,7 @@ namespace tik4net.Winbox
                             TraceNonNumeric("bigdecimal", value);
                             break;
                         }
-                        return FormatDuration(micros, 1000000, "us");
+                        return TikDurationText.Format(micros, 1000000, "us");
                     }
                     case "kbytes":
                     {
@@ -180,7 +180,7 @@ namespace tik4net.Winbox
                         // the value, since 1.5 and 1s500ms are the same quantity spelled two ways and only
                         // the router says which spelling is its own.
                         if (jf.IsSecondsPostfix || jf.IsMillisecondsPostfix)
-                            return FormatDuration(v, jf.TicksPerSecond, jf.DurationZeroUnit);
+                            return TikDurationText.Format(v, jf.TicksPerSecond, jf.DurationZeroUnit);
                         int scale = jf.Scale < 1 ? 1 : jf.Scale;
                         if (scale == 1) return v.ToString(CultureInfo.InvariantCulture);
                         string sign = v < 0 ? "-" : "";
@@ -213,7 +213,7 @@ namespace tik4net.Winbox
                         long distance = stamp > int.MaxValue
                             ? uptime.Value + Math.Abs(stamp - 0xFFFFFFFFL)
                             : Math.Abs(stamp - uptime.Value);
-                        return FormatDuration(distance, 1);
+                        return TikDurationText.Format(distance, 1);
                     }
                     case "dateandtime":
                     case "clockdate":
@@ -294,7 +294,7 @@ namespace tik4net.Winbox
                         if (jf.EnumMap != null
                             && jf.EnumMap.TryGetValue(unchecked((int)ticks), out var named))
                             return named;
-                        return FormatDuration(ticks, jf.Scale);
+                        return TikDurationText.Format(ticks, jf.Scale);
                     }
                     case "macaddr":
                         return WinboxValueFormat.MacFromBytes(value);
@@ -504,9 +504,9 @@ namespace tik4net.Winbox
                         // on the wire, which the API prints 99ms784us (7.25). Read bare, it was 99784.
                         if (jf.IsTimePostfix
                             && string.Equals(jf.ElementUiType, "fixedpoint", StringComparison.OrdinalIgnoreCase))
-                            return FormatDuration(ev, (jf.IsMillisecondsPostfix ? 1000 : 1) * jf.ElementScale,
+                            return TikDurationText.Format(ev, (jf.IsMillisecondsPostfix ? 1000 : 1) * jf.ElementScale,
                                 jf.DurationZeroUnit);
-                        if (jf.IsSecondsPostfix) return FormatDuration(ev, jf.Scale);
+                        if (jf.IsSecondsPostfix) return TikDurationText.Format(ev, jf.Scale);
                         // …or the ELEMENT says what kind: /system/scheduler start-time is
                         // {enm,map:{4294967295:'startup'},c:[{type:'clocktime'}]}, and a time of day read as
                         // 84032 where the API prints 23:20:32 (7.24.2).
@@ -539,7 +539,7 @@ namespace tik4net.Winbox
                 && (jf.IsMillisecondsPostfix || (jf.IsSecondsPostfix && !IsPrintedBare(jf)))
                 && string.Equals(jf.UiType, "number", StringComparison.OrdinalIgnoreCase)
                 && WinboxValueFormat.TryToInt64(value, out long ms))
-                return FormatDuration(ms, jf.TicksPerSecond, jf.DurationZeroUnit);
+                return TikDurationText.Format(ms, jf.TicksPerSecond, jf.DurationZeroUnit);
 
             return FormatValue(wireType, value);
         }
@@ -1080,7 +1080,7 @@ namespace tik4net.Winbox
                     // The wire carries a count of seconds; the API spells it "5m". A part carries no scale
                     // of its own, and no live element declares one.
                     return WinboxValueFormat.TryToInt64(v.Value, out long ticks)
-                        ? FormatDuration(ticks, 1)
+                        ? TikDurationText.Format(ticks, 1)
                         : v.Value.ToString()!;
                 case "network":
                     return WinboxValueFormat.IpFromU32(v.Value)
@@ -1161,7 +1161,7 @@ namespace tik4net.Winbox
             WinboxValueFormat.TryToInt64(rate, out long r);
             long period = Box(dst ? 0x39 : 0x11, 1);
             string text = r.ToString(CultureInfo.InvariantCulture)
-                        + (period == 1 ? "" : "/" + FormatDuration(period, 1));
+                        + (period == 1 ? "" : "/" + TikDurationText.Format(period, 1));
             if (!dst)
                 return text + "," + Box(0x12, 5).ToString(CultureInfo.InvariantCulture)
                             + ":" + (Box(0x86, 0) == 1 ? "bit" : "packet");
@@ -1169,7 +1169,7 @@ namespace tik4net.Winbox
             string byText = WinboxFieldResolver.FirewallDstLimitBy.TryGetValue(unchecked((int)by), out var word)
                 ? word : by.ToString(CultureInfo.InvariantCulture);
             return text + "," + Box(0x37, 5).ToString(CultureInfo.InvariantCulture) + "," + byText
-                 + "/" + FormatDuration(Box(0x3B, 1000), 100);
+                 + "/" + TikDurationText.Format(Box(0x3B, 1000), 100);
         }
 
         // "[a,b,c]" → [a,b,c]; "[]" → empty. The brackets are M2Message's rendering of an array, not part of
