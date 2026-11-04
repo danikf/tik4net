@@ -248,9 +248,7 @@ namespace tik4net.Cli
 
         private static bool IsSentOnlyWhenSet(string commandText, string flag)
         {
-            string trimmed = (commandText ?? string.Empty).TrimEnd('/');
-            int lastSlash = trimmed.LastIndexOf('/');
-            string menu = lastSlash > 0 ? trimmed.Substring(0, lastSlash) : trimmed;
+            string menu = TikPath.Parent(commandText ?? string.Empty);
             return FlagsSentOnlyWhenSet.TryGetValue(menu, out var set) && set.Contains(flag);
         }
 

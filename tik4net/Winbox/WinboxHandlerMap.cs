@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using tik4net.Connection;
 
 namespace tik4net.Winbox
 {
@@ -521,7 +522,7 @@ namespace tik4net.Winbox
         {
             typeKey = 0; typeValue = 0;
             if (_subtypeFilters == null || _subtypeFilters.Count == 0) return false;
-            string key = Normalize(apiPath);
+            string key = TikPath.Normalize(apiPath);
             if (_overrides.ContainsKey(key)) return false;
 
             string? derivedKey = (_derivedPaths != null && _derivedPaths.ContainsKey(key)) ? key
@@ -542,7 +543,7 @@ namespace tik4net.Winbox
         /// </summary>
         internal string? ResolveDerivedKey(string apiPath)
         {
-            string key = Normalize(apiPath);
+            string key = TikPath.Normalize(apiPath);
             if (_overrides.ContainsKey(key)) return null;
             if (_derivedPaths == null) return null;
             if (_derivedPaths.ContainsKey(key)) return key;
@@ -563,7 +564,7 @@ namespace tik4net.Winbox
         /// <summary>Registers a session override <c>apiPath → handler</c> (highest priority).</summary>
         internal void AddOverride(string apiPath, WinboxHandler handler)
         {
-            _overrides[Normalize(apiPath)] = handler;
+            _overrides[TikPath.Normalize(apiPath)] = handler;
         }
 
         /// <summary>
@@ -574,7 +575,7 @@ namespace tik4net.Winbox
         /// </summary>
         internal void AddAlias(string apiPath, string winboxMenuPath)
         {
-            _aliases[Normalize(apiPath)] = Normalize(winboxMenuPath);
+            _aliases[TikPath.Normalize(apiPath)] = TikPath.Normalize(winboxMenuPath);
         }
 
         /// <summary>
@@ -583,7 +584,7 @@ namespace tik4net.Winbox
         /// </summary>
         internal WinboxHandler? Resolve(string apiPath)
         {
-            string key = Normalize(apiPath);
+            string key = TikPath.Normalize(apiPath);
             if (TryResolve(key, out var handler)) return handler;
 
             // GUI-name addressing (opt-in): retry with each segment label-normalized so a path copied from the
@@ -613,7 +614,7 @@ namespace tik4net.Winbox
         /// </remarks>
         internal string? CanonicalApiPath(string path)
         {
-            string key = Normalize(path);
+            string key = TikPath.Normalize(path);
             if (key.Length == 0 || _overrides.ContainsKey(key) || _aliases.ContainsKey(key)
                 || ShippedAlias.ContainsKey(key) || OlderCatalogAlias.ContainsKey(key))
                 return LowerCase(key);   // an API path tik4net maps by name
@@ -675,21 +676,12 @@ namespace tik4net.Winbox
         // (underscores/spaces/dots → API form), so "/IP/Firewall_Filter" → "/ip/firewall-filter".
         private static string NormalizeGui(string apiPath)
         {
-            string p = Normalize(apiPath);
+            string p = TikPath.Normalize(apiPath);
             var segs = p.Split('/');
             for (int i = 0; i < segs.Length; i++)
                 if (segs[i].Length > 0)
                     segs[i] = WinboxFieldResolver.NormalizeLabel(segs[i]);
             return string.Join("/", segs);
-        }
-
-        // Strip a trailing verb segment (/interface/print → /interface) and the leading/trailing slash noise.
-        internal static string Normalize(string apiPath)
-        {
-            if (string.IsNullOrWhiteSpace(apiPath)) return "";
-            string p = apiPath.Trim();
-            if (!p.StartsWith("/")) p = "/" + p;
-            return p.TrimEnd('/');
         }
     }
 }

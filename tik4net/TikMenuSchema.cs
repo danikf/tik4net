@@ -272,7 +272,7 @@ namespace tik4net
             Guard.ArgumentNotNull(connection, nameof(connection));
             Guard.ArgumentNotNullOrEmptyString(path, nameof(path));
             connection.Require(TikConnectionCapability.MenuSchema, "DescribeMenu");
-            return ((ITikMenuSchemaConnection)connection).DescribeMenu(TikMenuSchemaPath.Normalize(path), null);
+            return ((ITikMenuSchemaConnection)connection).DescribeMenu(SchemaPath(path), null);
         }
 
         // The entity overload's way in (tik4net.objects): the entity's WinBox labels name native's fields as the API does.
@@ -280,17 +280,16 @@ namespace tik4net
         {
             Guard.ArgumentNotNull(connection, nameof(connection));
             connection.Require(TikConnectionCapability.MenuSchema, "DescribeMenu");
-            return ((ITikMenuSchemaConnection)connection).DescribeMenu(TikMenuSchemaPath.Normalize(path), winboxLabels);
+            return ((ITikMenuSchemaConnection)connection).DescribeMenu(SchemaPath(path), winboxLabels);
         }
-    }
 
-    internal static class TikMenuSchemaPath
-    {
-        // "/ip/route/" and "ip/route" alike → "/ip/route".
-        internal static string Normalize(string path) => "/" + path.Trim().Trim('/');
-
-        // "/ip/route" → ["ip", "route"]
-        internal static string[] Segments(string path) => path.Trim('/').Split('/');
+        // The path a menu is described and cached under: every slash at either end goes ("//ip/route/" → "/ip/route"),
+        // and a blank path is the root menu "/".
+        internal static string SchemaPath(string path)
+        {
+            string p = TikPath.Normalize(path.Trim().Trim('/'));
+            return p.Length == 0 ? "/" : p;
+        }
     }
 
     /// <summary>
@@ -354,7 +353,7 @@ namespace tik4net
     {
         internal static TikMenuSchema Read(ITikConnection connection, string path)
         {
-            string inspectPath = string.Join(",", TikMenuSchemaPath.Segments(path));
+            string inspectPath = string.Join(",", TikPath.Segments(path));
 
             // The menu node itself first: an absent menu and a menu without 'add' both answer [] to "children of add".
             var menu = Inspect(connection, "child", inspectPath);

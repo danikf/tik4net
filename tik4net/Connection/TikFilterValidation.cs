@@ -39,7 +39,7 @@ namespace tik4net.Connection
             TikMenuSchema schema;
             try
             {
-                schema = described.DescribeMenu(TikMenuSchemaPath.Normalize(TikPath.Parent(commandText)), winboxLabels);
+                schema = described.DescribeMenu(TikMenuSchemaExtensions.SchemaPath(TikPath.Parent(commandText)), winboxLabels);
             }
             catch (TikNoSuchCommandException)
             {

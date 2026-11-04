@@ -78,7 +78,7 @@ namespace tik4net.Cli
     {
         internal static TikMenuSchema Read(ITikCliCompletion completion, string path)
         {
-            string menu = "/" + string.Join(" ", TikMenuSchemaPath.Segments(path));
+            string menu = "/" + string.Join(" ", TikPath.Segments(path));
 
             // Every word of the menu, sub-menus and commands alike; '..' (the parent) is not one of them.
             var entries = WalkItems(completion, menu + " ").Where(i => i.Name != "..").ToList();

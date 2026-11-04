@@ -9,14 +9,22 @@ namespace tik4net.Connection
     {
         /// <summary>
         /// The last (verb) segment of a command path, lower-cased: <c>/interface/set</c> → <c>set</c>.
-        /// An empty/blank path defaults to <c>print</c> (the implicit read verb).
+        /// An empty/blank path, or <c>/</c>, defaults to <c>print</c> (the implicit read verb).
         /// </summary>
         internal static string Verb(string commandText)
         {
-            if (string.IsNullOrWhiteSpace(commandText))
-                return "print";
-            var segments = commandText.Trim().TrimStart('/').Split('/');
-            return segments[segments.Length - 1].ToLowerInvariant();
+            var segments = Segments(commandText);
+            return segments.Length == 0 ? "print" : segments[segments.Length - 1].ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// The segments of a path, without the slashes at either end: <c>/ip/route/</c> → <c>ip</c>, <c>route</c>.
+        /// A blank path, or <c>/</c>, has none.
+        /// </summary>
+        internal static string[] Segments(string path)
+        {
+            string p = Normalize(path).TrimStart('/');
+            return p.Length == 0 ? new string[0] : p.Split('/');
         }
 
         /// <summary>

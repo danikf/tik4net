@@ -452,11 +452,7 @@ namespace tik4net.Cli
 
         /// <summary>The menu without its verb — <c>/ip/firewall/mangle/print</c> gives <c>/ip firewall mangle</c>.</summary>
         internal static string MenuPathToCli(string apiPath)
-        {
-            string trimmed = (apiPath ?? string.Empty).TrimEnd('/');
-            int lastSlash = trimmed.LastIndexOf('/');
-            return ApiPathToCli(lastSlash > 0 ? trimmed.Substring(0, lastSlash) : trimmed);
-        }
+            => ApiPathToCli(TikPath.Parent(apiPath ?? string.Empty));
 
         /// <summary>
         /// Builds a <c>:put [/path print stats as-value [where …]]</c> command.

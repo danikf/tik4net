@@ -248,7 +248,7 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public void FieldOverride(string apiPath, string apiName, int key)
         {
-            string norm = WinboxHandlerMap.Normalize(apiPath);
+            string norm = TikPath.Normalize(apiPath);
             if (!_fieldOverrides.TryGetValue(norm, out var map))
             {
                 map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -1100,7 +1100,7 @@ namespace tik4net.WinboxNative
             // A path WinBox has no window for is a different answer from a path we failed to map, and the
             // advice is the opposite: there is no alias to add, because there is nothing to point one at.
             // Telling the caller to write one would send them looking for a window that does not exist.
-            if (WinboxHandlerMap.NoWinboxWindow.TryGetValue(WinboxHandlerMap.Normalize(apiPath), out string? why))
+            if (WinboxHandlerMap.NoWinboxWindow.TryGetValue(TikPath.Normalize(apiPath), out string? why))
                 return new TikPathNotMappedException(cmd, apiPath,
                     $"WinBox native: '{apiPath}' has no WinBox window. {why}. This is not a mapping gap — " +
                     "the request was never sent, and no PathAlias or PathOverride can help. Use an " +
@@ -1191,7 +1191,7 @@ namespace tik4net.WinboxNative
 
         private IReadOnlyDictionary<string, int> OverridesFor(string apiPath)
         {
-            return _fieldOverrides.TryGetValue(WinboxHandlerMap.Normalize(apiPath), out var map)
+            return _fieldOverrides.TryGetValue(TikPath.Normalize(apiPath), out var map)
                 ? map
                 : new Dictionary<string, int>();
         }
@@ -1301,7 +1301,7 @@ namespace tik4net.WinboxNative
         private WinboxHandler PreferSingletonHealthHandler(string apiPath, WinboxHandler handler)
         {
             if (_catalog.IsSingletonHandler(handler)) return handler;
-            if (!string.Equals(WinboxHandlerMap.Normalize(apiPath), "/system/health", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(TikPath.Normalize(apiPath), "/system/health", StringComparison.OrdinalIgnoreCase))
                 return handler;
             return _catalog.FindSingletonHandlerByLeaf("health") ?? handler;
         }

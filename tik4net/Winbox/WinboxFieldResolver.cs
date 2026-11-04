@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using tik4net.Connection;
 
 namespace tik4net.Winbox
 {
@@ -144,7 +145,7 @@ namespace tik4net.Winbox
         /// </remarks>
         private IEnumerable<KeyValuePair<string, WinboxJgField>> JgFieldsSpecificFirst()
         {
-            bool everyPane = PrintsEveryPane.Contains(WinboxHandlerMap.Normalize(_apiPath ?? ""));
+            bool everyPane = PrintsEveryPane.Contains(TikPath.Normalize(_apiPath ?? ""));
             IEnumerable<KeyValuePair<string, WinboxJgField>> Scoped(IEnumerable<KeyValuePair<string, WinboxJgField>> source)
                 => everyPane
                     ? source.Select(kv => new KeyValuePair<string, WinboxJgField>(kv.Key, kv.Value.WithoutPaneSelector()))
@@ -355,7 +356,7 @@ namespace tik4net.Winbox
         private bool PanePrefixed(string? kind)
         {
             if (string.IsNullOrEmpty(kind)) return false;
-            string path = WinboxHandlerMap.Normalize(_apiPath ?? "");
+            string path = TikPath.Normalize(_apiPath ?? "");
             return PanePrefixedPaths.TryGetValue(path, out var kinds)
                    && (kinds.Contains("*") || kinds.Contains(kind!)); // IsNullOrEmpty above already excluded null
         }
@@ -425,16 +426,16 @@ namespace tik4net.Winbox
             if (_aliasesResolved) return;
             _aliasesResolved = true;
 
-            string norm = WinboxHandlerMap.Normalize(_apiPath ?? "");
+            string norm = TikPath.Normalize(_apiPath ?? "");
             string path = norm;
             FieldAliasSet? found = null;
             string? foundPath = null;
             while (!string.IsNullOrEmpty(path))
             {
                 if (ShippedFieldAliases.TryGetValue(path, out var s)) { found = s; foundPath = path; break; }
-                int cut = path.LastIndexOf('/');
-                if (cut <= 0) break;
-                path = path.Substring(0, cut);
+                string parent = TikPath.Parent(path);
+                if (parent == path) break;
+                path = parent;
             }
 
             if (found == null) return;
