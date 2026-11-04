@@ -185,7 +185,7 @@ namespace tik4net.Winbox
         /// be pinned without a router. Nothing in the library calls it - the value is computed from the
         /// uptime singleton <c>[24,2]</c> and the timezone singleton <c>[24,0]</c>.
         /// </summary>
-        internal void SeedRouterClock(long bootEpochSeconds)
+        internal void SeedRouterClockForTests(long bootEpochSeconds)
         {
             lock (_uptimeLock) _bootEpochHundredths = bootEpochSeconds * 100;
         }

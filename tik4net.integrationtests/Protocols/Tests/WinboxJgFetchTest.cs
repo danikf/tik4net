@@ -111,7 +111,7 @@ namespace tik4net.integrationtests
                 // an earlier connection has already populated it and this one is served from memory — 619
                 // handlers, 309 ms, and nothing written to its own cache dir. That is what made this test
                 // pass standalone and go Inconclusive in the suite, misread as mproxy refusing `list`.
-                tik4net.Winbox.WinboxJgCatalog.ClearSharedCatalogs();
+                tik4net.Winbox.WinboxJgCatalog.ClearSharedCatalogsForTests();
 
                 var elapsed = new List<long>();
                 var handlerCounts = new List<int>();
@@ -156,7 +156,7 @@ namespace tik4net.integrationtests
                     Assert.IsTrue(handlerCounts.All(h => h == 0),
                         "nothing was cached yet the catalog resolved (handlers: " + string.Join("/", handlerCounts) +
                         ") — the load came from the process-wide parsed catalog, so this run did not test the " +
-                        "cold path at all. ClearSharedCatalogs() should have prevented that.");
+                        "cold path at all. ClearSharedCatalogsForTests() should have prevented that.");
                     Assert.Inconclusive(
                         "mproxy served no plugin list on any of 4 fresh connections, and no catalog was " +
                         "resolved either — the router genuinely served nothing (P2.20/P2.40). " +

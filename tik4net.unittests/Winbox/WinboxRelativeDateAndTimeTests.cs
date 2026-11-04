@@ -56,7 +56,7 @@ namespace tik4net.unittests.Winbox
         {
             var resolver = new WinboxFieldResolver(null, handler, catalog, new Dictionary<string, int>());
             var codec = new WinboxRecordCodec(null, catalog);
-            if (bootEpoch != null) codec.SeedRouterClock(bootEpoch.Value);
+            if (bootEpoch != null) codec.SeedRouterClockForTests(bootEpoch.Value);
             return codec.DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
         }
 

@@ -283,9 +283,11 @@ namespace tik4net.unittests.Cli
         [DataRow(":put [/interface get number=*2 value-name=comment]", false)]
         [DataRow("/tool fetch url=\"http://x/add\"", false)]
         [DataRow("/system reboot", false)]
+        [DataRow("/ip address set numbers=*1 comment=x\n/system reboot", false)]
+        [DataRow("/ip address set numbers=*1 comment=x\r", false)]
         public void OnlyAWriteVerbTakesTheEndMarker(string line, bool marked)
         {
-Assert.AreEqual(marked, CliConnectionBase.IsEndMarkerVerbLine(line));
+            Assert.AreEqual(marked, CliConnectionBase.IsMarkableWrite(line));
         }
 
         // ── D3: detail on a generic print ──────────────────────────────────────

@@ -181,7 +181,7 @@ namespace tik4net.Winbox
         /// inside a full suite — read as mproxy refusing to serve the plugin list, which it
         /// was not.
         /// </summary>
-        internal static void ClearSharedCatalogs()
+        internal static void ClearSharedCatalogsForTests()
         {
             lock (SharedCatalogsLock)
                 SharedCatalogs.Clear();

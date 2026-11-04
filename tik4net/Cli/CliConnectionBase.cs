@@ -620,10 +620,8 @@ namespace tik4net.Cli
         private bool TakesEndMarker(string cliText)
             => _knowledge.Features.Dsv == true && IsMarkableWrite(cliText);
 
-        private static bool IsMarkableWrite(string cliText)
+        internal static bool IsMarkableWrite(string cliText)
             => cliText.IndexOf('\n') < 0 && cliText.IndexOf('\r') < 0 && WriteVerbLine.IsMatch(cliText);
-
-        internal static bool IsEndMarkerVerbLine(string cliText) => WriteVerbLine.IsMatch(cliText);
 
         private static readonly System.Text.RegularExpressions.Regex WriteVerbLine = new System.Text.RegularExpressions.Regex(
             @"^(:put \[)?/(?:[\w.-]+ )*(add|set|remove|enable|disable|move|unset|comment)(?=[ \]]|$)",
