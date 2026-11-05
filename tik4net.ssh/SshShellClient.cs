@@ -11,11 +11,11 @@ using tik4net.Diagnostics;
 namespace tik4net.Ssh
 {
     /// <summary>
-    /// Low-level SSH PTY client for RouterOS. SSH.NET performs the transport and authentication, then we
-    /// open an interactive shell (<see cref="ShellStream"/>) and drive the RouterOS CLI over it exactly
-    /// like the Telnet transport: VT100 cursor-probe negotiation, paging prevention, command execution,
-    /// ANSI stripping and echo/prompt removal. Unlike Telnet there is no IAC negotiation (SSH has none)
-    /// and no <c>Login:</c>/<c>Password:</c> exchange (SSH.NET authenticates before the shell starts).
+    /// Low-level SSH PTY client for RouterOS: SSH.NET performs the transport and authentication, and this opens the
+    /// interactive shell (<see cref="ShellStream"/>) in raw terminal modes, settles it to the prompt and closes it.
+    /// Every read and write on the shell is <see cref="CliPtySession"/>'s, as on Telnet. Unlike Telnet there is no IAC
+    /// negotiation (SSH has none) and no <c>Login:</c>/<c>Password:</c> exchange (SSH.NET authenticates before the shell
+    /// starts).
     /// </summary>
     internal sealed class SshShellClient : ICliTerminal, ICliByteStream
     {

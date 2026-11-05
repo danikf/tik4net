@@ -9,9 +9,9 @@ using tik4net.Connection;
 namespace tik4net.Telnet
 {
     /// <summary>
-    /// Low-level Telnet TCP client for RouterOS.
-    /// Handles: IAC option negotiation, login prompt detection, command execution,
-    /// ANSI stripping, echo/prompt removal, and paging prevention.
+    /// Low-level Telnet TCP client for RouterOS: the TCP connect, the interactive login and the close, with IAC option
+    /// negotiation filtered out of every received chunk (<see cref="TelnetNegotiator"/>). Every read and write after the
+    /// connect — commands, VT100 replies, paging prevention, echo and prompt removal — is <see cref="CliPtySession"/>'s.
     /// </summary>
     internal sealed class TelnetClient : ICliTerminal, ICliByteStream
     {
