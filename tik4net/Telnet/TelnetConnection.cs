@@ -47,7 +47,7 @@ namespace tik4net.Telnet
         private CliTerminalOpen Attempt(string host, int port, string user, string password)
         {
             var client = new TelnetClient(Encoding, ClientTimeouts);
-            return new CliTerminalOpen(client, async ct =>
+            return new CliTerminalOpen(client.Terminal, async ct =>
             {
                 client.Connect(host, port);
                 await LoginOrRelayAsync(host, host, user,

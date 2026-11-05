@@ -217,7 +217,7 @@ namespace tik4net.unittests.Cli
 
             internal PtyFixture(RouterScript script, int receiveTimeoutMs) : base(new ScriptPlayer(script, residueOnScreen: true))
             {
-                _session = new CliPtySession(new PlayedByteStream(Player), Encoding.UTF8, () => receiveTimeoutMs, "SSH", "ssh.pty", "\r");
+                _session = new CliPtySession(new PlayedByteStream(Player), Encoding.UTF8, () => receiveTimeoutMs, "SSH", "ssh.pty", "\r", _ => { });
             }
 
             internal override Task<string> CommandAsync(string command) => _session.SendCommandAndReadAsync(command, null, CancellationToken.None);

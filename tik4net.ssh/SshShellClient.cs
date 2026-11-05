@@ -17,7 +17,7 @@ namespace tik4net.Ssh
     /// negotiation (SSH has none) and no <c>Login:</c>/<c>Password:</c> exchange (SSH.NET authenticates before the shell
     /// starts).
     /// </summary>
-    internal sealed class SshShellClient : ICliTerminal, ICliByteStream
+    internal sealed class SshShellClient : ICliByteStream
     {
         private SshClient _ssh = null!; // assigned in Connect, not the constructor; read only afterwards
         private ShellStream _shell = null!; // assigned in Connect, not the constructor; read only afterwards
@@ -26,10 +26,13 @@ namespace tik4net.Ssh
         // PTY a CR LF is two Enters (Telnet's NVT reads it as one).
         private readonly CliPtySession _pty;
 
+        /// <summary>The console over this shell: the terminal the connection holds. Its end and dispose are <see cref="Close"/>.</summary>
+        internal CliPtySession Terminal => _pty;
+
         internal SshShellClient(Encoding encoding, CliClientTimeouts timeouts)
         {
             _timeouts = timeouts;
-            _pty = new CliPtySession(this, encoding ?? Encoding.UTF8, timeouts.ReceiveMs, "SSH", "ssh.pty", "\r");
+            _pty = new CliPtySession(this, encoding ?? Encoding.UTF8, timeouts.ReceiveMs, "SSH", "ssh.pty", "\r", Close);
         }
 
         private readonly CliClientTimeouts _timeouts;
@@ -196,27 +199,6 @@ namespace tik4net.Ssh
             _ssh = null!; // cleared after Close so a disposed client is never reused
             _shell = null!; // cleared after Close so a disposed shell is never reused
         }
-
-        public void Dispose() => Close();
-
-        // ── ICliTerminal ──────────────────────────────────────────────────────
-
-        public void RequestInterrupt() => _pty.RequestInterrupt();
-
-        public Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
-            => _pty.SendCommandAndReadAsync(command, onLine, ct);
-
-        public Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-            => _pty.SendRawAndReadAsync(raw, ct);
-
-        public Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
-            => _pty.SendRawAndReadUntilQuietAsync(raw, quietMs, ct);
-
-        public bool SupportsQuietRead => true;
-
-        public bool SupportsLineStreaming => true;
-
-        public void End(bool answerSafeModeQuestion) => Close(answerSafeModeQuestion);
 
         private static void SafeDispose(SshClient? client)
         {

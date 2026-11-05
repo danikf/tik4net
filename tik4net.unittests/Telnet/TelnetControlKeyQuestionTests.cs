@@ -29,7 +29,7 @@ namespace tik4net.unittests.Telnet
                 using (Socket router = listener.AcceptSocket())
                 {
                     var sw = Stopwatch.StartNew();
-                    var reading = client.SendRawAndReadAsync(new byte[] { 0x18 }, CancellationToken.None);
+                    var reading = client.Terminal.SendRawAndReadAsync(new byte[] { 0x18 }, CancellationToken.None);
 
                     var key = new byte[16];
                     int n = router.Receive(key);

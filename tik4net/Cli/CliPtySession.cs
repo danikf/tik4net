@@ -9,7 +9,8 @@ namespace tik4net.Cli
 {
     /// <summary>
     /// The RouterOS console over a PTY byte stream, for the Telnet and SSH clients: every read and write after the
-    /// carrier is up. The client keeps its connect, login and close, and hands this its <see cref="ICliByteStream"/>.
+    /// carrier is up, and the terminal the connection holds. The client keeps its connect, login and close, and hands
+    /// this its <see cref="ICliByteStream"/> and its close.
     /// </summary>
     /// <remarks>
     /// The reads answer RouterOS's VT100 cursor probes as they go (<see cref="Vt100State"/>): without truthful cursor
@@ -21,7 +22,7 @@ namespace tik4net.Cli
     /// <c>ReadTimeout</c> nor cancellation once the read is pending with no data, so a pending read would block
     /// forever if the router sends nothing; SSH.NET's blocking <c>Read</c> likewise.</para>
     /// </remarks>
-    internal sealed class CliPtySession
+    internal sealed class CliPtySession : ICliTerminal
     {
         /// <summary>Silence required after a prompt before a command's response is considered complete (ms).</summary>
         internal const int SettleMs = 120;
@@ -33,6 +34,7 @@ namespace tik4net.Cli
         private readonly string _traceChannel;
         private readonly string _enter;
         private readonly CliInboundFilter? _inboundFilter;
+        private readonly Action<bool> _closeCarrier;
         private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
         private readonly CliPasswordPromptGuard _passwordPrompt = new CliPasswordPromptGuard();
 
@@ -45,10 +47,14 @@ namespace tik4net.Cli
         /// <param name="enter">One Enter: <c>"\r\n"</c> on Telnet, whose NVT reads it as one; <c>"\r"</c> over a PTY, where
         /// CR LF is two Enters and the second, on an empty line, makes RouterOS 6.49 repaint the prompt in place after the
         /// real end of every response.</param>
+        /// <param name="closeCarrier">The client's close, for <see cref="End"/> (with whether to answer the Safe Mode
+        /// question) and <see cref="Dispose"/> (without): it ends the session (<see cref="EndSession"/>) while the carrier is
+        /// up, then releases the carrier. Never throws.</param>
         /// <param name="inboundFilter">Strips carrier negotiation from each received chunk and gives its answer (Telnet
         /// IAC); null when the carrier has none.</param>
         internal CliPtySession(ICliByteStream stream, Encoding encoding, Func<int> receiveTimeoutMs,
-            string transportName, string traceChannel, string enter, CliInboundFilter? inboundFilter = null)
+            string transportName, string traceChannel, string enter, Action<bool> closeCarrier,
+            CliInboundFilter? inboundFilter = null)
         {
             _stream = stream ?? throw new ArgumentNullException(nameof(stream));
             _encoding = encoding ?? Encoding.UTF8;
@@ -57,6 +63,7 @@ namespace tik4net.Cli
             _traceChannel = traceChannel;
             _enter = enter;
             _inboundFilter = inboundFilter;
+            _closeCarrier = closeCarrier ?? throw new ArgumentNullException(nameof(closeCarrier));
         }
 
         private int ReceiveTimeoutMs => _receiveTimeout();
@@ -95,7 +102,7 @@ namespace tik4net.Cli
         /// <paramref name="onLine"/>, when given, gets each completed output line while the command is still running;
         /// the streamed lines are the raw ANSI-stripped ones (echo and prompt included).
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
+        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             _interrupt.Clear();
             // Discard anything still buffered from the PREVIOUS command before issuing this one.
@@ -136,7 +143,7 @@ namespace tik4net.Cli
         /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode
         /// toggling, where RouterOS reacts to the control key rather than a typed command.
         /// </summary>
-        internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
             // sentCommand: null → tolerant. A control key is not a command and RouterOS does not always
@@ -153,7 +160,7 @@ namespace tik4net.Cli
         /// an inline completion is written in cursor moves, which the completion parser replays
         /// (<see cref="CliCompletionParser"/>). Bounded by the receive deadline.
         /// </summary>
-        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
             return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
@@ -244,7 +251,7 @@ namespace tik4net.Cli
         private readonly CliInterruptLatch _interrupt = new CliInterruptLatch();
 
         /// <inheritdoc cref="ICliTerminal.RequestInterrupt"/>
-        internal void RequestInterrupt() => _interrupt.Request();
+        public void RequestInterrupt() => _interrupt.Request();
 
         /// <summary>
         /// Reads a command's response until <see cref="CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
@@ -392,6 +399,18 @@ namespace tik4net.Cli
             if (TikWireTrace.Enabled)
                 TikWireTrace.Emit(_traceChannel, TikWireDir.Note, note);
         }
+
+        // ── ICliTerminal ──────────────────────────────────────────────────────
+
+        public bool SupportsQuietRead => true;
+
+        public bool SupportsLineStreaming => true;
+
+        /// <summary>The client's close with the question answered when Safe Mode is held (<see cref="ICliTerminal.End"/>).</summary>
+        public void End(bool answerSafeModeQuestion) => _closeCarrier(answerSafeModeQuestion);
+
+        /// <summary>The client's close without answering: Telnet and SSH still type <c>/quit</c> (<see cref="ICliTerminal.End"/>).</summary>
+        public void Dispose() => _closeCarrier(false);
 
         // ── Ending the session ────────────────────────────────────────────────
 

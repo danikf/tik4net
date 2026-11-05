@@ -29,7 +29,7 @@ namespace tik4net.unittests.Telnet
         /// Opens a client on a local listener, starts <paramref name="read"/>, waits for what it typed (ending in
         /// <paramref name="typedEnd"/>), then plays <paramref name="router"/> on the accepted socket.
         /// </summary>
-        private static string Run(Func<TelnetClient, Task<string>> read, byte[] typedEnd, Action<Socket> router,
+        private static string Run(Func<ICliTerminal, Task<string>> read, byte[] typedEnd, Action<Socket> router,
             out long elapsedMs)
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -43,7 +43,7 @@ namespace tik4net.unittests.Telnet
                     using (Socket socket = listener.AcceptSocket())
                     {
                         var sw = Stopwatch.StartNew();
-                        Task<string> reading = read(client);
+                        Task<string> reading = read(client.Terminal);
                         WaitForTyped(socket, typedEnd);
                         router(socket);
                         Assert.IsTrue(reading.Wait(ReceiveTimeoutMs + 2000), "the read did not return");

@@ -13,7 +13,7 @@ namespace tik4net.Telnet
     /// negotiation filtered out of every received chunk (<see cref="TelnetNegotiator"/>). Every read and write after the
     /// connect — commands, VT100 replies, paging prevention, echo and prompt removal — is <see cref="CliPtySession"/>'s.
     /// </summary>
-    internal sealed class TelnetClient : ICliTerminal, ICliByteStream
+    internal sealed class TelnetClient : ICliByteStream
     {
         private TcpClient _tcpClient = null!; // assigned by Connect(), called right after construction
         private NetworkStream _stream = null!; // assigned by Connect(), called right after construction
@@ -27,13 +27,16 @@ namespace tik4net.Telnet
         // answered on the way in. One Enter is CR LF, which the Telnet NVT reads as one.
         private readonly CliPtySession _pty;
 
+        /// <summary>The console over this socket: the terminal the connection holds. Its end and dispose are <see cref="Close"/>.</summary>
+        internal CliPtySession Terminal => _pty;
+
         internal TelnetClient(Encoding encoding, CliClientTimeouts timeouts)
         {
             _encoding = encoding ?? Encoding.UTF8;
             _receiveTimeout = timeouts.ReceiveMs;
             _connectTimeoutMs = timeouts.ConnectMs;
             _sendTimeoutMs = timeouts.SendMs;
-            _pty = new CliPtySession(this, _encoding, _receiveTimeout, "Telnet", "telnet.sock", "\r\n",
+            _pty = new CliPtySession(this, _encoding, _receiveTimeout, "Telnet", "telnet.sock", "\r\n", Close,
                 TelnetNegotiator.FilterAndRespond);
         }
 
@@ -112,27 +115,6 @@ namespace tik4net.Telnet
             try { _stream?.Close(); } catch { /* ignore */ }
             try { _tcpClient?.Close(); } catch { /* ignore */ }
         }
-
-        public void Dispose() => Close();
-
-        // ── ICliTerminal ──────────────────────────────────────────────────────
-
-        public void RequestInterrupt() => _pty.RequestInterrupt();
-
-        public Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
-            => _pty.SendCommandAndReadAsync(command, onLine, ct);
-
-        public Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-            => _pty.SendRawAndReadAsync(raw, ct);
-
-        public Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
-            => _pty.SendRawAndReadUntilQuietAsync(raw, quietMs, ct);
-
-        public bool SupportsQuietRead => true;
-
-        public bool SupportsLineStreaming => true;
-
-        public void End(bool answerSafeModeQuestion) => Close(answerSafeModeQuestion);
 
         // ── ICliByteStream ────────────────────────────────────────────────────
 

@@ -69,7 +69,7 @@ namespace tik4net.Ssh
             var client = new SshShellClient(Encoding, ClientTimeouts);
             // Through a RoMON agent the SSH login is the agent's, with its password (the setup refuses a key there).
             var loginKey = RomonTarget == null ? key : null;
-            return new CliTerminalOpen(client, ct => LoginOrRelayAsync(host, host, user,
+            return new CliTerminalOpen(client.Terminal, ct => LoginOrRelayAsync(host, host, user,
                 async c =>
                 {
                     // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and

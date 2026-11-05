@@ -65,7 +65,7 @@ namespace tik4net.unittests.Cli
         }
 
         private static CliPtySession Session(ICliByteStream stream, string enter = "\r", CliInboundFilter filter = null)
-            => new CliPtySession(stream, Encoding.ASCII, () => ReceiveTimeoutMs, "SSH", "ssh.pty", enter, filter);
+            => new CliPtySession(stream, Encoding.ASCII, () => ReceiveTimeoutMs, "SSH", "ssh.pty", enter, _ => { }, filter);
 
         [TestMethod]
         public void AClosedAndDrainedCarrier_EndsTheRead()
