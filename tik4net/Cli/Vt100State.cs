@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace tik4net.Cli
 {
@@ -71,6 +72,18 @@ namespace tik4net.Cli
             if (guard != null && !guard.MayAnswer(text)) return;
             foreach (string reply in replies)
                 send(reply);
+        }
+
+        /// <summary>
+        /// <see cref="ProcessAndAnswer"/> for a carrier whose writes are awaited (the PTY console): the same guard, the
+        /// replies sent one after the other, each awaited before the next.
+        /// </summary>
+        internal async Task ProcessAndAnswerAsync(string text, CliPasswordPromptGuard? guard, Func<string, Task> send)
+        {
+            var replies = Process(text);
+            if (guard != null && !guard.MayAnswer(text)) return;
+            foreach (string reply in replies)
+                await send(reply).ConfigureAwait(false);
         }
 
         /// <summary>Process incoming server text; returns the reply strings to send back (probe answers).</summary>

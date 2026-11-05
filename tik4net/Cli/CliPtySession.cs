@@ -381,10 +381,8 @@ namespace tik4net.Cli
             string text = _encoding.GetString(chunk);
 
             // The cursor model is fed every chunk; its replies are keystrokes, never sent into a change-password prompt.
-            var vtReplies = _vt100.Process(text);
-            if (_passwordPrompt.MayAnswer(text))
-                foreach (string vtReply in vtReplies)
-                    await SendBytesAsync(_encoding.GetBytes(vtReply), CancellationToken.None).ConfigureAwait(false);
+            await _vt100.ProcessAndAnswerAsync(text, _passwordPrompt,
+                reply => SendBytesAsync(_encoding.GetBytes(reply), CancellationToken.None)).ConfigureAwait(false);
 
             return text;
         }
