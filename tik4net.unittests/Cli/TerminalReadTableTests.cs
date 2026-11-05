@@ -378,6 +378,33 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        /// <summary>
+        /// T6, the command prologue: an interrupt requested once the command call has begun belongs to it, also while the
+        /// residue of the previous read is still being drained; only a request from before the call is void.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void AnInterruptRequestedWhileTheResidueIsDrained_ReachesTheCommand(TerminalCarrier carrier)
+        {
+            var script = RouterScript.Answer((0, Command + "\r\npartial\r\n"));
+            script.Residue = Residue;
+            script.OnCtrlC = "\r\n" + Prompt;
+            using (var f = Fixture(carrier, script, 10000))
+            {
+                var sw = Stopwatch.StartNew();
+                Task<string> read = f.CommandAsync(Command);
+                Thread.Sleep(40);
+                f.RequestInterrupt();
+                string answer = Run(read);
+
+                StringAssert.Contains(answer, "partial");
+                Assert.AreEqual(1, f.Inputs.Count(i => i == "\x03"), "one Ctrl-C");
+                Assert.IsTrue(sw.ElapsedMilliseconds < 3000, sw.ElapsedMilliseconds + " ms: the request was lost");
+            }
+        }
+
         /// <summary>X4's contrast: before a command, residue is drained on all three.</summary>
         [DataTestMethod]
         [DataRow(TerminalCarrier.Pty)]

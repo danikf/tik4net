@@ -142,7 +142,7 @@ namespace tik4net.MacTelnet
                 target.RomonId, target.User, target.Password,
                 useTerminalFlags: true,
                 readUntil: RelayReadUntilAsync,
-                sendLine: (line, c) => RelaySendAsync(_encoding.GetBytes(line + "\r"), c),
+                sendLine: (line, c) => RelaySendAsync(_encoding.GetBytes(line + CliTerminalText.Enter), c),
                 sendBytes: RelaySendAsync,
                 ct: ct).ConfigureAwait(false);
 
@@ -195,6 +195,8 @@ namespace tik4net.MacTelnet
         /// Types a command line and reads its cleaned answer, reporting each completed output line to
         /// <paramref name="onLine"/> (when given) while the command is still running.
         /// </summary>
+        /// <remarks>The prologue is the one every terminal runs (<see cref="CliPtySession.SendCommandAndReadAsync"/>): the
+        /// line, the latch cleared, the residue, the ended check, the write.</remarks>
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             // No Task.Run: the pump owns the socket, so nothing here blocks. The send is a UDP datagram plus
@@ -202,14 +204,14 @@ namespace tik4net.MacTelnet
             // report progress — awaiting that holds no thread, which is the whole of the async read on this transport.
             ct.ThrowIfCancellationRequested();
             string cmd = CliEndMarker.InjectWithoutPaging(command);
+            _interrupt.Clear();
             // What the pump collected while the connection was idle is discarded below — but a relay that ended
             // in that time means the agent's session is gone, and this command must not be sent into it.
             RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _romonTarget, cmd, Snapshot(out _), commandSent: false);
-            ThrowIfRouterEnded(cmd);
             ResetReadBuffer();
             ResetDataHoles();
-            _interrupt.Clear();
-            SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
+            ThrowIfRouterEnded(cmd);
+            SendTerminalBytes(_encoding.GetBytes(cmd + CliTerminalText.Enter));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
             return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd);
         }
@@ -317,14 +319,14 @@ namespace tik4net.MacTelnet
         {
             if (answerSafeModeQuestion && _pump.IsRunning)
             {
-                try { SendTerminalBytes(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(true, "\r"))); } catch { /* ignore */ }
+                try { SendTerminalBytes(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(true, CliTerminalText.Enter))); } catch { /* ignore */ }
                 WaitForRouterToEndSession(RouterOsCliLogin.SafeModeQuitWaitMs);
                 StopPump();
             }
             else
             {
                 StopPump();
-                try { Send(PKT_DATA, _encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r"))); } catch { /* ignore */ }
+                try { Send(PKT_DATA, _encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, CliTerminalText.Enter))); } catch { /* ignore */ }
             }
             try { Send(PKT_END, null); } catch { /* ignore */ }
         }

@@ -102,10 +102,15 @@ namespace tik4net.Cli
         /// <paramref name="onLine"/>, when given, gets each completed output line while the command is still running;
         /// the streamed lines are the raw ANSI-stripped ones (echo and prompt included).
         /// </summary>
+        /// <remarks>The prologue is the same on every terminal: the line with <c>without-paging</c> injected, the interrupt
+        /// latch cleared (a request from before the call is void; one made from here on, the drain included, is this
+        /// command's), the residue of the previous read dealt with, a carrier that has ended refused, the line and one
+        /// Enter written. Here the ended carrier is found by the write itself.</remarks>
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
-            _interrupt.Clear();
+            ct.ThrowIfCancellationRequested();
             string cmd = CliEndMarker.InjectWithoutPaging(command);
+            _interrupt.Clear();
             await DiscardResidueAsync(cmd, ct).ConfigureAwait(false);
 
             // A carrier the router has closed refuses the write in its own words (SSH.NET: ObjectDisposedException);

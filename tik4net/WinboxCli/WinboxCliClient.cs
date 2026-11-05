@@ -155,15 +155,16 @@ namespace tik4net.WinboxCli
         /// Types a command line and reads its cleaned answer, reporting each completed output line to
         /// <paramref name="onLine"/> (when given) while the command is still running.
         /// </summary>
+        /// <remarks>The prologue is the one every terminal runs (<see cref="Cli.CliPtySession.SendCommandAndReadAsync"/>):
+        /// the line, the latch cleared, the residue, the ended check, the write.</remarks>
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            await DiscardResidueAsync().ConfigureAwait(false);
-
             string cmd = CliEndMarker.InjectWithoutPaging(command);
-            ThrowIfTerminalClosed(cmd);
             _interrupt.Clear();
-            SendInput(_encoding.GetBytes(cmd + "\r"));
+            await DiscardResidueAsync().ConfigureAwait(false);
+            ThrowIfTerminalClosed(cmd);
+            SendInput(_encoding.GetBytes(cmd + Cli.CliTerminalText.Enter));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
             return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd);
         }
@@ -235,7 +236,7 @@ namespace tik4net.WinboxCli
         internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
             if (_sessionId < 0) return;
-            try { SendInput(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r"))); } catch { return; }
+            try { SendInput(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, Cli.CliTerminalText.Enter))); } catch { return; }
             if (!answerSafeModeQuestion) return;
             try { ReadUntilQuietAsync(SafeModeQuitQuietMs, CancellationToken.None, untilClosed: true).Wait(RouterOsCliLogin.SafeModeQuitWaitMs); }
             catch { /* the session is gone: the wait is over */ }

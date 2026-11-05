@@ -32,7 +32,7 @@ namespace tik4net.Ssh
         internal SshShellClient(Encoding encoding, CliClientTimeouts timeouts)
         {
             _timeouts = timeouts;
-            _pty = new CliPtySession(this, encoding ?? Encoding.UTF8, timeouts.ReceiveMs, "SSH", "ssh.pty", "\r", Close);
+            _pty = new CliPtySession(this, encoding ?? Encoding.UTF8, timeouts.ReceiveMs, "SSH", "ssh.pty", CliTerminalText.Enter, Close);
         }
 
         private readonly CliClientTimeouts _timeouts;

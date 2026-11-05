@@ -36,7 +36,7 @@ namespace tik4net.Telnet
             _receiveTimeout = timeouts.ReceiveMs;
             _connectTimeoutMs = timeouts.ConnectMs;
             _sendTimeoutMs = timeouts.SendMs;
-            _pty = new CliPtySession(this, _encoding, _receiveTimeout, "Telnet", "telnet.sock", "\r\n", Close,
+            _pty = new CliPtySession(this, _encoding, _receiveTimeout, "Telnet", "telnet.sock", CliTerminalText.TelnetEnter, Close,
                 TelnetNegotiator.FilterAndRespond);
         }
 
