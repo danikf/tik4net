@@ -540,7 +540,8 @@ namespace tik4net.WinboxCli
                     {
                         string text = _encoding.GetString(chunk);
                         sb.Append(text);
-                        _vt100.ProcessAndAnswer(text, null, SendText);
+                        // Guarded on every read: a caller's /password puts the change-password prompt on screen.
+                        _vt100.ProcessAndAnswer(text, _passwordPrompt, SendText);
                         gotData = true;
                     }
                 }
@@ -644,7 +645,7 @@ namespace tik4net.WinboxCli
                     {
                         string text = _encoding.GetString(chunk);
                         sb.Append(text);
-                        _vt100.ProcessAndAnswer(text, null, SendText);
+                        _vt100.ProcessAndAnswer(text, _passwordPrompt, SendText);
                     }
                 }
                 else
@@ -669,7 +670,7 @@ namespace tik4net.WinboxCli
                 try
                 {
                     byte[]? chunk = ReceiveTerminalChunk(FrameTimeoutMs);
-                    if (chunk != null)   // the login's drain, like MAC-Telnet's: guarded
+                    if (chunk != null)
                         _vt100.ProcessAndAnswer(_encoding.GetString(chunk), _passwordPrompt, SendText);
                 }
                 catch (IOException) { break; }

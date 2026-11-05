@@ -64,12 +64,13 @@ namespace tik4net.Cli
         /// Feeds <paramref name="text"/> to the cursor model and sends its probe answers through <paramref name="send"/>,
         /// unless <paramref name="guard"/> says the change-password prompt is up — then nothing is sent, because an
         /// answer typed there is password input (<see cref="CliPasswordPromptGuard"/>). The model is fed either way, so
-        /// its position stays true. <c>null</c> for a guard after the login, where the prompt cannot be up.
+        /// its position stays true. Every read of a terminal passes its one guard, command reads included: a caller's
+        /// <c>/password</c> puts the prompt on screen mid-session.
         /// </summary>
-        internal void ProcessAndAnswer(string text, CliPasswordPromptGuard? guard, Action<string> send)
+        internal void ProcessAndAnswer(string text, CliPasswordPromptGuard guard, Action<string> send)
         {
             var replies = Process(text);
-            if (guard != null && !guard.MayAnswer(text)) return;
+            if (!guard.MayAnswer(text)) return;
             foreach (string reply in replies)
                 send(reply);
         }
@@ -78,10 +79,10 @@ namespace tik4net.Cli
         /// <see cref="ProcessAndAnswer"/> for a carrier whose writes are awaited (the PTY console): the same guard, the
         /// replies sent one after the other, each awaited before the next.
         /// </summary>
-        internal async Task ProcessAndAnswerAsync(string text, CliPasswordPromptGuard? guard, Func<string, Task> send)
+        internal async Task ProcessAndAnswerAsync(string text, CliPasswordPromptGuard guard, Func<string, Task> send)
         {
             var replies = Process(text);
-            if (guard != null && !guard.MayAnswer(text)) return;
+            if (!guard.MayAnswer(text)) return;
             foreach (string reply in replies)
                 await send(reply).ConfigureAwait(false);
         }

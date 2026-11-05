@@ -7,7 +7,8 @@ namespace tik4net.Cli
     /// <remarks>
     /// A probe answer is keystrokes like any other, and typed into that prompt it becomes password input: two matching
     /// entries (the same cursor report answered twice, say) would change the router's admin password. While the prompt is
-    /// up, the only byte a login sends is the Ctrl-C that skips it. The live check found the VT100 exchange always
+    /// up, the only byte a login sends is the Ctrl-C that skips it; mid-session (a caller's <c>/password</c>) only what the
+    /// caller types. Each terminal has one guard that every read feeds, so it always knows the current line. The live check found the VT100 exchange always
     /// finishes before the prompt is drawn, so this withholds nothing in a normal login; it covers a re-opened terminal and
     /// a future RouterOS. The cursor model is still fed every chunk, so its position stays true.
     /// </remarks>

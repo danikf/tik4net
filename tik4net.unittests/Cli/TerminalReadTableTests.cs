@@ -319,24 +319,56 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        private static readonly Regex CursorReport = new Regex("^\x1b\\[\\d+;\\d+R$");
+
         /// <summary>
-        /// X7: a change-password prompt during a command read (a caller's <c>/password</c>). The PTY holds a cursor
-        /// probe's reply back on every read; MAC-Telnet and the WinBox CLI hold it back during the login and its drain
-        /// only, so here they type the reply into the prompt. Decision D3.
+        /// X7 (D3): a change-password prompt during a command read (a caller's <c>/password</c>). A cursor probe's reply
+        /// is held back on every engine: typed into the prompt it would be password input.
         /// </summary>
         [DataTestMethod]
-        [DataRow(TerminalCarrier.Pty, 0)]
-        [DataRow(TerminalCarrier.MacTelnet, 1)]
-        [DataRow(TerminalCarrier.WinboxCli, 1)]
-        public void X7_ACursorProbeAtAPasswordPromptInACommandRead_IsAnsweredOffThePty(TerminalCarrier carrier, int replies)
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X7_ACursorProbeAtAPasswordPromptInACommandRead_IsNotAnswered(TerminalCarrier carrier)
         {
             var script = RouterScript.Answer((0, "/password\r\nnew password> "), (100, "\x1b[6n"), (400, "\r\n" + Prompt));
             using (var f = Fixture(carrier, script))
             {
                 Run(f.CommandAsync("/password"));
 
-                var cursorReport = new Regex("^\x1b\\[\\d+;\\d+R$");
-                Assert.AreEqual(replies, f.Inputs.Count(i => cursorReport.IsMatch(i)), string.Join(" | ", f.Inputs.Select(Escape)));
+                Assert.AreEqual(0, f.Inputs.Count(i => CursorReport.IsMatch(i)), string.Join(" | ", f.Inputs.Select(Escape)));
+            }
+        }
+
+        /// <summary>X7, the quiet read: the same prompt reached by a key read until quiet.</summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X7_ACursorProbeAtAPasswordPromptInAQuietRead_IsNotAnswered(TerminalCarrier carrier)
+        {
+            var script = RouterScript.Answer((0, "\r\nnew password> "), (50, "\x1b[6n"));
+            using (var f = Fixture(carrier, script, 10000))
+            {
+                Run(f.QuietAsync(Encoding.ASCII.GetBytes("/password\r"), 300));
+
+                Assert.AreEqual(0, f.Inputs.Count(i => CursorReport.IsMatch(i)), string.Join(" | ", f.Inputs.Select(Escape)));
+            }
+        }
+
+        /// <summary>X7's contrast: away from the prompt, a probe in a command read is answered on every engine.</summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X7_ACursorProbeInACommandRead_IsAnswered(TerminalCarrier carrier)
+        {
+            var script = RouterScript.Answer((0, Command + "\r\n"), (50, "\x1b[6n"), (100, "CHR2\r\n" + Prompt));
+            using (var f = Fixture(carrier, script))
+            {
+                Assert.AreEqual("CHR2", Run(f.CommandAsync(Command)).Trim());
+
+                Assert.AreEqual(1, f.Inputs.Count(i => CursorReport.IsMatch(i)), string.Join(" | ", f.Inputs.Select(Escape)));
             }
         }
 

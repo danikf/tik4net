@@ -49,8 +49,8 @@ namespace tik4net.MacTelnet
         // and the API and REST honour that per command.
         private int ReceiveTimeoutMs => _receiveTimeout();
         private readonly int            _loginTimeoutMs;
-        // The login and its drain send no VT100 reply into a change-password prompt. The pump, which runs after the
-        // login, does not consult it.
+        // No VT100 reply is sent into a change-password prompt, on any read: the login's, its drain's, and the pump's,
+        // where a caller's /password puts the prompt on screen mid-session. One guard for all, so it sees every line.
         private readonly CliPasswordPromptGuard _passwordPrompt = new CliPasswordPromptGuard();
 
         // ── Receive pump state ───────────────────────────────────────────────
@@ -397,7 +397,7 @@ namespace tik4net.MacTelnet
                         // sensitive: if the cursor-position reply is delayed (e.g. by per-packet logging),
                         // RouterOS falls back to a tiny terminal width and wraps its output, breaking
                         // prompt detection. Keep this loop free of expensive work.
-                        _vt100.ProcessAndAnswer(text, null, SendTerminalText);
+                        _vt100.ProcessAndAnswer(text, _passwordPrompt, SendTerminalText);
                     }
                     catch (SocketException)
                     {
