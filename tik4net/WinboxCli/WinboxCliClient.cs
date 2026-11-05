@@ -195,7 +195,7 @@ namespace tik4net.WinboxCli
             await DiscardResidueAsync().ConfigureAwait(false);
             ThrowIfTerminalClosed(KeyName(raw));
             SendInput(raw);
-            return await ReadUntilQuietAsync(quietMs).ConfigureAwait(false);
+            return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -231,7 +231,7 @@ namespace tik4net.WinboxCli
             if (_sessionId < 0) return;
             try { SendInput(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r"))); } catch { return; }
             if (!answerSafeModeQuestion) return;
-            try { ReadUntilQuietAsync(SafeModeQuitQuietMs).Wait(RouterOsCliLogin.SafeModeQuitWaitMs); } catch { /* the session is gone: the wait is over */ }
+            try { ReadUntilQuietAsync(SafeModeQuitQuietMs, CancellationToken.None).Wait(RouterOsCliLogin.SafeModeQuitWaitMs); } catch { /* the session is gone: the wait is over */ }
         }
 
         /// <summary>Quiet that ends the wait for the router's reaction to a Safe Mode <c>/quit</c> (ms).</summary>
@@ -638,7 +638,11 @@ namespace tik4net.WinboxCli
         /// after at least some data (or the receive deadline expires), answering VT100 probes. Returns the
         /// text, escape sequences included. Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
         /// </summary>
-        private async Task<string> ReadUntilQuietAsync(int quietMs)
+        /// <param name="quietMs">How long nothing new must arrive.</param>
+        /// <param name="ct">Checked on every poll and cancels the wait between polls, so a caller's cancel is not held
+        /// up by the quiet window (as on the other two engines). A frame already arriving is still read whole: a receive
+        /// abandoned mid-frame leaves the encrypted stream unreadable.</param>
+        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
@@ -646,6 +650,7 @@ namespace tik4net.WinboxCli
 
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
+                ct.ThrowIfCancellationRequested();
                 if (_session.DataAvailable)
                 {
                     byte[]? chunk;
@@ -660,7 +665,7 @@ namespace tik4net.WinboxCli
                 }
                 else
                 {
-                    await Task.Delay(PollSleepMs).ConfigureAwait(false);
+                    await Task.Delay(PollSleepMs, ct).ConfigureAwait(false);
                 }
 
                 if (quiet.Observe(sb.Length) != Cli.CliQuietWindow.Outcome.Continue)

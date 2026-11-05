@@ -192,9 +192,9 @@ namespace tik4net.unittests.Cli
         /// <summary>Everything the client typed, one entry per write (VT100 replies and Ctrl-C included).</summary>
         internal IReadOnlyList<string> Inputs => Player.Inputs;
 
-        internal abstract Task<string> CommandAsync(string command);
-        internal abstract Task<string> RawAsync(byte[] key);
-        internal abstract Task<string> QuietAsync(byte[] keys, int quietMs);
+        internal abstract Task<string> CommandAsync(string command, CancellationToken ct = default);
+        internal abstract Task<string> RawAsync(byte[] key, CancellationToken ct = default);
+        internal abstract Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default);
         internal abstract void RequestInterrupt();
         public abstract void Dispose();
 
@@ -220,9 +220,9 @@ namespace tik4net.unittests.Cli
                 _session = new CliPtySession(new PlayedByteStream(Player), Encoding.UTF8, () => receiveTimeoutMs, "SSH", "ssh.pty", "\r", _ => { });
             }
 
-            internal override Task<string> CommandAsync(string command) => _session.SendCommandAndReadAsync(command, null, CancellationToken.None);
-            internal override Task<string> RawAsync(byte[] key) => _session.SendRawAndReadAsync(key, CancellationToken.None);
-            internal override Task<string> QuietAsync(byte[] keys, int quietMs) => _session.SendRawAndReadUntilQuietAsync(keys, quietMs, CancellationToken.None);
+            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => _session.SendCommandAndReadAsync(command, null, ct);
+            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => _session.SendRawAndReadAsync(key, ct);
+            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => _session.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
             internal override void RequestInterrupt() => _session.RequestInterrupt();
             public override void Dispose() { }
 
@@ -317,9 +317,9 @@ namespace tik4net.unittests.Cli
 
             internal MacTelnetFakeRouter Router => _router;
 
-            internal override Task<string> CommandAsync(string command) => Client.SendCommandAndReadAsync(command, null, CancellationToken.None);
-            internal override Task<string> RawAsync(byte[] key) => Client.SendRawAndReadAsync(key, CancellationToken.None);
-            internal override Task<string> QuietAsync(byte[] keys, int quietMs) => Client.SendRawAndReadUntilQuietAsync(keys, quietMs, CancellationToken.None);
+            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => Client.SendCommandAndReadAsync(command, null, ct);
+            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => Client.SendRawAndReadAsync(key, ct);
+            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => Client.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
             internal override void RequestInterrupt() => Client.RequestInterrupt();
 
             private void RouterLoop()
@@ -379,9 +379,9 @@ namespace tik4net.unittests.Cli
                 _client = new WinboxCliClient(new PlayedChannel(Player), Encoding.UTF8, CliClientTimeouts.Fixed(receiveTimeoutMs, receiveTimeoutMs), "WinBox CLI", WinboxCliSession.TraceChannel);
             }
 
-            internal override Task<string> CommandAsync(string command) => _client.SendCommandAndReadAsync(command, null, CancellationToken.None);
-            internal override Task<string> RawAsync(byte[] key) => _client.SendRawAndReadAsync(key, CancellationToken.None);
-            internal override Task<string> QuietAsync(byte[] keys, int quietMs) => _client.SendRawAndReadUntilQuietAsync(keys, quietMs, CancellationToken.None);
+            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => _client.SendCommandAndReadAsync(command, null, ct);
+            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => _client.SendRawAndReadAsync(key, ct);
+            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => _client.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
             internal override void RequestInterrupt() => _client.RequestInterrupt();
             public override void Dispose() => _client.Dispose();
 

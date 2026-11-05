@@ -210,6 +210,51 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // ── The caller's token ────────────────────────────────────────────────
+
+        /// <summary>Which read a cancel case drives.</summary>
+        public enum ReadKind { Command, RawKey, Quiet }
+
+        /// <summary>
+        /// X3: the token reaches every read, on every engine. Production passes <see cref="CancellationToken.None"/>
+        /// except in <see cref="TikCancellationMode.AbandonAndClose"/>, and there a cancelled read must end at the cancel,
+        /// not at the end of its window. The router never answers; the read would run several seconds without the cancel.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty, ReadKind.Command)]
+        [DataRow(TerminalCarrier.Pty, ReadKind.RawKey)]
+        [DataRow(TerminalCarrier.Pty, ReadKind.Quiet)]
+        [DataRow(TerminalCarrier.MacTelnet, ReadKind.Command)]
+        [DataRow(TerminalCarrier.MacTelnet, ReadKind.RawKey)]
+        [DataRow(TerminalCarrier.MacTelnet, ReadKind.Quiet)]
+        [DataRow(TerminalCarrier.WinboxCli, ReadKind.Command)]
+        [DataRow(TerminalCarrier.WinboxCli, ReadKind.RawKey)]
+        [DataRow(TerminalCarrier.WinboxCli, ReadKind.Quiet)]
+        public void X3_ACancelledRead_EndsAtTheCancel(TerminalCarrier carrier, ReadKind kind)
+        {
+            using (var f = Fixture(carrier, RouterScript.Silent(), 10000))
+            using (var cts = new CancellationTokenSource())
+            {
+                Task<string> read;
+                switch (kind)
+                {
+                    case ReadKind.Command: read = f.CommandAsync(Command, cts.Token); break;
+                    case ReadKind.RawKey:  read = f.RawAsync(new byte[] { 0x18 }, cts.Token); break;
+                    default:               read = f.QuietAsync(Encoding.ASCII.GetBytes("/zz\t"), 2000, cts.Token); break;
+                }
+                Thread.Sleep(200);
+                var sw = Stopwatch.StartNew();
+                cts.Cancel();
+
+                Exception caught = null;
+                try { Run(read); }
+                catch (Exception ex) { caught = ex; }
+
+                Assert.IsInstanceOfType(caught, typeof(OperationCanceledException), caught?.ToString() ?? "the read returned");
+                Assert.IsTrue(sw.ElapsedMilliseconds < 1000, sw.ElapsedMilliseconds + " ms after the cancel");
+            }
+        }
+
         // ── Where the engines differ today: pinned as they are ───────────────
 
         private const string Residue = "\r\nRESIDUE\r\n" + Prompt;
