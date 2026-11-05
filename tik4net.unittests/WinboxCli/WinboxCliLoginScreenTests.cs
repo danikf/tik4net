@@ -69,9 +69,9 @@ namespace tik4net.unittests.WinboxCli
         }
 
         // The prompt wait of a login whose terminal is already open.
-        private static void WaitForPrompt(ScreenChannel channel)
+        private static void WaitForPrompt(ScreenChannel channel, int timeoutMs = 3000, string transport = "WinBox CLI")
         {
-            using (var client = new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000), "WinBox CLI", WinboxCliSession.TraceChannel))
+            using (var client = new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(timeoutMs, timeoutMs), transport, WinboxCliSession.TraceChannel))
             {
                 try { typeof(WinboxCliClient).GetMethod("WaitForPromptSync", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(client, null); }
                 catch (TargetInvocationException ex) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); }
@@ -104,6 +104,18 @@ namespace tik4net.unittests.WinboxCli
             Assert.AreEqual(3, channel.CtrlCs, "nothing but three Ctrl-C into the prompt");
             Assert.IsNotInstanceOfType(ex, typeof(TikConnectionLoginRefusedException), "not a refusal: a retry cannot help");
             StringAssert.Contains(ex.Message, "new password");
+        }
+
+        /// <summary>The login timeout says what it was given (review T10), as MAC-Telnet's always has, and on whose carrier.</summary>
+        [TestMethod]
+        public void NoPrompt_TimesOut_SayingWhatWasOnScreen()
+        {
+            var ex = Assert.ThrowsException<TimeoutException>(
+                () => WaitForPrompt(new ScreenChannel("\r\nMikroTik RouterOS banner"), timeoutMs: 300, transport: "WinBox CLI MAC"));
+
+            StringAssert.StartsWith(ex.Message, "WinBox CLI MAC: timed out waiting for shell prompt after ");
+            StringAssert.Contains(ex.Message, "1 terminal packet(s) received");
+            StringAssert.Contains(ex.Message, "screen tail: \\r\\nMikroTik RouterOS banner");
         }
     }
 }

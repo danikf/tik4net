@@ -109,6 +109,28 @@ namespace tik4net.Cli
                 + "password has expired or must be changed before this user can use a console. Nothing was typed into the "
                 + "prompt. Change the password (for example over the binary API: /user set … password=…) and connect again."));
 
+        /// <summary>
+        /// The exception for a login that never reached the prompt. What it was waiting for is only half the story; the
+        /// other half is what it had already been given, and without that the failure cannot tell "the router said nothing
+        /// at all" (a lost session start, a dead path) from "the router is mid-negotiation and one packet went missing" (a
+        /// stalled VT100 probe exchange). One diagnosis spent nine reproduction runs on a message that carried neither.
+        /// </summary>
+        /// <param name="transport">Named in the message.</param>
+        /// <param name="elapsedMs">How long the login waited.</param>
+        /// <param name="packets">Terminal packets (datagrams, frames) that carried text.</param>
+        /// <param name="screen">Everything received since the last nag was skipped, escapes included.</param>
+        internal TimeoutException TimedOut(string transport, long elapsedMs, int packets, string screen)
+        {
+            string seen = VtStripper.StripAnsi(screen);
+            if (seen.Length > 200)
+                seen = seen.Substring(seen.Length - 200);
+            return new TimeoutException(
+                transport + ": timed out waiting for shell prompt after " + elapsedMs + " ms; "
+                + packets + " terminal packet(s) received, " + screen.Length + " char(s)"
+                + (NagRounds > 0 ? ", change-password nag dismissed " + NagRounds + "x" : "")
+                + (seen.Length == 0 ? ", nothing on screen." : ", screen tail: " + seen.Replace("\r", "\\r").Replace("\n", "\\n")));
+        }
+
         /// <summary>The first non-empty line of <paramref name="s"/>, trimmed.</summary>
         internal static string FirstLine(string s)
         {

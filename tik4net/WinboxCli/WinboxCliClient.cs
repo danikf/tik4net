@@ -417,6 +417,7 @@ namespace tik4net.WinboxCli
         {
             var sb = new StringBuilder();
             var screen = new CliLoginScreen();
+            int textFrames = 0;
             var sw = Stopwatch.StartNew();
 
             while (sw.ElapsedMilliseconds < _loginTimeoutMs)
@@ -428,6 +429,7 @@ namespace tik4net.WinboxCli
                 catch (IOException) { break; }
                 if (chunk == null) continue;
 
+                textFrames++;
                 string text = _encoding.GetString(chunk);
                 sb.Append(text);
 
@@ -450,7 +452,7 @@ namespace tik4net.WinboxCli
                 }
             }
 
-            throw new TimeoutException("WinBox: timed out waiting for shell prompt.");
+            throw screen.TimedOut(_transportName, sw.ElapsedMilliseconds, textFrames, sb.ToString());
         }
 
         private void TraceNote(string note) => TikWireTrace.Emit(_traceChannel, TikWireDir.Note, note);

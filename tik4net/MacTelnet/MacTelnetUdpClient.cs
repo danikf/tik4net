@@ -645,19 +645,7 @@ namespace tik4net.MacTelnet
                 catch (SocketException) { RetransmitIfUnacked(); /* poll timeout — continue loop */ }
             }
 
-            // What it was waiting for is only half the story; the other half is what it had already been
-            // given, and without that the failure is indistinguishable between "the router said nothing at all"
-            // (a lost SESSIONSTART or a dead MAC path) and "the router is mid-negotiation and one packet
-            // went missing" (a stalled VT100 probe exchange). One diagnosis spent nine reproduction runs on a
-            // message that carried neither.
-            string seen = VtStripper.StripAnsi(sb.ToString());
-            if (seen.Length > 200)
-                seen = seen.Substring(seen.Length - 200);
-            throw new TimeoutException(
-                Transport + ": timed out waiting for shell prompt after " + sw.ElapsedMilliseconds + " ms; "
-                + dataPackets + " terminal packet(s) received, " + sb.Length + " char(s)"
-                + (screen.NagRounds > 0 ? ", change-password nag dismissed " + screen.NagRounds + "x" : "")
-                + (seen.Length == 0 ? ", nothing on screen." : ", screen tail: " + seen.Replace("\r", "\\r").Replace("\n", "\\n")));
+            throw screen.TimedOut(Transport, sw.ElapsedMilliseconds, dataPackets, sb.ToString());
         }
 
         // Whatever the router said before it hung up: a refusal if it said one, otherwise the plain fact
