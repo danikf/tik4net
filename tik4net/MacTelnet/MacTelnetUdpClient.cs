@@ -521,11 +521,8 @@ namespace tik4net.MacTelnet
                     throw RouterOsCliLogin.RomonRelayEndedWithTheSession("MAC-Telnet", _romonTarget, sentCommand, stripped);
                 // The router ended a direct session (/quit typed, the console logged out): no prompt will follow.
                 if (_routerEnded && !endedBefore)
-                {
-                    if (sentCommand == null)
-                        return stripped;
-                    throw CliReadTimeout.CreateClosed("MAC-Telnet", ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, stripped);
-                }
+                    return settle.EndWithoutPrompt("MAC-Telnet", _romonTarget, closed: true, sw.ElapsedMilliseconds,
+                        ReceiveTimeoutMs, stripped, length);
 
                 switch (settle.Observe(stripped, newData, sw.ElapsedMilliseconds, length))
                 {
@@ -538,10 +535,8 @@ namespace tik4net.MacTelnet
             }
 
             string strippedSoFar = Snapshot(out int lengthSoFar);
-            settle.NoteEnd("TIMEOUT", sw.ElapsedMilliseconds, lengthSoFar);
-            if (sentCommand != null)
-                throw CliReadTimeout.Create("MAC-Telnet", ReceiveTimeoutMs, sentCommand, strippedSoFar);
-            return strippedSoFar;
+            return settle.EndWithoutPrompt("MAC-Telnet", _romonTarget, closed: false, sw.ElapsedMilliseconds,
+                ReceiveTimeoutMs, strippedSoFar, lengthSoFar);
         }
 
         /// <summary>

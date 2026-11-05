@@ -107,5 +107,33 @@ namespace tik4net.Cli
         /// <summary>The read ends without a settled prompt: <paramref name="why"/> is "TIMEOUT" or "CLOSED".</summary>
         internal void NoteEnd(string why, long elapsedMs, int rawLength)
             => _note?.Invoke(why + " @" + elapsedMs + "ms (prompted=" + Prompted + ", bytes=" + rawLength + ")");
+
+        /// <summary>
+        /// The read is over without a settled prompt: the carrier ended during it (<paramref name="closed"/>) or the
+        /// receive deadline passed. Notes the end, then throws for a command — the relay's end when
+        /// <paramref name="romonTarget"/> is set and the carrier closed, the close, or the deadline
+        /// (<see cref="CliReadTimeout"/>) — and returns the text so far for a control key, which need not end at a prompt.
+        /// </summary>
+        /// <param name="transport">Named in the exception texts.</param>
+        /// <param name="romonTarget">The RoMON target a relayed session runs on; null for a direct session.</param>
+        /// <param name="closed">The carrier ended during this read; <c>false</c> for the deadline.</param>
+        /// <param name="elapsedMs">Time since the read started.</param>
+        /// <param name="receiveTimeoutMs">The receive deadline, for the messages.</param>
+        /// <param name="stripped">Everything read so far, ANSI-stripped.</param>
+        /// <param name="rawLength">Raw characters so far, for the trace note.</param>
+        /// <returns><paramref name="stripped"/>, for a control key.</returns>
+        internal string EndWithoutPrompt(string transport, string? romonTarget, bool closed, long elapsedMs,
+            int receiveTimeoutMs, string stripped, int rawLength)
+        {
+            // Silent truncation here is how a partial read reaches the parser looking like data, so it is always traced.
+            NoteEnd(closed ? "CLOSED" : "TIMEOUT", elapsedMs, rawLength);
+            if (_sentCommand == null)
+                return stripped;
+            if (closed && romonTarget != null)
+                throw RouterOsCliLogin.RomonRelayEndedWithTheSession(transport, romonTarget, _sentCommand, stripped);
+            throw closed
+                ? CliReadTimeout.CreateClosed(transport, receiveTimeoutMs, elapsedMs, _sentCommand, stripped)
+                : CliReadTimeout.Create(transport, receiveTimeoutMs, _sentCommand, stripped);
+        }
     }
 }

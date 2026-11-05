@@ -576,13 +576,11 @@ namespace tik4net.WinboxCli
                 string stripped = VtStripper.StripAnsi(sb.ToString());
                 streamer.Feed(stripped);
 
-                // The router closed the terminal: no prompt will follow.
+                // The router closed the terminal: no prompt will follow. The WinBox relay is M2, not a CLI relay, so
+                // there is no RoMON target to report.
                 if (_terminalClosed && !closedBefore)
-                {
-                    if (sentCommand == null)
-                        return stripped;
-                    throw Cli.CliReadTimeout.CreateClosed("WinBox CLI", ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, stripped);
-                }
+                    return settle.EndWithoutPrompt("WinBox CLI", null, closed: true, sw.ElapsedMilliseconds,
+                        ReceiveTimeoutMs, stripped, sb.Length);
 
                 // The read ends when the prompt is still last after the settle window (CliPromptSettle). RouterOS
                 // writes nothing after a command's completion prompt over mepty (Docs/findings-cli.md §4); a Safe
@@ -595,12 +593,8 @@ namespace tik4net.WinboxCli
                 }
             }
 
-            settle.NoteEnd("TIMEOUT", sw.ElapsedMilliseconds, sb.Length);
-
-            string strippedSoFar = VtStripper.StripAnsi(sb.ToString());
-            if (sentCommand != null)
-                throw Cli.CliReadTimeout.Create("WinBox CLI", ReceiveTimeoutMs, sentCommand, strippedSoFar);
-            return strippedSoFar;
+            return settle.EndWithoutPrompt("WinBox CLI", null, closed: false, sw.ElapsedMilliseconds,
+                ReceiveTimeoutMs, VtStripper.StripAnsi(sb.ToString()), sb.Length);
         }
 
         /// <summary>

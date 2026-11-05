@@ -317,20 +317,10 @@ namespace tik4net.Cli
                         return stripped;
                 }
 
+                // Reached WITHOUT a settled prompt: the response is whatever arrived so far and may end mid-record.
                 if (closed || sw.ElapsedMilliseconds >= ReceiveTimeoutMs)
-                {
-                    // Reached WITHOUT a settled prompt: the response is whatever arrived so far and may end
-                    // mid-record. Silent truncation here is how a partial read reaches the parser looking
-                    // like data, so it is always traced.
-                    settle.NoteEnd(closed ? "CLOSED" : "TIMEOUT", sw.ElapsedMilliseconds, accumulated.Length);
-                    if (closed && sentCommand != null && RomonTarget != null)
-                        throw RouterOsCliLogin.RomonRelayEndedWithTheSession(_transportName, RomonTarget, sentCommand, stripped);
-                    if (sentCommand != null)
-                        throw closed
-                            ? CliReadTimeout.CreateClosed(_transportName, ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, stripped)
-                            : CliReadTimeout.Create(_transportName, ReceiveTimeoutMs, sentCommand, stripped);
-                    return stripped;
-                }
+                    return settle.EndWithoutPrompt(_transportName, RomonTarget, closed, sw.ElapsedMilliseconds,
+                        ReceiveTimeoutMs, stripped, accumulated.Length);
 
                 await Task.Delay(15, ct).ConfigureAwait(false);
             }
