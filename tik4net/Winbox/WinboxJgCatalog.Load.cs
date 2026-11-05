@@ -22,22 +22,6 @@ namespace tik4net.Winbox
             internal string Unique;  // e.g. "roteros-33a7039ff432.jg" — on-disk name; ".gz" appended to open
         }
 
-        // The list catalog is a JS object literal, one { … } per served file. Only entries carrying a
-        // `unique` are fetchable plugins; the icon PNGs have none.
-        private static readonly Regex ListEntryRegex = new Regex(@"\{([^}]*)\}", RegexOptions.CultureInvariant);
-        private static readonly Regex ListNameRegex = new Regex(@"\bname\s*:\s*""([^""]*)""", RegexOptions.CultureInvariant);
-        private static readonly Regex ListUniqueRegex = new Regex(@"\bunique\s*:\s*""([^""]*)""", RegexOptions.CultureInvariant);
-
-        // The `unique` value is router-supplied and is used both as an mproxy filename and as a local cache
-        // filename, so it is constrained to a plain name here — no separators, no "..", nothing that could
-        // walk out of the cache directory.
-        private static readonly Regex SafePluginNameRegex =
-            new Regex(@"^[A-Za-z0-9][A-Za-z0-9._-]*\.jg$", RegexOptions.CultureInvariant);
-
-        private static bool IsSafePluginName(string name) =>
-            !string.IsNullOrEmpty(name) && name.Length <= 128 &&
-            !name.Contains("..") && SafePluginNameRegex.IsMatch(name);
-
         // Asks the router which plugins it serves. The set is version- and package-dependent (7.23.2 CHR
         // serves 18 .jg files, including container/iot/userman5/dude that no fixed list would have named,
         // and none of the mpls/roting4 an older one did), so it must never be hardcoded.
@@ -50,53 +34,10 @@ namespace tik4net.Winbox
             byte[]? raw = WinboxMproxyClient.Read(ops, handle);
             if (raw == null || raw.Length == 0) return result;
 
-            return ParsePluginList(Encoding.UTF8.GetString(raw));
-        }
-
-        /// <summary>
-        /// Parses the mproxy <c>list</c> catalog into the fetchable <c>.jg</c> plugins. Entries without a
-        /// <c>unique</c> (the icon PNGs) and entries whose names are not plain filenames are skipped — the
-        /// names come from the router and are used as local cache filenames.
-        /// </summary>
-        internal static List<PluginEntry> ParsePluginList(string text)
-        {
-            var result = new List<PluginEntry>();
-            foreach (Match m in ListEntryRegex.Matches(text ?? ""))
-            {
-                string body = m.Groups[1].Value;
-                Match name = ListNameRegex.Match(body), unique = ListUniqueRegex.Match(body);
-                if (!name.Success || !unique.Success) continue;
-                if (!IsSafePluginName(name.Groups[1].Value) || !IsSafePluginName(unique.Groups[1].Value)) continue;
-                result.Add(new PluginEntry { Name = name.Groups[1].Value, Unique = unique.Groups[1].Value });
-            }
-            return result;
+            return WinboxPluginList.Parse(Encoding.UTF8.GetString(raw));
         }
 
         // ── Remembering the resolved plugin set (per router) ───────────────────
-
-        /// <summary>Serializes a resolved plugin set as <c>name TAB unique</c> lines.</summary>
-        internal static string FormatPluginList(IEnumerable<PluginEntry> plugins) =>
-            string.Join("\n", plugins.Select(p => p.Name + "\t" + p.Unique).ToArray());
-
-        /// <summary>
-        /// Reads back a set written by <see cref="FormatPluginList"/>. Names are re-validated on the way in:
-        /// the file survives between runs and its contents become mproxy filenames and cache filenames again,
-        /// so it is treated as untrusted exactly like the router's own <c>list</c>.
-        /// </summary>
-        internal static List<PluginEntry> ParseRememberedList(string text)
-        {
-            var result = new List<PluginEntry>();
-            foreach (string line in (text ?? "").Split('\n'))
-            {
-                string trimmed = line.Trim();
-                int tab = trimmed.IndexOf('\t');
-                if (tab <= 0) continue;
-                string name = trimmed.Substring(0, tab).Trim(), unique = trimmed.Substring(tab + 1).Trim();
-                if (!IsSafePluginName(name) || !IsSafePluginName(unique)) continue;
-                result.Add(new PluginEntry { Name = name, Unique = unique });
-            }
-            return result;
-        }
 
         // <cacheDir>/lists/<router>.list — one file per router, since two routers on the same version may
         // serve different plugin sets. The key is host or MAC, so it is reduced to filename-safe characters.
@@ -119,7 +60,7 @@ namespace tik4net.Winbox
             if (path == null) return;
             try
             {
-                string text = FormatPluginList(plugins);
+                string text = WinboxPluginList.Format(plugins);
                 // Rewrite only on change: this runs on every open, and an unchanged router should not
                 // produce a disk write per connection.
                 if (File.Exists(path) && string.Equals(File.ReadAllText(path, Encoding.UTF8), text, StringComparison.Ordinal))
@@ -143,7 +84,7 @@ namespace tik4net.Winbox
             try
             {
                 if (!File.Exists(path)) return null;
-                var plugins = ParseRememberedList(File.ReadAllText(path, Encoding.UTF8));
+                var plugins = WinboxPluginList.ParseRemembered(File.ReadAllText(path, Encoding.UTF8));
                 if (plugins.Count == 0) return null;
                 lock (LastGoodListsLock) { LastGoodLists[routerKey] = plugins; }
                 return plugins;

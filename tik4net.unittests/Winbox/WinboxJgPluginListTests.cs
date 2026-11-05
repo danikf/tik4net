@@ -20,9 +20,9 @@ namespace tik4net.unittests.Winbox
             "{ crc: 14, size: 933431, name: \"roteros.jg\", unique: \"roteros-33a7039ff432.jg\", version: \"7.23.2\" }";
 
         [TestMethod]
-        public void ParsePluginList_ResolvesJgPluginsWithTheirOnDiskNames()
+        public void Parse_ResolvesJgPluginsWithTheirOnDiskNames()
         {
-            var plugins = WinboxJgCatalog.ParsePluginList(RealList);
+            var plugins = WinboxPluginList.Parse(RealList);
 
             CollectionAssert.AreEquivalent(
                 new[] { "wave2.jg", "dhcp.jg", "roteros.jg" },
@@ -34,15 +34,15 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
-        public void ParsePluginList_SkipsIconsWithoutUnique()
+        public void Parse_SkipsIconsWithoutUnique()
         {
-            Assert.IsFalse(WinboxJgCatalog.ParsePluginList(RealList).Any(p => p.Name == "icons.png"));
+            Assert.IsFalse(WinboxPluginList.Parse(RealList).Any(p => p.Name == "icons.png"));
         }
 
         // The router supplies these names and they are used as cache filenames, so anything that could
         // escape the cache directory must be dropped rather than sanitized into something plausible.
         [TestMethod]
-        public void ParsePluginList_RejectsNamesThatCouldEscapeTheCacheDirectory()
+        public void Parse_RejectsNamesThatCouldEscapeTheCacheDirectory()
         {
             string hostile =
                 "{ name: \"../../evil.jg\", unique: \"../../evil.jg\" }" +
@@ -52,18 +52,18 @@ namespace tik4net.unittests.Winbox
                 "{ name: \"ok4.jg\", unique: \"..jg\" }" +
                 "{ name: \"good.jg\", unique: \"good-01ab.jg\" }";
 
-            var plugins = WinboxJgCatalog.ParsePluginList(hostile);
+            var plugins = WinboxPluginList.Parse(hostile);
 
             CollectionAssert.AreEqual(new[] { "good-01ab.jg" }, plugins.Select(p => p.Unique).ToArray(),
                 "only the plain filename should survive");
         }
 
         [TestMethod]
-        public void ParsePluginList_ToleratesGarbage()
+        public void Parse_ToleratesGarbage()
         {
-            Assert.AreEqual(0, WinboxJgCatalog.ParsePluginList(null).Count);
-            Assert.AreEqual(0, WinboxJgCatalog.ParsePluginList("").Count);
-            Assert.AreEqual(0, WinboxJgCatalog.ParsePluginList("not a catalog at all").Count);
+            Assert.AreEqual(0, WinboxPluginList.Parse(null).Count);
+            Assert.AreEqual(0, WinboxPluginList.Parse("").Count);
+            Assert.AreEqual(0, WinboxPluginList.Parse("not a catalog at all").Count);
         }
 
         // A resolved set is remembered per router so that a momentarily unavailable `list` reuses it rather
@@ -71,9 +71,9 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void RememberedList_RoundTripsThePluginSet()
         {
-            var original = WinboxJgCatalog.ParsePluginList(RealList);
+            var original = WinboxPluginList.Parse(RealList);
 
-            var restored = WinboxJgCatalog.ParseRememberedList(WinboxJgCatalog.FormatPluginList(original));
+            var restored = WinboxPluginList.ParseRemembered(WinboxPluginList.Format(original));
 
             CollectionAssert.AreEqual(original.Select(p => p.Name + "|" + p.Unique).ToArray(),
                                       restored.Select(p => p.Name + "|" + p.Unique).ToArray());
@@ -84,7 +84,7 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void RememberedList_RevalidatesNamesOnRead()
         {
-            var restored = WinboxJgCatalog.ParseRememberedList(
+            var restored = WinboxPluginList.ParseRemembered(
                 "../../evil.jg\t../../evil.jg\n" +
                 "ok.jg\tsub/dir.jg\n" +
                 "good.jg\tgood-01ab.jg\n");
@@ -95,9 +95,9 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void RememberedList_ToleratesGarbage()
         {
-            Assert.AreEqual(0, WinboxJgCatalog.ParseRememberedList(null).Count);
-            Assert.AreEqual(0, WinboxJgCatalog.ParseRememberedList("").Count);
-            Assert.AreEqual(0, WinboxJgCatalog.ParseRememberedList("no tab here\n\n   \n").Count);
+            Assert.AreEqual(0, WinboxPluginList.ParseRemembered(null).Count);
+            Assert.AreEqual(0, WinboxPluginList.ParseRemembered("").Count);
+            Assert.AreEqual(0, WinboxPluginList.ParseRemembered("no tab here\n\n   \n").Count);
         }
     }
 }

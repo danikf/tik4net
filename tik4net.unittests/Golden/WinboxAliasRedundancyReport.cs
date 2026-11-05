@@ -41,7 +41,7 @@ namespace tik4net.unittests.Golden
             var catalogs = new List<(string name, WinboxJgCatalog catalog)>();
             foreach (string list in Directory.GetFiles(Path.Combine(cache!, "lists"), "*.list").OrderBy(f => f, StringComparer.Ordinal))
             {
-                var plugins = WinboxJgCatalog.ParseRememberedList(File.ReadAllText(list));
+                var plugins = WinboxPluginList.ParseRemembered(File.ReadAllText(list));
                 var catalog = WinboxJgCatalog.Assemble(plugins,
                     p => { string f = Path.Combine(cache!, "plugins", p.Unique); return File.Exists(f) ? File.ReadAllText(f) : null; },
                     _ => null, (_, __) => { }, _ => { }, out bool complete);
