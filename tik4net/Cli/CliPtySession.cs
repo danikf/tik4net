@@ -162,46 +162,37 @@ namespace tik4net.Cli
         // ── Reads ─────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Reads (answering negotiation and VT100 probes) until no new bytes arrive for <paramref name="quietMs"/> after
-        /// at least some data, the carrier closes, or the receive deadline expires. Returns the accumulated text, escape
-        /// sequences included. Nothing at all for <see cref="CliCompletionParser.NoReactionQuietFactor"/> quiet windows is
-        /// an empty answer.
+        /// Reads (answering negotiation and VT100 probes) until <see cref="CliQuietWindow"/> says the reaction is over —
+        /// quiet for <paramref name="quietMs"/> after some data, or nothing at all for
+        /// <see cref="CliCompletionParser.NoReactionQuietFactor"/> windows (an empty answer) — or the carrier closes, or
+        /// the receive deadline expires. Returns the accumulated text, escape sequences included.
         /// </summary>
         private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
-            var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeoutMs);
-            DateTime lastData = DateTime.UtcNow;
+            var sw = Stopwatch.StartNew();
+            var quiet = new CliQuietWindow(quietMs);
 
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
 
-                bool gotData = false;
                 bool closed = false;
                 while (_stream.HasData)
                 {
                     int n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
                     if (n <= 0) { closed = true; break; }
                     accumulated.Append(await ProcessChunkAsync(buffer, n).ConfigureAwait(false));
-                    gotData = true;
                 }
 
                 closed |= _stream.ClosedAndDrained;
-                if (gotData)
-                    lastData = DateTime.UtcNow;
 
-                // Settled: some data arrived and the stream has been silent for the quiet window.
-                if (!gotData && accumulated.Length > 0
-                    && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
+                if (quiet.Observe(accumulated.Length) != CliQuietWindow.Outcome.Continue)
                     return accumulated.ToString();
-                // A Tab the router leaves unanswered (nothing more to list): not the receive deadline.
-                if (accumulated.Length == 0
-                    && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs * CliCompletionParser.NoReactionQuietFactor)
-                    return string.Empty;
 
-                if (closed || DateTime.UtcNow >= deadline)
+                // The window cannot see the carrier: a closed one has nothing more to say.
+                if (closed || sw.ElapsedMilliseconds >= ReceiveTimeoutMs)
                     return accumulated.ToString();
 
                 await Task.Delay(15, ct).ConfigureAwait(false);
