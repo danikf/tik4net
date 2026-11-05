@@ -588,11 +588,13 @@ namespace tik4net.MacTelnet
             return VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(_romonTarget, raw));
         }
 
-        // ── Synchronous terminal I/O used during login (before the pump starts) ─
+        // ── Terminal writes (every key, the login's and the commands') ───────
 
         private void SendTerminalBytes(byte[] data) => Send(PKT_DATA, data);
 
         private void SendTerminalText(string text) => SendTerminalBytes(_encoding.GetBytes(text));
+
+        // ── Synchronous terminal reads used during login (before the pump starts) ─
 
         /// <summary>
         /// Waits until the RouterOS shell prompt appears (post-auth VT100 startup), answering VT100 cursor probes and
