@@ -160,10 +160,13 @@ namespace tik4net.unittests.Cli
             lock (_gate)
             {
                 e = _pending.Count > 0 && _pending[0].DueMs <= _clock.ElapsedMilliseconds ? _pending[0] : null;
-                if (e != null) _pending.RemoveAt(0);
+                if (e != null) { _pending.RemoveAt(0); Taken++; }
                 return e != null;
             }
         }
+
+        /// <summary>How many events the carrier has taken: on the PTY and WinBox fakes, what the client has read.</summary>
+        internal int Taken { get; private set; }
 
         /// <summary>Takes the next due event when it is an end scheduled for the same moment as <paramref name="data"/>.</summary>
         internal bool TryTakeEndWith(Event data)
@@ -191,6 +194,9 @@ namespace tik4net.unittests.Cli
 
         /// <summary>Everything the client typed, one entry per write (VT100 replies and Ctrl-C included).</summary>
         internal IReadOnlyList<string> Inputs => Player.Inputs;
+
+        /// <summary>What the client has read off the carrier so far (PTY and WinBox CLI; MAC-Telnet's router sends on its own).</summary>
+        internal int CarrierReads => Player.Taken;
 
         internal abstract Task<string> CommandAsync(string command, CancellationToken ct = default);
         internal abstract Task<string> RawAsync(byte[] key, CancellationToken ct = default);

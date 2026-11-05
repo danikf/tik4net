@@ -238,8 +238,36 @@ namespace tik4net.WinboxCli
             if (_sessionId < 0) return;
             try { SendInput(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, Cli.CliTerminalText.Enter))); } catch { return; }
             if (!answerSafeModeQuestion) return;
-            try { ReadUntilQuietAsync(SafeModeQuitQuietMs, CancellationToken.None, untilClosed: true).Wait(RouterOsCliLogin.SafeModeQuitWaitMs); }
+            try { WaitForRouterToEndSessionAsync().GetAwaiter().GetResult(); }
             catch { /* the session is gone: the wait is over */ }
+        }
+
+        // The quit wait's poll (CliSafeModeQuitWait): one frame when one is arriving, its probes answered; over on the
+        // router's Mepty.Close, on a carrier that has failed, or on SafeModeQuitQuietMs of quiet.
+        private Task WaitForRouterToEndSessionAsync()
+        {
+            var quiet = new Cli.CliQuietWindow(SafeModeQuitQuietMs);
+            int received = 0;
+            return Cli.CliSafeModeQuitWait.RunAsync(async () =>
+            {
+                if (_session.DataAvailable)
+                {
+                    byte[]? chunk;
+                    try { chunk = ReceiveTerminalChunk(FrameTimeoutMs); }
+                    catch (IOException) { return true; }
+                    if (chunk != null)
+                    {
+                        string text = _encoding.GetString(chunk);
+                        received += text.Length;
+                        _vt100.ProcessAndAnswer(text, _passwordPrompt, SendText);
+                    }
+                }
+                else
+                {
+                    await Task.Delay(PollSleepMs).ConfigureAwait(false);
+                }
+                return _terminalClosed || quiet.Observe(received) != Cli.CliQuietWindow.Outcome.Continue;
+            });
         }
 
         /// <summary>
@@ -653,9 +681,7 @@ namespace tik4net.WinboxCli
         /// <param name="ct">Checked on every poll and cancels the wait between polls, so a caller's cancel is not held
         /// up by the quiet window (as on the other two engines). A frame already arriving is still read whole: a receive
         /// abandoned mid-frame leaves the encrypted stream unreadable.</param>
-        /// <param name="untilClosed">Also end when the router closes the terminal (<see cref="WinboxM2Protocol.Mepty.Close"/>):
-        /// the Safe Mode quit wait (<see cref="TryCloseSession"/>).</param>
-        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct, bool untilClosed = false)
+        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
@@ -681,8 +707,6 @@ namespace tik4net.WinboxCli
                     await Task.Delay(PollSleepMs, ct).ConfigureAwait(false);
                 }
 
-                if (untilClosed && _terminalClosed)
-                    break;
                 if (quiet.Observe(sb.Length) != Cli.CliQuietWindow.Outcome.Continue)
                     break;
             }

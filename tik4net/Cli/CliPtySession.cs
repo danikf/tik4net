@@ -453,7 +453,7 @@ namespace tik4net.Cli
             {
                 await SendBytesAsync(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, _enter)), ct).ConfigureAwait(false);
                 if (answerSafeModeQuestion)
-                    await WaitForRouterToEndSessionAsync(RouterOsCliLogin.SafeModeQuitWaitMs, ct).ConfigureAwait(false);
+                    await WaitForRouterToEndSessionAsync(ct).ConfigureAwait(false);
             }
             catch { /* the connection is gone or going: either way there is nothing left to end */ }
         }
@@ -472,24 +472,25 @@ namespace tik4net.Cli
             catch { /* EndSessionAsync does not throw; a faulted wait has nothing to report either */ }
         }
 
-        private async Task WaitForRouterToEndSessionAsync(int maxMs, CancellationToken ct)
+        // The quit wait's poll (CliSafeModeQuitWait): what is buffered, read and discarded; over when the carrier closes.
+        private Task WaitForRouterToEndSessionAsync(CancellationToken ct)
         {
             var buffer = new byte[4096];
-            var sw = Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < maxMs)
+            return CliSafeModeQuitWait.RunAsync(async () =>
             {
                 while (_stream.HasData)
                 {
                     int n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
                     if (n <= 0)
-                        return;
+                        return true;
                     if (TikWireTrace.Enabled)
                         TikWireTrace.Emit(_traceChannel, TikWireDir.Recv, buffer, 0, n);
                 }
                 if (_stream.ClosedAndDrained)
-                    return;
+                    return true;
                 await Task.Delay(15, ct).ConfigureAwait(false);
-            }
+                return false;
+            });
         }
 
         // ── Writes ────────────────────────────────────────────────────────────

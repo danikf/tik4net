@@ -320,7 +320,7 @@ namespace tik4net.MacTelnet
             if (answerSafeModeQuestion && _pump.IsRunning)
             {
                 try { SendTerminalBytes(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(true, CliTerminalText.Enter))); } catch { /* ignore */ }
-                WaitForRouterToEndSession(RouterOsCliLogin.SafeModeQuitWaitMs);
+                WaitForRouterToEndSession();
                 StopPump();
             }
             else
@@ -343,16 +343,17 @@ namespace tik4net.MacTelnet
             Dispose();
         }
 
-        private void WaitForRouterToEndSession(int maxMs)
-        {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (!_routerEnded && _pumpFault == null && sw.ElapsedMilliseconds < maxMs)
+        // The quit wait's poll (CliSafeModeQuitWait): over on the router's PKT_END or a dead pump; the pump reads and
+        // acknowledges meanwhile, so the poll only waits for its signal.
+        private void WaitForRouterToEndSession()
+            => CliSafeModeQuitWait.RunAsync(async () =>
             {
                 _rxSignal.Reset();
-                if (_routerEnded) break;
-                _rxSignal.WaitAsync(ReadWaitMs).GetAwaiter().GetResult();
-            }
-        }
+                if (_routerEnded || _pumpFault != null)
+                    return true;
+                await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
+                return false;
+            }).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
         protected override void OnDisposing() => StopPump();

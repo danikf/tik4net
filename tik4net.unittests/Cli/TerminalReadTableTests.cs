@@ -17,9 +17,9 @@ namespace tik4net.unittests.Cli
     /// what holds them to one behaviour while they are consolidated (terminal clients review, Phase 0).
     /// </summary>
     /// <remarks>
-    /// Where the engines differ today, the case pins each one's current answer and names the review's finding in its
-    /// name (<c>X4</c>, <c>X5</c>, <c>X7</c>). Those are the rows a later phase flips on purpose, under its decision;
-    /// until then a change to one of them is a behaviour change, not a tidy-up.
+    /// A case named by a finding of the review (<c>X3</c>–<c>X7</c>, <c>T7</c>) holds the rule its decision chose, on every
+    /// engine: they differed there until Phase 2 aligned them, so a change to one of those rows is a behaviour change, not
+    /// a tidy-up.
     /// </remarks>
     [TestClass]
     [DoNotParallelize]   // reads bounded by a receive timeout against timed fakes
@@ -252,6 +252,31 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        /// <summary>
+        /// T7: the quit wait is one bounded loop. A router that keeps writing and never ends the session holds the close
+        /// for <see cref="RouterOsCliLogin.SafeModeQuitWaitMs"/>, and once the close returns nothing reads the carrier any
+        /// more (MAC-Telnet's pump is stopped by its close, so it has no row).
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void T7_TheSafeModeQuitWait_StopsReadingAtItsBound(TerminalCarrier carrier)
+        {
+            var chatter = Enumerable.Range(0, 60).Select(i => (i * 100, "log line " + i + "\r\n")).ToArray();
+            using (var f = Fixture(carrier, RouterScript.Answer(chatter), 10000))
+            {
+                var sw = Stopwatch.StartNew();
+                f.End(answerSafeModeQuestion: true);
+                long ended = sw.ElapsedMilliseconds;
+                int readsAtEnd = f.CarrierReads;
+                Thread.Sleep(400);
+
+                Assert.IsTrue(ended >= RouterOsCliLogin.SafeModeQuitWaitMs - 100, ended + " ms: the wait ended before its bound");
+                Assert.IsTrue(ended < RouterOsCliLogin.SafeModeQuitWaitMs + 500, ended + " ms");
+                Assert.AreEqual(readsAtEnd, f.CarrierReads, "the wait went on reading the carrier after the close returned");
+            }
+        }
+
         // ── The caller's token ────────────────────────────────────────────────
 
         /// <summary>Which read a cancel case drives.</summary>
@@ -297,7 +322,7 @@ namespace tik4net.unittests.Cli
             }
         }
 
-        // ── Where the engines differ today: pinned as they are ───────────────
+        // ── Where the engines differed until Phase 2: residue, the close, the guard ──
 
         private const string Residue = "\r\nRESIDUE\r\n" + Prompt;
 
