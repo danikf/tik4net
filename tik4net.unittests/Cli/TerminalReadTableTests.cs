@@ -269,33 +269,53 @@ namespace tik4net.unittests.Cli
         }
 
         /// <summary>
-        /// X5: the carrier ends in the same poll as a complete counted answer. The PTY returns the answer (it asks the
-        /// settle first); MAC-Telnet and the WinBox CLI report the close (they check the end first). Decision D2.
+        /// X5 (D2): the carrier ends in the same poll as a complete counted answer, and the answer wins on every engine —
+        /// the router printed its own count and the prompt, so the command ran and the answer is whole.
         /// </summary>
         /// <remarks>
         /// "The same poll" per carrier: on the PTY the last chunk and the close are both there when the reader looks; on
         /// the WinBox CLI the <c>Mepty.Close</c> frame carries the last chunk; on MAC-Telnet the <c>PKT_END</c> is sent
-        /// just ahead of the last datagram, so any poll that sees the chunk has seen the end too (the pump keeps
-        /// appending after a <c>PKT_END</c>) and the pin does not depend on when the reader wakes.
+        /// just ahead of the last datagram, the order the read can see an end before the text that came with it.
         /// </remarks>
         [DataTestMethod]
-        [DataRow(TerminalCarrier.Pty, true)]
-        [DataRow(TerminalCarrier.MacTelnet, false)]
-        [DataRow(TerminalCarrier.WinboxCli, false)]
-        public void X5_ACloseWithACompleteCountedAnswer_WinsOnlyOffThePty(TerminalCarrier carrier, bool answerWins)
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X5_ACloseWithACompleteCountedAnswer_TheAnswerWins(TerminalCarrier carrier)
         {
             var script = RouterScript.Answer((0, CountedTyped + "\r\n" + CountedAnswer + Prompt)).EndingWithTheLastChunk();
             using (var f = Fixture(carrier, script))
             {
-                if (answerWins)
-                {
-                    StringAssert.Contains(Run(f.CommandAsync(Counted)), "name=CHR2");
-                }
-                else
-                {
-                    var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(() => Run(f.CommandAsync(Counted)));
-                    StringAssert.Contains(ex.Message, "closed the connection");
-                }
+                StringAssert.Contains(Run(f.CommandAsync(Counted)), "name=CHR2");
+            }
+        }
+
+        /// <summary>X5: the end just after the answer, in its own datagram, frame or read — the order the router sends them in.</summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X5_ACloseJustAfterACompleteCountedAnswer_TheAnswerWins(TerminalCarrier carrier)
+        {
+            var script = RouterScript.Answer((0, CountedTyped + "\r\n" + CountedAnswer + Prompt)).ThenEnd(2);
+            using (var f = Fixture(carrier, script))
+            {
+                StringAssert.Contains(Run(f.CommandAsync(Counted)), "name=CHR2");
+            }
+        }
+
+        /// <summary>X5's contrast: an answer without its count line is not whole, and the close that cuts it is reported.</summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X5_ACloseWithAnUncountedPrompt_IsReportedAsClosed(TerminalCarrier carrier)
+        {
+            var script = RouterScript.Answer((0, Command + "\r\nCHR2\r\n" + Prompt)).EndingWithTheLastChunk();
+            using (var f = Fixture(carrier, script))
+            {
+                var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(() => Run(f.CommandAsync(Command)));
+                StringAssert.Contains(ex.Message, "closed the connection");
             }
         }
 

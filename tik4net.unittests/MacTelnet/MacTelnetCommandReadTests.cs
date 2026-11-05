@@ -78,5 +78,48 @@ namespace tik4net.unittests.MacTelnet
                 Assert.AreEqual(1, f.Inputs.Count, "the command was written into the ended session");
             }
         }
+
+        // ── A RoMON relay whose agent session the router ends (PKT_END) ──────
+
+        private static void RelayTo(TerminalReadFixture.MacTelnetFixture f, string target)
+            => typeof(tik4net.MacTelnet.MacTelnetUdpClient)
+                .GetField("_romonTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .SetValue(f.Client, target);
+
+        [TestMethod]
+        public void APktEndDuringARelayedCommand_IsTheRelaysEnd()
+        {
+            using (var f = Fixture(RouterScript.Answer((0, First + "\r\nCH")).ThenEnd(100), 10000))
+            {
+                RelayTo(f, "AA:BB:CC:DD:EE:FF");
+
+                Assert.ThrowsException<TikRomonRelayEndedException>(
+                    () => f.Client.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult());
+            }
+        }
+
+        /// <summary>
+        /// A control key's read the relay's end came during returns its text, as on the PTY (a control key need not end at
+        /// a prompt), and the next write is refused rather than sent into the ended session.
+        /// </summary>
+        [TestMethod]
+        public void APktEndDuringARelayedControlKey_ReturnsItsText_AndRefusesTheNextCommand()
+        {
+            var script = RouterScript.Answer((0, "\r\nsafe mode taken")).ThenEnd(100).Then((0, First + "\r\nCHR2\r\n" + Prompt));
+            using (var f = Fixture(script, 10000))
+            {
+                RelayTo(f, "AA:BB:CC:DD:EE:FF");
+                var sw = Stopwatch.StartNew();
+
+                string answer = f.Client.SendRawAndReadAsync(new byte[] { 0x18 }, CancellationToken.None).GetAwaiter().GetResult();
+
+                StringAssert.Contains(answer, "safe mode taken");
+                Assert.IsTrue(sw.ElapsedMilliseconds < 5000, sw.ElapsedMilliseconds + " ms: the read waited for the deadline");
+                var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => f.Client.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult());
+                StringAssert.Contains(ex.Message, "did not run");
+                Assert.AreEqual(1, f.Inputs.Count, "the command was written into the ended session");
+            }
+        }
     }
 }

@@ -209,9 +209,11 @@ Four consequences for the code:
    `CTRL_END_AUTH`. It has to be recognised by the code waiting for the prompt.
 2. **`PKT_END` arrives when the router ends the session itself:** after a refused login, and after `/quit` — about
    100 ms after the `interrupted` line on 7.25 (the Safe Mode close waits for it in `MacTelnetUdpClient.TryCloseSession`).
-   A command read under way when it arrives ends at once with the closed connection (`CliReadTimeout.CreateClosed`),
-   and anything sent to a direct session after it is refused before it is written, so neither the read nor the
-   resynchronisation after it waits out the receive deadline. RouterOS does *not* send it when logging an idle
+   A command read under way when it arrives ends at once with the closed connection (`CliReadTimeout.CreateClosed`)
+   — the relay's end on a RoMON relay — unless the text already holds a complete counted answer, which is returned:
+   the read acts on the end one look after the one that first saw it, so a `PKT_END` taken just ahead of the answer's
+   last DATA does not cut it. Anything sent after it, direct or relayed, is refused before it is written, so neither
+   the read nor the resynchronisation after it waits out the receive deadline. RouterOS does *not* send it when logging an idle
    console out.
 3. **A refusal says nothing about the credentials.** It is transient.
 4. **An empty screen at `PKT_END` is a refusal whose text was lost** (`MacLayerLoginClosedSilentlyException`, an

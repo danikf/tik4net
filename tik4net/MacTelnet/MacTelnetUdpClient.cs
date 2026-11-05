@@ -438,11 +438,14 @@ namespace tik4net.MacTelnet
                 "RouterOS logs an idle MAC-Telnet console out after about 30 s (its own log records it as a normal "
                 + "logout), and the UDP socket stays open, so the session goes silent rather than reporting an error.");
 
-        // A direct session the router has ended (PKT_END) takes nothing more: what is sent into it is never
-        // acknowledged, so a read after it would only run the deadline out. A relay's end is the relay's to report.
+        // A session the router has ended (PKT_END) takes nothing more: what is sent into it is never acknowledged, so a
+        // read after it would only run the deadline out. A relay's agent session too: a read the end came during reports
+        // the relay's end, but a control key's read returns its text (CliPromptSettle.EndWithoutPrompt), and the next
+        // write is then refused here, as a PTY carrier the agent closed refuses it. The relay's end line, when it
+        // arrived, is reported first by the command's own residue check.
         private void ThrowIfRouterEnded(string what)
         {
-            if (_routerEnded && _romonTarget == null)
+            if (_routerEnded)
                 throw CliReadTimeout.CreateClosedBeforeWrite(Transport, ReceiveTimeoutMs, what, null);
         }
 
@@ -491,6 +494,7 @@ namespace tik4net.MacTelnet
             int lastLength = -1;
             var streamer = new CliLineStreamer(onLine);
             bool endedBefore = _routerEnded;   // only an end that arrives during this read is this read's
+            bool endSeen = false;
 
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
@@ -504,6 +508,9 @@ namespace tik4net.MacTelnet
                     settle.Interrupted();
                 }
 
+                // The end is read before the text: everything the pump appended before it set the flag is then in the
+                // snapshot below (see "the same poll" at the end check).
+                bool ended = _routerEnded && !endedBefore;
                 string stripped = Snapshot(out int length);
                 streamer.Feed(stripped);
                 bool newData = length != lastLength;
@@ -517,20 +524,28 @@ namespace tik4net.MacTelnet
 
                 // The relay ended mid-command: no prompt will follow, the agent's session is over.
                 RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _romonTarget, sentCommand, stripped, commandSent: true);
-                // The router ended the agent's session (PKT_END) without the relay's end line reaching us: the line
-                // is a datagram the router can drop, the end is not. Waiting would only run the deadline out.
-                if (_routerEnded && !endedBefore && _romonTarget != null)
-                    throw RouterOsCliLogin.RomonRelayEndedWithTheSession(Transport, _romonTarget, sentCommand, stripped);
-                // The router ended a direct session (/quit typed, the console logged out): no prompt will follow.
-                if (_routerEnded && !endedBefore)
-                    return settle.EndWithoutPrompt(Transport, _romonTarget, closed: true, sw.ElapsedMilliseconds,
-                        ReceiveTimeoutMs, stripped, length);
 
+                // Asked before the end is: a counted answer whose count line and prompt are on screen is whole, and an end
+                // that came with it is the next command's to report (D2 of the terminal clients review, as on the PTY).
                 switch (settle.Observe(stripped, newData, sw.ElapsedMilliseconds, length))
                 {
                     case CliPromptSettle.Outcome.Complete:
                     case CliPromptSettle.Outcome.Settled:
                         return stripped;
+                }
+
+                // The router ended the session (PKT_END): /quit typed, the console logged out, or the relay's agent session
+                // over without its end line reaching us (the line is a datagram the router can drop, the end is not). No
+                // prompt will follow. "The same poll" on a carrier a pump fills: the end is acted on one look after the
+                // look that first saw it, so what the router sent around its PKT_END, already in the socket, has been
+                // appended and judged first: a PKT_END the pump takes just ahead of the answer's last DATA (the two leave the
+                // router within a millisecond) does not cut a complete answer.
+                if (ended)
+                {
+                    if (endSeen)
+                        return settle.EndWithoutPrompt(Transport, _romonTarget, closed: true, sw.ElapsedMilliseconds,
+                            ReceiveTimeoutMs, stripped, length);
+                    endSeen = true;
                 }
 
                 await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
