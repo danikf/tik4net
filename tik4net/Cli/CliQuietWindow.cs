@@ -9,8 +9,8 @@ namespace tik4net.Cli
     /// sent nothing at all for <see cref="CliCompletionParser.NoReactionQuietFactor"/> windows did not react.
     /// </summary>
     /// <remarks>
-    /// Shared by the MAC-Telnet and WinBox CLI clients (review C25); <c>CliPtySession</c> keeps its own copy until the
-    /// CLI review aligns it. Fed the length of the text read so far, so a caller that accumulates in a buffer it
+    /// Shared by the MAC-Telnet and WinBox CLI clients (review C25); <c>CliPtySession</c>'s quiet read writes the same
+    /// rule out by hand. Fed the length of the text read so far, so a caller that accumulates in a buffer it
     /// does not own (MAC-Telnet's pump) and one that reads frame by frame (the WinBox CLI) observe it the same way.
     /// </remarks>
     internal sealed class CliQuietWindow
