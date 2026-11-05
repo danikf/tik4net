@@ -104,7 +104,7 @@ namespace tik4net.unittests.WinboxCli
         {
             try
             {
-                client.SendCommandAndReadAsync("/system/identity/print", CancellationToken.None)
+                client.SendCommandAndReadAsync("/system/identity/print", null, CancellationToken.None)
                       .GetAwaiter().GetResult();
                 return null;
             }

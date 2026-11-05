@@ -125,7 +125,7 @@ namespace tik4net.unittests.WinboxCli
             });
             using (var client = Client(channel))
             {
-                string answer = client.SendCommandAndReadAsync(Command, CancellationToken.None).GetAwaiter().GetResult();
+                string answer = client.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult();
 
                 StringAssert.Contains(answer, "more", "the read stopped pulling at a prompt the text had moved past");
             }
@@ -142,7 +142,7 @@ namespace tik4net.unittests.WinboxCli
             });
             using (var client = Client(channel))
             {
-                string answer = client.SendCommandAndReadAsync(command, CancellationToken.None).GetAwaiter().GetResult();
+                string answer = client.SendCommandAndReadAsync(command, null, CancellationToken.None).GetAwaiter().GetResult();
 
                 StringAssert.Contains(answer, "name=CHR2");
             }

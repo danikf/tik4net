@@ -184,18 +184,14 @@ namespace tik4net.MacTelnet
 
         // ── Command execution ─────────────────────────────────────────────────
 
-        internal Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
-            => SendCommandAndReadAsync(command, null, ct);
-
         /// <inheritdoc cref="ICliTerminal.RequestInterrupt"/>
         public void RequestInterrupt() => System.Threading.Interlocked.Exchange(ref _interruptRequested, 1);
 
         private int _interruptRequested;
 
         /// <summary>
-        /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
-        /// completed output line to <paramref name="onLine"/> while the command is still running — the
-        /// streaming driver registered by <see cref="MacTelnetConnection"/>.
+        /// Types a command line and reads its cleaned answer, reporting each completed output line to
+        /// <paramref name="onLine"/> (when given) while the command is still running.
         /// </summary>
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
