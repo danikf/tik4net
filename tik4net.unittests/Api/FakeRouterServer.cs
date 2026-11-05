@@ -10,7 +10,7 @@ namespace tik4net.unittests.Api
 {
     // Minimal scripted RouterOS binary-API peer for loopback protocol tests.
     // Speaks the same length-prefixed word framing as
-    // ApiConnection, reusing the production ApiConnectionHelper.EncodeLength encoder
+    // ApiConnection, reusing the production ApiWordCodec.EncodeLength encoder
     // (internal, reachable here via InternalsVisibleTo).
     internal sealed class FakeRouterServer : IDisposable
     {
@@ -134,7 +134,7 @@ namespace tik4net.unittests.Api
         private void WriteWord(string word)
         {
             byte[] bytes = Encoding.UTF8.GetBytes(word);
-            byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
+            byte[] length = ApiWordCodec.EncodeLength(bytes.Length);
             _stream.Write(length, 0, length.Length);
             _stream.Write(bytes, 0, bytes.Length);
         }
@@ -159,7 +159,7 @@ namespace tik4net.unittests.Api
         // reply that is still arriving is told apart from a router that stopped talking.
         public void WriteWordLengthOnly(int length)
         {
-            byte[] lengthBytes = ApiConnectionHelper.EncodeLength(length);
+            byte[] lengthBytes = ApiWordCodec.EncodeLength(length);
             _stream.Write(lengthBytes, 0, lengthBytes.Length);
             _stream.Flush();
         }

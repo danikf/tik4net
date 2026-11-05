@@ -55,7 +55,8 @@ namespace tik4net.unittests.Api
         {
             using var server = new FakeRouterServer();
             const string challengeHash = "aabbccddeeff00112233445566778899";
-            string expectedResponse = ApiConnectionHelper.EncodePassword(TestPassword, challengeHash);
+            // MD5(0x00 + "secret" + the challenge bytes), computed outside the library.
+            const string expectedResponse = "00a8bfd49490a32a90532cbac11691aae2";
 
             var serverTask = Task.Run(() =>
             {
@@ -253,7 +254,7 @@ namespace tik4net.unittests.Api
 
                 // Force the rarely-exercised 5-byte control-byte (0xF0) length prefix on both words of
                 // the response, even though they're tiny — real RouterOS only uses it for words
-                // >= 0x10000000 bytes, but the decode path (ApiConnection.ReadWordLength) is the same.
+                // >= 0x10000000 bytes, but the decode path (ApiWordCodec.DecodeLength) is the same.
                 server.WriteWordWithFiveByteLength("!done");
                 server.WriteWordWithFiveByteLength("=ret=five-byte-length-value");
                 // The tag too, in the same encoding: writing the words by hand bypasses WriteSentence's

@@ -361,7 +361,7 @@ namespace tik4net.Api
                 {
                     //login connection
                     // non-null inside the IsNullOrEmpty guard; netstandard2.0's BCL cannot tell the compiler so
-                    string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHashOrNull!);
+                    string hashedPass = EncodePassword(password, responseHashOrNull!);
                     ApiCommand loginCommand2 = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
                         new TikCommandParameter("name", user), new TikCommandParameter("response", hashedPass));
                     await loginCommand2.LoginNonQueryAsync().ConfigureAwait(false);
@@ -552,6 +552,31 @@ namespace tik4net.Api
             return ms.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + " ms ago";
         }
 
+        // The pre-6.43 login's challenge response: "00" + hex MD5 of a zero byte, the password and the challenge.
+        private static string EncodePassword(string password, string hash)
+        {
+            byte[] hash_byte = new byte[hash.Length / 2];
+            for (int i = 0; i <= hash.Length - 2; i += 2)
+            {
+                hash_byte[i / 2] = Byte.Parse(hash.Substring(i, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+            }
+            byte[] passwordArray = new byte[1 + password.Length + hash_byte.Length];
+            passwordArray[0] = 0;
+            Encoding.ASCII.GetBytes(password.ToCharArray()).CopyTo(passwordArray, 1);
+            hash_byte.CopyTo(passwordArray, 1 + password.Length);
+
+            var md5 = System.Security.Cryptography.MD5.Create();
+            var hashedPass = md5.ComputeHash(passwordArray);
+
+            //Convert encoded bytes back to a 'readable' string
+            string result = "";
+            foreach (byte h in hashedPass)
+            {
+                result += h.ToString("x2", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            return "00" + result;
+        }
+
         private byte ReadByteChecked(Stream stream)
         {
             int b = stream.ReadByte();
@@ -562,45 +587,7 @@ namespace tik4net.Api
         }
 
         private long ReadWordLength(Stream stream)
-        {
-            byte readByte = ReadByteChecked(stream);
-            int length;
-
-            if ((readByte & 0x80) == 0x00)
-            {
-                length = readByte;
-            }
-            else if ((readByte & 0xC0) == 0x80)
-            {
-                length = ((readByte & 0x3F) << 8) + ReadByteChecked(stream);
-            }
-            else if ((readByte & 0xE0) == 0xC0)
-            {
-                length = ((readByte & 0x1F) << 8) + ReadByteChecked(stream);
-                length = (length << 8) + ReadByteChecked(stream);
-            }
-            else if ((readByte & 0xF0) == 0xE0)
-            {
-                length = ((readByte & 0x0F) << 8) + ReadByteChecked(stream);
-                length = (length << 8) + ReadByteChecked(stream);
-                length = (length << 8) + ReadByteChecked(stream);
-            }
-            else if (readByte == 0xF0)
-            {
-                // 5-byte encoding: 0xF0 + four bytes (network order)
-                length =                  ReadByteChecked(stream);
-                length = (length << 8) + ReadByteChecked(stream);
-                length = (length << 8) + ReadByteChecked(stream);
-                length = (length << 8) + ReadByteChecked(stream);
-            }
-            else
-            {
-                // Control bytes 0xF1–0xFF are reserved by the protocol
-                throw new IOException($"Unexpected control byte 0x{readByte:X2} in word length.");
-            }
-
-            return length;
-        }
+            => ApiWordCodec.DecodeLength(ReadByteChecked(stream), () => ReadByteChecked(stream));
 
         private string ReadWord(Stream stream, bool skipEmptyRow)
         {
@@ -749,7 +736,7 @@ namespace tik4net.Api
                 foreach (string row in commandRows)
                 {
                     byte[] bytes = Encoding.GetBytes(row.ToCharArray());
-                    byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
+                    byte[] length = ApiWordCodec.EncodeLength(bytes.Length);
 
                     _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence
                     _tcpConnectionStream.Write(bytes, 0, bytes.Length);   //write sentence body
@@ -868,7 +855,7 @@ namespace tik4net.Api
                 foreach (string row in commandRows)
                 {
                     byte[] bytes = Encoding.GetBytes(row.ToCharArray());
-                    byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
+                    byte[] length = ApiWordCodec.EncodeLength(bytes.Length);
 
                     await _tcpConnectionStream.WriteAsync(length, 0, length.Length).ConfigureAwait(false);
                     await _tcpConnectionStream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
