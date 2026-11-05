@@ -203,7 +203,7 @@ namespace tik4net.MacTelnet
             // its retransmit bookkeeping (MacLayerTransport.Send) and the read only waits for the pump to
             // report progress — awaiting that holds no thread, which is the whole of the async read on this transport.
             ct.ThrowIfCancellationRequested();
-            string cmd = CliOutputHelper.InjectWithoutPaging(command);
+            string cmd = CliEndMarker.InjectWithoutPaging(command);
             // What the pump collected while the connection was idle is discarded below — but a relay that ended
             // in that time means the agent's session is gone, and this command must not be sent into it.
             RouterOsCliLogin.ThrowIfRomonRelayEnded("MAC-Telnet", _romonTarget, cmd, Snapshot(out _), commandSent: false);
@@ -213,7 +213,7 @@ namespace tik4net.MacTelnet
             System.Threading.Interlocked.Exchange(ref _interruptRequested, 0);
             SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
-            return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
+            return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd);
         }
 
         /// <summary>

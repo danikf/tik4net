@@ -91,7 +91,7 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Sends a CLI command and returns the cleaned output: ANSI stripped, echo line removed, trailing prompt
-        /// removed, <c>without-paging</c> injected after <c>print</c> (<see cref="CliOutputHelper.InjectWithoutPaging"/>).
+        /// removed, <c>without-paging</c> injected after <c>print</c> (<see cref="CliEndMarker.InjectWithoutPaging"/>).
         /// <paramref name="onLine"/>, when given, gets each completed output line while the command is still running;
         /// the streamed lines are the raw ANSI-stripped ones (echo and prompt included).
         /// </summary>
@@ -105,7 +105,7 @@ namespace tik4net.Cli
             // afterwards. The next command then reads that leftover as its own answer — and because the
             // stale echo contains 'name=value' text it parses as a record with no '.id'.
             // Gated on HasData so the normal, clean path pays nothing. WinboxCliClient does the same.
-            string cmd = CliOutputHelper.InjectWithoutPaging(command);
+            string cmd = CliEndMarker.InjectWithoutPaging(command);
 
             if (_stream.HasData)
             {
@@ -128,7 +128,7 @@ namespace tik4net.Cli
 
             string raw = await ReadCommandResponseAsync(ct, cmd, onLine).ConfigureAwait(false);
 
-            return CliOutputHelper.CleanOutput(raw, cmd);
+            return CliOutputCleaner.CleanOutput(raw, cmd);
         }
 
         /// <summary>

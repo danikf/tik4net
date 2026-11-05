@@ -74,7 +74,7 @@ namespace tik4net.Cli
         public const string SafePromptSuffixWithArrow = "] <SAFE> >";
 
         // Every accepted prompt ending, longest-lived first. Kept in one place so prompt detection cannot
-        // drift between the read loops (IsShellPrompt) and the output cleaner (CliOutputHelper).
+        // drift between the read loops (IsShellPrompt) and the output cleaner (CliOutputCleaner).
         private static readonly string[] PromptSuffixes =
         {
             PromptSuffix,

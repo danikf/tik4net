@@ -161,12 +161,12 @@ namespace tik4net.WinboxCli
             if (_session.DataAvailable)
                 await DrainAsync(SettleMs).ConfigureAwait(false);
 
-            string cmd = CliOutputHelper.InjectWithoutPaging(command);
+            string cmd = CliEndMarker.InjectWithoutPaging(command);
             ThrowIfTerminalClosed(cmd);
             System.Threading.Interlocked.Exchange(ref _interruptRequested, 0);
             SendInput(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
-            return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
+            return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd);
         }
 
         /// <summary>

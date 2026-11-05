@@ -525,8 +525,8 @@ namespace tik4net.Cli
                 await _printDriver.EnsureEndMarkerKnownAsync(ct).ConfigureAwait(false);
             if (mayMarkEnd && TakesEndMarker(cliText))
             {
-                cliText = CliOutputHelper.WithEndMarker(cliText, NewEndNonce());
-                endLine = CliOutputHelper.EndMarkerLineOf(cliText);
+                cliText = CliEndMarker.WithEndMarker(cliText, NewEndNonce());
+                endLine = CliEndMarker.EndMarkerLineOf(cliText);
             }
             await CommandLock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -543,7 +543,7 @@ namespace tik4net.Cli
                     result = await SendGuardedAsync(terminal, cliText, null, TransportToken(ct), ct).ConfigureAwait(false);
                 }
                 if (endLine != null)
-                    result = CliOutputHelper.WithoutEndMarker(result, endLine);
+                    result = CliEndMarker.WithoutEndMarker(result, endLine);
                 FireReadRow(result);
                 // The safe point. The response has been drained, so the channel is consistent and the caller's
                 // cancel can finally be honoured without costing the next command its answer.
@@ -604,7 +604,7 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Whether a command the library built gets the end marker (<see cref="CliOutputHelper.WithEndMarker"/>): a
+        /// Whether a command the library built gets the end marker (<see cref="CliEndMarker.WithEndMarker"/>): a
         /// one-line write — <c>add</c>, <c>set</c>, <c>remove</c>, <c>enable</c>, <c>disable</c>, <c>move</c>,
         /// <c>unset</c>, <c>comment</c>, bare or as <c>:put [… add …]</c> — on a router known to be RouterOS 7.
         /// </summary>

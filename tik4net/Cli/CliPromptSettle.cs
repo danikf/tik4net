@@ -4,8 +4,8 @@ namespace tik4net.Cli
 {
     /// <summary>
     /// Decides when a terminal command's read is over, for every terminal client: the command's own echo is on screen,
-    /// the text ends at a completion prompt (<see cref="CliOutputHelper.EndsWithCompletionPrompt"/>), and then either the
-    /// counted read's last line says the answer is complete (<see cref="CliOutputHelper.JudgePrompt"/>) or nothing new
+    /// the text ends at a completion prompt (<see cref="CliPromptText.EndsWithCompletionPrompt"/>), and then either the
+    /// counted read's last line says the answer is complete (<see cref="CliPromptText.JudgePrompt"/>) or nothing new
     /// arrives for the settle window. The prompt must still be the last thing on screen when the window ends.
     /// </summary>
     /// <remarks>
@@ -73,20 +73,20 @@ namespace tik4net.Cli
         internal Outcome Observe(string stripped, bool newData, long elapsedMs, int rawLength)
         {
             if (newData) _settleUntilMs = null;
-            if (!_echoSeen) _echoSeen = _interrupted || CliOutputHelper.ContainsEcho(stripped, _sentCommand);
+            if (!_echoSeen) _echoSeen = _interrupted || CliOutputCleaner.ContainsEcho(stripped, _sentCommand);
             // After the key the line break no longer matters: RouterOS 6 repaints its prompt on the same line.
-            if (!_echoSeen || !CliOutputHelper.EndsWithCompletionPrompt(stripped, _interrupted ? null : _sentCommand))
+            if (!_echoSeen || !CliPromptText.EndsWithCompletionPrompt(stripped, _interrupted ? null : _sentCommand))
             {
                 _settleUntilMs = null;
                 return Outcome.Reading;
             }
 
-            switch (_interrupted ? CliOutputHelper.PromptVerdict.Settle : CliOutputHelper.JudgePrompt(stripped, _sentCommand))
+            switch (_interrupted ? CliPromptText.PromptVerdict.Settle : CliPromptText.JudgePrompt(stripped, _sentCommand))
             {
-                case CliOutputHelper.PromptVerdict.Complete:
+                case CliPromptText.PromptVerdict.Complete:
                     _note?.Invoke("count line + prompt -> return @" + elapsedMs + "ms (bytes=" + rawLength + ")");
                     return Outcome.Complete;
-                case CliOutputHelper.PromptVerdict.NotYet:
+                case CliPromptText.PromptVerdict.NotYet:
                     _settleUntilMs = null;   // a repaint before the answer, not its end
                     return Outcome.Reading;
             }

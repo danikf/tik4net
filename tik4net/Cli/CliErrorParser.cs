@@ -51,7 +51,7 @@ namespace tik4net.Cli
             // This runs last on purpose: the classified kinds above still produce their specific exception
             // types, and only the unrecognised remainder falls through to a generic trap.
             //
-            // Safe against the two known sources of legitimate chatter: CliOutputHelper.CleanOutput strips
+            // Safe against the two known sources of legitimate chatter: CliOutputCleaner.CleanOutput strips
             // the command echo and both the normal and <SAFE> prompts before this sees the text, and the
             // verb whitelist keeps action verbs that legitimately print (notably 'run', which returns a
             // script's own output) out of this path entirely.

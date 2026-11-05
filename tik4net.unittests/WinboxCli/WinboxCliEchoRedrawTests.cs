@@ -116,13 +116,13 @@ namespace tik4net.unittests.WinboxCli
         {
             const string cmd = ":put [/system identity get name]";
             // 6.49.13 mid-echo: a repainted prompt at the end of the buffer, typed text before it on the same line.
-            Assert.IsFalse(tik4net.Cli.CliOutputHelper.EndsWithCompletionPrompt(":\r" + Prompt + ":\r" + Prompt, cmd));
+            Assert.IsFalse(tik4net.Cli.CliPromptText.EndsWithCompletionPrompt(":\r" + Prompt + ":\r" + Prompt, cmd));
             // The prompt after the output: only carriage returns between the line break and it.
-            Assert.IsTrue(tik4net.Cli.CliOutputHelper.EndsWithCompletionPrompt(":\r" + Prompt + cmd + "\r\nCHR2\r\n\r\r\r" + Prompt, cmd));
+            Assert.IsTrue(tik4net.Cli.CliPromptText.EndsWithCompletionPrompt(":\r" + Prompt + cmd + "\r\nCHR2\r\n\r\r\r" + Prompt, cmd));
             // 7.24.4: one repaint of the whole command, then its line break — no output at all.
-            Assert.IsTrue(tik4net.Cli.CliOutputHelper.EndsWithCompletionPrompt(cmd + "\r" + Prompt + cmd + "\r\n\r\r\r\r" + Prompt, cmd));
+            Assert.IsTrue(tik4net.Cli.CliPromptText.EndsWithCompletionPrompt(cmd + "\r" + Prompt + cmd + "\r\n\r\r\r\r" + Prompt, cmd));
             // A control key is not ended by a line break (Safe Mode's Ctrl+X): the plain prompt test.
-            Assert.IsTrue(tik4net.Cli.CliOutputHelper.EndsWithCompletionPrompt("\r[admin@CHR2] <SAFE>", null));
+            Assert.IsTrue(tik4net.Cli.CliPromptText.EndsWithCompletionPrompt("\r[admin@CHR2] <SAFE>", null));
         }
     }
 }

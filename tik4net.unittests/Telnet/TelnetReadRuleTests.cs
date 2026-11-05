@@ -141,7 +141,7 @@ namespace tik4net.unittests.Telnet
         public void ACountedRead_ReturnsAtItsCountLine()
         {
             string command = CliCommandBuilder.BuildCountedRead("/system identity print as-value", false);
-            string typed = CliOutputHelper.InjectWithoutPaging(command);
+            string typed = CliEndMarker.InjectWithoutPaging(command);
 
             string answer = RunCommand(command, router =>
                 Send(router, typed + "\r\nname=CHR2\r\n" + CliCommandBuilder.CountMarker + "1/nil\r\n\r\r\r" + Prompt),

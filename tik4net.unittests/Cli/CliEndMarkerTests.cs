@@ -26,44 +26,44 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void TheMarkerLineIsComputed_SoTheEchoNeverCarriesIt()
         {
-            string sent = CliOutputHelper.WithEndMarker("/ip address remove numbers=*5", "abc123");
+            string sent = CliEndMarker.WithEndMarker("/ip address remove numbers=*5", "abc123");
 
             Assert.AreEqual("/ip address remove numbers=*5; :put (\"#e\" . \"=abc123\")", sent);
-            Assert.AreEqual("#e=abc123", CliOutputHelper.EndMarkerLineOf(sent));
+            Assert.AreEqual("#e=abc123", CliEndMarker.EndMarkerLineOf(sent));
             StringAssert.DoesNotMatch(sent, new System.Text.RegularExpressions.Regex("#e=abc123"));
-            Assert.IsNull(CliOutputHelper.EndMarkerLineOf("/ip address remove numbers=*5"));
+            Assert.IsNull(CliEndMarker.EndMarkerLineOf("/ip address remove numbers=*5"));
         }
 
         [TestMethod]
         public void AWriteIsCompleteAtItsMarkerLineAndThePrompt()
         {
-            string sent = CliOutputHelper.WithEndMarker("/ip address remove numbers=*5", "abc123");
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Complete,
-                CliOutputHelper.JudgePrompt(sent + "\r\n\r#e=abc123\r\n\r\r\r" + Prompt, sent));
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Complete,
-                CliOutputHelper.JudgePrompt(":put [/ip address add address=1.2.3.4/32 interface=ether1]; :put (\"#e\" . \"=n1\")"
+            string sent = CliEndMarker.WithEndMarker("/ip address remove numbers=*5", "abc123");
+            Assert.AreEqual(CliPromptText.PromptVerdict.Complete,
+                CliPromptText.JudgePrompt(sent + "\r\n\r#e=abc123\r\n\r\r\r" + Prompt, sent));
+            Assert.AreEqual(CliPromptText.PromptVerdict.Complete,
+                CliPromptText.JudgePrompt(":put [/ip address add address=1.2.3.4/32 interface=ether1]; :put (\"#e\" . \"=n1\")"
                     + "\r\n\r*1A\r\n#e=n1\r\n\r\r\r" + Prompt, ":put [/ip address add address=1.2.3.4/32 interface=ether1]; :put (\"#e\" . \"=n1\")"));
         }
 
         [TestMethod]
         public void ARefusedWriteSettlesAsBefore_AndAPromptBeforeAnythingIsNotItsEnd()
         {
-            string sent = CliOutputHelper.WithEndMarker("/ip address remove numbers=*5", "abc123");
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Settle,
-                CliOutputHelper.JudgePrompt(sent + "\r\n\rno such item (4)\r\n\r\r\r" + Prompt, sent));
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.NotYet,
-                CliOutputHelper.JudgePrompt(sent + "\r\n\r\r\r" + Prompt, sent));
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Settle,
-                CliOutputHelper.JudgePrompt(sent + "\r\n\r#e=other\r\n\r\r\r" + Prompt, sent), "another command's marker is not this one's");
+            string sent = CliEndMarker.WithEndMarker("/ip address remove numbers=*5", "abc123");
+            Assert.AreEqual(CliPromptText.PromptVerdict.Settle,
+                CliPromptText.JudgePrompt(sent + "\r\n\rno such item (4)\r\n\r\r\r" + Prompt, sent));
+            Assert.AreEqual(CliPromptText.PromptVerdict.NotYet,
+                CliPromptText.JudgePrompt(sent + "\r\n\r\r\r" + Prompt, sent));
+            Assert.AreEqual(CliPromptText.PromptVerdict.Settle,
+                CliPromptText.JudgePrompt(sent + "\r\n\r#e=other\r\n\r\r\r" + Prompt, sent), "another command's marker is not this one's");
         }
 
         [TestMethod]
         public void TheMarkerLineIsTakenOffWhatTheCommandPrinted()
         {
-            Assert.AreEqual("", CliOutputHelper.WithoutEndMarker("#e=n1", "#e=n1"));
-            Assert.AreEqual("*1A", CliOutputHelper.WithoutEndMarker("*1A\n#e=n1", "#e=n1"));
-            Assert.AreEqual("no such item (4)", CliOutputHelper.WithoutEndMarker("no such item (4)", "#e=n1"));
-            Assert.AreEqual("x#e=n1", CliOutputHelper.WithoutEndMarker("x#e=n1", "#e=n1"), "not a line of its own");
+            Assert.AreEqual("", CliEndMarker.WithoutEndMarker("#e=n1", "#e=n1"));
+            Assert.AreEqual("*1A", CliEndMarker.WithoutEndMarker("*1A\n#e=n1", "#e=n1"));
+            Assert.AreEqual("no such item (4)", CliEndMarker.WithoutEndMarker("no such item (4)", "#e=n1"));
+            Assert.AreEqual("x#e=n1", CliEndMarker.WithoutEndMarker("x#e=n1", "#e=n1"), "not a line of its own");
         }
 
         // ── Through a CLI connection ───────────────────────────────────────────
@@ -91,7 +91,7 @@ namespace tik4net.unittests.Cli
                     return Task.FromResult(CountedReadFake.Answer(cliText, ".id=*5;address=192.0.2.1/32"));
                 if (RefusesTheWrite)
                     return Task.FromResult("no such item (4)");   // the router stops the line before the marker
-                string? marker = CliOutputHelper.EndMarkerLineOf(cliText);
+                string? marker = CliEndMarker.EndMarkerLineOf(cliText);
                 return Task.FromResult(marker ?? string.Empty);
             }
 
@@ -119,7 +119,7 @@ namespace tik4net.unittests.Cli
             {
                 Remove(router);
                 string write = router.Sent.Last();
-                Assert.IsNotNull(CliOutputHelper.EndMarkerLineOf(write), write);
+                Assert.IsNotNull(CliEndMarker.EndMarkerLineOf(write), write);
                 StringAssert.StartsWith(write, "/ip address remove");
             }
         }
@@ -140,7 +140,7 @@ namespace tik4net.unittests.Cli
             using (var router = Open(routerOs6: true))
             {
                 Remove(router);
-                Assert.IsNull(CliOutputHelper.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
+                Assert.IsNull(CliEndMarker.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
             }
         }
 
@@ -153,7 +153,7 @@ namespace tik4net.unittests.Cli
                 router.CreateCommand("/ip/address/print").ExecuteList();
                 Assert.IsFalse(router.Sent.Any(s => s.Contains(":serialize to=dsv") && s.Contains(" print ")), string.Join("\n", router.Sent));
                 Remove(router);
-                Assert.IsNotNull(CliOutputHelper.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
+                Assert.IsNotNull(CliEndMarker.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
             }
         }
 
@@ -165,7 +165,7 @@ namespace tik4net.unittests.Cli
                 router.OpenScripted();
                 router.CreateCommand("/ip/address/print").ExecuteList();
                 Remove(router);
-                Assert.IsNull(CliOutputHelper.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
+                Assert.IsNull(CliEndMarker.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
             }
         }
 
@@ -176,7 +176,7 @@ namespace tik4net.unittests.Cli
             {
                 router.OpenScripted();
                 Remove(router);
-                Assert.IsNull(CliOutputHelper.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
+                Assert.IsNull(CliEndMarker.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
             }
         }
 
@@ -196,7 +196,7 @@ namespace tik4net.unittests.Cli
             using (var router = Open())
             {
                 router.CreateCommand("/system/reboot").ExecuteNonQuery();
-                Assert.IsNull(CliOutputHelper.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
+                Assert.IsNull(CliEndMarker.EndMarkerLineOf(router.Sent.Last()), router.Sent.Last());
             }
         }
     }

@@ -459,7 +459,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
       as holding it for a while, so the next session's take can be asked the same question (41 of 60 takes right
       after a drop). `CliConnectionBase.SafeModeTake` recognises both wordings (`CliSafeModeParser.IsTakeConflict`)
       and answers Enter before reporting the refusal: a session left in the question takes its next command as the
-      answer. The `Ctrl+X` read ends at the question (`CliOutputHelper.EndsWithKeyQuestion`): it is not followed by a
+      answer. The `Ctrl+X` read ends at the question (`CliPromptText.EndsWithKeyQuestion`): it is not followed by a
       prompt, and a read waiting for one ran to the 30 s receive deadline first — long enough for RouterOS to log an
       idle MAC-Telnet console out, so the Enter never arrived (10 takes in 34). The refusal takes 0.3–0.45 s on all five
       CLI transports, on 6.49.13 and 7.24.4, and the session stays usable.

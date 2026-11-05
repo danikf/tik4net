@@ -8,7 +8,7 @@ namespace tik4net.unittests.Cli
     /// detection. Both were invisible for as long as nothing read meaning into leftover text.
     /// </summary>
     [TestClass]
-    public class CliOutputHelperTests
+    public class CliOutputCleanerTests
     {
         private const string Prompt = "[admin@MikroTik] > ";
 
@@ -27,55 +27,7 @@ namespace tik4net.unittests.Cli
                        + "\r23:30:37 echo: system,error,critical login failure for user admin from 192.0.2.31 via winbox\r\n\r"
                        + Prompt.TrimEnd();
 
-            Assert.AreEqual("row1\n#n=1/num", CliOutputHelper.CleanOutput(raw, sent));
-        }
-
-        // ── Ending a read on the expected pattern (JudgePrompt) ────────────────
-
-        private const string Counted = ":local d [/ip address print as-value]; :put [:len $d]; :put (\"#n=\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
-        private const string Windowed = ":local w [:pick [/ip address find] 0 20]; :put (\"#w=\" . [:len $w])";
-
-        [TestMethod]
-        public void JudgePrompt_ACountedReadIsCompleteAtItsCountLineAndThePrompt()
-        {
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Complete,
-                CliOutputHelper.JudgePrompt(Counted + "\r\n\rrow\r\n#n=1/num\r\n\r\r\r" + Prompt, Counted));
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Complete,
-                CliOutputHelper.JudgePrompt(Windowed + "\r\n\rrow\r\n#w=1\r\n\r\r\r" + Prompt, Windowed));
-        }
-
-        [TestMethod]
-        public void JudgePrompt_ACountLineFollowedByALogLineIsStillComplete()
-        {
-            string raw = Counted + "\r\n\r#n=0/nil\r\n\r\r\r" + Prompt
-                       + "\r23:30:37 echo: system,error,critical login failure for user admin from 192.0.2.31 via winbox\r\n\r" + Prompt;
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Complete, CliOutputHelper.JudgePrompt(raw, Counted));
-        }
-
-        // The case that ended counted reads empty under load: a console log line between the echo and the answer, and
-        // the prompt RouterOS repaints after it.
-        [TestMethod]
-        public void JudgePrompt_ARepaintBeforeTheAnswerIsNotItsEnd()
-        {
-            string raw = Counted + "\r\n\r23:30:37 echo: system,error,critical login failure for user admin from 192.0.2.31 via winbox\r\n\r" + Prompt;
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.NotYet, CliOutputHelper.JudgePrompt(raw, Counted));
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.NotYet, CliOutputHelper.JudgePrompt(Counted + "\r\n\r\r\r" + Prompt, Counted),
-                "the echo carries the marker in quotes; it must not be taken for the count line");
-        }
-
-        [TestMethod]
-        public void JudgePrompt_ARefusedCountedReadSettlesAsBefore()
-        {
-            string raw = Counted + "\r\n\rsyntax error (line 1 column 12)\r\n\r\r\r" + Prompt;
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Settle, CliOutputHelper.JudgePrompt(raw, Counted));
-        }
-
-        [TestMethod]
-        public void JudgePrompt_AnyOtherCommandSettlesAsBefore()
-        {
-            const string write = "/ip address remove numbers=*5";
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Settle, CliOutputHelper.JudgePrompt(write + "\r\n" + Prompt, write));
-            Assert.AreEqual(CliOutputHelper.PromptVerdict.Settle, CliOutputHelper.JudgePrompt(Prompt, null));
+            Assert.AreEqual("row1\n#n=1/num", CliOutputCleaner.CleanOutput(raw, sent));
         }
 
         [TestMethod]
@@ -84,7 +36,7 @@ namespace tik4net.unittests.Cli
             const string sent = "/interface set [find .id=*2] comment=\"My comment\"";
             string raw = sent + "\r\n" + Prompt;
 
-            Assert.AreEqual(string.Empty, CliOutputHelper.CleanOutput(raw, sent),
+            Assert.AreEqual(string.Empty, CliOutputCleaner.CleanOutput(raw, sent),
                 "a successful write must clean down to nothing at all");
         }
 
@@ -95,7 +47,7 @@ namespace tik4net.unittests.Cli
             string raw = sent + "\r\nvalue of mtu contains invalid trailing characters\r\n" + Prompt;
 
             Assert.AreEqual("value of mtu contains invalid trailing characters",
-                CliOutputHelper.CleanOutput(raw, sent));
+                CliOutputCleaner.CleanOutput(raw, sent));
         }
 
         // RouterOS ships a logging rule that sends `critical` topics to the console, so an unrelated log
@@ -109,7 +61,7 @@ namespace tik4net.unittests.Cli
                        + ".id=*1;address=192.168.1.1/24\r\n"
                        + Prompt;
 
-            Assert.AreEqual(".id=*1;address=192.168.1.1/24", CliOutputHelper.CleanOutput(raw, sent),
+            Assert.AreEqual(".id=*1;address=192.168.1.1/24", CliOutputCleaner.CleanOutput(raw, sent),
                 "a log line must not be mistaken for a data record");
         }
 
@@ -126,7 +78,7 @@ namespace tik4net.unittests.Cli
                        + ".id=*1;address=192.168.1.1/24\r\n"
                        + Prompt;
 
-            Assert.AreEqual(".id=*1;address=192.168.1.1/24", CliOutputHelper.CleanOutput(raw, sent),
+            Assert.AreEqual(".id=*1;address=192.168.1.1/24", CliOutputCleaner.CleanOutput(raw, sent),
                 "the echo must still be recognised when a log line precedes it");
         }
 
@@ -138,7 +90,7 @@ namespace tik4net.unittests.Cli
                        + sent + "\r\n"
                        + Prompt;
 
-            Assert.AreEqual(string.Empty, CliOutputHelper.CleanOutput(raw, sent),
+            Assert.AreEqual(string.Empty, CliOutputCleaner.CleanOutput(raw, sent),
                 "otherwise the surviving echo is read as the router rejecting the write");
         }
 
@@ -150,7 +102,7 @@ namespace tik4net.unittests.Cli
                        + "jul/25 19:54:32 system,error,critical login failure for user admin\r\n"
                        + Prompt;
 
-            Assert.AreEqual(string.Empty, CliOutputHelper.CleanOutput(raw, sent),
+            Assert.AreEqual(string.Empty, CliOutputCleaner.CleanOutput(raw, sent),
                 "otherwise P2.12's positional rule reports a successful write as failed");
         }
 
@@ -169,7 +121,7 @@ namespace tik4net.unittests.Cli
                        + "\r\r\r[9999B[admin@CHR] > \r\n"
                        + "\r\r\r\r[9999B[admin@CHR] > ";
 
-            Assert.AreEqual(record, CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), sent),
+            Assert.AreEqual(record, CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), sent),
                 "every trailing prompt must go, not just the last one");
         }
 
@@ -180,7 +132,7 @@ namespace tik4net.unittests.Cli
             const string record = ".id=*1;source=:put [$x] >";
             string raw = sent + "\r\n" + record + "\r\n" + Prompt;
 
-            Assert.AreEqual(record, CliOutputHelper.CleanOutput(raw, sent),
+            Assert.AreEqual(record, CliOutputCleaner.CleanOutput(raw, sent),
                 "the repeat must stop at the first line that is not a prompt repaint");
         }
 
@@ -199,7 +151,7 @@ namespace tik4net.unittests.Cli
                        + "*9F\r\n"
                        + Prompt;
 
-            Assert.AreEqual("*9F", CliOutputHelper.CleanOutput(raw, sent),
+            Assert.AreEqual("*9F", CliOutputCleaner.CleanOutput(raw, sent),
                 "the id returned must be the one this add printed, not the one left in the socket");
         }
 
@@ -215,7 +167,7 @@ namespace tik4net.unittests.Cli
                        + record + "\r\n"
                        + Prompt;
 
-            Assert.AreEqual(record, CliOutputHelper.CleanOutput(raw, sent));
+            Assert.AreEqual(record, CliOutputCleaner.CleanOutput(raw, sent));
         }
 
         // The ordinary head must not be touched by the alignment: a blank line, a repainted prompt, an
@@ -232,7 +184,7 @@ namespace tik4net.unittests.Cli
                        + record + "\r\n"
                        + Prompt;
 
-            Assert.AreEqual(record, CliOutputHelper.CleanOutput(raw, sent));
+            Assert.AreEqual(record, CliOutputCleaner.CleanOutput(raw, sent));
         }
 
         // A data line that happens to contain the command text must not be mistaken for the echo — the
@@ -244,7 +196,7 @@ namespace tik4net.unittests.Cli
             const string record = ".id=*1;source=:put [/system/script print detail as-value]";
             string raw = sent + "\r\n" + record + "\r\n" + Prompt;
 
-            Assert.AreEqual(record, CliOutputHelper.CleanOutput(raw, sent));
+            Assert.AreEqual(record, CliOutputCleaner.CleanOutput(raw, sent));
         }
 
         // The gate every PTY read loop gets its terminator from: a prompt only ends the read once the
@@ -254,11 +206,11 @@ namespace tik4net.unittests.Cli
         {
             const string sent = ":put [/ip/address print detail as-value where .id=\"*2\"]";
 
-            Assert.IsFalse(CliOutputHelper.ContainsEcho(".id=*1;address=10.0.0.1/24\r\n" + Prompt, sent),
+            Assert.IsFalse(CliOutputCleaner.ContainsEcho(".id=*1;address=10.0.0.1/24\r\n" + Prompt, sent),
                 "the previous command's tail plus its prompt must not end this read");
-            Assert.IsTrue(CliOutputHelper.ContainsEcho(Prompt + sent + "\r\n", sent),
+            Assert.IsTrue(CliOutputCleaner.ContainsEcho(Prompt + sent + "\r\n", sent),
                 "the prompt-prefixed repaint is the echo");
-            Assert.IsTrue(CliOutputHelper.ContainsEcho(":put  [/ip/address  print detail as-value where .id=\"*2\"]", sent),
+            Assert.IsTrue(CliOutputCleaner.ContainsEcho(":put  [/ip/address  print detail as-value where .id=\"*2\"]", sent),
                 "the line editor repaints the echo, it does not replay the bytes — whitespace may differ");
         }
 
@@ -266,25 +218,25 @@ namespace tik4net.unittests.Cli
         public void ContainsEcho_DoesNotGateWhatItCannotAnchorOn()
         {
             // A control key is not a command and RouterOS need not answer one at all.
-            Assert.IsTrue(CliOutputHelper.ContainsEcho("anything", null));
-            Assert.IsTrue(CliOutputHelper.ContainsEcho("anything", ""));
+            Assert.IsTrue(CliOutputCleaner.ContainsEcho("anything", null));
+            Assert.IsTrue(CliOutputCleaner.ContainsEcho("anything", ""));
             // Too short to be distinctive among a response's data lines.
-            Assert.IsTrue(CliOutputHelper.ContainsEcho("anything", "/quit"));
+            Assert.IsTrue(CliOutputCleaner.ContainsEcho("anything", "/quit"));
         }
 
         [TestMethod]
         public void IsRouterLogLine_DoesNotSwallowRealOutput()
         {
-            Assert.IsFalse(CliOutputHelper.IsRouterLogLine(".id=*1;address=192.168.1.1/24"));
-            Assert.IsFalse(CliOutputHelper.IsRouterLogLine("value of mtu contains invalid trailing characters"));
-            Assert.IsFalse(CliOutputHelper.IsRouterLogLine("no such item"));
-            Assert.IsFalse(CliOutputHelper.IsRouterLogLine("*8E"));
-            Assert.IsFalse(CliOutputHelper.IsRouterLogLine(""));
+            Assert.IsFalse(CliOutputCleaner.IsRouterLogLine(".id=*1;address=192.168.1.1/24"));
+            Assert.IsFalse(CliOutputCleaner.IsRouterLogLine("value of mtu contains invalid trailing characters"));
+            Assert.IsFalse(CliOutputCleaner.IsRouterLogLine("no such item"));
+            Assert.IsFalse(CliOutputCleaner.IsRouterLogLine("*8E"));
+            Assert.IsFalse(CliOutputCleaner.IsRouterLogLine(""));
             // uptime/time values are fields, never a whole line
-            Assert.IsFalse(CliOutputHelper.IsRouterLogLine("uptime=19:54:32"));
+            Assert.IsFalse(CliOutputCleaner.IsRouterLogLine("uptime=19:54:32"));
 
-            Assert.IsTrue(CliOutputHelper.IsRouterLogLine("19:54:32 system,info account: user admin logged in"));
-            Assert.IsTrue(CliOutputHelper.IsRouterLogLine("jul/25 19:54:32 system,error,critical login failure"));
+            Assert.IsTrue(CliOutputCleaner.IsRouterLogLine("19:54:32 system,info account: user admin logged in"));
+            Assert.IsTrue(CliOutputCleaner.IsRouterLogLine("jul/25 19:54:32 system,error,critical login failure"));
         }
 
         [TestMethod]
@@ -298,7 +250,7 @@ namespace tik4net.unittests.Cli
                        + "\r\r\r\x1b[9999B\x1b[K[\x1b[m\x1b[36madmin\x1b[m@\x1b[m\x1b[32mCHR\x1b[m] > ";
 
             Assert.AreEqual("bad command name prnt (line 1 column 12)",
-                CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), sent),
+                CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), sent),
                 "the repaint overwrites the echo; it must not be appended to it");
         }
 
@@ -339,7 +291,7 @@ namespace tik4net.unittests.Cli
                        + "\r\r\r\x1b[9999B\x1b[K[\x1b[m\x1b[36madmin\x1b[m@\x1b[m\x1b[32mCHR\x1b[m] > ";
 
             Assert.AreEqual("bad command name prnt (line 1 column 12)",
-                CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw.Replace("\x1b[", "\u009B")), sent),
+                CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw.Replace("\x1b[", "\u009B")), sent),
                 "the cursor-back and erase are applied the same in their 8-bit form");
         }
     }

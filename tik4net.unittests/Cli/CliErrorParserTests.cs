@@ -39,7 +39,7 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void SilentOnSuccess_AcceptsTheEmptyOutputOfASuccessfulWrite()
         {
-            // What a successful set/remove/enable/disable/move actually returns once CliOutputHelper has
+            // What a successful set/remove/enable/disable/move actually returns once CliOutputCleaner has
             // stripped the echo and the prompt: nothing.
             CliErrorParser.ThrowIfError("", Cmd(), silentOnSuccess: true);
             CliErrorParser.ThrowIfError("   \n \n", Cmd(), silentOnSuccess: true);

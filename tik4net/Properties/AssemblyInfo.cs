@@ -14,7 +14,7 @@ using System.Runtime.InteropServices;
 [assembly: InternalsVisibleTo("tik4net.unittests")]
 
 // Allow the satellite SSH package (separate NuGet because of its Renci.SshNet dependency)
-// to reuse the shared CLI/PTY helpers (RouterOsCliLogin, Vt100State, CliOutputHelper) without
+// to reuse the shared CLI/PTY helpers (RouterOsCliLogin, Vt100State, CliOutputCleaner) without
 // making them public or duplicating them.
 [assembly: InternalsVisibleTo("tik4net.ssh")]
 // The MCP server shares the command-row parser rather than keeping a second copy of the same rules:

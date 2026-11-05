@@ -18,14 +18,14 @@ namespace tik4net.unittests.Ssh
         [TestMethod]
         public void ARepaintCutMidEcho_DoesNotEndTheRead()
         {
-            Assert.IsFalse(CliOutputHelper.EndsWithCompletionPrompt(
+            Assert.IsFalse(CliPromptText.EndsWithCompletionPrompt(
                 ":\r[admin@CHR2] > :p\r[admin@CHR2] > :pu\r[admin@CHR2] > ", Command));
         }
 
         [TestMethod]
         public void ACutInsideTheCommandText_DoesNotEndTheRead()
         {
-            Assert.IsFalse(CliOutputHelper.EndsWithCompletionPrompt(
+            Assert.IsFalse(CliPromptText.EndsWithCompletionPrompt(
                 ":\r[admin@CHR2] > :l\r[admin@CHR2] > :local d [/ip address print as-value]; :if ([:len $d] >",
                 CountedCommand));
         }
@@ -33,7 +33,7 @@ namespace tik4net.unittests.Ssh
         [TestMethod]
         public void ThePromptAfterTheOutput_EndsTheRead()
         {
-            Assert.IsTrue(CliOutputHelper.EndsWithCompletionPrompt(
+            Assert.IsTrue(CliPromptText.EndsWithCompletionPrompt(
                 ":\r[admin@CHR2] > :p\r[admin@CHR2] > " + Command + "\r\n"
                 + ".id=*2;address=192.168.4.2/24\r\n\r\r\r[admin@CHR2] > ", Command));
         }
@@ -44,7 +44,7 @@ namespace tik4net.unittests.Ssh
         [TestMethod]
         public void AnInPlaceRepaintAfterTheOutput_DoesNotEndTheRead()
         {
-            Assert.IsFalse(CliOutputHelper.EndsWithCompletionPrompt(
+            Assert.IsFalse(CliPromptText.EndsWithCompletionPrompt(
                 ":\r[admin@CHR2] > :p\r[admin@CHR2] > " + Command + "\r\n"
                 + ".id=*2;address=192.168.4.2/24|124\r\n\r\r\r[admin@CHR2] > \r[admin@CHR2] > ", Command));
         }
@@ -52,13 +52,13 @@ namespace tik4net.unittests.Ssh
         [TestMethod]
         public void AControlKeyAtABarePrompt_EndsTheRead()
         {
-            Assert.IsTrue(CliOutputHelper.EndsWithCompletionPrompt("\r\n[admin@CHR2] > ", null));
+            Assert.IsTrue(CliPromptText.EndsWithCompletionPrompt("\r\n[admin@CHR2] > ", null));
         }
 
         [TestMethod]
         public void AControlKeyAnsweredByAQuestion_EndsTheRead()
         {
-            Assert.IsTrue(CliOutputHelper.EndsWithCompletionPrompt(
+            Assert.IsTrue(CliPromptText.EndsWithCompletionPrompt(
                 "Hijacking Safe Mode from someone - unroll/release/don't take it [u/r/d]: ", null));
         }
     }

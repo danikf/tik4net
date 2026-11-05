@@ -135,7 +135,7 @@ namespace tik4net.unittests.WinboxCli
         public void ACountedRead_ReturnsAtItsCountLine()
         {
             string command = CliCommandBuilder.BuildCountedRead("/system identity print as-value", false);
-            string typed = CliOutputHelper.InjectWithoutPaging(command);
+            string typed = CliEndMarker.InjectWithoutPaging(command);
             var channel = new PushingChannel(Encoding.UTF8.GetBytes(typed), new[]
             {
                 new Frame(typed + "\r\nname=CHR2\r\n" + CliCommandBuilder.CountMarker + "1/nil\r\n\r\r\r" + Prompt),

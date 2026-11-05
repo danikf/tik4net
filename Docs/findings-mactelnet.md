@@ -24,7 +24,7 @@ tik4net/MacTelnet/
   `MacTelnetUdpClient.SendCommandAndReadAsync`. The `RouterMac` property bypasses MNDP (otherwise
   ~5 s of discovery).
 - Crypto lives in `tik4net/Crypto/` (`EcSrp5`, `WinboxStreamCrypto`); VT100 and stripping live in
-  `tik4net/Cli/` (`Vt100State`, `VtStripper`, `RouterOsCliLogin`, `CliOutputHelper`, `CliOutputParser`).
+  `tik4net/Cli/` (`Vt100State`, `VtStripper`, `RouterOsCliLogin`, `CliEndMarker`, `CliOutputCleaner`, `CliOutputParser`).
 - `MacLayerTransport` is **internal**. `WinboxMacClient` in `tik4net.integrationtests` derives from it,
   which works because that assembly is an `InternalsVisibleTo` friend — it was public for a while on
   the theory that a cross-assembly subclass needed it to be, and no such subclass is outside the friend
@@ -138,10 +138,10 @@ DrainSync(250)                          // drain leftover redraw so it can't lea
 ## 5. Executing a command
 
 ```
-cmd = CliOutputHelper.InjectWithoutPaging(command)   // "without-paging" after "print"
+cmd = CliEndMarker.InjectWithoutPaging(command)   // "without-paging" after "print"
 Send(PKT_DATA, cmd + "\r")
 raw = ReadCommandResponseAsync()                     // prompt + 150 ms silence (settle), as Telnet
-return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd)  // strip echo + trailing prompt
+return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd)  // strip echo + trailing prompt
 ```
 
 The read ends by the rule every terminal client shares (`CliPromptSettle`): prompt at the end plus `SettleMs` of
@@ -160,7 +160,7 @@ echo on its own line, then again as a line-editor redraw in the form `<prompt> <
 \r\r\r[admin@MikroTik] >
 ```
 
-`CliOutputHelper.CleanOutput` therefore removes **all** leading blank and echo lines, not just the
+`CliOutputCleaner.CleanOutput` therefore removes **all** leading blank and echo lines, not just the
 first. A line counts as echo or noise when it either (a) contains the prompt `] >`, or (b) is a
 fragment of the sent command (`cmdCore.Contains(line)` / `cmdCore.StartsWith(line)`). A data line
 (`.id=…`, a bare `*N`, or an error) matches neither, so the loop stops there.

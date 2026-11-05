@@ -51,7 +51,7 @@ namespace tik4net.unittests.Cli
                        + "\r\r\r[9999B[admin@CHR] <SAFE> \r\n"
                        + "\r\r\r\r[9999B[admin@CHR] <SAFE> ";
 
-            Assert.AreEqual("name=CHR", CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), sent));
+            Assert.AreEqual("name=CHR", CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), sent));
         }
 
         // ── a login that ran out of time is not a refused one (X26, D28) ──────

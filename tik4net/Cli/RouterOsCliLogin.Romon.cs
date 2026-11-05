@@ -133,7 +133,7 @@ namespace tik4net.Cli
             //    login failure) — taken for the end, it read as "could not reach" while the agent's discover listed
             //    the target at one hop (2026-10-02).
             Func<string, bool> relayAnswered = s => IsPasswordPrompt(s) || IsChangePasswordNag(s) || IsRomonRelayEnd(s)
-                                                    || (IsShellPrompt(s) && CliOutputHelper.CleanOutput(s, relayCommand).Length > 0);
+                                                    || (IsShellPrompt(s) && CliOutputCleaner.CleanOutput(s, relayCommand).Length > 0);
             string opened;
             try
             {
@@ -367,7 +367,7 @@ namespace tik4net.Cli
         {
             int end = opened.IndexOf(RomonRelayEndText, StringComparison.Ordinal);
             string before = end >= 0 ? opened.Substring(0, end) : opened;
-            return string.Join("; ", CliOutputHelper.CleanOutput(before, relayCommand)
+            return string.Join("; ", CliOutputCleaner.CleanOutput(before, relayCommand)
                 .Split('\n')
                 .Select(l => l.Trim())
                 .Where(l => l.Length > 0 && !IsShellPrompt(l)));

@@ -29,7 +29,9 @@ tik4net/Cli/                 shared by every PTY transport
 ├── CliJsonParser.cs           :serialize to=json output → TikRecordSentence
 ├── CliDsvParser.cs            per-row :serialize to=dsv output → TikRecordSentence (the RouterOS 7 read)
 ├── CliValueNormalizer.cs      as-value/JSON spellings → the API's (durations, sentinels, ids)
-├── CliOutputHelper.cs         echo/prompt trimming, echo alignment, router log-line detection
+├── CliEndMarker.cs            how a command is framed so its end can be found (without-paging, the write end marker)
+├── CliPromptText.cs           whether the text so far ends at the prompt that ends the answer
+├── CliOutputCleaner.cs        echo/prompt trimming, echo alignment, router log-line detection
 ├── CliErrorParser.cs          CLI output text → Tik*Exception
 ├── CliTableParser.cs          interactive (non as-value) table output, by column offset
 ├── CliLineStreamer.cs         carves completed lines out of a growing read buffer
@@ -849,7 +851,7 @@ clients (`CliPromptSettle`), and it holds because RouterOS writes nothing after 
 `/system script run` included: it holds the prompt back until the script ends (measured on 6.49.13 and 7.24.5, over
 Telnet and the WinBox terminal).
 
-For a typed command the prompt must also **start a line of its own** (`CliOutputHelper.EndsWithCompletionPrompt`):
+For a typed command the prompt must also **start a line of its own** (`CliPromptText.EndsWithCompletionPrompt`):
 only carriage returns between the output's last line break and the prompt. RouterOS 6 echoes typed input by
 repainting the whole line after every character — `c\r[admin@X] > <line so far>` — so the echo is full of
 prompts, each followed on the same line by typed text (~40 KB of echo for a 150-character command over the
@@ -864,7 +866,7 @@ break, so a read with no command keeps the plain prompt test.
 
 SSH is **not** "exec without PTY". Over the exec channel RouterOS doesn't produce `as-value` output any
 better than Telnet does, so the SSH transport (`tik4net.ssh/`) opens an interactive
-`ShellStream` PTY and drives the same shared `RouterOsCliLogin`/`Vt100State`/`CliOutputHelper` stack as
+`ShellStream` PTY and drives the same shared `RouterOsCliLogin`/`Vt100State`/`CliOutputCleaner` stack as
 every other CLI transport — SSH only adds the transport layer (~280 LOC), split into a separate package
 (`tik4net.ssh`) to isolate the `Renci.SshNet` dependency.
 
@@ -967,14 +969,14 @@ that asked for it has already returned:
 
 That tail then lands ahead of the next command's own echo, and two independent layers can be fooled by
 it: the read loop sees a settled prompt and returns before the router has said a word about the command
-it was asked to run, and `CliOutputHelper.CleanOutput`'s head-trim loop sees leftover output that is not
+it was asked to run, and `CliOutputCleaner.CleanOutput`'s head-trim loop sees leftover output that is not
 blank, not a prompt and not a fragment of the sent command, and treats it as the first genuine data line.
 Neither failure is detectable from the result alone — a read gets the wrong row, a silent-on-success
 write gets non-empty "output" that the positional error rule (§10) reads as a rejection, and an `add`
 can hand back an `.id` that was never created here, which only fails one call later, in the read-back,
 with `no such item`.
 
-**A counted read ends on its own last line, not on silence** (`CliOutputHelper.JudgePrompt`). Every counted read
+**A counted read ends on its own last line, not on silence** (`CliPromptText.JudgePrompt`). Every counted read
 writes its count last (`#n=<len>/<kind>`, a window `#w=<len>`), so that line followed by the prompt is the end of
 the answer and the settle window is not waited out — it was 130 of the 221 ms an average command took (SSH wire trace,
 1874 commands of a full leg under four-leg load, 2026-10-01). With it, a full leg runs 18–28 % faster on Telnet, SSH,
@@ -995,7 +997,7 @@ the count read as missing.
 the response carries its own identity.
 
 - A settled prompt only terminates a read **once this command's echo is visible on screen**
-  (`CliOutputHelper.ContainsEcho`).
+  (`CliOutputCleaner.ContainsEcho`).
 - Content in front of the echo that is genuinely foreign — not blank, not a repainted prompt, not an
   asynchronous router log line (§11), not a partial echo — is dropped by `SkipForeignResidue`, and
   logged to the wire trace on channel `cli.align`.
@@ -1009,7 +1011,7 @@ the output is harmless.
 Prompt-line detection is anchored on the leading `[` of `[user@identity]`, not on a bare
 `EndsWith("] >")`/`Contains("] >")` test — a *data* line can legitimately end that way too (a stored
 script source such as `source=:put [$x] >`), and an anchor-free test would delete it as if it were the
-prompt (`CliOutputHelper.IsPromptLine`/`IsPromptPrefixed`).
+prompt (`CliPromptText.IsPromptLine`/`IsPromptPrefixed`).
 
 A PTY transport can echo a command **more than once** — a character-echo on its own line, then a
 line-editor repaint as `<prompt> <command>` — and a multi-line command (e.g. a script `source`
@@ -1370,7 +1372,7 @@ Properties worth knowing:
   delivery depends on the target session being idle, so it is not a reliable way to provoke one on
   demand.
 
-`CliOutputHelper.IsRouterLogLine` recognises such a line by its leading wall-clock timestamp (an
+`CliOutputCleaner.IsRouterLogLine` recognises such a line by its leading wall-clock timestamp (an
 optional `mmm/dd ` date prefix, then `hh:mm:ss `) — no as-value record and no RouterOS diagnostic ever
 starts that way. If the line arrives between commands, the pre-send drain simply swallows it. It only
 matters when it arrives **inside** a response: `CleanOutput`'s echo/head-trim loop and

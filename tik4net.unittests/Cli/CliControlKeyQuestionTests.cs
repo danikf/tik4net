@@ -17,31 +17,31 @@ namespace tik4net.unittests.Cli
     {
         [TestMethod]
         public void TheRouterOs6HijackQuestion_EndsAControlKeyRead()
-            => Assert.IsTrue(CliOutputHelper.EndsWithCompletionPrompt(
+            => Assert.IsTrue(CliPromptText.EndsWithCompletionPrompt(
                 "\r\nHijacking Safe Mode from someone - unroll/release/don't take it [u/r/d]: ", null));
 
         [TestMethod]
         public void TheRouterOs7ConflictQuestion_EndsAControlKeyRead()
-            => Assert.IsTrue(CliOutputHelper.EndsWithCompletionPrompt(
+            => Assert.IsTrue(CliPromptText.EndsWithCompletionPrompt(
                 "Safe Mode is taken by current user in another session.\r\nUnroll, release or abort [u/r]? ", null));
 
         [TestMethod]
         public void TheQuitQuestion_EndsAControlKeyRead()
-            => Assert.IsTrue(CliOutputHelper.EndsWithCompletionPrompt(
+            => Assert.IsTrue(CliPromptText.EndsWithCompletionPrompt(
                 "You are in Safe Mode. Quitting will unroll changes. Quit? [y/N]", null));
 
         [TestMethod]
         public void TheSuccessMessage_DoesNotEndTheRead()
-            => Assert.IsFalse(CliOutputHelper.EndsWithCompletionPrompt("\r\n[Safe Mode taken]\r\n", null));
+            => Assert.IsFalse(CliPromptText.EndsWithCompletionPrompt("\r\n[Safe Mode taken]\r\n", null));
 
         [TestMethod]
         public void AnAnsweredQuestion_IsNotTheEnd()
-            => Assert.IsFalse(CliOutputHelper.EndsWithCompletionPrompt(
+            => Assert.IsFalse(CliPromptText.EndsWithCompletionPrompt(
                 "Unroll, release or abort [u/r]? Action aborted.\r\n", null));
 
         [TestMethod]
         public void ATypedCommandsOutput_IsNotEndedByAQuestion()
-            => Assert.IsFalse(CliOutputHelper.EndsWithCompletionPrompt(
+            => Assert.IsFalse(CliPromptText.EndsWithCompletionPrompt(
                 "/system/identity/print\r\nname: [a/b]", "/system/identity/print"));
     }
 }

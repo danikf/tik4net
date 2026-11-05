@@ -9,7 +9,7 @@ namespace tik4net.Cli
     /// PTY-transport concern handled in the concrete transport implementation.
     /// </summary>
     // Internal: tik4net.ssh is the only caller outside this assembly and is a friend. The rest of the
-    // CLI helper family (CliOutputHelper, Vt100State, CliOutputParser, CliCommandBuilder) is internal
+    // CLI helper family (CliOutputCleaner, Vt100State, CliOutputParser, CliCommandBuilder) is internal
     // already; this one was the odd one out rather than a deliberate public service.
     internal static class VtStripper
     {
