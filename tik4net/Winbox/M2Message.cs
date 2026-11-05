@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -317,10 +318,10 @@ namespace tik4net.Winbox
         // suffix, so a trace can be matched against the .jg id ('u12'/'U12') by eye.
         private static string RenderTraceKey(int key)
             => WinboxM2Protocol.TypedKey.IsQualified(key)
-                ? "0x" + WinboxM2Protocol.TypedKey.WireKeyOf(key).ToString("X")
+                ? "0x" + WinboxM2Protocol.TypedKey.WireKeyOf(key).ToString("X", CultureInfo.InvariantCulture)
                     + ((key & WinboxM2Protocol.TypedKey.Array) != 0 ? "~arr"
                        : (key & WinboxM2Protocol.TypedKey.Bool) != 0 ? "~bool" : "~sca")
-                : "0x" + key.ToString("X");
+                : "0x" + key.ToString("X", CultureInfo.InvariantCulture);
 
         // Compact renderer for a decoded M2 value: nested record dicts → {0xKEY=…,…}, record arrays →
         // [{…},{…}], scalars → ToString(). Depth-capped to keep trace lines bounded.
@@ -684,7 +685,7 @@ namespace tik4net.Winbox
                     ? es.Value?.ToString() : null;
                 int code = ParseSysStatus(m2);
                 if (code != 0 || !string.IsNullOrEmpty(err))
-                    return "router said error 0x" + code.ToString("X") +
+                    return "router said error 0x" + code.ToString("X", CultureInfo.InvariantCulture) +
                            (string.IsNullOrEmpty(err) ? " (no message)" : " '" + err + "'");
                 return "and no error field either; the reply was " + Describe(m2);
             }

@@ -951,13 +951,13 @@ namespace tik4net.Winbox
                     // the PREFIX LENGTH itself rather than a mask, and it is printed at every length,
                     // /128 included — RouterOS prints what webfig's tostr hides.
                     string addr6 = TikHexText.TryParse(a, out byte[]? raw) ? WinboxValueFormat.IpV6FromBytes(raw!) : a;
-                    rendered.Add(long.TryParse(b, out long plen)
+                    rendered.Add(long.TryParse(b, NumberStyles.Integer, CultureInfo.InvariantCulture, out long plen)
                         ? addr6 + "/" + plen.ToString(CultureInfo.InvariantCulture)
                         : addr6);
                     continue;
                 }
-                if (!uint.TryParse(a, out uint addr)) { rendered.Add(a); continue; }
-                if (!uint.TryParse(b, out uint sibling)) { rendered.Add(WinboxValueFormat.IpFromU32(addr)); continue; }
+                if (!uint.TryParse(a, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint addr)) { rendered.Add(a); continue; }
+                if (!uint.TryParse(b, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint sibling)) { rendered.Add(WinboxValueFormat.IpFromU32(addr)); continue; }
                 rendered.Add(jf.ElementIsRange
                     ? WinboxValueFormat.FormatV4Range(addr, sibling)
                     : WinboxValueFormat.IpFromU32(addr) + "/" + WinboxValueFormat.MaskToPrefix(sibling));
@@ -1137,7 +1137,7 @@ namespace tik4net.Winbox
                     return FormatScaled(fp, elementScale);
                 }
                 case "ipaddr":
-                    return uint.TryParse(element, out uint u) ? WinboxValueFormat.IpFromU32(u) : element;
+                    return uint.TryParse(element, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint u) ? WinboxValueFormat.IpFromU32(u) : element;
                 case "macaddr":
                     return WinboxValueFormat.MacFromBytes(element);
                 case "ip6addr":
@@ -1390,7 +1390,7 @@ namespace tik4net.Winbox
                 // reason matters: a u32 member above int.MaxValue (0xFFFFFFFF is a real member on several
                 // maps — 'passthrough' on eap-methods, 'all' on traffic-flow interfaces) does not parse as
                 // an int at all, so the lookup never ran and the raw number reached the caller.
-                if (enumMap != null && long.TryParse(m.Value, out long n)
+                if (enumMap != null && long.TryParse(m.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long n)
                     && enumMap.TryGetValue(unchecked((int)n), out var label))
                     parts.Add(label);
                 // The ELEMENT's own scale, which is not the field's: /caps-man/channel's frequency is a
@@ -1413,14 +1413,14 @@ namespace tik4net.Winbox
             var nums = new List<int>();
             foreach (System.Text.RegularExpressions.Match m in
                      System.Text.RegularExpressions.Regex.Matches(value?.ToString() ?? "", @"-?\d+"))
-                if (int.TryParse(m.Value, out int n)) nums.Add(n);
+                if (int.TryParse(m.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)) nums.Add(n);
             if (nums.Count == 0) return "";
 
             var parts = new List<string>();
             int i = 0;
             for (; i + 1 < nums.Count; i += 2)
-                parts.Add(nums[i] == nums[i + 1] ? nums[i].ToString() : nums[i] + "-" + nums[i + 1]);
-            if (i < nums.Count) parts.Add(nums[i].ToString()); // odd trailing value (defensive)
+                parts.Add(nums[i] == nums[i + 1] ? nums[i].ToString(CultureInfo.InvariantCulture) : nums[i] + "-" + nums[i + 1]);
+            if (i < nums.Count) parts.Add(nums[i].ToString(CultureInfo.InvariantCulture)); // odd trailing value (defensive)
             return string.Join(",", parts);
         }
     }

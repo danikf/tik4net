@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -27,7 +28,7 @@ namespace tik4net
                 }
                 catch (ArgumentException ex)
                 {
-                    throw new ArgumentException(string.Format("Could not add item with key '{0}': {1}", keySelector(value), ex.Message), ex);
+                    throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Could not add item with key '{0}': {1}", keySelector(value), ex.Message), ex);
                 }
             }
             return result;
@@ -50,7 +51,7 @@ namespace tik4net
                 }
                 catch (ArgumentException ex)
                 {
-                    throw new ArgumentException(string.Format("Could not add item with key '{0}': {1}", keySelector(value), ex.Message), ex);
+                    throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Could not add item with key '{0}': {1}", keySelector(value), ex.Message), ex);
                 }
             }
             return result;

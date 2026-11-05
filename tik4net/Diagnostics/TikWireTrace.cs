@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 
@@ -216,7 +217,7 @@ namespace tik4net.Diagnostics
                         if (b >= 0x20 && b < 0x7F)
                             sb.Append((char)b);
                         else
-                            sb.Append('<').Append(b.ToString("X2")).Append('>');
+                            sb.Append('<').Append(b.ToString("X2", CultureInfo.InvariantCulture)).Append('>');
                         break;
                 }
             }

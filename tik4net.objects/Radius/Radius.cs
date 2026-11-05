@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -186,7 +187,7 @@ namespace tik4net.Objects.Radius
         /// <summary>Returns a human-readable summary of the entry.</summary>
         public override string ToString()
         {
-            return string.Format("{0} [{1}]", Address, Service);
+            return string.Format(CultureInfo.InvariantCulture, "{0} [{1}]", Address, Service);
         }
     }
 }

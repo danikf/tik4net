@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -109,7 +110,7 @@ namespace tik4net.Objects
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             if (!metadata.HasIdProperty)
-                throw new InvalidOperationException(string.Format("Can not compare ids of entity which doesn't contains property for '{0}' field.", TikSpecialProperties.Id));
+                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Can not compare ids of entity which doesn't contains property for '{0}' field.", TikSpecialProperties.Id));
 
             // IdProperty is non-null here: HasIdProperty was just checked above.
             string? id1 = metadata.IdProperty!.GetEntityValue(entity1!);
@@ -132,7 +133,7 @@ namespace tik4net.Objects
 
             foreach (var property in metadata.Properties)
             {
-                sb.AppendLine(string.Format("  {0}={1}", property.FieldName, property.GetEntityValue(entity!)));
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "  {0}={1}", property.FieldName, property.GetEntityValue(entity!)));
             }
 
             return sb.ToString();

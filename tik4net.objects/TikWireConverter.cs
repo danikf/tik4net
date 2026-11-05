@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Reflection;
 
 namespace tik4net.Objects
@@ -90,7 +91,7 @@ namespace tik4net.Objects
         private ITikTypeConverter ResolveConverter()
         {
             return _converter ?? (_converter = TikTypeConverters.Resolve(_type))
-                ?? throw new NotImplementedException(string.Format("Property type {0} not supported. Register an ITikTypeConverter for it via TikTypeConverters.Register.", _type));
+                ?? throw new NotImplementedException(string.Format(CultureInfo.InvariantCulture, "Property type {0} not supported. Register an ITikTypeConverter for it via TikTypeConverters.Register.", _type));
         }
 
         /// <summary>
@@ -119,7 +120,7 @@ namespace tik4net.Objects
             }
             catch (Exception ex)
             {
-                throw new FormatException(string.Format("Value '{0}' for property '{1}({2})' is not in expected format '{3}'.", word, _propertyName, _fieldName, _type), ex);
+                throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Value '{0}' for property '{1}({2})' is not in expected format '{3}'.", word, _propertyName, _fieldName, _type), ex);
             }
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -89,6 +90,6 @@ namespace tik4net.Objects.System
         public TikField<bool?> Disabled { get; set; }
 
         /// <summary>Returns a human-readable summary of this LED entry.</summary>
-        public override string ToString() => string.Format("leds: {0} type={1} iface={2}", Leds, Type, Interface);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "leds: {0} type={1} iface={2}", Leds, Type, Interface);
     }
 }

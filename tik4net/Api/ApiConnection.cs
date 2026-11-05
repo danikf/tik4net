@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Security;
@@ -1017,7 +1018,7 @@ namespace tik4net.Api
             if (SendTagWithSyncCommand && string.IsNullOrEmpty(tagOrEmptyString))
             {
                 tagOrEmptyString = TagSequence.NextTag();
-                commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tagOrEmptyString) }).ToArray();
+                commandRows = commandRows.Concat(new string[] { string.Format(CultureInfo.InvariantCulture, "{0}={1}", TikSpecialProperties.Tag, tagOrEmptyString) }).ToArray();
             }
 
             _writeLock.Wait();
@@ -1191,7 +1192,7 @@ namespace tik4net.Api
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");
             EnsureOpened();
 
-            commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tag) }); // .tag=1234
+            commandRows = commandRows.Concat(new string[] { string.Format(CultureInfo.InvariantCulture, "{0}={1}", TikSpecialProperties.Tag, tag) }); // .tag=1234
             _writeLock.Wait();
             try { WriteCommand(commandRows); }
             finally { _writeLock.Release(); }

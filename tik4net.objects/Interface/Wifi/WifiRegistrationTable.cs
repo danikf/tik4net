@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
@@ -152,6 +153,6 @@ namespace tik4net.Objects.Interface.Wifi
         public TikField<string?> Packets { get; private set; }
 
         /// <summary>Human-readable identity: MAC address and signal strength.</summary>
-        public override string ToString() => string.Format("{0} on {1} ({2} dBm)", MacAddress, Interface, Signal);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} on {1} ({2} dBm)", MacAddress, Interface, Signal);
     }
 }

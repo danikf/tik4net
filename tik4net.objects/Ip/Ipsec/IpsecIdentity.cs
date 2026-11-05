@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
@@ -245,6 +246,6 @@ namespace tik4net.Objects.Ip.Ipsec
         public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => string.Format("peer={0} auth={1}", Peer, AuthMethod);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "peer={0} auth={1}", Peer, AuthMethod);
     }
 }

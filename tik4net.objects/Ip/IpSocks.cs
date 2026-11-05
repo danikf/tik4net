@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -42,6 +43,6 @@ namespace tik4net.Objects.Ip
         public TikField<string?> Vrf { get; set; }
 
         /// <summary>Human-readable summary of SOCKS settings.</summary>
-        public override string ToString() => string.Format("enabled={0} port={1} version={2}", Enabled, Port, Version);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "enabled={0} port={1} version={2}", Enabled, Port, Version);
     }
 }

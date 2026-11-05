@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace tik4net.Objects.Routing
 {
     /// <summary>
@@ -109,7 +110,7 @@ namespace tik4net.Objects.Routing
             // IsNullOrEmpty isn't NotNullWhen-annotated on netstandard2.0, so `!` is needed on the non-empty branch.
             string src = string.IsNullOrEmpty(SrcAddress.Value) ? "any" : SrcAddress.Value!;
             string dst = string.IsNullOrEmpty(DstAddress.Value) ? "any" : DstAddress.Value!;
-            return string.Format("src={0} dst={1} action={2}", src, dst, Action);
+            return string.Format(CultureInfo.InvariantCulture, "src={0} dst={1} action={2}", src, dst, Action);
         }
     }
 }

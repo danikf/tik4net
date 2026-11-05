@@ -1534,7 +1534,7 @@ namespace tik4net.Winbox
                 else if (mv is Dictionary<string, object> obj)
                 {
                     foreach (var kv in obj)
-                        if (kv.Value is string s && long.TryParse(kv.Key, out long k))
+                        if (kv.Value is string s && long.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out long k))
                             Put(unchecked((int)k), s);
                 }
             }
@@ -1567,7 +1567,7 @@ namespace tik4net.Winbox
             int open = label.LastIndexOf('(');
             if (open <= 0 || label[open - 1] != ' ') return label;
             string inside = label.Substring(open + 1, label.Length - open - 2);
-            return long.TryParse(inside, out _) ? label.Substring(0, open - 1) : label;
+            return long.TryParse(inside, NumberStyles.Integer, CultureInfo.InvariantCulture, out _) ? label.Substring(0, open - 1) : label;
         }
 
         // A .jg number too large for int stays a string token after parsing (WinboxJgParser.Scalar), so a `def` or

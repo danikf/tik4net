@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -100,7 +101,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// <summary>Human-readable identity: bridge + VLAN IDs.</summary>
         public override string ToString()
         {
-            return string.Format("{0} vlan-ids={1}", Bridge, VlanIds);
+            return string.Format(CultureInfo.InvariantCulture, "{0} vlan-ids={1}", Bridge, VlanIds);
         }
     }
 }

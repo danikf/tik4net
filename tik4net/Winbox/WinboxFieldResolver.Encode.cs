@@ -411,7 +411,7 @@ namespace tik4net.Winbox
                     result.Add(M2Message.BoolSys(key, ParseBool(value)));
                     break;
                 case M2Type.U32:
-                    if (long.TryParse(value, out long n)) result.Add(EncodeU32(key, (uint)n));
+                    if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long n)) result.Add(EncodeU32(key, (uint)n));
                     // Not one of the map's words (checked above). Text on this key is answered with status 0 and makes
                     // a row without the field: mangle's action=drop on 7.21.5, which has no drop and the API refuses.
                     else if (value.Length > 0 && jg?.EnumMap != null && string.Equals(uiType, "enm", StringComparison.OrdinalIgnoreCase))
@@ -730,7 +730,7 @@ namespace tik4net.Winbox
             // dynamic dropdown → referenced object's .id; resolve the name against that table.
             // jg non-null: uiType == "enm" only when jg.UiType produced it.
             if (jg!.RefHandler != null && resolveRef != null && value.Length > 0
-                && !long.TryParse(value, out _))
+                && !long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
             {
                 // Every table the dropdown draws from, in the order webfig's enm.pair tries them — a
                 // queue tree's parent is an interface OR another queue, and only the first was searched.
@@ -1254,7 +1254,7 @@ namespace tik4net.Winbox
                 }
                 else if (string.Equals(part.UiType, "number", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!long.TryParse(tokens[i].Trim(), out n)) return false;
+                    if (!long.TryParse(tokens[i].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out n)) return false;
                 }
                 else return false;
                 if (n < 0 || n > uint.MaxValue) return false;
@@ -1277,7 +1277,7 @@ namespace tik4net.Winbox
                 int dash = p.IndexOf('-', 1); // skip a leading '-' so a negative low bound is not mis-split
                 string loS = dash > 0 ? p.Substring(0, dash) : p;
                 string hiS = dash > 0 ? p.Substring(dash + 1) : p;
-                if (!int.TryParse(loS.Trim(), out int lo) || !int.TryParse(hiS.Trim(), out int hi))
+                if (!int.TryParse(loS.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int lo) || !int.TryParse(hiS.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int hi))
                     throw new WinboxFieldResolutionException(
                         $"WinBox native: cannot parse number-range token '{p}' for field '{apiName}' on " +
                         $"'{_apiPath}'. Expected a number or a 'low-high' range (e.g. \"10,20-30\").");
@@ -1300,7 +1300,7 @@ namespace tik4net.Winbox
         private int EncodeListElement(WinboxJgField jg, string token, string apiName,
             Func<WinboxHandler, string, int?>? resolveRef)
         {
-            if (jg.RefHandler != null && resolveRef != null && !long.TryParse(token, out _))
+            if (jg.RefHandler != null && resolveRef != null && !long.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
             {
                 int? id = resolveRef(jg.RefHandler.Value, token);
                 if (id.HasValue) return id.Value;
@@ -1309,7 +1309,7 @@ namespace tik4net.Winbox
                 foreach (var kv in jg.EnumMap)
                     if (string.Equals(kv.Value, token, StringComparison.OrdinalIgnoreCase))
                         return kv.Key;
-            if (long.TryParse(token, out long literal)) return unchecked((int)literal);
+            if (long.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out long literal)) return unchecked((int)literal);
 
             throw new WinboxFieldValueException(
                 $"input does not match any value of {apiName} (element '{token}')");
@@ -1417,7 +1417,7 @@ namespace tik4net.Winbox
                         fields.Add(EncodeU32(part.Key, unchecked((uint)kv.Key)));
                         return fields;
                     }
-            if (part.RefHandler != null && resolveRef != null && !long.TryParse(value, out _))
+            if (part.RefHandler != null && resolveRef != null && !long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
             {
                 int? id = resolveRef(part.RefHandler.Value, value);
                 if (id == null)
@@ -1486,7 +1486,7 @@ namespace tik4net.Winbox
                     fields.Add(M2Message.Addr6Sys(part.Key, v6));
                     if (part.MaskKey != 0)
                     {
-                        if (np.Length > 1 && !int.TryParse(np[1], out int declared))
+                        if (np.Length > 1 && !int.TryParse(np[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int declared))
                             throw NotThisPart(apiName, value);
                         else
                             fields.Add(EncodeU32(part.MaskKey,
@@ -1508,7 +1508,7 @@ namespace tik4net.Winbox
                 {
                     // number / enm / numberrange low bound / tristate — all plain numbers on the wire once
                     // the map and the dropdown above have had their turn.
-                    if (!long.TryParse(value, out long n)) throw NotThisPart(apiName, value);
+                    if (!long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long n)) throw NotThisPart(apiName, value);
                     fields.Add(EncodeU32(part.Key, unchecked((uint)n)));
                     return fields;
                 }

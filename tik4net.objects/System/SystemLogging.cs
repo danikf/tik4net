@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -73,7 +74,7 @@ namespace tik4net.Objects.System
         /// <inheritdoc/>
         public override string ToString()
         {
-            return string.Format("topics={0} → action={1}", Topics, Action);
+            return string.Format(CultureInfo.InvariantCulture, "topics={0} → action={1}", Topics, Action);
         }
     }
 }

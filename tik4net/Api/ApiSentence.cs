@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -94,12 +95,12 @@ namespace tik4net.Api
             if (TryGetWordValue(wordName, out result))
                 return result;
             else
-                throw new TikSentenceException(string.Format("Missing word with name '{0}'.", wordName), this);
+                throw new TikSentenceException(string.Format(CultureInfo.InvariantCulture, "Missing word with name '{0}'.", wordName), this);
         }
 
         public override string ToString()
         {
-            return GetType().Name + ":" + string.Join("|", _words.Select(w => string.Format("{0}={1}", w.Key, w.Value)).ToArray());
+            return GetType().Name + ":" + string.Join("|", _words.Select(w => string.Format(CultureInfo.InvariantCulture, "{0}={1}", w.Key, w.Value)).ToArray());
         }
     }
 }

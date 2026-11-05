@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using tik4net.Objects.Ppp;
@@ -146,6 +147,6 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<bool?> Running { get; private set; }
 
         /// <summary>Human-readable identity of the PPTP client interface.</summary>
-        public override string ToString() => string.Format("{0} -> {1} (disabled={2})", Name, ConnectTo, Disabled);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} -> {1} (disabled={2})", Name, ConnectTo, Disabled);
     }
 }

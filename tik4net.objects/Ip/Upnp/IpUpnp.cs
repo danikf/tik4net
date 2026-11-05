@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -27,6 +28,6 @@ namespace tik4net.Objects.Ip.Upnp
         public TikField<bool?> ShowDummyRule { get; set; }
 
         /// <summary>Human-readable summary of UPnP settings.</summary>
-        public override string ToString() => string.Format("enabled={0}", Enabled);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "enabled={0}", Enabled);
     }
 }

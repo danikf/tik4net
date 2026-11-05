@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using tik4net.Objects.Ppp;
@@ -144,6 +145,6 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<bool?> VerifyClientCertificate { get; set; }
 
         /// <summary>Human-readable summary of the SSTP server configuration.</summary>
-        public override string ToString() => string.Format("sstp-server enabled={0} port={1} tls-version={2} pfs={3}", Enabled, Port, TlsVersion, Pfs);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "sstp-server enabled={0} port={1} tls-version={2} pfs={3}", Enabled, Port, TlsVersion, Pfs);
     }
 }

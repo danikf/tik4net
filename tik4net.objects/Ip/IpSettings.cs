@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -109,7 +110,7 @@ namespace tik4net.Objects.Ip
         public TikField<long?> Ipv4FasttrackBytes { get; private set; }
 
         /// <summary>Human-readable settings summary.</summary>
-        public override string ToString() => string.Format("ip-forward={0} fast-path={1} fasttrack={2}", IpForward, Ipv4FastPathActive, Ipv4FasttrackActive);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "ip-forward={0} fast-path={1} fasttrack={2}", IpForward, Ipv4FastPathActive, Ipv4FasttrackActive);
     }
 
     /// <summary>Reverse-path filter mode for <see cref="IpSettings.RpFilter"/>.</summary>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -135,7 +136,7 @@ namespace tik4net.Objects.System
         /// </summary>
         public override string ToString()
         {
-            return string.Format("NTP client: enabled={0}, mode={1}, status={2}, synced-server={3}", Enabled, Mode, Status, SyncedServer);
+            return string.Format(CultureInfo.InvariantCulture, "NTP client: enabled={0}, mode={1}, status={2}, synced-server={3}", Enabled, Mode, Status, SyncedServer);
         }
     }
 

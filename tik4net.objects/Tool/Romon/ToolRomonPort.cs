@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -56,6 +57,6 @@ namespace tik4net.Objects.Tool.Romon
         public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>Returns a human-readable summary of this RoMON port entry.</summary>
-        public override string ToString() => string.Format("romon/port: {0} (forbid={1}, cost={2})", Interface, Forbid, Cost);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "romon/port: {0} (forbid={1}, cost={2})", Interface, Forbid, Cost);
     }
 }

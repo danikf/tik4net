@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -54,6 +55,6 @@ namespace tik4net.Objects.System
         public TikField<string?> AuthKey { get; set; }
 
         /// <summary>Returns a human-readable summary of the NTP server settings.</summary>
-        public override string ToString() => string.Format("ntp/server: enabled={0}, bcast={1}, mcast={2}", Enabled, Broadcast, Multicast);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "ntp/server: enabled={0}, bcast={1}, mcast={2}", Enabled, Broadcast, Multicast);
     }
 }

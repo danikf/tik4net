@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -49,7 +50,7 @@ namespace tik4net.Objects.Ip
         public TikField<string?> Warning { get; private set; }
 
         /// <summary>Human-readable summary of the cloud state.</summary>
-        public override string ToString() => string.Format("ddns-enabled={0} dns-name={1} status={2}", DdnsEnabled, DnsName, Status);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "ddns-enabled={0} dns-name={1} status={2}", DdnsEnabled, DnsName, Status);
     }
 
     /// <summary>ddns-enabled modes for <see cref="IpCloud.DdnsEnabled"/>.</summary>

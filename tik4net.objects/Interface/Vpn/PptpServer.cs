@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using tik4net.Objects.Ppp;
@@ -80,6 +81,6 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<string?> Mrru { get; set; }
 
         /// <summary>Human-readable summary of the PPTP server configuration.</summary>
-        public override string ToString() => string.Format("pptp-server enabled={0} max-mtu={1} max-mru={2} auth={3}", Enabled, MaxMtu, MaxMru, Authentication);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "pptp-server enabled={0} max-mtu={1} max-mru={2} auth={3}", Enabled, MaxMtu, MaxMru, Authentication);
     }
 }

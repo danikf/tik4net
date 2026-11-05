@@ -67,7 +67,7 @@ namespace tik4net.Winbox
             uint v = 0;
             for (int i = 0; i < 4; i++)
             {
-                if (!byte.TryParse(o[i], out byte b)) return null;
+                if (!byte.TryParse(o[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out byte b)) return null;
                 v |= (uint)b << (8 * i);
             }
             return v;
@@ -149,7 +149,7 @@ namespace tik4net.Winbox
                     continue;
                 }
                 if (i > 0) sb.Append(':');
-                sb.Append(groups[i].ToString("x"));
+                sb.Append(groups[i].ToString("x", CultureInfo.InvariantCulture));
                 i++;
             }
             return sb.Length == 0 ? "::" : sb.ToString();
@@ -186,7 +186,7 @@ namespace tik4net.Winbox
             // Otherwise Convert.ToInt64 answers "not a number" with four different exception types depending on
             // what it was handed (a byte[], "x", a value out of range); none of them are caught anywhere else,
             // so listing them keeps a genuine bug in this method from being swallowed as "not numeric".
-            try { result = Convert.ToInt64(value); return true; }
+            try { result = Convert.ToInt64(value, CultureInfo.InvariantCulture); return true; }
             catch (InvalidCastException) { }
             catch (FormatException) { }
             catch (OverflowException) { }
@@ -264,7 +264,7 @@ namespace tik4net.Winbox
         {
             uint? dotted = PackIpV4(s);
             if (dotted != null) return dotted.Value;
-            if (int.TryParse(s, out int len) && len >= 0 && len <= 32)
+            if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out int len) && len >= 0 && len <= 32)
             {
                 uint v = 0;
                 for (int i = 0; i < len; i++)            // set the top `len` bits in big-endian order,

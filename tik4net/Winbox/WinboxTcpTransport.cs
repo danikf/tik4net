@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Net.Sockets;
 using tik4net.Connection;
@@ -64,7 +65,7 @@ namespace tik4net.Winbox
         {
             if (TikWireTrace.Enabled)
                 TikWireTrace.Emit("wbxtcp.frame", TikWireDir.Send, data, 0, data.Length,
-                    "tag=0x" + firstTag.ToString("x2"));
+                    "tag=0x" + firstTag.ToString("x2", CultureInfo.InvariantCulture));
 
             byte[] frame = WinboxChunkFraming.Chunk(data, firstTag);
             _ns.Write(frame, 0, frame.Length);
@@ -83,7 +84,7 @@ namespace tik4net.Winbox
 
             if (TikWireTrace.Enabled)
                 TikWireTrace.Emit("wbxtcp.frame", TikWireDir.Recv, result, 0, result.Length,
-                    "tag=0x" + expectedFirstTag.ToString("x2"));
+                    "tag=0x" + expectedFirstTag.ToString("x2", CultureInfo.InvariantCulture));
 
             return result;
         }

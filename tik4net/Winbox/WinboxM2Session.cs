@@ -368,7 +368,8 @@ namespace tik4net.Winbox
                 _transport.WithReceiveTimeout(timeoutMs, () =>
                 {
                     byte[] buf = new byte[4096];
-                    while (_transport.DataAvailable) _transport.Stream.Read(buf, 0, buf.Length);
+                    // The bytes are discarded, so how many one read returns does not matter; only end-of-stream stops it.
+                    while (_transport.DataAvailable && _transport.Stream.Read(buf, 0, buf.Length) > 0) { }
                     return 0;
                 });
             }

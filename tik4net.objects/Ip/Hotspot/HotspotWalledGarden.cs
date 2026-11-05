@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -54,7 +55,7 @@ namespace tik4net.Objects.Ip.Hotspot
         public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable rule summary.</summary>
-        public override string ToString() => string.Format("{0} dst-host={1} path={2}", Action, DstHost, Path);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} dst-host={1} path={2}", Action, DstHost, Path);
     }
 
     /// <summary>Action for <see cref="HotspotWalledGarden.Action"/>.</summary>

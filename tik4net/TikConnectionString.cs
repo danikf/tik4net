@@ -187,7 +187,7 @@ namespace tik4net
         }
 
         private static TEnum ParseEnum<TEnum>(string key, string v) where TEnum : struct
-            => Enum.TryParse(v, ignoreCase: true, out TEnum value) && Enum.IsDefined(typeof(TEnum), value) && !int.TryParse(v, out _)
+            => Enum.TryParse(v, ignoreCase: true, out TEnum value) && Enum.IsDefined(typeof(TEnum), value) && !int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
                 ? value
                 : throw new ArgumentException($"'{key}={v}' is not one of {string.Join(", ", Enum.GetNames(typeof(TEnum)))}.", "connectionString");
 

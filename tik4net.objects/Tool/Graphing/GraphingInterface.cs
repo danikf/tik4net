@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -39,6 +40,6 @@ namespace tik4net.Objects.Tool.Graphing
         public TikField<string?> Comment { get; set; }
 
         /// <summary>Returns a human-readable summary of this graphing entry.</summary>
-        public override string ToString() => string.Format("graphing/interface: {0} (allow: {1})", Interface, AllowAddress);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "graphing/interface: {0} (allow: {1})", Interface, AllowAddress);
     }
 }

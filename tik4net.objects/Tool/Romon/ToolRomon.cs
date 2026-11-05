@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -34,6 +35,6 @@ namespace tik4net.Objects.Tool.Romon
         public TikField<string?> CurrentId { get; private set; }
 
         /// <summary>Returns a human-readable summary of RoMON settings.</summary>
-        public override string ToString() => string.Format("romon: enabled={0}, id={1}", Enabled, Id);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "romon: enabled={0}, id={1}", Enabled, Id);
     }
 }

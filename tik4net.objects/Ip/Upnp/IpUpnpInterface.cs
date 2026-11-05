@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -35,7 +36,7 @@ namespace tik4net.Objects.Ip.Upnp
         public TikField<bool?> Disabled { get; set; }
 
         /// <summary>Human-readable entry summary.</summary>
-        public override string ToString() => string.Format("{0} ({1})", Interface, Type);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} ({1})", Interface, Type);
     }
 
     /// <summary>UPnP interface role for <see cref="IpUpnpInterface.Type"/>.</summary>

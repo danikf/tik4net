@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -54,7 +55,7 @@ namespace tik4net.Objects.System
         public TikField<bool?> Disabled { get; private set; }
 
         /// <summary>Returns a human-readable summary of the package.</summary>
-        public override string ToString() => string.Format("{0} {1}{2}", Name, Version, Disabled == true ? " [disabled]" : string.Empty);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} {1}{2}", Name, Version, Disabled == true ? " [disabled]" : string.Empty);
     }
 
     /// <summary>Connection extension methods for <see cref="SystemPackage"/>.</summary>

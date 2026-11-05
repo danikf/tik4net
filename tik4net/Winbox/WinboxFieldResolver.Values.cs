@@ -84,7 +84,7 @@ namespace tik4net.Winbox
             {
                 // A prefix on a field that does not accept one changes what the value means, so it is a bad
                 // value rather than something to trim off (webfig's fromstr returns null here too).
-                if (allow.IndexOf('/') < 0 || !int.TryParse(value.Substring(slash + 1), out int plen))
+                if (allow.IndexOf('/') < 0 || !int.TryParse(value.Substring(slash + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out int plen))
                     throw new WinboxFieldValueException($"input does not match any value of {apiName}");
                 sub.Add(EncodeU32(AddrPrefixSubKey, (uint)plen));
             }

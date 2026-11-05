@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace tik4net.Objects.Routing.Filter
 {
     /// <summary>
@@ -59,6 +60,6 @@ namespace tik4net.Objects.Routing.Filter
         public TikField<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => string.Format("[{0}] {1}", Chain, Rule);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "[{0}] {1}", Chain, Rule);
     }
 }

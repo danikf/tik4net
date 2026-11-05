@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -267,6 +268,6 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable summary of the OpenVPN server configuration.</summary>
-        public override string ToString() => string.Format("ovpn-server {0} port={1} protocol={2} mode={3} disabled={4}", Name, Port, Protocol, Mode, Disabled);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "ovpn-server {0} port={1} protocol={2} mode={3} disabled={4}", Name, Port, Protocol, Mode, Disabled);
     }
 }

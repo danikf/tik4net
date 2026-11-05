@@ -115,7 +115,7 @@ namespace tik4net.Winbox
             int start = _i;
             while (_i < _n && ",}]".IndexOf(_s[_i]) < 0 && !char.IsWhiteSpace(_s[_i])) _i++;
             string tok = _s.Substring(start, _i - start);
-            if (Regex.IsMatch(tok, "^-?\\d+$") && int.TryParse(tok, out int iv))
+            if (Regex.IsMatch(tok, "^-?\\d+$") && int.TryParse(tok, NumberStyles.Integer, CultureInfo.InvariantCulture, out int iv))
                 return iv;
             return tok;
         }

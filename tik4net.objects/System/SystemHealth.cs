@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -31,6 +32,6 @@ namespace tik4net.Objects.System
         public TikField<string?> StateAfterReboot { get; set; }
 
         /// <summary>Returns a human-readable summary of the health monitoring state.</summary>
-        public override string ToString() => string.Format("health: state={0}, after-reboot={1}", State, StateAfterReboot);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "health: state={0}, after-reboot={1}", State, StateAfterReboot);
     }
 }

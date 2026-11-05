@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -78,19 +79,19 @@ namespace tik4net.Api
                 .Select(p =>
             {
                 if (p.Name.StartsWith("=")) //NameValue format in parameter name
-                    return string.Format("{0}={1}", p.Name, p.Value);
+                    return string.Format(CultureInfo.InvariantCulture, "{0}={1}", p.Name, p.Value);
                 else if (p.Name.StartsWith("?")) //Filter format in parameter name
-                    return string.Format("{0}={1}", p.Name, p.Value);
+                    return string.Format(CultureInfo.InvariantCulture, "{0}={1}", p.Name, p.Value);
                 else
                 {
                     switch (TikParameterFormat.Resolve(p, DefaultParameterFormat, defaultParameterFormat))
                     {
                         case TikCommandParameterFormat.Filter:
-                            return string.Format("?{0}={1}", p.Name, p.Value);
+                            return string.Format(CultureInfo.InvariantCulture, "?{0}={1}", p.Name, p.Value);
                         case TikCommandParameterFormat.NameValue:
-                            return string.Format("={0}={1}", p.Name, p.Value);
+                            return string.Format(CultureInfo.InvariantCulture, "={0}={1}", p.Name, p.Value);
                         case TikCommandParameterFormat.Tag:
-                            return string.Format("{0}={1}", p.Name, p.Value);
+                            return string.Format(CultureInfo.InvariantCulture, "{0}={1}", p.Name, p.Value);
                         default:
                             // Not a tik4net exception on purpose: an undefined enum value here is a bug in
                             // the caller's argument, nothing the router said.

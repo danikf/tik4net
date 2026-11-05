@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -132,7 +133,7 @@ namespace tik4net.Objects.Ip
         /// <summary>Human-readable identity of the neighbor.</summary>
         public override string ToString()
         {
-            return string.Format("{0} ({1}) on {2}", Identity, Address, Interface);
+            return string.Format(CultureInfo.InvariantCulture, "{0} ({1}) on {2}", Identity, Address, Interface);
         }
     }
 }

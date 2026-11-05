@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -299,7 +300,7 @@ namespace tik4net.Cli
             if (i >= reaction.Length)
                 return reaction.Length - 1;
             string parameters = reaction.Substring(start + 2, i - start - 2);
-            int n = int.TryParse(parameters, out int parsed) && parsed > 0 ? parsed : 1;
+            int n = int.TryParse(parameters, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed > 0 ? parsed : 1;
             switch (reaction[i])
             {
                 case 'D': col = Math.Max(0, col - n); break;

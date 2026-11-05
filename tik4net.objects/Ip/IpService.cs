@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -112,7 +113,7 @@ namespace tik4net.Objects.Ip
         public TikField<bool?> Connection { get; private set; }
 
         /// <summary>Human-readable identity — service name and port.</summary>
-        public override string ToString() => string.Format("{0}:{1}", Name, Port);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}:{1}", Name, Port);
 
         /// <summary>Allowed TLS versions for SSL services (www-ssl, api-ssl).</summary>
         public enum TlsVersionType

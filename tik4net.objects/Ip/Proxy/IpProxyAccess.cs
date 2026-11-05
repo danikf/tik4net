@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -70,7 +71,7 @@ namespace tik4net.Objects.Ip.Proxy
         public TikField<int?> Hits { get; private set; }
 
         /// <summary>Human-readable rule summary.</summary>
-        public override string ToString() => string.Format("{0} src={1} dst-host={2} path={3}", Action, SrcAddress, DstHost, Path);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} src={1} dst-host={2} path={3}", Action, SrcAddress, DstHost, Path);
     }
 
     /// <summary>Action for <see cref="IpProxyAccess.Action"/>.</summary>

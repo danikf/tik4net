@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using tik4net.Objects.Ppp;
@@ -231,6 +232,6 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<bool?> HwCrypto { get; private set; }
 
         /// <summary>Human-readable identity of the SSTP client interface.</summary>
-        public override string ToString() => string.Format("{0} -> {1} (port={2} disabled={3})", Name, ConnectTo, Port, Disabled);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} -> {1} (port={2} disabled={3})", Name, ConnectTo, Port, Disabled);
     }
 }

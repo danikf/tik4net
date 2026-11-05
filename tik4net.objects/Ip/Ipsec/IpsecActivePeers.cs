@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
@@ -125,6 +126,6 @@ namespace tik4net.Objects.Ip.Ipsec
         public TikField<string?> TxPackets { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => string.Format("{0} ({1})", RemoteAddress, State);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} ({1})", RemoteAddress, State);
     }
 }

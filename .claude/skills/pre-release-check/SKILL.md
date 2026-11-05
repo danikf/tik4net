@@ -124,17 +124,21 @@ When adding one, use a value that can actually tell the cultures apart. An integ
 everywhere, so a test using one passes against broken code and proves nothing; it takes a fraction to
 separate `10.5 > 9.5` from an ordinal string compare.
 
-The globalization analyzers can find candidates, but **do not turn them on as a gate**:
+**CA1305 is a gate already.** `shipping.globalconfig` (added to the four shipping projects by
+`Directory.Build.props`) raises it to a warning, so an implicit-culture `Format`, `ToString` or `Parse` fails
+the build on both target frameworks. The one shape it cannot see — `int.TryParse(s, out n)`, whose provider
+overload puts the provider before `out` — is held by `Docs.CultureInvariantParseTests` in the unit suite.
+
+The other globalization analyzers can find candidates, but **do not turn them on as a gate**:
 
 ```bash
 dotnet build tik4net/tik4net.csproj -c Release -f net8.0 -p:EnableNETAnalyzers=true -p:AnalysisMode=None -p:AnalysisModeGlobalization=All
 ```
 
 Measured 2026-08-29 across the four shipping projects: 2008 warnings — CA1305 954, CA1307 642, CA1310 256,
-CA1308 128, the rest single digits. CA1305 is dominated by `string.Format` in exception messages, where the
-culture is irrelevant, and CA1307 by intent-clarity on ASCII tokens. Mass mechanical edits days before a
-tag are a worse risk than the bug they chase. Treat the analyzer as a **periodic review** that produces
-candidates for the test matrix, not as a release gate.
+CA1308 128, the rest single digits. CA1307 is dominated by intent-clarity on ASCII tokens. Mass mechanical
+edits days before a tag are a worse risk than the bug they chase. Treat the analyzer as a **periodic review**
+that produces candidates for the test matrix, not as a release gate.
 
 ## 1.4 Documentation samples compile
 

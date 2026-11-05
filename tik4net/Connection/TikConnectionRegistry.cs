@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Globalization;
 using tik4net.Api;
 using tik4net.MacTelnet;
 using tik4net.Rest;
@@ -33,14 +34,14 @@ namespace tik4net.Connection
         {
             if (factory == null) throw new ArgumentNullException(nameof(factory));
             if (!Enum.IsDefined(typeof(TikConnectionType), connectionType))
-                throw new ArgumentException(string.Format(
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, 
                     "'{0}' is not a declared TikConnectionType value. A transport of your own has no enum value: "
                     + "create it directly and configure it with TikConnectionSetup.ApplyTo.",
                     connectionType), nameof(connectionType));
             // A built-in type is answered before registrations are consulted, so accepting one would be a
             // registration that silently never takes effect.
             if (BuiltIn(connectionType) != null)
-                throw new ArgumentException(string.Format(
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, 
                     "Connection type '{0}' is implemented by tik4net itself and cannot be replaced by a registered "
                     + "factory. Only a type implemented in a satellite package (Ssh, by tik4net.ssh) can be registered.",
                     connectionType), nameof(connectionType));
@@ -58,7 +59,7 @@ namespace tik4net.Connection
                 return builtIn();
             if (_externalFactories.TryGetValue(connectionType, out var external))
                 return external();
-            throw new NotImplementedException(string.Format(
+            throw new NotImplementedException(string.Format(CultureInfo.InvariantCulture, 
                 "Connection type '{0}' not supported. If it is implemented in a satellite package "
                 + "(e.g. tik4net.ssh), call ConnectionFactory.RegisterConnectionFactory(...) first.",
                 connectionType));

@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -348,7 +349,7 @@ namespace tik4net.MacTelnet
                     Udp.Send(pkt, pkt.Length, Broadcast);
                     Trace?.Invoke("PROBE SEND sessionstart local=" + Udp.Client.LocalEndPoint
                         + " dst=" + Broadcast + " srcMac=" + TikMacText.Format(LocalMac)
-                        + " key=" + SessionKey.ToString("x4"));
+                        + " key=" + SessionKey.ToString("x4", CultureInfo.InvariantCulture));
                 }
                 catch (SocketException ex)
                 {
@@ -370,8 +371,8 @@ namespace tik4net.MacTelnet
                         Trace?.Invoke("PROBE RECV local=" + Udp.Client.LocalEndPoint + " from=" + ep
                             + " len=" + pkt.Length
                             + (parsed
-                                ? " type=0x" + reply.Type.ToString("x2")
-                                  + " key=" + reply.SessionKey.ToString("x4")
+                                ? " type=0x" + reply.Type.ToString("x2", CultureInfo.InvariantCulture)
+                                  + " key=" + reply.SessionKey.ToString("x4", CultureInfo.InvariantCulture)
                                   + " srcMac=" + TikMacText.Format(reply.SrcMac)
                                 : ""));
 
@@ -534,10 +535,10 @@ namespace tik4net.MacTelnet
             // open — with hundreds of sessions in a suite run a birthday collision is not exotic.
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
-                    "SESSION OPEN key=0x" + _sessionKey.ToString("x4")
+                    "SESSION OPEN key=0x" + _sessionKey.ToString("x4", CultureInfo.InvariantCulture)
                     + " local=" + _udp.Client.LocalEndPoint
                     + " srcMac=" + TikMacText.Format(_localMac)
-                    + " clientType=0x" + _clientType.ToString("x4"));
+                    + " clientType=0x" + _clientType.ToString("x4", CultureInfo.InvariantCulture));
         }
 
         // Incremented on the reader thread, read on the caller's: Interlocked/Volatile, not a plain int.
@@ -742,7 +743,7 @@ namespace tik4net.MacTelnet
         /// run through a per-session reconstruction, the untagged inbound lines were attributed to whichever
         /// session opened last and yielded 311 stream holes that never happened.
         /// </remarks>
-        protected string TraceTag => " key=" + _sessionKey.ToString("x4");
+        protected string TraceTag => " key=" + _sessionKey.ToString("x4", CultureInfo.InvariantCulture);
 
         /// <summary>
         /// Emits the one state this layer cannot recover from: the head packet has been resent to
@@ -1096,7 +1097,7 @@ namespace tik4net.MacTelnet
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
                     payload, 0, payload?.Length ?? 0,
-                    "type=0x" + type.ToString("x2") + " counter=" + counter + TraceTag);
+                    "type=0x" + type.ToString("x2", CultureInfo.InvariantCulture) + " counter=" + counter + TraceTag);
 
             if (type == PKT_DATA && payload != null && payload.Length > 0)
             {
@@ -1206,7 +1207,7 @@ namespace tik4net.MacTelnet
                           + (_haveAck ? "acknowledged up to " + _highestAck : "never acknowledged")
                           + "; " + _unacked.Count + " packet(s) still unacknowledged after "
                           + _retransmits + " resend(s); packet types seen: "
-                          + (seen.Count == 0 ? "none" : string.Join(",", seen.Select(t => "0x" + t.ToString("X2"))))
+                          + (seen.Count == 0 ? "none" : string.Join(",", seen.Select(t => "0x" + t.ToString("X2", CultureInfo.InvariantCulture))))
                           + "; " + DescribeRoute();
                 }
                 // Still a TimeoutException before the router acknowledged the session: callers
@@ -1288,8 +1289,8 @@ namespace tik4net.MacTelnet
             {
                 if (Diagnostics.TikWireTrace.Enabled)
                     Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
-                        "dropped type=0x" + reply.Type.ToString("x2") + " of another session key="
-                        + reply.SessionKey.ToString("x4") + " from=" + ep + TraceTag);
+                        "dropped type=0x" + reply.Type.ToString("x2", CultureInfo.InvariantCulture) + " of another session key="
+                        + reply.SessionKey.ToString("x4", CultureInfo.InvariantCulture) + " from=" + ep + TraceTag);
                 return false;
             }
 
@@ -1308,7 +1309,7 @@ namespace tik4net.MacTelnet
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
                     payload, 0, payload.Length,
-                    "type=0x" + type.ToString("x2") + " counter=" + counter
+                    "type=0x" + type.ToString("x2", CultureInfo.InvariantCulture) + " counter=" + counter
                     + " from=" + ep + " srcMac=" + TikMacText.Format(srcMac) + TraceTag);
             return true;
         }

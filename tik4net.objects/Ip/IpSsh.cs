@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -47,7 +48,7 @@ namespace tik4net.Objects.Ip
         public TikField<SshPubkeyOptions?> PublickeyAuthenticationOptions { get; set; }
 
         /// <summary>Human-readable SSH settings summary.</summary>
-        public override string ToString() => string.Format("ciphers={0} forwarding={1} strong-crypto={2}", Ciphers, ForwardingEnabled, StrongCrypto);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "ciphers={0} forwarding={1} strong-crypto={2}", Ciphers, ForwardingEnabled, StrongCrypto);
     }
 
     /// <summary>SSH cipher selection for <see cref="IpSsh.Ciphers"/>.</summary>

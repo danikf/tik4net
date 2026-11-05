@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using tik4net.Objects.Ppp;
@@ -229,6 +230,6 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<UseIpsecType?> UseIpsec { get; set; }
 
         /// <summary>Human-readable summary of the L2TP server configuration.</summary>
-        public override string ToString() => string.Format("l2tp-server enabled={0} use-ipsec={1} max-sessions={2}", Enabled, UseIpsec, MaxSessions);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "l2tp-server enabled={0} use-ipsec={1} max-sessions={2}", Enabled, UseIpsec, MaxSessions);
     }
 }

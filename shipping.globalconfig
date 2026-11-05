@@ -1,0 +1,10 @@
+is_global = true
+
+# Analyzer rules that hold for the four shipping libraries only (tik4net, tik4net.objects, tik4net.ssh,
+# tik4net.testing). Directory.Build.props adds this file to exactly those projects; the tests, tools and
+# samples are not held to it.
+
+# CA1305: every number and date is formatted and parsed with an explicit culture. The wire is invariant, and
+# a host culture (another NegativeSign, digit grouping, calendar) must never reach it. Warnings are errors in
+# CI, so the rule keeps itself.
+dotnet_diagnostic.CA1305.severity = warning

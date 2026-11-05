@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
@@ -223,7 +224,7 @@ namespace tik4net.Objects
 
             string kind = IsNegatable ? "TikNegatableField" : "TikField";
             if (declared.GetTypeInfo().IsValueType && Nullable.GetUnderlyingType(declared) == null)
-                throw new ArgumentException(string.Format("{0}{2}<{1}> must use the nullable form {2}<{1}?>, so that assigning null compiles.",
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "{0}{2}<{1}> must use the nullable form {2}<{1}?>, so that assigning null compiles.",
                     owner, declared.Name, kind), nameof(property));
             if (attribute.IsMandatory)
                 // A load must not fail because a row lacks a field (another RouterOS version): it reads Absent.
@@ -239,7 +240,7 @@ namespace tik4net.Objects
             if (ItemType != null)
             {
                 if (Nullable.GetUnderlyingType(ItemType) != null)
-                    throw new ArgumentException(string.Format("{0}a list's items are never null; use TikValueList<{1}>, not TikValueList<{1}?>.",
+                    throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "{0}a list's items are never null; use TikValueList<{1}>, not TikValueList<{1}?>.",
                         owner, Nullable.GetUnderlyingType(ItemType)!.Name), nameof(property));
                 RefuseFlags(owner, IsNegatableMembers ? ItemType.GetTypeInfo().GenericTypeArguments[0] : ItemType, property);
             }
@@ -253,7 +254,7 @@ namespace tik4net.Objects
         private static void RefuseFlags(string owner, Type type, PropertyInfo property)
         {
             if (type.GetTypeInfo().IsEnum && type.GetTypeInfo().GetCustomAttribute<FlagsAttribute>() != null)
-                throw new ArgumentException(string.Format("{0}a [Flags] enum cannot be a field's value; declare TikField<TikValueList<{1}>?> with a plain enum.",
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "{0}a [Flags] enum cannot be a field's value; declare TikField<TikValueList<{1}>?> with a plain enum.",
                     owner, type.Name), nameof(property));
         }
 
@@ -395,7 +396,7 @@ namespace tik4net.Objects
                     return items;
                 if (items.Length == 0)
                     // RouterOS refuses a bare '!' (tcp-flags=! → "ambiguous value of flag"): there is nothing to negate.
-                    throw new InvalidOperationException(string.Format(
+                    throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, 
                         "Property '{0}({1})' holds a negated empty list, which RouterOS cannot be sent.", PropertyName, FieldName));
                 return TikNegation.WholeListPrefix(IsNegatableMembers) + items;
             }

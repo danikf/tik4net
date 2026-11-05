@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace tik4net.Objects.Routing.Ospf
 {
     /// <summary>
@@ -208,6 +209,6 @@ namespace tik4net.Objects.Routing.Ospf
         public TikField<bool?> Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => string.Format("area={0} interfaces={1}", Area, Interfaces);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "area={0} interfaces={1}", Area, Interfaces);
     }
 }

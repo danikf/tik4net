@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
@@ -227,6 +228,6 @@ namespace tik4net.Objects.Ip.Ipsec
 
         /// <summary>Returns a human-readable summary of the policy.</summary>
         public override string ToString()
-            => string.Format("{0} → {1} [{2}]", SrcAddress, DstAddress, Action);
+            => string.Format(CultureInfo.InvariantCulture, "{0} → {1} [{2}]", SrcAddress, DstAddress, Action);
     }
 }

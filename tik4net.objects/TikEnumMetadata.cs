@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 
 namespace tik4net.Objects
@@ -59,7 +60,7 @@ namespace tik4net.Objects
                 else
                     _memberByWire.Add(wire, value);
 
-                long numeric = Convert.ToInt64(value);
+                long numeric = Convert.ToInt64(value, CultureInfo.InvariantCulture);
                 if (!_wireByNumeric.ContainsKey(numeric))
                     _wireByNumeric.Add(numeric, wire);
             }
@@ -81,16 +82,16 @@ namespace tik4net.Objects
             if (TryFind(wireValue, out object? result))
                 return result!;
 
-            throw new FormatException(string.Format("Unknown value '{0}' for enum type {1}.", wireValue, _enumType.Name));
+            throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Unknown value '{0}' for enum type {1}.", wireValue, _enumType.Name));
         }
 
         /// <summary>Formats one member as its wire value.</summary>
         public string Format(object value)
         {
-            if (_wireByNumeric.TryGetValue(Convert.ToInt64(value), out var wire))
+            if (_wireByNumeric.TryGetValue(Convert.ToInt64(value, CultureInfo.InvariantCulture), out var wire))
                 return wire;
 
-            throw new FormatException(string.Format("Value '{0}' is not a mapped member of enum type {1}.", value, _enumType.Name));
+            throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Value '{0}' is not a mapped member of enum type {1}.", value, _enumType.Name));
         }
     }
 }

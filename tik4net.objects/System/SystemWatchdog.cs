@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -54,6 +55,6 @@ namespace tik4net.Objects.System
         public TikField<string?> SendSmtpServer { get; set; }
 
         /// <summary>Returns a human-readable summary of the watchdog settings.</summary>
-        public override string ToString() => string.Format("watchdog: timer={0}, watch-address={1}, auto-supout={2}", WatchdogTimer, WatchAddress, AutomaticSupout);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "watchdog: timer={0}, watch-address={1}, auto-supout={2}", WatchdogTimer, WatchAddress, AutomaticSupout);
     }
 }

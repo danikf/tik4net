@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text;
 
 namespace tik4net.Cli
@@ -55,7 +56,7 @@ namespace tik4net.Cli
                         : CsiEnd(input, i + 1, i, out final, out parameters);
                     if (final == 'D')
                     {
-                        int n = int.TryParse(parameters, out int parsed) && parsed > 0 ? parsed : 1;
+                        int n = int.TryParse(parameters, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed > 0 ? parsed : 1;
                         cursor = Math.Max(lineStart, cursor - n);
                     }
                     else if (final == 'K' && (parameters.Length == 0 || parameters == "0") && cursor < sb.Length)

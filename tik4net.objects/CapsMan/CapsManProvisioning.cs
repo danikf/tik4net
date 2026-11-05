@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -207,6 +208,6 @@ namespace tik4net.Objects.CapsMan
         public override string ToString() =>
             string.IsNullOrEmpty(Comment.Value)
                 ? Action.ToString()
-                : string.Format("{0} ({1})", Action, Comment);
+                : string.Format(CultureInfo.InvariantCulture, "{0} ({1})", Action, Comment);
     }
 }

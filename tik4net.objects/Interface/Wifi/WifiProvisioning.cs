@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
@@ -186,6 +187,6 @@ namespace tik4net.Objects.Interface.Wifi
         public override string ToString() =>
             string.IsNullOrEmpty(Comment.Value)
                 ? Action.ToString()
-                : string.Format("{0} ({1})", Action, Comment);
+                : string.Format(CultureInfo.InvariantCulture, "{0} ({1})", Action, Comment);
     }
 }

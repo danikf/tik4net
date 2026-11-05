@@ -513,7 +513,7 @@ namespace tik4net.Objects
         private static void EnsureHasIdProperty(TikEntityMetadata metadata)
         {
             if (!metadata.HasIdProperty)
-                throw new InvalidOperationException(string.Format("Can not update/delete non-sigleton entity which doesn't contains property for '{0}' field.", TikSpecialProperties.Id));
+                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Can not update/delete non-sigleton entity which doesn't contains property for '{0}' field.", TikSpecialProperties.Id));
         }
 
         /// <summary>
@@ -753,7 +753,7 @@ namespace tik4net.Objects
             string? kept = before.Plain && !after.Plain ? "plain" : before.Negated && !after.Negated ? "negated" : null;
             if (kept == null)
                 return;
-            throw new InvalidOperationException(string.Format(
+            throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, 
                 "Property '{0}({1})': RouterOS's text set replaces only the members it names, so setting '{2}' on a row holding "
                 + "'{3}' would keep its {4} members. Name at least one {4} member, or write it over a transport with structured "
                 + "writes (WinBox native).",

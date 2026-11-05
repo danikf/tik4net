@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -67,7 +68,7 @@ namespace tik4net.Objects
         {
             if (mac != null && MacRegex.IsMatch(mac))
                 return new MacAddress(mac);
-            throw new FormatException(string.Format("Invalid MAC address '{0}'.", mac));
+            throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Invalid MAC address '{0}'.", mac));
         }
 
         /// <summary><see cref="Parse"/> without the exception.</summary>
@@ -84,7 +85,7 @@ namespace tik4net.Objects
         private static void EnsureValidMac(string mac)
         {
             if (!MacRegex.IsMatch(mac))
-                throw new ArgumentException(string.Format("Invalid MAC address '{0}'.", mac));
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid MAC address '{0}'.", mac));
         }
     }
 }

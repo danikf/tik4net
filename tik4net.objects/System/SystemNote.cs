@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -35,6 +36,6 @@ namespace tik4net.Objects.System
         public TikField<bool?> ShowAtCliLogin { get; set; }
 
         /// <summary>Returns a human-readable summary of the login note settings.</summary>
-        public override string ToString() => string.Format("note: show-at-login={0}, show-at-cli={1}, text=\"{2}\"", ShowAtLogin, ShowAtCliLogin, Note);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "note: show-at-login={0}, show-at-cli={1}, text=\"{2}\"", ShowAtLogin, ShowAtCliLogin, Note);
     }
 }

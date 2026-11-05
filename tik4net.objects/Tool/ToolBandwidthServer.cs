@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -42,6 +43,6 @@ namespace tik4net.Objects.Tool
         public TikField<TikValueList<string>?> AllowedAddresses6 { get; set; }
 
         /// <summary>Returns a human-readable summary of the bandwidth server settings.</summary>
-        public override string ToString() => string.Format("bandwidth-server: enabled={0}, authenticate={1}, max-sessions={2}", Enabled, Authenticate, MaxSessions);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "bandwidth-server: enabled={0}, authenticate={1}, max-sessions={2}", Enabled, Authenticate, MaxSessions);
     }
 }

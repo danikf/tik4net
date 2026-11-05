@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -84,6 +85,6 @@ namespace tik4net.Objects.Ip.TrafficFlow
         public TikField<bool?> Disabled { get; set; }
 
         /// <summary>Returns a human-readable description of this export target.</summary>
-        public override string ToString() => string.Format("{0}:{1} (v{2})", DstAddress, Port, Version);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}:{1} (v{2})", DstAddress, Port, Version);
     }
 }

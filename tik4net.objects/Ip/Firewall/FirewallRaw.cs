@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -435,7 +436,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         public override string ToString()
         {
-            return base.ToString() + string.Format(" (Chain:{0}, Action:{1}, SrcAddress:{2}, DstAddress:{3}, Comment:{4})",
+            return base.ToString() + string.Format(CultureInfo.InvariantCulture, " (Chain:{0}, Action:{1}, SrcAddress:{2}, DstAddress:{3}, Comment:{4})",
                 Chain, Action, SrcAddress, DstAddress, Comment);
         }
     }

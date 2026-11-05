@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -82,7 +83,7 @@ namespace tik4net.Objects.Tool
         /// </summary>
         public override string ToString()
         {
-            return string.Format("{0}{1} -> {2} ({3}/{4})",
+            return string.Format(CultureInfo.InvariantCulture, "{0}{1} -> {2} ({3}/{4})",
                 (IpProtocol.GetValueOrDefault() ?? "").PadRight(10),
                 FormatAddress(SrcAddress.GetValueOrDefault(), SrcPort.GetValueOrDefault()),
                 FormatAddress(DstAddress.GetValueOrDefault(), DstPort.GetValueOrDefault()),

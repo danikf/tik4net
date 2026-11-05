@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -62,7 +63,7 @@ namespace tik4net.Objects.Ip.Hotspot
         public TikField<string?> Comment { get; set; }
 
         /// <summary>Human-readable rule summary.</summary>
-        public override string ToString() => string.Format("{0} proto={1} src={2} dst={3}:{4}", Action, Protocol, SrcAddress, DstAddress, DstPort);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} proto={1} src={2} dst={3}:{4}", Action, Protocol, SrcAddress, DstAddress, DstPort);
     }
 
     /// <summary>IP-layer action for <see cref="HotspotWalledGardenIp.Action"/> (firewall-style: accept/drop).</summary>

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -46,7 +47,7 @@ namespace tik4net.Crypto
         {
             if (challenge == null || challenge.Length != ChallengeLength)
                 throw new ArgumentException(
-                    $"An EC-SRP5 challenge is {ChallengeLength} bytes, not {challenge?.Length.ToString() ?? "null"}.",
+                    $"An EC-SRP5 challenge is {ChallengeLength} bytes, not {challenge?.Length.ToString(CultureInfo.InvariantCulture) ?? "null"}.",
                     nameof(challenge));
 
             byte[] xWB  = challenge.Take(32).ToArray();

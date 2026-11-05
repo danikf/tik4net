@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -20,6 +21,6 @@ namespace tik4net.Objects.Tool.MacServer
         public TikField<string?> AllowedInterfaceList { get; set; }
 
         /// <summary>Returns a human-readable summary of the MAC-WinBox settings.</summary>
-        public override string ToString() => string.Format("mac-winbox allowed: {0}", AllowedInterfaceList);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "mac-winbox allowed: {0}", AllowedInterfaceList);
     }
 }

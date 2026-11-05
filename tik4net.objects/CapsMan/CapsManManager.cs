@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -81,6 +82,6 @@ namespace tik4net.Objects.CapsMan
         public TikField<UpgradePolicyType?> UpgradePolicy { get; set; }
 
         /// <summary>Human-readable summary of the CAPsMAN manager state.</summary>
-        public override string ToString() => string.Format("enabled={0} upgrade-policy={1}", Enabled, UpgradePolicy);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "enabled={0} upgrade-policy={1}", Enabled, UpgradePolicy);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -261,7 +262,7 @@ namespace tik4net.Objects.Tool
         /// <summary>Returns a human-readable summary of this netwatch entry.</summary>
         public override string ToString()
         {
-            return string.Format("{0} [{1}] => {2}", Host, Type, Status);
+            return string.Format(CultureInfo.InvariantCulture, "{0} [{1}] => {2}", Host, Type, Status);
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -770,7 +771,7 @@ namespace tik4net.Winbox
         // The id a reply hands back in RecordKey.Id (a new record's, a Safe Mode's, a monitor's), or null.
         private static uint? ReadRecordId(byte[] resp)
             => M2Message.ParseAllFields(resp).TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Value != null
-                ? Convert.ToUInt32(t.Value)
+                ? Convert.ToUInt32(t.Value, CultureInfo.InvariantCulture)
                 : (uint?)null;
 
         // The synchronous form of an operation blocks on its asynchronous one, as GetAll does: one implementation

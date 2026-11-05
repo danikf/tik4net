@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -85,6 +86,6 @@ namespace tik4net.Objects.Ip.Proxy
         public TikField<int?> CacheHitDscp { get; set; }
 
         /// <summary>Human-readable summary of proxy state.</summary>
-        public override string ToString() => string.Format("enabled={0} port={1}", Enabled, Port);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "enabled={0} port={1}", Enabled, Port);
     }
 }

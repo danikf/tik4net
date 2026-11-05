@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -103,7 +104,7 @@ namespace tik4net.Objects.System
         /// <inheritdoc/>
         public override string ToString()
         {
-            return string.Format("{0} ({1}, {2} bytes)", Name, Type, Size);
+            return string.Format(CultureInfo.InvariantCulture, "{0} ({1}, {2} bytes)", Name, Type, Size);
         }
     }
 }

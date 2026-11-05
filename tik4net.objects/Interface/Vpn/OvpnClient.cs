@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -209,6 +210,6 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<bool?> Running { get; private set; }
 
         /// <summary>Human-readable identity of the OpenVPN client interface.</summary>
-        public override string ToString() => string.Format("{0} -> {1} (port={2} protocol={3} disabled={4})", Name, ConnectTo, Port, Protocol, Disabled);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} -> {1} (port={2} protocol={3} disabled={4})", Name, ConnectTo, Port, Protocol, Disabled);
     }
 }
