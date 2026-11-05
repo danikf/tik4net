@@ -731,30 +731,38 @@ namespace tik4net.Api
 
         private void WriteCommand(IEnumerable<string> commandRows)
         {
+            var rows = commandRows as IList<string> ?? commandRows.ToList();
+            byte[] sentence = ApiWordCodec.EncodeSentence(rows, Encoding);
             try
             {
-                foreach (string row in commandRows)
-                {
-                    byte[] bytes = Encoding.GetBytes(row.ToCharArray());
-                    byte[] length = ApiWordCodec.EncodeLength(bytes.Length);
+                AnnounceRows(rows);
 
-                    _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence
-                    _tcpConnectionStream.Write(bytes, 0, bytes.Length);   //write sentence body
-
-                    if (Diagnostics.TikWireTrace.Enabled)
-                        Diagnostics.TikWireTrace.EmitWord("api.word", Diagnostics.TikWireDir.Send,
-                            bytes, 0, bytes.Length, row);
-
-                    FireWriteRow(row);
-                }
-
-                _tcpConnectionStream.WriteByte(0); //final zero byte (sentence terminator)
+                // One write for the whole sentence: on an unbuffered NetworkStream a write per prefix and per
+                // word is a segment each.
+                _tcpConnectionStream.Write(sentence, 0, sentence.Length);
                 _tcpConnectionStream.Flush();
             }
             catch(IOException)
             {
                 if (!_tcpConnection.Connected) SetClosed();
                 throw;
+            }
+        }
+
+        // The trace and OnWriteRow see a sentence row by row, just before it goes out: the router cannot have
+        // answered it yet, so a request is never announced after its reply.
+        private void AnnounceRows(IEnumerable<string> rows)
+        {
+            foreach (string row in rows)
+            {
+                if (Diagnostics.TikWireTrace.Enabled)
+                {
+                    byte[] bytes = Encoding.GetBytes(row);
+                    Diagnostics.TikWireTrace.EmitWord("api.word", Diagnostics.TikWireDir.Send,
+                        bytes, 0, bytes.Length, row);
+                }
+
+                FireWriteRow(row);
             }
         }
 
@@ -849,25 +857,14 @@ namespace tik4net.Api
         private async Task WriteCommandAsync(
             IEnumerable<string> commandRows, CancellationToken cancellationToken)
         {
+            var rows = commandRows as IList<string> ?? commandRows.ToList();
+            byte[] sentence = ApiWordCodec.EncodeSentence(rows, Encoding);
+
             await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                foreach (string row in commandRows)
-                {
-                    byte[] bytes = Encoding.GetBytes(row.ToCharArray());
-                    byte[] length = ApiWordCodec.EncodeLength(bytes.Length);
-
-                    await _tcpConnectionStream.WriteAsync(length, 0, length.Length).ConfigureAwait(false);
-                    await _tcpConnectionStream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
-
-                    if (Diagnostics.TikWireTrace.Enabled)
-                        Diagnostics.TikWireTrace.EmitWord("api.word", Diagnostics.TikWireDir.Send,
-                            bytes, 0, bytes.Length, row);
-
-                    FireWriteRow(row);
-                }
-
-                await _tcpConnectionStream.WriteAsync(new byte[] { 0 }, 0, 1).ConfigureAwait(false); //sentence terminator
+                AnnounceRows(rows);
+                await _tcpConnectionStream.WriteAsync(sentence, 0, sentence.Length).ConfigureAwait(false);
                 await _tcpConnectionStream.FlushAsync().ConfigureAwait(false);
             }
             catch (IOException)
