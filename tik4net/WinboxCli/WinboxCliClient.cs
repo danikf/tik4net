@@ -137,9 +137,9 @@ namespace tik4net.WinboxCli
         // ── Command execution ─────────────────────────────────────────────────
 
         /// <inheritdoc cref="Cli.ICliTerminal.RequestInterrupt"/>
-        public void RequestInterrupt() => System.Threading.Interlocked.Exchange(ref _interruptRequested, 1);
+        public void RequestInterrupt() => _interrupt.Request();
 
-        private int _interruptRequested;
+        private readonly Cli.CliInterruptLatch _interrupt = new Cli.CliInterruptLatch();
 
         /// <summary>
         /// Types a command line and reads its cleaned answer, reporting each completed output line to
@@ -160,7 +160,7 @@ namespace tik4net.WinboxCli
 
             string cmd = CliEndMarker.InjectWithoutPaging(command);
             ThrowIfTerminalClosed(cmd);
-            System.Threading.Interlocked.Exchange(ref _interruptRequested, 0);
+            _interrupt.Clear();
             SendInput(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
             return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd);
@@ -499,7 +499,7 @@ namespace tik4net.WinboxCli
             while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
             {
                 ct.ThrowIfCancellationRequested();
-                if (sentCommand != null && System.Threading.Interlocked.Exchange(ref _interruptRequested, 0) != 0)
+                if (_interrupt.TakeFor(sentCommand))
                 {
                     SendInput(new[] { Cli.CliTerminalText.CtrlC });
                     settle.Interrupted();

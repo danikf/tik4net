@@ -185,9 +185,9 @@ namespace tik4net.MacTelnet
         // ── Command execution ─────────────────────────────────────────────────
 
         /// <inheritdoc cref="ICliTerminal.RequestInterrupt"/>
-        public void RequestInterrupt() => System.Threading.Interlocked.Exchange(ref _interruptRequested, 1);
+        public void RequestInterrupt() => _interrupt.Request();
 
-        private int _interruptRequested;
+        private readonly CliInterruptLatch _interrupt = new CliInterruptLatch();
 
         /// <summary>
         /// Types a command line and reads its cleaned answer, reporting each completed output line to
@@ -206,7 +206,7 @@ namespace tik4net.MacTelnet
             ThrowIfRouterEnded(cmd);
             ResetReadBuffer();
             ResetDataHoles();
-            System.Threading.Interlocked.Exchange(ref _interruptRequested, 0);
+            _interrupt.Clear();
             SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
             return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd);
@@ -496,7 +496,7 @@ namespace tik4net.MacTelnet
                 ThrowIfPumpFaulted();
                 _rxSignal.Reset();
 
-                if (sentCommand != null && System.Threading.Interlocked.Exchange(ref _interruptRequested, 0) != 0)
+                if (_interrupt.TakeFor(sentCommand))
                 {
                     SendTerminalBytes(new[] { CliTerminalText.CtrlC });
                     settle.Interrupted();

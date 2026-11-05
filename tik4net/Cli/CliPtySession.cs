@@ -97,7 +97,7 @@ namespace tik4net.Cli
         /// </summary>
         internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
-            ClearInterrupt();
+            _interrupt.Clear();
             // Discard anything still buffered from the PREVIOUS command before issuing this one.
             // RouterOS's line editor repaints the echo as "<prompt> <command>", and the read that returns on
             // the prompt inside that repaint leaves the echoed command text behind: the accumulated buffer
@@ -250,13 +250,10 @@ namespace tik4net.Cli
             }
         }
 
-        private int _interruptRequested;
+        private readonly CliInterruptLatch _interrupt = new CliInterruptLatch();
 
         /// <inheritdoc cref="ICliTerminal.RequestInterrupt"/>
-        internal void RequestInterrupt() => Interlocked.Exchange(ref _interruptRequested, 1);
-
-        /// <summary>A new command starts with no interrupt pending: a request that came after the last read ended is void.</summary>
-        private void ClearInterrupt() => Interlocked.Exchange(ref _interruptRequested, 0);
+        internal void RequestInterrupt() => _interrupt.Request();
 
         /// <summary>
         /// Reads a command's response until <see cref="CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
@@ -288,7 +285,7 @@ namespace tik4net.Cli
             {
                 ct.ThrowIfCancellationRequested();
 
-                if (sentCommand != null && Interlocked.Exchange(ref _interruptRequested, 0) != 0)
+                if (_interrupt.TakeFor(sentCommand))
                 {
                     await SendBytesAsync(new[] { CliTerminalText.CtrlC }, CancellationToken.None).ConfigureAwait(false);
                     settle.Interrupted();
