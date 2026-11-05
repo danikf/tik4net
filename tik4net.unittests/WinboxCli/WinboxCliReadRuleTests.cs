@@ -96,7 +96,7 @@ namespace tik4net.unittests.WinboxCli
         }
 
         private static WinboxCliClient Client(PushingChannel channel)
-            => new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000));
+            => new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000), "WinBox CLI", WinboxCliSession.TraceChannel);
 
         [TestMethod]
         public void TheSafeModeKey_KeepsAStatusLinePushedAfterThePrompt()

@@ -98,7 +98,7 @@ namespace tik4net.unittests.WinboxCli
         }
 
         private static WinboxCliClient ClientOver(SilentChannel channel)
-            => new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(ReceiveTimeoutMs, ReceiveTimeoutMs));
+            => new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(ReceiveTimeoutMs, ReceiveTimeoutMs), "WinBox CLI", WinboxCliSession.TraceChannel);
 
         private static Exception RunCommand(WinboxCliClient client)
         {

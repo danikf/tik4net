@@ -71,7 +71,7 @@ namespace tik4net.unittests.WinboxCli
         // The prompt wait of a login whose terminal is already open.
         private static void WaitForPrompt(ScreenChannel channel)
         {
-            using (var client = new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000)))
+            using (var client = new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000), "WinBox CLI", WinboxCliSession.TraceChannel))
             {
                 try { typeof(WinboxCliClient).GetMethod("WaitForPromptSync", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(client, null); }
                 catch (TargetInvocationException ex) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); }

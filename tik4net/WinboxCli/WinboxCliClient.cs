@@ -63,6 +63,8 @@ namespace tik4net.WinboxCli
         // and the API and REST honour that per command.
         private int ReceiveTimeoutMs => _receiveTimeout();
         private readonly int _loginTimeoutMs;
+        private readonly string _transportName;
+        private readonly string _traceChannel;
 
         private int _sessionId = -1;
 
@@ -79,9 +81,17 @@ namespace tik4net.WinboxCli
         /// </summary>
         private int _ackBytes;
 
-        internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, CliClientTimeouts timeouts)
+        /// <param name="channel">The M2 carrier: TCP, the MAC layer, or a RoMON relay over either.</param>
+        /// <param name="encoding">The console's text encoding.</param>
+        /// <param name="timeouts">The connection's timeouts.</param>
+        /// <param name="transportName">"WinBox CLI" / "WinBox CLI MAC": named in exception texts.</param>
+        /// <param name="traceChannel">The wire-trace channel (<see cref="WinboxCliSession.TraceChannel"/>).</param>
+        internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, CliClientTimeouts timeouts,
+            string transportName, string traceChannel)
         {
             _session          = channel ?? throw new ArgumentNullException(nameof(channel));
+            _transportName    = transportName;
+            _traceChannel     = traceChannel;
             _encoding         = encoding ?? Encoding.UTF8;
             _receiveTimeout = timeouts.ReceiveMs;
             _loginTimeoutMs   = TikTimeouts.HandshakeBoundMs(timeouts.ConnectMs, timeouts.ReceiveMs());
@@ -274,7 +284,7 @@ namespace tik4net.WinboxCli
                 byte[]? frame;
                 // No command has run yet, so an open the router ended can be retried (seen once, cause unknown).
                 try { frame = left > 0 ? _session.Receive(left) : null; }
-                catch (Winbox.WinboxMacSessionEndedException) { throw new MacTelnet.MacLayerLoginClosedSilentlyException("WinBox over MAC"); }
+                catch (Winbox.WinboxMacSessionEndedException) { throw new MacTelnet.MacLayerLoginClosedSilentlyException(_transportName); }
                 if (frame == null)
                 {
                     if (skipped.Count == 0)
@@ -289,7 +299,7 @@ namespace tik4net.WinboxCli
                 if (IsTerminalOpenReply(frame, requestId))
                 {
                     if (TikWireTrace.Enabled)
-                        TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, "terminal open: reply " + M2Message.Describe(frame));
+                        TikWireTrace.Emit(_traceChannel, TikWireDir.Note, "terminal open: reply " + M2Message.Describe(frame));
                     return frame;
                 }
 
@@ -298,7 +308,7 @@ namespace tik4net.WinboxCli
                 string what = (logout ? "a logout push " : "a frame ") + M2Message.Describe(frame);
                 skipped.Add(what);
                 if (TikWireTrace.Enabled)
-                    TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, "terminal open: skipped " + what);
+                    TikWireTrace.Emit(_traceChannel, TikWireDir.Note, "terminal open: skipped " + what);
             }
         }
 
@@ -343,7 +353,7 @@ namespace tik4net.WinboxCli
             _session.Send(msg);
 
             if (TikWireTrace.Enabled)
-                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Send, "PULL ack=" + _ackBytes);
+                TikWireTrace.Emit(_traceChannel, TikWireDir.Send, "PULL ack=" + _ackBytes);
         }
 
         private void SendInput(byte[] keystrokes)
@@ -357,7 +367,7 @@ namespace tik4net.WinboxCli
             _session.Send(msg);
 
             if (TikWireTrace.Enabled)
-                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Send, keystrokes, 0, keystrokes.Length,
+                TikWireTrace.Emit(_traceChannel, TikWireDir.Send, keystrokes, 0, keystrokes.Length,
                     "ack=" + _ackBytes);
         }
 
@@ -375,7 +385,7 @@ namespace tik4net.WinboxCli
             if (M2Message.TryParseSessionId(resp, out int frameSession) && frameSession != _sessionId)
             {
                 if (TikWireTrace.Enabled)
-                    TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
+                    TikWireTrace.Emit(_traceChannel, TikWireDir.Note,
                         "dropped frame from retired session " + frameSession + " (current " + _sessionId + ")");
                 return null;
             }
@@ -390,9 +400,9 @@ namespace tik4net.WinboxCli
             if (payload != null) _ackBytes += payload.Length;
 
             if (payload != null && TikWireTrace.Enabled)
-                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Recv, payload, 0, payload.Length);
+                TikWireTrace.Emit(_traceChannel, TikWireDir.Recv, payload, 0, payload.Length);
             else if (TikWireTrace.Enabled)
-                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, "frame without terminal output: " + M2Message.Describe(resp));
+                TikWireTrace.Emit(_traceChannel, TikWireDir.Note, "frame without terminal output: " + M2Message.Describe(resp));
 
             return payload;
         }
@@ -434,8 +444,8 @@ namespace tik4net.WinboxCli
                         SendInput(CliLoginScreen.CtrlC);   // skip the change
                         sb.Clear();
                         continue;
-                    case CliLoginScreen.Step.Refused:     throw screen.Refusal("WinBox CLI");
-                    case CliLoginScreen.Step.NagPersists: throw CliLoginScreen.NagPersisted("WinBox CLI");
+                    case CliLoginScreen.Step.Refused:     throw screen.Refusal(_transportName);
+                    case CliLoginScreen.Step.NagPersists: throw CliLoginScreen.NagPersisted(_transportName);
                     case CliLoginScreen.Step.Prompt:      return;
                 }
             }
@@ -443,7 +453,7 @@ namespace tik4net.WinboxCli
             throw new TimeoutException("WinBox: timed out waiting for shell prompt.");
         }
 
-        private static void TraceNote(string note) => TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note, note);
+        private void TraceNote(string note) => TikWireTrace.Emit(_traceChannel, TikWireDir.Note, note);
 
         // The router closed this terminal (Mepty.Close): the console has ended, and keystrokes sent into it are never
         // answered, so a read after them would only run the deadline out.
@@ -452,15 +462,15 @@ namespace tik4net.WinboxCli
         private void ThrowIfTerminalClosed(string what)
         {
             if (_terminalClosed)
-                throw Cli.CliReadTimeout.CreateClosedBeforeWrite("WinBox CLI", ReceiveTimeoutMs, what, null);
+                throw Cli.CliReadTimeout.CreateClosedBeforeWrite(_transportName, ReceiveTimeoutMs, what, null);
         }
 
         private string KeyName(byte[] raw) => Cli.CliTerminalText.KeyName(raw, _encoding);
 
         private void SendText(string text) => SendInput(_encoding.GetBytes(text));
 
-        private static TikConnectionSessionClosedException SessionClosed(string? sentCommand)
-            => TikConnectionSessionClosedException.NotAcknowledged("WinBox CLI", sentCommand,
+        private TikConnectionSessionClosedException SessionClosed(string? sentCommand)
+            => TikConnectionSessionClosedException.NotAcknowledged(_transportName, sentCommand,
                 "The MAC-layer carrier keeps the UDP socket open and RouterOS sends no error when it drops a console "
                 + "session, so the session goes silent rather than reporting anything.");
 
@@ -522,7 +532,7 @@ namespace tik4net.WinboxCli
                         if (sentCommand == null)
                             return soFar;
                         throw Cli.CliReadTimeout.CreateMidFrame(
-                            "WinBox CLI", ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, soFar, ex);
+                            _transportName, ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, soFar, ex);
                     }
                     if (chunk != null)
                     {
@@ -579,7 +589,7 @@ namespace tik4net.WinboxCli
                 // The router closed the terminal: no prompt will follow. The WinBox relay is M2, not a CLI relay, so
                 // there is no RoMON target to report.
                 if (_terminalClosed && !closedBefore)
-                    return settle.EndWithoutPrompt("WinBox CLI", null, closed: true, sw.ElapsedMilliseconds,
+                    return settle.EndWithoutPrompt(_transportName, null, closed: true, sw.ElapsedMilliseconds,
                         ReceiveTimeoutMs, stripped, sb.Length);
 
                 // The read ends when the prompt is still last after the settle window (CliPromptSettle). RouterOS
@@ -593,7 +603,7 @@ namespace tik4net.WinboxCli
                 }
             }
 
-            return settle.EndWithoutPrompt("WinBox CLI", null, closed: false, sw.ElapsedMilliseconds,
+            return settle.EndWithoutPrompt(_transportName, null, closed: false, sw.ElapsedMilliseconds,
                 ReceiveTimeoutMs, VtStripper.StripAnsi(sb.ToString()), sb.Length);
         }
 

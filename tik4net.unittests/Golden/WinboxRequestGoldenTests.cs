@@ -215,7 +215,7 @@ namespace tik4net.unittests.Golden
             // ── mepty: login, terminal ready, pull, input ──
             var term = new RecordingChannel();
             term.Answer = req => ReplyTo(req, M2Message.SessionIdField(265));
-            using (var client = new WinboxCliClient(term, Encoding.UTF8, CliClientTimeouts.Fixed(1000, 1000)))
+            using (var client = new WinboxCliClient(term, Encoding.UTF8, CliClientTimeouts.Fixed(1000, 1000), "WinBox CLI", WinboxCliSession.TraceChannel))
             {
                 lines.Add("mepty OpenTerminalSession returns " + client.OpenTerminalSession("pw", "vt102", 80, 25));
                 lines.Add("mepty login sent " + term.Take());

@@ -45,7 +45,7 @@ namespace tik4net.unittests.Cli
         private static string LoginName(RomonRelayTarget target, string user = "admin")
         {
             var channel = new RecordingChannel();
-            var open = WinboxCliSession.Open(() => channel, target, Encoding.UTF8, CliClientTimeouts.Fixed(1000),
+            var open = WinboxCliSession.Open("WinBox CLI", () => channel, target, Encoding.UTF8, CliClientTimeouts.Fixed(1000),
                 "192.0.2.1", 8291, user, "", _ => { });
             try
             {

@@ -84,7 +84,7 @@ namespace tik4net.unittests.WinboxCli
         public void AFrameAlreadyArrivingIsGivenTheRestOfTheReceiveDeadline()
         {
             var channel = new RecordingChannel();
-            using (var client = new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(30000, 30000)))
+            using (var client = new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(30000, 30000), "WinBox CLI", WinboxCliSession.TraceChannel))
             {
                 Assert.AreEqual("hello", Run(client).Trim());
 
@@ -100,7 +100,7 @@ namespace tik4net.unittests.WinboxCli
         {
             var reset = new IOException("Unable to read data from the transport connection: reset by peer.");
             var channel = new RecordingChannel { ThrowOnReceive = reset };
-            using (var client = new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(30000, 30000)))
+            using (var client = new WinboxCliClient(channel, Encoding.UTF8, CliClientTimeouts.Fixed(30000, 30000), "WinBox CLI", WinboxCliSession.TraceChannel))
             {
                 var sw = Stopwatch.StartNew();
                 var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(() => Run(client));

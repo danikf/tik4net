@@ -63,7 +63,7 @@ namespace tik4net.WinboxCli
         // One open attempt: the WinBox-CLI client (mepty terminal over the TCP M2 channel) and its login. A refused
         // handshake leaves the client and its channel unusable, so each attempt builds new ones (TikOpenRetry).
         private CliTerminalOpen Attempt(string host, int port, string user, string password)
-            => WinboxCliSession.Open(() => new tik4net.Winbox.WinboxM2Session(), RomonTarget, Encoding, ClientTimeouts,
+            => WinboxCliSession.Open(TransportName, () => new tik4net.Winbox.WinboxM2Session(), RomonTarget, Encoding, ClientTimeouts,
                 host, port, user, password,
                 agentRomonId => RomonEntered(host, user, agentRomonId, TikRomonRelay.Winbox));
     }

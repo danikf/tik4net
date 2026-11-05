@@ -77,7 +77,7 @@ namespace tik4net.WinboxCliMac
         // builds a new relay, and a new link, with it. WinboxMacM2Session's routerMac parameter isn't annotated nullable
         // (it lives in Winbox/), but null is its documented meaning: discover the router via MNDP.
         private CliTerminalOpen Session(string host, int port, string user, string password)
-            => WinboxCliSession.Open(() => new WinboxMacM2Session(RouterMac), RomonTarget, Encoding, ClientTimeouts,
+            => WinboxCliSession.Open(TransportName, () => new WinboxMacM2Session(RouterMac), RomonTarget, Encoding, ClientTimeouts,
                 host, port, user, password,
                 agentRomonId => RomonEntered(host, user, agentRomonId, TikRomonRelay.Winbox), RouterMac);
     }

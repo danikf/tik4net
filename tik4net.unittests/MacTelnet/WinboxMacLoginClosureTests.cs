@@ -95,9 +95,11 @@ namespace tik4net.unittests.MacTelnet
         public void AnEndWhileTheTerminalOpens_IsRetried_BecauseNoCommandHasRun()
         {
             var channel = new EndedChannel();
-            var client = new tik4net.WinboxCli.WinboxCliClient(channel, System.Text.Encoding.UTF8, tik4net.Cli.CliClientTimeouts.Fixed(1000));
+            var client = new tik4net.WinboxCli.WinboxCliClient(channel, System.Text.Encoding.UTF8, tik4net.Cli.CliClientTimeouts.Fixed(1000),
+                "WinBox CLI MAC", tik4net.WinboxCli.WinboxCliSession.TraceChannel);
             var thrown = Assert.ThrowsException<MacLayerLoginClosedSilentlyException>(() => client.OpenTerminalSession("", "vt102", 80, 25));
             Assert.IsTrue(TikOpenRetry.IsTransientRefusal(thrown));
+            StringAssert.Contains(thrown.Message, "WinBox CLI MAC", "the client names the transport it serves (X1)");
         }
 
         [TestMethod]

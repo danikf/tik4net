@@ -376,7 +376,7 @@ namespace tik4net.unittests.Cli
 
             internal WinboxCliFixture(RouterScript script, int receiveTimeoutMs) : base(new ScriptPlayer(script, residueOnScreen: true))
             {
-                _client = new WinboxCliClient(new PlayedChannel(Player), Encoding.UTF8, CliClientTimeouts.Fixed(receiveTimeoutMs, receiveTimeoutMs));
+                _client = new WinboxCliClient(new PlayedChannel(Player), Encoding.UTF8, CliClientTimeouts.Fixed(receiveTimeoutMs, receiveTimeoutMs), "WinBox CLI", WinboxCliSession.TraceChannel);
             }
 
             internal override Task<string> CommandAsync(string command) => _client.SendCommandAndReadAsync(command, null, CancellationToken.None);

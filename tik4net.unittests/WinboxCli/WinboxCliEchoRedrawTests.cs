@@ -102,7 +102,7 @@ namespace tik4net.unittests.WinboxCli
             string second = echo.Substring(cut)
                 + "\r\nuptime=01:00:00\r\n#n=1/nil\r\n\r\r\r" + Esc + "[9999B" + Prompt;
 
-            using (var client = new WinboxCliClient(new PullDrivenChannel(command, new[] { first, second }), Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000)))
+            using (var client = new WinboxCliClient(new PullDrivenChannel(command, new[] { first, second }), Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000), "WinBox CLI", WinboxCliSession.TraceChannel))
             {
                 string answer = client.SendCommandAndReadAsync(command, null, CancellationToken.None).GetAwaiter().GetResult();
 

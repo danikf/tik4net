@@ -24,6 +24,8 @@ namespace tik4net.MacTelnet
     internal sealed class MacTelnetUdpClient : MacLayerTransport, ICliTerminal
     {
         private const ushort CLIENT_TYPE = 0x0015;
+        // The transport's name in every message this client raises.
+        private const string Transport   = "MAC-Telnet";
         private const int    SettleMs    = 150;
         // Poll interval for UdpClient.Receive timeout (ms) in the login-screen loop.
         private const int    PollMs      = 500;
@@ -202,7 +204,7 @@ namespace tik4net.MacTelnet
             string cmd = CliEndMarker.InjectWithoutPaging(command);
             // What the pump collected while the connection was idle is discarded below — but a relay that ended
             // in that time means the agent's session is gone, and this command must not be sent into it.
-            RouterOsCliLogin.ThrowIfRomonRelayEnded("MAC-Telnet", _romonTarget, cmd, Snapshot(out _), commandSent: false);
+            RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _romonTarget, cmd, Snapshot(out _), commandSent: false);
             ThrowIfRouterEnded(cmd);
             ResetReadBuffer();
             ResetDataHoles();
@@ -253,7 +255,7 @@ namespace tik4net.MacTelnet
                 return;
 
             throw new TikConnectionResponseIncompleteException(
-                "MAC-Telnet: the router ran a backlog past this client " + lost + " times while answering '"
+                Transport + ": the router ran a backlog past this client " + lost + " times while answering '"
                 + sentCommand.Trim() + "' — each a gap of more than one datagram, and a sustained run of them is "
                 + "what RouterOS answers by "
                 + "discarding part of its own output and carrying on with an unbroken byte counter. The "
@@ -432,7 +434,7 @@ namespace tik4net.MacTelnet
         }
 
         private static TikConnectionSessionClosedException SessionClosed(string? sentCommand)
-            => TikConnectionSessionClosedException.NotAcknowledged("MAC-Telnet", sentCommand,
+            => TikConnectionSessionClosedException.NotAcknowledged(Transport, sentCommand,
                 "RouterOS logs an idle MAC-Telnet console out after about 30 s (its own log records it as a normal "
                 + "logout), and the UDP socket stays open, so the session goes silent rather than reporting an error.");
 
@@ -441,7 +443,7 @@ namespace tik4net.MacTelnet
         private void ThrowIfRouterEnded(string what)
         {
             if (_routerEnded && _romonTarget == null)
-                throw CliReadTimeout.CreateClosedBeforeWrite("MAC-Telnet", ReceiveTimeoutMs, what, null);
+                throw CliReadTimeout.CreateClosedBeforeWrite(Transport, ReceiveTimeoutMs, what, null);
         }
 
         private string KeyName(byte[] raw) => CliTerminalText.KeyName(raw, _encoding);
@@ -514,14 +516,14 @@ namespace tik4net.MacTelnet
                     throw SessionClosed(sentCommand);
 
                 // The relay ended mid-command: no prompt will follow, the agent's session is over.
-                RouterOsCliLogin.ThrowIfRomonRelayEnded("MAC-Telnet", _romonTarget, sentCommand, stripped, commandSent: true);
+                RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _romonTarget, sentCommand, stripped, commandSent: true);
                 // The router ended the agent's session (PKT_END) without the relay's end line reaching us: the line
                 // is a datagram the router can drop, the end is not. Waiting would only run the deadline out.
                 if (_routerEnded && !endedBefore && _romonTarget != null)
-                    throw RouterOsCliLogin.RomonRelayEndedWithTheSession("MAC-Telnet", _romonTarget, sentCommand, stripped);
+                    throw RouterOsCliLogin.RomonRelayEndedWithTheSession(Transport, _romonTarget, sentCommand, stripped);
                 // The router ended a direct session (/quit typed, the console logged out): no prompt will follow.
                 if (_routerEnded && !endedBefore)
-                    return settle.EndWithoutPrompt("MAC-Telnet", _romonTarget, closed: true, sw.ElapsedMilliseconds,
+                    return settle.EndWithoutPrompt(Transport, _romonTarget, closed: true, sw.ElapsedMilliseconds,
                         ReceiveTimeoutMs, stripped, length);
 
                 switch (settle.Observe(stripped, newData, sw.ElapsedMilliseconds, length))
@@ -535,7 +537,7 @@ namespace tik4net.MacTelnet
             }
 
             string strippedSoFar = Snapshot(out int lengthSoFar);
-            return settle.EndWithoutPrompt("MAC-Telnet", _romonTarget, closed: false, sw.ElapsedMilliseconds,
+            return settle.EndWithoutPrompt(Transport, _romonTarget, closed: false, sw.ElapsedMilliseconds,
                 ReceiveTimeoutMs, strippedSoFar, lengthSoFar);
         }
 
@@ -635,8 +637,8 @@ namespace tik4net.MacTelnet
                             SendTerminalBytes(CliLoginScreen.CtrlC);
                             sb.Clear();
                             continue;
-                        case CliLoginScreen.Step.Refused:     throw screen.Refusal("MAC-Telnet");
-                        case CliLoginScreen.Step.NagPersists: throw CliLoginScreen.NagPersisted("MAC-Telnet");
+                        case CliLoginScreen.Step.Refused:     throw screen.Refusal(Transport);
+                        case CliLoginScreen.Step.NagPersists: throw CliLoginScreen.NagPersisted(Transport);
                         case CliLoginScreen.Step.Prompt:      return;
                     }
                 }
@@ -652,7 +654,7 @@ namespace tik4net.MacTelnet
             if (seen.Length > 200)
                 seen = seen.Substring(seen.Length - 200);
             throw new TimeoutException(
-                "MAC-Telnet: timed out waiting for shell prompt after " + sw.ElapsedMilliseconds + " ms; "
+                Transport + ": timed out waiting for shell prompt after " + sw.ElapsedMilliseconds + " ms; "
                 + dataPackets + " terminal packet(s) received, " + sb.Length + " char(s)"
                 + (screen.NagRounds > 0 ? ", change-password nag dismissed " + screen.NagRounds + "x" : "")
                 + (seen.Length == 0 ? ", nothing on screen." : ", screen tail: " + seen.Replace("\r", "\\r").Replace("\n", "\\n")));
@@ -667,11 +669,11 @@ namespace tik4net.MacTelnet
             // RouterOS refuses a MAC-Telnet login with "Login failed, …" on its own, AFTER the EC-SRP5 exchange has
             // ended in CTRL_END_AUTH (CliLoginScreen.IsRefusal says why the match is that narrow).
             if (CliLoginScreen.IsRefusal(stripped))
-                return new TikConnectionLoginRefusedException("MAC-Telnet", CliLoginScreen.FirstLine(stripped));
+                return new TikConnectionLoginRefusedException(Transport, CliLoginScreen.FirstLine(stripped));
             if (string.IsNullOrEmpty(stripped.Trim()))
-                return new MacLayerLoginClosedSilentlyException("MAC-Telnet");
+                return new MacLayerLoginClosedSilentlyException(Transport);
             return new TikConnectionSessionClosedException(
-                "MAC-Telnet: the router closed the session during login: " + CliLoginScreen.FirstLine(stripped));
+                Transport + ": the router closed the session during login: " + CliLoginScreen.FirstLine(stripped));
         }
 
         /// <summary>
