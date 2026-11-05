@@ -196,6 +196,10 @@ namespace tik4net.unittests.Cli
         internal abstract Task<string> RawAsync(byte[] key, CancellationToken ct = default);
         internal abstract Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default);
         internal abstract void RequestInterrupt();
+
+        /// <summary>The terminal's <see cref="ICliTerminal.End"/>: types <c>/quit</c> (and the <c>y</c>) and waits as its close does.</summary>
+        internal abstract void End(bool answerSafeModeQuestion);
+
         public abstract void Dispose();
 
         internal static TerminalReadFixture Create(TerminalCarrier carrier, RouterScript script, int receiveTimeoutMs)
@@ -217,8 +221,12 @@ namespace tik4net.unittests.Cli
 
             internal PtyFixture(RouterScript script, int receiveTimeoutMs) : base(new ScriptPlayer(script, residueOnScreen: true))
             {
-                _session = new CliPtySession(new PlayedByteStream(Player), Encoding.UTF8, () => receiveTimeoutMs, "SSH", "ssh.pty", "\r", _ => { });
+                // The close the Telnet and SSH clients give the session: end it while the carrier is up.
+                _session = new CliPtySession(new PlayedByteStream(Player), Encoding.UTF8, () => receiveTimeoutMs, "SSH", "ssh.pty", "\r",
+                    answer => _session.EndSession(answer));
             }
+
+            internal override void End(bool answerSafeModeQuestion) => _session.End(answerSafeModeQuestion);
 
             internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => _session.SendCommandAndReadAsync(command, null, ct);
             internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => _session.SendRawAndReadAsync(key, ct);
@@ -321,6 +329,7 @@ namespace tik4net.unittests.Cli
             internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => Client.SendRawAndReadAsync(key, ct);
             internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => Client.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
             internal override void RequestInterrupt() => Client.RequestInterrupt();
+            internal override void End(bool answerSafeModeQuestion) => Client.TryCloseSession(answerSafeModeQuestion);
 
             private void RouterLoop()
             {
@@ -377,12 +386,17 @@ namespace tik4net.unittests.Cli
             internal WinboxCliFixture(RouterScript script, int receiveTimeoutMs) : base(new ScriptPlayer(script, residueOnScreen: true))
             {
                 _client = new WinboxCliClient(new PlayedChannel(Player), Encoding.UTF8, CliClientTimeouts.Fixed(receiveTimeoutMs, receiveTimeoutMs), "WinBox CLI", WinboxCliSession.TraceChannel);
+                // The terminal the login would have opened (its frames carry no session id, so any is accepted); the close
+                // types nothing into a terminal that was never opened.
+                typeof(WinboxCliClient).GetField("_sessionId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    .SetValue(_client, 1);
             }
 
             internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => _client.SendCommandAndReadAsync(command, null, ct);
             internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => _client.SendRawAndReadAsync(key, ct);
             internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => _client.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
             internal override void RequestInterrupt() => _client.RequestInterrupt();
+            internal override void End(bool answerSafeModeQuestion) => _client.TryCloseSession(answerSafeModeQuestion);
             public override void Dispose() => _client.Dispose();
 
             /// <summary>

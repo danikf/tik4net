@@ -224,17 +224,27 @@ namespace tik4net.WinboxCli
         /// reboot.</param>
         /// <remarks>In Safe Mode the router is given time to take the <c>y</c> before the session goes: a close that
         /// races it ends the session inside the question, which wedges RouterOS 6.49.13's console (measured over WinBox
-        /// CLI and Telnet). The reaction — the question, the unroll, the end of the session — is read until the
-        /// terminal has been quiet for <see cref="SafeModeQuitQuietMs"/>.</remarks>
+        /// CLI and Telnet). The reaction — the question, the unroll, the end of the session — is read until the router
+        /// ends the session itself with <see cref="WinboxM2Protocol.Mepty.Close"/>, as the PTY and MAC-Telnet waits end on
+        /// their carrier's end; at most <see cref="RouterOsCliLogin.SafeModeQuitWaitMs"/>. Measured, RouterOS closes the
+        /// terminal after every answered question: ~220 ms after the keys on 7.25.1 (~160 ms after its
+        /// <c>interrupted</c> line), ~65 ms on 6.49.21 (~30 ms after it), and writes nothing after the close.
+        /// <see cref="SafeModeQuitQuietMs"/> of quiet ends the wait too, for a router that never closes: the close lands
+        /// well inside it in every measurement, so the quiet never cuts the wait short of the router's own
+        /// end.</remarks>
         internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
             if (_sessionId < 0) return;
             try { SendInput(_encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, "\r"))); } catch { return; }
             if (!answerSafeModeQuestion) return;
-            try { ReadUntilQuietAsync(SafeModeQuitQuietMs, CancellationToken.None).Wait(RouterOsCliLogin.SafeModeQuitWaitMs); } catch { /* the session is gone: the wait is over */ }
+            try { ReadUntilQuietAsync(SafeModeQuitQuietMs, CancellationToken.None, untilClosed: true).Wait(RouterOsCliLogin.SafeModeQuitWaitMs); }
+            catch { /* the session is gone: the wait is over */ }
         }
 
-        /// <summary>Quiet that ends the wait for the router's reaction to a Safe Mode <c>/quit</c> (ms).</summary>
+        /// <summary>
+        /// Quiet that ends the wait for the router's reaction to a Safe Mode <c>/quit</c> when no
+        /// <see cref="WinboxM2Protocol.Mepty.Close"/> comes (ms): a fallback, longer than every close delay measured.
+        /// </summary>
         private const int SafeModeQuitQuietMs = 500;
 
         public void Dispose() => _session.Dispose();
@@ -642,7 +652,9 @@ namespace tik4net.WinboxCli
         /// <param name="ct">Checked on every poll and cancels the wait between polls, so a caller's cancel is not held
         /// up by the quiet window (as on the other two engines). A frame already arriving is still read whole: a receive
         /// abandoned mid-frame leaves the encrypted stream unreadable.</param>
-        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
+        /// <param name="untilClosed">Also end when the router closes the terminal (<see cref="WinboxM2Protocol.Mepty.Close"/>):
+        /// the Safe Mode quit wait (<see cref="TryCloseSession"/>).</param>
+        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct, bool untilClosed = false)
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
@@ -668,6 +680,8 @@ namespace tik4net.WinboxCli
                     await Task.Delay(PollSleepMs, ct).ConfigureAwait(false);
                 }
 
+                if (untilClosed && _terminalClosed)
+                    break;
                 if (quiet.Observe(sb.Length) != Cli.CliQuietWindow.Outcome.Continue)
                     break;
             }

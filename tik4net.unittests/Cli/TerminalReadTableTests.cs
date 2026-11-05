@@ -210,6 +210,48 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // ── The Safe Mode quit wait ───────────────────────────────────────────
+
+        private const string QuitAnswered = "/quit\r\nYou are in Safe Mode. Quitting will unroll changes. Quit? [y/N]: y\r\ninterrupted\r\n";
+
+        /// <summary>
+        /// X6 (D4): after <c>/quit</c> and the <c>y</c>, the close waits for the router to end the session (the PTY
+        /// carrier closing, MAC-Telnet's <c>PKT_END</c>, WinBox's <c>Mepty.Close</c>) and not longer: a close racing the
+        /// <c>y</c> wedged RouterOS 6.49.13's console. RouterOS closes the WinBox terminal 60–220 ms after the keys.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X6_TheSafeModeQuitWait_EndsWhenTheRouterEndsTheSession(TerminalCarrier carrier)
+        {
+            using (var f = Fixture(carrier, RouterScript.Answer((0, QuitAnswered)).ThenEnd(200)))
+            {
+                var sw = Stopwatch.StartNew();
+                f.End(answerSafeModeQuestion: true);
+
+                Assert.AreEqual("/quit\ry", string.Concat(f.Inputs), "the keys, and nothing typed after them");
+                Assert.IsTrue(sw.ElapsedMilliseconds >= 190, sw.ElapsedMilliseconds + " ms: the close did not wait for the router");
+                Assert.IsTrue(sw.ElapsedMilliseconds < 450, sw.ElapsedMilliseconds + " ms: the close waited past the router's end");
+            }
+        }
+
+        /// <summary>X6: a router that never ends the session holds the close no longer than the bound.</summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X6_TheSafeModeQuitWait_IsBounded(TerminalCarrier carrier)
+        {
+            using (var f = Fixture(carrier, RouterScript.Answer((0, QuitAnswered))))
+            {
+                var sw = Stopwatch.StartNew();
+                f.End(answerSafeModeQuestion: true);
+
+                Assert.IsTrue(sw.ElapsedMilliseconds < RouterOsCliLogin.SafeModeQuitWaitMs + 500, sw.ElapsedMilliseconds + " ms");
+            }
+        }
+
         // ── The caller's token ────────────────────────────────────────────────
 
         /// <summary>Which read a cancel case drives.</summary>

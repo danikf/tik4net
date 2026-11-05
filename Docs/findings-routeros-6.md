@@ -444,7 +444,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
       connection dropped at the prompt while holding Safe Mode (0 in 60 each).
     - **What the library does.** A terminal close in Safe Mode sends `/quit` and `y`, then waits for RouterOS to end
       the session before closing its own end — Telnet until the router closes the connection
-      (`TelnetClient.Close`), WinBox CLI until its terminal has been quiet for 500 ms (`WinboxCliClient.TryCloseSession`),
+      (`TelnetClient.Close`), WinBox CLI until the router closes the terminal (`Mepty.Close`, about 65 ms after the keys
+      on 6.49.21; 500 ms of quiet as the fallback, `WinboxCliClient.TryCloseSession`),
       MAC-Telnet until the router sends its own `PKT_END` (`MacTelnetUdpClient.TryCloseSession`, which types the answer
       while the receive pump still acknowledges and retransmits), all at most 3 s. Through the library, a
       take-read-close loop wedged 6.49.13 within 4 rounds over Telnet, 21 over WinBox CLI and 34 over MAC-Telnet without

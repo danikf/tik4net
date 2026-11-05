@@ -687,10 +687,16 @@ terminal's session id, and no terminal output. It is the same command webfig sen
 (`Terminal.prototype.close` in `master*.js`). Measured on 7.25, over TCP and MAC, about 100 ms after the
 `interrupted` line. After it the router answers no pull and no keystroke.
 
+The same frame ends a Safe Mode `/quit` once its question is answered with `y`: after `interrupted`, 5 of 5 times
+on each router, about 160 ms after the line (220 ms after the keys) on 7.25.1 and about 30 ms after it (65 ms) on
+6.49.21, with nothing written after the close in the 4 s that followed (2026-11-05, over TCP).
+
 `WinboxCliClient.ReceiveTerminalChunk` notes the frame (`WinboxM2Protocol.Mepty.Close`). A command read under way
-ends at once with the closed connection (`CliReadTimeout.CreateClosed`), and anything sent after it is refused
-before it is written. `RawCliDialectTest.QuitEndsTheSession_AndIsReportedAsAClosedConnection` covers it, along
-with the other four terminal transports.
+ends at once with the closed connection (`CliReadTimeout.CreateClosed`), unless the frame completed a counted
+answer, and anything sent after it is refused before it is written. The Safe Mode close
+(`WinboxCliClient.TryCloseSession`) waits for it, at most `RouterOsCliLogin.SafeModeQuitWaitMs`, with 500 ms of
+quiet as the fallback for a router that never closes. `RawCliDialectTest.QuitEndsTheSession_AndIsReportedAsAClosedConnection`
+covers the close, along with the other four terminal transports.
 
 ---
 
