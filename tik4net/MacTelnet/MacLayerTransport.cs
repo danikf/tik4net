@@ -826,44 +826,35 @@ namespace tik4net.MacTelnet
 
         private static LocalNic SelectLocalNic(string host)
         {
-            var result = new LocalNic();
+            if (!IPAddress.TryParse(host, out var target)) return new LocalNic();
 
-            IPAddress target;
-            try { target = IPAddress.Parse(host); } catch { return result; }
+            var found = TikLocalNics.FindFor(target);
+            if (found == null) return new LocalNic();
 
-            foreach (var ni in TikLocalNics.Eligible())
+            return new LocalNic
             {
-                byte[]? mac = TikLocalNics.MacOf(ni);
-                if (mac == null) continue;
-
-                foreach (var ua in TikLocalNics.IPv4Addresses(ni))
-                {
-                    if (!TikLocalNics.InSubnet(ua, target)) continue;
-
-                    result.Mac       = mac;
-                    result.LocalIp   = ua.Address;
-                    result.Broadcast = TikLocalNics.SubnetBroadcast(target, ua.IPv4Mask) ?? IPAddress.Broadcast;
-                    result.Name      = DescribeNic(ni);
-                    return result;
-                }
-            }
-
-            return result;
+                Mac       = found.Mac,
+                LocalIp   = found.Address.Address,
+                Broadcast = BroadcastFor(target, found.Address),
+                Name      = DescribeNic(found.Interface),
+            };
         }
 
-        // Derives subnet broadcast for the subnet containing host.
+        // Derives subnet broadcast for the subnet containing host. A host name that is not an IP literal has no
+        // subnet to derive one from, and gets the limited broadcast, as a session with no host does.
         private static IPAddress GetBroadcastAddress(string host)
-            => BroadcastFor(IPAddress.Parse(host), TikLocalNics.Eligible().SelectMany(TikLocalNics.IPv4Addresses));
+            => IPAddress.TryParse(host, out var target)
+                ? BroadcastFor(target, TikLocalNics.FindFor(target)?.Address)
+                : IPAddress.Broadcast;
 
         /// <summary>
-        /// The broadcast of the first of <paramref name="addresses"/> whose subnet holds <paramref name="target"/>,
-        /// or the target's /24 broadcast when none does. An address with no mask cannot say, and is stepped over.
+        /// The broadcast of <paramref name="target"/>'s subnet as <paramref name="address"/> (a local address in it)
+        /// describes it, or the target's /24 broadcast when no local address holds the target.
         /// </summary>
-        internal static IPAddress BroadcastFor(IPAddress target, IEnumerable<UnicastIPAddressInformation> addresses)
+        internal static IPAddress BroadcastFor(IPAddress target, UnicastIPAddressInformation? address)
         {
-            foreach (var ua in addresses)
-                if (ua.Address.AddressFamily == AddressFamily.InterNetwork && TikLocalNics.InSubnet(ua, target))
-                    return TikLocalNics.SubnetBroadcast(target, ua.IPv4Mask) ?? IPAddress.Broadcast;
+            if (address != null)
+                return TikLocalNics.SubnetBroadcast(target, address.IPv4Mask) ?? IPAddress.Broadcast;
 
             // Fallback: /24 broadcast
             var x = target.GetAddressBytes();
@@ -1385,18 +1376,10 @@ namespace tik4net.MacTelnet
 
         private static byte[] GetLocalMac(string? host)
         {
-            IPAddress? target = null;
-            if (!string.IsNullOrEmpty(host))
-                try { target = IPAddress.Parse(host!); } catch { }
-
             // Prefer NIC on same subnet as the router (avoids Hyper-V/VPN virtual adapters).
-            if (target != null)
-                foreach (var ni in TikLocalNics.Eligible())
-                {
-                    byte[]? mac = TikLocalNics.MacOf(ni);
-                    if (mac != null && TikLocalNics.IPv4Addresses(ni).Any(ua => TikLocalNics.InSubnet(ua, target)))
-                        return mac;
-                }
+            if (!string.IsNullOrEmpty(host) && IPAddress.TryParse(host, out var target)
+                && TikLocalNics.FindFor(target) is TikLocalNic found)
+                return found.Mac;
 
             // Fallback: first active non-loopback non-tunnel NIC.
             foreach (var ni in TikLocalNics.Eligible())

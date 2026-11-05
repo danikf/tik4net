@@ -4,13 +4,13 @@ using System;
 using System.Net;
 using System.Net.NetworkInformation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.MacTelnet;
 
 namespace tik4net.unittests.MacTelnet
 {
     /// <summary>
-    /// X9 of the WinBox + MAC layer review: where a MAC-layer session opened with a host but no NIC in the router's
-    /// subnet sends its broadcast. Real adapters report an address with no mask (some VPN and virtual ones), and the
+    /// X9 of the WinBox + MAC layer review: where a MAC-layer session opened with a host sends its broadcast. Real adapters report an address with no mask (some VPN and virtual ones), and the
     /// choice must step over it rather than fail the open.
     /// </summary>
     [TestClass]
@@ -41,23 +41,58 @@ namespace tik4net.unittests.MacTelnet
         [TestMethod]
         public void AnAddressWithNoMaskIsSteppedOver()
         {
-            var addresses = new UnicastIPAddressInformation[]
-            {
-                new FakeAddress("10.8.0.2", null),
-                new FakeAddress("192.168.4.31", "255.255.255.0"),
-            };
+            var target = IPAddress.Parse("192.168.4.236");
 
+            Assert.IsFalse(TikLocalNics.InSubnet(new FakeAddress("10.8.0.2", null), target));
+            Assert.IsFalse(TikLocalNics.InSubnet(new FakeAddress("192.168.4.31", null), target));
+            Assert.IsTrue(TikLocalNics.InSubnet(new FakeAddress("192.168.4.31", "255.255.255.0"), target));
+        }
+
+        [TestMethod]
+        public void TheMatchingAddressGivesItsSubnetBroadcast()
+        {
             Assert.AreEqual("192.168.4.255",
-                MacLayerTransport.BroadcastFor(IPAddress.Parse("192.168.4.236"), addresses).ToString());
+                MacLayerTransport.BroadcastFor(IPAddress.Parse("192.168.4.236"),
+                    new FakeAddress("192.168.4.31", "255.255.255.0")).ToString());
+            Assert.AreEqual("192.168.7.255",
+                MacLayerTransport.BroadcastFor(IPAddress.Parse("192.168.4.236"),
+                    new FakeAddress("192.168.4.31", "255.255.252.0")).ToString());
         }
 
         [TestMethod]
         public void NoAddressInTheSubnetFallsBackToTheSlash24()
         {
-            var addresses = new UnicastIPAddressInformation[] { new FakeAddress("10.8.0.2", "255.255.255.0") };
-
             Assert.AreEqual("192.168.4.255",
-                MacLayerTransport.BroadcastFor(IPAddress.Parse("192.168.4.236"), addresses).ToString());
+                MacLayerTransport.BroadcastFor(IPAddress.Parse("192.168.4.236"), null).ToString());
+        }
+
+        /// <summary>
+        /// H6 of the shared-helpers review: <see cref="TikLocalNics.FindFor"/> on this machine's own interfaces.
+        /// Each interface with a MAC and a masked IPv4 address is found for that address, with an address whose
+        /// subnet holds it; the loopback, which no MAC-layer session can use, is never found.
+        /// </summary>
+        [TestMethod]
+        public void FindForFindsAnInterfaceThatHoldsTheTarget()
+        {
+            Assert.IsNull(TikLocalNics.FindFor(IPAddress.Loopback));
+
+            int checkedCount = 0;
+            foreach (var ni in TikLocalNics.Eligible())
+            {
+                if (TikLocalNics.MacOf(ni) == null) continue;
+                foreach (var ua in TikLocalNics.IPv4Addresses(ni))
+                {
+                    if (ua.IPv4Mask == null) continue;
+                    var found = TikLocalNics.FindFor(ua.Address);
+                    Assert.IsNotNull(found, ua.Address.ToString());
+                    Assert.IsTrue(TikLocalNics.InSubnet(found!.Address, ua.Address));
+                    Assert.AreEqual(6, found.Mac.Length);
+                    checkedCount++;
+                }
+            }
+
+            if (checkedCount == 0)
+                Assert.Inconclusive("This machine has no up interface with a MAC and a masked IPv4 address.");
         }
     }
 }

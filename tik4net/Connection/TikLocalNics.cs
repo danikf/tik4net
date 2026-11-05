@@ -61,6 +61,28 @@ namespace tik4net.Connection
         }
 
         /// <summary>
+        /// The first eligible interface with a MAC that has an IPv4 address in <paramref name="target"/>'s subnet,
+        /// with that MAC and that address; <c>null</c> when there is none (a target behind a gateway).
+        /// </summary>
+        /// <remarks>
+        /// The three come back together because a MAC-layer session needs all of them from the SAME interface: the
+        /// MAC goes in the packet, the address is what the socket binds to, and its mask gives the broadcast.
+        /// </remarks>
+        internal static TikLocalNic? FindFor(IPAddress target)
+        {
+            foreach (var ni in Eligible())
+            {
+                byte[]? mac = MacOf(ni);
+                if (mac == null) continue;
+
+                var address = IPv4Addresses(ni).FirstOrDefault(ua => InSubnet(ua, target));
+                if (address != null) return new TikLocalNic(ni, mac, address);
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// The directed (subnet) broadcast address for an IPv4 address and its mask — the host bits set —
         /// or <c>null</c> when the pair does not describe a subnet a broadcast could be addressed to.
         /// </summary>
@@ -86,5 +108,25 @@ namespace tik4net.Connection
 
             return new IPAddress(broadcast);
         }
+    }
+
+    /// <summary>A local interface as <see cref="TikLocalNics.FindFor"/> found it: the interface, its MAC and the matching address.</summary>
+    internal sealed class TikLocalNic
+    {
+        internal TikLocalNic(NetworkInterface @interface, byte[] mac, UnicastIPAddressInformation address)
+        {
+            Interface = @interface;
+            Mac = mac;
+            Address = address;
+        }
+
+        /// <summary>The interface.</summary>
+        internal NetworkInterface Interface { get; }
+
+        /// <summary>Its 6-byte MAC, never all zeroes.</summary>
+        internal byte[] Mac { get; }
+
+        /// <summary>Its IPv4 address whose subnet holds the target.</summary>
+        internal UnicastIPAddressInformation Address { get; }
     }
 }
