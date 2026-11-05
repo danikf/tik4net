@@ -215,14 +215,14 @@ namespace tik4net.unittests.Cli
         private const string Residue = "\r\nRESIDUE\r\n" + Prompt;
 
         /// <summary>
-        /// X4: a raw key reads residue (a late repaint left unread) into its answer on the PTY and the WinBox CLI;
-        /// MAC-Telnet discards it before the key goes out. A command drains residue on all three. Decision D6.
+        /// X4 (D6): residue (a late repaint left unread) is not read into a raw key's answer on any engine: the PTY and
+        /// the WinBox CLI drain it first, as before a command, and MAC-Telnet discards what its pump collected.
         /// </summary>
         [DataTestMethod]
-        [DataRow(TerminalCarrier.Pty, true)]
-        [DataRow(TerminalCarrier.MacTelnet, false)]
-        [DataRow(TerminalCarrier.WinboxCli, true)]
-        public void X4_ResidueBeforeARawKey_IsReadIntoTheAnswer_ExceptOnMacTelnet(TerminalCarrier carrier, bool residueInAnswer)
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X4_ResidueBeforeARawKey_IsNotInTheAnswer(TerminalCarrier carrier)
         {
             var script = RouterScript.Answer((0, "\r\n[admin@CHR2] <SAFE> "));
             script.Residue = Residue;
@@ -231,16 +231,16 @@ namespace tik4net.unittests.Cli
                 string answer = Run(f.RawAsync(new byte[] { 0x18 }));
 
                 StringAssert.Contains(answer, "<SAFE>");
-                Assert.AreEqual(residueInAnswer, answer.Contains("RESIDUE"), answer);
+                Assert.IsFalse(answer.Contains("RESIDUE"), answer);
             }
         }
 
-        /// <summary>X4, the quiet read: the residue reaches the completion parser on the PTY and the WinBox CLI.</summary>
+        /// <summary>X4, the quiet read: the residue does not reach the completion parser.</summary>
         [DataTestMethod]
-        [DataRow(TerminalCarrier.Pty, true)]
-        [DataRow(TerminalCarrier.MacTelnet, false)]
-        [DataRow(TerminalCarrier.WinboxCli, true)]
-        public void X4_ResidueBeforeATab_IsReadIntoTheListing_ExceptOnMacTelnet(TerminalCarrier carrier, bool residueInAnswer)
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X4_ResidueBeforeATab_IsNotInTheListing(TerminalCarrier carrier)
         {
             var script = RouterScript.Answer((0, "\r\nsystem  \r\n" + Prompt + "/sys"));
             script.Residue = Residue;
@@ -249,7 +249,45 @@ namespace tik4net.unittests.Cli
                 string answer = Run(f.QuietAsync(Encoding.ASCII.GetBytes("/sys\t"), 150));
 
                 StringAssert.Contains(answer, "system");
-                Assert.AreEqual(residueInAnswer, answer.Contains("RESIDUE"), answer);
+                Assert.IsFalse(answer.Contains("RESIDUE"), answer);
+            }
+        }
+
+        /// <summary>
+        /// X4, why it matters: a residue's prompt ends a Safe Mode key's read before the router's answer arrives, and
+        /// <see cref="CliSafeModeParser"/> misses the conflict question — which then waits for its answer, and the
+        /// next line typed gives it one.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X4_ResidueBeforeASafeModeKey_DoesNotHideTheConflictQuestion(TerminalCarrier carrier)
+        {
+            var script = RouterScript.Answer((300, "\r\nSafe Mode is taken by current user in another session. Unroll, release or abort [u/r]?"));
+            script.Residue = Residue;
+            using (var f = Fixture(carrier, script, 1500))
+            {
+                string answer = Run(f.RawAsync(new byte[] { 0x18 }));
+
+                Assert.IsTrue(CliSafeModeParser.IsTakeConflict(answer), Escape(answer));
+            }
+        }
+
+        /// <summary>X4, why it matters: a residue starts the quiet window, and a listing slower than it is lost.</summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void X4_ResidueBeforeATab_DoesNotEndTheReadBeforeASlowListing(TerminalCarrier carrier)
+        {
+            var script = RouterScript.Answer((250, "\r\nsystem  \r\n" + Prompt + "/sys"));
+            script.Residue = Residue;
+            using (var f = Fixture(carrier, script, 10000))
+            {
+                string answer = Run(f.QuietAsync(Encoding.ASCII.GetBytes("/sys\t"), 150));
+
+                StringAssert.Contains(answer, "system", Escape(answer));
             }
         }
 

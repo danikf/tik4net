@@ -105,22 +105,8 @@ namespace tik4net.Cli
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             _interrupt.Clear();
-            // Discard anything still buffered from the PREVIOUS command before issuing this one.
-            // RouterOS's line editor repaints the echo as "<prompt> <command>", and the read that returns on
-            // the prompt inside that repaint leaves the echoed command text behind: the accumulated buffer
-            // ends at "…[admin@CHR] > ", the settle window expires, and the trailing ":put […]" arrives
-            // afterwards. The next command then reads that leftover as its own answer — and because the
-            // stale echo contains 'name=value' text it parses as a record with no '.id'.
-            // Gated on HasData so the normal, clean path pays nothing. WinboxCliClient does the same.
             string cmd = CliEndMarker.InjectWithoutPaging(command);
-
-            if (_stream.HasData)
-            {
-                string residue = await DrainAsync(SettleMs, ct).ConfigureAwait(false);
-                // A relay that ended while the connection was idle: the agent's session is gone, and this
-                // command must not be sent into what is left of it.
-                RouterOsCliLogin.ThrowIfRomonRelayEnded(_transportName, RomonTarget, cmd, residue, commandSent: false);
-            }
+            await DiscardResidueAsync(cmd, ct).ConfigureAwait(false);
 
             // A carrier the router has closed refuses the write in its own words (SSH.NET: ObjectDisposedException);
             // reported as the read a close ends is, and the command was never written.
@@ -145,6 +131,7 @@ namespace tik4net.Cli
         /// </summary>
         public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
+            await DiscardResidueAsync(CliTerminalText.KeyName(raw, _encoding), ct).ConfigureAwait(false);
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
             // sentCommand: null → tolerant. A control key is not a command and RouterOS does not always
             // answer one with a prompt (measured: Ctrl+D replies with a bare cursor save/restore and nothing
@@ -162,8 +149,32 @@ namespace tik4net.Cli
         /// </summary>
         public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
+            await DiscardResidueAsync(CliTerminalText.KeyName(raw, _encoding), ct).ConfigureAwait(false);
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
             return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Drains what is still buffered from the previous read before <paramref name="what"/> is typed, a command or a
+        /// key alike; gated on <see cref="ICliByteStream.HasData"/> so the clean path pays nothing.
+        /// </summary>
+        /// <remarks>
+        /// RouterOS's line editor repaints the echo as "&lt;prompt&gt; &lt;command&gt;", and the read that returns on the
+        /// prompt inside that repaint leaves the echoed command text behind: the next command would read it as its own
+        /// answer, and because the stale echo carries <c>name=value</c> text it parses as a record with no <c>.id</c>.
+        /// Before a key the same residue ends the read early: its prompt settles a Safe Mode key's read before the
+        /// router's question to it arrives, and it starts a Tab's quiet window before the listing does (X4 of the terminal
+        /// clients review). The WinBox CLI drains the same way; MAC-Telnet discards what its pump collected. Residue that
+        /// lands as the key goes out cannot be told from its answer, on any carrier.
+        /// </remarks>
+        private async Task DiscardResidueAsync(string what, CancellationToken ct)
+        {
+            if (!_stream.HasData)
+                return;
+            string residue = await DrainAsync(SettleMs, ct).ConfigureAwait(false);
+            // A relay that ended while the connection was idle: the agent's session is gone, and nothing may be sent
+            // into it.
+            RouterOsCliLogin.ThrowIfRomonRelayEnded(_transportName, RomonTarget, what, residue, commandSent: false);
         }
 
         // ── Reads ─────────────────────────────────────────────────────────────

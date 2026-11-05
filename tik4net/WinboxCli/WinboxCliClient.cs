@@ -158,15 +158,7 @@ namespace tik4net.WinboxCli
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-
-            // Discard any residual frames still buffered from the PREVIOUS command before issuing
-            // this one. A late prompt-repaint or VT100 probe-answer that arrives after the prior
-            // read returned would otherwise be consumed first here and either mistaken for this
-            // command's completion (an early, empty result) or desync a frame boundary (a full
-            // receive-timeout hang). Gated on DataAvailable so the normal, clean path pays nothing;
-            // the login drains for the same reason after the initial prompt.
-            if (_session.DataAvailable)
-                await DrainAsync(SettleMs).ConfigureAwait(false);
+            await DiscardResidueAsync().ConfigureAwait(false);
 
             string cmd = CliEndMarker.InjectWithoutPaging(command);
             ThrowIfTerminalClosed(cmd);
@@ -183,6 +175,7 @@ namespace tik4net.WinboxCli
         public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            await DiscardResidueAsync().ConfigureAwait(false);
             ThrowIfTerminalClosed(KeyName(raw));
             SendInput(raw);
             // null → tolerant; a control key need not be answered with a prompt.
@@ -199,9 +192,26 @@ namespace tik4net.WinboxCli
         public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            await DiscardResidueAsync().ConfigureAwait(false);
             ThrowIfTerminalClosed(KeyName(raw));
             SendInput(raw);
             return await ReadUntilQuietAsync(quietMs).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Drains residual frames still buffered from the previous read before a command or a key is typed; gated on
+        /// <see cref="IWinboxM2Channel.DataAvailable"/> so the clean path pays nothing. The login drains for the same
+        /// reason after the initial prompt.
+        /// </summary>
+        /// <remarks>A late prompt repaint or VT100 probe answer that arrived after the previous read returned would
+        /// otherwise be read first. Before a command it is mistaken for the command's completion (an early, empty result)
+        /// or desynchronises a frame boundary (a full receive-timeout hang); before a key its prompt settles a Safe Mode
+        /// key's read before the router's question to it arrives, or starts a Tab's quiet window before the listing does
+        /// (X4 of the terminal clients review). The PTY drains the same way.</remarks>
+        private async Task DiscardResidueAsync()
+        {
+            if (_session.DataAvailable)
+                await DrainAsync(SettleMs).ConfigureAwait(false);
         }
 
         // ── Close ─────────────────────────────────────────────────────────────

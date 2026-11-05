@@ -421,11 +421,16 @@ namespace tik4net.MacTelnet
         // ── Reading what the pump accumulated ─────────────────────────────────
 
         /// <summary>
-        /// Discards terminal text the pump collected before this command was issued. The pump ACKs router
+        /// Discards terminal text the pump collected before this command or key was issued. The pump ACKs router
         /// output as it arrives (which is what keeps the session alive), but that text is not an answer to
         /// anything we asked: it typically ends in a repainted prompt, and a read that accepted it would
-        /// return it as the next command's result. Every terminal transport has to guard this.
+        /// return it as the next command's result, or end a key's read on it. Every terminal transport has to guard
+        /// this; the PTY and the WinBox CLI drain instead.
         /// </summary>
+        /// <remarks>The pump acknowledges a datagram (<c>TryAcceptData</c>) a moment before it appends the text, so a
+        /// reset in between leaves that text to the answer. That is the same race as residue landing just after the key
+        /// goes out, which no carrier can tell from the answer; the window only moves it by the decode of one
+        /// datagram.</remarks>
         private void ResetReadBuffer()
         {
             lock (_rxLock)
