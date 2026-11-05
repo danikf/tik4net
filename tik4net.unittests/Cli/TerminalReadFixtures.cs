@@ -292,11 +292,15 @@ namespace tik4net.unittests.Cli
 
                 if (script.Residue != null)
                 {
-                    // On screen before the next keystroke: the pump has taken it once it acknowledges it.
+                    // On screen before the next keystroke. The pump acknowledges a datagram (TryAcceptData) before it
+                    // appends the text to its buffer, so the acknowledgement alone does not say the text is there: a
+                    // key sent in between has its buffer reset run first, and the residue then lands in its answer
+                    // (seen once under a loaded test run, on X4's MAC-Telnet row). The pause covers the append.
                     _router.SendData(script.Residue);
                     var sw = Stopwatch.StartNew();
                     while (Volatile.Read(ref _highestAckFromClient) < _router.OutCounter && sw.ElapsedMilliseconds < 2000)
                         Thread.Sleep(5);
+                    Thread.Sleep(50);
                 }
             }
 
