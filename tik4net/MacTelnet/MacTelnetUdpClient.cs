@@ -18,10 +18,12 @@ namespace tik4net.MacTelnet
     /// its own initiative (the shipped logging rules echo <c>critical</c> topics to the console, so an
     /// unrelated event anywhere on the router lands here), and it drops the session when that output is
     /// left unacknowledged. So the socket is serviced continuously by a background pump from login until
-    /// close — see <see cref="StartPump"/> — and the command reads consume what the pump has accumulated
+    /// close — see <see cref="StartPump"/> — and the console's reads consume what the pump has accumulated
     /// rather than receiving from the socket themselves.
+    /// <para>The terminal the connection holds is <see cref="Terminal"/>, a <see cref="CliConsole"/> over this carrier
+    /// (<see cref="ICliConsoleCarrier"/>): the client keeps the login, the pump, the datagram rules and the close.</para>
     /// </remarks>
-    internal sealed class MacTelnetUdpClient : MacLayerTransport, ICliTerminal
+    internal sealed class MacTelnetUdpClient : MacLayerTransport, ICliConsoleCarrier
     {
         private const ushort CLIENT_TYPE = 0x0015;
         // The transport's name in every message this client raises.
@@ -98,7 +100,11 @@ namespace tik4net.MacTelnet
             // Opening the session is part of opening the connection, so it gets the connect budget.
             SessionStartBudgetMs = _loginTimeoutMs;
             RouterMacOverride = routerMac;
+            Terminal = new CliConsole(this);
         }
+
+        /// <summary>The console over this session: the terminal the connection holds.</summary>
+        internal CliConsole Terminal { get; }
 
         // ── Login ─────────────────────────────────────────────────────────────
 
@@ -148,7 +154,7 @@ namespace tik4net.MacTelnet
 
             // The target repaints its prompt after the login just as a direct login does; let it land before
             // the first command resets the buffer.
-            await ReadUntilQuietAsync(RouterOsCliLogin.PostLoginDrainMs, requireData: false, ct).ConfigureAwait(false);
+            await Terminal.ReadUntilQuietAsync(RouterOsCliLogin.PostLoginDrainMs, requireData: false, ct).ConfigureAwait(false);
             _romonTarget = target.RomonId;
             return agentRomonId;
         }
@@ -184,37 +190,7 @@ namespace tik4net.MacTelnet
             return Snapshot(out _);
         }
 
-        // ── Command execution ─────────────────────────────────────────────────
-
-        /// <inheritdoc cref="ICliTerminal.RequestInterrupt"/>
-        public void RequestInterrupt() => _interrupt.Request();
-
-        private readonly CliInterruptLatch _interrupt = new CliInterruptLatch();
-
-        /// <summary>
-        /// Types a command line and reads its cleaned answer, reporting each completed output line to
-        /// <paramref name="onLine"/> (when given) while the command is still running.
-        /// </summary>
-        /// <remarks>The prologue is the one every terminal runs (<see cref="CliConsole.SendCommandAndReadAsync"/>): the
-        /// line, the latch cleared, the residue, the ended check, the write.</remarks>
-        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
-        {
-            // No Task.Run: the pump owns the socket, so nothing here blocks. The send is a UDP datagram plus
-            // its retransmit bookkeeping (MacLayerTransport.Send) and the read only waits for the pump to
-            // report progress — awaiting that holds no thread, which is the whole of the async read on this transport.
-            ct.ThrowIfCancellationRequested();
-            string cmd = CliEndMarker.InjectWithoutPaging(command);
-            _interrupt.Clear();
-            // What the pump collected while the connection was idle is discarded below — but a relay that ended
-            // in that time means the agent's session is gone, and this command must not be sent into it.
-            RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _romonTarget, cmd, Snapshot(out _), commandSent: false);
-            ResetReadBuffer();
-            ResetDataHoles();
-            ThrowIfRouterEnded(cmd);
-            SendTerminalBytes(_encoding.GetBytes(cmd + CliTerminalText.Enter));
-            string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
-            return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd);
-        }
+        // ── Datagram loss ─────────────────────────────────────────────────────
 
         /// <summary>
         /// Refuses a response that arrived across a retransmission episode. The response itself looks
@@ -267,38 +243,6 @@ namespace tik4net.MacTelnet
                 lost, response);
         }
 
-        /// <summary>
-        /// Sends raw bytes (a control key such as Ctrl+X — no carriage return, no paging injection) and
-        /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
-        /// </summary>
-        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            ThrowIfRouterEnded(KeyName(raw));
-            ResetReadBuffer();
-            SendTerminalBytes(raw);
-            // null -> tolerant; a control key need not be answered with a prompt.
-            return VtStripper.StripAnsi(await ReadCommandResponseAsync(null, ct).ConfigureAwait(false));
-        }
-
-        /// <summary>
-        /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for Tab-completion) and reads the reaction until
-        /// the socket goes quiet for <paramref name="quietMs"/> — the completion listing does not end in a
-        /// shell prompt (RouterOS redraws the prompt with the echoed stem), so it must be read on a settle
-        /// window rather than a prompt match. Returned with its escape sequences: an inline completion is
-        /// written in cursor moves, which the completion parser replays.
-        /// </summary>
-        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            ThrowIfRouterEnded(KeyName(raw));
-            ResetReadBuffer();
-            SendTerminalBytes(raw);
-            await ReadUntilQuietAsync(quietMs, ct: ct).ConfigureAwait(false);
-            lock (_rxLock)
-                return _rx.ToString();
-        }
-
         // ── Close ─────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -329,18 +273,6 @@ namespace tik4net.MacTelnet
                 try { Send(PKT_DATA, _encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, CliTerminalText.Enter))); } catch { /* ignore */ }
             }
             try { Send(PKT_END, null); } catch { /* ignore */ }
-        }
-
-        // ── ICliTerminal ──────────────────────────────────────────────────────
-
-        public bool SupportsQuietRead => true;
-
-        public bool SupportsLineStreaming => true;
-
-        public void End(bool answerSafeModeQuestion)
-        {
-            TryCloseSession(answerSafeModeQuestion);
-            Dispose();
         }
 
         // The quit wait's poll (CliSafeModeQuitWait): over on the router's PKT_END or a dead pump; the pump reads and
@@ -457,8 +389,6 @@ namespace tik4net.MacTelnet
                 throw CliReadTimeout.CreateClosedBeforeWrite(Transport, ReceiveTimeoutMs, what, null);
         }
 
-        private string KeyName(byte[] raw) => CliTerminalText.KeyName(raw, _encoding);
-
         // The pump's failure is rethrown as-is, with its original stack. Inventing a wrapper type here
         // would trade the one thing that identifies the fault (a SocketException, say, with its error
         // code) for a generic "transport failed", and a read that then reports "nothing was received"
@@ -468,131 +398,6 @@ namespace tik4net.MacTelnet
             var fault = _pumpFault;
             if (fault != null)
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(fault).Throw();
-        }
-
-        private void TraceNote(string note)
-            => Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note, note);
-
-        /// <summary>
-        /// Reads a command response until <see cref="CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
-        /// looking at the pump's receive buffer each time the pump signals new data or the poll interval passes.
-        /// </summary>
-        /// <param name="sentCommand">
-        /// The command being answered. When non-null, reaching the deadline without a prompt throws
-        /// <see cref="TikConnectionReceiveTimeoutException"/> instead of returning the partial text — see
-        /// <see cref="CliReadTimeout"/>. <c>null</c> for control keys, which need not end at a prompt.
-        /// </param>
-        /// <param name="onLine">
-        /// Optional: called with each completed line as it arrives, so a long-running command can be
-        /// consumed while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the read
-        /// returns — the stable prompt is still the only terminator.
-        /// </param>
-        /// <param name="ct">
-        /// Cancels the wait between polls. Only ever the caller's own token, and only in
-        /// <see cref="TikCancellationMode.AbandonAndClose"/> — <c>CliConnectionBase</c> passes
-        /// <see cref="CancellationToken.None"/> otherwise, because a read abandoned mid-command leaves
-        /// output the next command would parse as its own. In that mode the connection is closed straight
-        /// afterwards, so there is no next command for it to confuse.
-        /// </param>
-        private async Task<string> ReadCommandResponseAsync(string? sentCommand, CancellationToken ct,
-            Action<string>? onLine = null)
-        {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            var settle = new CliPromptSettle(sentCommand, SettleMs, Diagnostics.TikWireTrace.Enabled ? TraceNote : (Action<string>?)null);
-            int lastLength = -1;
-            var streamer = new CliLineStreamer(onLine);
-            bool endedBefore = _routerEnded;   // only an end that arrives during this read is this read's
-            bool endSeen = false;
-
-            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
-            {
-                ct.ThrowIfCancellationRequested();
-                ThrowIfPumpFaulted();
-                _rxSignal.Reset();
-
-                if (_interrupt.TakeFor(sentCommand))
-                {
-                    SendTerminalBytes(new[] { CliTerminalText.CtrlC });
-                    settle.Interrupted();
-                }
-
-                // The end is read before the text: everything the pump appended before it set the flag is then in the
-                // snapshot below (see "the same poll" at the end check).
-                bool ended = _routerEnded && !endedBefore;
-                string stripped = Snapshot(out int length);
-                streamer.Feed(stripped);
-                bool newData = length != lastLength;
-                lastLength = length;
-
-                // Nothing has come back AND the router never took the bytes, even after the pump ran the
-                // retransmits out. Waiting the rest of the deadline would only turn a known answer into a
-                // vague one — see TikConnectionSessionClosedException for why this is safe to call.
-                if (length == 0 && LastSendAbandoned)
-                    throw SessionClosed(sentCommand);
-
-                // The relay ended mid-command: no prompt will follow, the agent's session is over.
-                RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _romonTarget, sentCommand, stripped, commandSent: true);
-
-                // Asked before the end is: a counted answer whose count line and prompt are on screen is whole, and an end
-                // that came with it is the next command's to report (D2 of the terminal clients review, as on the PTY).
-                switch (settle.Observe(stripped, newData, sw.ElapsedMilliseconds, length))
-                {
-                    case CliPromptSettle.Outcome.Complete:
-                    case CliPromptSettle.Outcome.Settled:
-                        return stripped;
-                }
-
-                // The router ended the session (PKT_END): /quit typed, the console logged out, or the relay's agent session
-                // over without its end line reaching us (the line is a datagram the router can drop, the end is not). No
-                // prompt will follow. "The same poll" on a carrier a pump fills: the end is acted on one look after the
-                // look that first saw it, so what the router sent around its PKT_END, already in the socket, has been
-                // appended and judged first: a PKT_END the pump takes just ahead of the answer's last DATA (the two leave the
-                // router within a millisecond) does not cut a complete answer.
-                if (ended)
-                {
-                    if (endSeen)
-                        return settle.EndWithoutPrompt(Transport, _romonTarget, closed: true, sw.ElapsedMilliseconds,
-                            ReceiveTimeoutMs, stripped, length);
-                    endSeen = true;
-                }
-
-                await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
-            }
-
-            string strippedSoFar = Snapshot(out int lengthSoFar);
-            return settle.EndWithoutPrompt(Transport, _romonTarget, closed: false, sw.ElapsedMilliseconds,
-                ReceiveTimeoutMs, strippedSoFar, lengthSoFar);
-        }
-
-        /// <summary>
-        /// Accumulates the terminal reaction until it stays quiet for <paramref name="quietMs"/> after at
-        /// least some data (or the receive deadline expires). Returns the ANSI-stripped text.
-        /// Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
-        /// </summary>
-        /// <param name="quietMs">How long nothing new must arrive.</param>
-        /// <param name="requireData">When <c>true</c> (Tab-completion) the quiet only counts once something has
-        /// arrived; when <c>false</c> a silent terminal is quiet too — for draining a repaint that may not come.</param>
-        /// <param name="ct">Checked on every wait, so a caller's cancel is not held up by the quiet window.</param>
-        private async Task<string> ReadUntilQuietAsync(int quietMs, bool requireData = true,
-            CancellationToken ct = default)
-        {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            var quiet = new CliQuietWindow(quietMs, requireData);
-
-            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
-            {
-                ct.ThrowIfCancellationRequested();
-                ThrowIfPumpFaulted();
-                _rxSignal.Reset();
-
-                Snapshot(out int length);
-                if (quiet.Observe(length) != CliQuietWindow.Outcome.Continue)
-                    break;
-
-                await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
-            }
-
-            return Snapshot(out _);
         }
 
         // Current buffer, ANSI-stripped, plus its raw length (the length is what "did anything new
@@ -606,6 +411,122 @@ namespace tik4net.MacTelnet
                 raw       = _rx.ToString();
             }
             return VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(_romonTarget, raw));
+        }
+
+        // ── The console's carrier ─────────────────────────────────────────────
+
+        string ICliConsoleCarrier.TransportName => Transport;
+
+        string ICliConsoleCarrier.TraceChannel => WireTraceChannel;
+
+        Encoding ICliConsoleCarrier.Encoding => _encoding;
+
+        string ICliConsoleCarrier.Enter => CliTerminalText.Enter;
+
+        int ICliConsoleCarrier.SettleMs => SettleMs;
+
+        int ICliConsoleCarrier.ReceiveTimeoutMs => ReceiveTimeoutMs;
+
+        string? ICliConsoleCarrier.RomonTarget => _romonTarget;
+
+        // The pump has already read and acknowledged the residue: it is dropped (ResetReadBuffer), not drained.
+        bool ICliConsoleCarrier.DiscardsResidue => true;
+
+        bool ICliConsoleCarrier.HasData => false;
+
+        string ICliConsoleCarrier.PeekResidue()
+        {
+            lock (_rxLock)
+                return _rx.ToString();
+        }
+
+        // Before a command the pump's count of wide datagram gaps starts again too: it vets that command's answer.
+        void ICliConsoleCarrier.DiscardResidue(bool beforeCommand)
+        {
+            ResetReadBuffer();
+            if (beforeCommand)
+                ResetDataHoles();
+        }
+
+        void ICliConsoleCarrier.ThrowIfEnded(string what) => ThrowIfRouterEnded(what);
+
+        bool ICliConsoleCarrier.WriteRefusedByClose => false;
+
+        // No Task.Run: the pump owns the socket, so nothing here blocks. The send is a UDP datagram plus its retransmit
+        // bookkeeping (MacLayerTransport.Send), and a read only waits for the pump to report progress — awaiting that
+        // holds no thread, which is the whole of the async read on this transport.
+        Task ICliConsoleCarrier.SendAsync(byte[] keys, CancellationToken ct)
+        {
+            SendTerminalBytes(keys);
+            return Task.CompletedTask;
+        }
+
+        TikConnectionSessionClosedException ICliConsoleCarrier.NotAcknowledged(string? sentCommand) => SessionClosed(sentCommand);
+
+        ICliCarrierRead ICliConsoleCarrier.BeginRead(CliReadKind kind) => new PumpRead(this);
+
+        void ICliConsoleCarrier.End(bool answerSafeModeQuestion)
+        {
+            TryCloseSession(answerSafeModeQuestion);
+            Dispose();
+        }
+
+        void ICliConsoleCarrier.Release() => Dispose();
+
+        /// <summary>
+        /// One read over what the pump has accumulated: each poll looks at the receive buffer (a snapshot, since the pump
+        /// owns it) and the wait between polls ends when the pump signals new data or <see cref="ReadWaitMs"/> passes. A
+        /// dead pump is rethrown as it is.
+        /// </summary>
+        /// <remarks>
+        /// The router ending the session (<c>PKT_END</c>: <c>/quit</c> typed, the console logged out, or the relay's agent
+        /// session over without its end line reaching us — the line is a datagram the router can drop, the end is not) is
+        /// this read's only when it arrives during it, and it is reported one look after the look that first saw it: "the
+        /// same poll" on a carrier a pump fills. The flag is read before the text, so everything the pump appended before
+        /// it set the flag is in that look's snapshot, and what the router sent around its <c>PKT_END</c>, already in the
+        /// socket, is appended and judged by the next: a <c>PKT_END</c> the pump takes just ahead of the answer's last
+        /// DATA (the two leave the router within a millisecond) does not cut a complete answer.
+        /// </remarks>
+        private sealed class PumpRead : ICliCarrierRead
+        {
+            private readonly MacTelnetUdpClient _client;
+            private readonly bool _endedBefore;   // only an end that arrives during this read is this read's
+            private bool _endSeen;
+            private int _lastLength = -1;
+            private string _text = string.Empty;
+
+            internal PumpRead(MacTelnetUdpClient client)
+            {
+                _client = client;
+                _endedBefore = client._routerEnded;
+            }
+
+            public string Text => _text;
+
+            public Task<CliCarrierPoll> PollAsync(bool atPrompt, long elapsedMs, CancellationToken ct)
+            {
+                _client.ThrowIfPumpFaulted();
+                _client._rxSignal.Reset();
+
+                bool ended = _client._routerEnded && !_endedBefore;
+                lock (_client._rxLock)
+                    _text = _client._rx.ToString();
+                bool newData = _text.Length != _lastLength;
+                _lastLength = _text.Length;
+
+                bool report = false;
+                if (ended)
+                {
+                    report = _endSeen;
+                    _endSeen = true;
+                }
+
+                // LastSendAbandoned: the router never took the bytes, even after the pump ran the retransmits out.
+                return Task.FromResult(new CliCarrierPoll(newData, report, _client.LastSendAbandoned));
+            }
+
+            // The token belongs on the polling loop, not on this wait (AsyncSignal says why).
+            public Task WaitAsync(CancellationToken ct) => _client._rxSignal.WaitAsync(ReadWaitMs);
         }
 
         // ── Terminal writes (every key, the login's and the commands') ───────

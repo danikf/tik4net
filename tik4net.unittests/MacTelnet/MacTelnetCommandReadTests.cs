@@ -32,10 +32,10 @@ namespace tik4net.unittests.MacTelnet
             // interval, the router takes the copy, and the read gets its answer inside the deadline.
             using (var f = Fixture(TwoCommands(), 10000))
             {
-                Assert.AreEqual("CHR2", f.Client.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult().Trim());
+                Assert.AreEqual("CHR2", f.Client.Terminal.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult().Trim());
                 f.DropOnce = Second + "\r";
 
-                string answer = f.Client.SendCommandAndReadAsync(Second, null, CancellationToken.None).GetAwaiter().GetResult();
+                string answer = f.Client.Terminal.SendCommandAndReadAsync(Second, null, CancellationToken.None).GetAwaiter().GetResult();
 
                 Assert.AreEqual("12:00:00", answer.Trim());
                 Assert.AreEqual(1, f.Dropped);
@@ -49,12 +49,12 @@ namespace tik4net.unittests.MacTelnet
             using (var f = Fixture(TwoCommands(), TimeoutMs))
             {
                 // The first exchange gives the session its first ACK, which the retransmit waits for.
-                f.Client.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult();
+                f.Client.Terminal.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult();
                 f.NeverAcknowledge = Second + "\r";
                 var sw = Stopwatch.StartNew();
 
                 var ex = Assert.ThrowsException<TikConnectionSessionClosedException>(
-                    () => f.Client.SendCommandAndReadAsync(Second, null, CancellationToken.None).GetAwaiter().GetResult());
+                    () => f.Client.Terminal.SendCommandAndReadAsync(Second, null, CancellationToken.None).GetAwaiter().GetResult());
 
                 Assert.IsTrue(sw.ElapsedMilliseconds < TimeoutMs / 2, sw.ElapsedMilliseconds + " ms: the read waited for the deadline");
                 StringAssert.Contains(ex.Message, Second);
@@ -67,12 +67,12 @@ namespace tik4net.unittests.MacTelnet
         {
             using (var f = Fixture(TwoCommands(), 10000))
             {
-                f.Client.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult();
+                f.Client.Terminal.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult();
                 f.Router.SendEnd();
                 Thread.Sleep(300);   // the pump takes it
 
                 var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
-                    () => f.Client.SendCommandAndReadAsync(Second, null, CancellationToken.None).GetAwaiter().GetResult());
+                    () => f.Client.Terminal.SendCommandAndReadAsync(Second, null, CancellationToken.None).GetAwaiter().GetResult());
 
                 StringAssert.Contains(ex.Message, "did not run");
                 Assert.AreEqual(1, f.Inputs.Count, "the command was written into the ended session");
@@ -94,7 +94,28 @@ namespace tik4net.unittests.MacTelnet
                 RelayTo(f, "AA:BB:CC:DD:EE:FF");
 
                 Assert.ThrowsException<TikRomonRelayEndedException>(
-                    () => f.Client.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult());
+                    () => f.Client.Terminal.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult());
+            }
+        }
+
+        /// <summary>
+        /// T1, the one prologue: a relay that ended while the connection was idle stops a key before it is sent, as it stops
+        /// a command, and as on the PTY. The key would otherwise be typed into the agent's own shell.
+        /// </summary>
+        [TestMethod]
+        public void ResidueShowingTheRelayEnded_StopsAKeyBeforeItIsSent()
+        {
+            var script = RouterScript.Answer((0, "\r\n[admin@CHR2] <SAFE> "));
+            script.Residue = "\r\nWelcome back!\r\n" + Prompt;
+            using (var f = Fixture(script, 10000))
+            {
+                RelayTo(f, "AA:BB:CC:DD:EE:FF");
+
+                var ex = Assert.ThrowsException<TikRomonRelayEndedException>(
+                    () => f.Client.Terminal.SendRawAndReadAsync(new byte[] { 0x18 }, CancellationToken.None).GetAwaiter().GetResult());
+
+                Assert.IsFalse(ex.CommandMayHaveRun, "the key was not sent");
+                Assert.AreEqual(0, f.Inputs.Count, "the key was typed into the agent's shell");
             }
         }
 
@@ -111,12 +132,12 @@ namespace tik4net.unittests.MacTelnet
                 RelayTo(f, "AA:BB:CC:DD:EE:FF");
                 var sw = Stopwatch.StartNew();
 
-                string answer = f.Client.SendRawAndReadAsync(new byte[] { 0x18 }, CancellationToken.None).GetAwaiter().GetResult();
+                string answer = f.Client.Terminal.SendRawAndReadAsync(new byte[] { 0x18 }, CancellationToken.None).GetAwaiter().GetResult();
 
                 StringAssert.Contains(answer, "safe mode taken");
                 Assert.IsTrue(sw.ElapsedMilliseconds < 5000, sw.ElapsedMilliseconds + " ms: the read waited for the deadline");
                 var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
-                    () => f.Client.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult());
+                    () => f.Client.Terminal.SendCommandAndReadAsync(First, null, CancellationToken.None).GetAwaiter().GetResult());
                 StringAssert.Contains(ex.Message, "did not run");
                 Assert.AreEqual(1, f.Inputs.Count, "the command was written into the ended session");
             }

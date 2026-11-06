@@ -95,7 +95,7 @@ namespace tik4net.MacTelnet
         private CliTerminalOpen Session(string host, string user, string password)
         {
             var client = new MacTelnetUdpClient(Encoding, ClientTimeouts, RouterMac);
-            return new CliTerminalOpen(client, ct => LoginOrRelayAsync(host, AgentName(host),
+            return new CliTerminalOpen(client.Terminal, ct => LoginOrRelayAsync(host, AgentName(host),
                 user, c => client.LoginAsync(host, user, password, c), client.EnterRomonAsync, ct));
         }
 
@@ -106,7 +106,7 @@ namespace tik4net.MacTelnet
         private string Vetted(ICliTerminal session, string command, string answer)
         {
             if (!IsCountedReadInFlight)
-                ((MacTelnetUdpClient)session).ThrowIfResponseLostDatagrams(command, answer);
+                ((MacTelnetUdpClient)((CliConsole)session).Carrier).ThrowIfResponseLostDatagrams(command, answer);
             return answer;
         }
     }

@@ -342,11 +342,13 @@ of each takes), `CliOutputParser`, `CliTorchParser`, `CliTableParser`, `CliDsvPa
 `CliMonitorVerbs`, `CliSafeModeParser`, `VtStripper`/`Vt100State` (terminal emulation), `RouterOsCliLogin` (its RoMON relay
 in `RouterOsCliLogin.Romon.cs`), `CliLoginScreen` (the one rule for the screen a login lands on), `ITikCliCompletion`.
 
-Under the base, every console is one `ICliTerminal`: Telnet and SSH hold a `CliConsole` — the command prologue, the
-interrupt latch, the command read, the quiet read and the drain — over the `CliPtySession` carrier
-(`ICliConsoleCarrier`) on an `ICliByteStream` (the socket, the shell channel); the two WinBox CLI transports hold one over
-`WinboxCliClient` (the mepty pull, the byte acknowledgement, the frame budget), MAC-Telnet drives its own carrier, and the two
-MAC-layer leaves wrap theirs in `ReconnectingCliTerminal`. All four clients end a command's read by one rule,
+Under the base, every console is one `ICliTerminal`, a `CliConsole` — the command prologue, the interrupt latch, the
+command read, the quiet read and the drain, written once — over a carrier (`ICliConsoleCarrier`) that the console polls:
+`CliPtySession` on an `ICliByteStream` for Telnet and SSH (the socket, the shell channel), `MacTelnetUdpClient` (its pump,
+the datagram rules) for MAC-Telnet, `WinboxCliClient` (the mepty pull, the byte acknowledgement, the frame budget) for
+both WinBox CLI transports. What differs between carriers is below the poll; the Safe Mode quit wait stays each carrier's
+(`CliSafeModeQuitWait` over its own poll). The two MAC-layer leaves wrap their console in `ReconnectingCliTerminal`. Every
+console ends a command's read by one rule,
 `CliPromptSettle`: the command's echo seen, a completion prompt last, then either a counted read's own count line or
 the settle window with the prompt still last. A cancelled read under `Cooperative` gets Ctrl-C from its read loop, which
 owns the writes (`ICliTerminal.RequestInterrupt`), and then ends on the prompt alone. A write never does.

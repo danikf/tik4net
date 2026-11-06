@@ -210,6 +210,27 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        /// <summary>
+        /// T1, the one quiet read: a carrier that ends (the PTY closing, MAC-Telnet's <c>PKT_END</c>, the WinBox terminal's
+        /// <c>Mepty.Close</c>) ends a quiet read at once, as it ends a command's read, instead of the read waiting its quiet
+        /// window out. Until the fold only the PTY's did.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TerminalCarrier.Pty)]
+        [DataRow(TerminalCarrier.MacTelnet)]
+        [DataRow(TerminalCarrier.WinboxCli)]
+        public void AQuietRead_ACarrierThatEndsAfterData_EndsTheReadBeforeTheWindow(TerminalCarrier carrier)
+        {
+            using (var f = Fixture(carrier, RouterScript.Answer((0, "one")).ThenEnd(20), 10000))
+            {
+                var sw = Stopwatch.StartNew();
+                string answer = Run(f.QuietAsync(Encoding.ASCII.GetBytes("/sys\t"), 1500));
+
+                Assert.AreEqual("one", answer);
+                Assert.IsTrue(sw.ElapsedMilliseconds < 1000, sw.ElapsedMilliseconds + " ms: waited for the quiet window on an ended carrier");
+            }
+        }
+
         // ── The Safe Mode quit wait ───────────────────────────────────────────
 
         private const string QuitAnswered = "/quit\r\nYou are in Safe Mode. Quitting will unroll changes. Quit? [y/N]: y\r\ninterrupted\r\n";

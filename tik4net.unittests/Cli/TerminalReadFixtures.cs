@@ -283,7 +283,7 @@ namespace tik4net.unittests.Cli
             }
         }
 
-        // ── MAC-Telnet: MacTelnetUdpClient's pump over loopback UDP ───────────
+        // ── MAC-Telnet: CliConsole over MacTelnetUdpClient's pump over loopback UDP ───────────
 
         /// <summary>
         /// The router answers over <see cref="MacTelnetFakeRouter"/>, one datagram per chunk, and acknowledges each DATA
@@ -334,10 +334,10 @@ namespace tik4net.unittests.Cli
 
             internal MacTelnetFakeRouter Router => _router;
 
-            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => Client.SendCommandAndReadAsync(command, null, ct);
-            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => Client.SendRawAndReadAsync(key, ct);
-            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => Client.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
-            internal override void RequestInterrupt() => Client.RequestInterrupt();
+            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => Client.Terminal.SendCommandAndReadAsync(command, null, ct);
+            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => Client.Terminal.SendRawAndReadAsync(key, ct);
+            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => Client.Terminal.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
+            internal override void RequestInterrupt() => Client.Terminal.RequestInterrupt();
             internal override void End(bool answerSafeModeQuestion) => Client.TryCloseSession(answerSafeModeQuestion);
 
             private void RouterLoop()
