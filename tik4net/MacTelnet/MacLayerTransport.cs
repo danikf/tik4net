@@ -1274,7 +1274,7 @@ namespace tik4net.MacTelnet
         /// <see cref="SocketException"/> with <see cref="SocketError.TimedOut"/>, as from a receive under <c>SO_RCVTIMEO</c>.
         /// </summary>
         /// <remarks>
-        /// Waits with <see cref="Socket.Poll"/> and receives only once a datagram is there, never under a receive
+        /// Waits with <see cref="Socket.Poll(int, SelectMode)"/> and receives only once a datagram is there, never under a receive
         /// timeout: on Windows a UDP receive that times out loses a datagram that arrives as it does (measured on
         /// loopback: 328 of 3000 on .NET 8 and 402 of 3000 on .NET Framework against a 5 ms <c>ReceiveTimeout</c>, none
         /// with a poll). The router resends DATA we have not acknowledged, so a lost one cost a resend interval; a lost
