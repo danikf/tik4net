@@ -5,9 +5,11 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace tik4net.integrationtests
 {
     /// <summary>
-    /// RouterOS logs an idle MAC-Telnet console out after about 30 s. The connection then rebuilds the session
-    /// under the caller (new client, new EC-SRP5 login, through <c>TikOpenRetry</c>) and re-sends the command,
-    /// unless Safe Mode is held: there the dropped session is the rollback the caller asked for, and the read throws.
+    /// RouterOS logs an idle MAC-layer console out after about 30 s, on MAC-Telnet and on the WinBox terminal over the
+    /// MAC layer alike (<c>Docs/findings-winbox.md</c> §18). The connection then rebuilds the session under the caller
+    /// (<c>ReconnectingCliTerminal</c>: new client, new EC-SRP5 login, through <c>TikOpenRetry</c>) and re-sends the
+    /// command, unless Safe Mode is held: there the dropped session is the rollback the caller asked for, and the read
+    /// throws.
     /// </summary>
     /// <remarks>
     /// A refused re-login cannot be provoked on demand, so the retry itself rests on <c>TikOpenRetry</c>'s unit
@@ -15,7 +17,7 @@ namespace tik4net.integrationtests
     /// </remarks>
     [TestClass]
     [TestLock(TestLockScope.Router)]
-    public class MacTelnetIdleRebuildTest : TestBase
+    public class MacConsoleIdleRebuildTest : TestBase
     {
         /// <summary>Past RouterOS's idle logout of a MAC console (~30 s).</summary>
         private static readonly TimeSpan Idle = TimeSpan.FromSeconds(40);
@@ -25,8 +27,10 @@ namespace tik4net.integrationtests
 
         protected override void OnInitialize()
         {
-            if (ResolveConnectionType() != TikConnectionType.MacTelnet)
-                Assert.Inconclusive("MAC-Telnet's idle rebuild only; the transport under test is " + ResolveConnectionType() + ".");
+            var type = ResolveConnectionType();
+            if (type != TikConnectionType.MacTelnet && type != TikConnectionType.WinboxCliMac)
+                Assert.Inconclusive("The MAC-layer consoles' idle rebuild only (MAC-Telnet, WinBox CLI MAC); the transport "
+                    + "under test is " + type + ".");
         }
 
         private string ReadIdentity()
@@ -44,8 +48,8 @@ namespace tik4net.integrationtests
         public void AReadAfterTheIdleLogout_WithSafeModeHeld_ThrowsSessionClosed()
         {
             EnsureMinRouterOsVersion(7, "the idle logout of a Safe Mode MAC console (RouterOS 6.49 keeps one "
-                + "alive: it sends ESC[c about every 0.77 s, which tik4net leaves unanswered on purpose, so the "
-                + "session never idles)");
+                + "alive over MAC-Telnet: it sends ESC[c about every 0.77 s, which tik4net leaves unanswered on purpose, "
+                + "so the session never idles)");
             ReadIdentity();
             SafeModeConnection.SafeModeTake();
             try
