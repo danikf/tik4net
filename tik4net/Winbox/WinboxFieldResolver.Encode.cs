@@ -44,7 +44,7 @@ namespace tik4net.Winbox
                 return result;
             if (jg.ReadOnly) return result;
 
-            if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, false));
+            if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(false)));
 
             unsetIds.Add(jg.TypedFieldId);
 
@@ -149,7 +149,7 @@ namespace tik4net.Winbox
             // read side hands out — a field read over native could not be written back unchanged.
             if (jg != null && WinboxRecordCodec.IsZeroWord(jg, value))
             {
-                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
+                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
                 result.Add(EncodeU32(key, 0));
                 return result;
             }
@@ -157,7 +157,7 @@ namespace tik4net.Winbox
             // …and the word RouterOS prints for the all-ones unset marker (trust-store=all, certificate=none).
             if (jg != null && WinboxRecordCodec.IsSentinelWord(jg, value))
             {
-                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
+                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
                 result.Add(EncodeU32(key, unchecked((uint)WinboxJgField.UnsetSentinel)));
                 return result;
             }
@@ -177,7 +177,7 @@ namespace tik4net.Winbox
             // nothing). For a typed field whose branch sends nothing for an empty value (network, ipaddr, …)
             // this bool is the entire write, which is what makes an unset of one a valid request at all.
             if (jg != null && jg.OptKey != 0 && value.Length == 0)
-                result.Add(M2Message.BoolSys(jg.OptKey, false));
+                result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(false)));
 
             if (jg != null && value.Length > 0)
             {
@@ -195,7 +195,7 @@ namespace tik4net.Winbox
                     result.Add(M2Message.BoolSys(jg.NotKey, negated));
                 }
                 if (jg.OptKey != 0 && value.Length > 0)
-                    result.Add(M2Message.BoolSys(jg.OptKey, true));
+                    result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
             }
 
             if (jg != null && value.Length > 0

@@ -137,6 +137,16 @@ namespace tik4net.Winbox
         internal int OptKey { get; }
 
         /// <summary>
+        /// The opt wrapper's <c>inv:1</c>: the <see cref="OptKey"/> bool is DOWN while the value is present
+        /// (webfig's <c>types.opt.put</c> writes <c>!attrs.inv?1:0</c>). The bridge's 'Admin. MAC Address' is
+        /// <c>{opt,id:'b65',inv:1,c:[{macaddr,id:'r66'}]}</c>, and its flag is the API's <c>auto-mac</c>.
+        /// </summary>
+        internal bool OptInverted { get; set; }
+
+        /// <summary>The <see cref="OptKey"/> bool's value on the wire for an option that is (or is not) present.</summary>
+        internal bool OptFlag(bool present) => present != OptInverted;
+
+        /// <summary>
         /// For fields wrapped in a WinBox <c>type:'not'</c> container (an invertible field), the <c>not</c> bool
         /// key carrying the negation flag (1 = negated, e.g. API <c>!established</c>). <c>0</c> when not invertible.
         /// </summary>
@@ -602,13 +612,13 @@ namespace tik4net.Winbox
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, 0, null, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts, Tab = Tab };
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts, Tab = Tab, OptInverted = OptInverted };
 
         internal WinboxJgField WithApiName(string apiName)
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts, Tab = Tab };
+                Prefix, ElementScale, Relative, RefHandlers) { Condition = Condition, KindIdKey = KindIdKey, ElementStatusParts = ElementStatusParts, Tab = Tab, OptInverted = OptInverted };
     }
 }

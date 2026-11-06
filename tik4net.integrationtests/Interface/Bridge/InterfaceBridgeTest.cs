@@ -119,6 +119,35 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        public void AStaticAdminMacCanBeWrittenAndReadBack()
+        {
+            // WinBox labels the field 'Admin. MAC Address' and wraps it in an INVERTED opt whose flag is auto-mac:
+            // the MAC is in force while the flag is down. A write that raised the flag was refused as
+            // "unknown parameter admin-mac" before the alias, and would have left auto-mac on after it.
+            var bridge = new InterfaceBridge
+            {
+                Name = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12),
+                AutoMac = false,
+                AdminMac = "AA:BB:CC:DD:EE:FF",
+            };
+            SaveTracked(bridge);
+
+            var loaded = Connection.LoadById<InterfaceBridge>(bridge.Id);
+            Assert.AreEqual(false, loaded.AutoMac.Value);
+            Assert.AreEqual("AA:BB:CC:DD:EE:FF", loaded.AdminMac.Value);
+
+            loaded.AdminMac = "AA:BB:CC:DD:EE:FE";
+            Connection.Save(loaded);
+            var updated = Connection.LoadById<InterfaceBridge>(bridge.Id);
+            Assert.AreEqual(false, updated.AutoMac.Value);
+            Assert.AreEqual("AA:BB:CC:DD:EE:FE", updated.AdminMac.Value);
+
+            updated.AutoMac = true;
+            Connection.Save(updated);
+            Assert.AreEqual(true, Connection.LoadById<InterfaceBridge>(bridge.Id).AutoMac.Value);
+        }
+
+        [TestMethod]
         public void TheBridgeAndPortPrioritiesAreWrittenAndReadInHex()
         {
             // The API prints both priorities in hex on every RouterOS version; the CLI's as-value prints them

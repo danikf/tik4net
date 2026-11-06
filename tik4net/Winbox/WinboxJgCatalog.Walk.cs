@@ -524,7 +524,7 @@ namespace tik4net.Winbox
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
             long min = 0, int radix = 0, string? prefix = null, int elementScale = 1,
             bool relative = false, IReadOnlyList<WinboxHandler>? refHandlers = null,
-            IReadOnlyList<WinboxJgElementPart>? elementStatusParts = null)
+            IReadOnlyList<WinboxJgElementPart>? elementStatusParts = null, bool optInverted = false)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -553,7 +553,7 @@ namespace tik4net.Winbox
                 elementIsRange: elementIsRange, titleApiName: titleName,
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
                 prefix: prefix, elementScale: elementScale, relative: relative, refHandlers: refHandlers)
-                { ElementStatusParts = elementStatusParts, Tab = tab };
+                { ElementStatusParts = elementStatusParts, Tab = tab, OptInverted = optKey != 0 && optInverted };
             _labels[field] = label;
             if (!nonPublic) _publicKeys.Add((HandlerOfOwner(handlerKey), key));
             if (!_fieldsByLabel.TryGetValue(handlerKey, out var ownLabels))
@@ -863,6 +863,7 @@ namespace tik4net.Winbox
             PaneContext? pane = null)
         {
             int optKey = 0, notKey = 0, netmaskKey = 0;
+            bool optInverted = false;
             var cur = wrapper;
             for (int guard = 0; guard < 8 && cur != null; guard++)
             {
@@ -874,6 +875,10 @@ namespace tik4net.Winbox
                     // A `group` with an id is an opt under another word — its bool says the match is in
                     // force, exactly as an opt's does.
                     if (dec != null) { if (ty == "not") notKey = dec.Value.key; else optKey = dec.Value.key; }
+                    // inv:1 turns the flag round: down while the value is in force (the bridge's admin MAC
+                    // under auto-mac; types.opt.put writes !attrs.inv?1:0).
+                    if (dec != null && ty == "opt")
+                        optInverted = cur.TryGetValue("inv", out var invv) && invv is int invi && invi != 0;
                     // RouterOS 6 spells the `not` of a group as a SIBLING of the value: 6.49.13's 'Src. Address
                     // Type' is {group b1aa, c:[{name:'Address Type',multibits u49}, {name:'Invert',bool bcc}]},
                     // where 7.x nests the same keys as opt b1aa → not bcc → multibits. Without this the '!' read
@@ -963,7 +968,8 @@ namespace tik4net.Winbox
                         // API spells the value: the bridge's priority is a wrapped {radix:16,postfix:'hex'}
                         // and reads 0x1000 where the raw number is 4096.
                         radix: RadixOf(cur),
-                        min: cur.TryGetValue("min", out var omnv) && omnv is int omni ? omni : 0);
+                        min: cur.TryGetValue("min", out var omnv) && omnv is int omni ? omni : 0,
+                        optInverted: optInverted);
                 }
                 return;
             }

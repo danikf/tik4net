@@ -371,7 +371,7 @@ namespace tik4net.Winbox
         {
             if (jf == null) return false;
             if (jf.OptKey != 0 && rec.TryGetValue(jf.OptKey, out var opt)
-                && opt.Value is bool present && !present)
+                && opt.Value is bool flag && flag != jf.OptFlag(true))
                 return true;
             if (IsAnotherKindsField(jf, rec)) return true;
             if (jf.Condition != null && jf.Condition.IsFalseOn(rec)) return true;

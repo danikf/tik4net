@@ -807,8 +807,9 @@ namespace tik4net.Winbox
                 // admin-mac=02:00:00:00:00:01 moved the unnamed bool 0x65 True → False (0x66 took the admin MAC)
                 // on a probe bridge (7.24.2). Merged over the base /interface set.
                 // …and the VLAN tab's 'EtherType' is one word where the API says ether-type (6.49.13, 7.21.5, 7.24.4).
+                // …and 'Admin. MAC Address' (r66, under the inverted opt b65 = auto-mac) is the API's admin-mac (7.25.1).
                 ["/interface/bridge"] = new FieldAliasSet(
-                    both: Ci(("ether-type", "ethertype")),
+                    both: Ci(("ether-type", "ethertype"), ("admin-mac", "admin-mac-address")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["auto-mac"] = new WinboxJgField("auto-mac", 0x65, M2Type.Bool, false),
