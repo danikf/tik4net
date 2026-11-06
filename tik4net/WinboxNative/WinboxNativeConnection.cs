@@ -1035,13 +1035,18 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         public void SafeModeTake()
-            => SafeModeTransition(true, () => _safeModeId = _ops.SafeModeTake());
+            => SafeModeTransition(true, () =>
+            {
+                try { _safeModeId = _ops.SafeModeTake(); }
+                catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, "/safe-mode/take"); }
+            });
 
         /// <inheritdoc/>
         public void SafeModeRelease()
             => SafeModeTransition(false, () =>
             {
-                _ops.SafeModeRelease(_safeModeId);
+                try { _ops.SafeModeRelease(_safeModeId); }
+                catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, "/safe-mode/release"); }
                 _safeModeId = 0;
             });
 
