@@ -108,13 +108,27 @@ sends them under the numbers 7.x declares: `default-name` at `0x10031` on `/inte
 `total-entries` at `0xF` (enabling tracking moved it from 0 to 9 with the API). Both are shipped as
 synthetic fields identical to the 7.x declaration.
 
-**The API renamed some fields in 7, over the same key and label.** `/ip/service` prints `address` where 7
-prints `available-from` (`0x6`), `/tool/e-mail` `address` where 7 prints `server` (`0x1`), and the OSPF area's
-state flag `0xFE0008` is `invalid` where 7 says `inactive`. Nothing in either catalog distinguishes these, so
-native reports **both words** for the field (`FieldAliasSet.AlsoKnownAs`): the read is a superset of that
-router's API by exactly the other version's spelling, and the mapper takes the name its entity declares. The
-write side needs no second word — the alias maps it onto the label, which both catalogs have. No version is
-asked for or compared, per the version-support rule.
+**The API renamed some fields in 7, over the same key and label.** `/ip/service` prints `address` where 7.25
+prints `available-from` (`0x6`), `/tool/e-mail` `address` where 7 prints `server` (`0x1`), the OSPF area's
+state flag `0xFE0008` is `invalid` where 7 says `inactive`, and `/ip/arp`'s 'DHCP' flag is `DHCP` on 6.49.21
+and `dhcp` on 7.21.5 — a rename of the letter case alone. Nothing in either catalog distinguishes these, so the
+router's version does: native reads it from the board-info singleton `[24,2]` and reports each field under the
+spelling that version's API uses (`FieldAliasSet.Renames`), and under both words (`AlsoKnownAs`) between the
+versions measured or when the version is unknown. A case-only rename cannot carry both — a row's names compare
+without case — so it keeps the catalog's spelling then. The write side needs no second word — the alias maps it
+onto the label, which both catalogs have.
+
+**A statusbar can read another window's handler.** The connection list's `{statusbar,path:[20,17],c:['Max
+Entries' ue]}` shows connection tracking's count, and on 6.49.21 the Tracking window itself does not declare
+`ue` (7.x's does). The statusbar's fields are filed as a window of their own, so `/ip/settings` and
+`/interface/bridge/settings` — other windows on `[20,17]` — leave `max-entries` out as the API does, and
+`/ip/firewall/connection/tracking` reads it through a synthetic field, as for `total-entries`.
+
+**Some fields are left out while unset on 6.x only.** The shipped `default-trial` hotspot user carries `0xC=0`
+('all'); 6.49.21's API prints no `server` for it, 7.21.5 and 7.25 print `server=all`
+(`FieldAliasSet.OmittedThrough`). `/routing/bgp/peer` (6.x only) leaves `remote-port`, `update-source` and
+`cisco-vpls-nlri-len-fmt` out while unset although the record carries `179`, `0xFFFFFFFF` ('none') and `0`
+('auto bits'); the last is the window's 'Cisco VPLS NLRI Length Format'. Both measured on unset rows only.
 
 **A logging action's Syslog Severity is `auto` when unset, on both versions.** The stock remote action carries
 `4294967295` and the API prints `syslog-severity=auto` for it — 6.49.13 always, 7.24 once

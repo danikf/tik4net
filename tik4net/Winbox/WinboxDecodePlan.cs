@@ -21,7 +21,11 @@ namespace tik4net.Winbox
             NotReported = resolver.NotReportedNames;
             OmittedWhen = resolver.OmittedWhen;
             ShownOnlyWith = resolver.ShownOnlyWith;
+            Respellings = resolver.Respellings;
         }
+
+        /// <summary>The spellings of the fields renamed by letter case alone (<see cref="WinboxFieldResolver.Respellings"/>), or <c>null</c>.</summary>
+        internal IReadOnlyList<string>? Respellings { get; }
 
         /// <summary>The fields printed only with a bool field on (<see cref="WinboxFieldResolver.ShownOnlyWith"/>), or <c>null</c>.</summary>
         internal IReadOnlyDictionary<string, string>? ShownOnlyWith { get; }

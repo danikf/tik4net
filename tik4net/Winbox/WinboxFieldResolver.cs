@@ -502,14 +502,46 @@ namespace tik4net.Winbox
                 writtenDespiteMark: (child.WrittenDespiteMark ?? Enumerable.Empty<string>())
                     .Union(parent.WrittenDespiteMark ?? Enumerable.Empty<string>()),
                 shownOnlyWith: child.ShownOnlyWith, renames: child.Renames, confirmedBy: child.ConfirmedBy,
-                setByAction: child.SetByAction);
+                setByAction: child.SetByAction, omittedThrough: child.OmittedThrough);
         }
 
         /// <summary>
-        /// The fields this path's rows leave out while they hold their unset text (<see cref="FieldAliasSet.OmittedWhen"/>);
+        /// The fields this path's rows leave out while they hold their unset text (<see cref="FieldAliasSet.OmittedWhen"/>,
+        /// and the <see cref="FieldAliasSet.OmittedThrough"/> entries that hold for this router's version);
         /// <c>null</c> when the set in force is an ancestor's.
         /// </summary>
-        internal IReadOnlyDictionary<string, string>? OmittedWhen => Aliases != null && _ownAliases ? Aliases.OmittedWhen : null;
+        internal IReadOnlyDictionary<string, string>? OmittedWhen
+        {
+            get
+            {
+                var aliases = Aliases;
+                if (aliases == null || !_ownAliases) return null;
+                if (aliases.OmittedThrough == null || _routerVersion == null) return aliases.OmittedWhen;
+                var applying = aliases.OmittedThrough.Where(o => o.AppliesTo(_routerVersion)).ToList();
+                if (applying.Count == 0) return aliases.OmittedWhen;
+                var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (aliases.OmittedWhen != null) foreach (var kv in aliases.OmittedWhen) merged[kv.Key] = kv.Value;
+                foreach (var o in applying) merged[o.Name] = o.UnsetText;
+                return merged;
+            }
+        }
+
+        /// <summary>
+        /// The spellings this router's version gives the fields RouterOS renamed by letter case alone
+        /// (<see cref="FieldAliasSet.Renames"/>, <c>IsCaseOnly</c>); <c>null</c> when there are none or the version is
+        /// not known, and the catalog's spelling stands.
+        /// </summary>
+        internal IReadOnlyList<string>? Respellings
+        {
+            get
+            {
+                var aliases = Aliases;
+                if (aliases?.Renames == null || !_ownAliases || _routerVersion == null) return null;
+                var spellings = aliases.Renames.Where(r => r.IsCaseOnly).Select(r => r.NameUsedBy(_routerVersion))
+                    .OfType<string>().ToList();
+                return spellings.Count == 0 ? null : spellings;
+            }
+        }
 
         /// <summary>
         /// The fields this path's rows print only with a bool field on (<see cref="FieldAliasSet.ShownOnlyWith"/>);
@@ -540,7 +572,7 @@ namespace tik4net.Winbox
                         if (kv.Value.Tab != null && tabs!.Contains(kv.Value.Tab)) names.Add(AliasToApi(kv.Key));
                 if (_routerVersion != null && aliases.Renames != null)
                     foreach (var rename in aliases.Renames)
-                        if (rename.NameNotUsedBy(_routerVersion) is string unused) names.Add(unused);
+                        if (!rename.IsCaseOnly && rename.NameNotUsedBy(_routerVersion) is string unused) names.Add(unused);
                 return names;
             }
         }
@@ -554,7 +586,8 @@ namespace tik4net.Winbox
             var aliases = Aliases;
             if (_routerVersion == null || aliases?.Renames == null || !_ownAliases) return false;
             foreach (var rename in aliases.Renames)
-                if (string.Equals(rename.NameNotUsedBy(_routerVersion), apiName, StringComparison.OrdinalIgnoreCase)) return true;
+                if (!rename.IsCaseOnly
+                    && string.Equals(rename.NameNotUsedBy(_routerVersion), apiName, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
         }
 

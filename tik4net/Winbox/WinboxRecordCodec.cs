@@ -102,6 +102,15 @@ namespace tik4net.Winbox
                 foreach (var rule in plan.ShownOnlyWith)
                     if (fields.TryGetValue(rule.Value, out string? on) && string.Equals(on, "false", StringComparison.Ordinal))
                         fields.Remove(rule.Key);
+            // The row's names compare without case, so an entry keeps the spelling it was first stored under: re-stored
+            // under the version's own one.
+            if (plan.Respellings != null)
+                foreach (string spelling in plan.Respellings)
+                    if (fields.TryGetValue(spelling, out string? value))
+                    {
+                        fields.Remove(spelling);
+                        fields[spelling] = value;
+                    }
             return fields;
         }
 

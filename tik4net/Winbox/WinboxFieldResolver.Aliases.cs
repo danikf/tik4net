@@ -153,6 +153,14 @@ namespace tik4net.Winbox
             public readonly IReadOnlyDictionary<string, string>? OmittedWhen;
 
             /// <summary>
+            /// <see cref="OmittedWhen"/> entries that hold only up to a RouterOS version: the API of that version and older
+            /// leaves the field out at its unset text, a later one prints it. Applied only when the router's version is
+            /// known and is at most the entry's last version measured (<see cref="VersionedOmission.AppliesTo"/>); with no
+            /// version the field stays. Decode only.
+            /// </summary>
+            public readonly IReadOnlyList<VersionedOmission>? OmittedThrough;
+
+            /// <summary>
             /// API name → the bool field the API prints it with, for a field left out while that one is off and whose
             /// window declares no condition to follow (<c>/interface/vrrp</c> <c>connection-tracking-port</c>, measured both
             /// ways on 7.25). A row that carries no such bool keeps the field. Decode only.
@@ -199,6 +207,7 @@ namespace tik4net.Winbox
             /// <param name="notReportedNames">See <see cref="NotReportedNames"/>.</param>
             /// <param name="notReportedTabs">See <see cref="NotReportedTabs"/>.</param>
             /// <param name="omittedWhen">See <see cref="OmittedWhen"/>.</param>
+            /// <param name="omittedThrough">See <see cref="OmittedThrough"/>.</param>
             /// <param name="writtenDespiteMark">See <see cref="WrittenDespiteMark"/>.</param>
             /// <param name="shownOnlyWith">See <see cref="ShownOnlyWith"/>.</param>
             /// <param name="renames">See <see cref="Renames"/>.</param>
@@ -221,7 +230,8 @@ namespace tik4net.Winbox
                 IReadOnlyDictionary<string, string>? shownOnlyWith = null,
                 IReadOnlyList<FieldRename>? renames = null,
                 IReadOnlyDictionary<string, string>? confirmedBy = null,
-                IReadOnlyDictionary<string, Tuple<string, string, string>>? setByAction = null)
+                IReadOnlyDictionary<string, Tuple<string, string, string>>? setByAction = null,
+                IReadOnlyList<VersionedOmission>? omittedThrough = null)
             {
                 var apiToJg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var jgToApi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -246,6 +256,7 @@ namespace tik4net.Winbox
                 NotReportedTabs = notReportedTabs == null
                     ? null : new HashSet<string>(notReportedTabs, StringComparer.OrdinalIgnoreCase);
                 OmittedWhen = omittedWhen;
+                OmittedThrough = omittedThrough;
                 WrittenDespiteMark = writtenDespiteMark == null
                     ? null : new HashSet<string>(writtenDespiteMark, StringComparer.OrdinalIgnoreCase);
                 ShownOnlyWith = shownOnlyWith;
@@ -276,7 +287,45 @@ namespace tik4net.Winbox
             internal string? NameNotUsedBy(Version version)
                 => version <= _lastOld ? _newName : version >= _firstNew ? _oldName : null;
 
+            /// <summary>The spelling <paramref name="version"/>'s API uses, or <c>null</c> when that is not known.</summary>
+            internal string? NameUsedBy(Version version)
+                => version <= _lastOld ? _oldName : version >= _firstNew ? _newName : null;
+
+            /// <summary>
+            /// A rename of the letter case alone (<c>/ip/arp</c>: 6.49.21 prints <c>DHCP</c>, 7.21.5 <c>dhcp</c>). A decoded
+            /// row's names compare without case, so the two cannot stand side by side: the row carries one entry, spelled
+            /// as the router's version spells it, or as the catalog does when the version is unknown.
+            /// </summary>
+            internal bool IsCaseOnly => string.Equals(_oldName, _newName, StringComparison.OrdinalIgnoreCase);
+
             public override string ToString() => $"{_oldName}<={_lastOld} {_newName}>={_firstNew}";
+        }
+
+        /// <summary>
+        /// One entry of <see cref="FieldAliasSet.OmittedThrough"/>: an API name, the text it decodes to while unset, and
+        /// the newest RouterOS version measured to leave it out at that text.
+        /// </summary>
+        private sealed class VersionedOmission
+        {
+            private readonly Version _lastOmitted;
+
+            internal VersionedOmission(string name, string unsetText, Version lastOmitted)
+            {
+                Name = name;
+                UnsetText = unsetText;
+                _lastOmitted = lastOmitted;
+            }
+
+            internal string Name { get; }
+            internal string UnsetText { get; }
+
+            /// <summary>The newest version measured to leave the field out, as text.</summary>
+            internal string LastOmitted => _lastOmitted.ToString();
+
+            /// <summary>Whether a router of <paramref name="version"/> leaves the field out at its unset text.</summary>
+            internal bool AppliesTo(Version version) => version <= _lastOmitted;
+
+            public override string ToString() => $"{Name}={UnsetText} omitted<={LastOmitted}";
         }
 
         /// <summary>
@@ -537,8 +586,11 @@ namespace tik4net.Winbox
                 // /ip/arp and /ip/neighbor: WinBox's 'IP Address' is the API's `address`. On /ip/neighbor
                 // the router ALSO prints `address4` for the same value and `address6` for the v6 one, so
                 // one native field answers to two API names there; `address` is the one every menu uses.
+                // The 'DHCP' flag is the API's `DHCP` on 6.49.21 and its `dhcp` on 7.21.5 and 7.25 — the window's
+                // label upper-cased, on every row of /ip/arp print.
                 ["/ip/arp"] = new FieldAliasSet(
-                    both: Ci(("address", "ip-address"))),
+                    both: Ci(("address", "ip-address")),
+                    renames: new[] { new FieldRename("DHCP", new Version(6, 49, 21), "dhcp", new Version(7, 21, 5)) }),
 
                 // `interface` is a LIST on the API — a neighbour heard on a bridge port is heard on its bridge too,
                 // `interface=ether2,t4n-prio-br` — and the window's 'Interface' (u4) holds only the first of them.
@@ -781,15 +833,17 @@ namespace tik4net.Winbox
                 ["/routing/filter/rule"] = RoutingInactive(),
                 // RouterOS 6 labels the area's name 'Area Name' (0x2 = backbone); 7 labels it 'Name', and the
                 // alias yields to that (AliasToJg).
-                // The state flag is the API's `inactive` on 7.24 and its `invalid` on 6.49.13 — the same
-                // 0xFE0008 the other routing tables carry, so both words are reported.
+                // The state flag is the API's `inactive` on 7.24 and its `invalid` on 6.49.13 and 6.49.21 — the
+                // same 0xFE0008 the other routing tables carry, so both words are reported where the version is
+                // not known, and the one that version prints where it is.
                 ["/routing/ospf/area"] = new FieldAliasSet(
                     both: Ci(("name", "area-name")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" },
                     alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["inactive"] = new[] { "invalid" },
-                    }),
+                    },
+                    renames: new[] { new FieldRename("invalid", new Version(6, 49, 21), "inactive", new Version(7, 24)) }),
                 // /routing/ospf/instance's state flag is with its RouterOS 6 labels, further down: one entry per path.
                 ["/routing/rule"] = RoutingInactive(),
 
@@ -972,11 +1026,15 @@ namespace tik4net.Winbox
                 // default=true on exactly the *0 row of each table (7.24.2), so it is derived from the id.
                 // A t4n user: every one absent while unset and printed once set (7.25), except otp-secret (left unset)
                 // and profile, which the shipped default-trial row leaves unresolved (*FFFFFFFF) and the API leaves out.
+                // server: the shipped default-trial row carries 0xC=0 ('all', the dropdown's defid) and prints
+                // server=all on 7.21.5 and 7.25; 6.49.21 leaves it out and its get answers empty. Measured on that row
+                // only (no other user on the lab's RouterOS 6), so it is tied to that version.
                 ["/ip/hotspot/user"] = new FieldAliasSet(
                     derivedBools: HotspotDefault().DerivedBools,
                     omittedWhen: Ci(("address", "0.0.0.0"), ("email", ""), ("limit-bytes-in", "0"), ("limit-bytes-out", "0"),
                                     ("limit-bytes-total", "0"), ("limit-uptime", "0s"), ("mac-address", "00:00:00:00:00:00"),
-                                    ("password", ""), ("routes", ""), ("otp-secret", ""), ("profile", "*FFFFFFFF"))),
+                                    ("password", ""), ("routes", ""), ("otp-secret", ""), ("profile", "*FFFFFFFF")),
+                    omittedThrough: new[] { new VersionedOmission("server", "all", new Version(6, 49, 21)) }),
                 // The user profile's 'Rate Limit (rx/tx)' carries its units in the label, as on the server
                 // profile: the API says rate-limit, with the same value (1M/2M on a t4n profile, 7.24.4).
                 // A t4n profile, 7.25: the omittedWhen fields are absent while unset and printed once set (address-pool
@@ -1031,10 +1089,14 @@ namespace tik4net.Winbox
                     // active-ipv6, and enabled=auto put both back. Read-only.
                     // total-entries: 7.x declares it ('Total Entries', uf); the 6.49.13 window does not, but
                     // the router sends the key — enabled=yes moved 0xF from 0 to 9 with total-entries=9.
+                    // max-entries: the same — 7.x's window declares 'Max Entries' (ue); on 6.49.21 only the connection
+                    // list's statusbar does, and the API's tracking print has max-entries=1048576 beside the 0xE the
+                    // record carries.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["active-ipv6"] = new WinboxJgField("active-ipv6", 0x2F, M2Type.Bool, true),
                         ["total-entries"] = new WinboxJgField("total-entries", 0xF, M2Type.U32, true, uiType: "number"),
+                        ["max-entries"] = new WinboxJgField("max-entries", 0xE, M2Type.U32, true, uiType: "number"),
                     }),
 
                 // The address list's own key (0xFE0010) is labelled 'Name' by RouterOS 6 and 'List' by 7; the
@@ -1150,6 +1212,17 @@ namespace tik4net.Winbox
                 ["/routing/bgp/instance"] = new FieldAliasSet(
                     both: Ci(("router-id", "ip"), ("ignore-as-path-len", "ignore-as-path-length")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
+
+                // /routing/bgp/peer (RouterOS 6 only). 'Cisco VPLS NLRI Length Format' is the API's and CLI's
+                // cisco-vpls-nlri-len-fmt: `set` completes that name, and get of the label's spelling traps (6.49.21).
+                // The lab's peer carries 0xE=179, 0x1D=0xFFFFFFFF ('none') and 0x27=0 ('auto bits'), the API's get of
+                // remote-port, update-source and cisco-vpls-nlri-len-fmt answers empty, and print leaves all three out
+                // (6.49.21). Measured on that row while unset; a value set on a peer was not, the lab router being
+                // read-only for this measurement.
+                ["/routing/bgp/peer"] = new FieldAliasSet(
+                    both: Ci(("cisco-vpls-nlri-len-fmt", "cisco-vpls-nlri-length-format")),
+                    omittedWhen: Ci(("remote-port", "179"), ("update-source", "none"),
+                                    ("cisco-vpls-nlri-len-fmt", "auto-bits"))),
 
                 // /routing/ospf/instance on RouterOS 6: the 6.49.13 window (and its OSPFv3 twin) spells each field
                 // out — 'Redistribute Static Routes', 'Static Routes Metric' — where the API says

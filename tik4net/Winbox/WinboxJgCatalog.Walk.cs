@@ -126,6 +126,20 @@ namespace tik4net.Winbox
                     }
                 }
 
+                // A statusbar that reads a handler of its own shows that handler's fields inside ANOTHER window: the
+                // firewall connection list's {statusbar,path:[20,17],c:['Max Entries' ue]} is connection tracking's
+                // count. Filed under no window, the field was the handler's alone, and every window on [20,17] that
+                // does not declare ue itself decoded it — on 6.49.21, where the Tracking window lacks 'Max Entries',
+                // /ip/settings and /interface/bridge/settings read max-entries. A window key of its own (no API path
+                // can start with '#') makes it another window's field to them, as it is (GetOtherWindowKeys).
+                else if (handlerInts != null && ty == "statusbar")
+                {
+                    var wk = JgOwner.Window("#statusbar" + string.Join("/", crumb) + "@" + string.Join(",", handlerInts));
+                    _windowHandlerKey[wk] = owner!;
+                    _handlerBackedWindows.Add(wk);
+                    owner = wk;
+                }
+
                 // A window declaring `generic:'X'` is a BASE others extend with `inherit:'X'`. Remember what
                 // discriminator it hands its children (`typeon`, default 'type') and whether it belongs to the
                 // interface family, so a chain (iface → ppp → 'L2TP Client') resolves. Recorded outside the
