@@ -11,7 +11,8 @@ namespace tik4net.Telnet
     /// <summary>
     /// Low-level Telnet TCP client for RouterOS: the TCP connect, the interactive login and the close, with IAC option
     /// negotiation filtered out of every received chunk (<see cref="TelnetNegotiator"/>). Every read and write after the
-    /// connect — commands, VT100 replies, paging prevention, echo and prompt removal — is <see cref="CliPtySession"/>'s.
+    /// connect — commands, VT100 replies, paging prevention, echo and prompt removal — is the console's: a
+    /// <see cref="CliConsole"/> over the <see cref="CliPtySession"/> carrier.
     /// </summary>
     internal sealed class TelnetClient : ICliByteStream
     {
@@ -28,7 +29,7 @@ namespace tik4net.Telnet
         private readonly CliPtySession _pty;
 
         /// <summary>The console over this socket: the terminal the connection holds. Its end and dispose are <see cref="Close"/>.</summary>
-        internal CliPtySession Terminal => _pty;
+        internal CliConsole Terminal => _pty.Terminal;
 
         internal TelnetClient(Encoding encoding, CliClientTimeouts timeouts)
         {
@@ -89,7 +90,7 @@ namespace tik4net.Telnet
             // prompt a *second* time. LoginAsync returns on the first prompt; if we don't consume the
             // residual redraw it leaks into the first command's read and is mistaken for that command's
             // completion → empty output. Drain until the stream goes quiet. (See Docs/findings-winbox-terminal.md §3.)
-            await _pty.DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
+            await _pty.Terminal.DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
         }
 
         /// <summary>

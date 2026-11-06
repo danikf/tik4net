@@ -27,7 +27,7 @@ namespace tik4net.Ssh
         private readonly CliPtySession _pty;
 
         /// <summary>The console over this shell: the terminal the connection holds. Its end and dispose are <see cref="Close"/>.</summary>
-        internal CliPtySession Terminal => _pty;
+        internal CliConsole Terminal => _pty.Terminal;
 
         internal SshShellClient(Encoding encoding, CliClientTimeouts timeouts)
         {
@@ -171,7 +171,7 @@ namespace tik4net.Ssh
 
             // RouterOS performs a VT100 cursor-probe / redraw right after the shell opens and may emit the
             // prompt a second time; consume the residual so it does not leak into the first command's read.
-            await _pty.DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
+            await _pty.Terminal.DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
         }
 
         /// <summary>

@@ -8,9 +8,10 @@ using tik4net.Diagnostics;
 namespace tik4net.Cli
 {
     /// <summary>
-    /// The RouterOS console over a PTY byte stream, for the Telnet and SSH clients: every read and write after the
-    /// carrier is up, and the terminal the connection holds. The client keeps its connect, login and close, and hands
-    /// this its <see cref="ICliByteStream"/> and its close.
+    /// The PTY carrier of the RouterOS console, for the Telnet and SSH clients: the console's poll over an
+    /// <see cref="ICliByteStream"/> (<see cref="ICliConsoleCarrier"/>), the login reads, the writes and the end of the
+    /// session. The terminal the connection holds is <see cref="Terminal"/>. The client keeps its connect, login and
+    /// close, and hands this its byte stream and its close.
     /// </summary>
     /// <remarks>
     /// The reads answer RouterOS's VT100 cursor probes as they go (<see cref="Vt100State"/>): without truthful cursor
@@ -22,7 +23,7 @@ namespace tik4net.Cli
     /// <c>ReadTimeout</c> nor cancellation once the read is pending with no data, so a pending read would block
     /// forever if the router sends nothing; SSH.NET's blocking <c>Read</c> likewise.</para>
     /// </remarks>
-    internal sealed class CliPtySession : ICliTerminal
+    internal sealed class CliPtySession : ICliConsoleCarrier
     {
         /// <summary>Silence required after a prompt before a command's response is considered complete (ms).</summary>
         internal const int SettleMs = 120;
@@ -47,8 +48,8 @@ namespace tik4net.Cli
         /// <param name="enter">One Enter: <c>"\r\n"</c> on Telnet, whose NVT reads it as one; <c>"\r"</c> over a PTY, where
         /// CR LF is two Enters and the second, on an empty line, makes RouterOS 6.49 repaint the prompt in place after the
         /// real end of every response.</param>
-        /// <param name="closeCarrier">The client's close, for <see cref="End"/> (with whether to answer the Safe Mode
-        /// question) and <see cref="Dispose"/> (without): it ends the session (<see cref="EndSession"/>) while the carrier is
+        /// <param name="closeCarrier">The client's close, for <see cref="ICliTerminal.End"/> (with whether to answer the
+        /// Safe Mode question) and the terminal's dispose (without): it ends the session (<see cref="EndSession"/>) while the carrier is
         /// up, then releases the carrier. Never throws.</param>
         /// <param name="inboundFilter">Strips carrier negotiation from each received chunk and gives its answer (Telnet
         /// IAC); null when the carrier has none.</param>
@@ -64,7 +65,11 @@ namespace tik4net.Cli
             _enter = enter;
             _inboundFilter = inboundFilter;
             _closeCarrier = closeCarrier ?? throw new ArgumentNullException(nameof(closeCarrier));
+            Terminal = new CliConsole(this);
         }
+
+        /// <summary>The console over this stream: the terminal the connection holds.</summary>
+        internal CliConsole Terminal { get; }
 
         private int ReceiveTimeoutMs => _receiveTimeout();
 
@@ -88,139 +93,13 @@ namespace tik4net.Cli
                 sendBytes: SendBytesAsync,
                 ct: ct).ConfigureAwait(false);
 
-            // The target repaints its prompt after the login just as a direct login does (see DrainAsync).
-            await DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
+            // The target repaints its prompt after the login just as a direct login does (CliConsole.DrainAsync).
+            await Terminal.DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
             RomonTarget = target.RomonId;
             return agentRomonId;
         }
 
-        // ── Commands ──────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Sends a CLI command and returns the cleaned output: ANSI stripped, echo line removed, trailing prompt
-        /// removed, <c>without-paging</c> injected after <c>print</c> (<see cref="CliEndMarker.InjectWithoutPaging"/>).
-        /// <paramref name="onLine"/>, when given, gets each completed output line while the command is still running;
-        /// the streamed lines are the raw ANSI-stripped ones (echo and prompt included).
-        /// </summary>
-        /// <remarks>The prologue is the same on every terminal: the line with <c>without-paging</c> injected, the interrupt
-        /// latch cleared (a request from before the call is void; one made from here on, the drain included, is this
-        /// command's), the residue of the previous read dealt with, a carrier that has ended refused, the line and one
-        /// Enter written. Here the ended carrier is found by the write itself.</remarks>
-        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            string cmd = CliEndMarker.InjectWithoutPaging(command);
-            _interrupt.Clear();
-            await DiscardResidueAsync(cmd, ct).ConfigureAwait(false);
-
-            // A carrier the router has closed refuses the write in its own words (SSH.NET: ObjectDisposedException);
-            // reported as the read a close ends is, and the command was never written.
-            try
-            {
-                await SendLineAsync(cmd, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (!(ex is OperationCanceledException) && _stream.ClosedAndDrained)
-            {
-                throw CliReadTimeout.CreateClosedBeforeWrite(_transportName, ReceiveTimeoutMs, cmd, ex);
-            }
-
-            string raw = await ReadCommandResponseAsync(ct, cmd, onLine).ConfigureAwait(false);
-
-            return CliOutputCleaner.CleanOutput(raw, cmd);
-        }
-
-        /// <summary>
-        /// Sends raw bytes (a control key such as Ctrl+X — no line terminator, no paging injection) and
-        /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode
-        /// toggling, where RouterOS reacts to the control key rather than a typed command.
-        /// </summary>
-        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-        {
-            await DiscardResidueAsync(CliTerminalText.KeyName(raw, _encoding), ct).ConfigureAwait(false);
-            await SendBytesAsync(raw, ct).ConfigureAwait(false);
-            // sentCommand: null → tolerant. A control key is not a command and RouterOS does not always
-            // answer one with a prompt (measured: Ctrl+D replies with a bare cursor save/restore and nothing
-            // else), so reaching the deadline here is normal rather than a truncated response.
-            return await ReadCommandResponseAsync(ct, null).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for completion) and reads the reaction until the
-        /// stream goes <b>quiet</b> for <paramref name="quietMs"/> — used for Tab-completion, whose listing
-        /// does not end in a shell prompt (RouterOS redraws the prompt with the echoed stem), so a
-        /// prompt-terminated read would block until the receive deadline. Returned with its escape sequences:
-        /// an inline completion is written in cursor moves, which the completion parser replays
-        /// (<see cref="CliCompletionParser"/>). Bounded by the receive deadline.
-        /// </summary>
-        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
-        {
-            await DiscardResidueAsync(CliTerminalText.KeyName(raw, _encoding), ct).ConfigureAwait(false);
-            await SendBytesAsync(raw, ct).ConfigureAwait(false);
-            return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Drains what is still buffered from the previous read before <paramref name="what"/> is typed, a command or a
-        /// key alike; gated on <see cref="ICliByteStream.HasData"/> so the clean path pays nothing.
-        /// </summary>
-        /// <remarks>
-        /// RouterOS's line editor repaints the echo as "&lt;prompt&gt; &lt;command&gt;", and the read that returns on the
-        /// prompt inside that repaint leaves the echoed command text behind: the next command would read it as its own
-        /// answer, and because the stale echo carries <c>name=value</c> text it parses as a record with no <c>.id</c>.
-        /// Before a key the same residue ends the read early: its prompt settles a Safe Mode key's read before the
-        /// router's question to it arrives, and it starts a Tab's quiet window before the listing does (X4 of the terminal
-        /// clients review). The WinBox CLI drains the same way; MAC-Telnet discards what its pump collected. Residue that
-        /// lands as the key goes out cannot be told from its answer, on any carrier.
-        /// </remarks>
-        private async Task DiscardResidueAsync(string what, CancellationToken ct)
-        {
-            if (!_stream.HasData)
-                return;
-            string residue = await DrainAsync(SettleMs, ct).ConfigureAwait(false);
-            // A relay that ended while the connection was idle: the agent's session is gone, and nothing may be sent
-            // into it.
-            RouterOsCliLogin.ThrowIfRomonRelayEnded(_transportName, RomonTarget, what, residue, commandSent: false);
-        }
-
-        // ── Reads ─────────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Reads (answering negotiation and VT100 probes) until <see cref="CliQuietWindow"/> says the reaction is over —
-        /// quiet for <paramref name="quietMs"/> after some data, or nothing at all for
-        /// <see cref="CliCompletionParser.NoReactionQuietFactor"/> windows (an empty answer) — or the carrier closes, or
-        /// the receive deadline expires. Returns the accumulated text, escape sequences included.
-        /// </summary>
-        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
-        {
-            var buffer = new byte[4096];
-            var accumulated = new StringBuilder();
-            var sw = Stopwatch.StartNew();
-            var quiet = new CliQuietWindow(quietMs);
-
-            while (true)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                bool closed = false;
-                while (_stream.HasData)
-                {
-                    int n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
-                    if (n <= 0) { closed = true; break; }
-                    accumulated.Append(await ProcessChunkAsync(buffer, n).ConfigureAwait(false));
-                }
-
-                closed |= _stream.ClosedAndDrained;
-
-                if (quiet.Observe(accumulated.Length) != CliQuietWindow.Outcome.Continue)
-                    return accumulated.ToString();
-
-                // The window cannot see the carrier: a closed one has nothing more to say.
-                if (closed || sw.ElapsedMilliseconds >= ReceiveTimeoutMs)
-                    return accumulated.ToString();
-
-                await Task.Delay(15, ct).ConfigureAwait(false);
-            }
-        }
+        // ── Login reads ───────────────────────────────────────────────────────
 
         /// <summary>
         /// Reads from the stream until the accumulated text (ANSI-stripped) satisfies
@@ -264,117 +143,85 @@ namespace tik4net.Cli
             }
         }
 
-        private readonly CliInterruptLatch _interrupt = new CliInterruptLatch();
+        // ── The console's carrier ─────────────────────────────────────────────
 
-        /// <inheritdoc cref="ICliTerminal.RequestInterrupt"/>
-        public void RequestInterrupt() => _interrupt.Request();
+        string ICliConsoleCarrier.TransportName => _transportName;
+
+        string ICliConsoleCarrier.TraceChannel => _traceChannel;
+
+        Encoding ICliConsoleCarrier.Encoding => _encoding;
+
+        string ICliConsoleCarrier.Enter => _enter;
+
+        int ICliConsoleCarrier.SettleMs => SettleMs;
+
+        int ICliConsoleCarrier.ReceiveTimeoutMs => ReceiveTimeoutMs;
+
+        string? ICliConsoleCarrier.RomonTarget => RomonTarget;
+
+        // The residue is drained, gated on what the stream has buffered.
+        bool ICliConsoleCarrier.DiscardsResidue => false;
+
+        bool ICliConsoleCarrier.HasData => _stream.HasData;
+
+        string ICliConsoleCarrier.PeekResidue() => string.Empty;
+
+        void ICliConsoleCarrier.DiscardResidue(bool beforeCommand) { }
+
+        // The ended carrier is found by the command's write itself (WriteRefusedByClose).
+        void ICliConsoleCarrier.ThrowIfEnded(string what) { }
+
+        bool ICliConsoleCarrier.WriteRefusedByClose => _stream.ClosedAndDrained;
+
+        Task ICliConsoleCarrier.SendAsync(byte[] keys, CancellationToken ct) => SendBytesAsync(keys, ct);
+
+        // Never asked: a TCP carrier delivers what is written or fails the write.
+        TikConnectionSessionClosedException ICliConsoleCarrier.NotAcknowledged(string? sentCommand)
+            => TikConnectionSessionClosedException.NotAcknowledged(_transportName, sentCommand, string.Empty);
+
+        ICliCarrierRead ICliConsoleCarrier.BeginRead(CliReadKind kind) => new PtyRead(this);
+
+        /// <summary>The client's close with the question answered when Safe Mode is held (<see cref="ICliTerminal.End"/>).</summary>
+        void ICliConsoleCarrier.End(bool answerSafeModeQuestion) => _closeCarrier(answerSafeModeQuestion);
+
+        /// <summary>The client's close without answering: Telnet and SSH still type <c>/quit</c> (<see cref="ICliTerminal.End"/>).</summary>
+        void ICliConsoleCarrier.Release() => _closeCarrier(false);
 
         /// <summary>
-        /// Reads a command's response until <see cref="CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
-        /// reading whatever the stream has buffered between polls. Bounded by the receive deadline; a carrier that
-        /// closes first ends the read too, as the relay ending when a RoMON target is set.
+        /// One read: everything the stream has buffered at each poll, decoded and answered, appended to what the read has
+        /// so far. Ended when a read returns 0 or the stream says it closed (<see cref="ICliByteStream.ClosedAndDrained"/>);
+        /// a closed carrier is any read's end, since it is never reopened. The wait between polls is 15 ms.
         /// </summary>
-        /// <param name="ct">Cancellation token.</param>
-        /// <param name="sentCommand">
-        /// The command being answered. When non-null, reaching the deadline without a prompt throws
-        /// <see cref="TikConnectionReceiveTimeoutException"/> instead of returning the partial text — see
-        /// <see cref="CliReadTimeout"/> for why returning it is worse than failing. Pass <c>null</c> for
-        /// reads that legitimately need not end at a prompt (control keys).
-        /// </param>
-        /// <param name="onLine">
-        /// Optional: called with each completed line as it arrives, for a caller that must consume a
-        /// long-running command while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the
-        /// read returns — the stable prompt is still the only terminator.
-        /// </param>
-        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string? sentCommand,
-            Action<string>? onLine = null)
+        /// <remarks>Polled rather than awaited: on .NET Framework, <c>NetworkStream.ReadAsync</c> honours neither
+        /// <c>ReadTimeout</c> nor cancellation once the read is pending with no data, and SSH.NET's <c>Read</c>
+        /// blocks.</remarks>
+        private sealed class PtyRead : ICliCarrierRead
         {
-            var buffer = new byte[4096];
-            var accumulated = new StringBuilder();
-            var sw = Stopwatch.StartNew();
-            var settle = new CliPromptSettle(sentCommand, SettleMs, TikWireTrace.Enabled ? TraceNote : (Action<string>?)null);
-            var streamer = new CliLineStreamer(onLine);
+            private readonly CliPtySession _pty;
+            private readonly byte[] _buffer = new byte[4096];
+            private readonly StringBuilder _accumulated = new StringBuilder();
 
-            while (true)
+            internal PtyRead(CliPtySession pty) { _pty = pty; }
+
+            public string Text => _accumulated.ToString();
+
+            public async Task<CliCarrierPoll> PollAsync(bool atPrompt, long elapsedMs, CancellationToken ct)
             {
-                ct.ThrowIfCancellationRequested();
-
-                if (_interrupt.TakeFor(sentCommand))
-                {
-                    await SendBytesAsync(new[] { CliTerminalText.CtrlC }, CancellationToken.None).ConfigureAwait(false);
-                    settle.Interrupted();
-                }
-
-                bool gotData = false;
+                bool received = false;
                 bool closed = false;
-                while (_stream.HasData)
+                while (_pty._stream.HasData)
                 {
-                    int n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
+                    int n = await _pty._stream.ReadAsync(_buffer, ct).ConfigureAwait(false);
                     if (n <= 0) { closed = true; break; }
 
-                    accumulated.Append(await ProcessChunkAsync(buffer, n).ConfigureAwait(false));
-                    gotData = true;
+                    _accumulated.Append(await _pty.ProcessChunkAsync(_buffer, n).ConfigureAwait(false));
+                    received = true;
                 }
-
-                closed |= _stream.ClosedAndDrained;
-
-                string stripped = VtStripper.StripAnsi(RouterOsCliLogin.WithoutRomonRelayNoise(RomonTarget, accumulated.ToString()));
-                streamer.Feed(stripped);
-
-                // The relay ended mid-command: no prompt will follow, the agent's session is over.
-                RouterOsCliLogin.ThrowIfRomonRelayEnded(_transportName, RomonTarget, sentCommand, stripped, commandSent: true);
-
-                switch (settle.Observe(stripped, gotData, sw.ElapsedMilliseconds, accumulated.Length))
-                {
-                    case CliPromptSettle.Outcome.Complete:
-                    case CliPromptSettle.Outcome.Settled:
-                        return stripped;
-                }
-
-                // Reached WITHOUT a settled prompt: the response is whatever arrived so far and may end mid-record.
-                if (closed || sw.ElapsedMilliseconds >= ReceiveTimeoutMs)
-                    return settle.EndWithoutPrompt(_transportName, RomonTarget, closed, sw.ElapsedMilliseconds,
-                        ReceiveTimeoutMs, stripped, accumulated.Length);
-
-                await Task.Delay(15, ct).ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
-        /// Consumes and discards any residual bytes on the stream (post-login VT100 redraw, a second
-        /// prompt, stray push frames) until the stream stays silent for <paramref name="quietMs"/>.
-        /// Negotiation and VT100 probes are still answered so the link stays in a sane state.
-        /// </summary>
-        /// <returns>The drained text, ANSI-stripped.</returns>
-        internal async Task<string> DrainAsync(int quietMs, CancellationToken ct)
-        {
-            var buffer = new byte[4096];
-            var drained = new StringBuilder();
-            var quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
-
-            while (DateTime.UtcNow < quietDeadline)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                if (_stream.HasData)
-                {
-                    int n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
-                    if (n <= 0)
-                        break; // connection closed
-
-                    // Discard the text but still answer negotiation + VT100 probes so the link stays sane.
-                    drained.Append(await ProcessChunkAsync(buffer, n).ConfigureAwait(false));
-
-                    // Reset the quiet window — keep draining as long as data keeps arriving.
-                    quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
-                }
-                else
-                {
-                    await Task.Delay(15, ct).ConfigureAwait(false);
-                }
+                closed |= _pty._stream.ClosedAndDrained;
+                return new CliCarrierPoll(received, closed);
             }
 
-            return VtStripper.StripAnsi(drained.ToString());
+            public Task WaitAsync(CancellationToken ct) => Task.Delay(15, ct);
         }
 
         /// <summary>
@@ -409,24 +256,6 @@ namespace tik4net.Cli
 
             return text;
         }
-
-        private void TraceNote(string note)
-        {
-            if (TikWireTrace.Enabled)
-                TikWireTrace.Emit(_traceChannel, TikWireDir.Note, note);
-        }
-
-        // ── ICliTerminal ──────────────────────────────────────────────────────
-
-        public bool SupportsQuietRead => true;
-
-        public bool SupportsLineStreaming => true;
-
-        /// <summary>The client's close with the question answered when Safe Mode is held (<see cref="ICliTerminal.End"/>).</summary>
-        public void End(bool answerSafeModeQuestion) => _closeCarrier(answerSafeModeQuestion);
-
-        /// <summary>The client's close without answering: Telnet and SSH still type <c>/quit</c> (<see cref="ICliTerminal.End"/>).</summary>
-        public void Dispose() => _closeCarrier(false);
 
         // ── Ending the session ────────────────────────────────────────────────
 

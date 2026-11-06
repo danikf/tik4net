@@ -219,7 +219,7 @@ namespace tik4net.unittests.Cli
             }
         }
 
-        // ── PTY: CliPtySession over a byte stream ────────────────────────────
+        // ── PTY: CliConsole over CliPtySession over a byte stream ────────────
 
         private sealed class PtyFixture : TerminalReadFixture
         {
@@ -232,12 +232,12 @@ namespace tik4net.unittests.Cli
                     answer => _session.EndSession(answer));
             }
 
-            internal override void End(bool answerSafeModeQuestion) => _session.End(answerSafeModeQuestion);
+            internal override void End(bool answerSafeModeQuestion) => _session.Terminal.End(answerSafeModeQuestion);
 
-            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => _session.SendCommandAndReadAsync(command, null, ct);
-            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => _session.SendRawAndReadAsync(key, ct);
-            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => _session.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
-            internal override void RequestInterrupt() => _session.RequestInterrupt();
+            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => _session.Terminal.SendCommandAndReadAsync(command, null, ct);
+            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => _session.Terminal.SendRawAndReadAsync(key, ct);
+            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => _session.Terminal.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
+            internal override void RequestInterrupt() => _session.Terminal.RequestInterrupt();
             public override void Dispose() { }
 
             /// <summary>A chunk per <see cref="ReadAsync"/> once it is due; closed-and-drained once the end is.</summary>

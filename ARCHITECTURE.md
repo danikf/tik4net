@@ -342,8 +342,9 @@ of each takes), `CliOutputParser`, `CliTorchParser`, `CliTableParser`, `CliDsvPa
 `CliMonitorVerbs`, `CliSafeModeParser`, `VtStripper`/`Vt100State` (terminal emulation), `RouterOsCliLogin` (its RoMON relay
 in `RouterOsCliLogin.Romon.cs`), `CliLoginScreen` (the one rule for the screen a login lands on), `ITikCliCompletion`.
 
-Under the base, every console is one `ICliTerminal`: Telnet and SSH run theirs on `CliPtySession` over an
-`ICliByteStream` (the socket, the shell channel), MAC-Telnet and WinBox CLI drive their own carriers, and the two
+Under the base, every console is one `ICliTerminal`: Telnet and SSH hold a `CliConsole` — the command prologue, the
+interrupt latch, the command read, the quiet read and the drain — over the `CliPtySession` carrier
+(`ICliConsoleCarrier`) on an `ICliByteStream` (the socket, the shell channel), MAC-Telnet and WinBox CLI drive their own carriers, and the two
 MAC-layer leaves wrap theirs in `ReconnectingCliTerminal`. All four clients end a command's read by one rule,
 `CliPromptSettle`: the command's echo seen, a completion prompt last, then either a counted read's own count line or
 the settle window with the prompt still last. A cancelled read under `Cooperative` gets Ctrl-C from its read loop, which

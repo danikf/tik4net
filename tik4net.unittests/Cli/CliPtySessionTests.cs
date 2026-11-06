@@ -74,7 +74,7 @@ namespace tik4net.unittests.Cli
             var sw = Stopwatch.StartNew();
 
             var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
-                () => session.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
+                () => session.Terminal.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
 
             Assert.IsTrue(sw.ElapsedMilliseconds < ReceiveTimeoutMs / 2, sw.ElapsedMilliseconds + " ms: the read waited for the deadline");
             StringAssert.Contains(ex.Message, "SSH");
@@ -88,7 +88,7 @@ namespace tik4net.unittests.Cli
             var session = Session(new ScriptedByteStream(new[] { Command + "\r\nCH" }, closeWhenEmpty: true));
 
             var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
-                () => session.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
+                () => session.Terminal.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
 
             StringAssert.Contains(ex.Message, "closed the connection");
             Assert.IsFalse(ex.Message.Contains("did not finish answering within"), ex.Message);
@@ -122,7 +122,7 @@ namespace tik4net.unittests.Cli
             var session = Session(new ClosedOnWriteByteStream());
 
             var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
-                () => session.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
+                () => session.Terminal.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
 
             StringAssert.Contains(ex.Message, "closed the connection");
             StringAssert.Contains(ex.Message, "did not run");
@@ -137,7 +137,7 @@ namespace tik4net.unittests.Cli
             session.RomonTarget = "AA:BB:CC:DD:EE:FF";
 
             var ex = Assert.ThrowsException<TikRomonRelayEndedException>(
-                () => session.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
+                () => session.Terminal.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
 
             Assert.IsTrue(ex.CommandMayHaveRun);
         }
@@ -148,7 +148,7 @@ namespace tik4net.unittests.Cli
             var session = Session(new ScriptedByteStream(new[] { "\r\nTaking Safe Mode" }, closeWhenEmpty: true));
             session.RomonTarget = "AA:BB:CC:DD:EE:FF";
 
-            string answer = session.SendRawAndReadAsync(new byte[] { 0x18 }, CancellationToken.None).GetAwaiter().GetResult();
+            string answer = session.Terminal.SendRawAndReadAsync(new byte[] { 0x18 }, CancellationToken.None).GetAwaiter().GetResult();
 
             StringAssert.Contains(answer, "Taking Safe Mode");
         }
@@ -162,7 +162,7 @@ namespace tik4net.unittests.Cli
             var stream = new ScriptedByteStream(new[] { chunk });
             var session = Session(stream, "\r\n", TelnetNegotiator.FilterAndRespond);
 
-            string answer = session.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult();
+            string answer = session.Terminal.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult();
 
             Assert.AreEqual("CHR2", answer.Trim());
             Assert.IsTrue(stream.Writes.Any(w => w.SequenceEqual(new[] { Iac, Wont, Echo })), "the DO was not answered");
@@ -178,7 +178,7 @@ namespace tik4net.unittests.Cli
             session.RomonTarget = "AA:BB:CC:DD:EE:FF";
 
             var ex = Assert.ThrowsException<TikRomonRelayEndedException>(
-                () => session.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
+                () => session.Terminal.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult());
 
             Assert.IsFalse(ex.CommandMayHaveRun);
             Assert.AreEqual(0, stream.Writes.Count, "the command was written into the ended relay");
@@ -190,7 +190,7 @@ namespace tik4net.unittests.Cli
             foreach (string enter in new[] { "\r", "\r\n" })
             {
                 var stream = new ScriptedByteStream(new[] { Command + "\r\nCHR2\r\n" + Prompt });
-                Session(stream, enter).SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult();
+                Session(stream, enter).Terminal.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult();
 
                 Assert.AreEqual(Command + enter, Encoding.ASCII.GetString(stream.Writes[0]));
             }
@@ -204,7 +204,7 @@ namespace tik4net.unittests.Cli
             // A probe answer is keystrokes: typed into 'new password>' it would become password input.
             var stream = new ScriptedByteStream(new[] { "\r\nnew password> ", "\x1b[6n" }, preloaded: true);
 
-            Session(stream).DrainAsync(50, CancellationToken.None).GetAwaiter().GetResult();
+            Session(stream).Terminal.DrainAsync(50, CancellationToken.None).GetAwaiter().GetResult();
 
             Assert.AreEqual(0, stream.Writes.Count, "a reply was typed into the password prompt");
         }
@@ -214,7 +214,7 @@ namespace tik4net.unittests.Cli
         {
             var stream = new ScriptedByteStream(new[] { "\r\n" + Prompt, "\x1b[6n" }, preloaded: true);
 
-            Session(stream).DrainAsync(50, CancellationToken.None).GetAwaiter().GetResult();
+            Session(stream).Terminal.DrainAsync(50, CancellationToken.None).GetAwaiter().GetResult();
 
             Assert.AreEqual(1, stream.Writes.Count);
             StringAssert.EndsWith(Encoding.ASCII.GetString(stream.Writes[0]), "R", "a cursor position report");

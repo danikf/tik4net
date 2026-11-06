@@ -155,7 +155,7 @@ namespace tik4net.WinboxCli
         /// Types a command line and reads its cleaned answer, reporting each completed output line to
         /// <paramref name="onLine"/> (when given) while the command is still running.
         /// </summary>
-        /// <remarks>The prologue is the one every terminal runs (<see cref="Cli.CliPtySession.SendCommandAndReadAsync"/>):
+        /// <remarks>The prologue is the one every terminal runs (<see cref="Cli.CliConsole.SendCommandAndReadAsync"/>):
         /// the line, the latch cleared, the residue, the ended check, the write.</remarks>
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
