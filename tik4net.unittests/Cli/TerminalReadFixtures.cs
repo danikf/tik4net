@@ -383,7 +383,7 @@ namespace tik4net.unittests.Cli
             }
         }
 
-        // ── WinBox CLI: WinboxCliClient over an M2 channel ───────────────────
+        // ── WinBox CLI: CliConsole over WinboxCliClient over an M2 channel ───────────────────
 
         private sealed class WinboxCliFixture : TerminalReadFixture
         {
@@ -398,10 +398,10 @@ namespace tik4net.unittests.Cli
                     .SetValue(_client, 1);
             }
 
-            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => _client.SendCommandAndReadAsync(command, null, ct);
-            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => _client.SendRawAndReadAsync(key, ct);
-            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => _client.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
-            internal override void RequestInterrupt() => _client.RequestInterrupt();
+            internal override Task<string> CommandAsync(string command, CancellationToken ct = default) => _client.Terminal.SendCommandAndReadAsync(command, null, ct);
+            internal override Task<string> RawAsync(byte[] key, CancellationToken ct = default) => _client.Terminal.SendRawAndReadAsync(key, ct);
+            internal override Task<string> QuietAsync(byte[] keys, int quietMs, CancellationToken ct = default) => _client.Terminal.SendRawAndReadUntilQuietAsync(keys, quietMs, ct);
+            internal override void RequestInterrupt() => _client.Terminal.RequestInterrupt();
             internal override void End(bool answerSafeModeQuestion) => _client.TryCloseSession(answerSafeModeQuestion);
             public override void Dispose() => _client.Dispose();
 

@@ -15,8 +15,10 @@ namespace tik4net.WinboxCli
 {
     /// <summary>
     /// WinBox CLI terminal client. On top of any <see cref="IWinboxM2Channel"/> (TCP 8291 or MAC-layer
-    /// UDP 20561) it opens the mepty (terminal PTY) handler and drives a persistent RouterOS CLI
-    /// session — the encrypted-transport equivalent of <c>MacTelnetUdpClient</c>.
+    /// UDP 20561) it opens the mepty (terminal PTY) handler and carries a persistent RouterOS CLI
+    /// session — the encrypted-transport equivalent of <c>MacTelnetUdpClient</c>. The terminal the connection holds is
+    /// <see cref="Terminal"/>, a <see cref="CliConsole"/> over this carrier (<see cref="ICliConsoleCarrier"/>): the client
+    /// keeps the login, the mepty frames (the pull, the byte acknowledgement, the frame budget) and the close.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -24,7 +26,7 @@ namespace tik4net.WinboxCli
     /// layer, so this same engine backs both <c>WinboxCliConnection</c> and <c>WinboxCliMacConnection</c>.
     /// </para>
     /// <para>
-    /// <b>How the command path is asynchronous.</b> The read loops below never wait on the network:
+    /// <b>How the command path is asynchronous.</b> The console's reads never wait on the network:
     /// they receive a frame only once <see cref="IWinboxM2Channel.DataAvailable"/> says one is arriving,
     /// and otherwise wait out a short poll interval. That gate is not a convenience — a receive deadline
     /// firing part-way through an encrypted frame leaves the stream unrecoverably desynchronized, which is
@@ -35,7 +37,7 @@ namespace tik4net.WinboxCli
     /// claim about.
     /// </para>
     /// </remarks>
-    internal sealed class WinboxCliClient : ICliTerminal
+    internal sealed class WinboxCliClient : ICliConsoleCarrier, IDisposable
     {
         // mepty (terminal PTY) handler + commands — see WinboxM2Protocol.Mepty.
         private const int SettleMs       = 150;
@@ -96,7 +98,11 @@ namespace tik4net.WinboxCli
             _receiveTimeout = timeouts.ReceiveMs;
             _loginTimeoutMs   = TikTimeouts.HandshakeBoundMs(timeouts.ConnectMs, timeouts.ReceiveMs());
             _sendTimeoutMs    = timeouts.SendMs;
+            Terminal          = new CliConsole(this);
         }
+
+        /// <summary>The console over this terminal: the terminal the connection holds.</summary>
+        internal CliConsole Terminal { get; }
 
         // Zero means "the channel decides", which for the TCP carrier is the receive timeout it always
         // used. Kept separate so ITikConnection.SendTimeout reaches the socket it is about.
@@ -134,7 +140,7 @@ namespace tik4net.WinboxCli
                 SendTerminalReady(_sessionId);
 
                 WaitForPromptSync();
-                await DrainAsync(RouterOsCliLogin.PostLoginDrainMs).ConfigureAwait(false);
+                await Terminal.DrainAsync(RouterOsCliLogin.PostLoginDrainMs, ct).ConfigureAwait(false);
 
                 // From here the terminal is idle between commands, and a RouterOS terminal is written to
                 // unprompted. On a carrier that expects each write to be acknowledged, leaving it unread is
@@ -142,77 +148,6 @@ namespace tik4net.WinboxCli
                 // nothing to do here.
                 _session.StartIdleServicing();
             }, ct);
-        }
-
-        // ── Command execution ─────────────────────────────────────────────────
-
-        /// <inheritdoc cref="Cli.ICliTerminal.RequestInterrupt"/>
-        public void RequestInterrupt() => _interrupt.Request();
-
-        private readonly Cli.CliInterruptLatch _interrupt = new Cli.CliInterruptLatch();
-
-        /// <summary>
-        /// Types a command line and reads its cleaned answer, reporting each completed output line to
-        /// <paramref name="onLine"/> (when given) while the command is still running.
-        /// </summary>
-        /// <remarks>The prologue is the one every terminal runs (<see cref="Cli.CliConsole.SendCommandAndReadAsync"/>):
-        /// the line, the latch cleared, the residue, the ended check, the write.</remarks>
-        public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            string cmd = CliEndMarker.InjectWithoutPaging(command);
-            _interrupt.Clear();
-            await DiscardResidueAsync().ConfigureAwait(false);
-            ThrowIfTerminalClosed(cmd);
-            SendInput(_encoding.GetBytes(cmd + Cli.CliTerminalText.Enter));
-            string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
-            return CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw), cmd);
-        }
-
-        /// <summary>
-        /// Sends raw bytes (a control key such as Ctrl+X — no carriage return, no paging injection) and
-        /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
-        /// </summary>
-        public async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            await DiscardResidueAsync().ConfigureAwait(false);
-            ThrowIfTerminalClosed(KeyName(raw));
-            SendInput(raw);
-            // null → tolerant; a control key need not be answered with a prompt.
-            return VtStripper.StripAnsi(await ReadCommandResponseAsync(null, ct).ConfigureAwait(false));
-        }
-
-        /// <summary>
-        /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for Tab-completion) and reads the reaction until
-        /// the terminal goes quiet for <paramref name="quietMs"/> — the completion listing does not end in a
-        /// shell prompt (RouterOS redraws the prompt with the echoed stem), so it must be read on a settle
-        /// window rather than a prompt match. Returned with its escape sequences: an inline completion is
-        /// written in cursor moves, which the completion parser replays.
-        /// </summary>
-        public async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            await DiscardResidueAsync().ConfigureAwait(false);
-            ThrowIfTerminalClosed(KeyName(raw));
-            SendInput(raw);
-            return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Drains residual frames still buffered from the previous read before a command or a key is typed; gated on
-        /// <see cref="IWinboxM2Channel.DataAvailable"/> so the clean path pays nothing. The login drains for the same
-        /// reason after the initial prompt.
-        /// </summary>
-        /// <remarks>A late prompt repaint or VT100 probe answer that arrived after the previous read returned would
-        /// otherwise be read first. Before a command it is mistaken for the command's completion (an early, empty result)
-        /// or desynchronises a frame boundary (a full receive-timeout hang); before a key its prompt settles a Safe Mode
-        /// key's read before the router's question to it arrives, or starts a Tab's quiet window before the listing does
-        /// (X4 of the terminal clients review). The PTY drains the same way.</remarks>
-        private async Task DiscardResidueAsync()
-        {
-            if (_session.DataAvailable)
-                await DrainAsync(SettleMs).ConfigureAwait(false);
         }
 
         // ── Close ─────────────────────────────────────────────────────────────
@@ -277,18 +212,6 @@ namespace tik4net.WinboxCli
         private const int SafeModeQuitQuietMs = 500;
 
         public void Dispose() => _session.Dispose();
-
-        // ── ICliTerminal ──────────────────────────────────────────────────────
-
-        public bool SupportsQuietRead => true;
-
-        public bool SupportsLineStreaming => true;
-
-        public void End(bool answerSafeModeQuestion)
-        {
-            TryCloseSession(answerSafeModeQuestion);
-            Dispose();
-        }
 
         // ── mepty message building (handler [76]) ─────────────────────────────
 
@@ -504,8 +427,6 @@ namespace tik4net.WinboxCli
             throw screen.TimedOut(_transportName, sw.ElapsedMilliseconds, textFrames, sb.ToString());
         }
 
-        private void TraceNote(string note) => TikWireTrace.Emit(_traceChannel, TikWireDir.Note, note);
-
         // The router closed this terminal (Mepty.Close): the console has ended, and keystrokes sent into it are never
         // answered, so a read after them would only run the deadline out.
         private volatile bool _terminalClosed;
@@ -516,8 +437,6 @@ namespace tik4net.WinboxCli
                 throw Cli.CliReadTimeout.CreateClosedBeforeWrite(_transportName, ReceiveTimeoutMs, what, null);
         }
 
-        private string KeyName(byte[] raw) => Cli.CliTerminalText.KeyName(raw, _encoding);
-
         private void SendText(string text) => SendInput(_encoding.GetBytes(text));
 
         private TikConnectionSessionClosedException SessionClosed(string? sentCommand)
@@ -525,76 +444,116 @@ namespace tik4net.WinboxCli
                 "The MAC-layer carrier keeps the UDP socket open and RouterOS sends no error when it drops a console "
                 + "session, so the session goes silent rather than reporting anything.");
 
-        /// <summary>
-        /// Reads a command response until <see cref="Cli.CliPromptSettle"/> says it is over (with <see cref="SettleMs"/>),
-        /// pulling mepty output while the text does not end at a completion prompt and receiving a frame only once
-        /// one is arriving.
-        /// </summary>
-        /// <param name="sentCommand">
-        /// The command being answered. When non-null, reaching the deadline without a prompt throws
-        /// <see cref="TikConnectionReceiveTimeoutException"/> instead of returning the partial text — see
-        /// <see cref="Cli.CliReadTimeout"/>. <c>null</c> for control keys, which need not end at a prompt.
-        /// </param>
-        /// <param name="onLine">
-        /// Optional: called with each completed line as it arrives, so a long-running command can be
-        /// consumed while it runs (see <see cref="Cli.CliLineStreamer"/>). Does not affect when the read
-        /// returns — the stable prompt plus its settle window is still the only terminator.
-        /// </param>
-        /// <param name="ct">
-        /// Cancels the wait between polls. Only ever the caller's own token, and only in
-        /// <see cref="TikCancellationMode.AbandonAndClose"/> — <c>CliConnectionBase</c> passes
-        /// <see cref="CancellationToken.None"/> otherwise, because a read abandoned mid-command leaves
-        /// output the next command would parse as its own. In that mode the connection is closed straight
-        /// afterwards, so there is no next command for it to confuse.
-        /// </param>
-        private async Task<string> ReadCommandResponseAsync(string? sentCommand, CancellationToken ct,
-            Action<string>? onLine = null)
-        {
-            var sb = new StringBuilder();
-            var sw = Stopwatch.StartNew();
-            var settle = new Cli.CliPromptSettle(sentCommand, SettleMs, TikWireTrace.Enabled ? TraceNote : (Action<string>?)null);
-            var streamer = new Cli.CliLineStreamer(onLine);
-            long lastPullMs = -1;   // -1 = a pull is due now (fire immediately)
-            bool closedBefore = _terminalClosed;   // only a close that arrives during this read is this read's
+        // ── The console's carrier ─────────────────────────────────────────────
 
-            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
+        string ICliConsoleCarrier.TransportName => _transportName;
+
+        string ICliConsoleCarrier.TraceChannel => _traceChannel;
+
+        Encoding ICliConsoleCarrier.Encoding => _encoding;
+
+        string ICliConsoleCarrier.Enter => Cli.CliTerminalText.Enter;
+
+        int ICliConsoleCarrier.SettleMs => SettleMs;
+
+        int ICliConsoleCarrier.ReceiveTimeoutMs => ReceiveTimeoutMs;
+
+        // The WinBox relay is M2, not a CLI relay: there is no RoMON target to strip or report.
+        string? ICliConsoleCarrier.RomonTarget => null;
+
+        // A late prompt repaint or VT100 probe answer that arrived after the previous read returned is drained, gated on
+        // the channel's readiness flag. Before a command it would be mistaken for the command's completion (an early,
+        // empty result) or desynchronise a frame boundary (a full receive-timeout hang).
+        bool ICliConsoleCarrier.DiscardsResidue => false;
+
+        bool ICliConsoleCarrier.HasData => _session.DataAvailable;
+
+        string ICliConsoleCarrier.PeekResidue() => string.Empty;
+
+        void ICliConsoleCarrier.DiscardResidue(bool beforeCommand) { }
+
+        // The router closed this terminal (Mepty.Close): keystrokes sent into it are never answered.
+        void ICliConsoleCarrier.ThrowIfEnded(string what) => ThrowIfTerminalClosed(what);
+
+        bool ICliConsoleCarrier.WriteRefusedByClose => false;
+
+        Task ICliConsoleCarrier.SendAsync(byte[] keys, CancellationToken ct)
+        {
+            SendInput(keys);
+            return Task.CompletedTask;
+        }
+
+        TikConnectionSessionClosedException ICliConsoleCarrier.NotAcknowledged(string? sentCommand) => SessionClosed(sentCommand);
+
+        ICliCarrierRead ICliConsoleCarrier.BeginRead(CliReadKind kind) => new MeptyRead(this, kind);
+
+        void ICliConsoleCarrier.End(bool answerSafeModeQuestion)
+        {
+            TryCloseSession(answerSafeModeQuestion);
+            Dispose();
+        }
+
+        void ICliConsoleCarrier.Release() => Dispose();
+
+        /// <summary>
+        /// The deadline for completing a frame that has started arriving: what remains of the command's receive
+        /// deadline, never less than <see cref="MinFrameBudgetMs"/> so a frame begun just before the deadline
+        /// can still finish.
+        /// </summary>
+        private int RemainingFrameBudget(long elapsedMs)
+            => (int)Math.Max(MinFrameBudgetMs, ReceiveTimeoutMs - elapsedMs);
+
+        private const int MinFrameBudgetMs = 1000;
+
+        /// <summary>
+        /// One read on the terminal: a frame received only once <see cref="IWinboxM2Channel.DataAvailable"/> says one is
+        /// arriving, its payload appended and its probes answered; otherwise, for a command, a pull. The wait between
+        /// polls is <see cref="PollSleepMs"/>, skipped after a frame. Ended by a <see cref="WinboxM2Protocol.Mepty.Close"/>
+        /// that arrives during this read.
+        /// </summary>
+        private sealed class MeptyRead : ICliCarrierRead
+        {
+            private readonly WinboxCliClient _client;
+            private readonly CliReadKind _kind;
+            private readonly StringBuilder _sb = new StringBuilder();
+            private readonly bool _closedBefore;   // only a close that arrives during this read is this read's
+            private long _lastPullMs = -1;         // -1 = a pull is due now (fire immediately)
+            private bool _frameArrived;
+
+            internal MeptyRead(WinboxCliClient client, CliReadKind kind)
             {
-                ct.ThrowIfCancellationRequested();
-                if (_interrupt.TakeFor(sentCommand))
-                {
-                    SendInput(new[] { Cli.CliTerminalText.CtrlC });
-                    settle.Interrupted();
-                }
-                bool gotData = false;
-                if (_session.DataAvailable)
+                _client = client;
+                _kind = kind;
+                _closedBefore = client._terminalClosed;
+            }
+
+            public string Text => _sb.ToString();
+
+            public Task<CliCarrierPoll> PollAsync(bool atPrompt, long elapsedMs, CancellationToken ct)
+            {
+                IWinboxM2Channel session = _client._session;
+                bool gotText = false;
+                _frameArrived = session.DataAvailable;
+                if (_frameArrived)
                 {
                     byte[]? chunk;
-                    // A frame has started arriving. It gets what is left of the receive deadline, not a fixed
-                    // FrameTimeoutMs: the router pauses its terminal output for 10-12 s at a time
-                    // (findings-winbox.md §20), a pause BETWEEN frames already gets the whole deadline, and one
-                    // that happens to land mid-frame deserves no less. A socket deadline that fires mid-frame
-                    // also leaves the stream unreadable, so it should fire only when the read is over anyway.
-                    try { chunk = ReceiveTerminalChunk(RemainingFrameBudget(sw)); }
-                    catch (IOException ex)
-                    {
-                        // Not the generic timeout below: that one says the whole deadline elapsed, which is not
-                        // what happened, and it would drop the one exception that says what did.
-                        string soFar = VtStripper.StripAnsi(sb.ToString());
-                        if (sentCommand == null)
-                            return soFar;
-                        throw Cli.CliReadTimeout.CreateMidFrame(
-                            _transportName, ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, soFar, ex);
-                    }
+                    // A frame has started arriving. For a command it gets what is left of the receive deadline, not a
+                    // fixed FrameTimeoutMs: the router pauses its terminal output for 10-12 s at a time
+                    // (findings-winbox.md §20), a pause BETWEEN frames already gets the whole deadline, and one that
+                    // happens to land mid-frame deserves no less. A socket deadline that fires mid-frame also leaves the
+                    // stream unreadable, so it should fire only when the read is over anyway.
+                    try { chunk = _client.ReceiveTerminalChunk(_kind == CliReadKind.Command ? _client.RemainingFrameBudget(elapsedMs) : FrameTimeoutMs); }
+                    catch (IOException ex) { return Task.FromResult(new CliCarrierPoll(false, false, midFrame: ex)); }
                     if (chunk != null)
                     {
-                        string text = _encoding.GetString(chunk);
-                        sb.Append(text);
+                        string text = _client._encoding.GetString(chunk);
+                        _sb.Append(text);
                         // Guarded on every read: a caller's /password puts the change-password prompt on screen.
-                        _vt100.ProcessAndAnswer(text, _passwordPrompt, SendText);
-                        gotData = true;
+                        _client._vt100.ProcessAndAnswer(text, _client._passwordPrompt, _client.SendText);
+                        gotText = true;
                     }
                 }
-                else
+                else if (_kind == CliReadKind.Command)
                 {
                     // mepty delivers output one batch per Data frame and will not push the remainder of a
                     // large response on its own — so, while the text does not end at a completion prompt, keep
@@ -614,122 +573,27 @@ namespace tik4net.WinboxCli
                     // and buries the one packet that has to get through. Suppression ends the moment the ACK
                     // arrives, and no pull is lost: lastPullMs is not advanced, so the next one fires at
                     // once. False on carriers that cannot tell.
-                    if (!settle.AtPrompt && !_session.SendStalled
-                        && (lastPullMs < 0 || sw.ElapsedMilliseconds - lastPullMs >= PullIntervalMs))
+                    if (!atPrompt && !session.SendStalled
+                        && (_lastPullMs < 0 || elapsedMs - _lastPullMs >= PullIntervalMs))
                     {
-                        SendPull();
-                        lastPullMs = sw.ElapsedMilliseconds;
-                    }
-                    await Task.Delay(PollSleepMs).ConfigureAwait(false);
-                }
-
-                if (gotData)
-                    lastPullMs = -1;   // output is flowing — allow the next batch-pull immediately
-
-                // Nothing has come back AND the carrier says the router never took the bytes, even after the
-                // retransmits ran out. Spending the rest of ReceiveTimeoutMs would only turn an answer we
-                // already have into "nothing was received within 30000 ms" — a message that blames the read
-                // for what the session did. Safe to call the command un-run: see
-                // TikConnectionSessionClosedException. On carriers that cannot tell, SendAbandoned is false
-                // and this costs a field read per poll.
-                if (sb.Length == 0 && _session.SendAbandoned)
-                    throw SessionClosed(sentCommand);
-
-                string stripped = VtStripper.StripAnsi(sb.ToString());
-                streamer.Feed(stripped);
-
-                // The read ends when the prompt is still last after the settle window (CliPromptSettle). RouterOS
-                // writes nothing after a command's completion prompt over mepty (Docs/findings-cli.md §4); a Safe
-                // Mode key's pushed status line ends at a prompt again, so it only restarts the window.
-                // Asked before the close is: a counted answer whose count line and prompt came in the frame that closed
-                // the terminal is whole, and the close is the next command's to report (D2 of the terminal clients
-                // review, as on the PTY).
-                switch (settle.Observe(stripped, gotData, sw.ElapsedMilliseconds, sb.Length))
-                {
-                    case Cli.CliPromptSettle.Outcome.Complete:
-                    case Cli.CliPromptSettle.Outcome.Settled:
-                        return stripped;
-                }
-
-                // The router closed the terminal: no prompt will follow. The WinBox relay is M2, not a CLI relay, so
-                // there is no RoMON target to report.
-                if (_terminalClosed && !closedBefore)
-                    return settle.EndWithoutPrompt(_transportName, null, closed: true, sw.ElapsedMilliseconds,
-                        ReceiveTimeoutMs, stripped, sb.Length);
-            }
-
-            return settle.EndWithoutPrompt(_transportName, null, closed: false, sw.ElapsedMilliseconds,
-                ReceiveTimeoutMs, VtStripper.StripAnsi(sb.ToString()), sb.Length);
-        }
-
-        /// <summary>
-        /// The deadline for completing a frame that has started arriving: what remains of the command's receive
-        /// deadline, never less than <see cref="MinFrameBudgetMs"/> so a frame begun just before the deadline
-        /// can still finish.
-        /// </summary>
-        private int RemainingFrameBudget(Stopwatch sw)
-            => (int)Math.Max(MinFrameBudgetMs, ReceiveTimeoutMs - sw.ElapsedMilliseconds);
-
-        private const int MinFrameBudgetMs = 1000;
-
-        /// <summary>
-        /// Accumulates the terminal reaction until the channel stays quiet for <paramref name="quietMs"/>
-        /// after at least some data (or the receive deadline expires), answering VT100 probes. Returns the
-        /// text, escape sequences included. Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
-        /// </summary>
-        /// <param name="quietMs">How long nothing new must arrive.</param>
-        /// <param name="ct">Checked on every poll and cancels the wait between polls, so a caller's cancel is not held
-        /// up by the quiet window (as on the other two engines). A frame already arriving is still read whole: a receive
-        /// abandoned mid-frame leaves the encrypted stream unreadable.</param>
-        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
-        {
-            var sb = new StringBuilder();
-            var sw = Stopwatch.StartNew();
-            var quiet = new Cli.CliQuietWindow(quietMs);
-
-            while (sw.ElapsedMilliseconds < ReceiveTimeoutMs)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (_session.DataAvailable)
-                {
-                    byte[]? chunk;
-                    try { chunk = ReceiveTerminalChunk(FrameTimeoutMs); }
-                    catch (IOException) { break; }
-                    if (chunk != null)
-                    {
-                        string text = _encoding.GetString(chunk);
-                        sb.Append(text);
-                        _vt100.ProcessAndAnswer(text, _passwordPrompt, SendText);
+                        _client.SendPull();
+                        _lastPullMs = elapsedMs;
                     }
                 }
-                else
-                {
-                    await Task.Delay(PollSleepMs, ct).ConfigureAwait(false);
-                }
 
-                if (quiet.Observe(sb.Length) != Cli.CliQuietWindow.Outcome.Continue)
-                    break;
+                if (gotText)
+                    _lastPullMs = -1;   // output is flowing — allow the next batch-pull immediately
+
+                // A drain keeps going while frames keep coming, text or not; the other reads restart on text.
+                bool received = _kind == CliReadKind.Drain ? _frameArrived : gotText;
+                // SendAbandoned: the carrier says the router never took the bytes, even after the retransmits ran out.
+                // False on carriers that cannot tell (TCP), where it costs a field read per poll.
+                return Task.FromResult(new CliCarrierPoll(received, _client._terminalClosed && !_closedBefore,
+                    session.SendAbandoned));
             }
 
-            return sb.ToString();
-        }
-
-        /// <summary>Consumes residual frames until the channel stays quiet for <paramref name="quietMs"/>.</summary>
-        private async Task DrainAsync(int quietMs)
-        {
-            var deadline = DateTime.UtcNow.AddMilliseconds(quietMs);
-            while (DateTime.UtcNow < deadline)
-            {
-                if (!_session.DataAvailable) { await Task.Delay(PollSleepMs).ConfigureAwait(false); continue; }
-                try
-                {
-                    byte[]? chunk = ReceiveTerminalChunk(FrameTimeoutMs);
-                    if (chunk != null)
-                        _vt100.ProcessAndAnswer(_encoding.GetString(chunk), _passwordPrompt, SendText);
-                }
-                catch (IOException) { break; }
-                deadline = DateTime.UtcNow.AddMilliseconds(quietMs);  // keep draining while data flows
-            }
+            public Task WaitAsync(CancellationToken ct)
+                => _frameArrived ? Task.CompletedTask : Task.Delay(PollSleepMs, ct);
         }
     }
 }

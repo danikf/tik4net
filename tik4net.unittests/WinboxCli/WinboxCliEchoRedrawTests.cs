@@ -104,7 +104,7 @@ namespace tik4net.unittests.WinboxCli
 
             using (var client = new WinboxCliClient(new PullDrivenChannel(command, new[] { first, second }), Encoding.UTF8, CliClientTimeouts.Fixed(3000, 3000), "WinBox CLI", WinboxCliSession.TraceChannel))
             {
-                string answer = client.SendCommandAndReadAsync(command, null, CancellationToken.None).GetAwaiter().GetResult();
+                string answer = client.Terminal.SendCommandAndReadAsync(command, null, CancellationToken.None).GetAwaiter().GetResult();
 
                 StringAssert.Contains(answer, "#n=1/nil",
                     "The read ended on a prompt repainted inside the echo, before the command's output was pulled.");

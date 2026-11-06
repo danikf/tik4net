@@ -39,9 +39,8 @@ namespace tik4net.unittests.Cli
         /// </summary>
         private static readonly (string Assembly, string TypeName)[] CliClients =
         {
-            ("tik4net", "tik4net.Cli.CliConsole"),           // the read of TelnetClient and SshShellClient
+            ("tik4net", "tik4net.Cli.CliConsole"),           // the read of TelnetClient, SshShellClient, WinboxCliClient
             ("tik4net", "tik4net.MacTelnet.MacTelnetUdpClient"),
-            ("tik4net", "tik4net.WinboxCli.WinboxCliClient"),   // also serves WinboxCliMac
         };
 
         [TestMethod]

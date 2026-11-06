@@ -505,7 +505,7 @@ starting offset).
 `IWinboxM2Channel.SendAbandoned` surfaces `MacLayerTransport.LastSendAbandoned` — "the head of the
 unacknowledged queue was never taken by the router" — up into the CLI engine. Over TCP it is always
 `false` (TCP has nothing to leave unacknowledged; a dead connection there shows up as FIN/RST).
-`WinboxCliClient.ReadCommandResponseAsync` throws `TikConnectionSessionClosedException` instead of
+The command read (`CliConsole` over `WinboxCliClient`'s poll) throws `TikConnectionSessionClosedException` instead of
 riding out the full 30 s when nothing has arrived **and** the router never took the bytes; it only does
 this while the console has produced **no** output at all (`sb.Length == 0`) — once any output exists the
 command provably arrived and could have run, so claiming otherwise would be a lie the caller has no way
@@ -639,8 +639,8 @@ The two durations differ, so it is not a fixed timer. **Open:** whether the clie
 during the pause shortens it, lengthens it, or is irrelevant; WinBox's own pacing has not been compared.
 
 **The pause can land in the middle of a frame**, with part of a frame read and the rest not arriving (a
-3.35 s wait on `read want=203 into 52/255` in the same trace). So `WinboxCliClient.ReadCommandResponseAsync`
-gives a frame that has started arriving **what remains of the receive deadline**, the same as a pause
+3.35 s wait on `read want=203 into 52/255` in the same trace). So the WinBox terminal's command poll
+(`WinboxCliClient.MeptyRead`) gives a frame that has started arriving **what remains of the receive deadline**, the same as a pause
 between frames gets. A fixed 5 s frame deadline turned a 10 s pause into a failed read: the 2026-09-11
 gating matrix lost a 1672-row mangle read that way, inside a 5.7 s test. A frame that does fail part-way is
 reported as `TikConnectionReceiveTimeoutException` naming the elapsed time and carrying the channel's

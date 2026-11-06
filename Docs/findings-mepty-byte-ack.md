@@ -33,8 +33,8 @@ Implemented in [`../tik4net/WinboxCli/WinboxCliClient.cs`](../tik4net/WinboxCli/
 2. **Drop frames belonging to another mepty session**, via `M2Message.TryParseSessionId` (the
    non-throwing sibling of `ParseSessionId`). Their bytes must not enter the buffer **and must not be
    acknowledged** — the acknowledgement is per-session.
-3. **Pull until the text ends at a completion prompt, then wait out the settle window.** In
-   `ReadCommandResponseAsync` the read ends by the rule every terminal client shares (`CliPromptSettle`,
+3. **Pull until the text ends at a completion prompt, then wait out the settle window.** The command read
+   (`CliConsole`, polling the client's `MeptyRead`) ends by the rule every terminal client shares (`CliPromptSettle`,
    [findings-cli.md](findings-cli.md) §4): the prompt is still last after `SettleMs`. No pull is sent while the
    text ends at a completion prompt; if more text arrives, pulling resumes and the read waits for the prompt that
    ends it. RouterOS writes nothing after a command's completion prompt over mepty (`/system script run` holds

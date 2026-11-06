@@ -78,7 +78,7 @@ namespace tik4net.unittests.WinboxCli
         }
 
         private static string Run(WinboxCliClient client)
-            => client.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult();
+            => client.Terminal.SendCommandAndReadAsync(Command, null, CancellationToken.None).GetAwaiter().GetResult();
 
         [TestMethod]
         public void AFrameAlreadyArrivingIsGivenTheRestOfTheReceiveDeadline()

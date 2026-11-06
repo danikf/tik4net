@@ -344,7 +344,8 @@ in `RouterOsCliLogin.Romon.cs`), `CliLoginScreen` (the one rule for the screen a
 
 Under the base, every console is one `ICliTerminal`: Telnet and SSH hold a `CliConsole` — the command prologue, the
 interrupt latch, the command read, the quiet read and the drain — over the `CliPtySession` carrier
-(`ICliConsoleCarrier`) on an `ICliByteStream` (the socket, the shell channel), MAC-Telnet and WinBox CLI drive their own carriers, and the two
+(`ICliConsoleCarrier`) on an `ICliByteStream` (the socket, the shell channel); the two WinBox CLI transports hold one over
+`WinboxCliClient` (the mepty pull, the byte acknowledgement, the frame budget), MAC-Telnet drives its own carrier, and the two
 MAC-layer leaves wrap theirs in `ReconnectingCliTerminal`. All four clients end a command's read by one rule,
 `CliPromptSettle`: the command's echo seen, a completion prompt last, then either a counted read's own count line or
 the settle window with the prompt still last. A cancelled read under `Cooperative` gets Ctrl-C from its read loop, which

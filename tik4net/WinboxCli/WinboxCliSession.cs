@@ -29,7 +29,7 @@ namespace tik4net.WinboxCli
             // colour (5.7x the bytes on 6.49.13, Docs/findings-winbox-terminal.md). Through a RoMON agent the login is
             // the agent's, and is left as it is.
             string loginName = target == null ? RouterOsCliLogin.WithTerminalLoginFlags(user) : user;
-            return new CliConnectionBase.CliTerminalOpen(client, async ct =>
+            return new CliConnectionBase.CliTerminalOpen(client.Terminal, async ct =>
             {
                 await client.LoginAsync(host, port, loginName, password, ct, target?.Password).ConfigureAwait(false);
                 if (relay != null)
