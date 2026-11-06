@@ -41,7 +41,7 @@ namespace tik4net.unittests.Api
         [DataRow(0x200000)]
         [DataRow(0xFFFFFFF)]
         [DataRow(0x10000000)]
-        [DataRow(int.MaxValue)]
+        [DataRow(ApiWordCodec.MaxWordLength)]
         public void DecodeLengthReadsWhatEncodeLengthWrote_AndNoFurther(int length)
         {
             byte[] prefix = ApiWordCodec.EncodeLength(length);
@@ -51,6 +51,24 @@ namespace tik4net.unittests.Api
 
             Assert.AreEqual(length, decoded);
             Assert.AreEqual(prefix.Length, read, "bytes of the prefix consumed");
+        }
+
+        // X16: the five-byte prefix carries 32 bits. Past 2^31 an int read them as negative, and the reader died in
+        // ArrayPool.Rent with an ArgumentOutOfRangeException; past what a byte[] can hold no word can be read at all.
+        [DataTestMethod]
+        [DataRow("F0-7F-FF-FF-C8", "2147483592")]
+        [DataRow("F0-7F-FF-FF-FF", "2147483647")]
+        [DataRow("F0-80-00-00-00", "2147483648")]
+        [DataRow("F0-FF-FF-FF-FF", "4294967295")]
+        public void DecodeLengthRefusesALengthNoByteArrayCanHold_NamingIt(string prefixHex, string expectedLength)
+        {
+            byte[] prefix = Array.ConvertAll(prefixHex.Split('-'), h => Convert.ToByte(h, 16));
+            int read = 1;
+
+            var ex = Assert.ThrowsException<IOException>(() => ApiWordCodec.DecodeLength(prefix[0], () => prefix[read++]));
+
+            StringAssert.Contains(ex.Message, expectedLength);
+            Assert.AreEqual(prefix.Length, read, "the whole prefix is consumed before the refusal");
         }
 
         [TestMethod]

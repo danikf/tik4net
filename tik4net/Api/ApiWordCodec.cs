@@ -11,6 +11,12 @@ namespace tik4net.Api
     /// </summary>
     internal static class ApiWordCodec
     {
+        /// <summary>
+        /// The longest word the reader accepts: the most a <c>byte[]</c> can hold (<c>Array.MaxLength</c>, which
+        /// netstandard2.0 does not have). The five-byte prefix can announce up to 2³² − 1.
+        /// </summary>
+        internal const int MaxWordLength = 0x7FFFFFC7;
+
         /// <summary>The length prefix for a word of <paramref name="length"/> bytes.</summary>
         internal static byte[] EncodeLength(int length)
         {
@@ -29,10 +35,12 @@ namespace tik4net.Api
         /// The word length a prefix starting with <paramref name="first"/> announces; <paramref name="next"/>
         /// supplies the prefix's further bytes, and is called only as often as the first byte says.
         /// </summary>
-        /// <exception cref="IOException">The first byte is one of the control bytes 0xF1–0xFF the protocol reserves.</exception>
+        /// <exception cref="IOException">The first byte is one of the control bytes 0xF1–0xFF the protocol reserves,
+        /// or the prefix announces more than <see cref="MaxWordLength"/> bytes.</exception>
         internal static long DecodeLength(byte first, Func<byte> next)
         {
-            int length;
+            // Unsigned: the five-byte form carries 32 bits, which an int reads as negative from 2^31 on.
+            uint length;
 
             if ((first & 0x80) == 0x00)
             {
@@ -40,16 +48,16 @@ namespace tik4net.Api
             }
             else if ((first & 0xC0) == 0x80)
             {
-                length = ((first & 0x3F) << 8) + next();
+                length = (uint)((first & 0x3F) << 8) + next();
             }
             else if ((first & 0xE0) == 0xC0)
             {
-                length = ((first & 0x1F) << 8) + next();
+                length = (uint)((first & 0x1F) << 8) + next();
                 length = (length << 8) + next();
             }
             else if ((first & 0xF0) == 0xE0)
             {
-                length = ((first & 0x0F) << 8) + next();
+                length = (uint)((first & 0x0F) << 8) + next();
                 length = (length << 8) + next();
                 length = (length << 8) + next();
             }
@@ -66,6 +74,9 @@ namespace tik4net.Api
                 // Control bytes 0xF1–0xFF are reserved by the protocol
                 throw new IOException($"Unexpected control byte 0x{first:X2} in word length.");
             }
+
+            if (length > MaxWordLength)
+                throw new IOException($"Word length {length} exceeds the {MaxWordLength} bytes a word can be read into.");
 
             return length;
         }
