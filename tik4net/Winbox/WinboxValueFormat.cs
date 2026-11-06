@@ -158,8 +158,8 @@ namespace tik4net.Winbox
         /// <summary>Raw 6-byte MAC → "AA:BB:CC:DD:EE:FF".</summary>
         internal static string MacFromBytes(object value)
         {
-            if (value is byte[] b && b.Length > 0)
-                return TikMacText.Format(b);
+            if (value is byte[] b)
+                return b.Length == 0 ? "" : TikMacText.Format(b);
 
             // The wire form this actually arrives in. M2Message renders an FT_RAW value as unseparated
             // uppercase hex ("AABBCCDDEEFF") rather than a byte[], so every macaddr field — which is a raw

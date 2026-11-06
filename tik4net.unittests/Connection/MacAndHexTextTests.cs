@@ -138,10 +138,10 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void TheWinboxRenderer_WritesAnEmptyByteArrayAsItsTypeName()
+        public void TheWinboxRenderer_WritesAnEmptyByteArrayAsEmpty()
         {
-            // Not a spelling anyone wants: an empty raw falls through to object.ToString(). Pinned so a change to it is seen.
-            Assert.AreEqual("System.Byte[]", WinboxValueFormat.MacFromBytes(new byte[0]));
+            // An empty raw is no address at all; it must not reach the caller as object.ToString()'s "System.Byte[]".
+            Assert.AreEqual("", WinboxValueFormat.MacFromBytes(new byte[0]));
         }
 
         // ── Hex ───────────────────────────────────────────────────────────────
