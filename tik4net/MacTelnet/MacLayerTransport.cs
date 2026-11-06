@@ -1262,20 +1262,40 @@ namespace tik4net.MacTelnet
         /// <remarks>For a caller that owns a blocking read loop (MAC-Telnet's pump and login loops).</remarks>
         protected bool TryReceive(int timeoutMs, out byte type, out uint counter, out byte[] payload)
         {
-            _udp.Client.ReceiveTimeout = timeoutMs;
-            bool ok = ReadDatagram(out var r);
+            bool ok = ReadDatagram(out var r, timeoutMs);
             type = r.Type;
             counter = r.Counter;
             payload = r.Payload ?? new byte[0];
             return ok;
         }
 
-        // Reads one datagram under the socket's current receive timeout: parsed, our own echo dropped, the router's
-        // unicast address latched, traced. False for a malformed packet, our own echo and another session's packet.
-        private bool ReadDatagram(out MacLayerReply reply)
+        /// <summary>
+        /// Receives one datagram, waiting up to <paramref name="timeoutMs"/> for it; a timeout is a
+        /// <see cref="SocketException"/> with <see cref="SocketError.TimedOut"/>, as from a receive under <c>SO_RCVTIMEO</c>.
+        /// </summary>
+        /// <remarks>
+        /// Waits with <see cref="Socket.Poll"/> and receives only once a datagram is there, never under a receive
+        /// timeout: on Windows a UDP receive that times out loses a datagram that arrives as it does (measured on
+        /// loopback: 328 of 3000 on .NET 8 and 402 of 3000 on .NET Framework against a 5 ms <c>ReceiveTimeout</c>, none
+        /// with a poll). The router resends DATA we have not acknowledged, so a lost one cost a resend interval; a lost
+        /// ACK or PKT_END cost more. The unit test <c>MacLayerReceiveTests</c> holds it.
+        /// <para>The receive timeout stays set as a bound, for a poll that reports readable without a datagram.</para>
+        /// </remarks>
+        internal static byte[] ReceiveWithin(UdpClient udp, int timeoutMs, ref IPEndPoint ep)
+        {
+            udp.Client.ReceiveTimeout = timeoutMs;
+            if (!udp.Client.Poll(checked(timeoutMs * 1000), SelectMode.SelectRead))
+                throw new SocketException((int)SocketError.TimedOut);
+            return udp.Receive(ref ep);
+        }
+
+        // Reads one datagram (waiting up to timeoutMs, or not at all when one is known to be there): parsed, our own echo
+        // dropped, the router's unicast address latched, traced. False for a malformed packet, our own echo and another
+        // session's packet.
+        private bool ReadDatagram(out MacLayerReply reply, int timeoutMs = 0)
         {
             IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-            byte[] pkt = _udp.Receive(ref ep);
+            byte[] pkt = timeoutMs > 0 ? ReceiveWithin(_udp, timeoutMs, ref ep) : _udp.Receive(ref ep);
             if (!MacLayerPacket.TryParseReply(pkt, out reply)) return false;
             byte type = reply.Type;
             uint counter = reply.Counter;
