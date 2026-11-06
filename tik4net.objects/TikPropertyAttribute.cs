@@ -187,6 +187,25 @@ namespace tik4net.Objects
         public bool SetKeepsUnnamedHalf { get; set; }
 
         /// <summary>
+        /// Marks a list of <see cref="TikNegatableValue{T}"/> members that names every member, granted or denied, and on which
+        /// RouterOS's text <c>set</c> changes only the members it names, keeping the rest (a user group's <c>policy</c>,
+        /// measured on 6.49.21 and 7.x: <c>set policy=ftp</c> grants ftp and keeps every other policy;
+        /// <c>Docs/findings-value-lists.md</c> §3).
+        /// <para>
+        /// So the value is the whole set: an update sends the new value with every member the row's loaded value had and
+        /// the new one does not name added as denied (<c>read,write</c> over a loaded <c>read,write,ftp,!local</c> is sent as
+        /// <c>read,write,!ftp,!local</c>). A value naming every member is exact on the router, and so is an add, which
+        /// denies every member it does not name.
+        /// </para>
+        /// <para>
+        /// An update of a row that was never loaded is refused before anything is sent: without the loaded value there is
+        /// no telling which members the router holds. Load the row (<c>LoadById</c>, <c>LoadList</c>, a merge) and change
+        /// its value.
+        /// </para>
+        /// </summary>
+        public bool SetKeepsUnnamedMembers { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="fieldName">Name of the property (on mikrotik).</param>

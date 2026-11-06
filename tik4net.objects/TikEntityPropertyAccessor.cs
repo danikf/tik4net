@@ -170,6 +170,7 @@ namespace tik4net.Objects
             ChangesOnItsOwn = attribute.ChangesOnItsOwn;
             IsSensitive = attribute.IsSensitive;
             SetKeepsUnnamedHalf = attribute.SetKeepsUnnamedHalf;
+            SetKeepsUnnamedMembers = attribute.SetKeepsUnnamedMembers;
 
             Type? fieldKind = PropertyType.GetTypeInfo().IsGenericType ? PropertyType.GetGenericTypeDefinition() : null;
             IsWrapped = fieldKind == typeof(TikField<>) || fieldKind == typeof(TikNegatableField<>);
@@ -247,6 +248,11 @@ namespace tik4net.Objects
             if (SetKeepsUnnamedHalf && !IsNegatableMembers)
                 // The halves are the plain and the negated members; a field without the second has only one.
                 throw new ArgumentException(owner + "SetKeepsUnnamedHalf describes a list whose members are negated one by one; declare its items TikNegatableValue<T>.", nameof(property));
+            if (SetKeepsUnnamedMembers && !IsNegatableMembers)
+                // The members left out are sent denied, which takes a '!' on each.
+                throw new ArgumentException(owner + "SetKeepsUnnamedMembers describes a list whose members are negated one by one; declare its items TikNegatableValue<T>.", nameof(property));
+            if (SetKeepsUnnamedMembers && SetKeepsUnnamedHalf)
+                throw new ArgumentException(owner + "SetKeepsUnnamedMembers and SetKeepsUnnamedHalf describe two different set behaviours; a field has one.", nameof(property));
         }
 
         // A set of words is a list: each member its own item, a word the enum lacks one item of its own, and on a field
@@ -269,6 +275,12 @@ namespace tik4net.Objects
         /// (<see cref="TikPropertyAttribute.SetKeepsUnnamedHalf"/>).
         /// </summary>
         public bool SetKeepsUnnamedHalf { get; private set; }
+
+        /// <summary>
+        /// Whether RouterOS's text <c>set</c> keeps the members of this list it does not name, so an update sends the
+        /// left-out ones denied (<see cref="TikPropertyAttribute.SetKeepsUnnamedMembers"/>).
+        /// </summary>
+        public bool SetKeepsUnnamedMembers { get; private set; }
 
         /// <summary>The item type of a <see cref="TikValueList{T}"/> property, else <c>null</c>.</summary>
         public Type? ItemType { get; private set; }

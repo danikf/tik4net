@@ -18,6 +18,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net;
+using tik4net.Objects;
+using tik4net.Objects.User;
 
 namespace tik4net.integrationtests
 {
@@ -94,6 +96,25 @@ namespace tik4net.integrationtests
                     "the granted members, as the API reads them after the write");
                 Assert.IsTrue(members.Contains("!ftp"),
                     "a member neither write named stays as the fixture left it");
+            }
+        }
+
+        [TestMethod]
+        public void AnEntitysPolicyIsTheWholeSet_TheMembersItLeavesOutAreDenied()
+        {
+            // The mapper's side of the raw write above (SetKeepsUnnamedMembers): assigning the granted policies alone
+            // leaves the group with those and no other, the fixture's `test` included, on every transport.
+            var group = Connection.LoadList<UserGroup>(Connection.CreateParameter("name", GroupName)).Single();
+            group.Policy = new TikValueList<TikNegatableValue<UserPolicy>>(
+                UserPolicy.Read, UserPolicy.Write);
+            Connection.Save(group);
+
+            using (var api = OpenSideApi())
+            {
+                var members = TestGroup(api).GetResponseField("policy").Split(',');
+                CollectionAssert.AreEquivalent(new[] { "read", "write" }, members.Where(m => !m.StartsWith("!")).ToArray(),
+                    "the granted members, as the API reads them after the save");
+                Assert.IsTrue(members.Contains("!test"), "the fixture's test is denied: " + string.Join(",", members));
             }
         }
 

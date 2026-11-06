@@ -761,6 +761,39 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// The value a text <c>set</c> of a <see cref="TikPropertyAttribute.SetKeepsUnnamedMembers"/> list sends: the new
+        /// value, then every member the loaded value had and the new one does not name, denied — so the router, which keeps
+        /// the members a <c>set</c> leaves out, ends up holding exactly the new value. Sent on every transport: a value
+        /// naming every member is exact whichever way it is written. Refused without a loaded value, which is the only
+        /// statement of the members this router has.
+        /// </summary>
+        internal static string CompleteTheSet<TEntity>(ITikConnection connection, TEntity entity,
+            TikEntityPropertyAccessor property, string value)
+        {
+            var snapshot = TikChangeTracker.For(connection).GetSnapshot(entity!);
+            if (snapshot == null || !snapshot.TryGetValue(property.FieldName, out string? loaded) || loaded == null)
+                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture,
+                    "Property '{0}({1})': RouterOS's text set changes only the members it names, and without the row's loaded "
+                    + "value there is no telling which members to deny, so setting '{2}' would keep whatever else the row holds. "
+                    + "Load the row (LoadById, LoadList, a merge) and change its value; nothing was sent.",
+                    property.PropertyName, property.FieldName, value));
+
+            var members = SetMembers(value).ToList();
+            var named = new HashSet<string>(members.Select(MemberName), StringComparer.Ordinal);
+            var denied = SetMembers(loaded).Select(MemberName).Where(named.Add).Select(name => TikNegation.Bang + name);
+            return string.Join(",", members.Concat(denied));
+        }
+
+        private static IEnumerable<string> SetMembers(string text)
+            => text.Split(',').Where(element => element.Length != 0 && element != TikNegation.Bang);
+
+        private static string MemberName(string element)
+        {
+            TikNegation.TrySplit(element, out string name);
+            return name;
+        }
+
+        /// <summary>
         /// Builds the update traffic: the <c>/unset</c> commands (which must run first) and the single
         /// <c>/set</c>, or <c>null</c> when the update turned out to carry no fields.
         /// </summary>
@@ -797,6 +830,8 @@ namespace tik4net.Objects
                     {
                         if (property.SetKeepsUnnamedHalf && !connection.Supports(TikConnectionCapability.StructuredWrites))
                             EnsureTheSetIsExact(connection, entity, property, value);
+                        if (property.SetKeepsUnnamedMembers)
+                            value = CompleteTheSet(connection, entity, property, value);
                         setCmd.AddParameter(property.WriteName(entity!), value); //full update (all values)
                     }
                 }
