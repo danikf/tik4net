@@ -52,12 +52,13 @@ namespace tik4net.Objects.Certificate
         public TikField<int?> DaysValid { get; set; }
 
         /// <summary>
-        /// key-usage — Comma-separated list of certificate usage flags.
+        /// key-usage — the key and extended key usages of the certificate.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// Default: digital-signature,key-encipherment,data-encipherment,key-cert-sign,crl-sign,tls-server,tls-client.
         /// WinBox: "Key Usage"
         /// </summary>
         [TikProperty("key-usage", WinboxLabel = "Key Usage")]
-        public TikField<string?> KeyUsage { get; set; }
+        public TikField<TikValueList<CertificateKeyUsage>?> KeyUsage { get; set; }
 
         /// <summary>
         /// digest-algorithm — Hash algorithm used for signing the certificate.
@@ -120,14 +121,13 @@ namespace tik4net.Objects.Certificate
         public TikField<bool?> Trusted { get; set; }
 
         /// <summary>
-        /// trust-store — Comma-separated list of services that are permitted to use this certificate
-        /// for verification. Possible values: all, capsman, dns, email, ipsec, mqtt, openflow, radius,
-        /// sstp, userman, www, api, container, dot1x, fetch, lora, netwatch, ovpn, tr069, wpa-eap.
+        /// trust-store — the services permitted to verify a peer against this certificate; <c>all</c> stands for every service.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// Default: all.
         /// WinBox: "Trust Store"
         /// </summary>
         [TikProperty("trust-store", DefaultValue = "all", WinboxLabel = "Trust Store", MinRouterOs = "7")]
-        public TikField<string?> TrustStore { get; set; }
+        public TikField<TikValueList<CertificateTrustStore>?> TrustStore { get; set; }
 
         /// <summary>
         /// comment — Optional free-text comment for this certificate entry.

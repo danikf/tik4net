@@ -50,6 +50,42 @@ mangle `connection-nat-state=srcnat,!dstnat` the same.
   `ecp256,modp2048,modp1024`), script and scheduler `policy` (`write,read,test` → `read,write,test`), wireless, CAPsMAN
   and wifi `authentication-types` (`wpa2-psk,wpa-psk` → `wpa-psk,wpa2-psk`) and wifi `dh-groups` (`21,19` → `19,21`).
   A `set` replaces each of them, and a member `!` is refused (`invalid value for argument`).
+- **So do the cipher, algorithm, method and rate sets** (6.49.21 and 7.21.5, over the API, each written on a throwaway
+  row once in another order and once with a duplicate, then read back; the duplicate reads once):
+
+  | Field | Written | Read back |
+  |---|---|---|
+  | IPsec proposal `auth-algorithms` | `sha512,md5,sha256,sha1` | `sha512,sha256,sha1,md5` |
+  | IPsec proposal `enc-algorithms` | `aes-128-cbc,aes-256-cbc,3des` | `aes-256-cbc,aes-128-cbc,3des` |
+  | IPsec profile `enc-algorithm` | `3des,aes-256,aes-128` | `aes-256,aes-128,3des` |
+  | hotspot profile `login-by` | `https,cookie,mac` | `mac,cookie,https` |
+  | `/radius` `service` | `hotspot,ppp,login` | `ppp,login,hotspot` |
+  | OSPF instance `redistribute` (7.x) | `static,connected,bgp` | `connected,static,bgp` |
+  | BGP peer `address-families` (6.x), BGP template and connection `afi` (7.x) | `ipv6,ip` | `ip,ipv6` |
+  | OVPN server `auth` (7.x) | `sha512,md5,sha1` | `sha1,md5,sha512` |
+  | OVPN server `cipher` (7.x) | `aes256-cbc,aes128-cbc,blowfish128` | `blowfish128,aes128-cbc,aes256-cbc` |
+  | SSTP client `ciphers` (7.x) | `aes256-gcm-sha384,aes256-sha` | `aes256-sha,aes256-gcm-sha384` |
+  | wifi security `encryption` (7.x) | `gcmp,ccmp,tkip` | `tkip,ccmp,gcmp` |
+  | wifi access-list `days` (7.x) | `wed,mon,sun` | `sun,mon,wed` |
+  | wireless security profile `unicast-ciphers`, `group-ciphers` | `aes-ccm,tkip` | `tkip,aes-ccm` |
+  | CAPsMAN security `encryption`, configuration `security.encryption` | `tkip,aes-ccm` | `aes-ccm,tkip` |
+  | CAPsMAN configuration and rates `rates.basic`, `rates.supported` | `11Mbps,1Mbps,2Mbps` | `1Mbps,2Mbps,11Mbps` |
+  | CAPsMAN configuration and rates `rates.ht-basic-mcs`, `rates.ht-supported-mcs` | `mcs-3,mcs-0,mcs-1` | `mcs-0,mcs-1,mcs-3` |
+  | certificate `key-usage` | `tls-client,digital-signature,key-cert-sign` | `digital-signature,key-cert-sign,tls-client` |
+  | certificate `trust-store` (7.x) | `www,api,ipsec` | `ipsec,www,api` |
+
+  A member `!` is refused on all of them. `/interface/wireless` itself cannot be written on a CHR (no radio); its rate
+  and HT MCS lists take the CAPsMAN vocabulary and are typed the same. RouterOS 7 refuses the profile's `blowfish` and
+  `camellia-*`, the OVPN server's `sha256`/`sha384`/`sha512` are 7.x only, and 6.x spells the OVPN CBC ciphers
+  `aes128`, `aes192`, `aes256`. The OVPN client's `auth` and `cipher` take one value, not a list.
+- **Some lists keep the order and the duplicates they are given:** IPsec identity `eap-methods`
+  (`eap-ttls,eap-peap,eap-mschapv2` and `eap-mschapv2,eap-mschapv2` read back unchanged; the order is the order the
+  client tries them), BGP connection `templates`, OVPN server `push-routes` and `push-routes-ipv6`, and CAPsMAN
+  `rates.vht-basic-mcs`/`rates.vht-supported-mcs` (`mcs0-9,mcs0-7`, one range per spatial stream).
+- **Some sorted lists are not words:** the radio chain lists (wifi configuration `chains`/`tx-chains`, CAPsMAN
+  `rx-chains`/`tx-chains`: `2,0,1` reads `0,1,2`) and the DHCP alert's `valid-server` MAC list
+  (`AA:BB:CC:DD:EE:02,AA:BB:CC:DD:EE:01` reads back sorted, a duplicate once, a member `!` refused). They are sets the
+  router sorts, but their members are numbers and addresses rather than an enum's words.
 - **A user group's `policy` holds every policy:** an add of `write,read,!ftp,test` reads
   `read,write,test,!local,!telnet,…`, the ones not granted negated. A text `set` changes only the policies it names:
   `set policy=ftp` grants ftp and keeps the rest, `!write` denies write, and an empty value changes nothing. A write

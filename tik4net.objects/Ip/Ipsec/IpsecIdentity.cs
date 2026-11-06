@@ -194,12 +194,13 @@ namespace tik4net.Objects.Ip.Ipsec
         public TikField<string?> RemoteKey { get; set; }
 
         /// <summary>
-        /// eap-methods — comma-separated list of EAP methods accepted/offered when auth-method
-        /// is eap or eap-radius (IKEv2 only).
+        /// eap-methods — the EAP methods the client offers when auth-method is eap (IKEv2 only), in the order they are tried:
+        /// eap-tls, eap-ttls, eap-peap, eap-mschapv2.
+        /// The router keeps the order and the duplicates it is given.
         /// Default: eap-tls
         /// </summary>
         [TikProperty("eap-methods", WinboxLabel = "EAP Methods")]
-        public TikField<string?> EapMethods { get; set; }
+        public TikField<TikValueList<string>?> EapMethods { get; set; }
 
         /// <summary>
         /// username — XAuth or EAP account name sent to the remote peer when auth-method is

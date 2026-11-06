@@ -90,12 +90,12 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<string?> Name { get; set; }
 
         /// <summary>
-        /// auth — comma-separated list of authentication (HMAC) algorithms the server will accept.
-        /// Valid values: md5, sha1, sha256, sha512, null.
+        /// auth — the HMAC algorithms the server accepts.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// Default: sha1,md5,sha256,sha512
         /// </summary>
         [TikProperty("auth", DefaultValue = "sha1,md5,sha256,sha512")]
-        public TikField<string?> Auth { get; set; }
+        public TikField<TikValueList<OvpnAuth>?> Auth { get; set; }
 
         /// <summary>
         /// certificate — name of the TLS certificate the server uses; <c>none</c> disables certificate-based auth.
@@ -105,12 +105,12 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<string?> Certificate { get; set; }
 
         /// <summary>
-        /// cipher — comma-separated list of permitted data-channel encryption algorithms.
-        /// Valid values: null, aes128-cbc, aes128-gcm, aes192-cbc, aes192-gcm, aes256-cbc, aes256-gcm, blowfish128.
-        /// Default: aes128-cbc,blowfish128
+        /// cipher — the data-channel ciphers the server permits.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
+        /// Default: blowfish128,aes128-cbc
         /// </summary>
-        [TikProperty("cipher", DefaultValue = "aes128-cbc,blowfish128", WinboxLabel = "Cipher")]
-        public TikField<string?> Cipher { get; set; }
+        [TikProperty("cipher", DefaultValue = "blowfish128,aes128-cbc", WinboxLabel = "Cipher")]
+        public TikField<TikValueList<OvpnCipher>?> Cipher { get; set; }
 
         /// <summary>
         /// default-profile — default PPP profile applied when a client connects.
@@ -197,17 +197,17 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<ProtocolType?> Protocol { get; set; }
 
         /// <summary>
-        /// push-routes — comma-separated list of IPv4 routes pushed to connecting clients.
-        /// Maximum 1400 characters (approximately 37 routes).
+        /// push-routes — the IPv4 routes pushed to connecting clients, each <c>network netmask [gateway] [metric]</c>
+        /// (<c>10.1.0.0 255.255.0.0</c>), at most 1400 characters in all. The router keeps the order and the duplicates it is given.
         /// </summary>
         [TikProperty("push-routes", WinboxLabel = "Push Routes", MinRouterOs = "7")]
-        public TikField<string?> PushRoutes { get; set; }
+        public TikField<TikValueList<string>?> PushRoutes { get; set; }
 
         /// <summary>
-        /// push-routes-ipv6 — comma-separated list of IPv6 routes pushed to connecting clients.
+        /// push-routes-ipv6 — the IPv6 routes pushed to connecting clients. The router keeps the order and the duplicates it is given.
         /// </summary>
         [TikProperty("push-routes-ipv6", WinboxLabel = "Push Routes IPv6", MinRouterOs = "7")]
-        public TikField<string?> PushRoutesIpv6 { get; set; }
+        public TikField<TikValueList<string>?> PushRoutesIpv6 { get; set; }
 
         /// <summary>
         /// redirect-gateway — controls default-route redirection pushed to clients.

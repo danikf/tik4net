@@ -49,12 +49,11 @@ namespace tik4net.Objects.Radius
         public string? Id { get; private set; }
 
         /// <summary>
-        /// service — the router service(s) that will use this RADIUS server.
-        /// Comma-separated list of: ppp, login, hotspot, wireless, dhcp, ipsec, dot1x.
-        /// Multiple services can be specified (e.g. "ppp,hotspot").
+        /// service — the router services that use this RADIUS server.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("service", WinboxLabel = "Service")]
-        public TikField<string?> Service { get; set; }
+        public TikField<TikValueList<RadiusService>?> Service { get; set; }
 
         /// <summary>
         /// called-id — the ID of the server depends on the protocol: for HotSpot it is the IP of the

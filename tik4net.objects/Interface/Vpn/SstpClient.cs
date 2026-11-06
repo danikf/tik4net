@@ -122,12 +122,12 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<TlsVersionType?> TlsVersion { get; set; }
 
         /// <summary>
-        /// ciphers — allowed TLS cipher suites.
-        /// Valid values: aes256-sha, aes256-gcm-sha384 (or a combination).
+        /// ciphers — the TLS cipher suites the client offers.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// Default: aes256-sha
         /// </summary>
         [TikProperty("ciphers", DefaultValue = "aes256-sha", WinboxLabel = "Ciphers", MinRouterOs = "7")]
-        public TikField<string?> Ciphers { get; set; }
+        public TikField<TikValueList<SstpCipher>?> Ciphers { get; set; }
 
         /// <summary>
         /// pfs — Perfect Forward Secrecy mode.

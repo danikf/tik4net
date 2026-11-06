@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Interface.Wireless;
 
 namespace tik4net.Objects.CapsMan
 {
@@ -108,40 +109,46 @@ namespace tik4net.Objects.CapsMan
         // ── Inline rates overrides (rates.*) ──────────────────────────────────
 
         /// <summary>
-        /// rates.basic — comma-separated list of mandatory data rates (e.g. "1Mbps,2Mbps,5.5Mbps,11Mbps").
+        /// rates.basic — the data rates every client must support.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("rates.basic")]
-        public TikField<string?> RatesBasic { get; set; }
+        public TikField<TikValueList<WirelessRate>?> RatesBasic { get; set; }
 
         /// <summary>
-        /// rates.supported — comma-separated list of optional advertised data rates.
+        /// rates.supported — the data rates advertised as supported.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("rates.supported")]
-        public TikField<string?> RatesSupported { get; set; }
+        public TikField<TikValueList<WirelessRate>?> RatesSupported { get; set; }
 
         /// <summary>
-        /// rates.ht-basic-mcs — required 802.11n MCS indices (e.g. "mcs-0,mcs-1,...,mcs-7").
+        /// rates.ht-basic-mcs — the 802.11n MCS every client must support.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("rates.ht-basic-mcs")]
-        public TikField<string?> RatesHtBasicMcs { get; set; }
+        public TikField<TikValueList<WirelessHtMcs>?> RatesHtBasicMcs { get; set; }
 
         /// <summary>
-        /// rates.ht-supported-mcs — advertised 802.11n MCS indices.
+        /// rates.ht-supported-mcs — the 802.11n MCS advertised as supported.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("rates.ht-supported-mcs")]
-        public TikField<string?> RatesHtSupportedMcs { get; set; }
+        public TikField<TikValueList<WirelessHtMcs>?> RatesHtSupportedMcs { get; set; }
 
         /// <summary>
-        /// rates.vht-basic-mcs — required 802.11ac MCS set per spatial stream.
+        /// rates.vht-basic-mcs — the 802.11ac MCS range every client must support, one per spatial stream in stream order
+        /// (<c>none</c>, <c>mcs0-7</c>, <c>mcs0-8</c>, <c>mcs0-9</c>). The router keeps the order and the duplicates it is given.
         /// </summary>
         [TikProperty("rates.vht-basic-mcs")]
-        public TikField<string?> RatesVhtBasicMcs { get; set; }
+        public TikField<TikValueList<string>?> RatesVhtBasicMcs { get; set; }
 
         /// <summary>
-        /// rates.vht-supported-mcs — advertised 802.11ac MCS set per spatial stream.
+        /// rates.vht-supported-mcs — the 802.11ac MCS range advertised as supported, one per spatial stream in stream order
+        /// (<c>none</c>, <c>mcs0-7</c>, <c>mcs0-8</c>, <c>mcs0-9</c>). The router keeps the order and the duplicates it is given.
         /// </summary>
         [TikProperty("rates.vht-supported-mcs")]
-        public TikField<string?> RatesVhtSupportedMcs { get; set; }
+        public TikField<TikValueList<string>?> RatesVhtSupportedMcs { get; set; }
 
         // ── Network parameters ────────────────────────────────────────────────
 

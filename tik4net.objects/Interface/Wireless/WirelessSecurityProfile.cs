@@ -110,18 +110,18 @@ namespace tik4net.Objects.Interface.Wireless
         public TikField<TikValueList<WirelessAuthenticationType>?> AuthenticationTypes { get; set; }
 
         /// <summary>
-        /// group-ciphers
-        /// Comma separated string
+        /// group-ciphers — the ciphers for broadcast and multicast frames.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("group-ciphers", WinboxLabel = "Group Ciphers")]
-        public TikField<string?> /*tkip, aes-ccm*/ GroupCiphers { get; set; }
+        public TikField<TikValueList<WirelessCipher>?> GroupCiphers { get; set; }
 
         /// <summary>
-        /// unicast-ciphers
-        /// Comma separated string
+        /// unicast-ciphers — the ciphers for unicast frames.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("unicast-ciphers", WinboxLabel = "Unicast Ciphers")]
-        public TikField<string?> /*tkip, aes-ccm*/ UnicastCiphers { get; set; }
+        public TikField<TikValueList<WirelessCipher>?> UnicastCiphers { get; set; }
 
         /// <summary>
         /// supplicant-identity

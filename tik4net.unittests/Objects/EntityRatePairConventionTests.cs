@@ -57,20 +57,10 @@ namespace tik4net.unittests.Objects
             new Dictionary<string, string[]>
             {
                 // ── Lists of modulation rates, not a pair ───────────────────────────────────────────
-                // '6Mbps,9Mbps,12Mbps…' and MCS index lists: several values, each carrying a unit
-                // TikDataRate does not read.
-                ["CapsManConfiguration"] = new[]
-                {
-                    "rates", "rates.basic", "rates.supported",
-                    "rates.ht-basic-mcs", "rates.ht-supported-mcs",
-                    "rates.vht-basic-mcs", "rates.vht-supported-mcs",
-                },
-                ["CapsManInterface"] = new[]
-                {
-                    "rates", "rates.basic", "rates.supported",
-                    "rates.ht-basic-mcs", "rates.ht-supported-mcs",
-                    "rates.vht-basic-mcs", "rates.vht-supported-mcs",
-                },
+                // 'rates' names a CAPsMAN rates profile. The rate and MCS lists themselves are
+                // TikValueList<WirelessRate>, <WirelessHtMcs> and <string>, which the rule does not look at.
+                ["CapsManConfiguration"] = new[] { "rates" },
+                ["CapsManInterface"] = new[] { "rates" },
                 // 'tx-rate-set' is a list; 'tx-rate'/'rx-rate' are ONE link rate each, spelled with the
                 // modulation ('HT20-SGI 65Mbps') — not a pair, and not a bare magnitude either. Two
                 // separate fields for the two directions is the router's own model here, and pairing them
@@ -81,7 +71,6 @@ namespace tik4net.unittests.Objects
                 ["WirelessRegistrationTable"] = new[] { "tx-rate", "rx-rate", "strength-at-rates" },
                 ["InterfaceWireless"] = new[]
                 {
-                    "basic-rates-a/g", "basic-rates-b", "supported-rates-a/g", "supported-rates-b",
                     // A single rate, or the word 'disabled'.
                     "tdma-override-rate",
                     // Enums. The name is the whole trap: neither is a rate.

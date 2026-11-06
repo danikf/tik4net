@@ -133,13 +133,12 @@ namespace tik4net.Objects.Interface.Wifi
         public TikField<string?> Time { get; set; }
 
         /// <summary>
-        /// days — comma-separated list of day abbreviations on which the rule is
-        /// active: sun, mon, tue, wed, thu, fri, sat.
-        /// Leave empty to match every day.
+        /// days — the days of the week on which the rule is active; empty matches every day.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// WinBox: "Days"
         /// </summary>
         [TikProperty("days", DefaultValue = "")]
-        public TikField<string?> Days { get; set; }
+        public TikField<TikValueList<WifiAccessListDay>?> Days { get; set; }
 
         // ── Per-client overrides ──────────────────────────────────────────────
 

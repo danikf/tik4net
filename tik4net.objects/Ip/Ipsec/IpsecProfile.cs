@@ -72,14 +72,12 @@ namespace tik4net.Objects.Ip.Ipsec
         public TikField<HashAlgorithmType?> HashAlgorithm { get; set; }
 
         /// <summary>
-        /// enc-algorithm — comma-separated list of encryption algorithms offered during
-        /// Phase 1 negotiation (multi-value, kept as string).
-        /// Allowed values: 3des, aes-128, aes-192, aes-256, blowfish, camellia-128,
-        /// camellia-192, camellia-256, des.
-        /// Default: "aes-128,3des"
+        /// enc-algorithm — the encryption algorithms offered in Phase 1.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
+        /// Default: aes-128,3des
         /// </summary>
         [TikProperty("enc-algorithm", DefaultValue = "aes-128,3des", WinboxLabel = "Encryption Algorithm")]
-        public TikField<string?> EncAlgorithm { get; set; }
+        public TikField<TikValueList<IpsecProfileEncAlgorithm>?> EncAlgorithm { get; set; }
 
         /// <summary>
         /// dh-group — the Diffie-Hellman groups offered in phase 1.

@@ -72,10 +72,11 @@ namespace tik4net.Objects.Routing.Bgp
         public TikField<string?> Ttl { get; set; }
 
         /// <summary>
-        /// Gets or sets a comma-separated list of address families (ip, ipv6, l2vpn, vpn4, l2vpn-cisco) that are routed to/by this peer.
+        /// address-families — the address families the peer carries.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("address-families")]
-        public TikField<string?> AddressFamilies { get; set; }
+        public TikField<TikValueList<BgpAddressFamily>?> AddressFamilies { get; set; }
 
         /// <summary>
         /// Gets or sets the value whether default originate (never, if-installed, always).

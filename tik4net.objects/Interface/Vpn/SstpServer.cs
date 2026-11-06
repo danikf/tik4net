@@ -58,12 +58,12 @@ namespace tik4net.Objects.Interface.Vpn
         public TikField<string?> Certificate { get; set; }
 
         /// <summary>
-        /// ciphers — comma-separated list of permitted TLS cipher suites.
-        /// Valid values: aes256-sha, aes256-gcm-sha384.
+        /// ciphers — the TLS cipher suites the server permits.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// Default: aes256-sha,aes256-gcm-sha384
         /// </summary>
         [TikProperty("ciphers", DefaultValue = "aes256-sha,aes256-gcm-sha384", WinboxLabel = "Ciphers", MinRouterOs = "7")]
-        public TikField<string?> Ciphers { get; set; }
+        public TikField<TikValueList<SstpCipher>?> Ciphers { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new SSTP sessions.

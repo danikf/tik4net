@@ -242,6 +242,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// chains — receive radio chains to use (comma-separated chain indices, e.g. "0" or "0,1").
         /// Default: all chains.
         /// WinBox: "Chains"
+        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
         /// </summary>
         [TikProperty("chains", WinboxLabel = "Chains")]
         public TikField<string?> Chains { get; set; }
@@ -250,6 +251,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// tx-chains — transmit radio chains to use (comma-separated chain indices).
         /// Default: all chains.
         /// WinBox: "TX Chains"
+        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
         /// </summary>
         [TikProperty("tx-chains", WinboxLabel = "Tx Chains")]
         public TikField<string?> TxChains { get; set; }

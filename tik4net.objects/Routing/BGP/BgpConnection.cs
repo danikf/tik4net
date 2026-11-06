@@ -27,9 +27,11 @@ namespace tik4net.Objects.Routing.Bgp
         [TikProperty("local.role", WinboxLabel = "Local Role")]
         public TikField<string?> LocalRole { get; set; }
 
-        /// <summary>templates — Names of BGP templates applied to this connection (comma-separated).</summary>
+        /// <summary>
+        /// templates — the names of the BGP templates the connection inherits from. The router keeps the order and the duplicates it is given.
+        /// </summary>
         [TikProperty("templates")]
-        public TikField<string?> Templates { get; set; }
+        public TikField<TikValueList<string>?> Templates { get; set; }
 
         /// <summary>disabled — Whether the connection is disabled.</summary>
         [TikProperty("disabled")]

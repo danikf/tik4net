@@ -82,13 +82,11 @@ namespace tik4net.Objects.Routing.Ospf
         public TikField<OriginateDefaultMode?> OriginateDefault { get; set; }
 
         /// <summary>
-        /// redistribute — comma-separated list of route sources whose routes are redistributed
-        /// into OSPF as external LSAs. Accepted values: bgp, bgp-mpls-vpn, connected, dhcp,
-        /// fantasy, isis, modem, ospf, rip, slaac, static, vpn.
-        /// Example: "connected,static"
+        /// redistribute — the route sources redistributed into OSPF as external LSAs.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("redistribute", WinboxLabel = "Redistribute", MinRouterOs = "7")]
-        public TikField<string?> Redistribute { get; set; }
+        public TikField<TikValueList<RoutingRedistribute>?> Redistribute { get; set; }
 
         /// <summary>
         /// domain-id — BGP/MPLS VPN domain identifier attached to OSPF LSAs when the instance

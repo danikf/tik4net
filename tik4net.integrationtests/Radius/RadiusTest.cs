@@ -25,7 +25,7 @@ namespace tik4net.integrationtests
             {
                 Address = "192.0.2.1",
                 Secret = "x",
-                Service = "login",
+                Service = new TikValueList<RadiusService>(RadiusService.Login),
                 Comment = marker,
             };
             SaveTracked(entity);
@@ -34,7 +34,7 @@ namespace tik4net.integrationtests
             Assert.IsNotNull(loaded);
             Assert.AreEqual(marker, loaded.Comment);
             Assert.AreEqual("192.0.2.1", loaded.Address);
-            Assert.AreEqual("login", loaded.Service);
+            Assert.AreEqual(new TikValueList<RadiusService>(RadiusService.Login), loaded.Service.Value);
 
             Connection.Delete(loaded);
         }

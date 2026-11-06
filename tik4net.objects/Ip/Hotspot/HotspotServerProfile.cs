@@ -45,9 +45,13 @@ namespace tik4net.Objects.Ip.Hotspot
         [TikProperty("smtp-server", DefaultValue = "0.0.0.0", WinboxLabel = "SMTP Server")]
         public TikField<string?> SmtpServer { get; set; }
 
-        /// <summary>login-by — comma-separated list of login methods (cookie, http-chap, http-pap, https, mac, mac-cookie, trial). Default: cookie,http-chap.</summary>
+        /// <summary>
+        /// login-by — the ways a client may log in.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
+        /// Default: cookie,http-chap.
+        /// </summary>
         [TikProperty("login-by", DefaultValue = "cookie,http-chap", WinboxLabel = "Login By")]
-        public TikField<string?> LoginBy { get; set; }
+        public TikField<TikValueList<HotspotLoginMethod>?> LoginBy { get; set; }
 
         /// <summary>http-cookie-lifetime — validity period of the authentication cookie. Default: 3d.</summary>
         [TikProperty("http-cookie-lifetime", DefaultValue = "3d", WinboxLabel = "HTTP Cookie Lifetime")]

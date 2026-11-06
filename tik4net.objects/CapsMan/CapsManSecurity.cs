@@ -74,11 +74,11 @@ namespace tik4net.Objects.CapsMan
         // ── Unicast encryption ────────────────────────────────────────────────
 
         /// <summary>
-        /// encryption — comma-separated list of accepted unicast frame cipher algorithms.
-        /// Possible values: aes-ccm, tkip. Empty means no explicit override.
+        /// encryption — the unicast frame ciphers; empty means no explicit override.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("encryption", WinboxLabel = "Encryption")]
-        public TikField<string?> Encryption { get; set; }
+        public TikField<TikValueList<WirelessCipher>?> Encryption { get; set; }
 
         // ── Group (broadcast/multicast) encryption ────────────────────────────
 

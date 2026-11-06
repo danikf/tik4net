@@ -55,24 +55,20 @@ namespace tik4net.Objects.Ip.Ipsec
         public TikField<string?> Name { get; set; }
 
         /// <summary>
-        /// auth-algorithms — comma-separated list of allowed authentication (integrity) algorithms
-        /// for Phase 2 SAs. SHA (Secure Hash Algorithm) is stronger but slower than MD5.
-        /// Valid values: md5, sha1, sha256, sha512, null (no authentication, e.g. for GCM).
+        /// auth-algorithms — the integrity algorithms allowed for Phase 2 SAs (<c>null</c> for none, as with a GCM cipher).
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// Default: sha1
         /// </summary>
         [TikProperty("auth-algorithms", DefaultValue = "sha1", WinboxLabel = "Auth. Algorithms")]
-        public TikField<string?> AuthAlgorithms { get; set; }
+        public TikField<TikValueList<IpsecAuthAlgorithm>?> AuthAlgorithms { get; set; }
 
         /// <summary>
-        /// enc-algorithms — comma-separated list of allowed encryption algorithms and key lengths
-        /// for Phase 2 SAs. Multiple values are tried in order during negotiation.
-        /// Valid values: null, des, 3des, aes-128-cbc, aes-192-cbc, aes-256-cbc,
-        ///   aes-128-ctr, aes-192-ctr, aes-256-ctr, aes-128-gcm, aes-192-gcm, aes-256-gcm,
-        ///   blowfish, camellia-128, camellia-192, camellia-256, twofish.
+        /// enc-algorithms — the encryption algorithms and key lengths allowed for Phase 2 SAs.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// Default: aes-256-cbc,aes-192-cbc,aes-128-cbc
         /// </summary>
         [TikProperty("enc-algorithms", DefaultValue = "aes-256-cbc,aes-192-cbc,aes-128-cbc", WinboxLabel = "Encr. Algorithms")]
-        public TikField<string?> EncAlgorithms { get; set; }
+        public TikField<TikValueList<IpsecProposalEncAlgorithm>?> EncAlgorithms { get; set; }
 
         /// <summary>
         /// lifetime — how long (time string, e.g. "30m") to use the SA before it must be

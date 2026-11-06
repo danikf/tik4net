@@ -304,10 +304,11 @@ namespace tik4net.Objects.CapsMan
         public TikField<TikValueList<WirelessAuthenticationType>?> SecurityAuthenticationTypes { get; set; }
 
         /// <summary>
-        /// security.encryption — unicast frame cipher algorithm (aes-ccm or tkip).
+        /// security.encryption — the unicast frame ciphers.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("security.encryption")]
-        public TikField<string?> SecurityEncryption { get; set; }
+        public TikField<TikValueList<WirelessCipher>?> SecurityEncryption { get; set; }
 
         /// <summary>
         /// security.group-encryption — broadcast/multicast frame cipher; clients must support this cipher.
@@ -352,53 +353,53 @@ namespace tik4net.Objects.CapsMan
         // ── Inline rates overrides (rates.*) ──────────────────────────────────
 
         /// <summary>
-        /// rates.basic — comma-separated list of mandatory data rates all clients must support
-        /// (e.g. "1Mbps,2Mbps,5.5Mbps,11Mbps").
+        /// rates.basic — the data rates every client must support.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("rates.basic")]
-        public TikField<string?> RatesBasic { get; set; }
+        public TikField<TikValueList<WirelessRate>?> RatesBasic { get; set; }
 
         /// <summary>
-        /// rates.supported — comma-separated list of optional advertised data rates
-        /// (e.g. "6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps").
+        /// rates.supported — the data rates advertised as supported.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("rates.supported")]
-        public TikField<string?> RatesSupported { get; set; }
+        public TikField<TikValueList<WirelessRate>?> RatesSupported { get; set; }
 
         /// <summary>
-        /// rates.ht-basic-mcs — comma-separated list of required 802.11n MCS indices
-        /// (e.g. "mcs-0,mcs-1,mcs-2,mcs-3,mcs-4,mcs-5,mcs-6,mcs-7").
-        /// Default: mcs-0 through mcs-7.
+        /// rates.ht-basic-mcs — the 802.11n MCS every client must support.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("rates.ht-basic-mcs")]
-        public TikField<string?> RatesHtBasicMcs { get; set; }
+        public TikField<TikValueList<WirelessHtMcs>?> RatesHtBasicMcs { get; set; }
 
         /// <summary>
-        /// rates.ht-supported-mcs — comma-separated list of advertised 802.11n MCS indices.
-        /// Default: mcs-0 through mcs-23.
+        /// rates.ht-supported-mcs — the 802.11n MCS advertised as supported.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// </summary>
         [TikProperty("rates.ht-supported-mcs")]
-        public TikField<string?> RatesHtSupportedMcs { get; set; }
+        public TikField<TikValueList<WirelessHtMcs>?> RatesHtSupportedMcs { get; set; }
 
         /// <summary>
-        /// rates.vht-basic-mcs — required 802.11ac MCS set per spatial stream
-        /// (none, MCS 0-7, MCS 0-8, MCS 0-9). Default: none.
+        /// rates.vht-basic-mcs — the 802.11ac MCS range every client must support, one per spatial stream in stream order
+        /// (<c>none</c>, <c>mcs0-7</c>, <c>mcs0-8</c>, <c>mcs0-9</c>). The router keeps the order and the duplicates it is given.
         /// </summary>
         [TikProperty("rates.vht-basic-mcs")]
-        public TikField<string?> RatesVhtBasicMcs { get; set; }
+        public TikField<TikValueList<string>?> RatesVhtBasicMcs { get; set; }
 
         /// <summary>
-        /// rates.vht-supported-mcs — advertised 802.11ac MCS set per spatial stream
-        /// (none, MCS 0-7, MCS 0-8, MCS 0-9). Default: none.
+        /// rates.vht-supported-mcs — the 802.11ac MCS range advertised as supported, one per spatial stream in stream order
+        /// (<c>none</c>, <c>mcs0-7</c>, <c>mcs0-8</c>, <c>mcs0-9</c>). The router keeps the order and the duplicates it is given.
         /// </summary>
         [TikProperty("rates.vht-supported-mcs")]
-        public TikField<string?> RatesVhtSupportedMcs { get; set; }
+        public TikField<TikValueList<string>?> RatesVhtSupportedMcs { get; set; }
 
         // ── Radio / PHY ───────────────────────────────────────────────────────
 
         /// <summary>
         /// rx-chains — receive antenna chain indices to use (e.g. "0" or "0,1,2,3").
         /// Default: all available chains.
+        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
         /// </summary>
         [TikProperty("rx-chains")]
         public TikField<string?> RxChains { get; set; }
@@ -406,6 +407,7 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// tx-chains — transmit antenna chain indices to use (e.g. "0" or "0,1,2,3").
         /// Default: all available chains.
+        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
         /// </summary>
         [TikProperty("tx-chains")]
         public TikField<string?> TxChains { get; set; }

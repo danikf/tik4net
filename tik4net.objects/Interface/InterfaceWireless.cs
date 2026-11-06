@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Objects.Interface.Wireless;
 
 namespace tik4net.Objects.Interface
 {
@@ -75,23 +76,22 @@ namespace tik4net.Objects.Interface
         public TikField<string?> Band { get; set; }
 
         /// <summary>
-        /// Unknown: Similar to the basic-rates-b property, but used for 5ghz, 5ghz-10mhz, 5ghz-5mhz, 5ghz-turbo, 2.4ghz-b/g, 2.4ghz-onlyg, 2ghz-10mhz, 2ghz-5mhz and 2.4ghz-g-turbo bands.
-        /// 12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps; Default: 6Mbps
+        /// basic-rates-a/g — the OFDM rates (6–54 Mbps) every client must support, on every band but 2ghz-b. Effective only in AP
+        /// modes, with rate-set=configured.
+        /// The router keeps it as a set and prints it in its own order (measured on the CAPsMAN rate lists, which share the vocabulary), so a list merge compares it by members.
+        /// Default: 6Mbps
         /// </summary>
         [TikProperty("basic-rates-a/g")]
-        public TikField<string?> /*basic-rates-a/g (12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps; Default: 6Mbps)*/ BasicRatesAG { get; set; }
+        public TikField<TikValueList<WirelessRate>?> BasicRatesAG { get; set; }
 
         /// <summary>
-        /// basic-rates-b
-        /// List of basic rates, used for 2.4ghz-b, 2.4ghz-b/g and 2.4ghz-onlyg bands.
-        /// Client will connect to AP only if it supports all basic rates announced by the AP.
-        /// AP will establish WDS link only if it supports all basic rates of the other AP.
-        /// This property has effect only in AP modes, and when value of rate-set is configured.
-        /// 
-        /// 11Mbps | 1Mbps | 2Mbps | 5.5Mbps
+        /// basic-rates-b — the 802.11b rates (1, 2, 5.5, 11 Mbps) every client must support, on the 2ghz-b, 2ghz-b/g and
+        /// 2ghz-onlyg bands. A client connects to the AP only if it supports all of them, and an AP establishes a WDS link only
+        /// if it supports all of the other AP's. Effective only in AP modes, with rate-set=configured.
+        /// The router keeps it as a set and prints it in its own order (measured on the CAPsMAN rate lists, which share the vocabulary), so a list merge compares it by members.
         /// </summary>
         [TikProperty("basic-rates-b", DefaultValue = "1Mbps")]
-        public TikField<string?> BasicRatesB { get; set; }
+        public TikField<TikValueList<WirelessRate>?> BasicRatesB { get; set; }
 
         /// <summary>
         /// bridge-mode: Allows to use station-bridge mode.  Read more &gt;&gt;
@@ -285,12 +285,11 @@ namespace tik4net.Objects.Interface
         public TikField<string?> HtAmsduThreshold { get; set; }
 
         /// <summary>
-        /// ht-basic-mcs: Modulation and Coding Schemes that every connecting client must support. Refer to 802.11n for MCS specification.
-        /// 
-        /// list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)
+        /// ht-basic-mcs — the 802.11n MCS every connecting client must support.
+        /// The router keeps it as a set and prints it in its own order (measured on the CAPsMAN rate lists, which share the vocabulary), so a list merge compares it by members.
         /// </summary>
-        [TikProperty("ht-basic-mcs", DefaultValue = "mcs-0; mcs-1; mcs-2; mcs-3; mcs-4; mcs-5; mcs-6; mcs-7")]
-        public TikField<string?> HtBasicMcs { get; set; }
+        [TikProperty("ht-basic-mcs", DefaultValue = "mcs-0,mcs-1,mcs-2,mcs-3,mcs-4,mcs-5,mcs-6,mcs-7")]
+        public TikField<TikValueList<WirelessHtMcs>?> HtBasicMcs { get; set; }
 
         /// <summary>
         /// ht-guard-interval: Whether to  allow use of short guard interval (refer to 802.11n MCS specification to see how this may affect throughput). "any" will use either short or long, depending on data rate, "long" will use long.
@@ -304,22 +303,23 @@ namespace tik4net.Objects.Interface
         /// ht-rxchains: Which antennas to use for receive.
         /// 
         /// list of integer [0..2]
+        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
         /// </summary>
         [TikProperty("ht-rxchains", DefaultValue = "0")]
         public TikField<string?> HtRxchains { get; set; }
 
         /// <summary>
-        /// ht-supported-mcs: Modulation and Coding Schemes that this device advertises as supported. Refer to 802.11n for MCS specification.
-        /// 
-        /// list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)
+        /// ht-supported-mcs — the 802.11n MCS this device advertises as supported.
+        /// The router keeps it as a set and prints it in its own order (measured on the CAPsMAN rate lists, which share the vocabulary), so a list merge compares it by members.
         /// </summary>
         [TikProperty("ht-supported-mcs", DefaultValue = "")]
-        public TikField<string?> HtSupportedMcs { get; set; }
+        public TikField<TikValueList<WirelessHtMcs>?> HtSupportedMcs { get; set; }
 
         /// <summary>
         /// ht-txchains: Which antetnnas to use for transmit.
         /// 
         /// list of integer [0..2]
+        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
         /// </summary>
         [TikProperty("ht-txchains", DefaultValue = "0")]
         public TikField<string?> HtTxchains { get; set; }
@@ -686,20 +686,21 @@ namespace tik4net.Objects.Interface
         public TikField<string?> StationBridgeCloneMac { get; set; }
 
         /// <summary>
-        /// supported-rates-a/g: List of supported rates, used for all bands except  2ghz-b.
-        /// 
-        /// (list of rates [12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps]; Default: 6Mbps; 9Mbps; 12Mbps; 18Mbps; 24Mbps; 36Mbps; 48Mbps; 54Mbps)
+        /// supported-rates-a/g — the OFDM rates (6–54 Mbps) advertised as supported, on every band but 2ghz-b. Effective only
+        /// with rate-set=configured.
+        /// The router keeps it as a set and prints it in its own order (measured on the CAPsMAN rate lists, which share the vocabulary), so a list merge compares it by members.
+        /// Default: 6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
         /// </summary>
         [TikProperty("supported-rates-a/g")]
-        public TikField<string?> /*supported-rates-a/g (list of rates [12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps]; Default: 6Mbps; 9Mbps; 12Mbps; 18Mbps; 24Mbps; 36Mbps; 48Mbps; 54Mbps)*/ SupportedRatesAG { get; set; }
+        public TikField<TikValueList<WirelessRate>?> SupportedRatesAG { get; set; }
 
         /// <summary>
-        /// supported-rates-b: List of supported rates, used for 2ghz-b, 2ghz-b/g and 2ghz-b/g/n bands. Two devices will communicate only using rates that are supported by both devices. This property has effect only when value of rate-set is configured.
-        /// 
-        /// list of rates [11Mbps | 1Mbps | 2Mbps | 5.5Mbps]
+        /// supported-rates-b — the 802.11b rates advertised as supported, on the 2ghz-b, 2ghz-b/g and 2ghz-b/g/n bands. Two
+        /// devices communicate only at rates both support. Effective only with rate-set=configured.
+        /// The router keeps it as a set and prints it in its own order (measured on the CAPsMAN rate lists, which share the vocabulary), so a list merge compares it by members.
         /// </summary>
-        [TikProperty("supported-rates-b", DefaultValue = "1Mbps; 2Mbps; 5.5Mbps; 11Mbps")]
-        public TikField<string?> SupportedRatesB { get; set; }
+        [TikProperty("supported-rates-b", DefaultValue = "1Mbps,2Mbps,5.5Mbps,11Mbps")]
+        public TikField<TikValueList<WirelessRate>?> SupportedRatesB { get; set; }
 
         /// <summary>
         /// tdma-debug: [0..4294967295]
@@ -798,28 +799,20 @@ namespace tik4net.Objects.Interface
         public TikField<TikDuration?> UpdateStatsInterval { get; set; }
 
         /// <summary>
-        /// vht-basic-mcs
-        /// Modulation and Coding Schemes that every connecting client must support. Refer to 802.11ac for MCS specification.
-        /// You can set MCS interval for each of Spatial Stream
-        ///  none - will not use selected Spatial Stream
-        ///  MCS 0-7 - client must support MCS-0 to MCS-7
-        ///  MCS 0-8 - client must support MCS-0 to MCS-8 
-        ///  MCS 0-9 - client must support MCS-0 to MCS-9
+        /// vht-basic-mcs — the 802.11ac MCS range every connecting client must support, one per spatial stream in stream order:
+        /// <c>none</c> (the stream is not used), <c>mcs0-7</c>, <c>mcs0-8</c> or <c>mcs0-9</c>. The router keeps the order and the
+        /// duplicates it is given (measured on the CAPsMAN lists).
         /// </summary>
-        [TikProperty("vht-basic-mcs", DefaultValue = "MCS 0-7")]
-        public TikField<string?> VhtBasicMcs { get; set; }
+        [TikProperty("vht-basic-mcs", DefaultValue = "mcs0-7")]
+        public TikField<TikValueList<string>?> VhtBasicMcs { get; set; }
 
         /// <summary>
-        /// vht-supported-mcs
-        /// Modulation and Coding Schemes that this device advertises as supported. Refer to 802.11ac for MCS specification.
-        /// You can set MCS interval for each of Spatial Stream
-        ///  none - will not use selected Spatial Stream
-        ///  MCS 0-7 - devices will advertise as supported MCS-0 to MCS-7
-        ///  MCS 0-8 - devices will advertise as supported MCS-0 to MCS-8 
-        ///  MCS 0-9 - devices will advertise as supported MCS-0 to MCS-9
+        /// vht-supported-mcs — the 802.11ac MCS range this device advertises as supported, one per spatial stream in stream
+        /// order: <c>none</c>, <c>mcs0-7</c>, <c>mcs0-8</c> or <c>mcs0-9</c>. The router keeps the order and the duplicates it
+        /// is given (measured on the CAPsMAN lists).
         /// </summary>
-        [TikProperty("vht-supported-mcs", DefaultValue = "MCS 0-9")]
-        public TikField<string?> VhtSupportedMcs { get; set; }
+        [TikProperty("vht-supported-mcs", DefaultValue = "mcs0-9")]
+        public TikField<TikValueList<string>?> VhtSupportedMcs { get; set; }
 
         /// <summary>
         /// wds-cost-range

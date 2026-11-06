@@ -41,6 +41,7 @@ namespace tik4net.Objects.Ip.DhcpServer
 
         /// <summary>
         /// valid-server: List of MAC addresses of valid DHCP servers.
+        /// The router sorts the list and drops a duplicate, so a list merge sends the value on every run unless it is in ascending order.
         /// </summary>
         [TikProperty("valid-server")]
         public TikField<string?> ValidServer { get; set; }

@@ -163,13 +163,13 @@ namespace tik4net.Objects.Interface.Wifi
         // ── Encryption ciphers ────────────────────────────────────────────────
 
         /// <summary>
-        /// encryption — comma-separated list of unicast traffic ciphers to accept.
-        /// Valid values: ccmp, ccmp-256, gcmp, gcmp-256, tkip.
+        /// encryption — the unicast ciphers the interface accepts.
+        /// The router keeps it as a set and prints it in its own order, so a list merge compares it by members.
         /// Default: ccmp.
         /// WinBox: "Encryption"
         /// </summary>
         [TikProperty("encryption", DefaultValue = "ccmp")]
-        public TikField<string?> Encryption { get; set; }
+        public TikField<TikValueList<WifiCipher>?> Encryption { get; set; }
 
         /// <summary>
         /// group-encryption — cipher used for multicast/broadcast traffic.
