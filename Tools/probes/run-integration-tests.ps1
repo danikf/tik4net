@@ -65,7 +65,7 @@
     Skip the leg that runs the LegIndependent classes.
 
 .PARAMETER ResultsDirectory
-    Where TRX files are written. Defaults to ./TestResults; a secondary router's go to <ResultsDirectory>/<router>,
+    Where TRX files are written, absolute or relative to the repository root. Defaults to ./TestResults; a secondary router's go to <ResultsDirectory>/<router>,
     so a run against another router never moves the default router's results aside (git-ignored).
 
 .PARAMETER NoBuild
@@ -201,7 +201,7 @@ foreach ($r in $Router) {
     $routerFilter = if ($secondary -and -not $AllTests) { 'TestCategory=AnyRouter' } else { $null }
     # A secondary router always gets a folder of its own: its legs have the same TRX names as the default's.
     $resultsRel  = if ($secondary) { Join-Path $ResultsDirectory $r } else { $ResultsDirectory }
-    $resultsPath = Join-Path $repoRoot $resultsRel
+    $resultsPath = if ([System.IO.Path]::IsPathRooted($resultsRel)) { $resultsRel } else { Join-Path $repoRoot $resultsRel }
     if (-not (Test-Path $resultsPath)) { New-Item -ItemType Directory -Path $resultsPath | Out-Null }
     $prefix = if ($isSmoke) { 'smoke' } else { 'results' }
 
