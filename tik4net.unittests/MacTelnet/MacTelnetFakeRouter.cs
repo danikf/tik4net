@@ -56,8 +56,35 @@ namespace tik4net.unittests.MacTelnet
             lock (_sendGate)
             {
                 Send(PktData, _outCounter, payload);
+                _unacked.Add((_outCounter, payload));
                 _outCounter += (uint)payload.Length;
             }
+        }
+
+        // DATA the client has not acknowledged yet, oldest first.
+        private readonly System.Collections.Generic.List<(uint Counter, byte[] Payload)> _unacked
+            = new System.Collections.Generic.List<(uint Counter, byte[] Payload)>();
+
+        /// <summary>
+        /// The client has acknowledged the stream up to <paramref name="counter"/>; a later
+        /// <see cref="RetransmitUnacked"/> resends only what lies past it.
+        /// </summary>
+        internal void NoteAck(uint counter)
+        {
+            lock (_sendGate)
+                _unacked.RemoveAll(d => d.Counter + (uint)d.Payload.Length <= counter);
+        }
+
+        /// <summary>
+        /// Resends every DATA datagram the client has not acknowledged, as RouterOS does: the client's pump can lose one
+        /// at its own receive timeout (see <see cref="TryReceive"/>), and without the resend the answer would never
+        /// arrive. A copy the client already has is re-acknowledged and dropped by it.
+        /// </summary>
+        internal void RetransmitUnacked()
+        {
+            lock (_sendGate)
+                foreach (var (counter, payload) in _unacked)
+                    Send(PktData, counter, payload);
         }
 
         /// <summary>Ends the session from the router's side.</summary>
@@ -70,13 +97,21 @@ namespace tik4net.unittests.MacTelnet
         internal uint OutCounter { get { lock (_sendGate) return _outCounter; } }
 
         /// <summary>One packet from the client, or false when none arrives within <paramref name="timeoutMs"/>.</summary>
+        /// <remarks>
+        /// Waits with <see cref="Socket.Poll"/> and receives only once a datagram is there, never with a receive timeout:
+        /// on Windows a UDP receive that times out loses a datagram that arrives as it does (measured on loopback, .NET 8
+        /// and .NET Framework: 328 and 402 of 3000 datagrams lost against a 5 ms <c>ReceiveTimeout</c>, none with a poll).
+        /// The router's end polls every few milliseconds, so it lost a command now and then, and the read waited for an
+        /// answer to a line the router never saw.
+        /// </remarks>
         internal bool TryReceive(int timeoutMs, out byte type, out uint counter, out byte[] payload)
         {
             type = 0; counter = 0; payload = new byte[0];
-            _router.Client.ReceiveTimeout = timeoutMs;
             byte[] pkt;
             try
             {
+                if (!_router.Client.Poll(timeoutMs * 1000, SelectMode.SelectRead))
+                    return false;
                 IPEndPoint ep = null;
                 pkt = _router.Receive(ref ep);
             }

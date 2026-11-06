@@ -327,6 +327,9 @@ namespace tik4net.unittests.Cli
             /// <summary>How many DATA packets the router lost on purpose.</summary>
             internal int Dropped;
 
+            // How long DATA may stay unacknowledged before the router resends it.
+            private const int RetransmitAfterMs = 100;
+
             internal MacTelnetUdpClient Client => _router.Client;
 
             internal MacTelnetFakeRouter Router => _router;
@@ -339,10 +342,23 @@ namespace tik4net.unittests.Cli
 
             private void RouterLoop()
             {
+                var sinceProgress = Stopwatch.StartNew();
                 while (!_stop)
                 {
                     if (_router.TryReceive(5, out byte type, out uint counter, out byte[] payload))
+                    {
+                        if (type == MacTelnetFakeRouter.PktAck) sinceProgress.Restart();
                         OnClientPacket(type, counter, payload);
+                    }
+
+                    // The router resends what the client has not acknowledged (the client's pump can lose a datagram at its
+                    // receive timeout, MacTelnetFakeRouter.TryReceive), once nothing has moved for long enough that an ACK
+                    // on its way is not overtaken.
+                    if (Volatile.Read(ref _highestAckFromClient) < _router.OutCounter && sinceProgress.ElapsedMilliseconds >= RetransmitAfterMs)
+                    {
+                        _router.RetransmitUnacked();
+                        sinceProgress.Restart();
+                    }
 
                     while (Player.TryTakeDue(out var e))
                     {
@@ -351,6 +367,7 @@ namespace tik4net.unittests.Cli
                         // the pump appends text after a PKT_END as it does before one.
                         if (Player.TryTakeEndWith(e)) _router.SendEnd();
                         _router.SendData(e.Text);
+                        sinceProgress.Restart();
                     }
                 }
             }
@@ -360,6 +377,7 @@ namespace tik4net.unittests.Cli
                 if (type == MacTelnetFakeRouter.PktAck)
                 {
                     if (counter > _highestAckFromClient) Volatile.Write(ref _highestAckFromClient, counter);
+                    _router.NoteAck(counter);
                     return;
                 }
                 if (type != MacTelnetFakeRouter.PktData || payload.Length == 0)
