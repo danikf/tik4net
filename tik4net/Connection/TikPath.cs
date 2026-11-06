@@ -29,16 +29,26 @@ namespace tik4net.Connection
 
         /// <summary>
         /// The path with its last (verb) segment removed: <c>/interface/set</c> → <c>/interface</c>.
-        /// A blank path yields the empty string.
+        /// A path of one segment has the root for its parent (<c>/ip</c> → <c>/</c>, <c>/ping</c> → <c>/</c>), and so
+        /// has the root itself and a blank path: <c>/</c> is its own parent, the only path that is, which is what
+        /// ends a walk up the tree.
         /// </summary>
         internal static string Parent(string commandText)
         {
             string p = Normalize(commandText);
-            if (p.Length == 0)
-                return "";
             int lastSlash = p.LastIndexOf('/');
-            return lastSlash > 0 ? p.Substring(0, lastSlash) : p;
+            return lastSlash > 0 ? p.Substring(0, lastSlash) : Root;
         }
+
+        /// <summary>The root menu, <c>/</c>: what <see cref="Parent"/> gives for a path of one segment or none.</summary>
+        internal const string Root = "/";
+
+        /// <summary>
+        /// A segment appended to a menu path, with one slash between them however the menu ends:
+        /// <c>/ip/route</c> + <c>print</c> → <c>/ip/route/print</c>, <c>/</c> + <c>ping</c> → <c>/ping</c>.
+        /// </summary>
+        internal static string Child(string menu, string segment)
+            => Normalize(menu) + "/" + segment;
 
         /// <summary>
         /// Trims surrounding whitespace, ensures a leading slash and drops any trailing slash:

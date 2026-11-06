@@ -190,9 +190,9 @@ namespace tik4net.WinboxNative
             // An action window is addressed by the whole path (/tool/wol); everything else by the parent of its verb.
             string text = descriptor.CommandText;
             bool whole = _handlerMap.Resolve(text) != null;
+            if (!whole && TikPath.Segments(text).Length < 2)
+                return descriptor;   // a single segment: no menu to canonicalise beneath the verb
             string path = whole ? text : TikPath.Parent(text);
-            if (!whole && string.Equals(path, TikPath.Normalize(text), StringComparison.Ordinal))
-                return descriptor;   // a single segment: no verb to split off
             string? apiPath = _handlerMap.CanonicalApiPath(path);
             string commandText = apiPath == null ? text : whole ? apiPath : apiPath + "/" + TikPath.Verb(text);
 
@@ -624,7 +624,7 @@ namespace tik4net.WinboxNative
             // M2 has no find, and a getall holds what it answers: the ids of the rows, as the API's =ret=*1;*2.
             if (string.Equals(TikPath.Verb(descriptor.CommandText), "find", StringComparison.Ordinal))
             {
-                var found = await RunPrintCoreAsync(new TikCommandDescriptor(TikPath.Parent(TikPath.Normalize(descriptor.CommandText)) + "/print", descriptor.Parameters),
+                var found = await RunPrintCoreAsync(new TikCommandDescriptor(TikPath.Child(TikPath.Parent(descriptor.CommandText), "print"), descriptor.Parameters),
                     cancellationToken).ConfigureAwait(false);
                 if (found.Count == 0)
                     return found;

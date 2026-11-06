@@ -60,7 +60,7 @@ namespace tik4net.Connection
             if (verb == "listen")
             {
                 string listPath = TikPath.Parent(descriptor.CommandText);
-                return StartListen(namePrefix + "-listen", host, new TikCommandDescriptor(listPath + "/print", descriptor.Parameters),
+                return StartListen(namePrefix + "-listen", host, new TikCommandDescriptor(TikPath.Child(listPath, "print"), descriptor.Parameters),
                     volatileFieldsOf?.Invoke(listPath), ListenPollIntervalMs, onRow, onError, onDone);
             }
             if (verb == "print" || verb == "getall")

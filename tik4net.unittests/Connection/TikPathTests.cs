@@ -25,16 +25,41 @@ namespace tik4net.unittests.Connection
         }
 
         [DataTestMethod]
-        [DataRow("", "")]
-        [DataRow("/", "")]
+        [DataRow("", "/")]
+        [DataRow("/", "/")]                     // the root is its own parent, which ends a walk up the tree
         [DataRow("ip/route", "/ip")]
         [DataRow("/ip/route/", "/ip")]
         [DataRow(" /ip/route ", "/ip")]
         [DataRow("//ip//route//", "//ip/")]
-        [DataRow("/ip", "/ip")]
+        [DataRow("/ip", "/")]                   // was "/ip": one segment gave the path itself
+        [DataRow("/ping", "/")]                 // a top-level verb's menu is the root
         public void Parent(string path, string expected)
         {
             Assert.AreEqual(expected, TikPath.Parent(path));
+        }
+
+        [TestMethod]
+        public void OnlyTheRootIsItsOwnParent()
+        {
+            string path = "/interface/wifi/security";
+            int steps = 0;
+            while (TikPath.Parent(path) != path)
+            {
+                path = TikPath.Parent(path);
+                steps++;
+            }
+            Assert.AreEqual("/", path);
+            Assert.AreEqual(3, steps);
+        }
+
+        [DataTestMethod]
+        [DataRow("/ip/route", "print", "/ip/route/print")]
+        [DataRow("/ip/route/", "print", "/ip/route/print")]
+        [DataRow("/", "ping", "/ping")]
+        [DataRow("", "print", "/print")]
+        public void Child(string menu, string segment, string expected)
+        {
+            Assert.AreEqual(expected, TikPath.Child(menu, segment));
         }
 
         [DataTestMethod]
@@ -77,13 +102,13 @@ namespace tik4net.unittests.Connection
 
         // The CLI menu of a command: its parent, in CLI spelling.
         [DataTestMethod]
-        [DataRow("", "")]
-        [DataRow("/", "")]
+        [DataRow("", "/")]
+        [DataRow("/", "/")]
         [DataRow("ip/route/print", "/ip route")]
         [DataRow("/ip/route/print/", "/ip route")]
         [DataRow(" /ip/route ", "/ip")]        // was "/  ip": the copy kept the whitespace TikPath.Parent trims
         [DataRow("//ip//route//", "/ip ")]
-        [DataRow("/ip", "/ip")]
+        [DataRow("/ip", "/")]                  // was "/ip": a one-segment path read as its own menu
         public void MenuPathToCli(string path, string expected)
         {
             Assert.AreEqual(expected, CliCommandBuilder.MenuPathToCli(path));
