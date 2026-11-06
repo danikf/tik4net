@@ -531,6 +531,13 @@ Two distinct symptoms follow from that:
 - **A value that itself contains `;`, `=` or a newline is indistinguishable from further fields and
   records.** A file body, a script source or free-form text corrupts the parse outright — newlines
   inside the value become field separators and get silently re-joined as multi-value elements.
+  A `=` inside the value puts the value's text where a field name stands: 6.49.21 prints a script whose
+  source is `:local a 1` / `:local b "x=y"` / `:put $a` as
+  `…;run-count=0;source=:local a 1\r\n:local b "x=y"\r\n:put $a\r\n`, so `:local b "x` arrives as a key.
+  Text that is no field name (letters, digits, `-`, `_`, `.`), once a field has been read, is therefore
+  taken as that field's value going on, kept as the router wrote it from the separator that cut it, so
+  the row stays one row. With no field before it, such text is the router's complaint
+  (`failure: already have such address=…`), and `AreRecords` reports it as one.
 
 For fields marked `IsFreeText` on the O/R mapper side (currently `SystemScript.Source`,
 `File.Contents`, `SystemScheduler.OnEvent`, `SystemNote.Note`), the entity carries the CLI-only marker
@@ -550,9 +557,11 @@ unrelated failure of both forms concludes nothing). Support is concluded only fr
 serialisation: a paged window prints only when it holds ids (`:if ([:len $w] > 0) do={ … }`), so an empty
 window is no evidence either way — taken as evidence, an empty free-text menu on 6.49.13 marks the connection
 as supporting `:serialize`, and the next free-text menu with rows fails with `bad command name serialize`.
-A pre-7.13 router therefore degrades silently to
-the same `;`-splitting behaviour as any other field; there is no error raised for it, so a free-text
-field on such a router should be assumed to parse incorrectly.
+On a pre-7.13 router the as-value read gives a free-text field with its line breaks read as `;`, so the
+typed read takes each field the marker names again, row by row, with
+`:put ([/system script get *N source] . "\n#tik4net-end-of-value")`, which prints the value as stored
+(`CliPrintDriver.RereadFreeTextAsync`). A raw `print` carries no marker, and its free-text values keep
+the as-value form.
 
 ### `/tool/torch`: a different snapshot mechanism entirely
 

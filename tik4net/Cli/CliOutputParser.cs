@@ -22,6 +22,10 @@ namespace tik4net.Cli
     /// <para>Limitations:
     ///   - A <c>;</c> inside a value splits it: as-value has no escape. On RouterOS 7 the reads use DSV
     ///     (<see cref="CliDsvParser"/>) for that reason.
+    ///   - A <c>=</c> inside a value puts the value's text where a field name stands. Text that is no field name is read
+    ///     as the previous value going on (<see cref="ParseOrderedFields"/>), so a script row stays one row, but the
+    ///     value's own line breaks read as <c>;</c>. A free-text field is read again by <c>get</c> where it matters
+    ///     (<c>CliPrintDriver.RereadFreeTextAsync</c>).
     ///   - A list entity that has no <c>.id</c> at all collapses into one record.</para>
     /// </summary>
     internal static class CliOutputParser
@@ -99,6 +103,10 @@ namespace tik4net.Cli
 
             int len = line.Length;
             int pos = 0;
+            // Where the last pair's value ended (its ';'), or -1 when it ran to the end or there is none; and whether that
+            // value is free text (see below), which takes what follows as it stands rather than as list elements.
+            int lastValueEnd = -1;
+            bool lastIsFreeText = false;
 
             while (pos < len)
             {
@@ -114,8 +122,28 @@ namespace tik4net.Cli
                     // No more 'key=' tokens. Any remaining ';'-separated tokens carry no '=' and are
                     // therefore multi-value continuations of the last field (see the keyRaw handling
                     // below) — append them so a trailing list field is not lost.
-                    AppendContinuations(pairs, line.Substring(pos));
+                    if (lastIsFreeText)
+                        AppendRaw(pairs, line.Substring(lastValueEnd));
+                    else
+                        AppendContinuations(pairs, line.Substring(pos));
                     break;
+                }
+
+                // Text in front of a '=' that is no field name, after a field has been read, is that field's value going
+                // on: as-value escapes nothing, so a script line ':local b "x=y"' puts ':local b "x' where a name stands
+                // (RouterOS 6, which has no ':serialize', 6.49.21). The value is kept as the router wrote it, from the
+                // separator that cut it, through the next ';'. With no field before it, the text is the router's
+                // complaint ("failure: already have such address=…"), and is left for AreRecords to see.
+                if (pairs.Count > 0 && lastValueEnd >= 0 && !IsFieldName(LastSegment(line.Substring(pos, eq - pos)).Trim()))
+                {
+                    int end = line.IndexOf(';', eq + 1);
+                    if (end < 0)
+                        end = len;
+                    AppendRaw(pairs, line.Substring(lastValueEnd, end - lastValueEnd));
+                    lastValueEnd = end < len ? end : -1;
+                    lastIsFreeText = true;
+                    pos = end < len ? end + 1 : len;
+                    continue;
                 }
 
                 // The substring up to the '=' is normally just the field name. But RouterOS renders a
@@ -129,7 +157,10 @@ namespace tik4net.Cli
                 string key;
                 if (lastSemi >= 0)
                 {
-                    AppendContinuations(pairs, keyRaw.Substring(0, lastSemi));
+                    if (lastIsFreeText)
+                        AppendRaw(pairs, line.Substring(lastValueEnd, pos + lastSemi - lastValueEnd));
+                    else
+                        AppendContinuations(pairs, keyRaw.Substring(0, lastSemi));
                     key = keyRaw.Substring(lastSemi + 1).Trim();
                 }
                 else
@@ -150,12 +181,31 @@ namespace tik4net.Cli
                     value = line.Substring(pos, semi - pos);
                     pos = semi + 1;
                 }
+                lastValueEnd = semi;
 
                 if (!string.IsNullOrEmpty(key))
+                {
                     pairs.Add(new KeyValuePair<string, string>(key, value));
+                    lastIsFreeText = false;
+                }
             }
 
             return pairs;
+        }
+
+        private static string LastSegment(string keyRaw)
+        {
+            int lastSemi = keyRaw.LastIndexOf(';');
+            return lastSemi < 0 ? keyRaw : keyRaw.Substring(lastSemi + 1);
+        }
+
+        /// <summary>Appends <paramref name="text"/> to the value of the last parsed pair as it stands.</summary>
+        private static void AppendRaw(List<KeyValuePair<string, string>> pairs, string text)
+        {
+            if (pairs.Count == 0 || text.Length == 0)
+                return;
+            var prev = pairs[pairs.Count - 1];
+            pairs[pairs.Count - 1] = new KeyValuePair<string, string>(prev.Key, prev.Value + text);
         }
 
         /// <summary>
