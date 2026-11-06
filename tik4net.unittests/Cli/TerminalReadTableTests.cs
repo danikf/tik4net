@@ -59,8 +59,10 @@ namespace tik4net.unittests.Cli
         [DataRow(TerminalCarrier.WinboxCli)]
         public void ARepaintBeforeACountedAnswer_DoesNotEndTheRead(TerminalCarrier carrier)
         {
-            // A console log line makes RouterOS repaint its prompt between the echo and a slow answer. Nothing of the
-            // answer's own is behind the echo yet, so the prompt is waited past — well beyond the settle window.
+            // A prompt between the echo and a slow answer. RouterOS holds a console log line while a command runs
+            // (Docs/findings-cli.md §7), so this is the guard's case, not a measured one. Nothing of the answer's own is
+            // behind the echo yet, so the prompt is waited past — well beyond the settle window. The answer chunk opens
+            // with a line break because the router always starts an answer on a line of its own.
             using (var f = Fixture(carrier, RouterScript.Answer((0, CountedTyped + "\r\n" + Prompt), (500, "\r\n" + CountedAnswer + Prompt))))
             {
                 StringAssert.Contains(Run(f.CommandAsync(Counted)), "name=CHR2");

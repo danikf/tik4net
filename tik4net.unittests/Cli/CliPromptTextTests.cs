@@ -31,8 +31,8 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual(CliPromptText.PromptVerdict.Complete, CliPromptText.JudgePrompt(raw, Counted));
         }
 
-        // The case that ended counted reads empty under load: a console log line between the echo and the answer, and
-        // the prompt RouterOS repaints after it.
+        // A console log line between the echo and the answer, and the prompt RouterOS repaints after it. The router holds
+        // such a line while a command runs (Docs/findings-cli.md §7); the rule guards against it all the same.
         [TestMethod]
         public void JudgePrompt_ARepaintBeforeTheAnswerIsNotItsEnd()
         {

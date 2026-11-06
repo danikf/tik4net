@@ -992,7 +992,8 @@ the answer and the settle window is not waited out — it was 130 of the 221 ms 
 1874 commands of a full leg under four-leg load, 2026-10-01). With it, a full leg runs 18–28 % faster on Telnet, SSH,
 MAC-Telnet and WinBox CLI MAC, and 5 % on WinBox CLI, whose pull cadence dominates. A prompt also never ends a counted
 read before anything of its own has come: RouterOS repaints the prompt after every console log line it writes into the
-session (§11), and one landing between the echo and a slow answer is not the end. A refused counted read has its error
+session (§11). It holds such a line while a command runs (*An answer starts on a line of its own*, below), so the rule
+is a guard: a prompt with nothing behind the echo is no proof of the end. A refused counted read has its error
 text and settles as before. **A write ends on a marker of its own** on RouterOS 7: a one-line `add`, `set`, `remove`,
 `enable`, `disable`, `move`, `unset` or `comment` the library built is sent as `<command>; :put ("#e" . "=<nonce>")`,
 and its read is over at the line `#e=<nonce>` — computed, so the echo never carries it; the nonce ties it to this
@@ -1037,6 +1038,37 @@ writes it again in syntax colours. Over the WinBox terminal on 7.24.5, `/interfa
 applies cursor-back (`ESC[nD`) and erase-to-end-of-line (`ESC[K`) within the current line rather than
 dropping them: dropping the move runs the two copies together as `/interface prnt/interface prnt`, which no
 echo test matches and which would become the error message.
+
+### An answer starts on a line of its own
+
+RouterOS never writes answer text onto a prompt line. The echo of the entered command ends in `CR LF`
+(`ESC[K CR LF` on 6.x, after its per-character repaint), and the answer begins with a `CR` of its own, so the
+split on `\r`/`\n` in `CleanOutput` always puts the first answer line apart from every prompt. A repaint
+carries only line-editor text: the prompt and what is typed, or a Tab completion written in place.
+
+Measured over raw Telnet (logged in as `admin+c`, cursor probes answered from a tracked cursor at widths 4096
+and 80) on 7.x (CHR) and 6.49.21 (CHR2), with every prompt-prefixed line of the ANSI-stripped capture compared
+with what was typed. None carried anything else.
+
+| Shape | Bytes after the echo, 7.x |
+|---|---|
+| `:put [/system identity get name]` | `…name]\r\n` · `\rCHR\r\n\r\r\r\e[9999B[admin@CHR] > ` |
+| `:put ""` (empty answer) | `\r\r\n\r\r\r\e[9999B[admin@CHR] > ` |
+| `:put [/system identity print as-value]; :put "<count line>"` | `\rname=CHR\r\n<count line>\r\n\r\r\r\e[9999B…` |
+| `:delay 8s; :put …` | the answer 8 s later as `\rCHR\r\n`, then the prompt in a chunk of its own |
+| Tab, then the rest and Enter | `…get na\e[2D  \e[2Dname ` (in place) · `]\r\n` · `\rCHR\r\n…` |
+| a double Tab | the candidates, `\r\n\r\e[9999B[admin@CHR] > <typed text>` · after Enter, `\rCHR\r\n2\r\n…` |
+| a 4200-character command | width 4096: the echo wrapped as `<4076 chars>\r\n<124 chars>\r\n`; width 80: wrapped every 80; the answer `\r<4200 chars>\r\nCHR\r\n…` at both widths |
+
+6.49.21 gives the same shapes after its per-character echo (`\r[admin@CHR2] > <typed so far>\e[K<next char>`,
+about 9 MB of repaint for the 4200-character command): `…name]\e[K\r\n` · `\rCHR2\r\n\r\r\r\e[9999B[admin@CHR2] > `.
+
+A console log line (§11) does not split an answer either. Provoked during `:delay 8s; :put …` by a failed API
+login 0.5 s in, 7.x writes it after the closing prompt (`\r<log line>\e[K\r\n\r\e[9999B[admin@CHR] > `), and
+6.49.21 writes it between the answer and the closing prompt (`\rCHR2\r\n` · `<log line>\e[K\r\n\r\r\r\e[9999B…`),
+where the trailing-prompt loop skips it. Provoked while a command is typed but not yet entered, it repaints the
+prompt with the typed text (`\r<log line>\e[K\r\n\r\e[9999B[admin@CHR] > :put [/system identity get name]`), the
+prompt-prefixed echo the head-trim loop already skips.
 
 Measured over full traced suite runs on all five CLI transports, the "no echo found" trace note fired
 zero times: at the moment each read actually returned, its own echo was already present. Requiring it
@@ -1376,11 +1408,13 @@ Properties worth knowing:
   trace — filter on whether negotiation bytes are nearby).
 - **The router buffers it**: the timestamp inside the line can be many seconds older than the moment of
   delivery, so cause and effect are not adjacent in a trace.
-- **It arrives only on a session that is currently idle** between commands.
+- **It does not arrive while a command runs.** RouterOS 7 holds it until the command's closing prompt and
+  writes it after that prompt; 6.49.21 writes it after the answer, ahead of the closing prompt (§7, *An answer
+  starts on a line of its own*).
 - **A redrawn prompt follows it**, so a read already in progress still sees a prompt at the end.
-- It can be triggered by a failed login on a **different** session (`login failure` is `critical`), but
-  delivery depends on the target session being idle, so it is not a reliable way to provoke one on
-  demand.
+- A failed binary-API login on a **different** connection provokes one (`login failure` is `critical`): every
+  one of ten tries on 7.x and 6.49.21 reached the session, within about 0.4 s when it was idle. A failed Telnet
+  login with an unknown user name logs nothing.
 
 `CliOutputCleaner.IsRouterLogLine` recognises such a line by its leading wall-clock timestamp (an
 optional `mmm/dd ` date prefix, then `hh:mm:ss `) — no as-value record and no RouterOS diagnostic ever
@@ -1541,3 +1575,5 @@ per value (`Distance` → `Num`, `Num` → `1..255    (integer number)`; 6.49.13
 - **`torch`'s `as-value` form printing nothing is not a missing mapping to add.** It has no working
   one-shot `as-value` form on any RouterOS version tested; the freeze-frame mechanism in §1 is the
   supported path, not a stopgap for one.
+- **RouterOS does not put answer text on a repainted prompt line.** An answer always starts after a line break
+  (§7, *An answer starts on a line of its own*), so `CleanOutput` dropping prompt-prefixed lines loses nothing.

@@ -14,6 +14,7 @@ None of them takes router credentials as a baked-in value: coordinates come from
 | [`parse-trx.ps1`](#parse-trxps1) | Summarise TRX results — counts, failures, and the named skips |
 | [`trxdiff.py`](#trxdiffpy) | Per-test outcome and skip-reason diff of two TRX files or two result directories |
 | [`telnet-cli-probe.ps1`](#telnet-cli-probeps1) | Raw RouterOS Telnet client, for CLI ground truth without the library |
+| [`telnet-repaint-probe.ps1`](#telnet-repaint-probeps1) | Timed raw Telnet capture laid out as the library's terminal, with a check for answer text on prompt lines |
 | [`jg_analyze.py`](#jg_analyzepy) | Parse and report on WinBox `.jg` catalogs |
 
 ## `run-integration-tests.ps1`
@@ -121,6 +122,35 @@ new socket is required because the router has already made up its mind about the
 
 See the `mikrotik-cli-probe` skill for the accumulated CLI findings this script was used to
 establish.
+
+## `telnet-repaint-probe.ps1`
+
+A raw Telnet capture for questions about **where** the router writes its bytes: each chunk is printed with
+its time since the step was sent. It logs in with the library's `+c` and answers every cursor probe from a
+tracked cursor at `-Width` (default 4096, the library's), so the router lays out the screen as it does for
+tik4net — `telnet-cli-probe.ps1` logs in as `+ct` with a canned answer and does not. At the end it strips ANSI,
+splits each step's text on CR/LF the way `CliOutputCleaner` does, and reports every prompt line that carries
+text that was not typed (a Tab completion shows up there too: the completed word is the router's).
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/probes/telnet-repaint-probe.ps1 `
+  -RouterHost <host> -StepsFile steps.txt -Width 80
+```
+
+A steps file has one step per line (`#` comments allowed): `<readMs>|<text>` sends the text and reads for that
+long; `\r`, `\n`, `\t` and `\x03` are escapes, and a step without `\r` is typed but not entered. `-<ms>|<text>`
+reads for 14 s and, `<ms>` after the send, makes a failed binary-API login for `-User` on a second connection
+(`-ApiPort`, default 8728). That provokes a console log line on demand (`login failure` is `critical`, which
+the default logging rule echoes into every terminal), at the cost of one entry in the router's log.
+
+```
+2000|:put [/system identity get name]\r
+1500|/system ident\t
+2000|print\r
+-500|:delay 6s; :put [/system identity get name]\r
+```
+
+`Docs/findings-cli.md` §7, *An answer starts on a line of its own*, was measured with it.
 
 ## `jg_analyze.py`
 

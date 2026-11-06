@@ -32,8 +32,9 @@ namespace tik4net.Cli
         /// 2026-10-01). The marker on the command line itself is never taken for it: the echo carries
         /// <c>("#n=" . …)</c>, never a line that is only the marker and a count.</para>
         /// <para>Nor does a prompt end a counted read before anything of its own has come: RouterOS repaints the prompt
-        /// after every console log line it writes into the session, and one landing between the echo and a slow answer
-        /// ended such reads empty under load. A counted read that is refused has text of its own (the error), so it
+        /// after every console log line it writes into the session. It holds such a line while a command runs
+        /// (Docs/findings-cli.md §7, measured over Telnet on 7.x and 6.49.21), so this is a guard: a prompt with
+        /// nothing behind the echo is no proof of the end. A counted read that is refused has text of its own (the error), so it
         /// still settles as before — only a prompt with nothing behind the echo is waited past, up to the deadline.</para>
         /// </remarks>
         internal static PromptVerdict JudgePrompt(string strippedSoFar, string? sentCommand)
