@@ -1350,6 +1350,26 @@ namespace tik4net.MacTelnet
         }
 
         /// <summary>
+        /// Receives one datagram, waiting up to <paramref name="timeoutMs"/> for it; a timeout is a
+        /// <see cref="SocketException"/> with <see cref="SocketError.TimedOut"/>, as from a receive under <c>SO_RCVTIMEO</c>.
+        /// </summary>
+        /// <remarks>
+        /// Waits with <see cref="Socket.Poll(int, SelectMode)"/> and receives only once a datagram is there, never under a
+        /// receive timeout: on Windows a UDP receive that times out loses a datagram that arrives as it does (measured on
+        /// loopback: 328 of 3000 on .NET 8 and 402 of 3000 on .NET Framework against a 5 ms <c>ReceiveTimeout</c>, none
+        /// with a poll). The router resends DATA we have not acknowledged, so a lost one cost a resend interval; a lost
+        /// ACK or PKT_END cost more. The unit test <c>MacLayerReceiveTests</c> holds it.
+        /// <para>The receive timeout stays set as a bound, for a poll that reports readable without a datagram.</para>
+        /// </remarks>
+        internal static byte[] ReceiveWithin(UdpClient udp, int timeoutMs, ref IPEndPoint ep)
+        {
+            udp.Client.ReceiveTimeout = timeoutMs;
+            if (!udp.Client.Poll(checked(timeoutMs * 1000), SelectMode.SelectRead))
+                throw new SocketException((int)SocketError.TimedOut);
+            return udp.Receive(ref ep);
+        }
+
+        /// <summary>
         /// Receives one datagram (the caller has established there is one), parses it, traces it and hands
         /// it to <paramref name="handler"/>. Returns the handler's verdict; malformed packets and our own
         /// broadcast echo are <c>false</c>.

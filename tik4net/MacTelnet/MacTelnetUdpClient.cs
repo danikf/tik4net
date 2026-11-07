@@ -277,11 +277,10 @@ namespace tik4net.MacTelnet
             {
                 while (!_pumpStop)
                 {
-                    _udp.Client.ReceiveTimeout = PumpPollMs;
                     try
                     {
                         IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                        byte[] pkt = _udp.Receive(ref ep);
+                        byte[] pkt = ReceiveWithin(_udp, PumpPollMs, ref ep);
                         if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
                             continue;
 
@@ -497,11 +496,10 @@ namespace tik4net.MacTelnet
 
             while (sw.ElapsedMilliseconds < _loginTimeoutMs)
             {
-                _udp.Client.ReceiveTimeout = PollMs;
                 try
                 {
                     IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                    byte[] pkt = _udp.Receive(ref ep);
+                    byte[] pkt = ReceiveWithin(_udp, PollMs, ref ep);
                     if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
                         continue;
 
@@ -596,13 +594,12 @@ namespace tik4net.MacTelnet
         private void DrainSync(int quietMs)
         {
             var quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
-            _udp.Client.ReceiveTimeout = 50;
             while (DateTime.UtcNow < quietDeadline)
             {
                 try
                 {
                     IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                    byte[] pkt = _udp.Receive(ref ep);
+                    byte[] pkt = ReceiveWithin(_udp, 50, ref ep);
                     if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
                         continue;
                     if (type == PKT_DATA)
