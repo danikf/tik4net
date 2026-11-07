@@ -43,6 +43,10 @@ namespace tik4net.Api
         private readonly object _sync = new object();
         private readonly Dictionary<string, TagQueue> _queues = new Dictionary<string, TagQueue>();
 
+        // Tags whose caller stopped reading (see Abandon), until the router's !done ends them.
+        private readonly HashSet<string> _abandoned = new HashSet<string>();
+        private long _lateReplies;
+
         // Non-null once the reader loop has ended: every present and future waiter gets this sentence
         // instead of blocking for a router that is not going to answer.
         private ITikSentence? _termination;
@@ -55,6 +59,13 @@ namespace tik4net.Api
             lock (_sync)
             {
                 string key = KeyOf(sentence.Tag);
+                if (_abandoned.Contains(key))
+                {
+                    _lateReplies++;
+                    if (sentence is ApiDoneSentence || sentence is ApiFatalSentence)
+                        _abandoned.Remove(key);
+                    return;
+                }
                 if (!_queues.TryGetValue(key, out var queue))
                 {
                     queue = new TagQueue();
@@ -71,6 +82,27 @@ namespace tik4net.Api
 
                 queue.Items.Enqueue(sentence);
                 System.Threading.Monitor.PulseAll(_sync);
+            }
+        }
+
+        /// <summary>
+        /// The caller of <paramref name="tag"/> gave up on it and nobody will read it again: what the router still
+        /// sends for it is counted and dropped, until its <c>!done</c>. The untagged queue is never abandoned, because
+        /// its next reader is the next untagged command.
+        /// </summary>
+        internal void Abandon(string tag)
+        {
+            string key = KeyOf(tag);
+            if (key == UntaggedKey)
+                return;
+            lock (_sync)
+            {
+                _abandoned.Add(key);
+                if (_queues.TryGetValue(key, out var queue))
+                {
+                    queue.Items.Clear();
+                    DropIfIdle(key, queue);
+                }
             }
         }
 
@@ -118,6 +150,7 @@ namespace tik4net.Api
 
             lock (_sync)
             {
+                _abandoned.Remove(key);     // a caller reusing its own tag reads it again
                 if (!_queues.TryGetValue(key, out var queue))
                 {
                     queue = new TagQueue();
@@ -178,6 +211,7 @@ namespace tik4net.Api
 
             lock (_sync)
             {
+                _abandoned.Remove(key);
                 if (!_queues.TryGetValue(key, out var queue))
                 {
                     queue = new TagQueue();
@@ -265,7 +299,8 @@ namespace tik4net.Api
         /// what happened on the socket. <b>Not</b> empty: the router answered and the reply was filed under a
         /// tag nobody is waiting for — a pairing fault in this client, not a router-side stall. Sentences are
         /// never dropped for want of a waiter (see <see cref="DropIfIdle"/>), which is exactly what makes
-        /// them still available to be counted here.
+        /// them still available to be counted here. The one exception is a tag its caller gave up on
+        /// (<see cref="Abandon"/>): a late reply there says nothing about pairing, so it is reported apart.
         /// </remarks>
         internal string DescribeUnclaimed(string waitingTag)
         {
@@ -282,11 +317,14 @@ namespace tik4net.Api
                         System.Globalization.CultureInfo.InvariantCulture));
                 }
 
+                string late = _lateReplies == 0 ? "" : "; " + _lateReplies.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    + " late sentence(s) for tags already given up on were dropped";
+
                 if (total == 0)
-                    return "no unclaimed sentences are held for any tag";
+                    return "no unclaimed sentences are held for any tag" + late;
 
                 return "unclaimed sentences are held for tag(s) " + string.Join(", ", parts.ToArray())
-                    + " while tag '" + waitingTag + "' waited — the router answered and the reply was not paired";
+                    + " while tag '" + waitingTag + "' waited — the router answered and the reply was not paired" + late;
             }
         }
     }

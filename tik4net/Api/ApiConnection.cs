@@ -1147,6 +1147,7 @@ namespace tik4net.Api
             }
             catch (TikConnectionReceiveTimeoutException ex)
             {
+                _dispatcher.Abandon(tagOrEmptyString);
                 throw received.Count > 0
                     ? WithPartialResponse(ex, received, tagOrEmptyString)
                     : WithReaderLiveness(ex, tagOrEmptyString);
@@ -1242,6 +1243,7 @@ namespace tik4net.Api
                     {
                         // Cancelled and silent: the caller asked to stop and the router said nothing at all.
                         // Report the cancellation — the timeout is a symptom of it, not the news.
+                        _dispatcher.Abandon(tag);
                         cancellationToken.ThrowIfCancellationRequested();
                         throw result.Count > 0
                             ? WithPartialResponse(ex, result, tag)
@@ -1337,6 +1339,7 @@ namespace tik4net.Api
                     // Everything that can still land here is local (a receive timeout on this tag). Connection
                     // loss arrives as the reader's !fatal, above. Either way the caller (ExecuteWithCallback) must be
                     // told, or it never clears its running state — carry the reason (P2.14).
+                    _dispatcher.Abandon(tag);
                     try
                     {
                         oneResponseCallback(new ApiFatalSentence(
