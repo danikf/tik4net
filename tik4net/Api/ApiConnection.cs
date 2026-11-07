@@ -639,10 +639,17 @@ namespace tik4net.Api
             return (byte)b;
         }
 
+        /// <summary>
+        /// The longest word the reader accepts: the most a <c>byte[]</c> can hold (<c>Array.MaxLength</c>, which
+        /// netstandard2.0 does not have). The five-byte prefix can announce up to 2³² − 1.
+        /// </summary>
+        internal const int MaxWordLength = 0x7FFFFFC7;
+
         private long ReadWordLength(System.IO.Stream stream)
         {
             byte readByte = ReadByteChecked(stream);
-            int length;
+            // Unsigned: the five-byte form carries 32 bits, which an int reads as negative from 2^31 on.
+            uint length;
 
             if ((readByte & 0x80) == 0x00)
             {
@@ -650,16 +657,16 @@ namespace tik4net.Api
             }
             else if ((readByte & 0xC0) == 0x80)
             {
-                length = ((readByte & 0x3F) << 8) + ReadByteChecked(stream);
+                length = (uint)((readByte & 0x3F) << 8) + ReadByteChecked(stream);
             }
             else if ((readByte & 0xE0) == 0xC0)
             {
-                length = ((readByte & 0x1F) << 8) + ReadByteChecked(stream);
+                length = (uint)((readByte & 0x1F) << 8) + ReadByteChecked(stream);
                 length = (length << 8) + ReadByteChecked(stream);
             }
             else if ((readByte & 0xF0) == 0xE0)
             {
-                length = ((readByte & 0x0F) << 8) + ReadByteChecked(stream);
+                length = (uint)((readByte & 0x0F) << 8) + ReadByteChecked(stream);
                 length = (length << 8) + ReadByteChecked(stream);
                 length = (length << 8) + ReadByteChecked(stream);
             }
@@ -676,6 +683,9 @@ namespace tik4net.Api
                 // Control bytes 0xF1–0xFF are reserved by the protocol
                 throw new IOException($"Unexpected control byte 0x{readByte:X2} in word length.");
             }
+
+            if (length > MaxWordLength)
+                throw new IOException($"Word length {length} exceeds the {MaxWordLength} bytes a word can be read into.");
 
             return length;
         }

@@ -307,6 +307,36 @@ namespace tik4net.unittests.Api
             Assert.IsTrue(serverTask.Wait(5000));
         }
 
+        // X16: the five-byte prefix carries 32 bits; from 2^31 on an int reads it as negative and the word buffer
+        // cannot be rented. The length is refused by name.
+        [TestMethod]
+        public void AWordLengthPast2To31_IsRefusedByName()
+        {
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                server.AcceptClient();
+                server.ReadSentence();                       // login
+                server.WriteSentence("!done");
+                server.ReadSentence();                       // command
+                foreach (byte b in new byte[] { 0xF0, 0x80, 0x00, 0x00, 0x00 })
+                    server.WriteRawByte(b);
+                server.CloseClientConnection();
+            });
+
+            using (var connection = new ApiConnection(false))
+            {
+                connection.ReceiveTimeout = 10000;
+                connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                var ex = Assert.ThrowsException<TikCommandFatalException>(
+                    () => connection.CreateCommand("/interface/print").ExecuteList());
+                StringAssert.Contains(ex.Message, "Word length 2147483648 exceeds");
+            }
+
+            Assert.IsTrue(serverTask.Wait(5000));
+        }
+
         [TestMethod]
         public void ASocketClosedMidSentence_IsALostConnection()
         {
