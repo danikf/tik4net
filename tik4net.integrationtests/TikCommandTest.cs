@@ -283,12 +283,8 @@ namespace tik4net.integrationtests
                 Thread.Sleep(1500);   // the listen is running (a polled one has taken its baseline and a poll)
                 Assert.IsNull(error, "the listen failed before the session was dropped: " + error?.Message);
 
-                // The user is disabled first, so the drop is a lost connection on every transport: the MAC-layer
-                // terminals rebuild a session the router dropped (its idle logout is indistinguishable from a removed
-                // row on WinBox over MAC), and only a refused re-login leaves them nothing to rebuild.
-                Connection.CreateCommandAndParameters("/user/set", TikSpecialProperties.Id, victimUserId,
-                    "disabled", "yes").ExecuteNonQuery();
-
+                // The user stays enabled, so a re-login would succeed: a MAC-layer terminal that rebuilt the dropped
+                // session under the running listen (it does for the router's idle logout) would carry on, and fail here.
                 // A WinBox login holds two rows, and removing one ends both.
                 foreach (var id in sessionIds)
                 {

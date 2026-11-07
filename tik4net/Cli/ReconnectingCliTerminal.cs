@@ -8,7 +8,8 @@ namespace tik4net.Cli
 {
     /// <summary>
     /// A console the router may end underneath us (the MAC layer logs an idle session out after ~30 s). A command is
-    /// re-run on a fresh session when that is safe: never while Safe Mode is held (the drop IS the rollback), never after
+    /// re-run on a fresh session when that is safe: never while Safe Mode is held (the drop IS the rollback) or an
+    /// <c>ExecuteWithCallback</c> runs (its polls keep the session busy, so the drop is a lost connection), never after
     /// a streamed line reached the caller (it would be delivered twice), never for a keystroke (it acts on a console state
     /// the new session never saw).
     /// </summary>

@@ -473,15 +473,19 @@ namespace tik4net.Connection
             // when no error was reported. The engine reports no error when the caller cancelled, so a cancel still
             // ends in onDone.
             var ending = new TikCallbackEnding();
+            // Counted on the connection from before the first read (a polled listen takes its baseline on this thread)
+            // until the run ends: a session dropped meanwhile is lost, not rebuilt (SessionRebuildAllowed).
+            Transport.CallbackStarted();
             try
             {
                 _monitorHandle = monitorTransport.RunMonitorAsync(descriptor,
                     row => oneResponseCallback?.Invoke(row),
                     trap => ending.Error(trap, errorCallback),
-                    () => { EndRun(); ending.Done(onDoneCallback); });
+                    () => { Transport.CallbackEnded(); EndRun(); ending.Done(onDoneCallback); });
             }
             catch
             {
+                Transport.CallbackEnded();
                 EndRun();
                 throw;
             }

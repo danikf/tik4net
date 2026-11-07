@@ -579,9 +579,9 @@ namespace tik4net.WinboxNative
         /// failed, so a session that has moved on since means the work is done and this returns.
         /// </summary>
         /// <remarks>
-        /// A running streaming monitor does not survive this, and does not have to: the monitor's own poll
-        /// traffic is what keeps the session from ever going idle, so a monitor and a dropped-idle session are
-        /// not a combination the router produces.
+        /// Never while an <c>ExecuteWithCallback</c> runs (<c>SessionRebuildAllowed</c>): the monitor's own poll
+        /// traffic keeps the session from going idle, so a drop under it is a lost connection, reported to the
+        /// monitor's <c>errorCallback</c>.
         /// </remarks>
         private async Task ReopenAsync(int observedGeneration, CancellationToken cancellationToken)
         {

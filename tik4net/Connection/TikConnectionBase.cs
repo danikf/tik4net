@@ -183,9 +183,21 @@ namespace tik4net.Connection
         /// native). Safe Mode is the one case where it must not be: dropping the session is what rolls Safe Mode's
         /// changes back, so silently opening a new one would hide exactly the event the caller asked to be protected
         /// by, and the new session would not hold Safe Mode either. The caller gets
-        /// <see cref="TikConnectionSessionClosedException"/> instead.
+        /// <see cref="TikConnectionSessionClosedException"/> instead. Nor while an <c>ExecuteWithCallback</c> runs: the
+        /// rebuild exists for the router's idle logout, and a running callback's polls keep the session busy, so a drop
+        /// under it is a lost connection (the router or an administrator ended the session), reported to its
+        /// <c>errorCallback</c> rather than survived on a new session.
         /// </summary>
-        private protected bool SessionRebuildAllowed => !SafeModeHeld;
+        private protected bool SessionRebuildAllowed => !SafeModeHeld && Volatile.Read(ref _runningCallbacks) == 0;
+
+        // How many ExecuteWithCallback commands run on this connection (TikGenericCommand counts them in and out).
+        private int _runningCallbacks;
+
+        /// <summary>An <c>ExecuteWithCallback</c> starts on this connection; <see cref="CallbackEnded"/> once it ends.</summary>
+        internal void CallbackStarted() => Interlocked.Increment(ref _runningCallbacks);
+
+        /// <summary>An <c>ExecuteWithCallback</c> counted by <see cref="CallbackStarted"/> has ended.</summary>
+        internal void CallbackEnded() => Interlocked.Decrement(ref _runningCallbacks);
 
         /// <summary>
         /// The take and release of Safe Mode on every transport that has it: runs <paramref name="act"/> only when Safe

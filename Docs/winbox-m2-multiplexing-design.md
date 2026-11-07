@@ -251,9 +251,9 @@ make the retry honest rather than a guess:
   two commands failing on the same session produce one reopen; the second sees the generation has
   moved and retries on the session the first built.
 
-A running streaming monitor does not survive a reopen and does not have to: its own poll traffic is
-what keeps the session from ever going idle, so a monitor and a dropped-idle session are not a
-combination the router produces.
+No reopen happens while an `ExecuteWithCallback` runs on the connection (`SessionRebuildAllowed`): the
+monitor's own poll traffic keeps the session from going idle, so a drop under it is not the idle logout but a
+lost connection, and the monitor reports it to its `errorCallback`.
 
 Measured on the lab CHR (`WinboxNativeMac`, `/queue/type` — 10 rows, 60 s idle, read again):
 `TimeoutException` after 30 006 ms before, 10 rows in 3 845 ms after.
