@@ -283,6 +283,12 @@ namespace tik4net.integrationtests
                 Thread.Sleep(1500);   // the listen is running (a polled one has taken its baseline and a poll)
                 Assert.IsNull(error, "the listen failed before the session was dropped: " + error?.Message);
 
+                // The user is disabled first, so the drop is a lost connection on every transport: the MAC-layer
+                // terminals rebuild a session the router dropped (its idle logout is indistinguishable from a removed
+                // row on WinBox over MAC), and only a refused re-login leaves them nothing to rebuild.
+                Connection.CreateCommandAndParameters("/user/set", TikSpecialProperties.Id, victimUserId,
+                    "disabled", "yes").ExecuteNonQuery();
+
                 // A WinBox login holds two rows, and removing one ends both.
                 foreach (var id in sessionIds)
                 {
@@ -297,8 +303,8 @@ namespace tik4net.integrationtests
                 // A dropped session is noticed when a read fails, which over a silent channel is its receive timeout.
                 if (!WaitUntil(() => error != null || Volatile.Read(ref done) > 0, victim.ReceiveTimeout + TimeSpan.FromSeconds(30)))
                 {
-                    // Nothing ended: either the router still serves the session (it removes a MAC-Telnet session's row
-                    // and keeps answering on it), or our monitor missed the loss. The session itself says which.
+                    // Nothing ended: either the router still serves the session, or our monitor missed the loss. The
+                    // session itself says which.
                     listen.CancelAndJoin();
                     try { victim.ExecuteScalar("/system/identity/print"); }
                     catch (Exception ex)
