@@ -166,6 +166,20 @@ namespace tik4net.unittests.Objects
             public TikField<TikValueList<TikNegatableValue<UserPolicy>>?> X { get; set; }
         }
 
+        [TikEntity("/bad-sorted")]
+        public class SortedNonList
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string? Id { get; private set; }
+
+            [TikProperty("x", RouterSortsMembers = true)]
+            public TikField<string?> X { get; set; }
+        }
+
+        [TestMethod]
+        public void RouterSortsMembers_OnAFieldThatIsNotAList_IsRefused()
+            => AssertRefused<SortedNonList>("RouterSortsMembers describes a list");
+
         [TestMethod]
         public void SetKeepsUnnamedMembers_WithoutNegatableMembers_IsRefused()
             => AssertRefused<MembersWithoutNegation>("declare its items TikNegatableValue<T>");

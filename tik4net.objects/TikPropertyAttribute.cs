@@ -206,6 +206,24 @@ namespace tik4net.Objects
         public bool SetKeepsUnnamedMembers { get; set; }
 
         /// <summary>
+        /// Marks a list (a <see cref="TikValueList{T}"/>) that RouterOS keeps as a set: it prints the members sorted in an
+        /// order of its own and drops a duplicate, whatever the order it was given (the radio chain lists, <c>2,0,1</c> reads
+        /// <c>0,1,2</c>; a DHCP alert's <c>valid-server</c> MACs; <c>Docs/findings-value-lists.md</c> §3).
+        /// <para>
+        /// A list merge (<see cref="TikListMerge{TEntity}"/>) then compares the field by its distinct members, so the same
+        /// members in another order, or with a duplicate, are no change. Without the flag a list compares in order, because
+        /// that order is usually configuration: the first DNS server a DHCP client gets is its primary. A save still sends
+        /// the members in the order the list holds them.
+        /// </para>
+        /// <para>
+        /// A list of an enum's members needs no flag: RouterOS keeps such a list as a bitmask, and a merge already compares
+        /// it by members. Declared on one anyway, the flag also makes a duplicate member no change. Declaring it on a field
+        /// that is not a list is refused when the entity is first used.
+        /// </para>
+        /// </summary>
+        public bool RouterSortsMembers { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="fieldName">Name of the property (on mikrotik).</param>

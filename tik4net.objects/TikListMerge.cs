@@ -146,10 +146,11 @@ namespace tik4net.Objects
         /// <exception cref="ArgumentException">The expression does not name a mapped property of the entity.</exception>
         /// <remarks>
         /// A field compares by the form the router is sent, so a list compares in order: the first DNS server a DHCP client
-        /// gets is its primary. The exception is a list of an enum's members (<c>connection-state</c>, <c>tcp-flags</c>):
-        /// RouterOS keeps those as a bitmask and prints its own order, so the same members in any order are no change. A
-        /// plain <c>string</c> field that holds such a set (<c>authentication</c>, <c>policy</c>) has to be spelled in the
-        /// router's order, or the merge updates the row on every run.
+        /// gets is its primary. The exceptions are a list of an enum's members (<c>connection-state</c>, <c>tcp-flags</c>),
+        /// which RouterOS keeps as a bitmask and prints in its own order, and a list declared
+        /// <see cref="TikPropertyAttribute.RouterSortsMembers"/> (the radio chain lists), which RouterOS prints sorted: the
+        /// same members in any order are no change. A plain <c>string</c> field that holds such a set has to be spelled in
+        /// the router's order, or the merge updates the row on every run.
         /// </remarks>
         public TikListMerge<TEntity> Field<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression)
             => AddField(ResolveField(fieldExpression), null);

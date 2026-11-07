@@ -907,6 +907,12 @@ namespace tik4net.Winbox
                 ["/caps-man/provisioning"] = new FieldAliasSet(
                     both: Ci(("slave-configurations", "slave-configuration"))),
 
+                // /caps-man/configuration: the window labels the chain lists 'HT Tx Chains' (u100e) and 'HT Rx Chains'
+                // (u100f); the API names them tx-chains and rx-chains. Confirmed by value on 7.25.1: a row added over
+                // native with rx-chains=2,0 and tx-chains=1 reads rx-chains=0,2 and tx-chains=1 over the API.
+                ["/caps-man/configuration"] = new FieldAliasSet(
+                    both: Ci(("tx-chains", "ht-tx-chains"), ("rx-chains", "ht-rx-chains"))),
+
                 // /system/package: webfig declares `available` as an inverted flag on the Installed key
                 // ({name:'available',type:'flag',id:'bb',hint:'A',inv:1}); the key already carries `installed`, so
                 // the flag is derived from it. Every row a router lists is installed=true, available=false.

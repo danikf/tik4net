@@ -1,4 +1,4 @@
-// WinboxUnnamedKeyTests.cs — fields the router sends that no .jg window names, or names differently.
+﻿// WinboxUnnamedKeyTests.cs — fields the router sends that no .jg window names, or names differently.
 //
 // Each pairing was measured on RouterOS 7.24.2 by setting the value over the API and naming the one M2 key that
 // moved, or by the one key holding the API's value on every row. Router-free: the catalog, the resolver and the
@@ -111,6 +111,15 @@ namespace tik4net.unittests.Winbox
                 "[{name:'CAPsMAN',c:[{title:'Provisioning',type:'map',path:[ 88,154 ],c:[" +
                 "{name:'Slave Configuration',type:'multinumber',id:'U500c',c:[{type:'enm',values:{type:'dynamic',path:[ 88,152 ]}}]}]}]}]";
             Assert.IsTrue(Resolver(provisioning, "/caps-man/provisioning", new[] { 88, 154 }).BuildKeyToApiName().Values.Contains("slave-configurations"));
+
+            // The CAPsMAN configuration window prefixes the chain lists with HT; the API's names have no prefix.
+            const string capsConfiguration =
+                "[{name:'CAPsMAN',c:[{name:'CAPs Configuration',title:'Configurations',type:'map',path:[88,152],c:[" +
+                "{name:'HT Tx Chains',type:'opt',c:[{type:'set',id:'u100e',compact:1,values:{type:'static',map:['0','1','2','3']}}]}," +
+                "{name:'HT Rx Chains',type:'opt',c:[{type:'set',id:'u100f',compact:1,values:{type:'static',map:['0','1','2','3']}}]}]}]}]";
+            var caps = Resolver(capsConfiguration, "/caps-man/configuration", new[] { 88, 152 });
+            Assert.AreEqual(0x100E, caps.ResolveKey("tx-chains"));
+            Assert.AreEqual(0x100F, caps.ResolveKey("rx-chains"));
 
             const string tree =
                 "[{name:'Queues',c:[{name:'Queue Tree',title:'Queue Tree',type:'map',path:[ 20,12 ],c:[" +

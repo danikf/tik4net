@@ -4,8 +4,8 @@ How RouterOS spells, stores and rewrites a field that holds several values (`dst
 `connection-state=established,related`, `tcp-flags=syn,!ack`), and where a `!` may stand. Measured on
 RouterOS 7.24.5 and 6.49.13 over the API, REST, the CLI and WinBox native. The O/R mapper's side of it is
 `TikValueList<T>` (`tik4net.objects/TikValueList.cs`), `TikNegatableField<T>` for a whole-value `!`,
-`TikNegatableValue<T>` as the item type of a list whose members take their own `!`, and the `SetKeepsUnnamedHalf` and
-`SetKeepsUnnamedMembers` attributes on `TikPropertyAttribute`.
+`TikNegatableValue<T>` as the item type of a list whose members take their own `!`, and the `SetKeepsUnnamedHalf`,
+`SetKeepsUnnamedMembers` and `RouterSortsMembers` attributes on `TikPropertyAttribute`.
 
 ## 1. The text form
 
@@ -85,7 +85,8 @@ mangle `connection-nat-state=srcnat,!dstnat` the same.
 - **Some sorted lists are not words:** the radio chain lists (wifi configuration `chains`/`tx-chains`, CAPsMAN
   `rx-chains`/`tx-chains`: `2,0,1` reads `0,1,2`) and the DHCP alert's `valid-server` MAC list
   (`AA:BB:CC:DD:EE:02,AA:BB:CC:DD:EE:01` reads back sorted, a duplicate once, a member `!` refused). They are sets the
-  router sorts, but their members are numbers and addresses rather than an enum's words.
+  router sorts, but their members are numbers and addresses rather than an enum's words, so the entities declare them
+  `RouterSortsMembers` and a list merge compares them by their distinct members.
 - **A user group's `policy` holds every policy:** an add of `write,read,!ftp,test` reads
   `read,write,test,!local,!telnet,…`, the ones not granted negated. A text `set` changes only the policies it names:
   `set policy=ftp` grants ftp and keeps the rest, `!write` denies write, and an empty value changes nothing. A write

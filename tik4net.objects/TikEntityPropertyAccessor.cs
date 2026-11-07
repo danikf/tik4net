@@ -171,6 +171,7 @@ namespace tik4net.Objects
             IsSensitive = attribute.IsSensitive;
             SetKeepsUnnamedHalf = attribute.SetKeepsUnnamedHalf;
             SetKeepsUnnamedMembers = attribute.SetKeepsUnnamedMembers;
+            RouterSortsMembers = attribute.RouterSortsMembers;
 
             Type? fieldKind = PropertyType.GetTypeInfo().IsGenericType ? PropertyType.GetGenericTypeDefinition() : null;
             IsWrapped = fieldKind == typeof(TikField<>) || fieldKind == typeof(TikNegatableField<>);
@@ -205,6 +206,11 @@ namespace tik4net.Objects
                     .Invoke(null, new object[] { new TikWireConverter(ItemType, PropertyName, FieldName) })!;
                 _parseList = codec.Item1;
                 _formatList = codec.Item2;
+                if (RouterSortsMembers)
+                    _sameMembers = (Func<object, object, bool>)typeof(TikEntityPropertyAccessor).GetTypeInfo()
+                        .GetDeclaredMethod(nameof(MakeDistinctMembersComparer))!.MakeGenericMethod(ItemType).Invoke(null, null)!;
+                else if (_isMemberSet)
+                    _sameMembers = (x, y) => x.Equals(y);
             }
         }
 
@@ -253,6 +259,9 @@ namespace tik4net.Objects
                 throw new ArgumentException(owner + "SetKeepsUnnamedMembers describes a list whose members are negated one by one; declare its items TikNegatableValue<T>.", nameof(property));
             if (SetKeepsUnnamedMembers && SetKeepsUnnamedHalf)
                 throw new ArgumentException(owner + "SetKeepsUnnamedMembers and SetKeepsUnnamedHalf describe two different set behaviours; a field has one.", nameof(property));
+            if (RouterSortsMembers && ItemType == null)
+                // Only a list has members to sort; a plain string holding one compares by its text.
+                throw new ArgumentException(owner + "RouterSortsMembers describes a list; declare TikField<TikValueList<T>?>.", nameof(property));
         }
 
         // A set of words is a list: each member its own item, a word the enum lacks one item of its own, and on a field
@@ -282,6 +291,12 @@ namespace tik4net.Objects
         /// </summary>
         public bool SetKeepsUnnamedMembers { get; private set; }
 
+        /// <summary>
+        /// Whether RouterOS keeps this list as a set and prints it sorted, so a list merge compares it by its distinct
+        /// members (<see cref="TikPropertyAttribute.RouterSortsMembers"/>).
+        /// </summary>
+        public bool RouterSortsMembers { get; private set; }
+
         /// <summary>The item type of a <see cref="TikValueList{T}"/> property, else <c>null</c>.</summary>
         public Type? ItemType { get; private set; }
 
@@ -290,6 +305,14 @@ namespace tik4net.Objects
 
         // A list of an enum's members. RouterOS keeps these as a bitmask and prints its own order, so their order says nothing.
         private readonly bool _isMemberSet;
+
+        // How a list merge compares two present values whose text differs: by members, for a list whose order the router
+        // sets (an enum's members, or a RouterSortsMembers list); null for a list whose order is configuration.
+        private readonly Func<object, object, bool>? _sameMembers;
+
+        // RouterOS drops a duplicate member of a sorted list, so the members are compared as a set, not a multiset.
+        private static Func<object, object, bool> MakeDistinctMembersComparer<TItem>()
+            => (a, b) => new HashSet<TikValue<TItem>>((TikValueList<TItem>)a).SetEquals((TikValueList<TItem>)b);
 
         private static (Func<string, object>, Func<object, string>) MakeListCodec<TItem>(TikWireConverter item)
             => (text => TikValueListWire.Parse<TItem>(text, item),
@@ -426,7 +449,8 @@ namespace tik4net.Objects
         /// <summary>
         /// Whether a list merge leaves this property alone, given what the property holds now and the value it would get
         /// (both as <see cref="GetRaw"/> returns them): they send the same form, or they are a list of an enum's members
-        /// holding the same members. Any other list compares in order, because that order is configuration: the first
+        /// holding the same members, or a <see cref="TikPropertyAttribute.RouterSortsMembers"/> list holding the same
+        /// distinct members. Any other list compares in order, because that order is configuration: the first
         /// DNS server a DHCP client gets is its primary. "No value" — Absent, or an assigned <c>null</c> — is one state here.
         /// </summary>
         internal bool MergeEquals(object? current, object? merged)
@@ -437,8 +461,8 @@ namespace tik4net.Objects
                 return true;
             var a = (ITikField)current!;
             var b = (ITikField)merged!;
-            return _isMemberSet && a.State == TikFieldState.Present && b.State == TikFieldState.Present
-                && a.IsNegated == b.IsNegated && Equals(a.BoxedValue, b.BoxedValue);
+            return _sameMembers != null && a.State == TikFieldState.Present && b.State == TikFieldState.Present
+                && a.IsNegated == b.IsNegated && a.BoxedValue != null && b.BoxedValue != null && _sameMembers(a.BoxedValue, b.BoxedValue);
         }
 
         /// <summary>An assigned <c>null</c> of this wrapped property, boxed: the intent to unset.</summary>

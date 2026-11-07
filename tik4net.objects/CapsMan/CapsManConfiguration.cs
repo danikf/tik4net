@@ -397,20 +397,20 @@ namespace tik4net.Objects.CapsMan
         // ── Radio / PHY ───────────────────────────────────────────────────────
 
         /// <summary>
-        /// rx-chains — receive antenna chain indices to use (e.g. "0" or "0,1,2,3").
+        /// rx-chains — receive antenna chain indices to use (e.g. <c>0</c> or <c>0,1,2,3</c>).
         /// Default: all available chains.
-        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
+        /// The router keeps it as a set and prints it sorted (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge compares it by members.
         /// </summary>
-        [TikProperty("rx-chains")]
-        public TikField<string?> RxChains { get; set; }
+        [TikProperty("rx-chains", RouterSortsMembers = true)]
+        public TikField<TikValueList<int>?> RxChains { get; set; }
 
         /// <summary>
-        /// tx-chains — transmit antenna chain indices to use (e.g. "0" or "0,1,2,3").
+        /// tx-chains — transmit antenna chain indices to use (e.g. <c>0</c> or <c>0,1,2,3</c>).
         /// Default: all available chains.
-        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
+        /// The router keeps it as a set and prints it sorted (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge compares it by members.
         /// </summary>
-        [TikProperty("tx-chains")]
-        public TikField<string?> TxChains { get; set; }
+        [TikProperty("tx-chains", RouterSortsMembers = true)]
+        public TikField<TikValueList<int>?> TxChains { get; set; }
 
         /// <summary>
         /// guard-interval — guard interval preference for 802.11n transmissions.

@@ -1,5 +1,26 @@
 # T3 - WinBox shipped alias tables (static tables of WinboxFieldResolver and WinboxHandlerMap)
-ShippedFieldAliases count=91 ci
+ShippedFieldAliases count=92 ci
+ShippedFieldAliases[/caps-man/configuration].AddrPortPairs = null
+ShippedFieldAliases[/caps-man/configuration].AlsoKnownAs = null
+ShippedFieldAliases[/caps-man/configuration].ApiToJg = ci{'rx-chains'='ht-rx-chains', 'tx-chains'='ht-tx-chains'}
+ShippedFieldAliases[/caps-man/configuration].ConfirmedBy = null
+ShippedFieldAliases[/caps-man/configuration].DerivedBools = null
+ShippedFieldAliases[/caps-man/configuration].FallbackFields = null
+ShippedFieldAliases[/caps-man/configuration].JgToApi = ci{'ht-rx-chains'='rx-chains', 'ht-tx-chains'='tx-chains'}
+ShippedFieldAliases[/caps-man/configuration].KeyToApi = {}
+ShippedFieldAliases[/caps-man/configuration].KeyUiType = {}
+ShippedFieldAliases[/caps-man/configuration].NotReportedKeys = null
+ShippedFieldAliases[/caps-man/configuration].NotReportedNames = null
+ShippedFieldAliases[/caps-man/configuration].NotReportedTabs = null
+ShippedFieldAliases[/caps-man/configuration].NumFlagMembers = null
+ShippedFieldAliases[/caps-man/configuration].OmittedThrough = null
+ShippedFieldAliases[/caps-man/configuration].OmittedWhen = null
+ShippedFieldAliases[/caps-man/configuration].PairedFields = null
+ShippedFieldAliases[/caps-man/configuration].Renames = null
+ShippedFieldAliases[/caps-man/configuration].SetByAction = null
+ShippedFieldAliases[/caps-man/configuration].ShownOnlyWith = null
+ShippedFieldAliases[/caps-man/configuration].SyntheticFields = null
+ShippedFieldAliases[/caps-man/configuration].WrittenDespiteMark = null
 ShippedFieldAliases[/caps-man/provisioning].AddrPortPairs = null
 ShippedFieldAliases[/caps-man/provisioning].AlsoKnownAs = null
 ShippedFieldAliases[/caps-man/provisioning].ApiToJg = ci{'slave-configurations'='slave-configuration'}

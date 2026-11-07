@@ -59,6 +59,17 @@ namespace tik4net.unittests.Objects
         [DataRow("CapsManConfiguration", "/caps-man/configuration", "name", "rates.ht-supported-mcs", "RatesHtSupportedMcs", "mcs-23,mcs-8", "mcs-8,mcs-23")]
         [DataRow("Certificate", "/certificate", "name", "key-usage", "KeyUsage", "tls-client,digital-signature,key-cert-sign", "digital-signature,key-cert-sign,tls-client")]
         [DataRow("Certificate", "/certificate", "name", "trust-store", "TrustStore", "www,api,ipsec", "ipsec,www,api")]
+        // 2026-11-07: the sorted lists whose members are numbers and addresses (RouterSortsMembers).
+        [DataRow("WifiConfiguration", "/interface/wifi/configuration", "name", "chains", "Chains", "2,0,1", "0,1,2")]
+        [DataRow("WifiConfiguration", "/interface/wifi/configuration", "name", "tx-chains", "TxChains", "2,0,1", "0,1,2")]
+        [DataRow("CapsManConfiguration", "/caps-man/configuration", "name", "rx-chains", "RxChains", "2,0,1", "0,1,2")]
+        [DataRow("CapsManConfiguration", "/caps-man/configuration", "name", "tx-chains", "TxChains", "2,0,1", "0,1,2")]
+        [DataRow("InterfaceWireless", "/interface/wireless", "name", "ht-rxchains", "HtRxchains", "2,0,1", "0,1,2")]
+        [DataRow("InterfaceWireless", "/interface/wireless", "name", "ht-txchains", "HtTxchains", "2,0,1", "0,1,2")]
+        [DataRow("DhcpServerAlert", "/ip/dhcp-server/alert", "interface", "valid-server", "ValidServer", "AA:BB:CC:DD:EE:02,AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:01,AA:BB:CC:DD:EE:02")]
+        // The router drops a duplicate member, so the value written with one is no change either.
+        [DataRow("WifiConfiguration", "/interface/wifi/configuration", "name", "chains", "Chains", "1,0,1", "0,1")]
+        [DataRow("DhcpServerAlert", "/ip/dhcp-server/alert", "interface", "valid-server", "ValidServer", "AA:BB:CC:DD:EE:02,AA:BB:CC:DD:EE:02", "AA:BB:CC:DD:EE:02")]
         public void AMerge_OfTheValueInTheRoutersOrder_SendsNothing(string entity, string path, string keyField, string field, string property,
             string sent, string printed)
         {
@@ -69,6 +80,25 @@ namespace tik4net.unittests.Objects
                 .Invoke(null, new object[] { path, keyField, field, type.GetProperty(property)!, sent, printed })!;
 
             Assert.AreEqual(0, sentCommands.Count, "the merge wrote: " + string.Join(" | ", sentCommands.Select(c => string.Join(" ", c))));
+        }
+
+        [DataTestMethod]
+        [DataRow("WifiConfiguration", "/interface/wifi/configuration", "name", "chains", "Chains", "0,1", "0,1,2")]
+        [DataRow("InterfaceWireless", "/interface/wireless", "name", "ht-txchains", "HtTxchains", "0,2", "0,1")]
+        [DataRow("DhcpServerAlert", "/ip/dhcp-server/alert", "interface", "valid-server", "ValidServer", "AA:BB:CC:DD:EE:03,AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:01,AA:BB:CC:DD:EE:02")]
+        // A list the router keeps in the order it is given compares in that order: the first DNS server is the primary.
+        [DataRow("DhcpServerNetwork", "/ip/dhcp-server/network", "address", "dns-server", "DnsServer", "8.8.8.8,1.1.1.1", "1.1.1.1,8.8.8.8")]
+        public void AMerge_OfOtherMembersOrOfAnOrderedListInAnotherOrder_SendsTheValue(string entity, string path, string keyField, string field,
+            string property, string sent, string printed)
+        {
+            var type = typeof(TikEntityAttribute).Assembly.GetTypes().Single(t => t.Name == entity && t.GetCustomAttribute<TikEntityAttribute>() != null);
+            var sentCommands = (IReadOnlyList<string[]>)typeof(EntityRouterOrderedListTests)
+                .GetMethod(nameof(MergeSends), BindingFlags.NonPublic | BindingFlags.Static)!
+                .MakeGenericMethod(type)
+                .Invoke(null, new object[] { path, keyField, field, type.GetProperty(property)!, sent, printed })!;
+
+            var set = sentCommands.Single(c => c.First() == path + "/set");
+            CollectionAssert.Contains(set, "=" + field + "=" + sent);
         }
 
         [TestMethod]

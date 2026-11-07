@@ -303,10 +303,10 @@ namespace tik4net.Objects.Interface
         /// ht-rxchains: Which antennas to use for receive.
         /// 
         /// list of integer [0..2]
-        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
+        /// The router keeps it as a set and prints it sorted (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge compares it by members.
         /// </summary>
-        [TikProperty("ht-rxchains", DefaultValue = "0")]
-        public TikField<string?> HtRxchains { get; set; }
+        [TikProperty("ht-rxchains", DefaultValue = "0", RouterSortsMembers = true)]
+        public TikField<TikValueList<int>?> HtRxchains { get; set; }
 
         /// <summary>
         /// ht-supported-mcs — the 802.11n MCS this device advertises as supported.
@@ -316,13 +316,13 @@ namespace tik4net.Objects.Interface
         public TikField<TikValueList<WirelessHtMcs>?> HtSupportedMcs { get; set; }
 
         /// <summary>
-        /// ht-txchains: Which antetnnas to use for transmit.
+        /// ht-txchains: Which antennas to use for transmit.
         /// 
         /// list of integer [0..2]
-        /// The router sorts the list and drops a duplicate (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge sends the value on every run unless it is in ascending order.
+        /// The router keeps it as a set and prints it sorted (<c>2,0,1</c> reads <c>0,1,2</c>), so a list merge compares it by members.
         /// </summary>
-        [TikProperty("ht-txchains", DefaultValue = "0")]
-        public TikField<string?> HtTxchains { get; set; }
+        [TikProperty("ht-txchains", DefaultValue = "0", RouterSortsMembers = true)]
+        public TikField<TikValueList<int>?> HtTxchains { get; set; }
 
         /// <summary>
         /// hw-fragmentation-threshold: Specifies maximum fragment size in bytes when transmitted over wireless medium. 802.11 standard packet (MSDU in 802.11 terminology) fragmentation allows packets to be fragmented before transmiting over wireless medium to increase probability of successful transmission (only fragments that did not transmit correctly are retransmitted). Note that transmission of fragmented packet is less efficient than transmitting unfragmented packet because of protocol overhead and increased resource usage at both - transmitting and receiving party.
