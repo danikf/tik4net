@@ -392,6 +392,79 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // ── A window selected by 'where' (/log, /file) ───────────────────────
+        //
+        // Its print skips an id that vanished after the window's 'find', where 'from=' aborts the line: on a full
+        // 1000-line /log, five lines logged between the two made a window of 100 ids print 95 rows (7.21.5). The
+        // window's '#w=' then over-counts the answer, so the print states its own count.
+
+        [TestMethod]
+        public void AWhereWindowCountsTheRowsItPrinted()
+        {
+            using (var conn = new PagingCliConnection(rowCount: 1))
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                conn.CreateCommand("/log/print").ExecuteList().ToList();
+
+                StringAssert.Contains(conn.Sent[0],
+                    ":if ([:len $w] > 0) do={ :local d [/log print detail as-value where ([:typeof [:find $w $\".id\"]]=\"num\")]; :put $d; "
+                    + ":put (\"#n=\" . [:len $d]");
+            }
+        }
+
+        [TestMethod]
+        public void ALogWindowWhoseOldestRowRotatedOutIsReadAndTheNextWindowSkipsNothing()
+        {
+            // The oldest line rotates out of the full log while the first window runs: that window prints one row,
+            // and every row after it moved up one place — the next window starts one earlier.
+            using (var conn = new PagingCliConnection(rowCount: 5))
+            {
+                conn.VanishBeforePrint[0] = 1;
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var names = conn.CreateCommand("/log/print").ExecuteList().Select(r => r.GetResponseField("name")).ToList();
+
+                CollectionAssert.AreEqual(new[] { "r1", "r2", "r3", "r4" }, names, string.Join(" | ", conn.Sent));
+                StringAssert.Contains(conn.Sent[1], ":pick [/log find] 1 3");
+            }
+        }
+
+        [TestMethod]
+        public void AWhereWindowWhoseRowsAllVanishedIsNotTakenForAPrintWithoutIds()
+        {
+            using (var conn = new PagingCliConnection(rowCount: 4))
+            {
+                conn.VanishBeforePrint[0] = 2;
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var names = conn.CreateCommand("/log/print").ExecuteList().Select(r => r.GetResponseField("name")).ToList();
+
+                CollectionAssert.AreEqual(new[] { "r2", "r3" }, names, string.Join(" | ", conn.Sent));
+                Assert.IsFalse(conn.Sent.Any(s => s.Contains(":foreach i in=$w")), string.Join(" | ", conn.Sent));
+            }
+        }
+
+        [TestMethod]
+        public void AWhereWindowThatLostARowOnTheWayIsStillRefused()
+        {
+            // The router printed two rows and says so; one did not arrive. That is a loss, not a rotation.
+            using (var conn = new PagingCliConnection(rowCount: 5) { DropOneRecordForOffset = 2 })
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var ex = Assert.ThrowsException<TikConnectionResponseIncompleteException>(
+                    () => conn.CreateCommand("/log/print").ExecuteList().ToList());
+
+                StringAssert.Contains(ex.Message, "held 2 row(s)");
+                StringAssert.Contains(ex.Message, "1 record(s)");
+            }
+        }
+
         [TestMethod]
         public void AWindowAnsweringMoreRowsThanItHeldIsRefusedToo()
         {
@@ -592,6 +665,15 @@ namespace tik4net.unittests.Cli
             /// <summary>Window offset → how many more times it answers 'interrupted', as the router does.</summary>
             public readonly Dictionary<int, int> InterruptOffsets = new Dictionary<int, int>();
 
+            /// <summary>
+            /// Window offset → how many of its first ids vanish between its 'find' and its 'print', as the oldest lines
+            /// of a full /log rotate out while the window runs. Taken once.
+            /// </summary>
+            public readonly Dictionary<int, int> VanishBeforePrint = new Dictionary<int, int>();
+
+            /// <summary>The rows that no longer exist.</summary>
+            public readonly HashSet<int> Gone = new HashSet<int>();
+
             public PagingCliConnection(int rowCount)
             {
                 _rowCount = rowCount;
@@ -635,10 +717,31 @@ namespace tik4net.unittests.Cli
 
                 // What 'find (clause)' resolves to, then the slice :pick takes of it.
                 var matching = Enumerable.Range(0, _rowCount)
+                    .Where(r => !Gone.Contains(r))
                     .Where(r => Matches(r, pick.Groups["clause"].Value))
                     .ToList();
                 var ids = matching.Skip(from).Take(Math.Max(0, to - from)).ToList();
                 int window = ids.Count;
+
+                // A window selected by 'where' (/log, /file) binds its print and counts it; a row that vanished after
+                // the 'find' is skipped by that print, as RouterOS does, and is gone for every later 'find'.
+                if (cliText.Contains("[:find $w $\".id\"]"))
+                {
+                    if (VanishBeforePrint.TryGetValue(from, out int count))
+                    {
+                        VanishBeforePrint.Remove(from);
+                        foreach (int r in ids.Take(count))
+                            Gone.Add(r);
+                    }
+                    var printedIds = ids.Where(r => !Gone.Contains(r)).ToList();
+                    string printedBody = from == DropOneRecordForOffset ? Rows(printedIds.Skip(1)) : Rows(printedIds);
+                    // The count line only when the window asked for one: it is the print bound to '$d'.
+                    string countLine = cliText.Contains(":local d [")
+                        ? ((char)10) + "#n=" + printedIds.Count + "/" + (printedIds.Count == 0 ? "nil" : "num")
+                        : string.Empty;
+                    string counted = window == 0 ? string.Empty : printedBody + countLine + ((char)10);
+                    return Task.FromResult(counted + "#w=" + window);
+                }
 
                 bool perRow = cliText.Contains(":foreach i in=$w do={");
                 string body = from == DropRecordsForOffset ? string.Empty

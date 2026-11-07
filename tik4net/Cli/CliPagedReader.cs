@@ -155,7 +155,7 @@ namespace tik4net.Cli
                             + "reading as-value for the rest of this connection");
                 }
 
-                if (window.WindowSize > 0 && !_host.Knowledge.MenuFacts.WindowPrintsNoId.Contains(descriptor.CommandText)
+                if (window.PrintedCount > 0 && !_host.Knowledge.MenuFacts.WindowPrintsNoId.Contains(descriptor.CommandText)
                     && window.Records.All(r => !r.Words.ContainsKey(TikSpecialProperties.Id)))
                 {
                     // The window held rows and its print named none of them — the menu's 'print from=' leaves
@@ -185,18 +185,31 @@ namespace tik4net.Cli
                 // row and the router has just said how many records this answer must carry. Anything else is an answer
                 // that lost rows on the way — or a parser that split or merged them — and either way it is not
                 // the table. This is exact, which the MAC layer's datagram heuristic is not, and it is the only
-                // check a window gets: a vanished id is not a way to get here, since 'print from=' answers
-                // 'no such item' for it rather than skipping it (measured on 7.24).
-                if (window.Records.Count != window.WindowSize)
+                // check a window gets. With 'from=' a vanished id is not a way to get here: the print answers
+                // 'interrupted' for it rather than skipping it (measured on 7.24). A window selected by 'where'
+                // (/log, /file) does skip it, so there the count is the rows the router says it printed.
+                if (window.Records.Count != window.PrintedCount)
                     throw new TikConnectionResponseIncompleteException(
                         _host.TransportName + ": the window at offset " + offset + " of '" + descriptor.CommandText
-                            + "' held " + window.WindowSize + " row(s) by the router's own count, and "
+                            + "' held " + window.PrintedCount + " row(s) by the router's own count, and "
                             + window.Records.Count + " record(s) were read from its answer. The answer is not the "
                             + "table, so it is refused rather than returned. Retry the read.",
                         0, window.Response);
 
                 foreach (var record in window.Records)
                     all.Add(record);
+
+                if (window.PrintedCount < window.WindowSize)
+                {
+                    // Rows of this window vanished before its print — on a full /log, the oldest lines rotating out
+                    // as new ones are logged. Every row after them has moved up by as many places, so the next
+                    // window starts that much earlier, or it would skip as many rows it has not read.
+                    int vanished = window.WindowSize - window.PrintedCount;
+                    TikWireTrace.Emit("cli.page", TikWireDir.Note,
+                        vanished + " row(s) of the window at offset " + offset + " of '" + descriptor.CommandText
+                            + "' vanished before its print — the next window starts " + vanished + " earlier");
+                    offset -= vanished;
+                }
 
                 // The window's OWN size ends the loop — the two are equal by now, but the size is what the
                 // router stated and the record count is only what we made of it.
@@ -220,16 +233,25 @@ namespace tik4net.Cli
         private readonly struct PagedWindow
         {
             internal PagedWindow(IList<TikRecordSentence> records, int windowSize, string? response,
-                                 bool interrupted = false)
+                                 bool interrupted = false, int printedCount = -1)
             {
                 Records = records;
                 WindowSize = windowSize;
                 Response = response;
                 Interrupted = interrupted;
+                PrintedCount = printedCount < 0 ? windowSize : printedCount;
             }
 
             internal IList<TikRecordSentence> Records { get; }
+
+            /// <summary>How many ids the window held (<c>#w=</c>): what ends the loop.</summary>
             internal int WindowSize { get; }
+
+            /// <summary>
+            /// How many rows the router printed for the window — <see cref="WindowSize"/> for a <c>from=</c> window, the
+            /// <c>#n=</c> count of a <c>where</c> window, which skips a row that vanished after the <c>find</c>.
+            /// </summary>
+            internal int PrintedCount { get; }
             internal string? Response { get; }
 
             /// <summary>RouterOS aborted the window's line: it answered <c>interrupted</c> and nothing else.</summary>
@@ -256,17 +278,24 @@ namespace tik4net.Cli
             bool idPerRow = _host.Knowledge.MenuFacts.WindowPrintsNoId.Contains(descriptor.CommandText);
             bool asJson = wantJson && _host.Knowledge.Features.SerializeJson != false && !idPerRow;
             bool asDsv = UsesDsv(descriptor, wantJson);
+            // A window selected by 'where' skips a row that vanished after its 'find', so its print is counted as a
+            // whole-table read is, and that count is what the answer is checked against.
+            bool byWhere = !idPerRow && CliCommandBuilder.SelectsWindowByWhere(descriptor.CommandText);
             string findClause = CliCommandBuilder.BuildWhereClause(descriptor.Parameters);
+            string? windowExpression = idPerRow ? null
+                : buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.WindowVariable);
             string cliText = idPerRow
                 ? CliCommandBuilder.BuildPagedWindowIdPerRow(descriptor.CommandText,
                     buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.RowVariable),
                     offset, pageSize, findClause)
                 : CliCommandBuilder.BuildPagedWindow(descriptor.CommandText,
-                    asDsv
-                        ? CliCommandBuilder.WrapDsv(
-                            buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.WindowVariable), _host.CliFieldSeparator!)
-                        : CliCommandBuilder.WrapPut(
-                            buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.WindowVariable), asJson),
+                    byWhere
+                        ? asDsv
+                            ? CliCommandBuilder.BuildCountedDsvRead(windowExpression!, _host.CliFieldSeparator!)
+                            : CliCommandBuilder.BuildCountedRead(windowExpression!, asJson)
+                        : asDsv
+                            ? CliCommandBuilder.WrapDsv(windowExpression!, _host.CliFieldSeparator!)
+                            : CliCommandBuilder.WrapPut(windowExpression!, asJson),
                     offset, pageSize, findClause);
 
             string output = await _host.ExecuteReadAsync(cliText, cancellationToken).ConfigureAwait(false);
@@ -283,6 +312,19 @@ namespace tik4net.Cli
             if (windowSize < 0)   // caller decides: take it again if interrupted, otherwise fall back
                 return new PagedWindow(new List<TikRecordSentence>(), -1, output, CliErrorParser.IsInterruptedAnswer(output));
 
+            // The print ran only for a window that held ids; it then wrote its own count, which must be there.
+            int printed = -1;
+            if (byWhere && windowSize > 0)
+            {
+                body = SplitOffCountMarker(body, descriptor, out printed);
+                if (printed > windowSize)
+                    throw new TikConnectionResponseIncompleteException(
+                        _host.TransportName + ": the window at offset " + offset + " of '" + descriptor.CommandText
+                            + "' held " + windowSize + " id(s), and the router counted " + printed + " row(s) printed "
+                            + "for them. The answer is not the table, so it is refused rather than returned. Retry the read.",
+                        0, output);
+            }
+
             IList<TikRecordSentence> parsed = asJson
                 ? CliJsonParser.ParseJson(body)
                 : asDsv
@@ -296,7 +338,7 @@ namespace tik4net.Cli
             // 'bad command name serialize' and no fallback.
             if (asJson && windowSize > 0)
                 _host.Knowledge.Features.SerializeJson = true;
-            return new PagedWindow(parsed, windowSize, body);
+            return new PagedWindow(parsed, windowSize, body, printedCount: printed);
         }
 
         // The '.nextid' a per-row print carries where 6.49.13 left '.id' out: the ordered-list cursor, which the API

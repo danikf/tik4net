@@ -106,7 +106,7 @@ namespace tik4net.Cli
                 sb.Append(" proplist=").Append(proplist);
 
             string whereClause = BuildWhereClause(parameters);
-            if (fromIndices == WindowVariable && WindowByWhere.Contains(TikPath.Parent(apiPath)))
+            if (fromIndices == WindowVariable && SelectsWindowByWhere(apiPath))
                 whereClause = string.IsNullOrEmpty(whereClause) ? WindowWhereClause : WindowWhereClause + " && (" + whereClause + ")";
             else
                 AppendFrom(sb, fromIndices);
@@ -436,6 +436,19 @@ namespace tik4net.Cli
         private static readonly HashSet<string> WindowByWhere =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "/file", "/log" };
 
+        /// <summary>
+        /// Whether a window of <paramref name="apiPath"/> (a print command's path, verb included) selects its rows with a
+        /// <c>where</c> over the window's ids rather than <c>from=</c> — see <see cref="WindowByWhere"/>.
+        /// </summary>
+        /// <remarks>
+        /// Such a print <b>skips</b> an id that vanished between the window's <c>find</c> and its <c>print</c>, where
+        /// <c>from=</c> aborts the line: on a full 1000-line <c>/log</c>, five lines logged in between made a window of
+        /// 100 ids print 95 rows (7.21.5). So the window's answer states the rows it printed as well, and the read is
+        /// checked against that (<see cref="BuildCountedRead"/> inside the window).
+        /// </remarks>
+        internal static bool SelectsWindowByWhere(string apiPath)
+            => WindowByWhere.Contains(TikPath.Parent(apiPath));
+
         /// <summary>The rows of window <see cref="WindowVariable"/>, as a <c>where</c> clause (7.21.5).</summary>
         internal const string WindowWhereClause = "([:typeof [:find $w $\".id\"]]=\"num\")";
 
@@ -446,7 +459,9 @@ namespace tik4net.Cli
         /// It is the router's own statement of how many rows the answer must carry — the window's print
         /// never carries a filter of its own, so every id in it names one row — and it ends the loop. The
         /// records parsed from the answer are checked against it rather than trusted in its place: a count
-        /// that disagrees means rows were lost on the way, or split by the parser, and the read is refused.
+        /// that disagrees means rows were lost on the way, or split by the parser, and the read is refused. A window
+        /// selected by <c>where</c> (<see cref="SelectsWindowByWhere"/>) skips a row that vanished after its
+        /// <c>find</c>, so its print states its own count (<see cref="CountMarker"/>) and is checked against that.
         /// </remarks>
         internal const string WindowMarker = "#w=";
 

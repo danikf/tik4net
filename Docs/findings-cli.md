@@ -140,6 +140,15 @@ at the cost of one pass over the table per window (`CliCommandBuilder.WindowByWh
 with User Manager's files sent ~216 KB for one read (a 103 KB SQLite WAL among them), and RouterOS dropped its
 own MAC-Telnet output under it ([findings-mactelnet.md](findings-mactelnet.md)).
 
+**A `where` window skips a row that vanished after its `find`**, where `from=` aborts the line. On a full
+1000-line `/log` (7.21.5), `:local w [:pick [/log find] 0 100]`, five `:log info` lines, then the `where` print:
+100 ids, **95 rows** — the five oldest rotated out between the two; without the lines in between, 100 and 100. So
+`#w=` over-counts such a window's answer, and its print is counted on its own instead: bound to `$d`, written,
+then `:put ("#n=" . [:len $d] …)` as a whole-table read does (`CliCommandBuilder.BuildCountedRead`), all inside the
+window's `:if`. The rows are checked against `#n=`, `#w=` still ends the loop, and the next window starts as many
+places earlier as rows vanished, since every row after them has moved up (`CliPagedReader`). A full log under
+login churn loses its oldest line about once a login, which is what the window at offset 0 holds.
+
 **It must come before `where`.** RouterOS lets a `where` expression consume the rest of the line, so
 `… as-value where chain=x from=0,1` swallows the selector and the router answers with the **whole table** —
 measured, 1672 rows where 2 were asked for. Placed first, both apply: the window is taken, then filtered
@@ -164,7 +173,8 @@ Three consequences for the command shape:
   is an exact completeness check, like the whole-table count below. It holds only because the print is
   unfiltered: a `where` applied inside a window legitimately prints fewer rows than ids (a 3-id window
   answered 2 records under a filter), which is why a filtered read puts its clause in the window's `find`
-  instead.
+  instead. A `/file` or `/log` window is the exception: its `where` over ids skips a vanished row, so its
+  answer is checked against its own `#n=` count (above).
 - **Order is preserved.** `find` returns ids in the same order `print` does — verified on `/ip firewall
   mangle` (ordered: `*B0B;*1192;*1191;…`, matching rows 0,1,2) and on `/ip service` (unordered, ids not
   sequential, same sequence both ways). Since `from=` replies in the order listed, a windowed read has the
