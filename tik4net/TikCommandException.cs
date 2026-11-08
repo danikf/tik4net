@@ -17,10 +17,10 @@ namespace tik4net
         public ITikCommand Command { get; private set; }
 
         /// <summary>
-        /// ctor.
+        /// Creates the exception for <paramref name="command"/> with the given message.
         /// </summary>
-        /// <param name="command">Commant that throws exception.</param>
-        /// <param name="message">Message exception.</param>
+        /// <param name="command">The command that failed.</param>
+        /// <param name="message">The exception message.</param>
         protected TikCommandException(ITikCommand command, string message)
             : base(message)
         {
@@ -152,9 +152,9 @@ namespace tik4net
     public class TikNoSuchCommandException : TikCommandTrapException
     {
         /// <summary>
-        /// ctor.
+        /// Creates the exception from the <c>!trap</c> the router returned for <paramref name="command"/>.
         /// </summary>
-        /// <param name="command">Commant that throws exception.</param>
+        /// <param name="command">The command that failed.</param>
         /// <param name="trapSentence">Error=trap sentence returned from mikrotik router as response to <paramref name="command"/> call.</param>
         public TikNoSuchCommandException(ITikCommand command, ITikTrapSentence trapSentence) : base(command, trapSentence)
         {
@@ -191,7 +191,7 @@ namespace tik4net
         public string ApiPath { get; private set; }
 
         /// <summary>
-        /// .ctor
+        /// Creates the exception for <paramref name="command"/>, naming the unmapped <paramref name="apiPath"/>.
         /// </summary>
         /// <param name="command">Command that throws exception.</param>
         /// <param name="apiPath">API path the transport could not map.</param>
@@ -209,16 +209,16 @@ namespace tik4net
     public class TikNoSuchItemException : TikCommandTrapException
     {
         /// <summary>
-        /// ctor.
+        /// Creates the exception from the <c>!trap</c> the router returned for <paramref name="command"/>.
         /// </summary>
-        /// <param name="command">Commant that throws exception.</param>
+        /// <param name="command">The command that failed.</param>
         /// <param name="trapSentence">Error=trap sentence returned from mikrotik router as response to <paramref name="command"/> call.</param>
         public TikNoSuchItemException(ITikCommand command, ITikTrapSentence trapSentence) : base(command, trapSentence)
         {
         }
 
         /// <summary>
-        /// .ctor
+        /// Creates the exception for <paramref name="command"/> when the router returned no row, with the message <c>no such item</c>.
         /// </summary>
         public TikNoSuchItemException(ITikCommand command)
             : base(command, $"no such item\n{command}")
@@ -232,9 +232,9 @@ namespace tik4net
     public class TikAlreadyHaveSuchItemException : TikCommandTrapException
     {
         /// <summary>
-        /// ctor.
+        /// Creates the exception from the <c>!trap</c> the router returned for <paramref name="command"/>.
         /// </summary>
-        /// <param name="command">Commant that throws exception.</param>
+        /// <param name="command">The command that failed.</param>
         /// <param name="trapSentence">Error=trap sentence returned from mikrotik router as response to <paramref name="command"/> call.</param>
         public TikAlreadyHaveSuchItemException(ITikCommand command, ITikTrapSentence trapSentence) : base(command, trapSentence)
         {
@@ -255,10 +255,10 @@ namespace tik4net
     public class TikCommandFatalException : TikCommandException
     {
         /// <summary>
-        /// ctor.
+        /// Creates the exception for <paramref name="command"/> with the message that says what ended the connection.
         /// </summary>
-        /// <param name="command">Commant that throws exception.</param>
-        /// <param name="message">Message exception.</param>
+        /// <param name="command">The command that failed.</param>
+        /// <param name="message">The exception message.</param>
         public TikCommandFatalException(ITikCommand command, string message)
             : base(command, message)
         {
@@ -286,10 +286,10 @@ namespace tik4net
     public class TikCommandAbortException : TikCommandException
     {
         /// <summary>
-        /// ctor.
+        /// Creates the exception for <paramref name="command"/> with the message the abort was reported with.
         /// </summary>
-        /// <param name="command">Commant that throws exception.</param>
-        /// <param name="message">Message exception.</param>
+        /// <param name="command">The command that failed.</param>
+        /// <param name="message">The exception message.</param>
         public TikCommandAbortException(ITikCommand command, string message)
             : base(command, message)
         {
@@ -412,7 +412,7 @@ namespace tik4net
     public class TikCommandEmptyResponseException : TikCommandException
     {
         /// <summary>
-        /// .ctor
+        /// Creates the exception for <paramref name="command"/>, appending the command to <paramref name="message"/>.
         /// </summary>
         /// <param name="command">Command that throws exception.</param>
         /// <param name="message">Description of what was expected and what the router returned instead.</param>
@@ -428,7 +428,7 @@ namespace tik4net
     public class TikCommandAmbiguousResultException : TikCommandException
     {
         /// <summary>
-        /// .ctor
+        /// Creates the exception for <paramref name="command"/> when more than one row was returned.
         /// </summary>
         public TikCommandAmbiguousResultException(ITikCommand command)
             : base(command, $"only one response item expected\n{command}")
@@ -436,7 +436,7 @@ namespace tik4net
         }
 
         /// <summary>
-        /// .ctor
+        /// Creates the exception for <paramref name="command"/>, giving the number of rows returned.
         /// </summary>
         public TikCommandAmbiguousResultException(ITikCommand command, int ambiguousItemsCnt)
             : base(command, $"only one response item expected, returned {ambiguousItemsCnt} items\n{command}")

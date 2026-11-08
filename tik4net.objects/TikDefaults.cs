@@ -8,8 +8,8 @@
 
         /// <summary>
         /// Send only properties that changed since the entity was loaded (diff against snapshot).
-        /// When no snapshot is available the entity is sent in full.
-        /// This is the default in 4.x.
+        /// When no snapshot is available the entity is sent in full. This is the default
+        /// (<see cref="TikDefaults.SaveMode"/>).
         /// <para>
         /// The snapshot lives on the <see cref="ITikConnection"/> the entity was LOADED on, so an entity
         /// loaded on one connection and saved on another falls into the "sent in full" case — see the
@@ -20,8 +20,8 @@
         OnlyChanges,
 
         /// <summary>
-        /// Send all writable properties regardless of what changed.
-        /// Equivalent to 3.x behavior (performs an extra <c>LoadById</c> round-trip to compute the diff).
+        /// Send all writable properties regardless of what changed, after an extra <c>LoadById</c> round-trip
+        /// to compute the diff against the router's current row.
         /// </summary>
         FullUpdate,
     }
@@ -33,13 +33,14 @@
     {
         /// <summary>
         /// Default save mode used when <see cref="TikSaveMode.Default"/> is passed to
-        /// <see cref="TikConnectionExtensions.Save{TEntity}"/>.
-        /// <para>4.x default: <see cref="TikSaveMode.OnlyChanges"/>.</para>
-        /// <para>
-        /// Set to <see cref="TikSaveMode.FullUpdate"/> to restore 3.x round-trip behavior
-        /// for the whole application.
-        /// </para>
+        /// <see cref="TikConnectionExtensions.Save{TEntity}"/>; <see cref="TikSaveMode.OnlyChanges"/> unless set.
         /// </summary>
+        /// <remarks>
+        /// Process-wide: one value for every connection and thread, read at each <c>Save</c>, so a change applies
+        /// to the next save anywhere in the process. To choose for one call, pass its <c>saveMode</c> argument
+        /// instead. The mapper option that is per connection is <see cref="TikConnectionSetup.ValidateWrites"/>.
+        /// </remarks>
+        /// <seealso cref="TikConnectionExtensions.Save{TEntity}"/>
         public static TikSaveMode SaveMode { get; set; } = TikSaveMode.OnlyChanges;
     }
 }

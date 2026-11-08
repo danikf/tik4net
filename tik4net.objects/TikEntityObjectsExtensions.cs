@@ -31,7 +31,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Crates clone of given entity by its fields.
+        /// Creates a clone of the given entity, field by field.
         /// </summary>
         /// <typeparam name="TEntity">Type of entity.</typeparam>
         /// <param name="entity">Entity to be cloned.</param>

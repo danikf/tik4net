@@ -29,7 +29,7 @@ namespace tik4net
         }
 
         /// <summary>
-        /// ctor.
+        /// Creates the exception with the given message and the malformed sentence.
         /// </summary>
         /// <param name="message">Exception message.</param>
         /// <param name="sentence">

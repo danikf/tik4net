@@ -4,38 +4,38 @@ using System.Net;
 namespace tik4net.Mndp
 {
     /// <summary>
-    /// Mikrotik instances visible by MNDP discovery protocol
+    /// A MikroTik router as one MNDP (neighbor discovery) announcement describes it.
     /// </summary>
     public struct TikInstanceDescriptor
     {
-        /// <summary>Mikrotik identity</summary>
+        /// <summary>The router's identity (<c>/system/identity</c> name).</summary>
         public string Identity { get; }
-        /// <summary>Mikrotik version (eq. 6.49.2 (stable))</summary>
+        /// <summary>The RouterOS version, e.g. <c>6.49.2 (stable)</c>.</summary>
         public string Version { get; }
-        /// <summary>Mikrotik platform (eq. MikroTik)</summary>
+        /// <summary>The platform name, e.g. <c>MikroTik</c>.</summary>
         public string Platform { get; }
-        /// <summary>Mikrotik uptime</summary>
+        /// <summary>The router's uptime at the time of the announcement; zero when the announcement carries none.</summary>
         public TimeSpan Uptime { get; }
-        /// <summary>Mikrotik software</summary>
+        /// <summary>The RouterOS software ID, as <c>/system/license</c> shows it.</summary>
         public string SoftwareId { get; }
-        /// <summary>Mikrotik board (eq. RB800)</summary>
+        /// <summary>The board name, e.g. <c>RB800</c>.</summary>
         public string BoardName { get; }
         /// <summary>
         /// Raw MNDP field 14, kept verbatim because its meaning is not established. It is surfaced rather
         /// than dropped so that a caller who works out what a router puts here is not blocked by us.
         /// </summary>
         public string Unpack { get; }
-        /// <summary>Mikrotik interface MAC</summary>
+        /// <summary>The MAC address of the interface that sent the announcement, as colon-separated hex.</summary>
         public string Mac { get; }
-        /// <summary>Mikrotik interface IP; <see cref="IPAddress.Any"/> (<c>0.0.0.0</c>) when the announcement carries none.</summary>
+        /// <summary>The IPv4 address of the interface that sent the announcement; <see cref="IPAddress.Any"/> (<c>0.0.0.0</c>) when the announcement carries none.</summary>
         public IPAddress IPv4 { get; }
-        /// <summary>Mikrotik interface IPv6 (can be empty)</summary>
+        /// <summary>The IPv6 address of the interface that sent the announcement, in standard textual form (<c>fe80::1</c>); empty when the announcement carries none.</summary>
         public string IPv6 { get; }
-        /// <summary>Mikrotik interface name</summary>
+        /// <summary>The router's name of the interface that sent the announcement, e.g. <c>ether1</c>.</summary>
         public string InterfaceName { get; }
 
         /// <summary>
-        /// .ctor
+        /// Creates the descriptor from the fields of one MNDP announcement.
         /// </summary>
         internal TikInstanceDescriptor(string identity, string version, string platform, TimeSpan uptime, string softwareId, string boardName,
             string unpack, string mac, string ipv6, string interfaceName, IPAddress iPV4)

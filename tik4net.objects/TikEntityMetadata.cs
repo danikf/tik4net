@@ -42,7 +42,7 @@ namespace tik4net.Objects
         public string EntityPath { get; private set; }
 
         /// <summary>
-        /// Sufix added to entity path when loading. eq. /print
+        /// Suffix added to the entity path when loading, e.g. <c>/print</c>.
         /// </summary>
         public string LoadCommand { get; private set; }
 

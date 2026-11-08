@@ -51,9 +51,9 @@ namespace tik4net
     public class TikConnectionNotOpenException : TikConnectionException
     {
         /// <summary>
-        /// .ctor
+        /// Creates the exception with the given message.
         /// </summary>
-        /// <param name="message"></param>
+        /// <param name="message">The exception message.</param>
         public TikConnectionNotOpenException(string message)
             : base(message)
         {
@@ -82,7 +82,7 @@ namespace tik4net
     public class TikConnectionLoginException : TikConnectionException
     {
         /// <summary>
-        /// .ctor
+        /// Creates the exception wrapping the failure that refused the login; its message is appended.
         /// </summary>
         public TikConnectionLoginException(Exception innerException)
             : base("Cannot log in. " + innerException.Message, innerException)
@@ -283,7 +283,7 @@ namespace tik4net
     public class TikConnectionSSLErrorException : TikConnectionException
     {
         /// <summary>
-        /// .ctor
+        /// Creates the exception wrapping the TLS failure; its message is appended.
         /// </summary>
         public TikConnectionSSLErrorException(Exception innerException)
             : base("API-SSL error (see https://github.com/danikf/tik4net/wiki/SSL-connection). " + innerException.Message, innerException)

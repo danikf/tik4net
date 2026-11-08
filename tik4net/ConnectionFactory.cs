@@ -24,6 +24,14 @@ namespace tik4net
     /// <c>ConnectionFactory</c> can start stating options without being rewritten around a different entry
     /// point.
     /// </para>
+    /// <para>
+    /// The two entry points use "create" for opposite things: here <c>CreateConnection</c> returns an unopened
+    /// connection and <c>OpenConnection</c> an opened one, while on the setup <c>Create</c> opens and
+    /// <c>CreateUnopened</c> does not. <see cref="CreateConnection(TikConnectionType, TikConnectionSetup)"/> is
+    /// <see cref="TikConnectionSetup.CreateUnopened(TikConnectionType, Action{ITikConnection})"/>, and
+    /// <see cref="OpenConnection(TikConnectionType, TikConnectionSetup)"/> is
+    /// <see cref="TikConnectionSetup.Create(TikConnectionType)"/>.
+    /// </para>
     /// </remarks>
     public static class ConnectionFactory
     {

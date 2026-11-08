@@ -251,22 +251,32 @@ namespace tik4net.Objects
     /// </summary>
     public static class TikFieldExtensions
     {
-        /// <summary>The value when present, <c>default(T)</c> otherwise (<c>bool d = addr.Disabled.GetValueOrDefault();</c>).</summary>
+        /// <summary>
+        /// The value when present, <c>default(T)</c> otherwise (<c>bool d = addr.Disabled.GetValueOrDefault();</c>). For an
+        /// explicit fallback, use <see cref="TikField{T}.ValueOrDefault(T)"/>: there is no <c>GetValueOrDefault(fallback)</c>.
+        /// </summary>
         public static T GetValueOrDefault<T>(this TikField<T?> value) where T : struct
             => value.State == TikFieldState.Present ? value.Value.GetValueOrDefault() : default;
 
-        /// <summary>The value when present, <c>null</c> otherwise.</summary>
+        /// <summary>
+        /// The value when present, <c>null</c> otherwise. For an explicit fallback, use
+        /// <see cref="TikField{T}.ValueOrDefault(T)"/>.
+        /// </summary>
         public static T? GetValueOrDefault<T>(this TikField<T?> value) where T : class
             => value.State == TikFieldState.Present ? value.Value : null;
 
         /// <summary>
         /// The value when present, <c>default(T)</c> otherwise. A negated value is present: this returns the value it
-        /// negates, so check <see cref="TikNegatableField{T}.IsNegated"/> where that matters.
+        /// negates, so check <see cref="TikNegatableField{T}.IsNegated"/> where that matters. For an explicit fallback,
+        /// use <see cref="TikNegatableField{T}.ValueOrDefault(T)"/>.
         /// </summary>
         public static T GetValueOrDefault<T>(this TikNegatableField<T?> value) where T : struct
             => value.State == TikFieldState.Present ? value.Value.GetValueOrDefault() : default;
 
-        /// <summary>The value when present (negated or not), <c>null</c> otherwise.</summary>
+        /// <summary>
+        /// The value when present (negated or not), <c>null</c> otherwise. For an explicit fallback, use
+        /// <see cref="TikNegatableField{T}.ValueOrDefault(T)"/>.
+        /// </summary>
         public static T? GetValueOrDefault<T>(this TikNegatableField<T?> value) where T : class
             => value.State == TikFieldState.Present ? value.Value : null;
     }

@@ -17,7 +17,7 @@ namespace tik4net.Objects
         public string Value { get; private set; }
 
         /// <summary>
-        /// .ctor
+        /// Maps the enum member to the router's <paramref name="value"/>.
         /// </summary>
         /// <param name="value">Mikrotik enum value (name).</param>
         public TikEnumAttribute(string value)

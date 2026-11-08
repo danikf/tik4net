@@ -16,7 +16,7 @@ namespace tik4net
         public string Word { get; private set; }
 
         /// <summary>
-        /// ctor
+        /// Creates the event arguments for the word read or written.
         /// </summary>
         /// <param name="word">Read or written WORD by <see cref="ITikConnection"/></param>
         public TikConnectionCommCallbackEventArgs(string word)
