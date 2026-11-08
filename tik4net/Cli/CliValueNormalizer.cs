@@ -56,6 +56,10 @@ namespace tik4net.Cli
         /// <item><c>mrru=1600</c> and <c>max-sessions=10</c> read back unchanged, and <c>mrru</c> cannot be
         /// SET to 0 at all (range 1500..16384), which is what makes 0 unambiguously the disabled state.</item>
         /// </list>
+        /// <para>WinBox has its own list, <see cref="Winbox.WinboxRecordCodec.ZeroSpelledAsWord"/>, and the two
+        /// differ on purpose: each lists what its own wire carries as a number. The four fields only WinBox lists
+        /// (<c>ddns-update-interval</c>, <c>watch-address</c>, <c>delay-threshold</c>, <c>arp-timeout</c>) come
+        /// out of <c>print as-value</c> as their word already (7.25.1), and <c>dscp</c>'s 256 is not a zero.</para>
         /// </remarks>
         private static readonly Dictionary<string, KeyValuePair<string, string>> SentinelFields =
             new Dictionary<string, KeyValuePair<string, string>>(StringComparer.OrdinalIgnoreCase)

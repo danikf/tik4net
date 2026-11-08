@@ -693,6 +693,10 @@ namespace tik4net.Winbox
         /// an <c>mrru</c> means the same thing on all four PPP server menus. Gated on
         /// <see cref="WinboxJgField.IsOptional"/> so it cannot fire on some unrelated non-optional field
         /// that happens to share a label, and on the value being exactly zero — a real count is untouched.</para>
+        /// <para>The CLI's counterpart is <see cref="Cli.CliValueNormalizer.SentinelFields"/>, and the two lists
+        /// differ on purpose. Each is what its own transport carries: <c>ddns-update-interval</c>,
+        /// <c>watch-address</c>, <c>delay-threshold</c> and <c>arp-timeout</c> are a number on the M2 wire, but
+        /// <c>print as-value</c> already prints their word (7.25.1), so the CLI has nothing to translate.</para>
         /// </remarks>
         private static readonly Dictionary<string, string> ZeroSpelledAsWord =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
