@@ -12,8 +12,9 @@ namespace tik4net.Objects.Ip
     public class DhcpServerConfig
     {
         /// <summary>
-        /// Values for <see cref="StoreLeasesDisk"/> (or use specific time)
+        /// The words <see cref="StoreLeasesDisk"/> takes besides a duration, as strings.
         /// </summary>
+        [Obsolete("StoreLeasesDisk is a TikDuration: write TikDuration.FromSpecial(TikDurationSpecial.Immediately) or TikDuration.FromSpecial(TikDurationSpecial.Never), or a TimeSpan for an interval.", false)]
         public static class StoreLeasesDiskType
         {
             /// <summary>
@@ -27,10 +28,11 @@ namespace tik4net.Objects.Ip
         }
 
         /// <summary>
-        /// store-leases-disk - How frequently lease changes should be stored on disk
+        /// store-leases-disk - How frequently lease changes are stored on disk: an interval (<c>5m</c>), or
+        /// <see cref="TikDurationSpecial.Immediately"/> / <see cref="TikDurationSpecial.Never"/>
+        /// (<c>TikDuration.FromSpecial(...)</c>).
         /// </summary>
-        /// <seealso cref="StoreLeasesDiskType"/>
         [TikProperty("store-leases-disk", WinboxLabel = "Store Leases On Disk")]
-        public TikField<string?> StoreLeasesDisk { get; set; }
+        public TikField<TikDuration?> StoreLeasesDisk { get; set; }
     }
 }

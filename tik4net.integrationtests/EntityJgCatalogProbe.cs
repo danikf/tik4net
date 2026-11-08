@@ -79,7 +79,8 @@ namespace tik4net.integrationtests
             var labels = new StringBuilder();
             var labelIssues = new StringBuilder();
             var valueShapes = new StringBuilder();
-            int nValues = 0;
+            var durationsAsString = new StringBuilder();
+            int nValues = 0, nDurationsAsString = 0;
             int nLabelOk = 0, nLabelIssue = 0;
             int nFields = 0, nMissing = 0, nKind = 0, nMatch = 0, nMismatch = 0, nUnset = 0, nNoDef = 0, nNoAttr = 0;
             string version;
@@ -128,6 +129,16 @@ namespace tik4net.integrationtests
                             nValues++;
                             valueShapes.AppendLine($"{metadata.EntityPath}	{p.FieldName}{ro}	{valueShape}	"
                                 + $"{TypeName(p.ValueType)}{(p.IsNegatable ? " Negatable" : "")}	{entity.Type.Name}.{p.PropertyName}");
+                        }
+
+                        // A duration the property declares as a string: the catalog draws it as an interval, an age, or
+                        // a number counted in seconds or milliseconds. The duration ratchet finds durations by name and
+                        // cannot see one whose name says nothing about time (store-leases-disk).
+                        if (p.ValueType == typeof(string)
+                            && (field.UiType == "interval" || field.UiType == "age" || field.IsTimePostfix))
+                        {
+                            nDurationsAsString++;
+                            durationsAsString.AppendLine($"{metadata.EntityPath}	{p.FieldName}{ro}	{field.UiType}{(field.Postfix != null ? " " + field.Postfix : "")}	{entity.Type.Name}.{p.PropertyName}");
                         }
 
                         string suggested = SuggestLabel(connection, field, byName);
@@ -214,6 +225,9 @@ namespace tik4net.integrationtests
             report.AppendLine();
             report.AppendLine("## VALUES — several values or a '!' (path, field, ui type + negation + element, property type, property)");
             report.Append(valueShapes);
+            report.AppendLine();
+            report.AppendLine($"## DURATION AS STRING — a string property the catalog draws as a time ({nDurationsAsString}; path, field, ui type, property)");
+            report.Append(durationsAsString);
             report.AppendLine();
             report.AppendLine("## LABELS — suggested WinboxLabel per property (type|property|field|label), for the generator");
             report.Append(labels);
