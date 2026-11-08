@@ -33,7 +33,7 @@ namespace tik4net.unittests.Objects
             [TikProperty("hotspot")]
             public TikField<TikValueList<TikNegatableValue<Hotspot>>?> Hotspot { get; set; }
 
-            [TikProperty("tcp-flags", SetKeepsUnnamedHalf = true)]
+            [TikProperty("tcp-flags", SetBehaviour = TikListSetBehaviour.KeepsUnnamedHalf)]
             public TikNegatableField<TikValueList<TikNegatableValue<Flag>>?> TcpFlags { get; set; }
 
             [TikProperty("names")]
@@ -332,13 +332,13 @@ namespace tik4net.unittests.Objects
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
             public string? Id { get; private set; }
 
-            [TikProperty("x", SetKeepsUnnamedHalf = true)]
+            [TikProperty("x", SetBehaviour = TikListSetBehaviour.KeepsUnnamedHalf)]
             public TikField<TikValueList<int>?> X { get; set; }
         }
 
         [TestMethod]
-        public void SetKeepsUnnamedHalf_WithoutNegatableMembers_IsRefused()
-            => AssertRefused<HalvesWithoutMembers>("declare its items TikNegatableValue<T>");
+        public void KeepsUnnamedHalf_WithoutNegatableMembers_IsRefused()
+            => AssertRefused<HalvesWithoutMembers>("SetBehaviour KeepsUnnamedHalf describes a list whose members are negated one by one; declare its items TikNegatableValue<T>");
 
         [TestMethod]
         public void NullableItems_AreRefused()

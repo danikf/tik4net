@@ -102,7 +102,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void AnEntitysPolicyIsTheWholeSet_TheMembersItLeavesOutAreDenied()
         {
-            // The mapper's side of the raw write above (SetKeepsUnnamedMembers): assigning the granted policies alone
+            // The mapper's side of the raw write above (TikListSetBehaviour.KeepsUnnamedMembers): assigning the granted policies alone
             // leaves the group with those and no other, the fixture's `test` included, on every transport.
             var group = Connection.LoadList<UserGroup>(Connection.CreateParameter("name", GroupName)).Single();
             group.Policy = new TikValueList<TikNegatableValue<UserPolicy>>(

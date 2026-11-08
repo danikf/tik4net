@@ -564,7 +564,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// syn - new connection
         /// urg - urgent data
         /// </summary>
-        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags", SetKeepsUnnamedHalf = true)]
+        [TikProperty("tcp-flags", WinboxLabel = "TCP Flags", SetBehaviour = TikListSetBehaviour.KeepsUnnamedHalf)]
         public TikNegatableField<TikValueList<TikNegatableValue<FirewallTcpFlag>>?> TcpFlags { get; set; }
 
         /// <summary>

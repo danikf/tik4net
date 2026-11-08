@@ -4,8 +4,8 @@ How RouterOS spells, stores and rewrites a field that holds several values (`dst
 `connection-state=established,related`, `tcp-flags=syn,!ack`), and where a `!` may stand. Measured on
 RouterOS 7.24.5 and 6.49.13 over the API, REST, the CLI and WinBox native. The O/R mapper's side of it is
 `TikValueList<T>` (`tik4net.objects/TikValueList.cs`), `TikNegatableField<T>` for a whole-value `!`,
-`TikNegatableValue<T>` as the item type of a list whose members take their own `!`, and the `SetKeepsUnnamedHalf`,
-`SetKeepsUnnamedMembers` and `RouterSortsMembers` attributes on `TikPropertyAttribute`.
+`TikNegatableValue<T>` as the item type of a list whose members take their own `!`, and the `SetBehaviour`
+(`TikListSetBehaviour`) and `RouterSortsMembers` properties of `TikPropertyAttribute`.
 
 ## 1. The text form
 
@@ -91,7 +91,7 @@ mangle `connection-nat-state=srcnat,!dstnat` the same.
   `read,write,test,!local,!telnet,…`, the ones not granted negated. A text `set` changes only the policies it names:
   `set policy=ftp` grants ftp and keeps the rest, `!write` denies write, and an empty value changes nothing. A write
   that names every policy, as a loaded value does, is exact. WinBox native's write behaves the same (`UserGroupPolicyTest`,
-  all 11 transports). `SetKeepsUnnamedMembers` makes an entity's update the whole set: the new value plus every member
+  all 11 transports). `TikListSetBehaviour.KeepsUnnamedMembers` makes an entity's update the whole set: the new value plus every member
   the loaded value had and the new one omits, negated.
 
 So a list is compared without regard to order (or a reload would look like a change), and a write sends the
@@ -113,7 +113,7 @@ or CLI) rewrites a half only when the new value names a member of it; the whole-
 spelling clears one half (`,!syn` changes nothing). `hotspot` and `topics` do not merge — a `set` replaces them.
 
 So over a text transport a `tcp-flags` write to an existing row can be exact only when the new value names a
-member of each half the row holds; tik4net refuses any other before sending (`SetKeepsUnnamedHalf`). An `add` is
+member of each half the row holds; tik4net refuses any other before sending (`TikListSetBehaviour.KeepsUnnamedHalf`). An `add` is
 always exact. WinBox native writes both masks (§5) and is exact; it declares `StructuredWrites`.
 
 ## 5. WinBox native (M2)

@@ -169,8 +169,7 @@ namespace tik4net.Objects
             WinboxLabel = string.IsNullOrWhiteSpace(attribute.WinboxLabel) ? null : attribute.WinboxLabel;
             ChangesOnItsOwn = attribute.ChangesOnItsOwn;
             IsSensitive = attribute.IsSensitive;
-            SetKeepsUnnamedHalf = attribute.SetKeepsUnnamedHalf;
-            SetKeepsUnnamedMembers = attribute.SetKeepsUnnamedMembers;
+            SetBehaviour = attribute.SetBehaviour;
             RouterSortsMembers = attribute.RouterSortsMembers;
 
             Type? fieldKind = PropertyType.GetTypeInfo().IsGenericType ? PropertyType.GetGenericTypeDefinition() : null;
@@ -251,14 +250,13 @@ namespace tik4net.Objects
                         owner, Nullable.GetUnderlyingType(ItemType)!.Name), nameof(property));
                 RefuseFlags(owner, IsNegatableMembers ? ItemType.GetTypeInfo().GenericTypeArguments[0] : ItemType, property);
             }
-            if (SetKeepsUnnamedHalf && !IsNegatableMembers)
-                // The halves are the plain and the negated members; a field without the second has only one.
-                throw new ArgumentException(owner + "SetKeepsUnnamedHalf describes a list whose members are negated one by one; declare its items TikNegatableValue<T>.", nameof(property));
-            if (SetKeepsUnnamedMembers && !IsNegatableMembers)
-                // The members left out are sent denied, which takes a '!' on each.
-                throw new ArgumentException(owner + "SetKeepsUnnamedMembers describes a list whose members are negated one by one; declare its items TikNegatableValue<T>.", nameof(property));
-            if (SetKeepsUnnamedMembers && SetKeepsUnnamedHalf)
-                throw new ArgumentException(owner + "SetKeepsUnnamedMembers and SetKeepsUnnamedHalf describe two different set behaviours; a field has one.", nameof(property));
+            if (!Enum.IsDefined(typeof(TikListSetBehaviour), SetBehaviour))
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "{0}SetBehaviour {1} is not a TikListSetBehaviour; declare Exact, KeepsUnnamedHalf or KeepsUnnamedMembers.",
+                    owner, (int)SetBehaviour), nameof(property));
+            if (SetBehaviour != TikListSetBehaviour.Exact && !IsNegatableMembers)
+                // KeepsUnnamedHalf: the halves are the plain and the negated members, and a field without the second has
+                // only one. KeepsUnnamedMembers: the members left out are sent denied, which takes a '!' on each.
+                throw new ArgumentException(owner + "SetBehaviour " + SetBehaviour + " describes a list whose members are negated one by one; declare its items TikNegatableValue<T>.", nameof(property));
             if (RouterSortsMembers && ItemType == null)
                 // Only a list has members to sort; a plain string holding one compares by its text.
                 throw new ArgumentException(owner + "RouterSortsMembers describes a list; declare TikField<TikValueList<T>?>.", nameof(property));
@@ -280,16 +278,10 @@ namespace tik4net.Objects
         public bool IsNegatableMembers { get; private set; }
 
         /// <summary>
-        /// Whether RouterOS's text <c>set</c> replaces only the half of this list it names
-        /// (<see cref="TikPropertyAttribute.SetKeepsUnnamedHalf"/>).
+        /// What RouterOS's text <c>set</c> does with the members of this list that the new value does not name.
         /// </summary>
-        public bool SetKeepsUnnamedHalf { get; private set; }
-
-        /// <summary>
-        /// Whether RouterOS's text <c>set</c> keeps the members of this list it does not name, so an update sends the
-        /// left-out ones denied (<see cref="TikPropertyAttribute.SetKeepsUnnamedMembers"/>).
-        /// </summary>
-        public bool SetKeepsUnnamedMembers { get; private set; }
+        /// <seealso cref="TikPropertyAttribute.SetBehaviour"/>
+        public TikListSetBehaviour SetBehaviour { get; private set; }
 
         /// <summary>
         /// Whether RouterOS keeps this list as a set and prints it sorted, so a list merge compares it by its distinct

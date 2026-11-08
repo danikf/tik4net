@@ -152,18 +152,8 @@ namespace tik4net.unittests.Objects
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
             public string? Id { get; private set; }
 
-            [TikProperty("x", SetKeepsUnnamedMembers = true)]
+            [TikProperty("x", SetBehaviour = TikListSetBehaviour.KeepsUnnamedMembers)]
             public TikField<TikValueList<UserPolicy>?> X { get; set; }
-        }
-
-        [TikEntity("/bad-both")]
-        public class BothSetBehaviours
-        {
-            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-            public string? Id { get; private set; }
-
-            [TikProperty("x", SetKeepsUnnamedMembers = true, SetKeepsUnnamedHalf = true)]
-            public TikField<TikValueList<TikNegatableValue<UserPolicy>>?> X { get; set; }
         }
 
         [TikEntity("/bad-sorted")]
@@ -181,12 +171,8 @@ namespace tik4net.unittests.Objects
             => AssertRefused<SortedNonList>("RouterSortsMembers describes a list");
 
         [TestMethod]
-        public void SetKeepsUnnamedMembers_WithoutNegatableMembers_IsRefused()
-            => AssertRefused<MembersWithoutNegation>("declare its items TikNegatableValue<T>");
-
-        [TestMethod]
-        public void SetKeepsUnnamedMembers_WithSetKeepsUnnamedHalf_IsRefused()
-            => AssertRefused<BothSetBehaviours>("a field has one");
+        public void KeepsUnnamedMembers_WithoutNegatableMembers_IsRefused()
+            => AssertRefused<MembersWithoutNegation>("SetBehaviour KeepsUnnamedMembers describes a list whose members are negated one by one; declare its items TikNegatableValue<T>");
 
         private static void AssertRefused<T>(string message) where T : new()
         {

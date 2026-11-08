@@ -170,40 +170,18 @@ namespace tik4net.Objects
         public bool IsSensitive { get; set; }
 
         /// <summary>
-        /// Marks a list of <see cref="TikNegatableValue{T}"/> members on which RouterOS's text <c>set</c> replaces only the half it names:
-        /// the plain members when the value names a plain one, the negated members when it names a negated one
-        /// (<c>tcp-flags</c>, measured on 6.49.13 and 7.24.5 over the API, REST and the CLI:
-        /// <c>!,syn,!ack</c> + <c>set rst</c> → <c>rst,!ack</c>; <c>Docs/findings-value-lists.md</c> §4).
-        /// <para>
-        /// An update of a loaded row that would leave such a half on the router — the loaded value has members of a kind
-        /// the new one has none of — is refused before anything is sent, unless the transport writes structured data
-        /// (<see cref="TikConnectionCapability.StructuredWrites"/>). A value naming both kinds, and any add, is exact.
-        /// </para>
-        /// <para>
-        /// Not caught: <c>unset</c> hides the field but keeps both halves on the router, so after an unset the next
-        /// one-kind <c>set</c> brings the old half back, and the row loads as if the field had none.
-        /// </para>
+        /// What RouterOS's text <c>set</c> does with the members of this <see cref="TikNegatableValue{T}"/> list that the
+        /// new value does not name; <see cref="TikListSetBehaviour.Exact"/> (the default) when it keeps none of them.
         /// </summary>
-        public bool SetKeepsUnnamedHalf { get; set; }
-
-        /// <summary>
-        /// Marks a list of <see cref="TikNegatableValue{T}"/> members that names every member, granted or denied, and on which
-        /// RouterOS's text <c>set</c> changes only the members it names, keeping the rest (a user group's <c>policy</c>,
-        /// measured on 6.49.21 and 7.x: <c>set policy=ftp</c> grants ftp and keeps every other policy;
-        /// <c>Docs/findings-value-lists.md</c> §3).
-        /// <para>
-        /// So the value is the whole set: an update sends the new value with every member the row's loaded value had and
-        /// the new one does not name added as denied (<c>read,write</c> over a loaded <c>read,write,ftp,!local</c> is sent as
-        /// <c>read,write,!ftp,!local</c>). A value naming every member is exact on the router, and so is an add, which
-        /// denies every member it does not name.
-        /// </para>
-        /// <para>
-        /// An update of a row that was never loaded is refused before anything is sent: without the loaded value there is
-        /// no telling which members the router holds. Load the row (<c>LoadById</c>, <c>LoadList</c>, a merge) and change
-        /// its value.
-        /// </para>
-        /// </summary>
-        public bool SetKeepsUnnamedMembers { get; set; }
+        /// <remarks>
+        /// <see cref="TikListSetBehaviour.KeepsUnnamedHalf"/> (<c>tcp-flags</c>): an update that would leave a half on the
+        /// router is refused before sending, except over <see cref="TikConnectionCapability.StructuredWrites"/>.
+        /// <see cref="TikListSetBehaviour.KeepsUnnamedMembers"/> (a user group's <c>policy</c>): an update sends the members
+        /// it leaves out as denied, and is refused on a row that was never loaded. Either needs list items of
+        /// <see cref="TikNegatableValue{T}"/>; any other declaration is refused when the entity is first used. The enum's
+        /// members document each behaviour in full.
+        /// </remarks>
+        public TikListSetBehaviour SetBehaviour { get; set; }
 
         /// <summary>
         /// Marks a list (a <see cref="TikValueList{T}"/>) that RouterOS keeps as a set: it prints the members sorted in an

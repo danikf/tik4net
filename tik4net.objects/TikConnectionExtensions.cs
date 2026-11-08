@@ -738,7 +738,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Refuses a text <c>set</c> of a <see cref="TikPropertyAttribute.SetKeepsUnnamedHalf"/> list that RouterOS would
+        /// Refuses a text <c>set</c> of a <see cref="TikListSetBehaviour.KeepsUnnamedHalf"/> list that RouterOS would
         /// merge: the loaded value has members of a kind (plain, negated) the new value has none of, and the router keeps
         /// the half a text <c>set</c> does not name. Without a loaded value there is nothing to compare, and the set goes.
         /// </summary>
@@ -761,7 +761,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// The value a text <c>set</c> of a <see cref="TikPropertyAttribute.SetKeepsUnnamedMembers"/> list sends: the new
+        /// The value a text <c>set</c> of a <see cref="TikListSetBehaviour.KeepsUnnamedMembers"/> list sends: the new
         /// value, then every member the loaded value had and the new one does not name, denied — so the router, which keeps
         /// the members a <c>set</c> leaves out, ends up holding exactly the new value. Sent on every transport: a value
         /// naming every member is exact whichever way it is written. Refused without a loaded value, which is the only
@@ -828,9 +828,9 @@ namespace tik4net.Objects
                     // strength of silence.
                     if (value != null)
                     {
-                        if (property.SetKeepsUnnamedHalf && !connection.Supports(TikConnectionCapability.StructuredWrites))
+                        if (property.SetBehaviour == TikListSetBehaviour.KeepsUnnamedHalf && !connection.Supports(TikConnectionCapability.StructuredWrites))
                             EnsureTheSetIsExact(connection, entity, property, value);
-                        if (property.SetKeepsUnnamedMembers)
+                        if (property.SetBehaviour == TikListSetBehaviour.KeepsUnnamedMembers)
                             value = CompleteTheSet(connection, entity, property, value);
                         setCmd.AddParameter(property.WriteName(entity!), value); //full update (all values)
                     }

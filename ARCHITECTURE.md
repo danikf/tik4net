@@ -610,8 +610,11 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
    `topics`) has `TikNegatableValue<T>` items — `TikValueList<TikNegatableValue<FirewallTcpFlag>>` — and a whole-list
    `!` is a `TikNegatableField<…>` (rule 10). A plain list's `!` is part of an item, so `TikWireConverter` reads and
    writes a member's `!` only for a `TikNegatableValue<T>`, and the whole-list spelling (`!,syn` against `!22`) follows
-   the item type too. `SetKeepsUnnamedHalf` marks a member-negated list on which a text `set` replaces only the half
-   it names (`tcp-flags`). The router's behaviour is in
+   the item type too. Where a text `set` does not leave the list exactly as sent, `[TikProperty(SetBehaviour = …)]`
+   says what it keeps — one `TikListSetBehaviour`, so a field has exactly one: `Exact` (the default),
+   `KeepsUnnamedHalf` (a `set` replaces only the half it names: `tcp-flags`; a write that would keep a half is refused
+   on a text transport) or `KeepsUnnamedMembers` (a `set` keeps every member it does not name: `UserGroup.Policy`; an
+   update sends the left-out members denied). Both need `TikNegatableValue<T>` items. The router's behaviour is in
    [Docs/findings-value-lists.md](Docs/findings-value-lists.md); the catalog's VALUES section
    (`EntityJgCatalogProbe`) lists every multi-value or negatable field with its UI type.
 9. **A menu or field not in every lab release carries the measured bound** — `MinRouterOs` / `MaxRouterOs` on
