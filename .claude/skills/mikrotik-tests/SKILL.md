@@ -159,6 +159,20 @@ that `parse-trx.ps1` and this document use, and an existing one (and its `.log`)
 to see whether its failure reproduces: the file recording the failure is the evidence, and the re-run is
 what would otherwise overwrite it. `-ResultsDirectory` keeps a whole investigation separate.
 
+**A detached run is not running until a test is.** A matrix that must outlive the session is started as its own
+process (`Invoke-CimMethod Win32_Process -MethodName Create`), and such a process can die on its first line with
+nobody watching: its console redirect leaves an empty log and no exit code, which looks exactly like a run still in
+progress. Put the command in a `.ps1` and start it with `-File` (an inline `-Command` adds a quoting layer), have it
+write a `started` marker, its console log and an exit-code file, and **within two minutes check that `testhost` is
+alive and the results folder has a `Deploy_*` directory** before waiting on it. An exit file that appears at once is a
+launch failure, not a result.
+
+**A release train runs its own, older runner.** On a `<major>.<minor>` branch, run the suite from that branch's
+worktree with the runner it carries, never master's: the tests are the train's. The 4.0 runner is sequential (no
+`-Router`, `-MaxParallel`, `-Pairs`, no independent leg, no secondary routers: about two hours for all eleven
+transports) and, before 2026-11-08, rejected an absolute `-ResultsDirectory` with *"The given path's format is not
+supported"* before any test ran; pass a path relative to the repository, which works on every version.
+
 **How much to run for a given change** — a full API pass plus the smoke subset over the other
 transports is the right default for any non-trivial change. Reserve the full matrix for changes to a
 specific transport (`Crypto/`, `WinboxNative*/`, `MacTelnet/`, `ApiConnection` reader/tag multiplexing,

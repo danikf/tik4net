@@ -71,7 +71,9 @@ dotnet test tik4net.unittests/tik4net.unittests.csproj --configuration Release
 Then the integration suite per the `mikrotik-tests` skill — **on the latest stable RouterOS, so check 1.7
 first**: a matrix run before an upgrade measured the wrong version. A full pass on the binary API, plus the smoke
 subset on the other transports. For a release, run the **full 11-transport matrix** — this is one of the
-two occasions that justifies it.
+two occasions that justifies it. A patch on a release train runs it from that train's worktree with the train's own
+runner, which is older and sequential; the `mikrotik-tests` skill says how to launch it detached and how to confirm it
+actually started (a launch that dies on its first line leaves an empty log that looks like a run in progress).
 
 Packaging is validated by CI (`.github/workflows/build.yml` packs all three and asserts both TFMs exist),
 but before a tag also unzip the `.nupkg` and check by eye:
@@ -81,6 +83,15 @@ but before a tag also unzip the `.nupkg` and check by eye:
 * `.nuspec` `<dependencies>` names no internal id. `tik4net.core.internal` appearing there means a
   `ProjectReference` lost its `PrivateAssets="all"`, and the package will fail to restore for everyone.
 * `LICENSE` and `README.md` are inside.
+
+**Publishing** is the tag: `.github/workflows/publish-nuget.yml` packs, pushes to nuget.org and GitHub Packages and
+creates the GitHub Release. It authenticates by **nuget.org trusted publishing** (a policy owned by the nuget.org
+user `danikf` trusting this workflow file; the job trades its OIDC token for a one-hour key just before the push), so
+there is no API key to renew. Every release-train branch carries its own copy of the workflow and needs the same
+`permissions` and `NuGet/login` steps. When a publish fails **before any package reached nuget.org** and no GitHub
+Release exists, fix the workflow and **move the tag** to the fixed commit (`git tag -d`, `git push origin
+:refs/tags/<tag>`, tag again, push): `gh run rerun` replays the workflow file of the tag's old commit, failure
+included. Once a package is on nuget.org the version is spent — it cannot be deleted, only unlisted.
 
 ## 1.2 Version markers
 
