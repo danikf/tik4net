@@ -18,6 +18,11 @@ on:
 jobs:
   publish:
     runs-on: windows-latest
+    # Listing permissions drops every one not listed, so the GitHub Packages push and the release need theirs here too.
+    permissions:
+      id-token: write   # trusted publishing to nuget.org
+      contents: write   # Create GitHub Release
+      packages: write   # Push to GitHub Packages
 
     steps:
       - name: Checkout
@@ -85,10 +90,20 @@ jobs:
         shell: pwsh
         run: Get-ChildItem Build\*.nupkg | Select-Object Name, Length
 
+      # Trusted publishing: nuget.org trusts this workflow file of danikf/tik4net (policy owned by the
+      # nuget.org user danikf) and trades the job's OIDC token for an API key valid one hour, so the
+      # login sits right before the push and no long-lived key is stored in the repository.
+      - name: NuGet login (OIDC -> temporary API key)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: danikf
+
       - name: Push to NuGet.org
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: >
           dotnet nuget push "Build\*.nupkg"
           --api-key $env:NUGET_API_KEY
