@@ -151,6 +151,10 @@ CA1308 128, the rest single digits. CA1307 is dominated by intent-clarity on ASC
 edits days before a tag are a worse risk than the bug they chase. Treat the analyzer as a **periodic review**
 that produces candidates for the test matrix, not as a release gate.
 
+**CA1502 is a gate too**, also from `shipping.globalconfig`: no shipping method above cyclomatic complexity 40
+(`CodeMetricsConfig.txt`). The suppressions are the flat dispatch tables, each at its method with a justification;
+review any new `CA1502` suppression since the last tag as you would a new public type.
+
 ## 1.4 Documentation samples compile
 
 ```bash

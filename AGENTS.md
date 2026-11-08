@@ -44,6 +44,9 @@ on a nonexistent ID.
 
 **Warnings are errors in CI**, with no exclusions. The solution is warning-clean and must stay that way.
 CI (`.github/workflows/build.yml`) builds on Windows and Linux, runs the unit tests, and validates `dotnet pack`.
+That includes **CA1502 at cyclomatic complexity 40** in the shipping projects (`shipping.globalconfig`, threshold in
+`CodeMetricsConfig.txt`): split a method that crosses it into named stages, and suppress only a flat dispatch table,
+at the method, with the reason.
 
 **Nullable reference types are on** (`<Nullable>enable</Nullable>`, `<LangVersion>latest</LangVersion>`)
 in all four shipping projects — `tik4net`, `tik4net.objects`, `tik4net.ssh`, `tik4net.testing`. Every
