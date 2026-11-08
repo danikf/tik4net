@@ -39,8 +39,9 @@ namespace tik4net.Objects.Ip.Dns
         public TikField<string?> Ttl { get; private set; }
 
         /// <summary>
-        /// clears internal DNS cache 
+        /// clears internal DNS cache
         /// </summary>
+        [Obsolete("Use connection.FlushDnsCache().", false)]
         public static void Flush(ITikConnection connection)
         {
             DnsCacheConnectionExtensions.FlushDnsCache(connection);

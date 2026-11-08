@@ -12,19 +12,19 @@ namespace tik4net.Objects
     public class Log
     {
         /// <summary>
-        /// Row .id property.
+        /// The row's <c>.id</c>, which identifies the log line.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
         public string? Id { get; private set; }
 
         /// <summary>
-        /// Row message property.
+        /// The text of the log line.
         /// </summary>
         [TikProperty("message", IsReadOnly = true, WinboxLabel = "Message")]
         public TikField<string?> Message { get; private set; }
 
         /// <summary>
-        /// Row time property. RouterOS 7.x prints the full date and time. RouterOS 6.x prints only the time for
+        /// When the line was logged. RouterOS 7.x prints the full date and time. RouterOS 6.x prints only the time for
         /// today's entries (<c>18:51:48</c>) and leaves out the year for older ones; a value without a date
         /// reads <see cref="TikFieldState.Unparsed"/>, the router's text kept in <see cref="TikField{T}.RawValue"/>.
         /// No time zone is applied (<see cref="DateTimeKind.Unspecified"/>).
@@ -33,7 +33,7 @@ namespace tik4net.Objects
         public TikField<DateTime?> Time { get; private set; }
 
         /// <summary>
-        /// Row topics property.
+        /// The topics the line was logged under (<c>system</c>, <c>info</c>, …).
         /// </summary>
         [TikProperty("topics", IsReadOnly = true, WinboxLabel = "Topics")]
         public TikField<TikValueList<string>?> Topics { get; private set; }
@@ -43,6 +43,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Writes debug message into mikrotik log.
         /// </summary>
+        [Obsolete("Use connection.LogDebug(message).", false)]
         public static void Debug(ITikConnection connection, string message)
         {
             LogConnectionExtensions.LogDebug(connection, message);
@@ -51,6 +52,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Writes info message into mikrotik log.
         /// </summary>
+        [Obsolete("Use connection.LogInfo(message).", false)]
         public static void Info(ITikConnection connection, string message)
         {
             LogConnectionExtensions.LogInfo(connection, message);
@@ -59,6 +61,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Writes warning message into mikrotik log.
         /// </summary>
+        [Obsolete("Use connection.LogWarning(message).", false)]
         public static void Warning(ITikConnection connection, string message)
         {
             LogConnectionExtensions.LogWarning(connection, message);
@@ -67,6 +70,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Writes error message into mikrotik log.
         /// </summary>
+        [Obsolete("Use connection.LogError(message).", false)]
         public static void WriteErrorMessage(ITikConnection connection, string message)
         {
             LogConnectionExtensions.LogError(connection, message);
@@ -84,7 +88,7 @@ namespace tik4net.Objects
     /// </para>
     /// <para>
     /// The two <b>native WinBox</b> transports (<see cref="TikConnectionType.WinboxNative"/> and
-    /// <see cref="TikConnectionType.WinboxNativeMac"/>) throw <see cref="T:System.NotSupportedException"/>:
+    /// <see cref="TikConnectionType.WinboxNativeMac"/>) throw <see cref="NotSupportedException"/>:
     /// that protocol can only invoke actions the router's own WinBox catalog declares, and it declares no
     /// log-writing action anywhere — WinBox itself cannot write a log line. Use any other transport.
     /// </para>

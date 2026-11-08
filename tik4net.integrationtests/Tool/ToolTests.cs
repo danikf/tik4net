@@ -23,14 +23,14 @@ namespace tik4net.integrationtests
         /// ten of eleven transports, and the whole synchronous monitor path had no coverage at all. What that
         /// hid: the CLI family sent <c>:put [/ping as-value]</c> with every parameter dropped, REST
         /// posted <c>/ping/print</c> ("no such command"), and native WinBox ran a getall on a monitor window
-        /// and returned zero rows while reporting success. <c>ToolPing.Execute</c> never needed
+        /// and returned zero rows while reporting success. <c>Ping</c> never needed
         /// <c>Streaming</c>: it does not stream, it asks for a bounded count and waits.
         /// </remarks>
         [TestMethod]
         public void PingLocalhostWillNotFail()
         {
             const string HOST = "127.0.0.1";
-            var result = ToolPing.Execute(Connection, HOST, 4);
+            var result = Connection.Ping(HOST, 4);
             Assert.IsTrue(result.Count() == 4);
         }
 
@@ -42,7 +42,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void PingLocalhostTimesAreDurations()
         {
-            var rows = ToolPing.Execute(Connection, "127.0.0.1", 2).ToList();
+            var rows = Connection.Ping("127.0.0.1", 2).ToList();
             Assert.AreEqual(2, rows.Count);
             foreach (var row in rows)
             {
@@ -425,7 +425,7 @@ namespace tik4net.integrationtests
         {
             const string IP = "127.0.0.1";
 
-            var result = ToolTraceroute.Execute(Connection, IP);
+            var result = Connection.Traceroute(IP);
             Assert.IsTrue(result.Count() > 0);
             // The hop ADDRESS, not just the row count: over WinBox native the hop rode in a nested field the
             // M2 parser could not read, so the rows arrived complete but with a blank address.

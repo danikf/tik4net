@@ -3,7 +3,7 @@ name: entity-generator
 description: >
   Generate a tik4net.objects O/R-mapper entity (C# class) for a MikroTik object/path — decorated with
   [TikEntity]/[TikProperty], correctly typed, R/O vs R/W resolved, documented (including WinBox-native
-  GUI names), with Execute/connection-extension methods and a ToString override where appropriate. Use
+  GUI names), with connection-extension verb methods and a ToString override where appropriate. Use
   whenever the user wants to add/create/scaffold an entity for a `/some/api/path`, port a MikroTik menu
   into tik4net.objects, or update an existing entity from the wiki or a live router. This is the
   maintained replacement for the two WinForms generators deleted in 4.0 — it reads the router over every
@@ -314,20 +314,21 @@ with no measurement behind it, and on a measurement no bound says. The entity's 
   GUI labels fold to API names by replacing space/underscore with `-` and dropping abbreviation dots
   (`WinboxFieldResolver`), so only call out labels that genuinely differ beyond that folding.
 
-## Step 7 — Execute / connection-extension methods
+## Step 7 — connection-extension methods (domain verbs)
 
 Add these **in the same file** as the entity (after the class, in the same namespace), following
 `ToolPingConnectionExtensions`:
 
 - For **action/tool entities** (ping, monitor, torch, etc.) that aren't a plain CRUD list, add a
   `static class <Entity>ConnectionExtensions` with a discoverable verb method (`Ping`, `Monitor`, …) that
-  builds the `NameValue` parameters and calls `LoadList<T>`/`LoadAll<T>`. Optionally add a
-  `static Execute(ITikConnection, …)` on the entity that delegates to the extension (see `ToolPing.Execute`).
+  builds the `NameValue` parameters and calls `LoadList<T>`/`LoadAll<T>`. The entity class itself carries no
+  verbs, static or instance (ARCHITECTURE *Adding an entity* rule 12): a verb on one row is
+  `connection.<Verb>(entity)`, a verb on the menu `connection.<Verb><Noun>()`.
 - For **ordinary CRUD entities**, you usually need **no** extra methods — `LoadAll<T>/Save<T>/Delete<T>`
   already work. Only add a helper when there's a natural typed query (e.g. `LoadByName`, a filtered list)
   or a domain action the menu exposes.
 - Decide from the wiki/menu: if the path documents an **action** (parameters in, rows out, nothing
-  persisted), it wants an Execute/extension method; if it's a **table**, it doesn't.
+  persisted), it wants a connection-extension verb; if it's a **table**, it doesn't.
 
 ```csharp
 public static class FooConnectionExtensions
@@ -429,7 +430,7 @@ namespace tik4net.Objects.<Domain>
 - Conventions: wiki `High-level-API-custom-entities`, `High-level-API-tools`.
 - Attributes: `tik4net.objects/TikEntityAttribute.cs`, `TikPropertyAttribute.cs`, `TikEnumAttribute.cs`.
 - Good entity exemplars: `Interface/InterfaceVlan.cs` (enums, R/O, defaults),
-  `Ip/Firewall/FirewallFilter.cs` (ordered, big enum), `Tool/ToolPing.cs` (action entity + Execute +
+  `Ip/Firewall/FirewallFilter.cs` (ordered, big enum), `Tool/ToolPing.cs` (action entity + verb
   extension + ToString), `Log.cs` (read-only singleton-ish).
 - MCP/router access: `mikrotik` skill (`mikrotik_call`) and `mikrotik_cli_complete` (Tab-completion /
   field+menu enumeration, backed by `tik4net/Cli/ITikCliCompletion.cs`); WinBox names: `mikrotik` skill

@@ -91,8 +91,8 @@ namespace tik4net.integrationtests
             string target = "192.0.2." + random.Next(2, 126).ToString(CultureInfo.InvariantCulture);
             string control = "192.0.2." + random.Next(128, 250).ToString(CultureInfo.InvariantCulture);
 
-            ToolPing.Execute(Connection, target, 2);
-            ToolPing.Execute(Connection, control, 2);
+            Connection.Ping(target, 2);
+            Connection.Ping(control, 2);
 
             var victim = TrackedConnectionTo(target);
             if (victim == null || TrackedConnectionTo(control) == null)

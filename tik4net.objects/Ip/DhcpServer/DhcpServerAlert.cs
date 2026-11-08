@@ -53,13 +53,31 @@ namespace tik4net.Objects.Ip.DhcpServer
         public TikField<string?> UnknownServer { get; private set; }
 
         /// <summary>
-        /// Convert a dynamic lease to a static one
+        /// Clears the alert, so the unknown servers it detected are forgotten.
         /// </summary>
+        [Obsolete("Use connection.ResetAlert(alert).", false)]
         public void ResetAlert(ITikConnection connection)
         {
-            // Id: IsMandatory=true, so a loaded entity always carries it.
+            DhcpServerAlertConnectionExtensions.ResetAlert(connection, this);
+        }
+    }
+
+    /// <summary>
+    /// Connection extension class for <see cref="DhcpServerAlert"/>
+    /// </summary>
+    public static class DhcpServerAlertConnectionExtensions
+    {
+        /// <summary>
+        /// Clears the alert, so the unknown servers it detected are forgotten (<c>/ip/dhcp-server/alert/reset-alert</c>).
+        /// </summary>
+        /// <param name="connection">Connection to the router.</param>
+        /// <param name="alert">A loaded row; its <c>.id</c> addresses the command.</param>
+        public static void ResetAlert(this ITikConnection connection, DhcpServerAlert alert)
+        {
+            Guard.ArgumentNotNull(alert, nameof(alert));
+            // Id: IsMandatory=true, so a loaded row always carries it.
             connection.CreateCommandAndParameters("ip/dhcp-server/alert/reset-alert",
-                TikSpecialProperties.Id, Id!).ExecuteNonQuery();
+                TikSpecialProperties.Id, alert.Id!).ExecuteNonQuery();
         }
     }
 }

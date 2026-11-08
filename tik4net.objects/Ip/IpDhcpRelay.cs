@@ -82,12 +82,29 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Reset counters
         /// </summary>
+        [Obsolete("Use connection.ResetCounters(relay).", false)]
         public void ResetCounters(ITikConnection connection)
         {
-            // Id: IsMandatory=true, so a loaded entity always carries it.
-            connection.CreateCommandAndParameters("ip/dhcp-relay/reset-counters",
-                TikSpecialProperties.Id, Id!).ExecuteNonQuery();
+            IpDhcpRelayConnectionExtensions.ResetCounters(connection, this);
         }
     }
 
+    /// <summary>
+    /// Connection extension class for <see cref="IpDhcpRelay"/>
+    /// </summary>
+    public static class IpDhcpRelayConnectionExtensions
+    {
+        /// <summary>
+        /// Resets the relay's counters (<c>/ip/dhcp-relay/reset-counters</c>).
+        /// </summary>
+        /// <param name="connection">Connection to the router.</param>
+        /// <param name="relay">A loaded row; its <c>.id</c> addresses the command.</param>
+        public static void ResetCounters(this ITikConnection connection, IpDhcpRelay relay)
+        {
+            Guard.ArgumentNotNull(relay, nameof(relay));
+            // Id: IsMandatory=true, so a loaded row always carries it.
+            connection.CreateCommandAndParameters("ip/dhcp-relay/reset-counters",
+                TikSpecialProperties.Id, relay.Id!).ExecuteNonQuery();
+        }
+    }
 }

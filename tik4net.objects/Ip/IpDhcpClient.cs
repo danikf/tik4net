@@ -171,21 +171,51 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Release current binding and restart DHCP client
         /// </summary>
+        [Obsolete("Use connection.Release(client).", false)]
         public void Release(ITikConnection connection)
         {
-            // Id: IsMandatory=true, so a loaded entity always carries it.
-            connection.CreateCommandAndParameters("ip/dhcp-client/release",
-                TikSpecialProperties.Id, Id!).ExecuteNonQuery();
+            IpDhcpClientConnectionExtensions.Release(connection, this);
         }
 
         /// <summary>
         /// Renew current leases. If the renew operation was not successful, client tries to reinitialize lease (i.e. it starts lease request procedure (rebind) as if it had not received an IP address yet)
         /// </summary>
+        [Obsolete("Use connection.Renew(client).", false)]
         public void Renew(ITikConnection connection)
         {
-            // Id: IsMandatory=true, so a loaded entity always carries it.
+            IpDhcpClientConnectionExtensions.Renew(connection, this);
+        }
+    }
+
+    /// <summary>
+    /// Connection extension class for <see cref="IpDhcpClient"/>
+    /// </summary>
+    public static class IpDhcpClientConnectionExtensions
+    {
+        /// <summary>
+        /// Release current binding and restart DHCP client
+        /// </summary>
+        /// <param name="connection">Connection to the router.</param>
+        /// <param name="client">A loaded row; its <c>.id</c> addresses the command.</param>
+        public static void Release(this ITikConnection connection, IpDhcpClient client)
+        {
+            Guard.ArgumentNotNull(client, nameof(client));
+            // Id: IsMandatory=true, so a loaded row always carries it.
+            connection.CreateCommandAndParameters("ip/dhcp-client/release",
+                TikSpecialProperties.Id, client.Id!).ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Renew current leases. If the renew operation was not successful, client tries to reinitialize lease (i.e. it starts lease request procedure (rebind) as if it had not received an IP address yet)
+        /// </summary>
+        /// <param name="connection">Connection to the router.</param>
+        /// <param name="client">A loaded row; its <c>.id</c> addresses the command.</param>
+        public static void Renew(this ITikConnection connection, IpDhcpClient client)
+        {
+            Guard.ArgumentNotNull(client, nameof(client));
+            // Id: IsMandatory=true, so a loaded row always carries it.
             connection.CreateCommandAndParameters("ip/dhcp-client/renew",
-                TikSpecialProperties.Id, Id!).ExecuteNonQuery();
+                TikSpecialProperties.Id, client.Id!).ExecuteNonQuery();
         }
     }
 }

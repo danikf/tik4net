@@ -630,6 +630,16 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
 11. **A compile-error shim (`[Obsolete(…, true)]`) stays through the next major after the one that added it**, then
     goes: one added in 4.x is removed in 6.0. An entity `[Obsolete]` as a warning because it exists only on
     RouterOS 6 (`MaxRouterOs = "6"`) is not a shim; it goes when tik4net drops RouterOS 6.
+12. **A domain verb is an extension on `ITikConnection`, spelled like CRUD** (`connection.Save(entity)`,
+    `connection.Delete(entity)`, `connection.Move(…)`). A verb on one row takes the row:
+    `connection.<Verb>(entity)` — `connection.Enable(package)`, `connection.Renew(client)`. A verb on a menu names
+    the menu: `connection.<Verb><Noun>()` — `connection.FlushDnsCache()`, `connection.Ping(address, count)`. Both
+    live in `<Entity>ConnectionExtensions` beside the entity (`EntityCatalogTests` holds the name, so the verbs reach
+    the catalog). The entity class carries no verbs, static or instance; the 3.x-era ones on `Log`, `DnsCache`,
+    `ToolPing`, `ToolTraceroute`, `IpDhcpClient`, `DhcpServerLease`, `DhcpServerAlert` and `IpDhcpRelay` are
+    `[Obsolete(…, false)]` forwarders naming the extension, and `DomainVerbConventionTests` refuses a new one. A verb
+    that waits for the router's answer has a `…Async` twin returning `Task<…>` with a `CancellationToken`
+    (`PingAsync`); a fire-and-forget verb does not.
 
 Most of these conventions are **enforced in CI**, not just documented — they run over every `[TikEntity]` on
 every push, so a new entity that breaks one fails the build rather than the first person to load that menu:

@@ -187,21 +187,51 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// <summary>
         /// Check status of a given busy dynamic lease, and free it in case of no response
         /// </summary>
+        [Obsolete("Use connection.CheckStatus(lease).", false)]
         public void CheckStatus(ITikConnection connection)
         {
-            // Id: IsMandatory=true, so a loaded lease always carries it.
-            connection.CreateCommandAndParameters("ip/dhcp-server/lease/check-status",
-                TikSpecialProperties.Id, Id!).ExecuteNonQuery();
+            DhcpServerLeaseConnectionExtensions.CheckStatus(connection, this);
         }
 
         /// <summary>
         /// Convert a dynamic lease to a static one
         /// </summary>
+        [Obsolete("Use connection.MakeStatic(lease).", false)]
         public void MakeStatic(ITikConnection connection)
         {
-            // Id: IsMandatory=true, so a loaded lease always carries it.
+            DhcpServerLeaseConnectionExtensions.MakeStatic(connection, this);
+        }
+    }
+
+    /// <summary>
+    /// Connection extension class for <see cref="DhcpServerLease"/>
+    /// </summary>
+    public static class DhcpServerLeaseConnectionExtensions
+    {
+        /// <summary>
+        /// Check status of a given busy dynamic lease, and free it in case of no response
+        /// </summary>
+        /// <param name="connection">Connection to the router.</param>
+        /// <param name="lease">A loaded row; its <c>.id</c> addresses the command.</param>
+        public static void CheckStatus(this ITikConnection connection, DhcpServerLease lease)
+        {
+            Guard.ArgumentNotNull(lease, nameof(lease));
+            // Id: IsMandatory=true, so a loaded row always carries it.
+            connection.CreateCommandAndParameters("ip/dhcp-server/lease/check-status",
+                TikSpecialProperties.Id, lease.Id!).ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Convert a dynamic lease to a static one
+        /// </summary>
+        /// <param name="connection">Connection to the router.</param>
+        /// <param name="lease">A loaded row; its <c>.id</c> addresses the command.</param>
+        public static void MakeStatic(this ITikConnection connection, DhcpServerLease lease)
+        {
+            Guard.ArgumentNotNull(lease, nameof(lease));
+            // Id: IsMandatory=true, so a loaded row always carries it.
             connection.CreateCommandAndParameters("ip/dhcp-server/lease/make-static",
-                TikSpecialProperties.Id, Id!).ExecuteNonQuery();
+                TikSpecialProperties.Id, lease.Id!).ExecuteNonQuery();
         }
     }
 }

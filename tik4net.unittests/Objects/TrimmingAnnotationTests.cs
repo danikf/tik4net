@@ -66,7 +66,7 @@ namespace tik4net.unittests.Objects
             Assert.IsFalse(ProducesEntities(typeof(void)));
             Assert.IsFalse(ProducesEntities(typeof(string)));
 
-            var ping = typeof(ToolPing).GetMethod(nameof(ToolPing.Execute))!;
+            var ping = typeof(ToolPingConnectionExtensions).GetMethod(nameof(ToolPingConnectionExtensions.Ping))!;
             Assert.IsTrue(ProducesEntities(ping.ReturnType));
             Assert.IsTrue(IsCovered(ping));
             Assert.IsTrue(PublicMethods().Count(m => m.IsGenericMethodDefinition) > 20,

@@ -64,8 +64,9 @@ namespace tik4net.Objects.Tool
         public TikField<string?> Worst { get; private set; }
 
         /// <summary>
-        /// Traceroutes given <see paramref="address"/>.
+        /// Traceroutes given <paramref name="address"/>.
         /// </summary>
+        [Obsolete("Use connection.Traceroute(address).", false)]
         [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
         [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
         public static IEnumerable<ToolTraceroute> Execute(ITikConnection connection, string address)
@@ -82,7 +83,7 @@ namespace tik4net.Objects.Tool
     public static class ToolTracerouteConnectionExtensions
     {
         /// <summary>
-        /// Traceroutes given <see paramref="address"/>.
+        /// Traceroutes given <paramref name="address"/>.
         /// </summary>
         public static IEnumerable<ToolTraceroute> Traceroute(this ITikConnection connection, string address)
         {

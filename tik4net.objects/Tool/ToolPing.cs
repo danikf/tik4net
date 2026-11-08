@@ -111,8 +111,9 @@ namespace tik4net.Objects.Tool
         }
 
         /// <summary>
-        /// Pings given <see paramref="address"/>. Returns <paramref name="cnt"/> of ping results to the <paramref name="address"/>.
+        /// Pings given <paramref name="address"/>. Returns <paramref name="cnt"/> of ping results to the <paramref name="address"/>.
         /// </summary>
+        [Obsolete("Use connection.Ping(address, cnt).", false)]
         [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
         [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
         public static IEnumerable<ToolPing> Execute(ITikConnection connection, string address, int cnt)
@@ -129,7 +130,7 @@ namespace tik4net.Objects.Tool
     public static class ToolPingConnectionExtensions
     {
         /// <summary>
-        /// Pings given <see paramref="address"/>. Returns <paramref name="cnt"/> of ping results to the <paramref name="address"/>.
+        /// Pings given <paramref name="address"/>. Returns <paramref name="cnt"/> of ping results to the <paramref name="address"/>.
         /// </summary>
         public static IEnumerable<ToolPing> Ping(this ITikConnection connection, string address, int cnt)
         {

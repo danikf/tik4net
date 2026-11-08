@@ -101,12 +101,12 @@ Namespace `tik4net.Objects.Ip`.
 | `/ip/address` | `IpAddress` |  |
 | `/ip/arp` | `IpArp` |  |
 | `/ip/cloud` | `IpCloud` | ¹ |
-| `/ip/dhcp-client` | `IpDhcpClient` |  |
-| `/ip/dhcp-relay` | `IpDhcpRelay` |  |
+| `/ip/dhcp-client` | `IpDhcpClient` | ⁶ |
+| `/ip/dhcp-relay` | `IpDhcpRelay` | ⁶ |
 | `/ip/dhcp-server` | `IpDhcpServer` |  |
-| `/ip/dhcp-server/alert` | `DhcpServerAlert` |  |
+| `/ip/dhcp-server/alert` | `DhcpServerAlert` | ⁶ |
 | `/ip/dhcp-server/config` | `DhcpServerConfig` | ¹ |
-| `/ip/dhcp-server/lease` | `DhcpServerLease` |  |
+| `/ip/dhcp-server/lease` | `DhcpServerLease` | ⁶ |
 | `/ip/dhcp-server/network` | `DhcpServerNetwork` |  |
 | `/ip/dhcp-server/option` | `DhcpServerOption` |  |
 | `/ip/dns` | `IpDns` | ¹ |

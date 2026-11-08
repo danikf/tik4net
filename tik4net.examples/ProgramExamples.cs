@@ -386,7 +386,7 @@ namespace tik4net.examples
 
         private static void DhcpClientRelease(ITikConnection connection)
         {
-            connection.LoadAll<IpDhcpClient>().First().Release(connection);
+            connection.Release(connection.LoadAll<IpDhcpClient>().First());
         }
 
         private static void DnsCachePrint(ITikConnection connection)
