@@ -34,19 +34,8 @@ namespace tik4net.Winbox
                 return;   // the negation flag of its group's value (InvertSibling), not a field
             if (node is Dictionary<string, object> dict)
             {
-                JgOwner? owner = handlerKey;
-                int[]? handlerInts = null;
-                if (dict.TryGetValue("path", out var pv) && pv is List<object> pathList && pathList.Count > 0)
-                {
-                    var ints = new List<int>();
-                    bool ok = true;
-                    foreach (var p in pathList)
-                    {
-                        if (p is int pi) ints.Add(pi);
-                        else { ok = false; break; }
-                    }
-                    if (ok) { handlerInts = ints.ToArray(); owner = JgOwner.Of(handlerInts); }
-                }
+                int[]? handlerInts = HandlerPathOf(dict);
+                JgOwner? owner = handlerInts != null ? JgOwner.Of(handlerInts) : handlerKey;
 
                 string nodeName = (dict.TryGetValue("name", out var nnv) && nnv is string nns && nns.Length > 0)
                     ? nns
@@ -55,307 +44,19 @@ namespace tik4net.Winbox
                     ? WinboxFieldResolver.NormalizeLabel(gs) : null;
                 string? ty = dict.TryGetValue("type", out var tyv) && tyv is string tys ? tys : null;
 
-                // Harvest derived menu-label path → handler for WINDOW nodes (map/query/item/doit/action
-                // with a handler path). Dropdown references (type:'enm',values:{type:'dynamic',path:…}) reuse
-                // the same handler but are NOT windows — skip them. The key is the full breadcrumb
-                // (ancestor menu chain + this node's group + name).
-                if (handlerInts != null && ty != null && WindowTypes.Contains(ty))
-                {
-                    string? apiPath = BuildPath(crumb, groupSeg, nodeName);
-                    if (apiPath != null && !_derivedPaths.ContainsKey(apiPath))
-                    {
-                        _derivedPaths[apiPath] = handlerInts;
-                        // Record what THIS window is, not what its handler is — see _singletonPaths.
-                        if (ty == "item" || ty == "map" || ty == "query")
-                            _singletonPaths[apiPath] = ty == "item";
-                        if (ty == "item")
-                        {
-                            int? getCmd = dict.TryGetValue("getcmd", out var gcv) && gcv is int gc ? gc : (int?)null;
-                            int? setCmd = dict.TryGetValue("setcmd", out var scv) && scv is int sc ? sc : (int?)null;
-                            if (getCmd != null || setCmd != null)
-                                _singletonCommands[apiPath] = Tuple.Create(getCmd, setCmd);
-                        }
-                    }
-                    // Attribute this window's fields to the window as well as to its handler, so a caller
-                    // addressing the window is answered by the window's own vocabulary. Windows sharing a
-                    // handler number their fields from scratch and collide — see GetWindowFields.
-                    if (apiPath != null)
-                    {
-                        var wk = JgOwner.Window(apiPath);
-                        // owner is non-null here: this block requires handlerInts != null, and owner is set
-                        // (unconditionally, non-null) to the handler's owner whenever handlerInts != null.
-                        _windowHandlerKey[wk] = owner!;
-                        _handlerBackedWindows.Add(wk);
-                        owner = wk;
-                    }
-                    // The row's display name, as the window declares it (see _nameValByHandler).
-                    if (dict.TryGetValue("nameval", out var nvv) && nvv is string nvs && nvs.Length > 0
-                        && !_nameValByHandler.ContainsKey(handlerInts))
-                        _nameValByHandler[handlerInts] = WinboxFieldResolver.NormalizeLabel(nvs);
-                    if (ty == "item") _singletonHandlers.Add(handlerInts);
-                    // Track record-listing vs action-only windows separately so a handler that has BOTH (e.g.
-                    // [20,125] = 'SMS Message' map + 'Send SMS' doit) is never mistaken for action-only.
-                    if (ty == "doit" || ty == "action") _actionWindowHandlers.Add(handlerInts);
-                    else _recordWindowHandlers.Add(handlerInts);
-                    if (dict.ContainsKey("autorefresh")) _dynamicHandlers.Add(handlerInts);
-                    int readFlags = (dict.TryGetValue("refreshfilter", out var rfv) && rfv is int rf ? rf : 0)
-                                  | (dict.TryGetValue("refetchonopen", out var rov) && rov is int ro ? ro : 0);
-                    if (readFlags != 0)
-                    {
-                        _readFlagsByHandler.TryGetValue(handlerInts, out int known);
-                        _readFlagsByHandler[handlerInts] = known | readFlags;
-                    }
-                    HarvestMonitor(handlerInts, ty, dict);
-
-                    // The base interface window (generic:'iface') anchors the subtype filtering: remember its
-                    // handler and the key of the `type` discriminator field (named by `typeon`, default 'type').
-                    if (dict.TryGetValue("generic", out var genv) && genv is string gen && gen.Length > 0)
-                    {
-                        string typeon = dict.TryGetValue("typeon", out var tov) && tov is string tos ? tos : "type";
-                        int tk = FindChildFieldKey(dict, typeon);
-                        if (gen == "iface")
-                        {
-                            _genericIfaceHandler = handlerInts;
-                            if (tk != 0) _ifaceTypeKey = tk;
-                        }
-                        // A base that carries BOTH a handler and a resolvable discriminator can filter its own
-                        // children; one that carries neither (the ppp/wlan mid-tree bases) is handled by the
-                        // interface-family chain below and must not overwrite an entry with a real key.
-                        if (tk != 0 && !_genericBases.ContainsKey(gen))
-                            _genericBases[gen] = Tuple.Create((WinboxHandler)handlerInts, tk);
-                    }
-                }
-
-                // A statusbar that reads a handler of its own shows that handler's fields inside ANOTHER window: the
-                // firewall connection list's {statusbar,path:[20,17],c:['Max Entries' ue]} is connection tracking's
-                // count. Filed under no window, the field was the handler's alone, and every window on [20,17] that
-                // does not declare ue itself decoded it — on 6.49.21, where the Tracking window lacks 'Max Entries',
-                // /ip/settings and /interface/bridge/settings read max-entries. A window key of its own (no API path
-                // can start with '#') makes it another window's field to them, as it is (GetOtherWindowKeys).
-                else if (handlerInts != null && ty == "statusbar")
-                {
-                    var wk = JgOwner.Window("#statusbar" + string.Join("/", crumb) + "@" + string.Join(",", handlerInts));
-                    _windowHandlerKey[wk] = owner!;
-                    _handlerBackedWindows.Add(wk);
-                    owner = wk;
-                }
-
-                // A window declaring `generic:'X'` is a BASE others extend with `inherit:'X'`. Remember what
-                // discriminator it hands its children (`typeon`, default 'type') and whether it belongs to the
-                // interface family, so a chain (iface → ppp → 'L2TP Client') resolves. Recorded outside the
-                // window block above because these bases often have no `path:` of their own.
-                if (dict.TryGetValue("generic", out var genv2) && genv2 is string genName && genName.Length > 0
-                    && !_generics.ContainsKey(genName))
-                {
-                    string typeonChild = dict.TryGetValue("typeon", out var tov2) && tov2 is string tos2 ? tos2 : "type";
-                    bool ifaceFamily = genName == "iface"
-                        || (dict.TryGetValue("inherit", out var ginh) && ginh is string ginhs
-                            && _generics.TryGetValue(ginhs, out var gbase) && gbase.Item2);
-                    _generics[genName] = Tuple.Create(typeonChild, ifaceFamily);
-                }
-
-                // Interface subtype window: inherit:'<base>' (reuse the generic interface handler, has no path:
-                // of its own) + typevalue:N (the discriminator value). Register a derived path → the generic
-                // handler, plus a subtype filter (typeKey, N). The leaf is the window TITLE — `name` is the
-                // generic 'Interface' shared by every subtype, so it cannot discriminate; the title carries the
-                // subtype ('Bridge', 'VLAN', 'L2TP Client', …).
-                //
-                // Two constraints keep this honest. The base must be in the interface family, so an unrelated
-                // inherit tree cannot be filtered against the interface `type` field. And the base must hand its
-                // children the 'type' discriminator: the wireless tree switches to `typeon:'hwtype'` below the
-                // 'Wireless' window, and those hardware variants (Atheros AR5212, …) are NOT addressable by an
-                // interface type filter — registering them would answer with a filter on the wrong field.
-                // A wildcard `typevalue:4294967295` (a base standing for "any of my subtypes") is not an int
-                // after parsing and is skipped here for the same reason: it is a set, not a value.
-                if (handlerInts == null && _genericIfaceHandler != null && _ifaceTypeKey != 0
-                    && dict.TryGetValue("inherit", out var inhv) && inhv is string inh
-                    && dict.TryGetValue("typevalue", out var tvv) && tvv is int tval
-                    && (inh == "iface"
-                        || (_generics.TryGetValue(inh, out var baseGen) && baseGen.Item2 && baseGen.Item1 == "type")))
-                {
-                    string title = dict.TryGetValue("title", out var ttv) && ttv is string tts && tts.Length > 0
-                        ? tts : nodeName;
-                    string? apiPath = BuildPath(crumb, groupSeg, title);
-                    if (apiPath != null)
-                    {
-                        if (!_derivedPaths.ContainsKey(apiPath))
-                        {
-                            _derivedPaths[apiPath] = _genericIfaceHandler.Value;
-                            _subtypeFilters[apiPath] = Tuple.Create(_ifaceTypeKey, tval);
-                            _singletonPaths[apiPath] = false;   // a subtype window is always a record list
-                        }
-                        // Attribute this window's fields to the WINDOW, not to the shared [20,0] handler.
-                        // The subtypes disagree about keys under identical labels — 'Remote Address' is
-                        // 0x7E1 on EoIP, 0x7E5 on GRE and 0x7E3 on IPIP, 'Local Address' is a u32 on EoIP
-                        // and an addr on VXLAN — so merging them into one per-handler map would hand every
-                        // subtype but the first-parsed one a wrong key: a write that lands on another field.
-                        // (Before this, these fields were attributed to the enclosing menu node, i.e. to no
-                        // handler at all, and were simply lost — every subtype `add` failed with "cannot
-                        // resolve API field 'remote-address'".)
-                        owner = JgOwner.Window(apiPath);
-                        // Known to read the generic interface handler, but deliberately NOT handler-backed:
-                        // see _handlerBackedWindows.
-                        _windowHandlerKey[owner] = JgOwner.Of(_genericIfaceHandler.Value);
-                    }
-                }
-
-                // The same registration for a NON-interface family whose base owns its handler and its
-                // discriminator (_genericBases). The interface branch above is left exactly as it is: its
-                // guards were written against a tree that is several levels deep and switches discriminator
-                // half-way down, and nothing here needs to disturb them.
-                //
-                // /ip/route is the case. WinBox has one routes table ([44,21], 'All Routes', typeon:'rtype')
-                // and two subtype windows over it — 'Routes' (typevalue 2, IPv4) and ipv6.jg's 'Routes6'
-                // (typevalue 3). Addressing the BASE returns both families: on the lab CHR a /ip/route read
-                // came back with six rows where the API returns two, the extras being ::1/128 and fe80::/64.
-                // roteros.jg is parsed first by design, so the base is registered before ipv6.jg inherits it.
-                if (handlerInts == null
-                    && dict.TryGetValue("inherit", out var ginhv) && ginhv is string ginh2
-                    && dict.TryGetValue("typevalue", out var gtvv) && gtvv is int gtval
-                    && !(ginh2 == "iface" || (_generics.TryGetValue(ginh2, out var gfam) && gfam.Item2))
-                    && _genericBases.TryGetValue(ginh2, out var gbase2))
-                {
-                    string gtitle = dict.TryGetValue("title", out var gttv) && gttv is string gtts && gtts.Length > 0
-                        ? gtts : nodeName;
-                    string? gApiPath = BuildPath(crumb, groupSeg, gtitle);
-                    if (gApiPath != null)
-                    {
-                        if (!_derivedPaths.ContainsKey(gApiPath))
-                        {
-                            _derivedPaths[gApiPath] = gbase2.Item1;
-                            _subtypeFilters[gApiPath] = Tuple.Create(gbase2.Item2, gtval);
-                            _singletonPaths[gApiPath] = false;   // a subtype window is always a record list
-                        }
-                        // Its fields belong to the WINDOW: the subtype declares the whole General/Status tab
-                        // the base only sketches (Distance, Scope, Target Scope, VRF Interface, Routing
-                        // Table, Immediate Gateway, Pref. Source), and the base's bare numeric 'active' is
-                        // the subtype's 'Contribution' enum.
-                        owner = JgOwner.Window(gApiPath);
-                        _windowHandlerKey[owner] = JgOwner.Of(gbase2.Item1);
-                    }
-                }
-
-                // A named opt/not wrapper (type:'opt'/'not' with children) holds its real value in an inner leaf;
-                // the wrapper's own id is just a flag bool (opt=present, not=negated). Map the API name to the
-                // inner value leaf, carrying the flag keys — e.g. firewall 'Connection State' (opt→not→set) maps
-                // to the inner bitmask, not the outer bool. (A childless opt is a plain bool — handled below.)
-                //
-                // A `group` that carries an ID is the same shape under another word: 97 of them in the 7.24
-                // catalog, every one a firewall or bridge-filter MATCH — 'MAC Protocol' is
-                // {group,id:'bcc',c:[{not,id:'bd',c:[{name:'MAC Protocol-Num',number,id:'u5',…}]}]}. Without
-                // this the group registered as a plain bool and took the name first, so `mac-protocol` meant
-                // the present FLAG: the read answered 'true' and a write of `arp` sent bool:False. A group
-                // with no id (64 more) is pure layout and its children are fields in their own right.
-                if (owner != null && ty == "cond" && !string.IsNullOrEmpty(nodeName))
-                {
-                    if (!_condNodes.TryGetValue(owner, out var ownConds))
-                        _condNodes[owner] = ownConds = new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal);
-                    if (!ownConds.ContainsKey(nodeName)) ownConds[nodeName] = dict;
-                }
+                RegisterWindow(dict, ty, handlerInts, crumb, groupSeg, nodeName, ref owner);
+                RegisterGenericBase(dict);
+                RegisterInterfaceSubtypeWindow(dict, handlerInts, crumb, groupSeg, nodeName, ref owner);
+                RegisterBaseSubtypeWindow(dict, handlerInts, crumb, groupSeg, nodeName, ref owner);
+                RegisterCond(owner, ty, nodeName, dict);
                 // Whatever the chain below registers for this node is governed by the node's `on:`.
                 _currentOn = owner != null && dict.TryGetValue("on", out var onv) && onv is string onName ? onName : null;
-                if (owner != null && (ty == "opt" || ty == "not" || (ty == "group" && dict.ContainsKey("id")))
-                    && dict.ContainsKey("c") && !string.IsNullOrEmpty(nodeName))
-                {
-                    AddOptionField(owner, nodeName, dict, pane);
-                }
-                // A named `union` holds one value that can be of several families, each child carrying its
-                // OWN key — IPsec 'Address' is {union, c:[network u1, network6 a17, string s2f]}. The union
-                // node itself has no id, and its children have no name, so without this the field is not in
-                // the catalog at all: every dual-stack address field (IPsec peer/policy/identity, graphing
-                // 'Allow Address', traffic-flow 'Src./Dst. Address', …) answered "cannot resolve API field".
-                // The first child is registered, i.e. the IPv4 family — an IPv6 value then fails to encode
-                // with the codec's own error rather than being sent on the wrong key.
-                else if (owner != null && ty == "union" && !dict.ContainsKey("id")
-                         && !string.IsNullOrEmpty(nodeName))
-                {
-                    AddUnionField(owner, nodeName, dict, pane);
-                }
-                // A named `tuple` is the same problem with a different answer: the label is on the node, the
-                // ids are on the children, and the API prints the children joined by the node's `sep`.
-                else if (owner != null && ty == "tuple" && !dict.ContainsKey("id")
-                         && !string.IsNullOrEmpty(nodeName))
-                {
-                    AddTupleField(owner, nodeName, dict, pane);
-                }
-                // A numflag names a SET of row flags on one numeric key and carries no name itself, so it is
-                // not a field — kept apart, and decoded into the flag the row's value names (see GetNumFlags).
-                else if (owner != null && ty == "numflag"
-                         && dict.TryGetValue("id", out var nfIdv) && nfIdv is string nfId)
-                {
-                    AddNumFlag(owner, nfId, dict);
-                }
-                else if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
-                {
-                    var dec = DecodeId(idStr);
-                    if (dec != null)
-                    {
-                        bool ro = dict.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
-                        int maskKey = (dict.TryGetValue("maskid", out var mkv) && mkv is string mks
-                            && DecodeId(mks) is var md && md != null) ? md.Value.key
-                            : DecodedKeyOf(dict, "portid") is var pk && pk != 0 ? pk : HighKeyOf(dict);
-                        WinboxHandler? refHandler = ExtractRefHandler(dict);
-                        bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
-                        // A LIST's allow-mask lives on the element, not on the list node: wireguard's
-                        // 'Allowed Address' is {multi,id:'M3f0',c:[{addr,allow:'46/'}]}, and reading only the
-                        // node left the encoder with the default mask — which has no '/', so every write
-                        // dropped the prefix length and 10.99.2.0/24 landed as /32.
-                        string? allow = (dict.TryGetValue("allow", out var alv) ? alv as string : null)
-                                        ?? ElementAllowOf(dict);
-                        // A list field carries its own present-flag on the node (`optid`) rather than in an
-                        // enclosing opt wrapper, and webfig writes it from the list's LENGTH
-                        // (types.multi.put: obj[optid] = val.length>0). Same meaning as OptKey, same
-                        // encoder — without it the 21 firewall/bridge match lists (dst-port, protocol,
-                        // vlan-id, …) reach the router with the option down and are ignored.
-                        int optKey = DecodedKeyOf(dict, "optid");
-                        // The negated half of a multitristatearray (see WinboxJgField.OffKey).
-                        int offKey = DecodedKeyOf(dict, "oid");
-                        AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict),
-                            ty, maskKey, refHandler, optKey: optKey, isRange: isRange, allow: allow,
-                            def: ExtractDef(dict), pane: pane, offKey: offKey,
-                            isOptional: IsOptionalAttr(dict), elementUiType: ElementUiTypeOf(dict),
-                            scale: ScaleOf(dict), elementParts: ElementPartsOf(dict),
-                            postfix: PostfixOf(dict), elementSeparator: ElementSeparatorOf(dict),
-                            elementNotKey: ElementNotKeyOf(dict), elementIsRange: ElementIsRangeOf(dict),
-                            tab: tab, title: TitleOf(dict),
-                            nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0,
-                            min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0,
-                            radix: RadixOf(dict), elementScale: ElementScaleOf(dict),
-                            relative: RelativeOf(dict), refHandlers: ExtractRefHandlers(dict),
-                            elementStatusParts: ElementStatusPartsOf(dict));
-                    }
-                }
+                AddFieldNode(owner, ty, nodeName, dict, pane, tab);
 
                 _currentOn = null;
 
-                // Per-record action verb: a named doit/action carrying a cmd (no own field id) invokes that
-                // SYS_CMD on the owning handler against a record .id — e.g. the scripts window's
-                // {name:'Run Script',type:'doit',cmd:1} on [48,101]. Register it for /system/script/run dispatch.
-                if (owner != null && (ty == "doit" || ty == "action") && !dict.ContainsKey("id")
-                    && dict.TryGetValue("cmd", out var cmdv) && cmdv is int cmdN && !string.IsNullOrEmpty(nodeName))
-                {
-                    // Actions are looked up BY HANDLER (GetActionFields/GetHandlerActions), so an action
-                    // declared inside a window is still keyed by the handler that window reads.
-                    // owner is non-null here (checked above), so HandlerOfOwner always returns non-null too.
-                    JgOwner actionOwner = HandlerOfOwner(owner);
-                    string? actionLabel = AddAction(actionOwner, nodeName, cmdN);
-                    // Descend into the action's ARGUMENTS under a key of their own. They keep going into the
-                    // handler's map as well (AddField writes both, so nothing that resolved before stops
-                    // resolving), but the action's own map is what the caller invoking it resolves against —
-                    // otherwise an argument sharing a label with a record column loses to it. See GetActionFields.
-                    if (actionLabel != null) owner = JgOwner.Action(actionOwner, actionLabel);
-                }
-
-                // Descend. A structural menu node (has children, no field id, has a name) extends the
-                // breadcrumb so its descendant windows derive a nested path.
-                List<string> childCrumb = crumb;
-                if (dict.ContainsKey("c") && !dict.ContainsKey("id") && !string.IsNullOrEmpty(nodeName))
-                {
-                    childCrumb = new List<string>(crumb);
-                    if (groupSeg != null) childCrumb.Add(groupSeg);
-                    string leaf = WinboxFieldResolver.NormalizeLabel(nodeName);
-                    if (leaf.Length > 0) childCrumb.Add(leaf);
-                }
+                owner = RegisterActionVerb(owner, ty, nodeName, dict);
+                List<string> childCrumb = ChildCrumbOf(crumb, dict, groupSeg, nodeName);
 
                 // A deck's panes are walked here, each with its own pane context, so their fields carry the
                 // kind they belong to. A window of its own inside a pane starts fresh (handlerInts != null).
@@ -365,15 +66,7 @@ namespace tik4net.Winbox
                     return;
                 }
 
-                // A `separate:1` tuple's parts are fields of their own, walked below — and the unit is declared
-                // once, on the tuple: /queue/simple 'Burst Time' is {tuple,postfix:'s',c:[{Upload Burst Time,
-                // number},{Download Burst Time,number}]}, so without it the halves read 7 and 9 where the API
-                // prints burst-time=7s/9s (7.24.2). A part that declares its own postfix keeps it.
-                if (ty == "tuple" && dict.TryGetValue("postfix", out var tpf) && tpf is string tupPostfix
-                    && dict.TryGetValue("c", out var tcv) && tcv is List<object> tupParts)
-                    foreach (var part in tupParts)
-                        if (part is Dictionary<string, object> pd && !pd.ContainsKey("postfix"))
-                            pd["postfix"] = tupPostfix;
+                InheritTuplePostfix(dict, ty);
 
                 foreach (var kv in dict)
                 {
@@ -383,19 +76,383 @@ namespace tik4net.Winbox
                 }
             }
             else if (node is List<object> list)
+                WalkList(list, handlerKey, crumb, pane, tab);
+        }
+
+        // The handler a node reads (`path:[20,0]`), when every member of it is a number.
+        private static int[]? HandlerPathOf(Dictionary<string, object> dict)
+        {
+            if (dict.TryGetValue("path", out var pv) && pv is List<object> pathList && pathList.Count > 0)
             {
-                // A tab is a SIBLING of the fields it heads, not their parent, so the current tab is carried
-                // along the list rather than down a subtree. It is what tells apart two fields a window gives
-                // the same label - and what the API prefixes the second one with (see AddField).
-                string? currentTab = tab;
-                foreach (var it in list)
+                var ints = new List<int>();
+                bool ok = true;
+                foreach (var p in pathList)
                 {
-                    if (it is Dictionary<string, object> td
-                        && td.TryGetValue("type", out var ttv) && (ttv as string) == "tab"
-                        && td.TryGetValue("name", out var tnv) && tnv is string tn)
-                        currentTab = WinboxFieldResolver.NormalizeLabel(tn);
-                    Walk(it, handlerKey, crumb, pane, currentTab);
+                    if (p is int pi) ints.Add(pi);
+                    else { ok = false; break; }
                 }
+                if (ok) return ints.ToArray();
+            }
+            return null;
+        }
+
+        private void RegisterWindow(Dictionary<string, object> dict, string? ty, int[]? handlerInts, List<string> crumb,
+            string? groupSeg, string nodeName, ref JgOwner? owner)
+        {
+            // Harvest derived menu-label path → handler for WINDOW nodes (map/query/item/doit/action
+            // with a handler path). Dropdown references (type:'enm',values:{type:'dynamic',path:…}) reuse
+            // the same handler but are NOT windows — skip them. The key is the full breadcrumb
+            // (ancestor menu chain + this node's group + name).
+            if (handlerInts != null && ty != null && WindowTypes.Contains(ty))
+            {
+                string? apiPath = BuildPath(crumb, groupSeg, nodeName);
+                if (apiPath != null && !_derivedPaths.ContainsKey(apiPath))
+                {
+                    _derivedPaths[apiPath] = handlerInts;
+                    // Record what THIS window is, not what its handler is — see _singletonPaths.
+                    if (ty == "item" || ty == "map" || ty == "query")
+                        _singletonPaths[apiPath] = ty == "item";
+                    if (ty == "item")
+                    {
+                        int? getCmd = dict.TryGetValue("getcmd", out var gcv) && gcv is int gc ? gc : (int?)null;
+                        int? setCmd = dict.TryGetValue("setcmd", out var scv) && scv is int sc ? sc : (int?)null;
+                        if (getCmd != null || setCmd != null)
+                            _singletonCommands[apiPath] = Tuple.Create(getCmd, setCmd);
+                    }
+                }
+                // Attribute this window's fields to the window as well as to its handler, so a caller
+                // addressing the window is answered by the window's own vocabulary. Windows sharing a
+                // handler number their fields from scratch and collide — see GetWindowFields.
+                if (apiPath != null)
+                {
+                    var wk = JgOwner.Window(apiPath);
+                    // owner is non-null here: this block requires handlerInts != null, and owner is set
+                    // (unconditionally, non-null) to the handler's owner whenever handlerInts != null.
+                    _windowHandlerKey[wk] = owner!;
+                    _handlerBackedWindows.Add(wk);
+                    owner = wk;
+                }
+                // The row's display name, as the window declares it (see _nameValByHandler).
+                if (dict.TryGetValue("nameval", out var nvv) && nvv is string nvs && nvs.Length > 0
+                    && !_nameValByHandler.ContainsKey(handlerInts))
+                    _nameValByHandler[handlerInts] = WinboxFieldResolver.NormalizeLabel(nvs);
+                if (ty == "item") _singletonHandlers.Add(handlerInts);
+                // Track record-listing vs action-only windows separately so a handler that has BOTH (e.g.
+                // [20,125] = 'SMS Message' map + 'Send SMS' doit) is never mistaken for action-only.
+                if (ty == "doit" || ty == "action") _actionWindowHandlers.Add(handlerInts);
+                else _recordWindowHandlers.Add(handlerInts);
+                if (dict.ContainsKey("autorefresh")) _dynamicHandlers.Add(handlerInts);
+                int readFlags = (dict.TryGetValue("refreshfilter", out var rfv) && rfv is int rf ? rf : 0)
+                              | (dict.TryGetValue("refetchonopen", out var rov) && rov is int ro ? ro : 0);
+                if (readFlags != 0)
+                {
+                    _readFlagsByHandler.TryGetValue(handlerInts, out int known);
+                    _readFlagsByHandler[handlerInts] = known | readFlags;
+                }
+                HarvestMonitor(handlerInts, ty, dict);
+
+                // The base interface window (generic:'iface') anchors the subtype filtering: remember its
+                // handler and the key of the `type` discriminator field (named by `typeon`, default 'type').
+                if (dict.TryGetValue("generic", out var genv) && genv is string gen && gen.Length > 0)
+                {
+                    string typeon = dict.TryGetValue("typeon", out var tov) && tov is string tos ? tos : "type";
+                    int tk = FindChildFieldKey(dict, typeon);
+                    if (gen == "iface")
+                    {
+                        _genericIfaceHandler = handlerInts;
+                        if (tk != 0) _ifaceTypeKey = tk;
+                    }
+                    // A base that carries BOTH a handler and a resolvable discriminator can filter its own
+                    // children; one that carries neither (the ppp/wlan mid-tree bases) is handled by the
+                    // interface-family chain below and must not overwrite an entry with a real key.
+                    if (tk != 0 && !_genericBases.ContainsKey(gen))
+                        _genericBases[gen] = Tuple.Create((WinboxHandler)handlerInts, tk);
+                }
+            }
+
+            // A statusbar that reads a handler of its own shows that handler's fields inside ANOTHER window: the
+            // firewall connection list's {statusbar,path:[20,17],c:['Max Entries' ue]} is connection tracking's
+            // count. Filed under no window, the field was the handler's alone, and every window on [20,17] that
+            // does not declare ue itself decoded it — on 6.49.21, where the Tracking window lacks 'Max Entries',
+            // /ip/settings and /interface/bridge/settings read max-entries. A window key of its own (no API path
+            // can start with '#') makes it another window's field to them, as it is (GetOtherWindowKeys).
+            else if (handlerInts != null && ty == "statusbar")
+            {
+                var wk = JgOwner.Window("#statusbar" + string.Join("/", crumb) + "@" + string.Join(",", handlerInts));
+                _windowHandlerKey[wk] = owner!;
+                _handlerBackedWindows.Add(wk);
+                owner = wk;
+            }
+        }
+
+        private void RegisterGenericBase(Dictionary<string, object> dict)
+        {
+            // A window declaring `generic:'X'` is a BASE others extend with `inherit:'X'`. Remember what
+            // discriminator it hands its children (`typeon`, default 'type') and whether it belongs to the
+            // interface family, so a chain (iface → ppp → 'L2TP Client') resolves. Recorded outside the
+            // window block above because these bases often have no `path:` of their own.
+            if (dict.TryGetValue("generic", out var genv2) && genv2 is string genName && genName.Length > 0
+                && !_generics.ContainsKey(genName))
+            {
+                string typeonChild = dict.TryGetValue("typeon", out var tov2) && tov2 is string tos2 ? tos2 : "type";
+                bool ifaceFamily = genName == "iface"
+                    || (dict.TryGetValue("inherit", out var ginh) && ginh is string ginhs
+                        && _generics.TryGetValue(ginhs, out var gbase) && gbase.Item2);
+                _generics[genName] = Tuple.Create(typeonChild, ifaceFamily);
+            }
+        }
+
+        private void RegisterInterfaceSubtypeWindow(Dictionary<string, object> dict, int[]? handlerInts,
+            List<string> crumb, string? groupSeg, string nodeName, ref JgOwner? owner)
+        {
+            // Interface subtype window: inherit:'<base>' (reuse the generic interface handler, has no path:
+            // of its own) + typevalue:N (the discriminator value). Register a derived path → the generic
+            // handler, plus a subtype filter (typeKey, N). The leaf is the window TITLE — `name` is the
+            // generic 'Interface' shared by every subtype, so it cannot discriminate; the title carries the
+            // subtype ('Bridge', 'VLAN', 'L2TP Client', …).
+            //
+            // Two constraints keep this honest. The base must be in the interface family, so an unrelated
+            // inherit tree cannot be filtered against the interface `type` field. And the base must hand its
+            // children the 'type' discriminator: the wireless tree switches to `typeon:'hwtype'` below the
+            // 'Wireless' window, and those hardware variants (Atheros AR5212, …) are NOT addressable by an
+            // interface type filter — registering them would answer with a filter on the wrong field.
+            // A wildcard `typevalue:4294967295` (a base standing for "any of my subtypes") is not an int
+            // after parsing and is skipped here for the same reason: it is a set, not a value.
+            if (handlerInts == null && _genericIfaceHandler != null && _ifaceTypeKey != 0
+                && dict.TryGetValue("inherit", out var inhv) && inhv is string inh
+                && dict.TryGetValue("typevalue", out var tvv) && tvv is int tval
+                && (inh == "iface"
+                    || (_generics.TryGetValue(inh, out var baseGen) && baseGen.Item2 && baseGen.Item1 == "type")))
+            {
+                string title = dict.TryGetValue("title", out var ttv) && ttv is string tts && tts.Length > 0
+                    ? tts : nodeName;
+                string? apiPath = BuildPath(crumb, groupSeg, title);
+                if (apiPath != null)
+                {
+                    // Attribute this window's fields to the WINDOW, not to the shared [20,0] handler.
+                    // The subtypes disagree about keys under identical labels — 'Remote Address' is
+                    // 0x7E1 on EoIP, 0x7E5 on GRE and 0x7E3 on IPIP, 'Local Address' is a u32 on EoIP
+                    // and an addr on VXLAN — so merging them into one per-handler map would hand every
+                    // subtype but the first-parsed one a wrong key: a write that lands on another field.
+                    // (Before this, these fields were attributed to the enclosing menu node, i.e. to no
+                    // handler at all, and were simply lost — every subtype `add` failed with "cannot
+                    // resolve API field 'remote-address'".)
+                    // Known to read the generic interface handler, but deliberately NOT handler-backed:
+                    // see _handlerBackedWindows.
+                    owner = RegisterSubtypeWindow(apiPath, _genericIfaceHandler.Value, _ifaceTypeKey, tval);
+                }
+            }
+        }
+
+        private void RegisterBaseSubtypeWindow(Dictionary<string, object> dict, int[]? handlerInts,
+            List<string> crumb, string? groupSeg, string nodeName, ref JgOwner? owner)
+        {
+            // The same registration for a NON-interface family whose base owns its handler and its
+            // discriminator (_genericBases). The interface branch above is left exactly as it is: its
+            // guards were written against a tree that is several levels deep and switches discriminator
+            // half-way down, and nothing here needs to disturb them.
+            //
+            // /ip/route is the case. WinBox has one routes table ([44,21], 'All Routes', typeon:'rtype')
+            // and two subtype windows over it — 'Routes' (typevalue 2, IPv4) and ipv6.jg's 'Routes6'
+            // (typevalue 3). Addressing the BASE returns both families: on the lab CHR a /ip/route read
+            // came back with six rows where the API returns two, the extras being ::1/128 and fe80::/64.
+            // roteros.jg is parsed first by design, so the base is registered before ipv6.jg inherits it.
+            if (handlerInts == null
+                && dict.TryGetValue("inherit", out var ginhv) && ginhv is string ginh2
+                && dict.TryGetValue("typevalue", out var gtvv) && gtvv is int gtval
+                && !(ginh2 == "iface" || (_generics.TryGetValue(ginh2, out var gfam) && gfam.Item2))
+                && _genericBases.TryGetValue(ginh2, out var gbase2))
+            {
+                string gtitle = dict.TryGetValue("title", out var gttv) && gttv is string gtts && gtts.Length > 0
+                    ? gtts : nodeName;
+                string? gApiPath = BuildPath(crumb, groupSeg, gtitle);
+                if (gApiPath != null)
+                {
+                    // Its fields belong to the WINDOW: the subtype declares the whole General/Status tab
+                    // the base only sketches (Distance, Scope, Target Scope, VRF Interface, Routing
+                    // Table, Immediate Gateway, Pref. Source), and the base's bare numeric 'active' is
+                    // the subtype's 'Contribution' enum.
+                    owner = RegisterSubtypeWindow(gApiPath, gbase2.Item1, gbase2.Item2, gtval);
+                }
+            }
+        }
+
+        // A subtype window over its base's handler: the derived path, the (typeKey, typeValue) filter, and the
+        // window as its fields' owner. Both subtype families register through here; their guards stay apart.
+        private JgOwner RegisterSubtypeWindow(string apiPath, WinboxHandler handler, int typeKey, int typeValue)
+        {
+            if (!_derivedPaths.ContainsKey(apiPath))
+            {
+                _derivedPaths[apiPath] = handler;
+                _subtypeFilters[apiPath] = Tuple.Create(typeKey, typeValue);
+                _singletonPaths[apiPath] = false;   // a subtype window is always a record list
+            }
+            var owner = JgOwner.Window(apiPath);
+            _windowHandlerKey[owner] = JgOwner.Of(handler);
+            return owner;
+        }
+
+        private void RegisterCond(JgOwner? owner, string? ty, string nodeName, Dictionary<string, object> dict)
+        {
+            if (owner != null && ty == "cond" && !string.IsNullOrEmpty(nodeName))
+            {
+                if (!_condNodes.TryGetValue(owner, out var ownConds))
+                    _condNodes[owner] = ownConds = new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal);
+                if (!ownConds.ContainsKey(nodeName)) ownConds[nodeName] = dict;
+            }
+        }
+
+        private void AddFieldNode(JgOwner? owner, string? ty, string nodeName, Dictionary<string, object> dict,
+            PaneContext? pane, string? tab)
+        {
+            // A named opt/not wrapper (type:'opt'/'not' with children) holds its real value in an inner leaf;
+            // the wrapper's own id is just a flag bool (opt=present, not=negated). Map the API name to the
+            // inner value leaf, carrying the flag keys — e.g. firewall 'Connection State' (opt→not→set) maps
+            // to the inner bitmask, not the outer bool. (A childless opt is a plain bool — handled below.)
+            //
+            // A `group` that carries an ID is the same shape under another word: 97 of them in the 7.24
+            // catalog, every one a firewall or bridge-filter MATCH — 'MAC Protocol' is
+            // {group,id:'bcc',c:[{not,id:'bd',c:[{name:'MAC Protocol-Num',number,id:'u5',…}]}]}. Without
+            // this the group registered as a plain bool and took the name first, so `mac-protocol` meant
+            // the present FLAG: the read answered 'true' and a write of `arp` sent bool:False. A group
+            // with no id (64 more) is pure layout and its children are fields in their own right.
+            if (owner != null && (ty == "opt" || ty == "not" || (ty == "group" && dict.ContainsKey("id")))
+                && dict.ContainsKey("c") && !string.IsNullOrEmpty(nodeName))
+            {
+                AddOptionField(owner, nodeName, dict, pane);
+            }
+            // A named `union` holds one value that can be of several families, each child carrying its
+            // OWN key — IPsec 'Address' is {union, c:[network u1, network6 a17, string s2f]}. The union
+            // node itself has no id, and its children have no name, so without this the field is not in
+            // the catalog at all: every dual-stack address field (IPsec peer/policy/identity, graphing
+            // 'Allow Address', traffic-flow 'Src./Dst. Address', …) answered "cannot resolve API field".
+            // The first child is registered, i.e. the IPv4 family — an IPv6 value then fails to encode
+            // with the codec's own error rather than being sent on the wrong key.
+            else if (owner != null && ty == "union" && !dict.ContainsKey("id")
+                     && !string.IsNullOrEmpty(nodeName))
+            {
+                AddUnionField(owner, nodeName, dict, pane);
+            }
+            // A named `tuple` is the same problem with a different answer: the label is on the node, the
+            // ids are on the children, and the API prints the children joined by the node's `sep`.
+            else if (owner != null && ty == "tuple" && !dict.ContainsKey("id")
+                     && !string.IsNullOrEmpty(nodeName))
+            {
+                AddTupleField(owner, nodeName, dict, pane);
+            }
+            // A numflag names a SET of row flags on one numeric key and carries no name itself, so it is
+            // not a field — kept apart, and decoded into the flag the row's value names (see GetNumFlags).
+            else if (owner != null && ty == "numflag"
+                     && dict.TryGetValue("id", out var nfIdv) && nfIdv is string nfId)
+            {
+                AddNumFlag(owner, nfId, dict);
+            }
+            else if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
+            {
+                var dec = DecodeId(idStr);
+                if (dec != null)
+                {
+                    bool ro = dict.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
+                    int maskKey = (dict.TryGetValue("maskid", out var mkv) && mkv is string mks
+                        && DecodeId(mks) is var md && md != null) ? md.Value.key
+                        : DecodedKeyOf(dict, "portid") is var pk && pk != 0 ? pk : HighKeyOf(dict);
+                    WinboxHandler? refHandler = ExtractRefHandler(dict);
+                    bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
+                    // A LIST's allow-mask lives on the element, not on the list node: wireguard's
+                    // 'Allowed Address' is {multi,id:'M3f0',c:[{addr,allow:'46/'}]}, and reading only the
+                    // node left the encoder with the default mask — which has no '/', so every write
+                    // dropped the prefix length and 10.99.2.0/24 landed as /32.
+                    string? allow = (dict.TryGetValue("allow", out var alv) ? alv as string : null)
+                                    ?? ElementAllowOf(dict);
+                    // A list field carries its own present-flag on the node (`optid`) rather than in an
+                    // enclosing opt wrapper, and webfig writes it from the list's LENGTH
+                    // (types.multi.put: obj[optid] = val.length>0). Same meaning as OptKey, same
+                    // encoder — without it the 21 firewall/bridge match lists (dst-port, protocol,
+                    // vlan-id, …) reach the router with the option down and are ignored.
+                    int optKey = DecodedKeyOf(dict, "optid");
+                    // The negated half of a multitristatearray (see WinboxJgField.OffKey).
+                    int offKey = DecodedKeyOf(dict, "oid");
+                    AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict),
+                        ty, maskKey, refHandler, optKey: optKey, isRange: isRange, allow: allow,
+                        def: ExtractDef(dict), pane: pane, offKey: offKey,
+                        isOptional: IsOptionalAttr(dict), elementUiType: ElementUiTypeOf(dict),
+                        scale: ScaleOf(dict), elementParts: ElementPartsOf(dict),
+                        postfix: PostfixOf(dict), elementSeparator: ElementSeparatorOf(dict),
+                        elementNotKey: ElementNotKeyOf(dict), elementIsRange: ElementIsRangeOf(dict),
+                        tab: tab, title: TitleOf(dict),
+                        nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0,
+                        min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0,
+                        radix: RadixOf(dict), elementScale: ElementScaleOf(dict),
+                        relative: RelativeOf(dict), refHandlers: ExtractRefHandlers(dict),
+                        elementStatusParts: ElementStatusPartsOf(dict));
+                }
+            }
+        }
+
+        private JgOwner? RegisterActionVerb(JgOwner? owner, string? ty, string nodeName, Dictionary<string, object> dict)
+        {
+            // Per-record action verb: a named doit/action carrying a cmd (no own field id) invokes that
+            // SYS_CMD on the owning handler against a record .id — e.g. the scripts window's
+            // {name:'Run Script',type:'doit',cmd:1} on [48,101]. Register it for /system/script/run dispatch.
+            if (owner != null && (ty == "doit" || ty == "action") && !dict.ContainsKey("id")
+                && dict.TryGetValue("cmd", out var cmdv) && cmdv is int cmdN && !string.IsNullOrEmpty(nodeName))
+            {
+                // Actions are looked up BY HANDLER (GetActionFields/GetHandlerActions), so an action
+                // declared inside a window is still keyed by the handler that window reads.
+                // owner is non-null here (checked above), so HandlerOfOwner always returns non-null too.
+                JgOwner actionOwner = HandlerOfOwner(owner);
+                string? actionLabel = AddAction(actionOwner, nodeName, cmdN);
+                // Descend into the action's ARGUMENTS under a key of their own. They keep going into the
+                // handler's map as well (AddField writes both, so nothing that resolved before stops
+                // resolving), but the action's own map is what the caller invoking it resolves against —
+                // otherwise an argument sharing a label with a record column loses to it. See GetActionFields.
+                if (actionLabel != null) owner = JgOwner.Action(actionOwner, actionLabel);
+            }
+            return owner;
+        }
+
+        private static List<string> ChildCrumbOf(List<string> crumb, Dictionary<string, object> dict, string? groupSeg,
+            string nodeName)
+        {
+            // Descend. A structural menu node (has children, no field id, has a name) extends the
+            // breadcrumb so its descendant windows derive a nested path.
+            List<string> childCrumb = crumb;
+            if (dict.ContainsKey("c") && !dict.ContainsKey("id") && !string.IsNullOrEmpty(nodeName))
+            {
+                childCrumb = new List<string>(crumb);
+                if (groupSeg != null) childCrumb.Add(groupSeg);
+                string leaf = WinboxFieldResolver.NormalizeLabel(nodeName);
+                if (leaf.Length > 0) childCrumb.Add(leaf);
+            }
+            return childCrumb;
+        }
+
+        private static void InheritTuplePostfix(Dictionary<string, object> dict, string? ty)
+        {
+            // A `separate:1` tuple's parts are fields of their own, walked below — and the unit is declared
+            // once, on the tuple: /queue/simple 'Burst Time' is {tuple,postfix:'s',c:[{Upload Burst Time,
+            // number},{Download Burst Time,number}]}, so without it the halves read 7 and 9 where the API
+            // prints burst-time=7s/9s (7.24.2). A part that declares its own postfix keeps it.
+            if (ty == "tuple" && dict.TryGetValue("postfix", out var tpf) && tpf is string tupPostfix
+                && dict.TryGetValue("c", out var tcv) && tcv is List<object> tupParts)
+                foreach (var part in tupParts)
+                    if (part is Dictionary<string, object> pd && !pd.ContainsKey("postfix"))
+                        pd["postfix"] = tupPostfix;
+        }
+
+        private void WalkList(List<object> list, JgOwner? handlerKey, List<string> crumb, PaneContext? pane, string? tab)
+        {
+            // A tab is a SIBLING of the fields it heads, not their parent, so the current tab is carried
+            // along the list rather than down a subtree. It is what tells apart two fields a window gives
+            // the same label - and what the API prefixes the second one with (see AddField).
+            string? currentTab = tab;
+            foreach (var it in list)
+            {
+                if (it is Dictionary<string, object> td
+                    && td.TryGetValue("type", out var ttv) && (ttv as string) == "tab"
+                    && td.TryGetValue("name", out var tnv) && tnv is string tn)
+                    currentTab = WinboxFieldResolver.NormalizeLabel(tn);
+                Walk(it, handlerKey, crumb, pane, currentTab);
             }
         }
 
