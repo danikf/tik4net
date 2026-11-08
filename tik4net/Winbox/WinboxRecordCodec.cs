@@ -146,44 +146,7 @@ namespace tik4net.Winbox
             IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? numFlags = null,
             IReadOnlyDictionary<string, string[]>? extraSpellings = null)
         {
-            // Keys consumed by an owning field, not emitted on their own: a network field's netmask sibling,
-            // and the opt/not flag bools of an optional/invertible field (its value rides on the leaf key).
-            var consumedKeys = new HashSet<int>();
-            if (keyToField != null)
-                foreach (var f in keyToField.Values)
-                {
-                    if (f.UiType == "network" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
-                    // The port half of an address:port field is not a field of its own to the API.
-                    if ((f.UiType == WinboxFieldResolver.AddrPortUiType || f.UiType == "ipaddrandport") && f.MaskKey != 0)
-                        consumedKeys.Add(f.MaskKey);
-                    // Nor is the netmask half of a number,netmask field.
-                    if (f.UiType == WinboxFieldResolver.NumberNetmaskUiType && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
-                    // Nor is the high end of a scalar number range (WinboxJgCatalog.HighKeyOf).
-                    if (f.UiType == "numberrange" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
-                    // Nor is the download half of an upload/download pair.
-                    if (f.UiType == WinboxFieldResolver.PairUiType && f.MaskKey != 0)
-                        consumedKeys.Add(f.MaskKey);
-                    // Nor are the negated members of a multitristate — or of a `set`/`multibits` that has a
-                    // maskid: they are the '!' half of the ONE value the API prints (tcp-flags="syn,!ack",
-                    // policy="read,write,!ftp"), not a field the router names.
-                    if (f.MaskKey != 0 && IsBitSetWithMask(f.UiType))
-                        consumedKeys.Add(f.MaskKey);
-                    // Nor is the parallel array of masks/range ends of a multinetwork: it holds the second
-                    // half of every element of the ONE list the API prints.
-                    if (f.MaskKey != 0 && IsMultiNetworkList(f.UiType))
-                        consumedKeys.Add(f.MaskKey);
-                    // Nor are the other boxes of a firewall limit group, which the catalog files under fields named
-                    // after the boxes: a row native wrote carries the period u11, and the window's 'limit' tuple took
-                    // the name from it when the frame listed u11 first.
-                    foreach (int box in WinboxFieldResolver.FirewallLimitBoxKeys(f))
-                        consumedKeys.Add(box);
-                    // An opt/not flag is consumed only when no OTHER field owns its key. Two windows share a
-                    // handler, and a field of the one this path does not address can still sit in the map for
-                    // its own key: /ip/upnp's interface list declares 'Forced External IP' {opt b3, ipaddr u4},
-                    // and its flag key swallowed the settings singleton's 'Show Dummy Rule' b3 (7.24.2).
-                    if (f.OptKey != 0 && !OwnedByAnotherField(keyToField, keyToName, f, f.OptKey)) consumedKeys.Add(f.OptKey);
-                    if (f.NotKey != 0 && !OwnedByAnotherField(keyToField, keyToName, f, f.NotKey)) consumedKeys.Add(f.NotKey);
-                }
+            var consumedKeys = ConsumedKeys(keyToField, keyToName);
 
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in rec)
@@ -236,6 +199,60 @@ namespace tik4net.Winbox
                 fields[apiName] = Negated(jf, rec, FormatTyped(jf, kv.Value.Type, kv.Value.Value!, rec, collectRefTables));
             }
 
+            AddCommentAndAbout(fields, rec);
+            AddNumFlags(fields, rec, numFlags);
+            AddElementStatus(fields, rec, keyToName, keyToField, collectRefTables);
+            AddDerivedBools(fields, derivedBools);
+            AddExtraSpellings(fields, extraSpellings);
+            return fields;
+        }
+
+        private static HashSet<int> ConsumedKeys(IReadOnlyDictionary<int, WinboxJgField>? keyToField,
+            IReadOnlyDictionary<int, string> keyToName)
+        {
+            // Keys consumed by an owning field, not emitted on their own: a network field's netmask sibling,
+            // and the opt/not flag bools of an optional/invertible field (its value rides on the leaf key).
+            var consumedKeys = new HashSet<int>();
+            if (keyToField != null)
+                foreach (var f in keyToField.Values)
+                {
+                    if (f.UiType == "network" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
+                    // The port half of an address:port field is not a field of its own to the API.
+                    if ((f.UiType == WinboxFieldResolver.AddrPortUiType || f.UiType == "ipaddrandport") && f.MaskKey != 0)
+                        consumedKeys.Add(f.MaskKey);
+                    // Nor is the netmask half of a number,netmask field.
+                    if (f.UiType == WinboxFieldResolver.NumberNetmaskUiType && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
+                    // Nor is the high end of a scalar number range (WinboxJgCatalog.HighKeyOf).
+                    if (f.UiType == "numberrange" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
+                    // Nor is the download half of an upload/download pair.
+                    if (f.UiType == WinboxFieldResolver.PairUiType && f.MaskKey != 0)
+                        consumedKeys.Add(f.MaskKey);
+                    // Nor are the negated members of a multitristate — or of a `set`/`multibits` that has a
+                    // maskid: they are the '!' half of the ONE value the API prints (tcp-flags="syn,!ack",
+                    // policy="read,write,!ftp"), not a field the router names.
+                    if (f.MaskKey != 0 && IsBitSetWithMask(f.UiType))
+                        consumedKeys.Add(f.MaskKey);
+                    // Nor is the parallel array of masks/range ends of a multinetwork: it holds the second
+                    // half of every element of the ONE list the API prints.
+                    if (f.MaskKey != 0 && IsMultiNetworkList(f.UiType))
+                        consumedKeys.Add(f.MaskKey);
+                    // Nor are the other boxes of a firewall limit group, which the catalog files under fields named
+                    // after the boxes: a row native wrote carries the period u11, and the window's 'limit' tuple took
+                    // the name from it when the frame listed u11 first.
+                    foreach (int box in WinboxFieldResolver.FirewallLimitBoxKeys(f))
+                        consumedKeys.Add(box);
+                    // An opt/not flag is consumed only when no OTHER field owns its key. Two windows share a
+                    // handler, and a field of the one this path does not address can still sit in the map for
+                    // its own key: /ip/upnp's interface list declares 'Forced External IP' {opt b3, ipaddr u4},
+                    // and its flag key swallowed the settings singleton's 'Show Dummy Rule' b3 (7.24.2).
+                    if (f.OptKey != 0 && !OwnedByAnotherField(keyToField, keyToName, f, f.OptKey)) consumedKeys.Add(f.OptKey);
+                    if (f.NotKey != 0 && !OwnedByAnotherField(keyToField, keyToName, f, f.NotKey)) consumedKeys.Add(f.NotKey);
+                }
+            return consumedKeys;
+        }
+
+        private static void AddCommentAndAbout(Dictionary<string, string> fields, M2Record rec)
+        {
             // The comment key rides every record, empty on a row with no comment, where the API prints nothing.
             if (fields.TryGetValue(TikEmptyComment.Field, out string? comment) && TikEmptyComment.IsNoComment(TikEmptyComment.Field, comment))
                 fields.Remove(TikEmptyComment.Field);
@@ -250,11 +267,11 @@ namespace tik4net.Winbox
                     ? aboutText.Substring(1, aboutText.Length - 2) : aboutText;
                 if (note.Length > 0) fields[AboutField] = note;
             }
+        }
 
-            // A bool the API reports and WinBox renders as a wider enum on the same wire field (see
-            // FieldAliasSet.DerivedBools). Added AFTER the loop because it reads a decoded field, not a key,
-            // and only when the source is actually present: a row that did not carry it gets no bool rather
-            // than a false, which would be us asserting something the router did not say.
+        private static void AddNumFlags(Dictionary<string, string> fields, M2Record rec,
+            IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? numFlags)
+        {
             // A numflag's key carries a SET of row flags, and the row IS the member its value names — the
             // API prints that one (`connect=true`) and nothing for the others, so neither does this. The
             // members come from the version-matched catalog, so a flag a RouterOS version does not have is
@@ -269,7 +286,12 @@ namespace tik4net.Winbox
                     if (!nf.Value.TryGetValue((int)n, out string? flagName)) continue;
                     if (!fields.ContainsKey(flagName)) fields[flagName] = "true";
                 }
+        }
 
+        private void AddElementStatus(Dictionary<string, string> fields, M2Record rec,
+            IReadOnlyDictionary<int, string> keyToName, IReadOnlyDictionary<int, WinboxJgField>? keyToField,
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
+        {
             // The read-only status half of a list element, which the 6.x API prints as a field of its own
             // (see WinboxJgField.ElementStatusParts): gateway-status=192.168.4.1 reachable via  ether1.
             if (keyToField != null)
@@ -285,7 +307,15 @@ namespace tik4net.Winbox
                         FormatCompoundElement(kf.Value, m, collectRefTables)
                         + FormatElementStatus(kf.Value.ElementStatusParts, m, collectRefTables)));
                 }
+        }
 
+        private static void AddDerivedBools(Dictionary<string, string> fields,
+            IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools)
+        {
+            // A bool the API reports and WinBox renders as a wider enum on the same wire field (see
+            // FieldAliasSet.DerivedBools). Added AFTER the loop because it reads a decoded field, not a key,
+            // and only when the source is actually present: a row that did not carry it gets no bool rather
+            // than a false, which would be us asserting something the router did not say.
             if (derivedBools != null)
                 foreach (var d in derivedBools)
                 {
@@ -294,7 +324,11 @@ namespace tik4net.Winbox
                     fields[d.Key] = string.Equals(src, d.Value.Item2, StringComparison.OrdinalIgnoreCase)
                         ? "true" : "false";
                 }
+        }
 
+        private static void AddExtraSpellings(Dictionary<string, string> fields,
+            IReadOnlyDictionary<string, string[]>? extraSpellings)
+        {
             // The other word RouterOS uses for a field it renamed between versions — reported beside the
             // catalog's own name, because the .jg says the same thing on both (FieldAliasSet.AlsoKnownAs).
             if (extraSpellings != null)
@@ -304,7 +338,6 @@ namespace tik4net.Winbox
                     foreach (string other in e.Value)
                         if (!fields.ContainsKey(other)) fields[other] = value;
                 }
-            return fields;
         }
 
         /// <summary>
@@ -448,7 +481,7 @@ namespace tik4net.Winbox
         /// </remarks>
         internal async Task PrimeReferencesAsync(
             IEnumerable<M2Record> records,
-            IReadOnlyDictionary<int, string> keyToName, IReadOnlyDictionary<int, WinboxJgField> keyToField,
+            IReadOnlyDictionary<int, string> keyToName, IReadOnlyDictionary<int, WinboxJgField>? keyToField,
             CancellationToken cancellationToken)
         {
             if (records == null || keyToName == null || keyToField == null) return;
