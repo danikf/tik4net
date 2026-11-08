@@ -136,82 +136,8 @@ namespace tik4net.Winbox
             if (TryEncodePostfixDuration(key, value, jg, uiType, apiName, result)) return result;
 
             // ── typed UI encodings (more specific than the wire type) ──
-            switch (uiType)
-            {
-                case "fixedpoint":
-                    if (EncodeFixedPoint(key, value, jg, apiName, result)) return result;
-                    break;
-                case "clocktime":
-                    if (EncodeClockTime(key, value, apiName, result)) return result;
-                    break;
-                case "clockdate":
-                case "dateandtime":
-                case "date":
-                    if (EncodeDateAndTime(key, value, apiName, uiType, result)) return result;
-                    break;
-                case "interval":
-                    if (EncodeInterval(key, value, jg, apiName, result)) return result;
-                    break;
-                case "network":
-                    if (EncodeNetwork(key, value, jg, apiName, result)) return result;
-                    break;
-                case "ipaddr":
-                    if (EncodeIpAddr(key, value, jg, apiName, result)) return result;
-                    break;
-                case NumberNetmaskUiType when jg != null && jg.MaskKey != 0:
-                    if (EncodeNumberNetmask(key, value, jg, apiName, result)) return result;
-                    break;
-                case "netmask":
-                    if (EncodeNetmask(key, value, result)) return result;
-                    break;
-                case "macaddr":
-                    if (EncodeMacAddr(key, value, result)) return result;
-                    break;
-                // A multibits is the same bitmask a `set` is — types.multibits.put ORs (1<<member) over the
-                // same bit-indexed map — and only its editor differs. Without this case it fell past the
-                // switch into the list/array refusal below, so every /ip/firewall address-type write was
-                // rejected as "not yet encodable" for a field that is one u32.
-                case "multibits":
-                case "set":
-                    if (EncodeBitSet(key, value, jg, apiName, resolveRefTable, result)) return result;
-                    break;
-                case "enm":
-                    if (EncodeReference(key, value, jg, resolveRef, ref unresolvedReference, result)) return result;
-                    break;
-                case "numberrange" when jg != null && jg.MaskKey != 0:
-                    if (EncodeNumberRange(key, value, jg, apiName, result)) return result;
-                    break;
-                case "multinumberrange":
-                case "numberrangelist":
-                    if (EncodeNumberRangeList(key, value, apiName, result)) return result;
-                    break;
-                case "multinumber":
-                    if (EncodeNumberList(key, value, jg, apiName, resolveRef, result)) return result;
-                    break;
-                case "multi" when jg?.WireType == M2Type.MessageArray:   // .jg M-prefix: a MESSAGE array
-                    if (EncodeMessageList(key, value, jg, apiName, resolveRef, result)) return result;
-                    break;
-                case "multistring":
-                case "multiraw":
-                case "multiipaddr":
-                case "multiip6addr":
-                case "multibignumber":
-                    if (EncodeScalarList(key, value, jg, apiName, result)) return result;
-                    break;
-                case "multinetwork":
-                case "multimacnetwork":
-                    if (EncodeNetworkList(key, value, jg, apiName, uiType, result)) return result;
-                    break;
-                case "multinetwork6":
-                    if (EncodeNetwork6List(key, value, jg, apiName, result)) return result;
-                    break;
-                case "multitristate":
-                    if (EncodeTriStateList(key, ref value, jg, apiName, resolveRef, result)) return result;
-                    break;
-                case "multitristatearray":
-                    if (EncodeTriStateArrayList(key, value, jg, apiName, resolveRef, result)) return result;
-                    break;
-            }
+            if (TryEncodeByUiType(key, ref value, jg, uiType, apiName, resolveRef, resolveRefTable, ref unresolvedReference, result))
+                return result;
 
             // (opt/not flags for the generic encoders below were emitted before the switch, together with every
             // typed branch's — see the "opt/not container flags" block.)
@@ -253,6 +179,46 @@ namespace tik4net.Winbox
 
             EncodeByWireType(key, value, jg, uiType, wireType, apiName, result);
             return result;
+        }
+
+        // The typed UI encodings, more specific than the wire type: one encoder per webfig type. True when the
+        // value is encoded; false to fall through to the generic encoders, with value as the encoder left it.
+        private bool TryEncodeByUiType(int key, ref string value, WinboxJgField? jg, string? uiType, string apiName,
+            Func<WinboxHandler, string, int?>? resolveRef, Func<WinboxHandler, IReadOnlyDictionary<int, string>?>? resolveRefTable,
+            ref bool unresolvedReference, List<byte[]> result)
+        {
+            return uiType switch
+            {
+                "fixedpoint" => EncodeFixedPoint(key, value, jg, apiName, result),
+                "clocktime" => EncodeClockTime(key, value, apiName, result),
+                "clockdate" or "dateandtime" or "date" => EncodeDateAndTime(key, value, apiName, uiType, result),
+                "interval" => EncodeInterval(key, value, jg, apiName, result),
+                "network" => EncodeNetwork(key, value, jg, apiName, result),
+                "ipaddr" => EncodeIpAddr(key, value, jg, apiName, result),
+                NumberNetmaskUiType when jg != null && jg.MaskKey != 0
+                    => EncodeNumberNetmask(key, value, jg, apiName, result),
+                "netmask" => EncodeNetmask(key, value, result),
+                "macaddr" => EncodeMacAddr(key, value, result),
+                // A multibits is the same bitmask a `set` is — types.multibits.put ORs (1<<member) over the
+                // same bit-indexed map — and only its editor differs. Without this case it fell past the
+                // switch into the list/array refusal below, so every /ip/firewall address-type write was
+                // rejected as "not yet encodable" for a field that is one u32.
+                "multibits" or "set" => EncodeBitSet(key, value, jg, apiName, resolveRefTable, result),
+                "enm" => EncodeReference(key, value, jg, resolveRef, ref unresolvedReference, result),
+                "numberrange" when jg != null && jg.MaskKey != 0 => EncodeNumberRange(key, value, jg, apiName, result),
+                "multinumberrange" or "numberrangelist" => EncodeNumberRangeList(key, value, apiName, result),
+                "multinumber" => EncodeNumberList(key, value, jg, apiName, resolveRef, result),
+                // .jg M-prefix: a MESSAGE array
+                "multi" when jg?.WireType == M2Type.MessageArray
+                    => EncodeMessageList(key, value, jg, apiName, resolveRef, result),
+                "multistring" or "multiraw" or "multiipaddr" or "multiip6addr" or "multibignumber"
+                    => EncodeScalarList(key, value, jg, apiName, result),
+                "multinetwork" or "multimacnetwork" => EncodeNetworkList(key, value, jg, apiName, uiType, result),
+                "multinetwork6" => EncodeNetwork6List(key, value, jg, apiName, result),
+                "multitristate" => EncodeTriStateList(key, ref value, jg, apiName, resolveRef, result),
+                "multitristatearray" => EncodeTriStateArrayList(key, value, jg, apiName, resolveRef, result),
+                _ => false,
+            };
         }
 
         private List<byte[]>? EncodePairedHalves(string apiName, string value, Func<WinboxHandler, string, int?>? resolveRef,

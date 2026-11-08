@@ -151,23 +151,7 @@ namespace tik4net.Winbox
                 }
                 HarvestMonitor(handlerInts, ty, dict);
 
-                // The base interface window (generic:'iface') anchors the subtype filtering: remember its
-                // handler and the key of the `type` discriminator field (named by `typeon`, default 'type').
-                if (dict.TryGetValue("generic", out var genv) && genv is string gen && gen.Length > 0)
-                {
-                    string typeon = dict.TryGetValue("typeon", out var tov) && tov is string tos ? tos : "type";
-                    int tk = FindChildFieldKey(dict, typeon);
-                    if (gen == "iface")
-                    {
-                        _genericIfaceHandler = handlerInts;
-                        if (tk != 0) _ifaceTypeKey = tk;
-                    }
-                    // A base that carries BOTH a handler and a resolvable discriminator can filter its own
-                    // children; one that carries neither (the ppp/wlan mid-tree bases) is handled by the
-                    // interface-family chain below and must not overwrite an entry with a real key.
-                    if (tk != 0 && !_genericBases.ContainsKey(gen))
-                        _genericBases[gen] = Tuple.Create((WinboxHandler)handlerInts, tk);
-                }
+                RegisterGenericAnchor(dict, handlerInts);
             }
 
             // A statusbar that reads a handler of its own shows that handler's fields inside ANOTHER window: the
@@ -182,6 +166,27 @@ namespace tik4net.Winbox
                 _windowHandlerKey[wk] = owner!;
                 _handlerBackedWindows.Add(wk);
                 owner = wk;
+            }
+        }
+
+        private void RegisterGenericAnchor(Dictionary<string, object> dict, int[] handlerInts)
+        {
+            // The base interface window (generic:'iface') anchors the subtype filtering: remember its
+            // handler and the key of the `type` discriminator field (named by `typeon`, default 'type').
+            if (dict.TryGetValue("generic", out var genv) && genv is string gen && gen.Length > 0)
+            {
+                string typeon = dict.TryGetValue("typeon", out var tov) && tov is string tos ? tos : "type";
+                int tk = FindChildFieldKey(dict, typeon);
+                if (gen == "iface")
+                {
+                    _genericIfaceHandler = handlerInts;
+                    if (tk != 0) _ifaceTypeKey = tk;
+                }
+                // A base that carries BOTH a handler and a resolvable discriminator can filter its own
+                // children; one that carries neither (the ppp/wlan mid-tree bases) is handled by the
+                // interface-family chain below and must not overwrite an entry with a real key.
+                if (tk != 0 && !_genericBases.ContainsKey(gen))
+                    _genericBases[gen] = Tuple.Create((WinboxHandler)handlerInts, tk);
             }
         }
 
@@ -1010,40 +1015,45 @@ namespace tik4net.Winbox
 
                 // value leaf
                 if (dec != null)
-                {
-                    bool ro = cur.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
-                    // An 'ipaddrandport' names its port at 'portid' (6.x Connections, the sniffer's connections); it is
-                    // the same "my value needs a sibling" slot as a netmask.
-                    int maskKey = (cur.TryGetValue("maskid", out var mkv) && mkv is string mks
-                        && DecodeId(mks) is var md && md != null) ? md.Value.key
-                        : DecodedKeyOf(cur, "portid") is var pk && pk != 0 ? pk : HighKeyOf(cur);
-                    WinboxHandler? refHandler = ExtractRefHandler(cur);
-                    // 'range' must be read here as well as on the unwrapped path: EVERY firewall address field
-                    // is an opt→not→network with range:1, so dropping it here made the range-END sibling decode
-                    // as a netmask (see Docs/winbox-native-m2-protocol.md §24).
-                    bool isRange = cur.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
-                    string? allow = cur.TryGetValue("allow", out var alv) ? alv as string : null;
-                    // The wrapper's own opt flag wins; a leaf 'optid' fills in when there is no wrapper flag.
-                    if (optKey == 0) optKey = DecodedKeyOf(cur, "optid");
-                    if (netmaskKey != 0 && ty == "number" && maskKey == 0)
-                    {
-                        maskKey = netmaskKey;
-                        ty = WinboxFieldResolver.NumberNetmaskUiType;
-                    }
-                    AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
-                        ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane,
-                        DecodedKeyOf(cur, "oid"), IsOptionalAttr(cur), ElementUiTypeOf(cur), ScaleOf(cur),
-                        ElementPartsOf(cur), PostfixOf(cur), ElementSeparatorOf(cur),
-                        ElementNotKeyOf(cur), ElementIsRangeOf(cur),
-                        // A wrapped leaf carries its own base and its own minimum, and both decide how the
-                        // API spells the value: the bridge's priority is a wrapped {radix:16,postfix:'hex'}
-                        // and reads 0x1000 where the raw number is 4096.
-                        radix: RadixOf(cur),
-                        min: cur.TryGetValue("min", out var omnv) && omnv is int omni ? omni : 0,
-                        optInverted: optInverted);
-                }
+                    AddOptionLeaf(handlerKey, label, cur, ty, dec.Value, optKey, notKey, netmaskKey, optInverted, pane);
                 return;
             }
+        }
+
+        // The value leaf of an opt/not wrapper, registered with the flag keys the walk down to it collected.
+        private void AddOptionLeaf(JgOwner handlerKey, string label, Dictionary<string, object> cur, string? ty,
+            (int key, M2Type type) leaf, int optKey, int notKey, int netmaskKey, bool optInverted, PaneContext? pane)
+        {
+            bool ro = cur.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
+            // An 'ipaddrandport' names its port at 'portid' (6.x Connections, the sniffer's connections); it is
+            // the same "my value needs a sibling" slot as a netmask.
+            int maskKey = (cur.TryGetValue("maskid", out var mkv) && mkv is string mks
+                && DecodeId(mks) is var md && md != null) ? md.Value.key
+                : DecodedKeyOf(cur, "portid") is var pk && pk != 0 ? pk : HighKeyOf(cur);
+            WinboxHandler? refHandler = ExtractRefHandler(cur);
+            // 'range' must be read here as well as on the unwrapped path: EVERY firewall address field
+            // is an opt→not→network with range:1, so dropping it here made the range-END sibling decode
+            // as a netmask (see Docs/winbox-native-m2-protocol.md §24).
+            bool isRange = cur.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
+            string? allow = cur.TryGetValue("allow", out var alv) ? alv as string : null;
+            // The wrapper's own opt flag wins; a leaf 'optid' fills in when there is no wrapper flag.
+            if (optKey == 0) optKey = DecodedKeyOf(cur, "optid");
+            if (netmaskKey != 0 && ty == "number" && maskKey == 0)
+            {
+                maskKey = netmaskKey;
+                ty = WinboxFieldResolver.NumberNetmaskUiType;
+            }
+            AddField(handlerKey, label, leaf.key, leaf.type, ro, ExtractEnumMap(cur),
+                ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane,
+                DecodedKeyOf(cur, "oid"), IsOptionalAttr(cur), ElementUiTypeOf(cur), ScaleOf(cur),
+                ElementPartsOf(cur), PostfixOf(cur), ElementSeparatorOf(cur),
+                ElementNotKeyOf(cur), ElementIsRangeOf(cur),
+                // A wrapped leaf carries its own base and its own minimum, and both decide how the
+                // API spells the value: the bridge's priority is a wrapped {radix:16,postfix:'hex'}
+                // and reads 0x1000 where the raw number is 4096.
+                radix: RadixOf(cur),
+                min: cur.TryGetValue("min", out var omnv) && omnv is int omni ? omni : 0,
+                optInverted: optInverted);
         }
 
         /// <summary>
@@ -1183,16 +1193,7 @@ namespace tik4net.Winbox
             string[]? halves = underOption || keys.Count != 2 ? null : SplitPairLabel(label);
             if (halves != null)
             {
-                bool tupleRo = tuple.TryGetValue("ro", out var trv) && trv is int tri && tri != 0;
-                var partNodes = children.OfType<Dictionary<string, object>>().Where(c => c.ContainsKey("id")).ToList();
-                for (int i = 0; i < 2 && i < partNodes.Count; i++)
-                {
-                    var node = partNodes[i];
-                    string? ui = node.TryGetValue("type", out var ptv) ? ptv as string : null;
-                    bool partRo = tupleRo || (node.TryGetValue("ro", out var prv) && prv is int pri && pri != 0);
-                    AddField(handlerKey, halves[i], keys[i].Item1, keys[i].Item2, partRo, ExtractEnumMap(node), ui, 0,
-                        null, pane: pane, postfix: PostfixOf(node), scale: ScaleOf(node));
-                }
+                AddTupleHalves(handlerKey, halves, keys, tuple, children, pane);
                 return;
             }
 
@@ -1218,6 +1219,22 @@ namespace tik4net.Winbox
                 TupleUiType, 0, null, optKey: optKey, pane: pane, isOptional: IsOptionalAttr(tuple),
                 elementParts: parts, elementSeparator: sep,
                 extraRegistrations: extra.Count > 0 ? extra : null, prefix: prefix);
+        }
+
+        // The two halves of an 'X/Y rest' tuple, each an API field of its own.
+        private void AddTupleHalves(JgOwner handlerKey, string[] halves, List<Tuple<int, M2Type>> keys,
+            Dictionary<string, object> tuple, List<object> children, PaneContext? pane)
+        {
+            bool tupleRo = tuple.TryGetValue("ro", out var trv) && trv is int tri && tri != 0;
+            var partNodes = children.OfType<Dictionary<string, object>>().Where(c => c.ContainsKey("id")).ToList();
+            for (int i = 0; i < 2 && i < partNodes.Count; i++)
+            {
+                var node = partNodes[i];
+                string? ui = node.TryGetValue("type", out var ptv) ? ptv as string : null;
+                bool partRo = tupleRo || (node.TryGetValue("ro", out var prv) && prv is int pri && pri != 0);
+                AddField(handlerKey, halves[i], keys[i].Item1, keys[i].Item2, partRo, ExtractEnumMap(node), ui, 0,
+                    null, pane: pane, postfix: PostfixOf(node), scale: ScaleOf(node));
+            }
         }
 
         private static readonly Regex PairLabel =
