@@ -1,4 +1,6 @@
 using System;
+using System.Threading.Tasks;
+using System.Threading;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -85,12 +87,34 @@ namespace tik4net.Objects.Tool.Romon
         /// <param name="count">Number of echoes.</param>
         public static IEnumerable<ToolRomonPing> RomonPing(this ITikConnection connection, string romonId, int count = 4)
         {
+            return connection.LoadList<ToolRomonPing>(PingParameters(connection, romonId, count));
+        }
+
+        /// <summary>
+        /// Async counterpart of <see cref="RomonPing(ITikConnection, string, int)"/>: the same echoes, awaited (needs
+        /// <see cref="TikConnectionCapability.AsyncCommands"/>). The arguments are checked before anything is sent,
+        /// and an invalid one throws from the call itself.
+        /// </summary>
+        /// <param name="connection">Connection to the router the echoes leave from (RoMON must be enabled on it).</param>
+        /// <param name="romonId">The target's RoMON id, MAC-address format — see <see cref="ToolRomonDiscover.Address"/>.</param>
+        /// <param name="count">Number of echoes.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public static Task<IList<ToolRomonPing>> RomonPingAsync(this ITikConnection connection, string romonId, int count = 4,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return connection.LoadListAsync<ToolRomonPing>(cancellationToken, PingParameters(connection, romonId, count));
+        }
+
+        private static ITikCommandParameter[] PingParameters(ITikConnection connection, string romonId, int count)
+        {
             if (string.IsNullOrEmpty(romonId)) throw new ArgumentException("A RoMON id is required.", nameof(romonId));
             if (count < 1) throw new ArgumentOutOfRangeException(nameof(count), count, "At least one echo.");
 
-            return connection.LoadList<ToolRomonPing>(
+            return new[]
+            {
                 connection.CreateParameter("id", romonId, TikCommandParameterFormat.NameValue),
-                connection.CreateParameter("count", count.ToString(CultureInfo.InvariantCulture), TikCommandParameterFormat.NameValue));
+                connection.CreateParameter("count", count.ToString(CultureInfo.InvariantCulture), TikCommandParameterFormat.NameValue),
+            };
         }
     }
 }

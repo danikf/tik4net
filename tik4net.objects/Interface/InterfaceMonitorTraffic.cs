@@ -1,4 +1,6 @@
-﻿using System;
+﻿using System.Threading;
+using System.Threading.Tasks;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
@@ -95,6 +97,21 @@ namespace tik4net.Objects.Interface
                 connection.CreateParameter("once", "", TikCommandParameterFormat.NameValue));
 
             return result;
+        }
+
+        /// <summary>
+        /// Async counterpart of <see cref="GetInterfaceMonitorTrafficSnapshot(ITikConnection, string)"/>: the same
+        /// one-shot read, awaited (needs <see cref="TikConnectionCapability.AsyncCommands"/>).
+        /// </summary>
+        /// <param name="connection">Connection to the router.</param>
+        /// <param name="interfaceName">The interface to read.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public static Task<InterfaceMonitorTraffic> GetInterfaceMonitorTrafficSnapshotAsync(this ITikConnection connection,
+            string interfaceName, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return connection.LoadSingleAsync<InterfaceMonitorTraffic>(cancellationToken,
+                connection.CreateParameter("interface", interfaceName, TikCommandParameterFormat.NameValue),
+                connection.CreateParameter("once", "", TikCommandParameterFormat.NameValue));
         }
     }
 }

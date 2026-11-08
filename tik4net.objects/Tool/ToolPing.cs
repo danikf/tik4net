@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading.Tasks;
+using System.Threading;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Globalization;
@@ -139,6 +141,23 @@ namespace tik4net.Objects.Tool
                 connection.CreateParameter("count", cnt.ToString(CultureInfo.InvariantCulture), TikCommandParameterFormat.NameValue));
 
             return result;
+        }
+
+        /// <summary>
+        /// Pings given <paramref name="address"/> and waits for <paramref name="cnt"/> results. Async counterpart of
+        /// <see cref="Ping(ITikConnection, string, int)"/>: the same command, awaited (needs
+        /// <see cref="TikConnectionCapability.AsyncCommands"/>).
+        /// </summary>
+        /// <param name="connection">Connection to the router the pings leave from.</param>
+        /// <param name="address">Address to ping.</param>
+        /// <param name="cnt">Number of pings.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public static Task<IList<ToolPing>> PingAsync(this ITikConnection connection, string address, int cnt,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return connection.LoadListAsync<ToolPing>(cancellationToken,
+                connection.CreateParameter("address", address, TikCommandParameterFormat.NameValue),
+                connection.CreateParameter("count", cnt.ToString(CultureInfo.InvariantCulture), TikCommandParameterFormat.NameValue));
         }
     }
 

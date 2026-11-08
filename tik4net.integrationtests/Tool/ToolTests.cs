@@ -40,6 +40,15 @@ namespace tik4net.integrationtests
         /// read the wire's microseconds as milliseconds (F12), and <see cref="TikDuration"/> had no <c>us</c>.
         /// </summary>
         [TestMethod]
+        public async Task PingAsyncLocalhostReturnsEveryReply()
+        {
+            EnsureCapability(TikConnectionCapability.AsyncCommands, "PingAsync");
+            var rows = await Connection.PingAsync("127.0.0.1", 2);
+            Assert.AreEqual(2, rows.Count);
+            Assert.IsTrue(rows.All(r => r.Time.TryGetValue(out var t) && t.HasValue), "a loopback reply without its time");
+        }
+
+        [TestMethod]
         public void PingLocalhostTimesAreDurations()
         {
             var rows = Connection.Ping("127.0.0.1", 2).ToList();
@@ -430,6 +439,17 @@ namespace tik4net.integrationtests
             // The hop ADDRESS, not just the row count: over WinBox native the hop rode in a nested field the
             // M2 parser could not read, so the rows arrived complete but with a blank address.
             Assert.AreEqual(IP, result.First().Address, "a hop must name the host that answered");
+        }
+
+        [TestMethod]
+        public async Task TracerouteAsyncToLocalhostNamesTheHop()
+        {
+            EnsureCapability(TikConnectionCapability.AsyncCommands, "TracerouteAsync");
+            const string IP = "127.0.0.1";
+
+            var result = await Connection.TracerouteAsync(IP);
+            Assert.IsTrue(result.Count > 0);
+            Assert.AreEqual(IP, result[0].Address, "a hop must name the host that answered");
         }
 
         [TestMethod]

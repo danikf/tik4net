@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Tool.Romon;
@@ -51,6 +52,27 @@ namespace tik4net.integrationtests
                 Assert.IsFalse(string.IsNullOrEmpty(n.Address.Value), "a neighbour without its RoMON id");
                 Assert.IsTrue(n.Hops >= 1, "hops=" + n.Hops);
             }
+        }
+
+        [TestMethod]
+        public async Task RomonDiscoverAsyncListsEachNeighbourOnce()
+        {
+            EnsureRomonRunning();
+            EnsureCapability(TikConnectionCapability.AsyncCommands, "RomonDiscoverAsync");
+            var neighbours = await Connection.RomonDiscoverAsync(TimeSpan.FromSeconds(2));
+            Assert.AreEqual(neighbours.Count, neighbours.Select(n => n.Address).Distinct().Count());
+            foreach (var n in neighbours)
+                Assert.IsFalse(string.IsNullOrEmpty(n.Address.Value), "a neighbour without its RoMON id");
+        }
+
+        [TestMethod]
+        public async Task RomonPingAsyncToUnknownIdTimesOut()
+        {
+            EnsureRomonRunning();
+            EnsureCapability(TikConnectionCapability.AsyncCommands, "RomonPingAsync");
+            var rows = await Connection.RomonPingAsync("AA:BB:CC:DD:EE:FF", 1);
+            Assert.AreEqual(1, rows.Count);
+            Assert.AreEqual("timeout", rows[0].Status);
         }
 
         [TestMethod]

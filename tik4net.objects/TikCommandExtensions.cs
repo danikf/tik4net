@@ -235,7 +235,7 @@ namespace tik4net.Objects
             return entity;
         }
 
-        private static TEntity CreateObject<TEntity>(ITikReSentence sentence)
+        internal static TEntity CreateObject<TEntity>(ITikReSentence sentence)
             where TEntity : new()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();

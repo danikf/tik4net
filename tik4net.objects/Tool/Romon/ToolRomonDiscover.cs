@@ -1,4 +1,6 @@
 using System;
+using System.Threading.Tasks;
+using System.Threading;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -84,16 +86,45 @@ namespace tik4net.Objects.Tool.Romon
         /// shorter scan reports nothing. The router takes whole seconds, so a fraction is rounded up.</param>
         public static IEnumerable<ToolRomonDiscover> RomonDiscover(this ITikConnection connection, TimeSpan? duration = null)
         {
+            return LatestPerNeighbour(connection.LoadList<ToolRomonDiscover>(DurationParameter(connection, duration)));
+        }
+
+        /// <summary>
+        /// Async counterpart of <see cref="RomonDiscover(ITikConnection, TimeSpan?)"/>: the same scan, awaited (needs
+        /// <see cref="TikConnectionCapability.AsyncCommands"/>), each neighbour once. An invalid
+        /// <paramref name="duration"/> throws from the call itself, before anything is sent.
+        /// </summary>
+        /// <param name="connection">Connection to the router whose neighbours are wanted (RoMON must be enabled on it).</param>
+        /// <param name="duration">How long to scan; 3 seconds when omitted, at least 2 seconds, rounded up to whole seconds.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public static Task<IList<ToolRomonDiscover>> RomonDiscoverAsync(this ITikConnection connection, TimeSpan? duration = null,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var parameter = DurationParameter(connection, duration);
+            return LoadLatestAsync(connection, parameter, cancellationToken);
+        }
+
+        private static async Task<IList<ToolRomonDiscover>> LoadLatestAsync(ITikConnection connection,
+            ITikCommandParameter parameter, CancellationToken cancellationToken)
+        {
+            var rows = await connection.LoadListAsync<ToolRomonDiscover>(cancellationToken, parameter).ConfigureAwait(false);
+            return LatestPerNeighbour(rows);
+        }
+
+        private static ITikCommandParameter DurationParameter(ITikConnection connection, TimeSpan? duration)
+        {
             TimeSpan scan = duration ?? TimeSpan.FromSeconds(3);
             if (scan < TimeSpan.FromSeconds(2))
                 throw new ArgumentOutOfRangeException(nameof(duration), scan,
                     "A RoMON discover shorter than 2 seconds reports nothing over the CLI transports.");
             long seconds = (long)Math.Ceiling(scan.TotalSeconds);
 
-            var rows = connection.LoadList<ToolRomonDiscover>(
-                connection.CreateParameter("duration", seconds.ToString(CultureInfo.InvariantCulture),
-                    TikCommandParameterFormat.NameValue));
+            return connection.CreateParameter("duration", seconds.ToString(CultureInfo.InvariantCulture),
+                TikCommandParameterFormat.NameValue);
+        }
 
+        private static IList<ToolRomonDiscover> LatestPerNeighbour(IEnumerable<ToolRomonDiscover> rows)
+        {
             // The API and REST repeat the whole neighbour set once per refresh; keep the latest report.
             var byAddress = new Dictionary<string, ToolRomonDiscover>(StringComparer.OrdinalIgnoreCase);
             var order = new List<string>();

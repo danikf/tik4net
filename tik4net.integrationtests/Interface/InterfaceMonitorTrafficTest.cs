@@ -28,6 +28,15 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        public async Task GetTrafficSnapshotAsyncForEther1WillNotFail()
+        {
+            EnsureCapability(TikConnectionCapability.AsyncCommands, "GetInterfaceMonitorTrafficSnapshotAsync");
+            var tmp = await Connection.GetInterfaceMonitorTrafficSnapshotAsync(TestConstants.Interface);
+            Assert.AreEqual(TestConstants.Interface, tmp.Name);
+            Assert.IsTrue(tmp.RxBitsPerSecond != null, "the reading the command exists for");
+        }
+
+        [TestMethod]
         public void LoadTrafficSnapshotWillNotFail()
         {
             var tmp = Connection.LoadSingle<InterfaceMonitorTraffic>(

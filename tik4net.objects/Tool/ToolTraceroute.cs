@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading.Tasks;
+using System.Threading;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
@@ -92,6 +94,22 @@ namespace tik4net.Objects.Tool
                 connection.CreateParameter("count", "1", TikCommandParameterFormat.NameValue));
 
             return result;
+        }
+
+        /// <summary>
+        /// Traceroutes given <paramref name="address"/>. Async counterpart of
+        /// <see cref="Traceroute(ITikConnection, string)"/>: the same command, awaited (needs
+        /// <see cref="TikConnectionCapability.AsyncCommands"/>).
+        /// </summary>
+        /// <param name="connection">Connection to the router the trace starts from.</param>
+        /// <param name="address">Address to trace.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public static Task<IList<ToolTraceroute>> TracerouteAsync(this ITikConnection connection, string address,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return connection.LoadListAsync<ToolTraceroute>(cancellationToken,
+                connection.CreateParameter("address", address, TikCommandParameterFormat.NameValue),
+                connection.CreateParameter("count", "1", TikCommandParameterFormat.NameValue));
         }
     }
 }
