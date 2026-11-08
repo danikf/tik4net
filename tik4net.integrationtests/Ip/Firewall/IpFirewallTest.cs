@@ -571,6 +571,54 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// NAT's per-action fields — randomise-ports (endpoint-independent-nat), same-not-by-dst (same) and the SOCKS5
+        /// target (socksify) — round-trip on every transport. The router refuses randomise-ports on any other action, so
+        /// it is cleared before the action changes.
+        /// </summary>
+        [TestMethod]
+        public void FirewallNat_ActionSpecificFields_RoundTrip()
+        {
+            EnsureRouterOsHas<FirewallNat>(nameof(FirewallNat.RandomisePorts), nameof(FirewallNat.Socks5Server));
+            const string comment = "t4n-nat-action-fields";
+            RemoveNatByComment(comment);
+            var nat = new FirewallNat
+            {
+                Chain = "srcnat",
+                Action = "endpoint-independent-nat",
+                Disabled = true,
+                Comment = comment,
+                Protocol = "udp",
+                ToAddresses = "192.0.2.1",
+                RandomisePorts = true,
+            };
+            try
+            {
+                SaveTracked(nat);
+                var loaded = Connection.LoadById<FirewallNat>(nat.Id);
+                Assert.AreEqual(true, loaded.RandomisePorts.Value, $"randomise-ports on {ResolveConnectionType()}");
+
+                loaded.RandomisePorts = false;
+                loaded.Action = "socksify";
+                loaded.Protocol = "tcp";
+                loaded.Socks5Server = "192.0.2.2";
+                loaded.Socks5Port = 1080;
+                Connection.Save(loaded);
+                loaded = Connection.LoadById<FirewallNat>(nat.Id);
+                Assert.AreEqual("192.0.2.2", loaded.Socks5Server.Value, $"socks5-server on {ResolveConnectionType()}");
+                Assert.AreEqual(1080, loaded.Socks5Port.Value, $"socks5-port on {ResolveConnectionType()}");
+
+                loaded.Action = "same";
+                loaded.SameNotByDst = true;
+                Connection.Save(loaded);
+                Assert.AreEqual(true, Connection.LoadById<FirewallNat>(nat.Id).SameNotByDst.Value, $"same-not-by-dst on {ResolveConnectionType()}");
+            }
+            finally
+            {
+                RemoveNatByComment(comment);
+            }
+        }
+
+        /// <summary>
         /// Mangle's own fields — what an action writes, and the matchers the filter does not have — round-trip on every
         /// transport, next to the matchers it shares with the filter.
         /// </summary>

@@ -30,7 +30,8 @@ namespace tik4net.unittests.Objects
         /// What the router does NOT offer on each table, from its own completion of <c>/ip/firewall/&lt;table&gt; add </c>
         /// on 7.25.1 (the <c>mikrotik_cli_complete</c> tool). Raw runs before connection tracking, so it has no
         /// <c>connection-*</c> matchers; mangle's <c>new-*</c>, <c>passthrough</c>, <c>route-dst</c> and <c>sniff-*</c>
-        /// belong to its own actions, <c>reject-with</c> to filter's, and <c>to-addresses</c>/<c>to-ports</c> to NAT's,
+        /// belong to its own actions, <c>reject-with</c> to filter's, and <c>to-addresses</c>/<c>to-ports</c> (with
+        /// <c>randomise-ports</c>, <c>same-not-by-dst</c> and the three <c>socks*</c> fields) to NAT's,
         /// which has no <c>connection-state</c>, <c>connection-nat-state</c>, <c>p2p</c>, <c>tcp-flags</c> or <c>tls-host</c>
         /// either. Any
         /// other field one table declares the others must declare too.
@@ -41,7 +42,10 @@ namespace tik4net.unittests.Objects
             "passthrough", "route-dst", "sniff-id", "sniff-target", "sniff-target-port",
         };
 
-        private static readonly string[] NatActionFields = { "to-addresses", "to-ports" };
+        private static readonly string[] NatActionFields =
+        {
+            "randomise-ports", "same-not-by-dst", "socks5-port", "socks5-server", "socksify-service", "to-addresses", "to-ports",
+        };
 
         private static readonly Dictionary<Type, string[]> NotOffered = new Dictionary<Type, string[]>
         {

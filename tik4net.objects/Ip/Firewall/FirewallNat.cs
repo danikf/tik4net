@@ -435,5 +435,38 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         [TikProperty("ttl", WinboxLabel = "TTL")]
         public TikField<string?> Ttl { get; set; }
+
+        /// <summary>
+        /// randomise-ports: picks the translated source port at random instead of keeping the original one. Only with
+        /// <c>action=endpoint-independent-nat</c>; the router refuses it on every other action.
+        /// </summary>
+        [TikProperty("randomise-ports", DefaultValue = "no", WinboxLabel = "Randomise Ports", MinRouterOs = "7")]
+        public TikField<bool?> RandomisePorts { get; set; }
+
+        /// <summary>
+        /// same-not-by-dst: with <c>action=same</c>, chooses the address from <c>to-addresses</c> by the source address
+        /// alone, without the destination address.
+        /// </summary>
+        [TikProperty("same-not-by-dst", DefaultValue = "no", WinboxLabel = "Not by Dst.")]
+        public TikField<bool?> SameNotByDst { get; set; }
+
+        /// <summary>
+        /// socks5-port: port of the SOCKS5 server the connection is redirected to. Used with <c>action=socksify</c>.
+        /// </summary>
+        [TikProperty("socks5-port", WinboxLabel = "SOCKS5 Port", MinRouterOs = "7")]
+        public TikField<int?> Socks5Port { get; set; }
+
+        /// <summary>
+        /// socks5-server: IP address of the SOCKS5 server the connection is redirected to. Used with <c>action=socksify</c>.
+        /// </summary>
+        [TikProperty("socks5-server", WinboxLabel = "SOCKS5 Server", MinRouterOs = "7")]
+        public TikField<string?> Socks5Server { get; set; }
+
+        /// <summary>
+        /// socksify-service: name of the <c>/ip/socksify</c> service that handles the connection. Used with
+        /// <c>action=socksify</c>.
+        /// </summary>
+        [TikProperty("socksify-service", WinboxLabel = "Socksify Service", MinRouterOs = "7")]
+        public TikField<string?> SocksifyService { get; set; }
     }
 }
