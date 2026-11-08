@@ -130,14 +130,14 @@ namespace tik4net.unittests.Analyzers
                         yield return moveNext;
                 }
 
-                byte[]? il;
+                byte[] il;
                 try { il = method.GetMethodBody()?.GetILAsByteArray(); }
                 catch (Exception e) when (e is InvalidOperationException || e is NotSupportedException) { il = null; }
                 if (il == null)
                     yield break;
 
-                Type[]? typeArgs = method.DeclaringType != null && method.DeclaringType.IsGenericType ? method.DeclaringType.GetGenericArguments() : null;
-                Type[]? methodArgs = method.IsGenericMethod ? method.GetGenericArguments() : null;
+                Type[] typeArgs = method.DeclaringType != null && method.DeclaringType.IsGenericType ? method.DeclaringType.GetGenericArguments() : null;
+                Type[] methodArgs = method.IsGenericMethod ? method.GetGenericArguments() : null;
 
                 int i = 0;
                 while (i < il.Length)
@@ -147,7 +147,7 @@ namespace tik4net.unittests.Analyzers
                     var opCode = OpCodesByValue[value];
                     if (opCode.OperandType == OperandType.InlineMethod)
                     {
-                        MethodBase? callee = null;
+                        MethodBase callee = null;
                         try { callee = method.Module.ResolveMethod(BitConverter.ToInt32(il, i), typeArgs, methodArgs); }
                         catch (ArgumentException) { }
                         if (callee != null)
