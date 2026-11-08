@@ -17,11 +17,11 @@ namespace tik4net.Objects.Ip
         public static class StoreLeasesDiskType
         {
             /// <summary>
-            /// never
+            /// immediately — store every lease change on disk as it happens.
             /// </summary>
-            public const string Immediately = "never";
+            public const string Immediately = "immediately";
             /// <summary>
-            /// never
+            /// never — do not store lease changes on disk.
             /// </summary>
             public const string Never = "never";
         }
