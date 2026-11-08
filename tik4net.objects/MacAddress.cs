@@ -16,13 +16,15 @@ namespace tik4net.Objects
         private string _address;
 
         /// <summary>
-        /// MAC as string in format 00:00:00:00:00:00.
+        /// MAC as string in format 00:00:00:00:00:00; <c>null</c> for a <c>null</c> instance.
         /// </summary>
-        public static implicit operator string(MacAddress mac) { return mac == null ? DEFAULT_MAC : mac.Address; }
+        [return: global::System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(mac))]
+        public static implicit operator string?(MacAddress? mac) { return mac?.Address; }
 
         /// <summary>
-        /// MAC as string in format 00:00:00:00:00:00.
+        /// MAC from a string in format 00:00:00:00:00:00, as <see cref="MacAddress(string)"/>.
         /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="mac"/> is null, empty, or not a MAC address.</exception>
         public static implicit operator MacAddress(string mac)
         {
             return new MacAddress(mac);
@@ -42,7 +44,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Ctor - 00:00:00:00:00:00
+        /// The zero MAC, 00:00:00:00:00:00, spelled explicitly.
         /// </summary>
         public MacAddress()
         {
@@ -50,14 +52,14 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Ctor
+        /// A MAC address from its text.
         /// </summary>
         /// <param name="mac">MAC address in format 00:00:00:00:00:00</param>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="mac"/> is null, empty, or not a MAC address. Use <see cref="MacAddress()"/> for the zero MAC.
+        /// </exception>
         public MacAddress(string mac)
         {
-            if (string.IsNullOrWhiteSpace(mac))
-                mac = DEFAULT_MAC;
-
             EnsureValidMac(mac);
             _address = mac;
         }
@@ -82,9 +84,9 @@ namespace tik4net.Objects
         public override string ToString() => _address;
 
         private static Regex MacRegex = new Regex(@"^[\da-f]{2}:[\da-f]{2}:[\da-f]{2}:[\da-f]{2}:[\da-f]{2}:[\da-f]{2}$", RegexOptions.IgnoreCase);
-        private static void EnsureValidMac(string mac)
+        private static void EnsureValidMac(string? mac)
         {
-            if (!MacRegex.IsMatch(mac))
+            if (mac == null || !MacRegex.IsMatch(mac))
                 throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid MAC address '{0}'.", mac));
         }
     }
