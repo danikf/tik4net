@@ -100,27 +100,8 @@ namespace tik4net.Winbox
             // .jg lookup below agree on it (otherwise a GUI label would resolve a key but miss its typed field).
             apiName = CanonicalInputName(apiName);
 
-            // A paired field has to be split BEFORE anything tries to resolve it: the composite is made of
-            // two M2 keys and has none of its own, so ResolveKey would (correctly) fail on it. Each half is
-            // then encoded BY ITS OWN NAME through this same method, so every typed encoder below applies
-            // to it unchanged — a hand-rolled pair encoder here would be a second place for scale, enums
-            // and read-only to be got wrong.
-            var halves = PairedHalfNames(apiName);
-            if (halves != null)
-            {
-                var paired = new List<byte[]>();
-                if (value.Length == 0) return paired;
-
-                int slash = value.IndexOf('/');
-                string up = slash < 0 ? value : value.Substring(0, slash);
-                // One side only means upload, download zero — the reading the router itself gives it
-                // (max-limit=1M reads back as 1000000/0).
-                string down = slash < 0 ? "0" : value.Substring(slash + 1);
-
-                paired.AddRange(EncodeField(halves.Item1, up, resolveRef, allowReadOnly, resolveRefTable));
-                paired.AddRange(EncodeField(halves.Item2, down, resolveRef, allowReadOnly, resolveRefTable));
-                return paired;
-            }
+            var paired = EncodePairedHalves(apiName, value, resolveRef, allowReadOnly, resolveRefTable);
+            if (paired != null) return paired;
 
             int key = ResolveKey(apiName);
             var result = new List<byte[]>();
@@ -134,69 +115,16 @@ namespace tik4net.Winbox
             WinboxJgField? jg = null;
             JgFields?.TryGetValue(AliasToJg(apiName), out jg);
 
-            // Read-only fields are unsendable for CRUD writes, but a monitor's request inputs (e.g. ping
-            // 'address') are .jg-marked ro as display fields yet must still be sent — allowReadOnly keeps them.
-            if (jg != null && jg.ReadOnly && !allowReadOnly && !IsWrittenDespiteMark(apiName))
-                throw new WinboxFieldResolutionException(
-                    $"WinBox native: the window for '{_apiPath}' marks '{apiName}' read-only, and nothing was sent. If the "
-                    + "router's API takes this field on that menu, the gap is tik4net's: please report it.", apiName);
+            ThrowIfReadOnly(jg, apiName, allowReadOnly);
             value = value ?? "";
 
             string? uiType = jg?.UiType;
 
-            // The word RouterOS prints for a zero (arp-timeout=auto, mtu=auto, max-sessions=unlimited) is the
-            // zero on the way back in. Without it every typed numeric encoder below refused the one value the
-            // read side hands out — a field read over native could not be written back unchanged.
-            if (jg != null && WinboxRecordCodec.IsZeroWord(jg, value))
-            {
-                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
-                result.Add(EncodeU32(key, 0));
-                return result;
-            }
+            if (TryEncodeZeroWord(key, value, jg, result)) return result;
+            if (TryEncodeSentinelWord(key, value, jg, result)) return result;
 
-            // …and the word RouterOS prints for the all-ones unset marker (trust-store=all, certificate=none).
-            if (jg != null && WinboxRecordCodec.IsSentinelWord(jg, value))
-            {
-                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
-                result.Add(EncodeU32(key, unchecked((uint)WinboxJgField.UnsetSentinel)));
-                return result;
-            }
-
-            // ── opt/not container flags ──
-            //
-            // An opt-wrapped field is IGNORED BY THE ROUTER unless its opt bool says the option is present, and
-            // a not-wrapped one negates via its own bool (RouterOS's leading '!'). This has to happen before the
-            // typed switch below, not after it: 'network', 'ipaddr', 'macaddr' and 'addr' all return from inside
-            // the switch, so emitting the flags afterwards skipped exactly them — which is why every firewall
-            // address written over native reached the router as a rule matching EVERYTHING.
-            //
-            // Clearing one is the same bool the other way round: an empty value on an opt-wrapped field means
-            // "the option is not present". The flag is emitted ALONGSIDE whatever the encoders below make of
-            // the empty value, not instead of it — a string field is cleared by writing it empty, and dropping
-            // that write leaves the old value on the router (the unset verb then reports a success that did
-            // nothing). For a typed field whose branch sends nothing for an empty value (network, ipaddr, …)
-            // this bool is the entire write, which is what makes an unset of one a valid request at all.
-            if (jg != null && jg.OptKey != 0 && value.Length == 0)
-                result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(false)));
-
-            if (jg != null && value.Length > 0)
-            {
-                // …but NOT on a per-member tri-state list, where '!' negates the MEMBER it precedes rather
-                // than the whole field: "!ack,syn" is two members with opposite senses, and stripping the
-                // leading '!' here would turn it into "the whole rule negated, ack and syn both plain".
-                if (jg.NotKey != 0 && !IsPerMemberNegatedList(uiType))
-                {
-                    // Sent both ways: the flag is stored on the row, so a value written without '!' over a negated
-                    // one kept the negation when only 'true' was ever sent — src-address=10.0.0.0/8 over
-                    // !10.0.0.0/8 read back !10.0.0.0/8 (7.24.4).
-                    bool negated = value.StartsWith("!");
-                    if (negated)
-                        value = value.Substring(1);
-                    result.Add(M2Message.BoolSys(jg.NotKey, negated));
-                }
-                if (jg.OptKey != 0 && value.Length > 0)
-                    result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
-            }
+            // ── opt/not container flags ── (see EncodeOptNotFlags)
+            value = EncodeOptNotFlags(value, jg, uiType, result);
 
             if (jg != null && value.Length > 0
                 && (jg.UiType == FirewallLimitUiType || jg.UiType == FirewallDstLimitUiType || jg.UiType == FirewallTosUiType))
@@ -205,24 +133,7 @@ namespace tik4net.Winbox
                 throw new WinboxFieldValueException($"input does not match any value of {apiName}");
             }
 
-            // A `number` whose postfix says s or ms is a DURATION, and the read side has spelled it as one
-            // since the seeded audit found `mii-interval` reading 100 where the API says 100ms. The write
-            // side has to take that spelling back or the field becomes readable and unwritable: RADIUS's
-            // timeout (u8, postfix:'ms') took "500ms" through the generic numeric branch and left 1s100ms
-            // on the router — accepted, silently wrong, and invisible to every read-only check.
-            if (jg != null && value.Length > 0
-                && string.Equals(uiType, "number", StringComparison.OrdinalIgnoreCase)
-                && jg.IsTimePostfix
-                && !long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
-            {
-                if (!TryParseDuration(value, jg.TicksPerSecond, out long units))
-                    throw new WinboxFieldResolutionException(
-                        $"WinBox native: '{value}' is not a valid duration for field '{apiName}' on "
-                        + $"'{_apiPath}'. Expected a RouterOS duration (\"500ms\", \"45s\", \"1h\") or a plain "
-                        + $"number of {jg.Postfix}.");
-                result.Add(EncodeU32(key, unchecked((uint)units)));
-                return result;
-            }
+            if (TryEncodePostfixDuration(key, value, jg, uiType, apiName, result)) return result;
 
             // ── typed UI encodings (more specific than the wire type) ──
             switch (uiType)
@@ -305,47 +216,8 @@ namespace tik4net.Winbox
             // (opt/not flags for the generic encoders below were emitted before the switch, together with every
             // typed branch's — see the "opt/not container flags" block.)
 
-            // enum static map: encode the API string to its numeric index.
-            //
-            // EXACT match first, case-insensitive only as a fallback. Case is not always decoration: a
-            // wireless security profile's 'MAC Format' lists the same seven formats twice, upper then lower,
-            // and the case is what selects how the MAC reaches the RADIUS server. Matching case-insensitively
-            // in one pass returns whichever member comes FIRST, so every lowercase value was written as its
-            // uppercase twin. The fallback keeps every other map working, where the API's spelling and the
-            // label differ only in case.
-            if (jg?.EnumMap != null)
-            {
-                foreach (var kv in jg.EnumMap)
-                    if (string.Equals(kv.Value, value, StringComparison.Ordinal))
-                    {
-                        // ...at the field's own wire type. A two-member map over a BOOL key is a real shape
-                        // (/system/health spells its two bools 'disabled'/'enabled'), and a u32 written to a
-                        // bool key is a request the router accepts, answers, and ignores.
-                        result.Add(jg.WireType == M2Type.Bool
-                            ? M2Message.BoolSys(key, kv.Key != 0)
-                            : EncodeU32(key, (uint)kv.Key));
-                        return result;
-                    }
-                foreach (var kv in jg.EnumMap)
-                    if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.Add(jg.WireType == M2Type.Bool
-                            ? M2Message.BoolSys(key, kv.Key != 0)
-                            : EncodeU32(key, (uint)kv.Key));
-                        return result;
-                    }
-            }
-
-            // An enm whose element is a clocktime: the map names the word ('startup' on /system/scheduler
-            // start-time) and anything else is a time of day, carried as seconds since midnight — the
-            // inverse of the decode, which renders a map miss through the element type.
-            if (jg != null && value.Length > 0
-                && string.Equals(jg.ElementUiType, "clocktime", StringComparison.OrdinalIgnoreCase)
-                && TryParseDuration(value, 1, out long elementSeconds))
-            {
-                result.Add(EncodeU32(key, unchecked((uint)(elementSeconds % 86400))));
-                return result;
-            }
+            if (TryEncodeEnumMember(key, value, jg, result)) return result;
+            if (TryEncodeElementClockTime(key, value, jg, result)) return result;
 
             // A dropdown reference (ftype 'enm' with a RefHandler) whose value named neither an existing
             // record nor a static enum member. Every remaining encoder below would turn it into a plain
@@ -368,34 +240,8 @@ namespace tik4net.Winbox
                     $"('{uiType ?? M2Types.JgName(wireType)}') that is not yet encodable over native WinBox M2 writes. " +
                     "Use an Api/REST/CLI connection for this field (or a FieldOverride to a scalar key).");
 
-            // A scalar tuple is a compound the API prints joined by a separator, and splitting the text back
-            // onto the parts is not the inverse of joining it: an IPv6 'Remote' would put its own colons in
-            // the way of the tuple's. Refusing beats writing the first part and dropping the rest, which is
-            // a request the router accepts and half-obeys.
-            // A tuple of plain numbers and durations is the exception: neither part can contain the separator,
-            // so the split is exact. The tunnels' keepalive=7s,3 is one — u7d5=7 and u7d9=3 (7.24.2).
-            if (value.Length > 0 && jg?.ElementParts != null
-                && string.Equals(uiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase)
-                && TryEncodeNumericTuple(jg, value, result))
-                return result;
-            if (value.Length > 0
-                && string.Equals(uiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase))
-                throw new WinboxFieldResolutionException(
-                    $"WinBox native: field '{apiName}' on '{_apiPath}' is a tuple of several WinBox fields " +
-                    "joined for display and is not encodable over native WinBox M2 writes. " +
-                    "Use an Api/REST/CLI connection for this field.");
-
-            // A base-16 number is read back in the API's own spelling (icmp-rate-mask=0x1818, priority=0x8000), so
-            // that spelling is what a caller hands in; the plain decimal is still accepted.
-            if (jg != null && jg.Radix == 16 && value.Length > 2
-                && value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-                && wireType == M2Type.U32
-                && uint.TryParse(value.Substring(2), System.Globalization.NumberStyles.HexNumber,
-                                 System.Globalization.CultureInfo.InvariantCulture, out uint hex))
-            {
-                result.Add(EncodeU32(key, hex));
-                return result;
-            }
+            if (TryEncodeTuple(value, jg, uiType, apiName, result)) return result;
+            if (TryEncodeHex(key, value, jg, wireType, result)) return result;
 
             // 'addr' (webfig types.addr) is a compound: the value is a nested message, and each address FORM
             // rides at its own sub-key. Encoding it needs the whole set, not just IPv4 — see EncodeAddr.
@@ -405,6 +251,229 @@ namespace tik4net.Winbox
                 return result;
             }
 
+            EncodeByWireType(key, value, jg, uiType, wireType, apiName, result);
+            return result;
+        }
+
+        private List<byte[]>? EncodePairedHalves(string apiName, string value, Func<WinboxHandler, string, int?>? resolveRef,
+            bool allowReadOnly, Func<WinboxHandler, IReadOnlyDictionary<int, string>?>? resolveRefTable)
+        {
+            // A paired field has to be split BEFORE anything tries to resolve it: the composite is made of
+            // two M2 keys and has none of its own, so ResolveKey would (correctly) fail on it. Each half is
+            // then encoded BY ITS OWN NAME through this same method, so every typed encoder below applies
+            // to it unchanged — a hand-rolled pair encoder here would be a second place for scale, enums
+            // and read-only to be got wrong.
+            var halves = PairedHalfNames(apiName);
+            if (halves != null)
+            {
+                var paired = new List<byte[]>();
+                if (value.Length == 0) return paired;
+
+                int slash = value.IndexOf('/');
+                string up = slash < 0 ? value : value.Substring(0, slash);
+                // One side only means upload, download zero — the reading the router itself gives it
+                // (max-limit=1M reads back as 1000000/0).
+                string down = slash < 0 ? "0" : value.Substring(slash + 1);
+
+                paired.AddRange(EncodeField(halves.Item1, up, resolveRef, allowReadOnly, resolveRefTable));
+                paired.AddRange(EncodeField(halves.Item2, down, resolveRef, allowReadOnly, resolveRefTable));
+                return paired;
+            }
+            return null;
+        }
+
+        private void ThrowIfReadOnly(WinboxJgField? jg, string apiName, bool allowReadOnly)
+        {
+            // Read-only fields are unsendable for CRUD writes, but a monitor's request inputs (e.g. ping
+            // 'address') are .jg-marked ro as display fields yet must still be sent — allowReadOnly keeps them.
+            if (jg != null && jg.ReadOnly && !allowReadOnly && !IsWrittenDespiteMark(apiName))
+                throw new WinboxFieldResolutionException(
+                    $"WinBox native: the window for '{_apiPath}' marks '{apiName}' read-only, and nothing was sent. If the "
+                    + "router's API takes this field on that menu, the gap is tik4net's: please report it.", apiName);
+        }
+
+        private static bool TryEncodeZeroWord(int key, string value, WinboxJgField? jg, List<byte[]> result)
+        {
+            // The word RouterOS prints for a zero (arp-timeout=auto, mtu=auto, max-sessions=unlimited) is the
+            // zero on the way back in. Without it every typed numeric encoder below refused the one value the
+            // read side hands out — a field read over native could not be written back unchanged.
+            if (jg != null && WinboxRecordCodec.IsZeroWord(jg, value))
+            {
+                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
+                result.Add(EncodeU32(key, 0));
+                return true;
+            }
+            return false;
+        }
+
+        private static bool TryEncodeSentinelWord(int key, string value, WinboxJgField? jg, List<byte[]> result)
+        {
+            // …and the word RouterOS prints for the all-ones unset marker (trust-store=all, certificate=none).
+            if (jg != null && WinboxRecordCodec.IsSentinelWord(jg, value))
+            {
+                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
+                result.Add(EncodeU32(key, unchecked((uint)WinboxJgField.UnsetSentinel)));
+                return true;
+            }
+            return false;
+        }
+
+        // Emits the opt/not bools and returns the value with a whole-field '!' taken off.
+        private static string EncodeOptNotFlags(string value, WinboxJgField? jg, string? uiType, List<byte[]> result)
+        {
+            // ── opt/not container flags ──
+            //
+            // An opt-wrapped field is IGNORED BY THE ROUTER unless its opt bool says the option is present, and
+            // a not-wrapped one negates via its own bool (RouterOS's leading '!'). This has to happen before the
+            // typed switch below, not after it: 'network', 'ipaddr', 'macaddr' and 'addr' all return from inside
+            // the switch, so emitting the flags afterwards skipped exactly them — which is why every firewall
+            // address written over native reached the router as a rule matching EVERYTHING.
+            //
+            // Clearing one is the same bool the other way round: an empty value on an opt-wrapped field means
+            // "the option is not present". The flag is emitted ALONGSIDE whatever the encoders below make of
+            // the empty value, not instead of it — a string field is cleared by writing it empty, and dropping
+            // that write leaves the old value on the router (the unset verb then reports a success that did
+            // nothing). For a typed field whose branch sends nothing for an empty value (network, ipaddr, …)
+            // this bool is the entire write, which is what makes an unset of one a valid request at all.
+            if (jg != null && jg.OptKey != 0 && value.Length == 0)
+                result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(false)));
+
+            if (jg != null && value.Length > 0)
+            {
+                // …but NOT on a per-member tri-state list, where '!' negates the MEMBER it precedes rather
+                // than the whole field: "!ack,syn" is two members with opposite senses, and stripping the
+                // leading '!' here would turn it into "the whole rule negated, ack and syn both plain".
+                if (jg.NotKey != 0 && !IsPerMemberNegatedList(uiType))
+                {
+                    // Sent both ways: the flag is stored on the row, so a value written without '!' over a negated
+                    // one kept the negation when only 'true' was ever sent — src-address=10.0.0.0/8 over
+                    // !10.0.0.0/8 read back !10.0.0.0/8 (7.24.4).
+                    bool negated = value.StartsWith("!");
+                    if (negated)
+                        value = value.Substring(1);
+                    result.Add(M2Message.BoolSys(jg.NotKey, negated));
+                }
+                if (jg.OptKey != 0 && value.Length > 0)
+                    result.Add(M2Message.BoolSys(jg.OptKey, jg.OptFlag(true)));
+            }
+            return value;
+        }
+
+        private bool TryEncodePostfixDuration(int key, string value, WinboxJgField? jg, string? uiType, string apiName,
+            List<byte[]> result)
+        {
+            // A `number` whose postfix says s or ms is a DURATION, and the read side has spelled it as one
+            // since the seeded audit found `mii-interval` reading 100 where the API says 100ms. The write
+            // side has to take that spelling back or the field becomes readable and unwritable: RADIUS's
+            // timeout (u8, postfix:'ms') took "500ms" through the generic numeric branch and left 1s100ms
+            // on the router — accepted, silently wrong, and invisible to every read-only check.
+            if (jg != null && value.Length > 0
+                && string.Equals(uiType, "number", StringComparison.OrdinalIgnoreCase)
+                && jg.IsTimePostfix
+                && !long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            {
+                if (!TryParseDuration(value, jg.TicksPerSecond, out long units))
+                    throw new WinboxFieldResolutionException(
+                        $"WinBox native: '{value}' is not a valid duration for field '{apiName}' on "
+                        + $"'{_apiPath}'. Expected a RouterOS duration (\"500ms\", \"45s\", \"1h\") or a plain "
+                        + $"number of {jg.Postfix}.");
+                result.Add(EncodeU32(key, unchecked((uint)units)));
+                return true;
+            }
+            return false;
+        }
+
+        private static bool TryEncodeEnumMember(int key, string value, WinboxJgField? jg, List<byte[]> result)
+        {
+            // enum static map: encode the API string to its numeric index.
+            //
+            // EXACT match first, case-insensitive only as a fallback. Case is not always decoration: a
+            // wireless security profile's 'MAC Format' lists the same seven formats twice, upper then lower,
+            // and the case is what selects how the MAC reaches the RADIUS server. Matching case-insensitively
+            // in one pass returns whichever member comes FIRST, so every lowercase value was written as its
+            // uppercase twin. The fallback keeps every other map working, where the API's spelling and the
+            // label differ only in case.
+            if (jg?.EnumMap != null)
+            {
+                foreach (var kv in jg.EnumMap)
+                    if (string.Equals(kv.Value, value, StringComparison.Ordinal))
+                    {
+                        // ...at the field's own wire type. A two-member map over a BOOL key is a real shape
+                        // (/system/health spells its two bools 'disabled'/'enabled'), and a u32 written to a
+                        // bool key is a request the router accepts, answers, and ignores.
+                        result.Add(jg.WireType == M2Type.Bool
+                            ? M2Message.BoolSys(key, kv.Key != 0)
+                            : EncodeU32(key, (uint)kv.Key));
+                        return true;
+                    }
+                foreach (var kv in jg.EnumMap)
+                    if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Add(jg.WireType == M2Type.Bool
+                            ? M2Message.BoolSys(key, kv.Key != 0)
+                            : EncodeU32(key, (uint)kv.Key));
+                        return true;
+                    }
+            }
+            return false;
+        }
+
+        private static bool TryEncodeElementClockTime(int key, string value, WinboxJgField? jg, List<byte[]> result)
+        {
+            // An enm whose element is a clocktime: the map names the word ('startup' on /system/scheduler
+            // start-time) and anything else is a time of day, carried as seconds since midnight — the
+            // inverse of the decode, which renders a map miss through the element type.
+            if (jg != null && value.Length > 0
+                && string.Equals(jg.ElementUiType, "clocktime", StringComparison.OrdinalIgnoreCase)
+                && TryParseDuration(value, 1, out long elementSeconds))
+            {
+                result.Add(EncodeU32(key, unchecked((uint)(elementSeconds % 86400))));
+                return true;
+            }
+            return false;
+        }
+
+        private bool TryEncodeTuple(string value, WinboxJgField? jg, string? uiType, string apiName, List<byte[]> result)
+        {
+            // A scalar tuple is a compound the API prints joined by a separator, and splitting the text back
+            // onto the parts is not the inverse of joining it: an IPv6 'Remote' would put its own colons in
+            // the way of the tuple's. Refusing beats writing the first part and dropping the rest, which is
+            // a request the router accepts and half-obeys.
+            // A tuple of plain numbers and durations is the exception: neither part can contain the separator,
+            // so the split is exact. The tunnels' keepalive=7s,3 is one — u7d5=7 and u7d9=3 (7.24.2).
+            if (value.Length > 0 && jg?.ElementParts != null
+                && string.Equals(uiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase)
+                && TryEncodeNumericTuple(jg, value, result))
+                return true;
+            if (value.Length > 0
+                && string.Equals(uiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase))
+                throw new WinboxFieldResolutionException(
+                    $"WinBox native: field '{apiName}' on '{_apiPath}' is a tuple of several WinBox fields " +
+                    "joined for display and is not encodable over native WinBox M2 writes. " +
+                    "Use an Api/REST/CLI connection for this field.");
+            return false;
+        }
+
+        private static bool TryEncodeHex(int key, string value, WinboxJgField? jg, M2Type wireType, List<byte[]> result)
+        {
+            // A base-16 number is read back in the API's own spelling (icmp-rate-mask=0x1818, priority=0x8000), so
+            // that spelling is what a caller hands in; the plain decimal is still accepted.
+            if (jg != null && jg.Radix == 16 && value.Length > 2
+                && value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                && wireType == M2Type.U32
+                && uint.TryParse(value.Substring(2), System.Globalization.NumberStyles.HexNumber,
+                                 System.Globalization.CultureInfo.InvariantCulture, out uint hex))
+            {
+                result.Add(EncodeU32(key, hex));
+                return true;
+            }
+            return false;
+        }
+
+        // The generic encoders: whatever no typed encoder above took goes out by its wire type.
+        private static void EncodeByWireType(int key, string value, WinboxJgField? jg, string? uiType, M2Type wireType,
+            string apiName, List<byte[]> result)
+        {
             switch (wireType)
             {
                 case M2Type.Bool:
@@ -449,7 +518,6 @@ namespace tik4net.Winbox
                     result.Add(M2Message.StringSys(key, value));
                     break;
             }
-            return result;
         }
 
         // The typed encoder of "fixedpoint" (a case of EncodeField). True when the value
