@@ -902,8 +902,25 @@ namespace tik4net.Cli
             if (val.StartsWith("~"))
                 return name + "~" + QuoteForWhere(val.Substring(1));
 
+            // An id is '*' and hex digits. The API compares '.id' with the value as given, so '?.id=ether1' matches
+            // no row; the CLI resolves a name there from 7.25 on ('find where .id=ether1' finds ether1, where 7.21.5
+            // and 6.49.13 find nothing). The literal 'false' matches no row on all three and composes like any
+            // other predicate ('!(false)' is every row).
+            if (name == ".id" && !IsItemId(val))
+                return "false";
+
             // Plain equality
             return name + "=" + QuoteForWhere(BooleanForWhere(val));
+        }
+
+        private static bool IsItemId(string value)
+        {
+            if (value.Length < 2 || value[0] != '*')
+                return false;
+            for (int i = 1; i < value.Length; i++)
+                if (!Uri.IsHexDigit(value[i]))
+                    return false;
+            return true;
         }
 
         /// <summary>
