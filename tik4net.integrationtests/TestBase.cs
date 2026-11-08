@@ -201,11 +201,23 @@ namespace tik4net.integrationtests
 
         private void DeleteTrackedEntities()
         {
+            bool reconnected = false;
             while (_createdEntities.Count > 0)
             {
                 var delete = _createdEntities.Pop();
                 try { delete(); }
-                catch { /* already deleted by the test, or the connection is gone — never mask the outcome */ }
+                catch (TikCommandTrapException) { /* the router answered: already deleted by the test, or refused */ }
+                catch when (!reconnected)
+                {
+                    // The connection failed, not the delete: a CLI read that ran out its receive timeout leaves the
+                    // session out of step or closed, and every delete over it fails while the rows are still on the
+                    // router (a WinBox-CLI-over-MAC timeout on CHR2 left a /user/group behind this way). Retry over a
+                    // fresh connection, once per cleanup, so a router that is really gone costs one reconnect.
+                    reconnected = true;
+                    try { RecreateConnection(); delete(); }
+                    catch { /* never mask the outcome */ }
+                }
+                catch { /* the fresh connection failed too — never mask the outcome */ }
             }
         }
 

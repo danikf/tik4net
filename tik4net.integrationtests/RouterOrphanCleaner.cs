@@ -61,6 +61,7 @@ namespace tik4net.integrationtests
             "/tool/graphing/interface",
             "/tool/traffic-generator/packet-template",
             "/ip/pool",
+            "/user/group",
         };
 
         /// <summary>
