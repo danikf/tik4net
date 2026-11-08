@@ -25,502 +25,47 @@ namespace tik4net.Winbox
                 // TryZeroWord only returns true when it found a word (non-null by construction).
                 if (TryZeroWord(jf, value, out string? zeroWord)) return zeroWord!;
                 if (TrySentinelWord(jf, value, out string? sentinelWord)) return sentinelWord!;
-                switch (jf.UiType)
+                string? typed = jf.UiType switch
                 {
-                    case WinboxFieldResolver.FirewallLimitUiType:
-                    case WinboxFieldResolver.FirewallDstLimitUiType:
-                        return FormatFirewallLimit(jf, value, rec);
-                    case WinboxFieldResolver.FirewallTosUiType:
-                    {
-                        WinboxValueFormat.TryToInt64(value, out long tos);
-                        long mask = rec.TryGetValue(0x1CA, out var mt) && WinboxValueFormat.TryToInt64(mt.Value, out long m) ? m : 255;
-                        return "0x" + tos.ToString("X", CultureInfo.InvariantCulture)
-                             + (mask == 255 ? "" : "/0x" + mask.ToString("X", CultureInfo.InvariantCulture));
-                    }
-                    case "ipaddr":
-                        return WinboxValueFormat.IpFromU32(value);
-                    case "ipaddrandport":
-                    {
-                        // types.ipaddrandport.tostr: ipaddr2string(addr) + (port ? ':' + port : '') — the port at
-                        // 'portid' (MaskKey), left out when absent or 0, as the 6.x API prints a connection.
-                        string addr = WinboxValueFormat.IpFromU32(value);
-                        long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
-                                    && WinboxValueFormat.TryToInt64(pt.Value, out long p) ? p : 0;
-                        return port == 0 ? addr : addr + ":" + port.ToString(CultureInfo.InvariantCulture);
-                    }
-                    case "netmask":
-                        // types.netmask.tostr is netmask2len(val).toString() — the LENGTH, not the mask,
-                        // and RouterOS agrees: a pcq queue type prints pcq-src-address-mask=32 for the
-                        // 4294967295 on the wire. Without this the raw u32 reached the caller.
-                        return WinboxValueFormat.MaskToPrefix(value)
-                                   .ToString(CultureInfo.InvariantCulture);
-                    case "network":
-                    {
-                        string addr = WinboxValueFormat.IpFromU32(value);
-                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var mt) && mt.Value != null)
-                        {
-                            if (jf.IsRange)
-                                return WinboxValueFormat.FormatV4Range(value, mt.Value);
-                            return addr + "/" + WinboxValueFormat.MaskToPrefix(mt.Value);
-                        }
-                        return addr;
-                    }
-                    case "network6":
-                    {
-                        // The IPv6 twin of the case above, and the sibling is not the same thing: it holds
-                        // the PREFIX LENGTH itself (types.network6.tostr: addr + '/' + (val[1]||0)), there
-                        // being no 128-bit mask to put in a u32. RouterOS prints the length at every value
-                        // including 128 — see FormatElementPart's network6, which is where the same rule
-                        // already lived for a LIST element.
-                        //
-                        // Only a scalar network6 reaches here, and until a union registered its other
-                        // families (WinboxJgField.ExtraRegistrations) none ever did: /ip/ipsec/policy's
-                        // 'Src. Address' is a union whose IPv4 member was the only one in the catalog, so
-                        // the v6 value the router actually sends fell through to the wire formatter and
-                        // read '::' where the API says '::/0'.
-                        string addr6 = value is byte[] b6
-                            ? WinboxValueFormat.IpV6FromBytes(b6) : value.ToString()!;
-                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var m6) && m6.Value != null)
-                            return addr6 + "/" + (WinboxValueFormat.TryToInt64(m6.Value, out long n6)
-                                ? n6 : 0).ToString(CultureInfo.InvariantCulture);
-                        return addr6;
-                    }
-                    case WinboxFieldResolver.PairUiType:
-                    {
-                        // One API field out of two M2 scalars (see WinboxFieldResolver.PairUiType). Each
-                        // half is formatted by ITS OWN typed field, which is what PairHalves carries: the
-                        // two halves of bucket-size are fixedpoints whose wire 100 is the API's 0.1, and
-                        // formatting the second with the first's rules would silently rescale it.
-                        if (jf.PairHalves == null) break;   // registered without halves — generic formatter
-                        var upField = jf.PairHalves.Item1;
-                        var downField = jf.PairHalves.Item2;
-
-                        string up = FormatTyped(upField, upField.WireType, value, rec, collectRefTables);
-                        string down = "0";
-                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var other) && other.Value != null)
-                            down = FormatTyped(downField, downField.WireType, other.Value, rec, collectRefTables);
-                        return up + "/" + down;
-                    }
-                    case WinboxFieldResolver.AddrPortUiType:
-                    {
-                        // Two WinBox boxes, one API field (see WinboxFieldResolver.AddrPortUiType). The port
-                        // rides on MaskKey and is consumed in DecodeRecord, so it appears only here.
-                        string addr = WinboxValueFormat.IpFromU32(value);
-                        long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
-                                    && WinboxValueFormat.TryToInt64(pt.Value, out long p) ? p : 0;
-                        return addr + ":" + port.ToString(CultureInfo.InvariantCulture);
-                    }
-                    case "integer":
-                    {
-                        // SIGNED, unlike the plain `number` it inherits from: types.integer.get is
-                        // `num2int(val)`, and num2int is `v >= 0x80000000 ? v - 0x100000000 : v`. Without it
-                        // /system/ntp/client's system-offset read as 4294967276 where the API says a small
-                        // negative — a wrong value that looks like a plausible large one.
-                        if (!WinboxValueFormat.TryToInt64(value, out long signed))
-                        {
-                            TraceNonNumeric("integer", value);
-                            break;
-                        }
-                        return NumToInt(signed).ToString(CultureInfo.InvariantCulture);
-                    }
-                    case "bigdecimal" when string.Equals(jf.Postfix, "us", StringComparison.Ordinal):
-                    {
-                        // A 64-bit count of microseconds, and signed: types.bigdecimal.tostr prints a '-'. RouterOS 6's
-                        // /system/ntp/client last-adjustment (q65) read 18446744073709506350 where the API prints
-                        // -45ms266us. Read-only wherever it occurs, so the encoder has no counterpart.
-                        long micros;
-                        if (value is ulong u) micros = unchecked((long)u);
-                        else if (!WinboxValueFormat.TryToInt64(value, out micros))
-                        {
-                            TraceNonNumeric("bigdecimal", value);
-                            break;
-                        }
-                        return TikDurationText.Format(micros, 1000000, "us");
-                    }
-                    case "kbytes":
-                    {
-                        // The wire value is in KIBIBYTES and the API prints BYTES. webfig hides the
-                        // difference behind a unit — `types.kbytes.tostr` renders "N KiB" straight from the
-                        // number, with no scale multiply, unlike `types.bytes` which is already in bytes —
-                        // so nothing in the .jg says the two transports are counting different things.
-                        //
-                        // Measured on 7.24, three fields of /system/resource, exact to the byte:
-                        // total-memory 4194304 -> 4294967296, free-hdd-space 60152 -> 61595648,
-                        // total-hdd-size 91372 -> 93564928, each the API's own number. It went unnoticed
-                        // because every kbytes field on that path but one has a volatile name (free-,
-                        // total-memory) and the audit does not compare those.
-                        if (!WinboxValueFormat.TryToInt64(value, out long kib))
-                        {
-                            TraceNonNumeric("kbytes", value);
-                            break;
-                        }
-                        return (kib * 1024L).ToString(CultureInfo.InvariantCulture);
-                    }
-                    case "fixedpoint":
-                    {
-                        // types.fixedpoint.tostr: num2int first, then floor(|v|/scale) '.' the remainder
-                        // padded to the scale's digit count (fraction2string). /system/ntp/client freq-drift
-                        // is scale:1000, so 4294925573 is -41723 thousandths = -41.723 — the API's value
-                        // exactly.
-                        //
-                        // Trailing zeros are then TRIMMED, which is where this departs from webfig on
-                        // purpose: webfig pads to the scale's width and shows -39.730, RouterOS prints
-                        // -39.73. Padding therefore disagreed with the API on exactly the values whose last
-                        // digit is zero — roughly one reading in ten, which is why it was recorded as
-                        // agreeing exactly. A fraction that trims away entirely takes the '.' with it.
-                        if (!WinboxValueFormat.TryToInt64(value, out long fp))
-                        {
-                            TraceNonNumeric("fixedpoint", value);
-                            break;
-                        }
-                        long v = NumToInt(fp);
-                        // A postfix of s or ms says this fixedpoint is a TIME, and RouterOS prints a time in
-                        // its own compound form rather than as a decimal: /interface/vrrp's interval
-                        // (scale:100, postfix:'s') reads 1s at 100 and 1s500ms at 150 — measured by moving
-                        // the value, since 1.5 and 1s500ms are the same quantity spelled two ways and only
-                        // the router says which spelling is its own.
-                        if (jf.IsSecondsPostfix || jf.IsMillisecondsPostfix)
-                            return TikDurationText.Format(v, jf.TicksPerSecond, jf.DurationZeroUnit);
-                        int scale = jf.Scale < 1 ? 1 : jf.Scale;
-                        if (scale == 1) return v.ToString(CultureInfo.InvariantCulture);
-                        string sign = v < 0 ? "-" : "";
-                        long abs = Math.Abs(v);
-                        int digits = scale.ToString(CultureInfo.InvariantCulture).Length - 1;
-                        string frac = (abs % scale).ToString(CultureInfo.InvariantCulture)
-                            .PadLeft(digits, '0').TrimEnd('0');
-                        return sign + (abs / scale).ToString(CultureInfo.InvariantCulture)
-                             + (frac.Length > 0 ? "." + frac : "");
-                    }
-                    case "age":
-                    {
-                        // NOT a duration, though it wears a duration's clothes. types.age.tostr:
-                        //     var uptime = getUptime();
-                        //     if (val > 0x7fffffff) val = uptime + Math.abs(val - 0xffffffff);
-                        //     else                  val = Math.abs(val - uptime);
-                        //     return interval2string(val, 1);
-                        // — i.e. the value is a timestamp on the router's UPTIME clock, and the duration is
-                        // its distance from now. Measured before the JS was read and agreeing with it:
-                        // /certificate and /ip/dhcp-client expires-after both read exactly one uptime higher
-                        // than the API (89828 s, with uptime 89828 s at that moment).
-                        if (!WinboxValueFormat.TryToInt64(value, out long stamp))
-                        {
-                            TraceNonNumeric("age", value);
-                            break;
-                        }
-                        if (jf.Scale > 1) stamp /= jf.Scale;
-                        long? uptime = RouterUptimeSeconds();
-                        if (uptime == null) break;   // no uptime, no honest answer — fall through to raw text
-                        long distance = stamp > int.MaxValue
-                            ? uptime.Value + Math.Abs(stamp - 0xFFFFFFFFL)
-                            : Math.Abs(stamp - uptime.Value);
-                        return TikDurationText.Format(distance, 1);
-                    }
-                    case "dateandtime":
-                    case "clockdate":
-                    case "date":
-                    {
-                        // Unix epoch seconds. webfig's date2string is
-                        // `new Date(val*1000).toISOString().substring(0,10)` — UTC, no local shift — and the
-                        // values confirm it exactly: a certificate's 1784975092 is the API's
-                        // '2026-07-25 10:24:52' to the second. clockdate is the same value printed as a date
-                        // alone (/system/clock 'Date'). 'date' is the 6.x catalog's name for dateandtime: on
-                        // 6.49.13 a certificate's 1789921669 is the API's 'sep/20/2026 16:27:49'.
-                        if (!WinboxValueFormat.TryToInt64(value, out long epoch))
-                        {
-                            TraceNonNumeric(jf.UiType, value);
-                            break;
-                        }
-                        // ... unless the declaration says `relative:1`, in which case the same wire type
-                        // carries a moment on the router's UPTIME clock instead (see WinboxJgField.Relative).
-                        // /interface's last-link-up-time read 1970-02-28 before this: the value is a distance
-                        // from boot in hundredths (scale:100), not seconds since 1970.
-                        if (jf.Relative)
-                        {
-                            long? bootHundredths = RouterBootEpochHundredths();
-                            // No uptime and no timezone means no honest answer — the raw value, exactly as an
-                            // `age` does, rather than a plausible-looking date computed from a guessed origin.
-                            if (bootHundredths == null) break;
-                            int relScale = jf.Scale < 1 ? 1 : jf.Scale;
-                            long whenHundredths = bootHundredths.Value + (epoch * 100 / relScale);
-                            return Epoch.AddSeconds(whenHundredths / 100)
-                                .ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                        }
-                        var when = Epoch.AddSeconds(epoch);
-                        return string.Equals(jf.UiType, "clockdate", StringComparison.OrdinalIgnoreCase)
-                            ? when.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-                            : when.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                    }
-                    case "timezone":
-                    {
-                        // types.timezone.tostr → timezone2string: a signed SECOND offset rendered ±HH:MM.
-                        // /system/clock gmt-offset read as the bare 7200.
-                        if (!WinboxValueFormat.TryToInt64(value, out long offset))
-                        {
-                            TraceNonNumeric("timezone", value);
-                            break;
-                        }
-                        // The wire carries it as an unsigned u32, so a negative offset arrives wrapped.
-                        if (offset > int.MaxValue) offset -= 4294967296L;
-                        char sign = offset < 0 ? '-' : '+';
-                        long minutes = Math.Abs(offset) / 60;
-                        return $"{sign}{minutes / 60:00}:{minutes % 60:00}";
-                    }
-                    case "clocktime":
-                    {
-                        // A time of day: types.clocktime.tostr is interval2string(getTime(val)), getTime being
-                        // val % 86400. Measured on 7.24.2: /system/clock time 84043 where the API prints
-                        // 23:20:43.
-                        if (!WinboxValueFormat.TryToInt64(value, out long tod))
-                        {
-                            TraceNonNumeric("clocktime", value);
-                            break;
-                        }
-                        return FormatClockTime(tod);
-                    }
-                    case "interval":
-                    {
-                        // types.interval.tostr: `enum2string(attrs.values,val) || interval2string(val,
-                        // attrs.scale||1)` — a named value wins, otherwise the number is a DURATION in
-                        // 1/scale-second units. Without this every interval reached the caller as its raw
-                        // count: /ip/dns cache-max-ttl as 604800 where the API prints 1w, and
-                        // /system/watchdog ping-start-after-boot as 30000 (scale:100) where it prints 5m.
-                        // webfig's own '1d 02:03:04' rendering is not used — our contract is the text
-                        // RouterOS's API prints for the same field.
-                        if (!WinboxValueFormat.TryToInt64(value, out long ticks))
-                        {
-                            TraceNonNumeric("interval", value);
-                            break;
-                        }
-                        if (jf.EnumMap != null
-                            && jf.EnumMap.TryGetValue(unchecked((int)ticks), out var named))
-                            return named;
-                        return TikDurationText.Format(ticks, jf.Scale);
-                    }
-                    case "macaddr":
-                        return WinboxValueFormat.MacFromBytes(value);
-                    case "ip6addr":
-                        return value is byte[] v6 ? WinboxValueFormat.IpV6FromBytes(v6) : value.ToString()!; // value != null (checked above)
-                    case "addr":
-                        // The compound webfig 'addr' object, read back the way types.addr.tostr renders it:
-                        // by SUB-KEY, not by position. The generic nested-message fallback returns the
-                        // first member, which is right only when IPv4 is the one present.
-                        if (value is M2Record addrMsg)
-                            return FormatAddr(addrMsg, collectRefTables);
-                        break;
-                    case WinboxFieldResolver.NumberNetmaskUiType:
-                    {
-                        // connection-limit=10,24: the number and the netmask's prefix length, as the API prints it.
-                        if (!WinboxValueFormat.TryToInt64(value, out long number)) break;
-                        string limitText = number.ToString(CultureInfo.InvariantCulture);
-                        return rec.TryGetValue(jf.MaskKey, out var mt) && mt.Value != null
-                            ? limitText + "," + WinboxValueFormat.MaskToPrefix(mt.Value).ToString(CultureInfo.InvariantCulture)
-                            : limitText;
-                    }
-                    case "numberrange":
-                    {
-                        // webfig types.numberrange.tostr: the low end alone when both ends agree, else low-high —
-                        // the API's packet-size=100-200. The high end rides MaskKey (WinboxJgCatalog.HighKeyOf).
-                        if (jf.MaskKey == 0 || !WinboxValueFormat.TryToInt64(value, out long low)) break;
-                        long high = rec.TryGetValue(jf.MaskKey, out var ht) && ht.Value != null
-                                    && WinboxValueFormat.TryToInt64(ht.Value, out long h) ? h : low;
-                        return high == low ? low.ToString(CultureInfo.InvariantCulture)
-                            : low.ToString(CultureInfo.InvariantCulture) + "-" + high.ToString(CultureInfo.InvariantCulture);
-                    }
-                    case "multinumberrange":
-                    case "numberrangelist":
-                    {
-                        // u32[] of flat [lo0,hi0,lo1,hi1,…] (webfig multinumberrange / numberrangelist) → "lo"
-                        // when lo==hi, else "lo-hi", comma-joined — the RouterOS API form (e.g. "10,20-30").
-                        // A not-wrapped field renders the RouterOS '!' negation prefix (e.g. firewall "!80").
-                        string list = FormatNumberRangeList(value);
-                        bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
-                            && nt.Value is bool nb && nb;
-                        return negated ? "!" + list : list;
-                    }
-                    // A `multitristate` is a multibits whose members can each be NEGATED, and the
-                    // negation rides in a SECOND key: types.multitristate.get reads bmap = id|maskid and
-                    // reports each set bit as negated when it is absent from `id` — so `id` holds the plain
-                    // members and `maskid` the '!' ones. /ip/firewall/filter's tcp-flags="syn,!ack" is
-                    // u56=2 (syn) plus u57=16 (ack); reading `id` alone printed the bare number 2.
-                    case "multitristate":
-                    {
-                        if (jf.EnumMap == null || jf.MaskKey == 0) break;
-                        if (!WinboxValueFormat.TryToInt64(value, out long onBits))
-                        {
-                            TraceNonNumeric("multitristate", value);
-                            break;
-                        }
-                        long offBits = 0;
-                        if (rec.TryGetValue(jf.MaskKey, out var maskT) && maskT.Value != null
-                            && WinboxValueFormat.TryToInt64(maskT.Value, out long mb))
-                            offBits = mb;
-                        // Plain members first, then the negated ones, each in bit order — which is how the
-                        // router itself prints a mixed list: tcp-flags="!fin,syn,!urg,ack" reads back
-                        // "syn,ack,!fin,!urg" (verified on 7.24), not in the order it was written.
-                        //
-                        // A member in BOTH halves is printed twice, as the API prints it: a text set rewrites only
-                        // the half it names, so syn,!ack + set !syn leaves u56=2 and u57=2, which the API prints
-                        // "syn,!syn" (7.24.5). Webfig's own getter shows the bit once; that hid one of the two.
-                        var plain = jf.EnumMap.Where(kv => (onBits & (1L << kv.Key)) != 0)
-                                              .OrderBy(kv => kv.Key).Select(kv => kv.Value);
-                        var negated = jf.EnumMap.Where(kv => (offBits & (1L << kv.Key)) != 0)
-                                                .OrderBy(kv => kv.Key).Select(kv => "!" + kv.Value);
-                        string members = string.Join(",", plain.Concat(negated));
-                        // The field-wide 'not' flag is the whole-list '!', which the API spells as a bare leading
-                        // element: tcp-flags="!,ack,!syn" for 0xD3=true (7.24.5). Negated() leaves per-member lists
-                        // alone, so it is rendered here or not at all.
-                        bool whole = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var notT) && notT.Value is bool wn && wn;
-                        return whole && members.Length > 0 ? "!," + members : members;
-                    }
-                    // A `multibits` is a `set` under another name: types.multibits.get is
-                    // `for(i=0..31) if(val&(1<<i)) push(i)` over the same bit-indexed map, and only its
-                    // EDITOR differs (a list of checkboxes rather than one field). It has an EnumMap, so it
-                    // was falling through to the SCALAR enum branch and reading the whole bitmask as one
-                    // member: /ip/neighbor's system-caps of 0 — no bits, which the API prints as nothing —
-                    // came back as 'other', the member the map happens to hold at index 0.
-                    case "multibits":
-                    case "set":
-                    {
-                        // Bitmask flag set → comma-joined labels (.jg map key = bit index). The opt/not flag
-                        // keys are consumed separately in DecodeRecord, so only the value rides here. A set
-                        // 'not' flag (key NotKey) renders as the RouterOS '!' negation prefix on the whole
-                        // value (CLI/API form, e.g. "!established,related").
-                        //
-                        // A set whose members come from a TABLE instead of a static map is the same bitmask
-                        // with the member names one round trip away: /user/group's policies, a script's or a
-                        // scheduler entry's policy, all reading the policy table [13,3] where the bit index
-                        // is the row's id. Without this they reached the caller as the raw number 654958.
-                        var members = jf.EnumMap;
-                        if (members == null && jf.RefHandler != null)
-                        {
-                            members = ResolveMemberMap(jf.RefHandler.Value, collectRefTables);
-                            if (members != null) return FormatBitSet(jf, value, members, rec);
-                        }
-                        if (jf.EnumMap == null) break;
-                        if (!WinboxValueFormat.TryToInt64(value, out long bits))
-                        {
-                            // Falls through to the raw wire text, which is visibly not a label list — but a
-                            // silent fall-through is how a .jg/router mismatch goes unnoticed for a release,
-                            // so say so on the trace channel.
-                            TraceNonNumeric("set", value);
-                            break;
-                        }
-                        var present = jf.EnumMap.Where(kv => (bits & (1L << kv.Key)) != 0);
-                        var labels = (SetPrintedDescending.Contains(jf.ApiName ?? "")
-                                ? present.OrderByDescending(kv => kv.Key)
-                                : SetPrintedBySpeed.Contains(jf.ApiName ?? "")
-                                    ? present.OrderBy(kv => LinkSpeedMbps(kv.Value)).ThenBy(kv => kv.Key)
-                                    : present.OrderBy(kv => kv.Key))
-                            .Select(kv => kv.Value);
-                        string joined = string.Join(",", labels);
-                        bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
-                            && nt.Value is bool nb && nb;
-                        return negated ? "!" + joined : joined;
-                    }
-                }
-                // A list whose elements may each be negated (webfig 'multitristatearray', today only
-                // /system/logging 'topics'): the plain members ride in this key and the negated ones in the
-                // OffKey sibling, and the API prints them as one comma-joined list with a '!' on the negated
-                // ones. Without this the field reached the caller as the raw handle list "[1]".
-                if (jf.OffKey != 0 && IsTriStateList(jf.UiType))
-                {
-                    string on = FormatListElements(jf, value, collectRefTables);
-                    rec.TryGetValue(jf.OffKey, out var offT);
-                    string off = FormatListElements(jf, offT.Value, collectRefTables);
-                    var parts = new List<string>();
-                    if (!string.IsNullOrEmpty(on)) parts.Add(on);
-                    if (!string.IsNullOrEmpty(off))
-                        parts.AddRange(off.Split(',').Select(t => "!" + t));
-                    if (parts.Count > 0) return string.Join(",", parts);
-                }
-                // A LIST of dynamic-enum references (webfig 'multinumber' whose element type is an enm): the
-                // value is a u32[] of referenced ids, which the API renders as their comma-joined names —
-                // e.g. the log's topics u32[9,3] → "script,error". Falls back to the raw text when the
-                // referenced table cannot be read, exactly as the scalar case does.
-                if (jf.RefHandler != null && IsMultiNumberList(jf.UiType))
-                {
-                    string? joined = ResolveRefNameList(jf.RefHandler.Value, value, collectRefTables);
-                    if (joined != null) return joined;
-                }
-                // The same list shape with LITERAL elements — a number (/ip/proxy 'Port' u32[8080] → "8080")
-                // or a static enum (/ip/ssh 'Ciphers' u32[0] → "auto"). Without this the wire form reached the
-                // caller verbatim as "[8080]"/"[0]"; the API prints one value per element, comma-joined.
-                if (IsMultiNumberList(jf.UiType))
-                    return FormatNumberList(value, jf.EnumMap, jf.ElementScale);
-                // Every OTHER member of the webfig list family. types.multistring/multiipaddr/multiip6addr/
-                // multiraw all `inherit(types.multinumber)`, and types.multi.tostr renders each element
-                // through the ELEMENT's own type — so the list's own name says nothing about how an element
-                // reads, and none of these had a case at all: an empty one reached the caller as the literal
-                // "[]" where the API prints nothing, and /ip/dns dynamic-servers as raw u32s.
-                // webfig types.multinetwork (and multimacnetwork, which inherits it): a list of PAIRS, in
-                // two parallel arrays when the field has a maskid and flattened into one when it has not.
-                if (IsMultiNetworkList(jf.UiType))
-                    return FormatMultiNetwork(jf, value, rec);
-                if (IsMultiList(jf.UiType))
-                    return FormatMultiList(jf, value, collectRefTables);
-                // A scalar tuple: one field the API prints as its parts joined by the .jg's own separator.
-                // The parts live in the ROW rather than in a nested element, which is the only difference
-                // from a list element of the same shape — hence the same formatter, given the row.
-                if (jf.ElementParts != null
-                    && string.Equals(jf.UiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase))
-                    return FormatCompoundElement(jf, rec, collectRefTables);
-                // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
-                if (jf.RefHandler != null)
-                {
-                    // Each table the dropdown draws from, in order (webfig enm.pair.toString). In the collecting
-                    // pass every lookup answers null, so the loop notes down all of them.
-                    string? name = null;
-                    foreach (WinboxHandler table in jf.RefHandlers ?? new[] { jf.RefHandler.Value })
-                    {
-                        name = ResolveRefName(table, value, collectRefTables);
-                        if (name != null) break;
-                    }
-                    if (name != null) return name;
-                    // No row answers to it, and no static member names it either — which is what an
-                    // all-ones "not set" looks like on a reference the .jg wraps in no defenum. RouterOS
-                    // prints the raw id token there rather than a word: /caps-man/provisioning's
-                    // master-configuration reads *FFFFFFFF, not 4294967295 and not 'none'. A reference that
-                    // DOES have a static member for the value (see §32.6) is answered by that member below.
-                    if (collectRefTables == null
-                        && (jf.EnumMap == null
-                            || !(WinboxValueFormat.TryToInt64(value, out long rv)
-                                 && jf.EnumMap.ContainsKey(unchecked((int)rv))))
-                        && WinboxValueFormat.TryToInt64(value, out long idv))
-                        return FormatId(idv);
-                }
-                // static enum: map the numeric value back to its API string label.
-                if (jf.EnumMap != null)
-                {
-                    if (WinboxValueFormat.TryToInt64(value, out long ev))
-                    {
-                        if (jf.EnumMap.TryGetValue(unchecked((int)ev), out var label))
-                            return PrintedMember(jf.ApiName, label);
-                        // The map missed, so the value is a plain number — and a `postfix:'s'` says what
-                        // KIND of number. webfig renders it bare and paints the unit next to the box; the
-                        // API prints a duration. /ip/ipsec/profile dpd-interval, whose only member is
-                        // 'disable-dpd' at 0, read as 8 where the API says 8s.
-                        // …or a fixedpoint ELEMENT says it, with the scale: /ping's Time is
-                        // {enm,postfix:'ms',map:{4294967295:'timeout'},c:[{fixedpoint,scale:1000}]}, microseconds
-                        // on the wire, which the API prints 99ms784us (7.25). Read bare, it was 99784.
-                        if (jf.IsTimePostfix
-                            && string.Equals(jf.ElementUiType, "fixedpoint", StringComparison.OrdinalIgnoreCase))
-                            return TikDurationText.Format(ev, (jf.IsMillisecondsPostfix ? 1000 : 1) * jf.ElementScale,
-                                jf.DurationZeroUnit);
-                        if (jf.IsSecondsPostfix) return TikDurationText.Format(ev, jf.Scale);
-                        // …or the ELEMENT says what kind: /system/scheduler start-time is
-                        // {enm,map:{4294967295:'startup'},c:[{type:'clocktime'}]}, and a time of day read as
-                        // 84032 where the API prints 23:20:32 (7.24.2).
-                        if (string.Equals(jf.ElementUiType, "clocktime", StringComparison.OrdinalIgnoreCase))
-                            return FormatClockTime(ev);
-                        // A number the map has no member for. On an opt field that means "not set" and the
-                        // field never reaches here (IsUnsetField drops it); here it means the .jg and the
-                        // router disagree about the domain, which webfig itself calls 'unknown'. Fall through
-                        // to the raw text as before, but say so — a silent fall-through is how exactly this
-                        // class of mismatch survived a release.
-                        TraceUnmappedEnum(jf, ev);
-                    }
-                    else TraceNonNumeric("enum", value);   // falls through to the raw text, see above
-                }
+                    WinboxFieldResolver.FirewallLimitUiType or WinboxFieldResolver.FirewallDstLimitUiType
+                        => FormatFirewallLimit(jf, value, rec),
+                    WinboxFieldResolver.FirewallTosUiType => FormatFirewallTos(value, rec),
+                    "ipaddr" => WinboxValueFormat.IpFromU32(value),
+                    "ipaddrandport" => FormatIpAddrAndPort(jf, value, rec),
+                    // types.netmask.tostr is netmask2len(val).toString() — the LENGTH, not the mask,
+                    // and RouterOS agrees: a pcq queue type prints pcq-src-address-mask=32 for the
+                    // 4294967295 on the wire. Without this the raw u32 reached the caller.
+                    "netmask" => WinboxValueFormat.MaskToPrefix(value).ToString(CultureInfo.InvariantCulture),
+                    "network" => FormatNetwork(jf, value, rec),
+                    "network6" => FormatNetwork6(jf, value, rec),
+                    WinboxFieldResolver.PairUiType => FormatPair(jf, value, rec, collectRefTables),
+                    WinboxFieldResolver.AddrPortUiType => FormatAddrPort(jf, value, rec),
+                    "integer" => FormatInteger(value),
+                    "bigdecimal" when string.Equals(jf.Postfix, "us", StringComparison.Ordinal)
+                        => FormatMicroseconds(value),
+                    "kbytes" => FormatKbytes(value),
+                    "fixedpoint" => FormatFixedPoint(jf, value),
+                    "age" => FormatAge(jf, value),
+                    "dateandtime" or "clockdate" or "date" => FormatDateAndTime(jf, value),
+                    "timezone" => FormatTimezone(value),
+                    "clocktime" => FormatClockTimeField(value),
+                    "interval" => FormatInterval(jf, value),
+                    "macaddr" => WinboxValueFormat.MacFromBytes(value),
+                    // value != null (checked above)
+                    "ip6addr" => value is byte[] v6 ? WinboxValueFormat.IpV6FromBytes(v6) : value.ToString()!,
+                    // The compound webfig 'addr' object, read back the way types.addr.tostr renders it:
+                    // by SUB-KEY, not by position. The generic nested-message fallback returns the
+                    // first member, which is right only when IPv4 is the one present.
+                    "addr" => value is M2Record addrMsg ? FormatAddr(addrMsg, collectRefTables) : null,
+                    WinboxFieldResolver.NumberNetmaskUiType => FormatNumberNetmask(jf, value, rec),
+                    "numberrange" => FormatNumberRange(jf, value, rec),
+                    "multinumberrange" or "numberrangelist" => FormatNumberRangeListField(jf, value, rec),
+                    "multitristate" => FormatMultiTriState(jf, value, rec),
+                    "multibits" or "set" => FormatSet(jf, value, rec, collectRefTables),
+                    _ => null,
+                };
+                if (typed != null) return typed;
+                if (FormatListOrReference(jf, value, rec, collectRefTables) is string fallback) return fallback;
             }
             // A number the window writes in hexadecimal. webfig renders the digits BARE and paints 'hex'
             // beside the box; RouterOS prints the 0x as part of the value, in lower case
@@ -542,6 +87,523 @@ namespace tik4net.Winbox
                 return TikDurationText.Format(ms, jf.TicksPerSecond, jf.DurationZeroUnit);
 
             return FormatValue(wireType, value);
+        }
+
+        // The fallbacks after the typed switch, in order: the list shapes, a scalar tuple, a reference's name,
+        // a static enum member. Null when none of them applies, and the wire-type formatter takes over.
+        private string? FormatListOrReference(WinboxJgField jf, object value, M2Record rec,
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
+        {
+            if (FormatTriStateList(jf, value, rec, collectRefTables) is string triState) return triState;
+            // A LIST of dynamic-enum references (webfig 'multinumber' whose element type is an enm): the
+            // value is a u32[] of referenced ids, which the API renders as their comma-joined names —
+            // e.g. the log's topics u32[9,3] → "script,error". Falls back to the raw text when the
+            // referenced table cannot be read, exactly as the scalar case does.
+            if (jf.RefHandler != null && IsMultiNumberList(jf.UiType))
+            {
+                string? joined = ResolveRefNameList(jf.RefHandler.Value, value, collectRefTables);
+                if (joined != null) return joined;
+            }
+            // The same list shape with LITERAL elements — a number (/ip/proxy 'Port' u32[8080] → "8080")
+            // or a static enum (/ip/ssh 'Ciphers' u32[0] → "auto"). Without this the wire form reached the
+            // caller verbatim as "[8080]"/"[0]"; the API prints one value per element, comma-joined.
+            if (IsMultiNumberList(jf.UiType))
+                return FormatNumberList(value, jf.EnumMap, jf.ElementScale);
+            // Every OTHER member of the webfig list family. types.multistring/multiipaddr/multiip6addr/
+            // multiraw all `inherit(types.multinumber)`, and types.multi.tostr renders each element
+            // through the ELEMENT's own type — so the list's own name says nothing about how an element
+            // reads, and none of these had a case at all: an empty one reached the caller as the literal
+            // "[]" where the API prints nothing, and /ip/dns dynamic-servers as raw u32s.
+            // webfig types.multinetwork (and multimacnetwork, which inherits it): a list of PAIRS, in
+            // two parallel arrays when the field has a maskid and flattened into one when it has not.
+            if (IsMultiNetworkList(jf.UiType))
+                return FormatMultiNetwork(jf, value, rec);
+            if (IsMultiList(jf.UiType))
+                return FormatMultiList(jf, value, collectRefTables);
+            // A scalar tuple: one field the API prints as its parts joined by the .jg's own separator.
+            // The parts live in the ROW rather than in a nested element, which is the only difference
+            // from a list element of the same shape — hence the same formatter, given the row.
+            if (jf.ElementParts != null
+                && string.Equals(jf.UiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase))
+                return FormatCompoundElement(jf, rec, collectRefTables);
+            if (FormatReferenceName(jf, value, collectRefTables) is string refName) return refName;
+            if (FormatEnumMember(jf, value) is string member) return member;
+            return null;
+        }
+
+        private string? FormatTriStateList(WinboxJgField jf, object value, M2Record rec,
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
+        {
+            // A list whose elements may each be negated (webfig 'multitristatearray', today only
+            // /system/logging 'topics'): the plain members ride in this key and the negated ones in the
+            // OffKey sibling, and the API prints them as one comma-joined list with a '!' on the negated
+            // ones. Without this the field reached the caller as the raw handle list "[1]".
+            if (jf.OffKey != 0 && IsTriStateList(jf.UiType))
+            {
+                string on = FormatListElements(jf, value, collectRefTables);
+                rec.TryGetValue(jf.OffKey, out var offT);
+                string off = FormatListElements(jf, offT.Value, collectRefTables);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(on)) parts.Add(on);
+                if (!string.IsNullOrEmpty(off))
+                    parts.AddRange(off.Split(',').Select(t => "!" + t));
+                if (parts.Count > 0) return string.Join(",", parts);
+            }
+            return null;
+        }
+
+        private string? FormatReferenceName(WinboxJgField jf, object value,
+            HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
+        {
+            // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
+            if (jf.RefHandler != null)
+            {
+                // Each table the dropdown draws from, in order (webfig enm.pair.toString). In the collecting
+                // pass every lookup answers null, so the loop notes down all of them.
+                string? name = null;
+                foreach (WinboxHandler table in jf.RefHandlers ?? new[] { jf.RefHandler.Value })
+                {
+                    name = ResolveRefName(table, value, collectRefTables);
+                    if (name != null) break;
+                }
+                if (name != null) return name;
+                // No row answers to it, and no static member names it either — which is what an
+                // all-ones "not set" looks like on a reference the .jg wraps in no defenum. RouterOS
+                // prints the raw id token there rather than a word: /caps-man/provisioning's
+                // master-configuration reads *FFFFFFFF, not 4294967295 and not 'none'. A reference that
+                // DOES have a static member for the value (see §32.6) is answered by that member below.
+                if (collectRefTables == null
+                    && (jf.EnumMap == null
+                        || !(WinboxValueFormat.TryToInt64(value, out long rv)
+                             && jf.EnumMap.ContainsKey(unchecked((int)rv))))
+                    && WinboxValueFormat.TryToInt64(value, out long idv))
+                    return FormatId(idv);
+            }
+            return null;
+        }
+
+        private string? FormatEnumMember(WinboxJgField jf, object value)
+        {
+            // static enum: map the numeric value back to its API string label.
+            if (jf.EnumMap != null)
+            {
+                if (WinboxValueFormat.TryToInt64(value, out long ev))
+                {
+                    if (jf.EnumMap.TryGetValue(unchecked((int)ev), out var label))
+                        return PrintedMember(jf.ApiName, label);
+                    // The map missed, so the value is a plain number — and a `postfix:'s'` says what
+                    // KIND of number. webfig renders it bare and paints the unit next to the box; the
+                    // API prints a duration. /ip/ipsec/profile dpd-interval, whose only member is
+                    // 'disable-dpd' at 0, read as 8 where the API says 8s.
+                    // …or a fixedpoint ELEMENT says it, with the scale: /ping's Time is
+                    // {enm,postfix:'ms',map:{4294967295:'timeout'},c:[{fixedpoint,scale:1000}]}, microseconds
+                    // on the wire, which the API prints 99ms784us (7.25). Read bare, it was 99784.
+                    if (jf.IsTimePostfix
+                        && string.Equals(jf.ElementUiType, "fixedpoint", StringComparison.OrdinalIgnoreCase))
+                        return TikDurationText.Format(ev, (jf.IsMillisecondsPostfix ? 1000 : 1) * jf.ElementScale,
+                            jf.DurationZeroUnit);
+                    if (jf.IsSecondsPostfix) return TikDurationText.Format(ev, jf.Scale);
+                    // …or the ELEMENT says what kind: /system/scheduler start-time is
+                    // {enm,map:{4294967295:'startup'},c:[{type:'clocktime'}]}, and a time of day read as
+                    // 84032 where the API prints 23:20:32 (7.24.2).
+                    if (string.Equals(jf.ElementUiType, "clocktime", StringComparison.OrdinalIgnoreCase))
+                        return FormatClockTime(ev);
+                    // A number the map has no member for. On an opt field that means "not set" and the
+                    // field never reaches here (IsUnsetField drops it); here it means the .jg and the
+                    // router disagree about the domain, which webfig itself calls 'unknown'. Fall through
+                    // to the raw text as before, but say so — a silent fall-through is how exactly this
+                    // class of mismatch survived a release.
+                    TraceUnmappedEnum(jf, ev);
+                }
+                else TraceNonNumeric("enum", value);   // falls through to the raw text, see above
+            }
+            return null;
+        }
+
+        private string FormatFirewallTos(object value, M2Record rec)
+        {
+            WinboxValueFormat.TryToInt64(value, out long tos);
+            long mask = rec.TryGetValue(0x1CA, out var mt) && WinboxValueFormat.TryToInt64(mt.Value, out long m) ? m : 255;
+            return "0x" + tos.ToString("X", CultureInfo.InvariantCulture)
+                 + (mask == 255 ? "" : "/0x" + mask.ToString("X", CultureInfo.InvariantCulture));
+        }
+
+        private string FormatIpAddrAndPort(WinboxJgField jf, object value, M2Record rec)
+        {
+            // types.ipaddrandport.tostr: ipaddr2string(addr) + (port ? ':' + port : '') — the port at
+            // 'portid' (MaskKey), left out when absent or 0, as the 6.x API prints a connection.
+            string addr = WinboxValueFormat.IpFromU32(value);
+            long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
+                        && WinboxValueFormat.TryToInt64(pt.Value, out long p) ? p : 0;
+            return port == 0 ? addr : addr + ":" + port.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private string FormatNetwork(WinboxJgField jf, object value, M2Record rec)
+        {
+            string addr = WinboxValueFormat.IpFromU32(value);
+            if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var mt) && mt.Value != null)
+            {
+                if (jf.IsRange)
+                    return WinboxValueFormat.FormatV4Range(value, mt.Value);
+                return addr + "/" + WinboxValueFormat.MaskToPrefix(mt.Value);
+            }
+            return addr;
+        }
+
+        private string FormatNetwork6(WinboxJgField jf, object value, M2Record rec)
+        {
+            // The IPv6 twin of the case above, and the sibling is not the same thing: it holds
+            // the PREFIX LENGTH itself (types.network6.tostr: addr + '/' + (val[1]||0)), there
+            // being no 128-bit mask to put in a u32. RouterOS prints the length at every value
+            // including 128 — see FormatElementPart's network6, which is where the same rule
+            // already lived for a LIST element.
+            //
+            // Only a scalar network6 reaches here, and until a union registered its other
+            // families (WinboxJgField.ExtraRegistrations) none ever did: /ip/ipsec/policy's
+            // 'Src. Address' is a union whose IPv4 member was the only one in the catalog, so
+            // the v6 value the router actually sends fell through to the wire formatter and
+            // read '::' where the API says '::/0'.
+            string addr6 = value is byte[] b6
+                ? WinboxValueFormat.IpV6FromBytes(b6) : value.ToString()!;
+            if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var m6) && m6.Value != null)
+                return addr6 + "/" + (WinboxValueFormat.TryToInt64(m6.Value, out long n6)
+                    ? n6 : 0).ToString(CultureInfo.InvariantCulture);
+            return addr6;
+        }
+
+        private string? FormatPair(WinboxJgField jf, object value,
+            M2Record rec, HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
+        {
+            // One API field out of two M2 scalars (see WinboxFieldResolver.PairUiType). Each
+            // half is formatted by ITS OWN typed field, which is what PairHalves carries: the
+            // two halves of bucket-size are fixedpoints whose wire 100 is the API's 0.1, and
+            // formatting the second with the first's rules would silently rescale it.
+            if (jf.PairHalves == null) return null;   // registered without halves — generic formatter
+            var upField = jf.PairHalves.Item1;
+            var downField = jf.PairHalves.Item2;
+
+            string up = FormatTyped(upField, upField.WireType, value, rec, collectRefTables);
+            string down = "0";
+            if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var other) && other.Value != null)
+                down = FormatTyped(downField, downField.WireType, other.Value, rec, collectRefTables);
+            return up + "/" + down;
+        }
+
+        private string FormatAddrPort(WinboxJgField jf, object value, M2Record rec)
+        {
+            // Two WinBox boxes, one API field (see WinboxFieldResolver.AddrPortUiType). The port
+            // rides on MaskKey and is consumed in DecodeRecord, so it appears only here.
+            string addr = WinboxValueFormat.IpFromU32(value);
+            long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
+                        && WinboxValueFormat.TryToInt64(pt.Value, out long p) ? p : 0;
+            return addr + ":" + port.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private string? FormatInteger(object value)
+        {
+            // SIGNED, unlike the plain `number` it inherits from: types.integer.get is
+            // `num2int(val)`, and num2int is `v >= 0x80000000 ? v - 0x100000000 : v`. Without it
+            // /system/ntp/client's system-offset read as 4294967276 where the API says a small
+            // negative — a wrong value that looks like a plausible large one.
+            if (!WinboxValueFormat.TryToInt64(value, out long signed))
+            {
+                TraceNonNumeric("integer", value);
+                return null;
+            }
+            return NumToInt(signed).ToString(CultureInfo.InvariantCulture);
+        }
+
+        private string? FormatMicroseconds(object value)
+        {
+            // A 64-bit count of microseconds, and signed: types.bigdecimal.tostr prints a '-'. RouterOS 6's
+            // /system/ntp/client last-adjustment (q65) read 18446744073709506350 where the API prints
+            // -45ms266us. Read-only wherever it occurs, so the encoder has no counterpart.
+            long micros;
+            if (value is ulong u) micros = unchecked((long)u);
+            else if (!WinboxValueFormat.TryToInt64(value, out micros))
+            {
+                TraceNonNumeric("bigdecimal", value);
+                return null;
+            }
+            return TikDurationText.Format(micros, 1000000, "us");
+        }
+
+        private string? FormatKbytes(object value)
+        {
+            // The wire value is in KIBIBYTES and the API prints BYTES. webfig hides the
+            // difference behind a unit — `types.kbytes.tostr` renders "N KiB" straight from the
+            // number, with no scale multiply, unlike `types.bytes` which is already in bytes —
+            // so nothing in the .jg says the two transports are counting different things.
+            //
+            // Measured on 7.24, three fields of /system/resource, exact to the byte:
+            // total-memory 4194304 -> 4294967296, free-hdd-space 60152 -> 61595648,
+            // total-hdd-size 91372 -> 93564928, each the API's own number. It went unnoticed
+            // because every kbytes field on that path but one has a volatile name (free-,
+            // total-memory) and the audit does not compare those.
+            if (!WinboxValueFormat.TryToInt64(value, out long kib))
+            {
+                TraceNonNumeric("kbytes", value);
+                return null;
+            }
+            return (kib * 1024L).ToString(CultureInfo.InvariantCulture);
+        }
+
+        private string? FormatFixedPoint(WinboxJgField jf, object value)
+        {
+            // types.fixedpoint.tostr: num2int first, then floor(|v|/scale) '.' the remainder
+            // padded to the scale's digit count (fraction2string). /system/ntp/client freq-drift
+            // is scale:1000, so 4294925573 is -41723 thousandths = -41.723 — the API's value
+            // exactly.
+            //
+            // Trailing zeros are then TRIMMED, which is where this departs from webfig on
+            // purpose: webfig pads to the scale's width and shows -39.730, RouterOS prints
+            // -39.73. Padding therefore disagreed with the API on exactly the values whose last
+            // digit is zero — roughly one reading in ten, which is why it was recorded as
+            // agreeing exactly. A fraction that trims away entirely takes the '.' with it.
+            if (!WinboxValueFormat.TryToInt64(value, out long fp))
+            {
+                TraceNonNumeric("fixedpoint", value);
+                return null;
+            }
+            long v = NumToInt(fp);
+            // A postfix of s or ms says this fixedpoint is a TIME, and RouterOS prints a time in
+            // its own compound form rather than as a decimal: /interface/vrrp's interval
+            // (scale:100, postfix:'s') reads 1s at 100 and 1s500ms at 150 — measured by moving
+            // the value, since 1.5 and 1s500ms are the same quantity spelled two ways and only
+            // the router says which spelling is its own.
+            if (jf.IsSecondsPostfix || jf.IsMillisecondsPostfix)
+                return TikDurationText.Format(v, jf.TicksPerSecond, jf.DurationZeroUnit);
+            int scale = jf.Scale < 1 ? 1 : jf.Scale;
+            if (scale == 1) return v.ToString(CultureInfo.InvariantCulture);
+            string sign = v < 0 ? "-" : "";
+            long abs = Math.Abs(v);
+            int digits = scale.ToString(CultureInfo.InvariantCulture).Length - 1;
+            string frac = (abs % scale).ToString(CultureInfo.InvariantCulture)
+                .PadLeft(digits, '0').TrimEnd('0');
+            return sign + (abs / scale).ToString(CultureInfo.InvariantCulture)
+                 + (frac.Length > 0 ? "." + frac : "");
+        }
+
+        private string? FormatAge(WinboxJgField jf, object value)
+        {
+            // NOT a duration, though it wears a duration's clothes. types.age.tostr:
+            //     var uptime = getUptime();
+            //     if (val > 0x7fffffff) val = uptime + Math.abs(val - 0xffffffff);
+            //     else                  val = Math.abs(val - uptime);
+            //     return interval2string(val, 1);
+            // — i.e. the value is a timestamp on the router's UPTIME clock, and the duration is
+            // its distance from now. Measured before the JS was read and agreeing with it:
+            // /certificate and /ip/dhcp-client expires-after both read exactly one uptime higher
+            // than the API (89828 s, with uptime 89828 s at that moment).
+            if (!WinboxValueFormat.TryToInt64(value, out long stamp))
+            {
+                TraceNonNumeric("age", value);
+                return null;
+            }
+            if (jf.Scale > 1) stamp /= jf.Scale;
+            long? uptime = RouterUptimeSeconds();
+            if (uptime == null) return null;   // no uptime, no honest answer — fall through to raw text
+            long distance = stamp > int.MaxValue
+                ? uptime.Value + Math.Abs(stamp - 0xFFFFFFFFL)
+                : Math.Abs(stamp - uptime.Value);
+            return TikDurationText.Format(distance, 1);
+        }
+
+        private string? FormatDateAndTime(WinboxJgField jf, object value)
+        {
+            // Unix epoch seconds. webfig's date2string is
+            // `new Date(val*1000).toISOString().substring(0,10)` — UTC, no local shift — and the
+            // values confirm it exactly: a certificate's 1784975092 is the API's
+            // '2026-07-25 10:24:52' to the second. clockdate is the same value printed as a date
+            // alone (/system/clock 'Date'). 'date' is the 6.x catalog's name for dateandtime: on
+            // 6.49.13 a certificate's 1789921669 is the API's 'sep/20/2026 16:27:49'.
+            if (!WinboxValueFormat.TryToInt64(value, out long epoch))
+            {
+                TraceNonNumeric(jf.UiType!, value);   // one of the three the switch matched
+                return null;
+            }
+            // ... unless the declaration says `relative:1`, in which case the same wire type
+            // carries a moment on the router's UPTIME clock instead (see WinboxJgField.Relative).
+            // /interface's last-link-up-time read 1970-02-28 before this: the value is a distance
+            // from boot in hundredths (scale:100), not seconds since 1970.
+            if (jf.Relative)
+            {
+                long? bootHundredths = RouterBootEpochHundredths();
+                // No uptime and no timezone means no honest answer — the raw value, exactly as an
+                // `age` does, rather than a plausible-looking date computed from a guessed origin.
+                if (bootHundredths == null) return null;
+                int relScale = jf.Scale < 1 ? 1 : jf.Scale;
+                long whenHundredths = bootHundredths.Value + (epoch * 100 / relScale);
+                return Epoch.AddSeconds(whenHundredths / 100)
+                    .ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            }
+            var when = Epoch.AddSeconds(epoch);
+            return string.Equals(jf.UiType, "clockdate", StringComparison.OrdinalIgnoreCase)
+                ? when.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                : when.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+        }
+
+        private string? FormatTimezone(object value)
+        {
+            // types.timezone.tostr → timezone2string: a signed SECOND offset rendered ±HH:MM.
+            // /system/clock gmt-offset read as the bare 7200.
+            if (!WinboxValueFormat.TryToInt64(value, out long offset))
+            {
+                TraceNonNumeric("timezone", value);
+                return null;
+            }
+            // The wire carries it as an unsigned u32, so a negative offset arrives wrapped.
+            if (offset > int.MaxValue) offset -= 4294967296L;
+            char sign = offset < 0 ? '-' : '+';
+            long minutes = Math.Abs(offset) / 60;
+            return $"{sign}{minutes / 60:00}:{minutes % 60:00}";
+        }
+
+        private string? FormatClockTimeField(object value)
+        {
+            // A time of day: types.clocktime.tostr is interval2string(getTime(val)), getTime being
+            // val % 86400. Measured on 7.24.2: /system/clock time 84043 where the API prints
+            // 23:20:43.
+            if (!WinboxValueFormat.TryToInt64(value, out long tod))
+            {
+                TraceNonNumeric("clocktime", value);
+                return null;
+            }
+            return FormatClockTime(tod);
+        }
+
+        private string? FormatInterval(WinboxJgField jf, object value)
+        {
+            // types.interval.tostr: `enum2string(attrs.values,val) || interval2string(val,
+            // attrs.scale||1)` — a named value wins, otherwise the number is a DURATION in
+            // 1/scale-second units. Without this every interval reached the caller as its raw
+            // count: /ip/dns cache-max-ttl as 604800 where the API prints 1w, and
+            // /system/watchdog ping-start-after-boot as 30000 (scale:100) where it prints 5m.
+            // webfig's own '1d 02:03:04' rendering is not used — our contract is the text
+            // RouterOS's API prints for the same field.
+            if (!WinboxValueFormat.TryToInt64(value, out long ticks))
+            {
+                TraceNonNumeric("interval", value);
+                return null;
+            }
+            if (jf.EnumMap != null
+                && jf.EnumMap.TryGetValue(unchecked((int)ticks), out var named))
+                return named;
+            return TikDurationText.Format(ticks, jf.Scale);
+        }
+
+        private string? FormatNumberNetmask(WinboxJgField jf, object value, M2Record rec)
+        {
+            // connection-limit=10,24: the number and the netmask's prefix length, as the API prints it.
+            if (!WinboxValueFormat.TryToInt64(value, out long number)) return null;
+            string limitText = number.ToString(CultureInfo.InvariantCulture);
+            return rec.TryGetValue(jf.MaskKey, out var mt) && mt.Value != null
+                ? limitText + "," + WinboxValueFormat.MaskToPrefix(mt.Value).ToString(CultureInfo.InvariantCulture)
+                : limitText;
+        }
+
+        private string? FormatNumberRange(WinboxJgField jf, object value, M2Record rec)
+        {
+            // webfig types.numberrange.tostr: the low end alone when both ends agree, else low-high —
+            // the API's packet-size=100-200. The high end rides MaskKey (WinboxJgCatalog.HighKeyOf).
+            if (jf.MaskKey == 0 || !WinboxValueFormat.TryToInt64(value, out long low)) return null;
+            long high = rec.TryGetValue(jf.MaskKey, out var ht) && ht.Value != null
+                        && WinboxValueFormat.TryToInt64(ht.Value, out long h) ? h : low;
+            return high == low ? low.ToString(CultureInfo.InvariantCulture)
+                : low.ToString(CultureInfo.InvariantCulture) + "-" + high.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private string FormatNumberRangeListField(WinboxJgField jf, object value, M2Record rec)
+        {
+            // u32[] of flat [lo0,hi0,lo1,hi1,…] (webfig multinumberrange / numberrangelist) → "lo"
+            // when lo==hi, else "lo-hi", comma-joined — the RouterOS API form (e.g. "10,20-30").
+            // A not-wrapped field renders the RouterOS '!' negation prefix (e.g. firewall "!80").
+            string list = FormatNumberRangeList(value);
+            bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
+                && nt.Value is bool nb && nb;
+            return negated ? "!" + list : list;
+        }
+
+        // A `multitristate` is a multibits whose members can each be NEGATED, and the
+        // negation rides in a SECOND key: types.multitristate.get reads bmap = id|maskid and
+        // reports each set bit as negated when it is absent from `id` — so `id` holds the plain
+        // members and `maskid` the '!' ones. /ip/firewall/filter's tcp-flags="syn,!ack" is
+        // u56=2 (syn) plus u57=16 (ack); reading `id` alone printed the bare number 2.
+        private string? FormatMultiTriState(WinboxJgField jf, object value, M2Record rec)
+        {
+            if (jf.EnumMap == null || jf.MaskKey == 0) return null;
+            if (!WinboxValueFormat.TryToInt64(value, out long onBits))
+            {
+                TraceNonNumeric("multitristate", value);
+                return null;
+            }
+            long offBits = 0;
+            if (rec.TryGetValue(jf.MaskKey, out var maskT) && maskT.Value != null
+                && WinboxValueFormat.TryToInt64(maskT.Value, out long mb))
+                offBits = mb;
+            // Plain members first, then the negated ones, each in bit order — which is how the
+            // router itself prints a mixed list: tcp-flags="!fin,syn,!urg,ack" reads back
+            // "syn,ack,!fin,!urg" (verified on 7.24), not in the order it was written.
+            //
+            // A member in BOTH halves is printed twice, as the API prints it: a text set rewrites only
+            // the half it names, so syn,!ack + set !syn leaves u56=2 and u57=2, which the API prints
+            // "syn,!syn" (7.24.5). Webfig's own getter shows the bit once; that hid one of the two.
+            var plain = jf.EnumMap.Where(kv => (onBits & (1L << kv.Key)) != 0)
+                                  .OrderBy(kv => kv.Key).Select(kv => kv.Value);
+            var negated = jf.EnumMap.Where(kv => (offBits & (1L << kv.Key)) != 0)
+                                    .OrderBy(kv => kv.Key).Select(kv => "!" + kv.Value);
+            string members = string.Join(",", plain.Concat(negated));
+            // The field-wide 'not' flag is the whole-list '!', which the API spells as a bare leading
+            // element: tcp-flags="!,ack,!syn" for 0xD3=true (7.24.5). Negated() leaves per-member lists
+            // alone, so it is rendered here or not at all.
+            bool whole = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var notT) && notT.Value is bool wn && wn;
+            return whole && members.Length > 0 ? "!," + members : members;
+        }
+
+        // A `multibits` is a `set` under another name: types.multibits.get is
+        // `for(i=0..31) if(val&(1<<i)) push(i)` over the same bit-indexed map, and only its
+        // EDITOR differs (a list of checkboxes rather than one field). It has an EnumMap, so it
+        // was falling through to the SCALAR enum branch and reading the whole bitmask as one
+        // member: /ip/neighbor's system-caps of 0 — no bits, which the API prints as nothing —
+        // came back as 'other', the member the map happens to hold at index 0.
+        private string? FormatSet(WinboxJgField jf, object value,
+            M2Record rec, HashSet<(WinboxHandler Table, bool Members)>? collectRefTables)
+        {
+            // Bitmask flag set → comma-joined labels (.jg map key = bit index). The opt/not flag
+            // keys are consumed separately in DecodeRecord, so only the value rides here. A set
+            // 'not' flag (key NotKey) renders as the RouterOS '!' negation prefix on the whole
+            // value (CLI/API form, e.g. "!established,related").
+            //
+            // A set whose members come from a TABLE instead of a static map is the same bitmask
+            // with the member names one round trip away: /user/group's policies, a script's or a
+            // scheduler entry's policy, all reading the policy table [13,3] where the bit index
+            // is the row's id. Without this they reached the caller as the raw number 654958.
+            var members = jf.EnumMap;
+            if (members == null && jf.RefHandler != null)
+            {
+                members = ResolveMemberMap(jf.RefHandler.Value, collectRefTables);
+                if (members != null) return FormatBitSet(jf, value, members, rec);
+            }
+            if (jf.EnumMap == null) return null;
+            if (!WinboxValueFormat.TryToInt64(value, out long bits))
+            {
+                // Falls through to the raw wire text, which is visibly not a label list — but a
+                // silent fall-through is how a .jg/router mismatch goes unnoticed for a release,
+                // so say so on the trace channel.
+                TraceNonNumeric("set", value);
+                return null;
+            }
+            var present = jf.EnumMap.Where(kv => (bits & (1L << kv.Key)) != 0);
+            var labels = (SetPrintedDescending.Contains(jf.ApiName ?? "")
+                    ? present.OrderByDescending(kv => kv.Key)
+                    : SetPrintedBySpeed.Contains(jf.ApiName ?? "")
+                        ? present.OrderBy(kv => LinkSpeedMbps(kv.Value)).ThenBy(kv => kv.Key)
+                        : present.OrderBy(kv => kv.Key))
+                .Select(kv => kv.Value);
+            string joined = string.Join(",", labels);
+            bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
+                && nt.Value is bool nb && nb;
+            return negated ? "!" + joined : joined;
         }
 
         // webfig list types whose ELEMENT is a reference (types.multinumber and everything inheriting it).
