@@ -90,7 +90,7 @@ if ($unknown) {
           'string - use "powershell -Command" with -Transport @(''api'',''rest'') instead.)'
 }
 
-$resultsPath = Join-Path $repoRoot $ResultsDirectory
+$resultsPath = if ([System.IO.Path]::IsPathRooted($ResultsDirectory)) { $ResultsDirectory } else { Join-Path $repoRoot $ResultsDirectory }
 if (-not (Test-Path $resultsPath)) { New-Item -ItemType Directory -Path $resultsPath | Out-Null }
 
 $stamp   = Get-Date -Format 'yyyyMMdd-HHmmss'
