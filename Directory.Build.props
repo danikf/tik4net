@@ -57,7 +57,8 @@
 
   <!--
     Analyzer rules for the four shipping libraries, and only them: shipping.globalconfig holds the rules
-    (CA1305 culture-explicit formatting and parsing). EnableNETAnalyzers is set explicitly because the SDK
+    (CA1305 culture-explicit formatting and parsing, CA1502 cyclomatic complexity), and CodeMetricsConfig.txt
+    holds the CA1502 threshold. EnableNETAnalyzers is set explicitly because the SDK
     turns the .NET analyzers on by default only for net5.0+ targets, and the netstandard2.0 leg must be held
     to the same rules.
   -->
@@ -66,6 +67,7 @@
   </PropertyGroup>
   <ItemGroup Condition=" '$(MSBuildProjectName)' == 'tik4net' Or '$(MSBuildProjectName)' == 'tik4net.objects' Or '$(MSBuildProjectName)' == 'tik4net.ssh' Or '$(MSBuildProjectName)' == 'tik4net.testing' ">
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)shipping.globalconfig" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)CodeMetricsConfig.txt" />
   </ItemGroup>
 
 </Project>

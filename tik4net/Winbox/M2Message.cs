@@ -495,6 +495,8 @@ namespace tik4net.Winbox
 
         // Parse all TLV fields from an M2 message into a record keyed by full_key; the values by type are listed on
         // M2Value.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1502:Avoid excessive complexity",
+            Justification = "One switch over the M2 ftype table, one wire form per case; split up it would hide the table.")]
         internal static M2Record ParseAllFields(byte[] m2)
         {
             var result = new M2Record();
@@ -840,6 +842,8 @@ namespace tik4net.Winbox
         // which is what an unhandled type did while the walkers stepped over it as if it had no value. That is how
         // the 0xA0 str_array bug behaved before it was found, and 0x18 (addr6) was the same trap waiting on any
         // handler with an IPv6 field.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1502:Avoid excessive complexity",
+            Justification = "A type byte to its value width, one case per ftype and size form; every ftype must have a case here.")]
         private static int? ValueBytes(int type, byte[] data, int pos)
         {
             switch (type)

@@ -8,3 +8,8 @@ is_global = true
 # a host culture (another NegativeSign, digit grouping, calendar) must never reach it. Warnings are errors in
 # CI, so the rule keeps itself.
 dotnet_diagnostic.CA1305.severity = warning
+
+# CA1502: no method above cyclomatic complexity 40 (the threshold is in CodeMetricsConfig.txt). A method that
+# is one flat dispatch table (a type byte to a width, a key to an option) is suppressed at the method with its
+# justification; anything else above the line is split into named stages.
+dotnet_diagnostic.CA1502.severity = warning

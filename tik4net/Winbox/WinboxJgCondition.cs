@@ -147,6 +147,8 @@ namespace tik4net.Winbox
         private static readonly object NoValue = new object();
 
         // webfig's pred.<type>.isTrue, for the kinds a row can answer. Anything else is unknown.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1502:Avoid excessive complexity",
+            Justification = "One case per webfig predicate type, each mirroring its pred.<type>.isTrue in the JS.")]
         private static bool? IsTrue(Dictionary<string, object>? pred, object? val)
         {
             if (pred == null || !(pred.TryGetValue("type", out var tv) && tv is string type)) return null;
