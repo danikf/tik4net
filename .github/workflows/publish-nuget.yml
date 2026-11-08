@@ -118,7 +118,7 @@ jobs:
             ### What's new in 5.0
 
             - **RoMON** — reach a router you have no IP route to, through a neighbouring MikroTik, over Telnet, SSH, MAC-Telnet or any WinBox transport; RoMON discover and ping included
-            - **One codebase from RouterOS 6.49 to 7.24** — the same entities read and write correctly on each version, tested on 7.24.5, 7.21.5 and 6.49.13
+            - **One codebase from RouterOS 6.49 to 7.25** — the same entities read and write correctly on each version, tested on 7.25.1, 7.21.5 and 6.49.21
             - **`TikField<T>`** — a property knows whether the router printed the field; it never invents a default, and a value from a newer RouterOS does not break the read
             - **`DescribeMenu`** — ask the router what a menu takes: sub-menus, commands, arguments, readable and clearable fields, accepted words, from the router's own grammar
             - **Connection string** — `TikConnectionSetup.FromConnectionString`: router, credentials and transport come from config
