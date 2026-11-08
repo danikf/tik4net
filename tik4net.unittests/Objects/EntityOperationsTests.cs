@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -248,9 +248,8 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void TheOldIsReadOnlyNameStillMapsOntoTheNewOne()
         {
-            // Reached by reflection because the compiler will not let anything call it. Two callers still
-            // depend on the mapping: the 7-arg constructor's isReadOnly parameter, which is NOT obsolete,
-            // and anyone reading the attribute dynamically.
+            // Reached by reflection because the compiler will not let anything call it. Anyone reading the
+            // attribute dynamically still depends on the mapping.
             var attribute = new TikEntityAttribute("/test/entity");
             var property = typeof(TikEntityAttribute).GetProperty("IsReadOnly")!;
 
@@ -266,11 +265,16 @@ namespace tik4net.unittests.Objects
             // The lossy direction, spelled out: a remove-only menu reads back as NOT read-only.
             attribute.SupportedOperations = TikEntityOperations.Remove;
             Assert.AreEqual(false, property.GetValue(attribute));
+        }
 
-            // ...and the constructor that still takes the bool agrees with the setter.
-            var viaCtor = new TikEntityAttribute("/test/entity", "/print",
-                TikCommandParameterFormat.Filter, true, false, false, false);
-            Assert.AreEqual(TikEntityOperations.None, viaCtor.SupportedOperations);
+        [TestMethod]
+        public void TheOnlyConstructorTakesThePath()
+        {
+            // The positional constructor took isReadOnly as a bool, the coarse meaning IsReadOnly is obsolete for;
+            // every other setting is a named property.
+            var constructors = typeof(TikEntityAttribute).GetConstructors();
+            Assert.AreEqual(1, constructors.Length, string.Join(", ", constructors.Select(c => c.ToString())));
+            CollectionAssert.AreEqual(new[] { typeof(string) }, constructors[0].GetParameters().Select(p => p.ParameterType).ToArray());
         }
 
         [TestMethod]

@@ -21,7 +21,7 @@ namespace tik4net.Objects
         public string EntityPath { get; private set; }
 
         /// <summary>
-        /// Sufix added to entity path when loading. eq. /print
+        /// Suffix added to the entity path when loading, e.g. /print.
         /// Default: /print
         /// </summary>
         public string LoadCommand { get; set; }
@@ -34,7 +34,7 @@ namespace tik4net.Objects
 
         /// <summary>
         /// The write verbs the RouterOS menu offers. Default: <see cref="TikEntityOperations.All"/> —
-        /// seeded by every constructor, so an entity states what it <i>lacks</i> by narrowing this.
+        /// seeded by the constructor, so an entity states what it <i>lacks</i> by narrowing this.
         /// </summary>
         /// <remarks>
         /// The mapper checks this before it builds a command, and throws
@@ -122,30 +122,6 @@ namespace tik4net.Objects
         /// a measured bound for documentation and test gating.
         /// </summary>
         public string? MaxRouterOs { get; set; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class.
-        /// </summary>
-        /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>
-        /// <param name="loadCommand">Sufix added to entity path when loading. eq. /print</param>
-        /// <param name="loadDefaultParameterFormat">Parameter format (when parameter itself is set to <see cref="TikCommandParameterFormat.Default"/>) during  load operation.</param>
-        /// <param name="isReadOnly">If the whole entity is R/O. Coarse: maps to <see cref="TikEntityOperations.None"/> or <see cref="TikEntityOperations.All"/> — set <see cref="SupportedOperations"/> instead to state a menu's verbs exactly.</param>
-        /// <param name="isOrdered">If entity list is ordered (move operation does make sense).</param>
-        /// <param name="includeDetails">If entity should be loaded with =detail= option.</param>
-        /// <param name="isSingleton">If entity exists in single instance</param>
-        public TikEntityAttribute(string entityPath, string loadCommand, TikCommandParameterFormat loadDefaultParameterFormat, bool isReadOnly, bool isOrdered, bool includeDetails, bool isSingleton)
-        {
-            Guard.ArgumentNotNullOrEmptyString(entityPath, "entityPath");
-            EntityPath = entityPath;
-            LoadCommand = loadCommand;
-            LoadDefaultParameterFormat = loadDefaultParameterFormat;
-            // Seeded like the other ctor and then narrowed, rather than assigning the obsolete IsReadOnly:
-            // one place decides what the bool means, and it is the property's own get/set pair.
-            SupportedOperations = isReadOnly ? TikEntityOperations.None : TikEntityOperations.All;
-            IsOrdered = isOrdered;
-            IncludeDetails = includeDetails;
-            IsSingleton = isSingleton;            
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class.
