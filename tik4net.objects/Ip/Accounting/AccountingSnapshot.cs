@@ -6,7 +6,9 @@ using System.Text;
 namespace tik4net.Objects.Ip
 {
     /// <summary>
-    /// /ip/accounting/snapshot: When a snapshot is made for data collection, the accounting table is cleared and new IP pairs and traffic data are added. The more frequently traffic data is collected, the less likelihood that the IP pairs thereshold limit will be reached.
+    /// /ip/accounting/snapshot (RouterOS 6 only): when a snapshot is made for data collection, the accounting table is cleared and new IP pairs and traffic data are added. The more frequently traffic data is collected, the less likelihood that the IP pairs threshold limit will be reached.
+    /// </summary>
+    /// <remarks>
     /// <para>
     /// <b>RouterOS 6 only.</b> <c>/ip/accounting</c> was removed in RouterOS 7 — a v7 router answers
     /// <i>no such command or directory (accounting)</i> to any command on this path, so on a v7 device
@@ -15,7 +17,7 @@ namespace tik4net.Objects.Ip
     /// <see cref="TikEntityOperations"/> declaration is the v6 shape and is not verified by
     /// <c>EntityOperationMatrixTest</c>, which skips a menu the router does not have.
     /// </para>
-    /// </summary>
+    /// </remarks>
     [TikEntity("/ip/accounting/snapshot", SupportedOperations = TikEntityOperations.None, MaxRouterOs = "6")]
     [Obsolete("RouterOS 7 removed /ip/accounting (7.24.4: 'no such command'). Kept for RouterOS 6.")]
     public class AccountingSnapshot

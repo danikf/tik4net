@@ -12,14 +12,18 @@ namespace tik4net.Connection
     /// the three CRUD <c>Run*</c> hooks, plus the optional raw and async ones (instead of the binary API
     /// sentence protocol). On top of the plumbing it shares with the binary API (<see cref="TikConnectionBase"/>) it supplies the command factory's primitives with
     /// <see cref="TikGenericCommand"/> and offers a <see cref="SemaphoreSlim"/> to serialise commands.
-    ///
+    /// </summary>
+    /// <remarks>
+    /// <para>
     /// It deliberately does <b>not</b> implement <see cref="ITikRawSentenceConnection"/>. That interface's
     /// contract is a command in the <i>connection-specific</i> format, and this class knows only the
     /// transport-neutral one; a base-class implementation could only accept API-shaped rows and translate
     /// them, which is what the O/R mapper already does and is the opposite of a raw call. Transports with a
     /// native dialect of their own implement it themselves — see <c>CliConnectionBase</c>.
-    ///
+    /// </para>
+    /// <para>
     /// Concrete subclasses provide the transport (CLI terminal, native WinBox M2, …) by implementing:
+    /// </para>
     /// <list type="bullet">
     ///   <item><see cref="TikConnectionBase.Open(string, string, string)"/> / <see cref="TikConnectionBase.Open(string, int, string, string)"/></item>
     ///   <item><see cref="TikConnectionBase.OpenAsync(string, string, string, CancellationToken)"/> /
@@ -38,10 +42,9 @@ namespace tik4net.Connection
     /// than wrapping the synchronous hook in a <c>Task.Run</c> façade, so a transport that cannot genuinely
     /// await its I/O simply does not declare
     /// <see cref="TikConnectionCapability.AsyncCommands"/>. Only <see cref="ITikRawSentenceConnection"/> is
-    /// left out on purpose — see below.
+    /// left out on purpose, for the reason given above.
     /// </para>
-    /// </summary>
-    /// <remarks>
+    /// <para>
     /// <b>Thread safety is the subclass's call, and it has to be made deliberately.</b> The
     /// <see cref="CommandLock"/> offered here is a default, not something this class enforces: the
     /// <c>Run*</c> hooks are invoked without it held, so each transport decides whether to serialize.
@@ -51,6 +54,7 @@ namespace tik4net.Connection
     /// running and then stops. A transport written outside this assembly has to make the same choice and
     /// document which one it made — a channel that needs serializing and does not get it fails by handing
     /// a caller someone else's answer, not by throwing.
+    /// </para>
     /// </remarks>
     public abstract class TikCommandConnectionBase : TikConnectionBase
     {

@@ -9,23 +9,13 @@ namespace tik4net
     /// Mikrotik Connection. Main object to access mikrotik router.
     /// Implementation of interface depends on technology that 
     /// is used to access mikrotik (API, SSH, TELNET, ...).
-    /// <example>
-    /// <code>
-    /// var setup = new TikConnectionSetup(TikRouterAddress.FromHost("192.168.1.1"), "user", "pass");
-    /// using (ITikConnection connection = setup.Create(TikConnectionType.Api))
-    /// {
-    ///     // ... do work ...
-    ///     // ... do query ...
-    /// }   // leaving the using closes the connection — an explicit Close() is not needed
-    /// </code>
+    /// </summary>
+    /// <remarks>
     /// <para>
     /// <see cref="TikConnectionSetup"/> is the entry point: it carries the options (timeouts, TLS policy,
     /// router MAC, encoding) and opens the transport named. <see cref="ConnectionFactory"/> still works and
     /// is the shorter spelling when no option needs stating, but it has nowhere to put one.
     /// </para>
-    /// </example>
-    /// </summary>
-    /// <remarks>
     /// <b>What a connection is, and what it is not.</b> This interface is the lifecycle (open, close,
     /// timeouts, encoding, diagnostics) and the command factory — what every transport has. The parts a
     /// transport can reasonably lack are separate interfaces it implements when it has them. <b>Two kinds,
@@ -111,6 +101,16 @@ namespace tik4net
     /// (<c>Docs/findings-router-throughput-ceiling.md</c>).
     /// </para>
     /// </remarks>
+    /// <example>
+    /// <code>
+    /// var setup = new TikConnectionSetup(TikRouterAddress.FromHost("192.168.1.1"), "user", "pass");
+    /// using (ITikConnection connection = setup.Create(TikConnectionType.Api))
+    /// {
+    ///     // ... do work ...
+    ///     // ... do query ...
+    /// }   // leaving the using closes the connection — an explicit Close() is not needed
+    /// </code>
+    /// </example>
     /// <seealso cref="ITikCommand"/>
     /// <seealso cref="TikConnectionException"/>
     /// <seealso cref="TikConnectionNotOpenException"/>

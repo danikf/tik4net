@@ -17,7 +17,9 @@ namespace tik4net.Cli
     /// into the shared command/sentence model. All the transport-neutral plumbing
     /// (<see cref="ITikConnection"/> surface, command factory, low-level dispatch, diagnostics) lives in
     /// <see cref="TikCommandConnectionBase"/>.
-    ///
+    /// </summary>
+    /// <remarks>
+    /// <para>
     /// The class is derived only inside tik4net and its friend assemblies (<c>tik4net.ssh</c>, the tests): its
     /// constructor and its subclass members are <c>private protected</c>. A transport written elsewhere derives
     /// from <see cref="TikCommandConnectionBase"/>. Each CLI transport implements the <c>Open</c> overloads by
@@ -25,12 +27,13 @@ namespace tik4net.Cli
     /// <c>ReconnectingCliTerminal</c> around one) with its login, and calling <c>OpenTerminal</c> /
     /// <c>OpenTerminalAsync</c>; it names itself through <c>TransportName</c> (shown in the "not open" diagnostic).
     /// <see cref="TikConnectionBase.Close"/> and the not-open guards are provided by this base.
-    ///
+    /// </para>
+    /// <para>
     /// The text a terminal returns for a command must already have ANSI escape sequences stripped
     /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
     /// core layer only sees data lines.
-    /// </summary>
-    /// <remarks>
+    /// </para>
+    /// <para>
     /// <b>Thread safety.</b> A CLI connection is safe to use from several threads, but commands do not
     /// overlap: a terminal carries one conversation, so every command is taken through
     /// <see cref="TikCommandConnectionBase"/>'s command semaphore and extra callers queue behind the one
@@ -38,6 +41,7 @@ namespace tik4net.Cli
     /// hold here would not raise an error, it would interleave two commands' bytes and hand each caller a
     /// plausible answer built from the other's. Open a second connection, or use a transport that
     /// multiplexes (the binary API, REST, native WinBox), when commands have to run at the same time.
+    /// </para>
     /// <para>
     /// <b>A monitor is the one case worth planning around.</b> Its poll worker takes the same turn a
     /// command does, so nothing corrupts and CRUD from another thread still runs — it queues. What is not
@@ -243,6 +247,8 @@ namespace tik4net.Cli
         /// <c>LoadListenWithCallback</c> are emulated by re-issuing a one-shot snapshot/print on a background timer
         /// (see <see cref="ITikMonitorTransport"/> below). Streaming (<c>ExecuteListWithDuration</c>) is NOT
         /// reported — use the binary API for that.
+        /// </summary>
+        /// <remarks>
         /// <para>
         /// <see cref="TikConnectionCapability.AsyncCommands"/> is reported because the terminal clients are
         /// async to the socket and the <c>Execute*Async</c> surface awaits them — nothing is pushed onto a
@@ -257,7 +263,7 @@ namespace tik4net.Cli
         /// verbatim. It is not reported by REST or native WinBox, which have no command language of their own
         /// for a caller to write.
         /// </para>
-        /// </summary>
+        /// </remarks>
         public override TikConnectionCapability Capabilities
             => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
              | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands

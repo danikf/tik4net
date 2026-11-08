@@ -170,9 +170,14 @@ namespace tik4net
 
     /// <summary>
     /// Exception thrown when the <b>client</b> could not address an API path on the active transport — the
-    /// router was never asked. Today this is the native WinBox M2 transport, which needs a path → M2 handler
-    /// mapping (from the router's <c>.jg</c> menu catalog, a <c>PathAlias</c> or a <c>PathOverride</c>) before
-    /// it can send anything at all.
+    /// router was never asked.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The transport that throws it is native WinBox M2, which needs a path → M2 handler mapping (from the
+    /// router's <c>.jg</c> menu catalog, a <c>PathAlias</c> or a <c>PathOverride</c>) before it can send anything
+    /// at all.
+    /// </para>
     /// <para>
     /// It derives from <see cref="TikNoSuchCommandException"/> because the practical consequence is the same —
     /// the command cannot be run — but the <b>cause is ours, not the router's</b>. A plain
@@ -183,7 +188,7 @@ namespace tik4net
     /// reported as a fact about the router (which is how 142 unmapped-path skips hid behind "the required
     /// RouterOS package may not be installed").
     /// </para>
-    /// </summary>
+    /// </remarks>
     /// <seealso cref="tik4net.WinboxNative.WinboxNativeConnection.PathAlias(string, string)"/>
     public class TikPathNotMappedException : TikNoSuchCommandException
     {

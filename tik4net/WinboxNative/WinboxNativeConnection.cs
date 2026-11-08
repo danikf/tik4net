@@ -274,10 +274,14 @@ namespace tik4net.WinboxNative
         /// <summary>
         /// When <c>true</c>, paths and field names may be addressed by the label seen in the <b>WinBox GUI</b>
         /// (spaces or underscores, any case, abbreviation dots) in addition to the exact RouterOS API name —
-        /// e.g. <c>"MAC_Address"</c> or <c>"MAC Address"</c> resolve to <c>"mac-address"</c>. A name that resolves
-        /// verbatim is never re-normalized, and <see cref="FieldOverride"/>/<see cref="PathOverride"/> still win,
-        /// so this is a best-effort convenience layered under strict API-name resolution. Default <c>false</c>
-        /// (strict, predictable). Decoded output always uses canonical API names regardless of this flag.
+        /// e.g. <c>"MAC_Address"</c> or <c>"MAC Address"</c> resolve to <c>"mac-address"</c>. Default <c>false</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A name that resolves verbatim is never re-normalized, and <see cref="FieldOverride"/>/<see cref="PathOverride"/>
+        /// still win, so this is a best-effort convenience layered under strict API-name resolution; the default
+        /// <c>false</c> is strict and predictable. Decoded output always uses canonical API names regardless of this flag.
+        /// </para>
         /// <para>
         /// It covers a read's filters as well as writes: <c>CreateCommandAndParameters("/IP/Firewall/Filter/print",
         /// "Chain", "forward")</c> filters on <c>chain</c>. A path given as WinBox menu labels is read exactly as its
@@ -298,7 +302,7 @@ namespace tik4net.WinboxNative
         /// mutable connection state, toggling it is not safe while the same connection is used from another
         /// thread — there, set it once before first use.
         /// </para>
-        /// </summary>
+        /// </remarks>
         public bool UseGuiNames
         {
             get => _useGuiNames;

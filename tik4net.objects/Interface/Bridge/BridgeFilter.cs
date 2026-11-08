@@ -6,23 +6,24 @@ using System.Text;
 namespace tik4net.Objects.Interface.Bridge
 {
     /// <summary>
-    /// The bridge firewall implements packet filtering and thereby provides security functions that are used to manage data flow to, from and through bridge.
-    /// 
-    /// Packet flow diagram shows how packets are processed through router. It is possible to force bridge traffic to go through /ip firewall filter rules (see: Bridge Settings)
-    /// 
-    /// There are two bridge firewall tables:
-    /// 
-    /// filter - bridge firewall with three predefined chains:
-    /// input - filters packets, where the destination is the bridge (including those packets that will be routed, as they are destined to the bridge MAC address anyway)
-    /// output - filters packets, which come from the bridge (including those packets that has been routed normally)
-    /// forward - filters packets, which are to be bridged (note: this chain is not applied to the packets that should be routed through the router, just to those that are traversing between the ports of the same bridge)
-    /// nat - bridge network address translation provides ways for changing source/destination MAC addresses of the packets traversing a bridge. Has two built-in chains:
-    /// srcnat - used for "hiding" a host or a network behind a different MAC address. This chain is applied to the packets leaving the router through a bridged interface
-    /// dstnat - used for redirecting some packets to other destinations
-    /// You can put packet marks in bridge firewall (filter and NAT), which are the same as the packet marks in IP firewall put by '/ip firewall mangle'. In this way, packet marks put by bridge firewall can be used in 'IP firewall', and vice versa.
-    /// 
-    /// General bridge firewall properties are described in this section. Some parameters that differ between nat and filter rules are described in further sections.
+    /// /interface/bridge/filter: a bridge firewall filter rule, which accepts, drops or marks packets going to, from or through a bridge.
     /// </summary>
+    /// <remarks>
+    /// <para>The bridge firewall implements packet filtering and thereby provides security functions that are used to manage data flow to, from and through bridge.</para>
+    /// <para>Packet flow diagram shows how packets are processed through router. It is possible to force bridge traffic to go through /ip firewall filter rules (see: Bridge Settings)</para>
+    /// <para>There are two bridge firewall tables:</para>
+    /// <list type="bullet">
+    /// <item><description>filter - bridge firewall with three predefined chains:</description></item>
+    /// <item><description>input - filters packets, where the destination is the bridge (including those packets that will be routed, as they are destined to the bridge MAC address anyway)</description></item>
+    /// <item><description>output - filters packets, which come from the bridge (including those packets that has been routed normally)</description></item>
+    /// <item><description>forward - filters packets, which are to be bridged (note: this chain is not applied to the packets that should be routed through the router, just to those that are traversing between the ports of the same bridge)</description></item>
+    /// <item><description>nat - bridge network address translation provides ways for changing source/destination MAC addresses of the packets traversing a bridge. Has two built-in chains:</description></item>
+    /// <item><description>srcnat - used for "hiding" a host or a network behind a different MAC address. This chain is applied to the packets leaving the router through a bridged interface</description></item>
+    /// <item><description>dstnat - used for redirecting some packets to other destinations</description></item>
+    /// </list>
+    /// <para>You can put packet marks in bridge firewall (filter and NAT), which are the same as the packet marks in IP firewall put by '/ip firewall mangle'. In this way, packet marks put by bridge firewall can be used in 'IP firewall', and vice versa.</para>
+    /// <para>General bridge firewall properties are described in this section. Some parameters that differ between nat and filter rules are described in further sections.</para>
+    /// </remarks>
     [TikEntity("/interface/bridge/filter", IsOrdered = true)]
     public class BridgeFilter : BridgeFirewallBase
     {
@@ -82,14 +83,18 @@ namespace tik4net.Objects.Interface.Bridge
         }
 
         /// <summary>
-        /// action: Action to take if packet is matched by the rule: 
-        /// accept - accept the packet.Packet is not passed to next firewall rule.
-        /// drop - silently drop the packet
-        /// jump - jump to the user defined chain specified by the value of jump-target parameter
-        /// log - add a message to the system log containing following data: in-interface, out-interface, src-mac, protocol, src-ip:port-&gt;dst-ip:port and length of the packet.After packet is matched it is passed to next rule in the list, similar as passthrough
-        /// passthrough - ignore this rule and go to next one (useful for statistics).
-        /// return  - passes control back to the chain from where the jump took place
+        /// action: what the rule does with a packet it matches; <c>accept</c> by default.
         /// </summary>
+        /// <remarks>
+        /// <list type="bullet">
+        /// <item><description>accept - accept the packet.Packet is not passed to next firewall rule.</description></item>
+        /// <item><description>drop - silently drop the packet</description></item>
+        /// <item><description>jump - jump to the user defined chain specified by the value of jump-target parameter</description></item>
+        /// <item><description>log - add a message to the system log containing following data: in-interface, out-interface, src-mac, protocol, src-ip:port-&gt;dst-ip:port and length of the packet.After packet is matched it is passed to next rule in the list, similar as passthrough</description></item>
+        /// <item><description>passthrough - ignore this rule and go to next one (useful for statistics).</description></item>
+        /// <item><description>return  - passes control back to the chain from where the jump took place</description></item>
+        /// </list>
+        /// </remarks>
         [TikProperty("action", DefaultValue = "accept", WinboxLabel = "Action")]
         public TikField<ActionType?> Action { get; set; }
 

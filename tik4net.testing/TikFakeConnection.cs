@@ -11,6 +11,8 @@ namespace tik4net.Testing
 {
     /// <summary>
     /// Fake <see cref="ITikConnection"/> for unit testing — no real router required.
+    /// </summary>
+    /// <remarks>
     /// <para>
     /// Intercepts at the lowest level (<see cref="CallCommandSync(System.Collections.Generic.IEnumerable{string})"/>) so that all higher-level
     /// code — <see cref="ITikCommand"/> Execute* methods and the O/R mapper extension methods
@@ -31,7 +33,7 @@ namespace tik4net.Testing
     /// After the call, inspect <see cref="SentCommands"/> or use <see cref="AssertWasSent(string)"/>
     /// to verify what the code sent.
     /// </para>
-    /// </summary>
+    /// </remarks>
     /// <example>
     /// <code>
     /// var conn = new TikFakeConnection()
@@ -264,13 +266,18 @@ namespace tik4net.Testing
         // ── Capabilities ───────────────────────────────────────────────────────
 
         /// <summary>
-        /// What this fake claims to support. Defaults to what it actually implements:
-        /// <see cref="TikConnectionCapability.Crud"/>, <see cref="TikConnectionCapability.Listen"/> (the
-        /// callback <c>ExecuteWithCallback</c>/<c>LoadWithCallback</c> pattern),
-        /// <see cref="TikConnectionCapability.AsyncCommands"/> (the <c>Execute*Async</c> surface, completing
-        /// synchronously — see <see cref="TikFakeCommand"/>), <see cref="TikConnectionCapability.SafeMode"/>
-        /// (recorded, not performed — the counters below), <see cref="TikConnectionCapability.Tagging"/> and
-        /// <see cref="TikConnectionCapability.RawCommand"/>.
+        /// What this fake claims to support; by default what it actually implements (<see cref="TikConnectionCapability.Crud"/>,
+        /// <see cref="TikConnectionCapability.Listen"/>, <see cref="TikConnectionCapability.AsyncCommands"/>,
+        /// <see cref="TikConnectionCapability.SafeMode"/>, <see cref="TikConnectionCapability.Tagging"/> and
+        /// <see cref="TikConnectionCapability.RawCommand"/>).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// In the default set, <see cref="TikConnectionCapability.Listen"/> is the callback
+        /// <c>ExecuteWithCallback</c>/<c>LoadWithCallback</c> pattern, <see cref="TikConnectionCapability.AsyncCommands"/>
+        /// the <c>Execute*Async</c> surface, completing synchronously (see <see cref="TikFakeCommand"/>), and
+        /// <see cref="TikConnectionCapability.SafeMode"/> is recorded, not performed (the counters below).
+        /// </para>
         /// <para>
         /// Set it to test how your code behaves against a transport that lacks something — clearing
         /// <see cref="TikConnectionCapability.AsyncCommands"/>, for instance, makes <c>ExecuteListAsync</c> throw
@@ -292,7 +299,7 @@ namespace tik4net.Testing
         /// fake's commands implement <c>ITikStreamingCommand</c>: the stream yields the scripted rows, then ends as the binary
         /// API's does.
         /// </para>
-        /// </summary>
+        /// </remarks>
         /// <exception cref="ArgumentException">The value holds <see cref="TikConnectionCapability.MenuSchema"/>: the fake
         /// cannot describe a menu, and a flag it could not back would fail later with an exception no transport throws.</exception>
         public TikConnectionCapability Capabilities
