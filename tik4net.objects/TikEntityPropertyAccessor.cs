@@ -144,7 +144,8 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// .ctor
+        /// Reads the <see cref="TikPropertyAttribute"/> of <paramref name="propertyInfo"/>, binds its accessors and refuses
+        /// a declaration the mapper cannot honour.
         /// </summary>
         /// <param name="owner">Metadata of the owning entity.</param>
         /// <param name="propertyInfo">PropertyInfo of the accessed  entity property.</param>

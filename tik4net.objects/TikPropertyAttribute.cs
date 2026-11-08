@@ -61,55 +61,47 @@ namespace tik4net.Objects
         public string? DefaultValue { get; set; }
 
         /// <summary>
-        /// Marks a property whose value is free-form text and may therefore contain the CLI output
-        /// format's own separators — <c>;</c>, <c>=</c> or newlines. A file body (<c>/file contents</c>)
-        /// or a script source are the typical cases.
-        /// <para>
-        /// RouterOS's <c>as-value</c> output has no escaping, so such a value is indistinguishable from
-        /// further fields and records and silently shreds the whole result set: measured on 7.23.2,
-        /// <c>/file/print</c> returned 27 rows over the binary API and <b>1</b> over every CLI transport.
-        /// Marking the property makes the O/R mapper read the entity through <c>:serialize to=json</c> on
-        /// CLI transports, where the escaping is exact. Other transports are unaffected — they frame
-        /// values themselves and never had the ambiguity.
-        /// </para>
-        /// <para>
-        /// The JSON read needs RouterOS 7.13+; on older routers the CLI transports detect the refusal and
-        /// fall back to <c>as-value</c>, i.e. to the shredding this flag exists to avoid — so on such a
-        /// router, do not read these entities over a CLI transport.
-        /// </para>
-        /// <para>
-        /// <b>It costs something, so mark only what needs it.</b> <c>:serialize to=json</c> fixes the
-        /// framing and changes the VALUES: a duration comes back as a date counted from the Unix epoch
-        /// (<c>ttl=1d</c> arrives as <c>1970-01-02 00:00:00</c>, <c>52w1d</c> as <c>1971-01-01 00:00:00</c>)
-        /// and sub-second precision is truncated — <c>arp-interval=100ms</c> reads as <c>00:00:00</c>.
-        /// <c>CliValueNormalizer</c> converts the dates back for the duration fields it knows about; the
-        /// lost milliseconds cannot be recovered. This is why <c>comment</c> is not marked automatically
-        /// even though a comment carrying a <c>;</c> does shred: it would put every entity on the lossy
-        /// path to fix a rare case.
-        /// </para>
+        /// Marks a property whose value is free-form text that may contain the CLI output format's own separators
+        /// (<c>;</c>, <c>=</c>, newlines), so the mapper reads the entity as JSON on the CLI transports.
         /// </summary>
+        /// <remarks>
+        /// <para>A file body (<c>/file contents</c>) or a script source are the typical cases. RouterOS's <c>as-value</c>
+        /// output has no escaping, so such a value is indistinguishable from further fields and records and silently
+        /// shreds the whole result set: measured on 7.23.2, <c>/file/print</c> returned 27 rows over the binary API and
+        /// <b>1</b> over every CLI transport. Marking the property makes the O/R mapper read the entity through
+        /// <c>:serialize to=json</c> on CLI transports, where the escaping is exact. Other transports are unaffected —
+        /// they frame values themselves and never had the ambiguity.</para>
+        /// <para>The JSON read needs RouterOS 7.13+; on older routers the CLI transports detect the refusal and fall back
+        /// to <c>as-value</c>, i.e. to the shredding this flag exists to avoid — so on such a router, do not read these
+        /// entities over a CLI transport.</para>
+        /// <para><b>It costs something, so mark only what needs it.</b> <c>:serialize to=json</c> fixes the framing and
+        /// changes the VALUES: a duration comes back as a date counted from the Unix epoch (<c>ttl=1d</c> arrives as
+        /// <c>1970-01-02 00:00:00</c>, <c>52w1d</c> as <c>1971-01-01 00:00:00</c>) and sub-second precision is truncated —
+        /// <c>arp-interval=100ms</c> reads as <c>00:00:00</c>. <c>CliValueNormalizer</c> converts the dates back for the
+        /// duration fields it knows about; the lost milliseconds cannot be recovered. This is why <c>comment</c> is not
+        /// marked automatically even though a comment carrying a <c>;</c> does shred: it would put every entity on the
+        /// lossy path to fix a rare case.</para>
+        /// </remarks>
         /// <seealso cref="tik4net.TikSpecialProperties.CliJson"/>
         public bool IsFreeText { get; set; }
 
         /// <summary>
-        /// Marks a <see cref="bool"/> field the router stores as a valueless <b>presence flag</b>: the
-        /// binary API reports it as <c>name=</c> (the word is present, the value empty) when the flag is
-        /// set, and omits the word entirely when it is not.
-        /// <para>
-        /// Being printed is the value here, so an empty value means <b>true</b> — which is what the router
-        /// said. A field the row lacks still reads <see cref="TikFieldState.Absent"/>: the router reported
-        /// nothing, and the mapper does not invent a <c>false</c>. A <see cref="bool"/> printed empty and not
-        /// marked reads <see cref="TikFieldState.Unparsed"/>, so the diagnostics show the missing marker;
-        /// on any other type an empty value carries nothing and reads Absent.
-        /// </para>
-        /// <para>
-        /// Only the binary API and REST use the valueless form; the CLI transports and
-        /// <c>WinboxNative</c> report the same field as <c>true</c>, which parses the same way with or
-        /// without this flag. Marking the property therefore makes every transport agree rather than
-        /// changing one of them. Writes are unaffected — <c>=name=yes</c> is what the router accepts.
-        /// </para>
-        /// <para><c>/routing/table</c>'s <c>fib</c> is the field this exists for.</para>
+        /// Marks a <see cref="bool"/> field the router stores as a valueless <b>presence flag</b>, so the binary API's
+        /// empty <c>name=</c> reads as <c>true</c>.
         /// </summary>
+        /// <remarks>
+        /// <para>The binary API reports such a field as <c>name=</c> (the word is present, the value empty) when the flag
+        /// is set, and omits the word entirely when it is not. Being printed is the value here, so an empty value means
+        /// <b>true</b> — which is what the router said. A field the row lacks still reads
+        /// <see cref="TikFieldState.Absent"/>: the router reported nothing, and the mapper does not invent a <c>false</c>.
+        /// A <see cref="bool"/> printed empty and not marked reads <see cref="TikFieldState.Unparsed"/>, so the diagnostics
+        /// show the missing marker; on any other type an empty value carries nothing and reads Absent.</para>
+        /// <para>Only the binary API and REST use the valueless form; the CLI transports and <c>WinboxNative</c> report the
+        /// same field as <c>true</c>, which parses the same way with or without this flag. Marking the property therefore
+        /// makes every transport agree rather than changing one of them. Writes are unaffected — <c>=name=yes</c> is what
+        /// the router accepts.</para>
+        /// <para><c>/routing/table</c>'s <c>fib</c> is the field this exists for.</para>
+        /// </remarks>
         public bool IsPresenceFlag { get; set; }
 
         /// <summary>
@@ -143,30 +135,30 @@ namespace tik4net.Objects
         public string? MaxRouterOs { get; set; }
 
         /// <summary>
-        /// Marks a writable field whose value the <b>router changes by itself</b> between two reads —
-        /// <c>/system/clock</c>'s <c>time</c> and <c>date</c>.
-        /// <para>
-        /// A <see cref="TikSaveMode.FullUpdate"/> save re-reads the entity and sends every field that differs from
-        /// that read. Such a field always differs, so without this marker the save writes back the value it was
-        /// loaded with — setting the clock back by however long the entity was held. With it, the field is sent
-        /// only when the caller changed it since the load (or when the entity was never loaded, where the value it
-        /// holds is all the intent there is). <see cref="TikSaveMode.OnlyChanges"/> already compares against the
-        /// load and is unaffected.
-        /// </para>
+        /// Marks a writable field whose value the <b>router changes by itself</b> between two reads
+        /// (<c>/system/clock</c>'s <c>time</c> and <c>date</c>), so a full-update save sends it only when the caller changed it.
         /// </summary>
+        /// <remarks>
+        /// A <see cref="TikSaveMode.FullUpdate"/> save re-reads the entity and sends every field that differs from that
+        /// read. Such a field always differs, so without this marker the save writes back the value it was loaded with —
+        /// setting the clock back by however long the entity was held. With it, the field is sent only when the caller
+        /// changed it since the load (or when the entity was never loaded, where the value it holds is all the intent there
+        /// is). <see cref="TikSaveMode.OnlyChanges"/> already compares against the load and is unaffected.
+        /// </remarks>
         public bool ChangesOnItsOwn { get; set; }
 
         /// <summary>
-        /// Marks a field RouterOS treats as <b>sensitive</b> — a secret, a password, a pre-shared key.
-        /// <para>
-        /// RouterOS 7 leaves such values out of a terminal <c>print</c> unless it is given <c>show-sensitive</c>,
-        /// while the binary API and REST return them. An entity with a sensitive property is therefore read with
-        /// <c>show-sensitive</c> on the CLI transports (<c>Telnet</c>/<c>Ssh</c>/<c>MacTelnet</c>/<c>WinboxCli</c>/
-        /// <c>WinboxCliMac</c>), which then read the same value as every other transport. RouterOS 6 has no such
-        /// word and prints secrets without it; a menu that refuses the word is read without it. Other transports
-        /// are unaffected. What the router returns still depends on the user's <c>sensitive</c> policy.
-        /// </para>
+        /// Marks a field RouterOS treats as <b>sensitive</b> (a secret, a password, a pre-shared key), so the CLI
+        /// transports read its entity with <c>show-sensitive</c>.
         /// </summary>
+        /// <remarks>
+        /// RouterOS 7 leaves such values out of a terminal <c>print</c> unless it is given <c>show-sensitive</c>, while
+        /// the binary API and REST return them. An entity with a sensitive property is therefore read with
+        /// <c>show-sensitive</c> on the CLI transports (<c>Telnet</c>/<c>Ssh</c>/<c>MacTelnet</c>/<c>WinboxCli</c>/
+        /// <c>WinboxCliMac</c>), which then read the same value as every other transport. RouterOS 6 has no such word and
+        /// prints secrets without it; a menu that refuses the word is read without it. Other transports are unaffected.
+        /// What the router returns still depends on the user's <c>sensitive</c> policy.
+        /// </remarks>
         public bool IsSensitive { get; set; }
 
         /// <summary>
@@ -184,21 +176,20 @@ namespace tik4net.Objects
         public TikListSetBehaviour SetBehaviour { get; set; }
 
         /// <summary>
-        /// Marks a list (a <see cref="TikValueList{T}"/>) that RouterOS keeps as a set: it prints the members sorted in an
-        /// order of its own and drops a duplicate, whatever the order it was given (the radio chain lists, <c>2,0,1</c> reads
-        /// <c>0,1,2</c>; a DHCP alert's <c>valid-server</c> MACs; <c>Docs/findings-value-lists.md</c> §3).
-        /// <para>
-        /// A list merge (<see cref="TikListMerge{TEntity}"/>) then compares the field by its distinct members, so the same
-        /// members in another order, or with a duplicate, are no change. Without the flag a list compares in order, because
-        /// that order is usually configuration: the first DNS server a DHCP client gets is its primary. A save still sends
-        /// the members in the order the list holds them.
-        /// </para>
-        /// <para>
-        /// A list of an enum's members needs no flag: RouterOS keeps such a list as a bitmask, and a merge already compares
-        /// it by members. Declared on one anyway, the flag also makes a duplicate member no change. Declaring it on a field
-        /// that is not a list is refused when the entity is first used.
-        /// </para>
+        /// Marks a list (a <see cref="TikValueList{T}"/>) that RouterOS keeps as a set — sorted in an order of its own,
+        /// without duplicates — so a list merge compares it by its distinct members.
         /// </summary>
+        /// <remarks>
+        /// <para>Examples: the radio chain lists (<c>2,0,1</c> reads <c>0,1,2</c>), a DHCP alert's <c>valid-server</c>
+        /// MACs (<c>Docs/findings-value-lists.md</c> §3).</para>
+        /// <para>A list merge (<see cref="TikListMerge{TEntity}"/>) then counts the same members in another order, or with a
+        /// duplicate, as no change. Without the flag a list compares in order, because that order is usually configuration:
+        /// the first DNS server a DHCP client gets is its primary. A save still sends the members in the order the list
+        /// holds them.</para>
+        /// <para>A list of an enum's members needs no flag: RouterOS keeps such a list as a bitmask, and a merge already
+        /// compares it by members. Declared on one anyway, the flag also makes a duplicate member no change. Declaring it on
+        /// a field that is not a list is refused when the entity is first used.</para>
+        /// </remarks>
         public bool RouterSortsMembers { get; set; }
 
         /// <summary>
