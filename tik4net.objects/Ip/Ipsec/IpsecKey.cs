@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Ip.Ipsec
+﻿namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/key/rsa
@@ -53,6 +53,17 @@ namespace tik4net.Objects.Ip.Ipsec
         public override string? ToString() => Name.Value;
     }
 
+    /// <summary>The RSA key sizes <c>/ip/ipsec/key/rsa generate-key</c> takes.</summary>
+    public enum IpsecKeySize
+    {
+        /// <summary><c>2048</c> bits.</summary>
+        Bits2048 = 2048,
+        /// <summary><c>4096</c> bits.</summary>
+        Bits4096 = 4096,
+        /// <summary><c>8192</c> bits.</summary>
+        Bits8192 = 8192,
+    }
+
     /// <summary>Connection extension methods for <see cref="IpsecKey"/>.</summary>
     public static class IpsecKeyConnectionExtensions
     {
@@ -62,11 +73,31 @@ namespace tik4net.Objects.Ip.Ipsec
         /// </summary>
         /// <param name="connection">Open connection to the router.</param>
         /// <param name="name">Name for the new key (must be unique in the table).</param>
-        /// <param name="keySizeBits">RSA key size in bits: "2048", "4096", or "8192". Default: "2048".</param>
+        /// <param name="keySize">RSA key size. Default: <see cref="IpsecKeySize.Bits2048"/>.</param>
         public static void GenerateIpsecKey(
             this ITikConnection connection,
             string name,
-            string keySizeBits = "2048")
+            IpsecKeySize keySize = IpsecKeySize.Bits2048)
+        {
+            SendGenerateKey(connection, name, ((int)keySize).ToString(global::System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>
+        /// Generates a new RSA key pair, the key size given as text.
+        /// </summary>
+        /// <param name="connection">Open connection to the router.</param>
+        /// <param name="name">Name for the new key (must be unique in the table).</param>
+        /// <param name="keySizeBits">RSA key size in bits: "2048", "4096", or "8192"; the router refuses anything else.</param>
+        [global::System.Obsolete("Use the IpsecKeySize overload.", false)]
+        public static void GenerateIpsecKey(
+            this ITikConnection connection,
+            string name,
+            string keySizeBits)
+        {
+            SendGenerateKey(connection, name, keySizeBits);
+        }
+
+        private static void SendGenerateKey(ITikConnection connection, string name, string keySizeBits)
         {
             var cmd = connection.CreateCommand("/ip/ipsec/key/rsa/generate-key");
             cmd.AddParameter("name", name, TikCommandParameterFormat.NameValue);

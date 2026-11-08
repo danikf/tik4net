@@ -39,7 +39,7 @@ namespace tik4net.integrationtests
             foreach (var k in Connection.LoadAll<IpsecKey>()) before.Add(k.Id);
 
             // Generate a 2048-bit key via the extension method.
-            Connection.GenerateIpsecKey(keyName, "2048");
+            Connection.GenerateIpsecKey(keyName, IpsecKeySize.Bits2048);
 
             var list = Connection.LoadAll<IpsecKey>();
             Assert.IsNotNull(list);
