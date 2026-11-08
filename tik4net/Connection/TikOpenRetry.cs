@@ -161,85 +161,34 @@ namespace tik4net.Connection
                || LinkSilent(ex) != null;
 
         private static WinboxRomonLinkSilentException? LinkSilent(Exception ex)
-        {
-            for (Exception? e = ex; e != null; e = e.InnerException)
-            {
-                if (e is WinboxRomonLinkSilentException silent) return silent;
-                if (e is AggregateException aggregate)
-                {
-                    foreach (var inner in aggregate.InnerExceptions)
-                    {
-                        var found = LinkSilent(inner);
-                        if (found != null) return found;
-                    }
-                }
-            }
-            return null;
-        }
+            => FindInChain<WinboxRomonLinkSilentException>(ex);
 
         private static WinboxSessionLimitException? SessionLimit(Exception ex)
-        {
-            for (Exception? e = ex; e != null; e = e.InnerException)
-            {
-                if (e is WinboxSessionLimitException limit) return limit;
-                if (e is AggregateException aggregate)
-                {
-                    foreach (var inner in aggregate.InnerExceptions)
-                    {
-                        var found = SessionLimit(inner);
-                        if (found != null) return found;
-                    }
-                }
-            }
-            return null;
-        }
+            => FindInChain<WinboxSessionLimitException>(ex);
 
         // A MAC-layer login ended before the router said anything: the refusal's one data packet was lost
         // (MacLayerLoginClosedSilentlyException).
         private static MacTelnet.MacLayerLoginClosedSilentlyException? SilentClosure(Exception ex)
-        {
-            for (Exception? e = ex; e != null; e = e.InnerException)
-            {
-                if (e is MacTelnet.MacLayerLoginClosedSilentlyException closed) return closed;
-                if (e is AggregateException aggregate)
-                {
-                    foreach (var inner in aggregate.InnerExceptions)
-                    {
-                        var found = SilentClosure(inner);
-                        if (found != null) return found;
-                    }
-                }
-            }
-            return null;
-        }
+            => FindInChain<MacTelnet.MacLayerLoginClosedSilentlyException>(ex);
 
         private static TikConnectionLoginNoAnswerException? NoAnswer(Exception ex)
-        {
-            for (Exception? e = ex; e != null; e = e.InnerException)
-            {
-                if (e is TikConnectionLoginNoAnswerException silence) return silence;
-                if (e is AggregateException aggregate)
-                {
-                    foreach (var inner in aggregate.InnerExceptions)
-                    {
-                        var found = NoAnswer(inner);
-                        if (found != null) return found;
-                    }
-                }
-            }
-            return null;
-        }
+            => FindInChain<TikConnectionLoginNoAnswerException>(ex);
 
         private static TikConnectionLoginRefusedException? Refusal(Exception ex)
+            => FindInChain<TikConnectionLoginRefusedException>(ex);
+
+        // The first T down the InnerException chain, descending into every member of an AggregateException
+        // on the way.
+        private static T? FindInChain<T>(Exception ex) where T : Exception
         {
             for (Exception? e = ex; e != null; e = e.InnerException)
             {
-                if (e is TikConnectionLoginRefusedException refusal) return refusal;
+                if (e is T match) return match;
                 if (e is AggregateException aggregate)
                 {
                     foreach (var inner in aggregate.InnerExceptions)
                     {
-                        var found = Refusal(inner);
+                        var found = FindInChain<T>(inner);
                         if (found != null) return found;
                     }
                 }
