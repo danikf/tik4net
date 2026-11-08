@@ -106,7 +106,7 @@ namespace tik4net.Objects.Ip.Firewall
         }          
 
         /// <summary>
-        /// .id: primary key of row
+        /// .id: primary key of the row.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
         public string? Id { get; private set; }
@@ -134,7 +134,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> AddressList { get; set; }
 
         /// <summary>
-        /// address-list-timeout: Time interval after which the address will be removed from the address list specified by address-list parameter. Used in conjunction with add-dst-to-address-list or add-src-to-address-list actions
+        /// address-list-timeout: Time interval after which the address will be removed from the address list specified by address-list parameter. Used in conjunction with add-dst-to-address-list or add-src-to-address-list actions.
         /// Value of 00:00:00 will leave the address in the address list forever
         /// </summary>
         [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
@@ -207,7 +207,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<string?> ConnectionType { get; set; }
 
         /// <summary>
-        /// content: Match packets that contain specified text
+        /// content: Match packets that contain the specified text.
         /// </summary>
         [TikProperty("content", WinboxLabel = "Content")]
         public TikNegatableField<string?> Content { get; set; }
@@ -219,13 +219,13 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<int?> Dscp { get; set; }
 
         /// <summary>
-        /// dst-address: Matches packets which destination is equal to specified IP or falls into specified IP range.
+        /// dst-address: Matches packets whose destination equals the specified IP or falls into the specified IP range.
         /// </summary>
         [TikProperty("dst-address", WinboxLabel = "Dst. Address")]
         public TikNegatableField<string?> DstAddress { get; set; }
 
         /// <summary>
-        /// dst-address-list: Matches destination address of a packet against user-defined address list
+        /// dst-address-list: Matches destination address of a packet against a user-defined address list.
         /// </summary>
         [TikProperty("dst-address-list", WinboxLabel = "Dst. Address List")]
         public TikNegatableField<string?> DstAddressList { get; set; }
@@ -241,7 +241,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<TikValueList<FirewallAddressType>?> DstAddressType { get; set; }
 
         /// <summary>
-        /// dst-limit: Matches packets until a given rate is exceeded. Rate is defined as packets per time interval. As opposed to the limit matcher, every flow has it's own limit. Flow is defined by mode parameter. Parameters are written in following format: count[/time],burst,mode[/expire].
+        /// dst-limit: Matches packets until a given rate is exceeded. Rate is defined as packets per time interval. As opposed to the limit matcher, every flow has its own limit. Flow is defined by mode parameter. Parameters are written in following format: count[/time],burst,mode[/expire].
         /// count - packet count per time interval per flow to match
         /// time - specifies the time interval in which the packet count per flow cannot be exceeded(optional, 1s will be used if not specified)
         /// burst - initial number of packets per flow to match: this number gets recharged by one every time/count, up to this number
@@ -252,7 +252,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> DstLimit { get; set; }
 
         /// <summary>
-        /// dst-port: List of destination port numbers or port number ranges
+        /// dst-port: List of destination port numbers or port number ranges. Applicable only if protocol is TCP or UDP.
         /// </summary>
         [TikProperty("dst-port", WinboxLabel = "Dst. Port")]
         public TikNegatableField<TikValueList<TikPortRange>?> DstPort { get; set; }
@@ -264,13 +264,13 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<bool?> Fragment { get; set; }
 
         /// <summary>
-        /// hotspot: 
+        /// hotspot: Matches packets in a HotSpot scenario by the specified attribute.
         /// </summary>
         [TikProperty("hotspot", WinboxLabel = "Hotspot")]
         public TikField<TikValueList<TikNegatableValue<FirewallHotspotMatch>>?> Hotspot { get; set; }
 
         /// <summary>
-        /// icmp-options: Matches ICMP type:code fileds
+        /// icmp-options: Matches ICMP type:code fields.
         /// </summary>
         [TikProperty("icmp-options", WinboxLabel = "ICMP Options")]
         public TikNegatableField<string?> IcmpOptions { get; set; }
@@ -288,7 +288,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<string?> InBridgePortList { get; set; }
 
         /// <summary>
-        /// in-interface: Interface the packet has entered the router
+        /// in-interface: Interface the packet has entered the router.
         /// </summary>
         [TikProperty("in-interface", WinboxLabel = "In. Interface")]
         public TikNegatableField<string?> InInterface { get; set; }
@@ -300,7 +300,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<string?> InInterfaceList { get; set; }
 
         /// <summary>
-        /// ingress-priority: Matches ingress priority of the packet. Priority may be derived from VLAN, WMM or MPLS EXP bit.  Read more&gt;&gt;
+        /// ingress-priority: Matches ingress priority of the packet (VLAN, WMM, MPLS EXP).
         /// </summary>
         [TikProperty("ingress-priority", WinboxLabel = "Ingress Priority")]
         public TikNegatableField<int?> IngressPriority { get; set; }
@@ -316,13 +316,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// ipv4-options: Matches IPv4 header options.
         /// any - match packet with at least one of the ipv4 options
-        /// loose-source-routing - match packets with loose source routing option.This option is used to route the internet datagram based on information supplied by the source
-        /// no-record-route - match packets with no record route option.This option is used to route the internet datagram based on information supplied by the source
-        /// no-router-alert - match packets with no router alter option
+        /// loose-source-routing - match packets with loose source routing option. This option is used to route the internet datagram based on information supplied by the source
+        /// no-record-route - match packets with no record route option. This option is used to route the internet datagram based on information supplied by the source
+        /// no-router-alert - match packets with no router alert option
         /// no-source-routing - match packets with no source routing option
         /// no-timestamp - match packets with no timestamp option
         /// record-route - match packets with record route option
-        /// router-alert - match packets with router alter option
+        /// router-alert - match packets with router alert option
         /// strict-source-routing - match packets with strict source routing option
         /// timestamp - match packets with timestamp
         /// </summary>
@@ -330,7 +330,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<string?> Ipv4Options { get; set; }
 
         /// <summary>
-        /// jump-target: Name of the target chain to jump to. Applicable only if action=jump
+        /// jump-target: Name of the target chain to jump to. Applicable only if action=jump.
         /// </summary>
         [TikProperty("jump-target", WinboxLabel = "Jump Target")]
         public TikField<string?> JumpTarget { get; set; }
@@ -357,13 +357,13 @@ namespace tik4net.Objects.Ip.Firewall
         public TikField<bool?> Log { get; set; }
 
         /// <summary>
-        /// log-prefix: Adds specified text at the beginning of every log message. Applicable if action=log
+        /// log-prefix: Adds specified text at the beginning of every log message. Applicable if action=log or log=yes.
         /// </summary>
         [TikProperty("log-prefix", WinboxLabel = "Log Prefix")]
         public TikField<string?> LogPrefix { get; set; }
 
         /// <summary>
-        /// nth: Matches every nth packet.  Read more &gt;&gt;
+        /// nth: Matches every nth packet.
         /// </summary>
         [TikProperty("nth", WinboxLabel = "Nth")]
         public TikNegatableField<string?> Nth { get; set; }
@@ -381,7 +381,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<string?> OutBridgePortList { get; set; }
 
         /// <summary>
-        /// out-interface: Interface the packet is leaving the router
+        /// out-interface: Interface the packet is leaving the router through.
         /// </summary>
         [TikProperty("out-interface", WinboxLabel = "Out. Interface")]
         public TikNegatableField<string?> OutInterface { get; set; }
@@ -411,7 +411,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<string?> PacketSize { get; set; }
 
         /// <summary>
-        /// per-connection-classifier: PCC matcher allows to divide traffic into equal streams with ability to keep packets with specific set of options in one particular stream.  Read more &gt;&gt;
+        /// per-connection-classifier: PCC matcher divides traffic into equal streams.
         /// </summary>
         [TikProperty("per-connection-classifier", WinboxLabel = "Per Connection Classifier")]
         public TikField<string?> PerConnectionClassifier { get; set; }
@@ -429,17 +429,17 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<string?> Priority { get; set; }
 
         /// <summary>
-        /// protocol: Matches particular IP protocol specified by protocol name or number
+        /// protocol: Matches particular IP protocol specified by protocol name or number.
         /// </summary>
         [TikProperty("protocol", WinboxLabel = "Protocol")]
         public TikNegatableField<string?> Protocol { get; set; }
 
         /// <summary>
-        /// psd: Attempts to detect TCP and UDP scans. Parameters are in following format WeightThreshold, DelayThreshold, LopPortWeight, HighPortWeight
+        /// psd: Attempts to detect TCP and UDP scans. Parameters are in following format WeightThreshold, DelayThreshold, LowPortWeight, HighPortWeight
         /// WeightThreshold - total weight of the latest TCP/UDP packets with different destination ports coming from the same host to be treated as port scan sequence
         /// DelayThreshold - delay for the packets with different destination ports coming from the same host to be treated as possible port scan subsequence
         /// LowPortWeight - weight of the packets with privileged(&lt;=1024) destination port
-        /// HighPortWeight - weight of the packet with non-priviliged destination port
+        /// HighPortWeight - weight of the packet with non-privileged destination port
         /// </summary>
         [TikProperty("psd", WinboxLabel = "PSD")]
         public TikField<string?> Psd { get; set; }
@@ -469,13 +469,13 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<string?> RoutingMark { get; set; }
 
         /// <summary>
-        /// src-address: Matches packets which source is equal to specified IP or falls into specified IP range.
+        /// src-address: Matches packets whose source equals the specified IP or falls into the specified IP range.
         /// </summary>
         [TikProperty("src-address", WinboxLabel = "Src. Address")]
         public TikNegatableField<string?> SrcAddress { get; set; }
 
         /// <summary>
-        /// src-address-list: Matches source address of a packet against user-defined  address list
+        /// src-address-list: Matches source address of a packet against a user-defined address list.
         /// </summary>
         [TikProperty("src-address-list", WinboxLabel = "Src. Address List")]
         public TikNegatableField<string?> SrcAddressList { get; set; }
@@ -498,7 +498,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<TikValueList<TikPortRange>?> SrcPort { get; set; }
 
         /// <summary>
-        /// src-mac-address: Matches source MAC address of the packet
+        /// src-mac-address: Matches source MAC address of the packet.
         /// </summary>
         [TikProperty("src-mac-address", WinboxLabel = "Src. MAC Address")]
         public TikNegatableField<string?> SrcMacAddress { get; set; }
@@ -518,7 +518,7 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<TikValueList<TikNegatableValue<FirewallTcpFlag>>?> TcpFlags { get; set; }
 
         /// <summary>
-        /// tcp-mss: Matches TCP MSS value of an IP packet
+        /// tcp-mss: Matches TCP MSS value of an IP packet.
         /// </summary>
         [TikProperty("tcp-mss", WinboxLabel = "TCP MSS")]
         public TikNegatableField<string?> TcpMss { get; set; }
@@ -542,37 +542,37 @@ namespace tik4net.Objects.Ip.Firewall
         public TikNegatableField<string?> Tos { get; set; }
 
         /// <summary>
-        /// ttl: Matches packets TTL value
+        /// ttl: Matches packets TTL value.
         /// </summary>
         [TikProperty("ttl", WinboxLabel = "TTL")]
         public TikField<string?> Ttl { get; set; }
 
         /// <summary>
-        /// Row disabled property.
+        /// disabled: Whether the rule is disabled.
         /// </summary>
         [TikProperty("disabled")]
         public TikField<bool?> Disabled { get; set; }
 
         /// <summary>
-        /// Row dynamic property.
+        /// dynamic: Whether the rule was added dynamically (read-only).
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
         public TikField<bool?> Dynamic { get; private set; }
 
         /// <summary>
-        /// Row invalid property.
+        /// invalid: Whether the rule is invalid (read-only).
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
         public TikField<bool?> Invalid { get; private set; }
 
         /// <summary>
-        /// Statistics - bytes
+        /// bytes: Statistics — total bytes matched by this rule (read-only).
         /// </summary>
         [TikProperty("bytes", IsReadOnly = true, WinboxLabel = "Bytes")]
         public TikField<long?> Bytes { get; private set; }
 
         /// <summary>
-        /// Statistics - packets
+        /// packets: Statistics — total packets matched by this rule (read-only).
         /// </summary>
         [TikProperty("packets", IsReadOnly = true, WinboxLabel = "Packets")]
         public TikField<long?> Packets { get; private set; }

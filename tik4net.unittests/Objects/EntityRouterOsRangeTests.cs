@@ -123,6 +123,8 @@ namespace tik4net.unittests.Objects
             ("FirewallMangle", "Tos", "yyn"),
             ("FirewallMangle", "Realm", "yyn"),
             ("FirewallRaw", "Tos", "yyn"),
+            ("FirewallNat", "Realm", "yyn"),
+            ("FirewallNat", "Tos", "yyn"),
             ("HotspotServerProfile", "InstallHotspotQueue", "yyn"),
             ("IpsecKey", "", "yyn"),
             ("IpsecPeer", "PpkSecret", "yyn"),
