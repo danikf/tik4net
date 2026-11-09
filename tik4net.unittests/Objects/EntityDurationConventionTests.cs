@@ -94,6 +94,12 @@ namespace tik4net.unittests.Objects
                 // and REFUSES '75s' with 'input does not match any value'. The name is the whole trap: the
                 // field beside it on every other menu is a duration, this one is a count.
                 ["OvpnServer"] = new[] { "keepalive-timeout" },
+
+                // Measured on 7.25.1: system-offset=-169.629 — a signed decimal of MILLISECONDS with no unit.
+                // TikDuration reads a bare number as seconds and refuses the fraction, so it stays a string.
+                // (Not caught by the suffixes; listed so the .jg catalog sweep's DURATION AS STRING hit is
+                // classified here rather than reopened.)
+                ["SystemNtpClient"] = new[] { "system-offset" },
             };
 
         /// <summary>
@@ -107,7 +113,6 @@ namespace tik4net.unittests.Objects
                 // cannot reach. They fall into three groups.
                 //
                 // Runtime state that needs a live peer, session or client:
-                ["HotspotActive"] = new[] { "idle-timeout" },
                 ["IpsecActivePeers"] = new[] { "last-seen", "uptime" },
                 ["IpsecInstalledSa"] = new[] { "expires-in" },
                 ["OspfNeighbor"] = new[] { "adjacency", "timeout" },
@@ -208,7 +213,7 @@ namespace tik4net.unittests.Objects
         {
             // A number to watch rather than a rule to satisfy. It started at 101 (against 24 already
             // converted); lower it as the backlog shrinks so the direction stays visible in the diff.
-            const int WhenThisTestWasWritten = 12;
+            const int WhenThisTestWasWritten = 11;
 
             int pending = PendingTikDuration.Sum(kv => kv.Value.Length);
             Assert.IsTrue(pending <= WhenThisTestWasWritten,

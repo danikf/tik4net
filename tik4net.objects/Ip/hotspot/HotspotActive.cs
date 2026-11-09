@@ -53,25 +53,25 @@ namespace tik4net.Objects.Ip.Hotspot
         /// The amount of time the user has been connected
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true, WinboxLabel = "Uptime")]
-        public TikField<string?> /*time*/ UpTime { get; private set; }
+        public TikField<TikDuration?> UpTime { get; private set; }
 
         /// <summary>
         /// The amount of time the connection has been idle
         /// </summary>
         [TikProperty("idle-time", IsReadOnly = true, WinboxLabel = "Idle Time")]
-        public TikField<string?> /*time*/ IdleTime { get; private set; }
+        public TikField<TikDuration?> IdleTime { get; private set; }
 
         /// <summary>
         /// The amount of time left for the session
         /// </summary>
         [TikProperty("session-time-left", IsReadOnly = true, WinboxLabel = "Session Time Left")]
-        public TikField<string?> /*time*/ SessionTimeLeft { get; private set; }
+        public TikField<TikDuration?> SessionTimeLeft { get; private set; }
 
         /// <summary>
         /// The amount of time until the connection will timeout if it remains to be idle
         /// </summary>
         [TikProperty("idle-timeout", IsReadOnly = true, WinboxLabel = "Idle Timeout")]
-        public TikField<string?> /*time*/ IdleTimeout { get; private set; }
+        public TikField<TikDuration?> IdleTimeout { get; private set; }
 
         /// <summary>
         /// bytes-in: 

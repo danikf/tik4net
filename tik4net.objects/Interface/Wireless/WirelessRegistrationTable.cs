@@ -170,7 +170,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// last-activity: last interface data tx/rx activity
         /// </summary>
         [TikProperty("last-activity", IsReadOnly = true, WinboxLabel = "Last Activity")]
-        public TikField<string?> LastActivity { get; private set; }
+        public TikField<TikDuration?> LastActivity { get; private set; }
 
         /// <summary>
         /// last-ip: IP address found in the last IP packet received from the registered client

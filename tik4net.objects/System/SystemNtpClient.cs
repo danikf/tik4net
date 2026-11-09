@@ -126,7 +126,11 @@ namespace tik4net.Objects.System
         public TikField<string?> SyncedStratum { get; private set; }
 
         /// <summary>
-        /// system-offset — offset of the NTP server clock relative to the local clock (milliseconds), read-only.
+        /// system-offset — offset of the NTP server clock relative to the local clock, read-only.
+        /// <para>
+        /// A string rather than a <see cref="TikDuration"/>: the router writes a signed decimal count of
+        /// milliseconds with no unit (<c>-169.629</c>), which the duration grammar would not read as milliseconds.
+        /// </para>
         /// </summary>
         [TikProperty("system-offset", IsReadOnly = true, WinboxLabel = "System Offset", MinRouterOs = "7")]
         public TikField<string?> SystemOffset { get; private set; }

@@ -160,7 +160,7 @@ namespace tik4net.Objects.Ip.Hotspot
         /// status-autorefresh: HotSpot status page autorefresh interval
         /// </summary>
         [TikProperty("status-autorefresh", DefaultValue = "1m", WinboxLabel = "Status Autorefresh")]
-        public TikField<string?> StatusAutorefresh { get; set; }
+        public TikField<TikDuration?> StatusAutorefresh { get; set; }
 
         /// <summary>
         /// transparent-proxy: Use transparent HTTP proxy for the authorized users of this profile

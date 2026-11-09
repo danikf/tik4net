@@ -122,7 +122,7 @@ namespace tik4net.Objects.Ip
         /// delay-threshold: If secs field in DHCP packet is smaller than delay-threshold, then this packet is ignored. If set to none - there is no threshold (all DHCP packets are processed)
         /// </summary>
         [TikProperty("delay-threshold", DefaultValue = "none", WinboxLabel = "Delay Threshold")]
-        public TikField<string?> DelayThreshold { get; set; }
+        public TikField<TikDuration?> DelayThreshold { get; set; }
 
         /// <summary>
         /// interface: Interface on which server will be running.

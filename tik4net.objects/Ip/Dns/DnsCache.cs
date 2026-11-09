@@ -36,7 +36,7 @@ namespace tik4net.Objects.Ip.Dns
         /// remaining time-to-live for the record
         /// </summary>
         [TikProperty("ttl", IsReadOnly = true, WinboxLabel = "TTL")]
-        public TikField<string?> Ttl { get; private set; }
+        public TikField<TikDuration?> Ttl { get; private set; }
 
         /// <summary>
         /// clears internal DNS cache

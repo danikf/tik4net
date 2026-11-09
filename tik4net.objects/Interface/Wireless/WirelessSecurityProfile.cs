@@ -133,7 +133,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// group-key-update - (time interval in the 30s..1h range; default value: 5m) : Controls how often access point updates group key. This key is used to encrypt all broadcast and multicast frames.
         /// </summary>
         [TikProperty("group-key-update", WinboxLabel = "Group Key Update")]
-        public TikField<string?> GroupKeyUpdate { get; set; }
+        public TikField<TikDuration?> GroupKeyUpdate { get; set; }
 
         // ── RADIUS (WinBox: the profile's "RADIUS" tab) ───────────────────────────────────────────
         //
@@ -250,13 +250,12 @@ namespace tik4net.Objects.Interface.Wireless
         /// reconnecting client is not re-authenticated against the server. <c>disabled</c> turns caching
         /// off. Default: disabled.
         /// <para>
-        /// A string rather than a time, because the disabling value is a word: it is either
-        /// <c>disabled</c> or a time interval.
+        /// The word reads as <see cref="TikDurationSpecial.Disabled"/>; any other value is a time interval.
         /// </para>
         /// <para>WinBox: "MAC Caching Time" (RADIUS tab).</para>
         /// </summary>
         [TikProperty("radius-mac-caching", DefaultValue = "disabled", WinboxLabel = "MAC Caching Time")]
-        public TikField<string?> /*disabled | time*/ RadiusMacCaching { get; set; }
+        public TikField<TikDuration?> RadiusMacCaching { get; set; }
 
         // ── Static (WEP) keys (WinBox: the profile's "Static Keys" tab) ───────────────────────────
         //
