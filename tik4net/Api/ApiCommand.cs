@@ -14,10 +14,39 @@ namespace tik4net.Api
         , ITikStreamingCommand
 #endif
     {
-        // Null when nothing is running; a tag is an opaque string, so its absence is null rather than a
-        // sentinel value.
-        private volatile string? _asynchronouslyRunningTag;
-        private volatile Thread? _asyncLoadingThread; // only set while an ExecuteWithCallback-family command is running; null otherwise
+        /// <summary>
+        /// One run of an <c>ExecuteWithCallback</c>-family command: its tag and the pump thread that delivers its sentences.
+        /// </summary>
+        /// <remarks>
+        /// The state belongs to the run, not to the command. A bounded read that ends on a <c>!trap</c> hands the command
+        /// back to its caller at once, while its pump still waits for that trap's own <c>!done</c>; if the caller runs the
+        /// command again first, the first pump must not then clear the second run. So a run is ended only by whoever takes
+        /// it out of <see cref="_currentRun"/> (the pump on its terminal sentence, or the caller of a bounded read that has
+        /// seen it end), and only while it is still the current one.
+        /// </remarks>
+        private sealed class CallbackRun
+        {
+            internal CallbackRun(string tag) { Tag = tag; }
+            internal string Tag { get; }
+            internal volatile Thread? Thread;   // set right after the pump starts; null until then
+        }
+
+        // Null when no callback run is in flight.
+        private CallbackRun? _currentRun;
+
+        // The run ExecuteAsyncCore started last, read back by the bounded read that called it, on the same thread
+        // (BoundedRead.Start). _currentRun cannot serve there: a fast pump may already have ended the run, and cleared
+        // it, by the time ExecuteAsyncCore returns.
+        private CallbackRun? _lastStartedRun;
+
+        /// <summary>Ends <paramref name="run"/> if it is still the current run; false when someone already has.</summary>
+        private bool EndCallbackRun(CallbackRun run)
+        {
+            if (!ReferenceEquals(Interlocked.CompareExchange(ref _currentRun, null, run), run))
+                return false;
+            EndRun();
+            return true;
+        }
 
         /// <summary>The connection, as the binary API connection the setter accepted.</summary>
         private ApiConnection Session => (ApiConnection)Connection;
@@ -516,15 +545,16 @@ namespace tik4net.Api
         {
             EnsureConnectionSet();
             BeginRun();
-            System.Diagnostics.Debug.Assert(_asyncLoadingThread == null);
 
             string tag = TagSequence.NextTag();
-            _asynchronouslyRunningTag = tag;
+            var run = new CallbackRun(tag);
+            _lastStartedRun = run;
+            Volatile.Write(ref _currentRun, run);
 
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
-                _asyncLoadingThread = Session.CallCommandCallbackThread(commandRows, tag,
+                run.Thread = Session.CallCommandCallbackThread(commandRows, tag,
                                         response =>
                                         {
                                             ApiReSentence? reResponse = response as ApiReSentence;
@@ -552,9 +582,9 @@ namespace tik4net.Api
                                                 else if (response is ApiDoneSentence || response is ApiFatalSentence)
                                                 {
                                                     //REMARKS: we are expecting !trap + !done sentences when any error occurs
-                                                    EndRun();
-                                                    _asynchronouslyRunningTag = null;
-                                                    _asyncLoadingThread = null;
+                                                    // Only this run: a bounded read that ended on its !trap may have
+                                                    // been run again already, and that run is not this pump's to end.
+                                                    EndCallbackRun(run);
 
                                                     if (response is ApiDoneSentence && onDoneCallback != null)
                                                         onDoneCallback();
@@ -589,8 +619,7 @@ namespace tik4net.Api
             }
             catch
             {
-                EndRun();
-                _asynchronouslyRunningTag = null;
+                EndCallbackRun(run);
                 throw;
             }
         }
@@ -644,6 +673,7 @@ namespace tik4net.Api
         /// <summary>One bounded read: where its rows go, and what ended it.</summary>
         private sealed class BoundedRead
         {
+            private CallbackRun? _run;
             private readonly Action<ITikReSentence> _onRow;
             private readonly Action _onEnded;
             private volatile ITikTrapSentence? _trap;
@@ -702,9 +732,20 @@ namespace tik4net.Api
                         : "Connection has been closed: " + _fatal.Message,
                     _fatal.Cause);
 
+            /// <summary>
+            /// Hands the command back once this read has ended, without touching a later run of it: a <c>!trap</c> ends the
+            /// read while its pump still waits for the <c>!done</c>, and the caller may run the command again before then.
+            /// </summary>
+            internal void End(ApiCommand command)
+            {
+                if (_run != null)
+                    command.EndCallbackRun(_run);
+            }
+
             /// <summary>Runs the command with the four callbacks, once.</summary>
             internal void Start(ApiCommand command)
-                => command.ExecuteAsyncCore(
+            {
+                command.ExecuteAsyncCore(
                     row => _onRow(row),
                     trap =>
                     {
@@ -718,6 +759,8 @@ namespace tik4net.Api
                             _fatal = fatal;
                         _onEnded();
                     });
+                _run = command._lastStartedRun;   // the run ExecuteAsyncCore has just started, on this thread
+            }
 
             /// <summary>
             /// How the read ended, in priority order: the caller's deadline (when it ran out first), the router's trap,
@@ -771,7 +814,7 @@ namespace tik4net.Api
             // Waits in the calling thread, no longer than the requested duration.
             bool elapsed = !finished.Wait(TikTimeSpans.ToDuration(duration));
             if (!elapsed)
-                EndRun();
+                read.End(this);
 
             var ending = read.Ending(elapsed);
             if (ending == BoundedReadEnding.DurationElapsed)
@@ -788,7 +831,7 @@ namespace tik4net.Api
                 ? finished.Wait(TikTimeSpans.ToDuration(timeout.Value))
                 : finished.Wait(Timeout.Infinite));
             if (!elapsed)
-                EndRun();
+                read.End(this);
 
             switch (read.Ending(elapsed))
             {
@@ -807,16 +850,15 @@ namespace tik4net.Api
 
         private bool CancelInternal(bool joinLoadingThread, int millisecondsTimeout)
         {
-            // Read once: the pump nulls the field on the command's own !done, so a Cancel() racing the natural end
+            // Read once: the pump clears the run on the command's own !done, so a Cancel() racing the natural end
             // could otherwise pass the check and then build `/cancel =tag=` from a null. A cancel of a tag that has
             // just finished is harmless — the router answers it with a bare !done (7.21.5).
-            string? runningTag = _asynchronouslyRunningTag;
-            if (IsRunning && runningTag != null)
+            CallbackRun? run = Volatile.Read(ref _currentRun);
+            if (IsRunning && run != null)
             {
-                // Capture the thread reference BEFORE ExecuteNonQuery — the async thread may set
-                // _asyncLoadingThread to null when it processes its own !done, which can race with
-                // the /cancel response arriving and leaving _asyncLoadingThread null before we read it.
-                Thread? loadingThread = _asyncLoadingThread;
+                string runningTag = run.Tag;
+                // The thread is the run's own, so it stays readable after the pump has ended the run.
+                Thread? loadingThread = run.Thread;
 
                 ApiCommand cancelCommand = new ApiCommand(Session, "/cancel", TikCommandParameterFormat.Default,
                     new TikCommandParameter("tag", runningTag, TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
@@ -936,7 +978,7 @@ namespace tik4net.Api
             {
                 if (IsRunning && (cancelOnEnd || linked.IsCancellationRequested))
                     CancelInternal(true, -1);
-                EndRun();
+                read.End(this);
             }
 
             // Whatever ended the stream is reported after the rows the caller already received, so a
