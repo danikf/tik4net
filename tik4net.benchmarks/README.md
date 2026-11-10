@@ -77,15 +77,16 @@ The load did not improve as far as the mapper did because 7.7 ms of it was not t
 | ↳ `SetEntityValue` — 1000 rows | 1.80 ms | 2.62 MB |
 | `GetEntityValue` — 1000 entities | 1.59 ms | 3.24 MB |
 | `TrackerBenchmarks` `TakeSnapshot` — 1000 entities | 3.48 ms | 5.11 MB |
-| `ApiSocketBenchmarks` `ExecuteList` — 1000 rows | 21.8 ms | 5.93 MB |
-| `ApiSocketBenchmarks` `LoadAll` — 1000 rows | 24.3 ms | 13.0 MB |
-| `ApiSocketBenchmarks` `LoadAll` — 10 000 rows | 371 ms | 130 MB |
+| `ApiSocketBenchmarks` `ExecuteList` — 1000 rows | 4.3 ms | 5.70 MB |
+| `ApiSocketBenchmarks` `LoadAll` — 1000 rows | 15.5 ms | 12.8 MB |
+| `ApiSocketBenchmarks` `LoadAll` — 10 000 rows | 231 ms | 128 MB |
 | `CliBenchmarks` `StripPerPoll` — 64 polls | 16.4 ms | 71.3 MB |
 
 What a fake-connection load spends beyond the mapper is the **change tracker's snapshot** of every loaded
 entity — the serialized value of each property, kept so that a later `Save` sends only what changed. Over a
-socket, the API's own read path (`ExecuteList`) is the larger share. The `TakeSnapshot` figure is from a
-back-to-back run; the full run's was within its noise (median 4.2 ms, ±3 ms).
+socket, a load is the API's read path (`ExecuteList`) plus that. The `TakeSnapshot` and `ApiSocketBenchmarks`
+figures are from back-to-back runs; the full run's `TakeSnapshot` was within its noise (median 4.2 ms, ±3 ms).
+The socket read is the benchmark most sensitive to a loaded machine: run it with nothing else going on.
 
 The **5.0 performance review** (maintainer's notes) holds the breakdown these benchmarks were built for, and the
 before/after of each change made from it is in that change's commit message.

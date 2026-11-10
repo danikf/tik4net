@@ -170,6 +170,52 @@ namespace tik4net.unittests.Api
             _stream.Flush();
         }
 
+        /// <summary>
+        /// Encodes a whole sentence (the reply tag echoed as <see cref="WriteSentence"/> does) without writing it, for a
+        /// test that delivers the bytes itself.
+        /// </summary>
+        public byte[] EncodeSentence(params string[] words)
+        {
+            var all = new List<string>(words);
+            if (EchoTags && _lastRequestTag != null
+                && Array.FindIndex(words, w => w.StartsWith(TagPrefix, StringComparison.Ordinal)) < 0)
+                all.Add(_lastRequestTag);
+            using (var ms = new MemoryStream())
+            {
+                foreach (var word in all)
+                {
+                    byte[] bytes = Encoding.UTF8.GetBytes(word);
+                    byte[] length = ApiWordCodec.EncodeLength(bytes.Length);
+                    ms.Write(length, 0, length.Length);
+                    ms.Write(bytes, 0, bytes.Length);
+                }
+                ms.WriteByte(0);
+                return ms.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Writes <paramref name="bytes"/> one byte per TCP segment: Nagle off, a flush and a pause after every byte, so
+        /// the client's every receive returns a single byte.
+        /// </summary>
+        public void WriteOneBytePerSegment(byte[] bytes, int pauseMs = 1)
+        {
+            _client.NoDelay = true;
+            foreach (byte b in bytes)
+            {
+                _stream.WriteByte(b);
+                _stream.Flush();
+                System.Threading.Thread.Sleep(pauseMs);
+            }
+        }
+
+        /// <summary>Writes <paramref name="bytes"/> as they are, in one write.</summary>
+        public void WriteRaw(byte[] bytes)
+        {
+            _stream.Write(bytes, 0, bytes.Length);
+            _stream.Flush();
+        }
+
         public void EndSentence()
         {
             _stream.WriteByte(0);

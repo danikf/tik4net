@@ -413,7 +413,8 @@ namespace tik4net.Api
         // (Docs/winbox-native-m2-protocol.md §29), where the same distinction settled the M2 paging stall.
         //
         // Written by the reader thread only, read by any caller: Volatile/Interlocked rather than a lock,
-        // because this sits on the per-byte path of every word of every row and must cost nothing.
+        // because this sits on the receive path of every reply. It counts each receive (ApiReceiveBuffer's
+        // fill), when the bytes arrive, not each byte as the framing takes it.
         private long _bytesReceived;
         private long _sentencesReceived;
         private long _lastByteAtTicks;
@@ -578,19 +579,18 @@ namespace tik4net.Api
             return "00" + result;
         }
 
-        private byte ReadByteChecked(Stream stream)
+        private static byte ReadByteChecked(ApiReceiveBuffer stream)
         {
             int b = stream.ReadByte();
             if (b < 0)
                 throw new TikEofException();
-            NoteBytesReceived(1);
             return (byte)b;
         }
 
-        private long ReadWordLength(Stream stream)
+        private static long ReadWordLength(ApiReceiveBuffer stream)
             => ApiWordCodec.DecodeLength(ReadByteChecked(stream), () => ReadByteChecked(stream));
 
-        private string ReadWord(Stream stream, bool skipEmptyRow)
+        private string ReadWord(ApiReceiveBuffer stream, bool skipEmptyRow)
         {
             string result;
 
@@ -617,7 +617,6 @@ namespace tik4net.Api
                             int n = stream.Read(buffer, totalRead, length - totalRead);
                             if (n == 0)
                                 throw new IOException("Connection closed while reading word body.");
-                            NoteBytesReceived(n);
                             totalRead += n;
                         }
                         result = Encoding.GetString(buffer, 0, length);
@@ -639,9 +638,9 @@ namespace tik4net.Api
             return result;
         }
 
-        // Reads from the stream its reader loop was started with, never the field: a reader that outlives its
+        // Reads from the buffer its reader loop was started with, never the field: a reader that outlives its
         // session's bounded join must not read the next session's socket.
-        private ITikSentence ReadSentence(Stream stream)
+        private ITikSentence ReadSentence(ApiReceiveBuffer stream)
         {
             try
             {
@@ -787,8 +786,10 @@ namespace tik4net.Api
 
             // The loop keeps the dispatcher and the stream it was started with: a reader outliving its
             // session's bounded join must neither read the next session's socket nor terminate its callers.
+            // It reads through a buffer of its own, so a length prefix is not a receive call per byte;
+            // writes stay on the stream itself.
             var dispatcher = _dispatcher;
-            var stream = _tcpConnectionStream;
+            var stream = new ApiReceiveBuffer(_tcpConnectionStream, NoteBytesReceived);
             _readerTask = Task.Factory.StartNew(
                 () => ReaderLoop(dispatcher, stream), TaskCreationOptions.LongRunning);
         }
@@ -797,7 +798,7 @@ namespace tik4net.Api
         // counters) is this loop's to touch only while its dispatcher is still the connection's.
         private bool IsCurrentSession(ApiSentenceDispatcher dispatcher) => ReferenceEquals(dispatcher, _dispatcher);
 
-        private void ReaderLoop(ApiSentenceDispatcher dispatcher, Stream stream)
+        private void ReaderLoop(ApiSentenceDispatcher dispatcher, ApiReceiveBuffer stream)
         {
             try
             {
