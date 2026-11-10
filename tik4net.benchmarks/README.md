@@ -1,9 +1,11 @@
 # tik4net.benchmarks
 
-BenchmarkDotNet harness for the O/R mapper's per-row cost. **Not shipped** (`IsPackable=false`), not run by
-CI, and it needs no router — every row is a fake sentence built in `[GlobalSetup]`.
+BenchmarkDotNet harness for the client-side cost of a read: the O/R mapper and change tracker per row, the
+binary API's read path over a real socket, and the CLI read loop's ANSI strip. **Not shipped**
+(`IsPackable=false`), not run by CI, and it needs no router — every row is a fake sentence or a pre-encoded reply
+built in `[GlobalSetup]`.
 
-It exists so that a performance claim about the mapper is a measurement rather than an argument. Run it
+It exists so that a performance claim about the client is a measurement rather than an argument. Run it
 **before** the change as well as after: a number without a matched baseline from the same machine says
 nothing, and the noise between two runs is larger than several of the wins being chased.
 
@@ -20,7 +22,10 @@ being measured (a ShortRun of the load benchmark has been seen at both 20 ms and
 | Class | Question it answers |
 |---|---|
 | `MapperBenchmarks` | What a caller pays. `LoadAll<FirewallFilter>` over 1000 rows (read path), the same 1000 rows through `SetEntityValue` alone (the mapper's half of that load, mirroring `CreateObject` field for field), and `GetEntityValue` over 1000 entities × every property (write path). The gap between the first two is the part of a load that is not the mapper. |
-| `AccessorBenchmarks` | Where that cost is. The same accessor call per property *shape* — string, int, `bool?`, enum, `[Flags]` enum — 1000 conversions each, ratioed against string. |
+| `AccessorBenchmarks` | Where that cost is. The same accessor call per property *shape* — string, int, `bool?`, enum — 1000 conversions each, ratioed against string. |
+| `TrackerBenchmarks` | What the change tracker adds to a load: `TakeSnapshot` over 1000 loaded `FirewallFilter`, and `GetChanges` over 1000 unchanged ones. |
+| `ApiSocketBenchmarks` | The binary API's whole client-side read over a **real loopback socket**: framing, word decode, the reader thread, the tag dispatcher and sentence construction (`ExecuteList`), plus the mapper and the tracker (`LoadAll`, `LoadAllAsync`), at 1000 and 10 000 rows. The peer is `LoopbackApiRouter`, which answers from pre-encoded bytes and allocates next to nothing per row, so the allocation figure (process-wide in BenchmarkDotNet) is the client's. |
+| `CliBenchmarks` | `StripPerPoll`: the CLI read loop's strip of everything received so far, on each of 64 polls that received bytes, for one 1000-row DSV answer wrapped in the colour and erase-line sequences a terminal sends. |
 
 The split matters because the whole-load number cannot say which half is slow, and the two halves want
 different fixes: the accessor **call** (B1, a bound delegate instead of `PropertyInfo`) and the **conversion**
@@ -59,8 +64,31 @@ Every enum conversion used to run `Enum.GetNames` plus a `GetRuntimeField` + `Ge
 **every member on every value converted** — `Enum.GetNames` alone allocating a fresh array each time — and
 the `[Flags]` path did it once per comma-separated part.
 
-The load did not improve as far as the mapper did because **7.7 ms of it is not the mapper**: command
-dispatch, sentence lookups, list building. Nothing in Track B reaches that, and it is now 72% of a load.
+The load did not improve as far as the mapper did because 7.7 ms of it was not the mapper.
+
+### Today
+
+**2026-11-10, net8.0, default job, one run of every class.** Not comparable with the table above: the
+`TikField<T?>` value model changed the entity in between (see the first caution below).
+
+| | time | allocated |
+|---|---:|---:|
+| `MapperBenchmarks` `LoadAll` — 1000 rows | 3.95 ms | 6.49 MB |
+| ↳ `SetEntityValue` — 1000 rows | 1.80 ms | 2.62 MB |
+| `GetEntityValue` — 1000 entities | 1.59 ms | 3.24 MB |
+| `TrackerBenchmarks` `TakeSnapshot` — 1000 entities | 3.48 ms | 5.11 MB |
+| `ApiSocketBenchmarks` `ExecuteList` — 1000 rows | 21.8 ms | 5.93 MB |
+| `ApiSocketBenchmarks` `LoadAll` — 1000 rows | 24.3 ms | 13.0 MB |
+| `ApiSocketBenchmarks` `LoadAll` — 10 000 rows | 371 ms | 130 MB |
+| `CliBenchmarks` `StripPerPoll` — 64 polls | 16.4 ms | 71.3 MB |
+
+What a fake-connection load spends beyond the mapper is the **change tracker's snapshot** of every loaded
+entity — the serialized value of each property, kept so that a later `Save` sends only what changed. Over a
+socket, the API's own read path (`ExecuteList`) is the larger share. The `TakeSnapshot` figure is from a
+back-to-back run; the full run's was within its noise (median 4.2 ms, ±3 ms).
+
+The **5.0 performance review** (maintainer's notes) holds the breakdown these benchmarks were built for, and the
+before/after of each change made from it is in that change's commit message.
 
 ### Two cautions this exercise earned
 

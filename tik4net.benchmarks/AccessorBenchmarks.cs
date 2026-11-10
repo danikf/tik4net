@@ -60,6 +60,8 @@ namespace tik4net.Benchmarks
             _flag = metadata.Properties.Single(p => p.PropertyName == "Flag");
             _shape = metadata.Properties.Single(p => p.PropertyName == "Shape");
             _entity = new ShapeEntity();
+            // An unset field serializes to null, so the get benchmark needs a value to read back.
+            _shape.SetEntityValue(_entity, "drop");
         }
 
         /// <summary>string — the accessor call and nothing else.</summary>
