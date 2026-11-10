@@ -29,6 +29,9 @@ namespace tik4net.Objects
             get { return _properties.Values; }
         }
 
+        /// <summary>How many <see cref="Properties"/> there are.</summary>
+        internal int PropertyCount => _properties.Count;
+
         /// <summary>
         /// entity path in API notation (e.q. /system/resource), always absolute.
         /// </summary>

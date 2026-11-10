@@ -19,14 +19,27 @@ namespace tik4net.Objects.Tracking
 
         internal TikSnapshot(IEnumerable<KeyValuePair<string, string?>> values,
                               IEnumerable<string>? trackedFields = null)
+            : this(Copy(values), trackedFields)
         {
-            _values = new Dictionary<string, string?>(StringComparer.Ordinal);
-            foreach (var kv in values)
-                _values[kv.Key] = kv.Value;
+        }
+
+        /// <summary>Takes <paramref name="values"/> over: the caller built it for this snapshot and does not keep it.
+        /// Its comparer must be <see cref="StringComparer.Ordinal"/>.</summary>
+        internal TikSnapshot(Dictionary<string, string?> values, IEnumerable<string>? trackedFields)
+        {
+            _values = values;
 
             TrackedFields = trackedFields != null
                 ? new HashSet<string>(trackedFields, StringComparer.OrdinalIgnoreCase)
                 : null;
+        }
+
+        private static Dictionary<string, string?> Copy(IEnumerable<KeyValuePair<string, string?>> values)
+        {
+            var copy = new Dictionary<string, string?>(StringComparer.Ordinal);
+            foreach (var kv in values)
+                copy[kv.Key] = kv.Value;
+            return copy;
         }
 
         /// <summary>Returns true when the field was part of the original load and can be diffed.</summary>

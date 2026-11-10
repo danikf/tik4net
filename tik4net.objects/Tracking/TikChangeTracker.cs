@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -50,9 +51,13 @@ namespace tik4net.Objects.Tracking
         {
             // entity: TEntity is unconstrained here, so the compiler treats it as possibly null; callers
             // always pass an actual loaded instance.
-            var values = metadata.Properties
-                .Where(p => trackedFields == null || trackedFields.Contains(p.FieldName))
-                .Select(p => new KeyValuePair<string, string?>(p.FieldName, p.GetEntityValue(entity!)));
+            // Taken for every loaded entity, so a plain loop into a dictionary sized up front.
+            var values = new Dictionary<string, string?>(metadata.PropertyCount, StringComparer.Ordinal);
+            foreach (var p in metadata.Properties)
+            {
+                if (trackedFields == null || trackedFields.Contains(p.FieldName))
+                    values[p.FieldName] = p.GetEntityValue(entity!);
+            }
 
             var snapshot = new TikSnapshot(values, trackedFields);
 
