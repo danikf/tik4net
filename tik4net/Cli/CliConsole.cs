@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Diagnostics;
@@ -184,56 +185,76 @@ namespace tik4net.Cli
             var streamer = new CliLineStreamer(onLine);
             ICliCarrierRead read = _carrier.BeginRead(CliReadKind.Command);
 
-            while (true)
+            // The strip of the text so far, and the length it was taken at. A poll that received nothing leaves the
+            // text as it was, so its strip is still this one: re-stripping the whole answer on every 15 ms poll made a
+            // large read quadratic.
+            string stripped = "";
+            int strippedLength = -1;
+            int dataPolls = 0, idlePolls = 0;
+            try
             {
-                ct.ThrowIfCancellationRequested();
-
-                if (_interrupt.TakeFor(sentCommand))
+                while (true)
                 {
-                    await _carrier.SendAsync(new[] { CliTerminalText.CtrlC }, CancellationToken.None).ConfigureAwait(false);
-                    settle.Interrupted();
+                    ct.ThrowIfCancellationRequested();
+
+                    if (_interrupt.TakeFor(sentCommand))
+                    {
+                        await _carrier.SendAsync(new[] { CliTerminalText.CtrlC }, CancellationToken.None).ConfigureAwait(false);
+                        settle.Interrupted();
+                    }
+
+                    CliCarrierPoll poll = await read.PollAsync(settle.AtPrompt, sw.ElapsedMilliseconds, ct).ConfigureAwait(false);
+                    string raw = read.Text;
+
+                    if (poll.MidFrame != null)
+                    {
+                        // Not the generic timeout: that one says the whole deadline elapsed, which is not what happened, and it
+                        // would drop the one exception that says what did.
+                        string soFar = VtStripper.StripAnsi(raw);
+                        if (sentCommand == null)
+                            return soFar;
+                        throw CliReadTimeout.CreateMidFrame(Transport, ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, soFar,
+                            poll.MidFrame);
+                    }
+
+                    // Nothing has come back AND the router never took the bytes, even after the retransmits ran out. Waiting the
+                    // rest of the deadline would only turn a known answer into a vague one — see
+                    // TikConnectionSessionClosedException for why this is safe to call.
+                    if (raw.Length == 0 && poll.NeverAcknowledged)
+                        throw _carrier.NotAcknowledged(sentCommand);
+
+                    if (poll.Received || raw.Length != strippedLength)
+                    {
+                        stripped = Stripped(raw);
+                        strippedLength = raw.Length;
+                    }
+                    if (poll.Received) dataPolls++; else idlePolls++;
+                    streamer.Feed(stripped);
+
+                    // The relay ended mid-command: no prompt will follow, the agent's session is over.
+                    RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _carrier.RomonTarget, sentCommand, stripped, commandSent: true);
+
+                    // Asked before the end is (D2): a counted answer whose count line and prompt came with the end is whole.
+                    switch (settle.Observe(stripped, poll.Received, sw.ElapsedMilliseconds, raw.Length))
+                    {
+                        case CliPromptSettle.Outcome.Complete:
+                        case CliPromptSettle.Outcome.Settled:
+                            return stripped;
+                    }
+
+                    // Reached WITHOUT a settled prompt: the response is whatever arrived so far and may end mid-record.
+                    if (poll.Ended || sw.ElapsedMilliseconds >= ReceiveTimeoutMs)
+                        return settle.EndWithoutPrompt(Transport, _carrier.RomonTarget, poll.Ended, sw.ElapsedMilliseconds,
+                            ReceiveTimeoutMs, stripped, raw.Length);
+
+                    await read.WaitAsync(ct).ConfigureAwait(false);
                 }
-
-                CliCarrierPoll poll = await read.PollAsync(settle.AtPrompt, sw.ElapsedMilliseconds, ct).ConfigureAwait(false);
-                string raw = read.Text;
-
-                if (poll.MidFrame != null)
-                {
-                    // Not the generic timeout: that one says the whole deadline elapsed, which is not what happened, and it
-                    // would drop the one exception that says what did.
-                    string soFar = VtStripper.StripAnsi(raw);
-                    if (sentCommand == null)
-                        return soFar;
-                    throw CliReadTimeout.CreateMidFrame(Transport, ReceiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, soFar,
-                        poll.MidFrame);
-                }
-
-                // Nothing has come back AND the router never took the bytes, even after the retransmits ran out. Waiting the
-                // rest of the deadline would only turn a known answer into a vague one — see
-                // TikConnectionSessionClosedException for why this is safe to call.
-                if (raw.Length == 0 && poll.NeverAcknowledged)
-                    throw _carrier.NotAcknowledged(sentCommand);
-
-                string stripped = Stripped(raw);
-                streamer.Feed(stripped);
-
-                // The relay ended mid-command: no prompt will follow, the agent's session is over.
-                RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _carrier.RomonTarget, sentCommand, stripped, commandSent: true);
-
-                // Asked before the end is (D2): a counted answer whose count line and prompt came with the end is whole.
-                switch (settle.Observe(stripped, poll.Received, sw.ElapsedMilliseconds, raw.Length))
-                {
-                    case CliPromptSettle.Outcome.Complete:
-                    case CliPromptSettle.Outcome.Settled:
-                        return stripped;
-                }
-
-                // Reached WITHOUT a settled prompt: the response is whatever arrived so far and may end mid-record.
-                if (poll.Ended || sw.ElapsedMilliseconds >= ReceiveTimeoutMs)
-                    return settle.EndWithoutPrompt(Transport, _carrier.RomonTarget, poll.Ended, sw.ElapsedMilliseconds,
-                        ReceiveTimeoutMs, stripped, raw.Length);
-
-                await read.WaitAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (TikWireTrace.Enabled)
+                    TraceNote("polls data=" + dataPolls.ToString(CultureInfo.InvariantCulture)
+                        + " idle=" + idlePolls.ToString(CultureInfo.InvariantCulture));
             }
         }
 
