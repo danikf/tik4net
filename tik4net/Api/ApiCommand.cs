@@ -807,7 +807,11 @@ namespace tik4net.Api
 
         private bool CancelInternal(bool joinLoadingThread, int millisecondsTimeout)
         {
-            if (IsRunning && _asynchronouslyRunningTag != null)
+            // Read once: the pump nulls the field on the command's own !done, so a Cancel() racing the natural end
+            // could otherwise pass the check and then build `/cancel =tag=` from a null. A cancel of a tag that has
+            // just finished is harmless — the router answers it with a bare !done (7.21.5).
+            string? runningTag = _asynchronouslyRunningTag;
+            if (IsRunning && runningTag != null)
             {
                 // Capture the thread reference BEFORE ExecuteNonQuery — the async thread may set
                 // _asyncLoadingThread to null when it processes its own !done, which can race with
@@ -815,8 +819,8 @@ namespace tik4net.Api
                 Thread? loadingThread = _asyncLoadingThread;
 
                 ApiCommand cancelCommand = new ApiCommand(Session, "/cancel", TikCommandParameterFormat.Default,
-                    new TikCommandParameter("tag", _asynchronouslyRunningTag, TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
-                    new TikCommandParameter(TikSpecialProperties.Tag, "c_" + _asynchronouslyRunningTag, TikCommandParameterFormat.Tag) //tag of cancell command itself
+                    new TikCommandParameter("tag", runningTag, TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
+                    new TikCommandParameter(TikSpecialProperties.Tag, "c_" + runningTag, TikCommandParameterFormat.Tag) //tag of cancell command itself
                     );
                 // A bounded CancelAndJoin promises to come back within millisecondsTimeout. The /cancel is a
                 // command like any other, so on the connection's ReceiveTimeout it could sit for 30 s before
