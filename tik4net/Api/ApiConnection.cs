@@ -1171,13 +1171,20 @@ namespace tik4net.Api
         // 7.23.2 (a cancelled 5-count ping returns in 684 ms either way, against ~5 s uncancelled), so the
         // router accepts both — this one is kept because it is the one with years of evidence behind it and
         // because two cancel paths spelling the same thing differently is how a difference becomes a bug.
+        //
+        // Nobody reads the /cancel's own answer, so its tag is abandoned BEFORE the write: the router's `!done` for it is
+        // then counted and dropped (ApiSentenceDispatcher.Abandon) rather than held for good under a tag nobody waits on,
+        // where the next receive timeout would read it as a reply the client failed to pair. Before rather than after,
+        // so a !done that beats the abandon cannot be queued first and leave the tag marked abandoned for ever.
         private async Task SendCancelAsync(string tag)
         {
+            string cancelTag = TagSequence.NextTag();
+            _dispatcher.Abandon(cancelTag);
             try
             {
                 await WriteCommandAsync(
                     new[] { "/cancel", $"=tag={tag}",
-                            $"{TikSpecialProperties.Tag}={TagSequence.NextTag()}" },
+                            $"{TikSpecialProperties.Tag}={cancelTag}" },
                     CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception)
