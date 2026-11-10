@@ -102,10 +102,18 @@ namespace tik4net.unittests.Api
                     // A word far longer than what follows: the client blocks in the word-body read, and
                     // every trickled byte is progress that never completes a sentence.
                     server.WriteWordLengthOnly(4096);
-                    for (int i = 0; i < ReceiveTimeoutMs * 3 / 50; i++)
+                    try
                     {
-                        server.WriteRawByte((byte)'x');
-                        Thread.Sleep(50);
+                        for (int i = 0; i < ReceiveTimeoutMs * 3 / 50; i++)
+                        {
+                            server.WriteRawByte((byte)'x');
+                            Thread.Sleep(50);
+                        }
+                    }
+                    catch (System.IO.IOException)
+                    {
+                        // The client timed out and closed — its Close() releases the socket even though this "router"
+                        // never answers its /quit, so the trickle ends here rather than after its full run.
                     }
                 });
 

@@ -128,12 +128,20 @@ namespace tik4net.Api
                     }
                 }
             }
-            catch(IOException)
+            catch (IOException)
             {
-                // catch exception if connection is closed
+                // The socket is already gone: nothing to say goodbye to.
             }
-
-            DisposeConnectionResources();
+            catch (TikConnectionException)
+            {
+                // The router did not answer /quit — one stalled read is enough, before the session is presumed dead —
+                // or the connection was lost while asking. Close has nobody to report either to, and the socket goes
+                // regardless; throwing here would also skip the dispose below and leak it.
+            }
+            finally
+            {
+                DisposeConnectionResources();
+            }
         }
 
         // Disposes the TCP/SSL resources without throwing — safe to call from Close(), Dispose(),
