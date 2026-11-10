@@ -508,14 +508,50 @@ namespace tik4net.WinboxNative
             _mux?.Dispose();
             _mux = null;
             _session?.Dispose();
-            // Released for GC rather than left dangling; a closed connection must be reopened before any of
-            // these are read again (every read path runs only while IsOpen), so the null! here does not
-            // claim they stay valid — it just keeps the field's declared type from forcing '?' onto every
-            // one of their many use sites elsewhere in this class.
             _session = null!;
-            _ops = null!;
-            _codec = null!;
-            _references = null!;
+            // _ops, _codec and _references are deliberately left in place. Close does not wait for a running command,
+            // and one that is past its first round trip dereferences them next: nulled, it failed with a
+            // NullReferenceException instead of the ClosedWhileRunning below. Left alone, the next round trip reaches
+            // the disposed multiplexer and fails the way every other closed command does. The next open replaces them.
+        }
+
+        /// <summary>
+        /// Runs one native command and reports a <see cref="Close"/> on another thread as
+        /// <see cref="TikCommandConnectionBase.ClosedWhileRunning"/>, as the CLI and REST transports do.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Close"/> marks the connection closed first and then disposes the multiplexer, which fails every
+        /// pending request with <see cref="ObjectDisposedException"/>. That is outside the tik4net hierarchy and reads like a
+        /// bug in the library rather than the race the caller started, so a failure seen once the connection is closed is
+        /// translated. A <see cref="TikConnectionException"/> already says what happened and passes through.
+        /// </remarks>
+        private async Task<T> GuardClosedAsync<T>(Func<Task<T>> command)
+        {
+            try
+            {
+                return await command().ConfigureAwait(false);
+            }
+            catch (Exception ex) when (!IsOpened && !(ex is TikConnectionException))
+            {
+                throw ClosedWhileRunning(ex);
+            }
+        }
+
+        /// <summary>The synchronous <see cref="GuardClosedAsync{T}"/>, for the Safe Mode round trips.</summary>
+        private void GuardClosed(Action command)
+        {
+            try
+            {
+                command();
+            }
+            catch (Exception ex) when (!IsOpened && !(ex is TikConnectionException))
+            {
+                throw ClosedWhileRunning(ex);
+            }
+            // A round trip that completed after Close() marked the connection closed: the session it ran on is gone
+            // (and with it whatever Safe Mode it took), so it must not report success and leave SafeModeHeld set.
+            if (!IsOpened)
+                throw ClosedWhileRunning(new ObjectDisposedException(nameof(WinboxNativeConnection)));
         }
 
         // ── Native read overrides ───────────────────────────────────────────────
@@ -546,13 +582,13 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         protected override Task<IList<TikRecordSentence>> RunPrintAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => RunPrintAsync(descriptor, untilDone: false, cancellationToken);
+            => GuardClosedAsync(() => RunPrintAsync(descriptor, untilDone: false, cancellationToken));
 
         // ExecuteListUntilDone(timeout): a continuous monitor window (/tool/torch) is read until the caller's deadline
         // instead of for one pass, as the binary API reads it until the timeout ends it.
         internal override Task<IList<TikRecordSentence>> RunPrintUntilDoneAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => RunPrintAsync(descriptor, untilDone: true, cancellationToken);
+            => GuardClosedAsync(() => RunPrintAsync(descriptor, untilDone: true, cancellationToken));
 
         private async Task<IList<TikRecordSentence>> RunPrintAsync(
             TikCommandDescriptor descriptor, bool untilDone, CancellationToken cancellationToken)
@@ -929,14 +965,21 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         protected override Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => _writer.RunAddAsync(descriptor, cancellationToken);
+            => GuardClosedAsync(() => _writer.RunAddAsync(descriptor, cancellationToken));
 
         /// <inheritdoc/>
         protected override void RunNonQuery(TikCommandDescriptor descriptor)
             => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        protected override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => GuardClosedAsync(async () =>
+            {
+                await RunNonQueryCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                return (object?)null;
+            });
+
+        private async Task RunNonQueryCoreAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             // A read verb sent as a non-query is read and its rows discarded, as ADO.NET's ExecuteNonQuery does and as
             // every other transport answers it. The writer knows only writes and .jg actions, and no window declares
@@ -1039,20 +1082,20 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         public void SafeModeTake()
-            => SafeModeTransition(true, () =>
+            => SafeModeTransition(true, () => GuardClosed(() =>
             {
                 try { _safeModeId = _ops.SafeModeTake(); }
                 catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, "/safe-mode/take"); }
-            });
+            }));
 
         /// <inheritdoc/>
         public void SafeModeRelease()
-            => SafeModeTransition(false, () =>
+            => SafeModeTransition(false, () => GuardClosed(() =>
             {
                 try { _ops.SafeModeRelease(_safeModeId); }
                 catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, "/safe-mode/release"); }
                 _safeModeId = 0;
-            });
+            }));
 
         /// <inheritdoc/>
         /// <remarks>
