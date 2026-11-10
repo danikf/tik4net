@@ -88,13 +88,15 @@ namespace tik4net.Testing
     }
 
     /// <summary>
-    /// A lost connection (<c>!fatal</c>) for use with <see cref="TikFakeConnection"/>: the router closed the session, or
-    /// the link went down. Use <see cref="TikFakeConnection.WithFatal"/> to register it.
+    /// The router ending the session (<c>!fatal</c>) for use with <see cref="TikFakeConnection"/>. Use
+    /// <see cref="TikFakeConnection.WithFatal"/> to register it.
     /// </summary>
     /// <remarks>
-    /// The commands answer it as a real one: a read throws <see cref="TikCommandFatalException"/>, a bounded read ends
-    /// in <see cref="TikCommandAbortException"/> carrying it, <c>ExecuteNonQuery</c> takes it as success (a reboot ends
-    /// the session that ran it), and <c>ExecuteWithCallback</c> reports <see cref="Message"/> to the error callback.
+    /// The commands answer it as they answer the router's own <c>!fatal</c>: a read throws
+    /// <see cref="TikCommandFatalException"/>, a bounded read ends in <see cref="TikCommandAbortException"/> carrying it,
+    /// <c>ExecuteNonQuery</c> takes it as success (a reboot ends the session that ran it), and <c>ExecuteWithCallback</c>
+    /// reports <see cref="Message"/> to the error callback. A connection lost under a write is not this: on the binary API
+    /// <c>ExecuteNonQuery</c> throws for it.
     /// </remarks>
     public sealed class TikFakeFatalSentence : ITikSentence
     {

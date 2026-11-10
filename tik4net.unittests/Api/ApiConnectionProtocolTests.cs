@@ -214,8 +214,12 @@ namespace tik4net.unittests.Api
             Assert.IsTrue(serverTask.Wait(5000));
         }
 
+        // A bare EOF is a lost connection, and a write it interrupts has an unknown fate, so ExecuteNonQuery throws
+        // (concurrency review D1a). Only a !fatal the router sent is a success (ApiNonQueryInterruptedTests). Whether
+        // RouterOS answers /system/reboot with a !fatal or a bare EOF is the measurement D1 (b) waits on: if it is a bare
+        // EOF, (b) keeps a lost connection as success for the reboot / shutdown / poweroff commands, and this test flips.
         [TestMethod]
-        public void UnexpectedEof_ExecuteNonQuery_DoesNotThrow()
+        public void UnexpectedEof_ExecuteNonQuery_IsALostConnection()
         {
             using var server = new FakeRouterServer();
             var serverTask = Task.Run(() =>
@@ -232,9 +236,9 @@ namespace tik4net.unittests.Api
             {
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
-                // ExecuteNonQuery treats a synthesized !fatal (from an unexpected EOF) as success,
-                // matching real reboot/shutdown/poweroff commands that close the connection instead of replying.
-                connection.CreateCommand("/system/reboot").ExecuteNonQuery();
+                var ex = Assert.ThrowsException<TikCommandFatalException>(
+                    () => connection.CreateCommand("/system/reboot").ExecuteNonQuery());
+                Assert.IsNotNull(ex.InnerException, "a lost connection carries its cause");
             }
 
             Assert.IsTrue(serverTask.Wait(5000));

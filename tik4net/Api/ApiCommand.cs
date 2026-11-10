@@ -283,10 +283,20 @@ namespace tik4net.Api
 
         private void InterpretNonQuery(ApiSentence[] responseArray)
         {
-            // !fatal means the router closed the connection after executing the command
-            // (e.g. /system/reboot, /system/shutdown, /system/poweroff). Treat as success.
-            if (responseArray.Any(s => s is ApiFatalSentence))
+            // A !fatal the ROUTER sent means it closed the session after running the command (/system/reboot,
+            // shutdown, poweroff): a success. The reader loop ends every wait with a !fatal of its own too, and those say
+            // nothing of the kind — the write may never have reached the router — so they throw: the caller's own
+            // Close() as ClosedWhileRunning, as on every other transport, and a lost connection with its cause.
+            var fatal = responseArray.OfType<ApiFatalSentence>().FirstOrDefault();
+            if (fatal != null)
+            {
+                if (fatal.ClientInitiated)
+                    throw TikConnectionBase.ClosedWhileRunningException(
+                        new TikCommandFatalException(this, fatal.Message, fatal.Cause));
+                if (fatal.Cause != null)
+                    throw new TikCommandFatalException(this, fatal.Message, fatal.Cause);
                 return;
+            }
 
             ThrowPossibleResponseError(responseArray);
             // Whatever rows the command printed are discarded, as ADO.NET's ExecuteNonQuery does: a print, the

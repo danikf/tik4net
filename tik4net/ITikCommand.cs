@@ -69,12 +69,20 @@ namespace tik4net
         /// <remarks>
         /// A command that prints (a <c>print</c>, a script's output, the progress rows of
         /// <c>/system/package/update/download</c>) succeeds on every transport, and its output is dropped. A router error
-        /// is still the matching <see cref="TikCommandTrapException"/> subclass, even after rows. A command that ends
-        /// the session (<c>/system/reboot</c>, <c>/system/shutdown</c>) counts as success.
+        /// is still the matching <see cref="TikCommandTrapException"/> subclass, even after rows. A command after which
+        /// the router ends the session itself (<c>/system/reboot</c>, <c>/system/shutdown</c>) counts as success.
+        /// <para>
+        /// A connection that ends under the command for any other reason does not: the write may never have reached
+        /// the router. A <see cref="ITikConnection.Close"/> on another thread throws
+        /// <see cref="TikConnectionNotOpenException"/>, and a lost connection <see cref="TikCommandFatalException"/>
+        /// with the cause as its <see cref="Exception.InnerException"/>. Either way, treat the write as unknown rather
+        /// than failed.
+        /// </para>
         /// </remarks>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandFatalException">The connection was lost before the router answered.</exception>
+        /// <exception cref="TikConnectionNotOpenException">The connection was closed on another thread while the command was in flight.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">The answer did not end the way the protocol ends a command (no !done).</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>

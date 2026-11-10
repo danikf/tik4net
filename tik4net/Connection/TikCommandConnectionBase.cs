@@ -89,10 +89,7 @@ namespace tik4net.Connection
         /// </remarks>
         /// <param name="inner">Whatever the torn-down transport threw.</param>
         protected TikConnectionNotOpenException ClosedWhileRunning(Exception inner)
-            => new TikConnectionNotOpenException(
-                "The connection was closed while this command was in flight. Whether the router received "
-                + "and executed it is not known — Close does not wait for a running command. Close from the "
-                + "thread that owns the connection, or let the command finish first.", inner);
+            => ClosedWhileRunningException(inner);
 
         // ── Capabilities ──────────────────────────────────────────────────────
 

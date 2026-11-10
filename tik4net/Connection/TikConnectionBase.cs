@@ -200,6 +200,17 @@ namespace tik4net.Connection
         internal void CallbackEnded() => Interlocked.Decrement(ref _runningCallbacks);
 
         /// <summary>
+        /// The exception for "the connection was closed while this command was still running", on every transport.
+        /// <see cref="TikCommandConnectionBase.ClosedWhileRunning"/> says why it is worded as it is.
+        /// </summary>
+        /// <param name="inner">Whatever the torn-down transport threw, or reported.</param>
+        internal static TikConnectionNotOpenException ClosedWhileRunningException(Exception inner)
+            => new TikConnectionNotOpenException(
+                "The connection was closed while this command was in flight. Whether the router received "
+                + "and executed it is not known — Close does not wait for a running command. Close from the "
+                + "thread that owns the connection, or let the command finish first.", inner);
+
+        /// <summary>
         /// The take and release of Safe Mode on every transport that has it: runs <paramref name="act"/> only when Safe
         /// Mode is not already in the wanted state, then records it. A call that would change nothing sends nothing.
         /// </summary>
