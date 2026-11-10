@@ -29,8 +29,17 @@ namespace tik4net.Objects
             get { return _properties.Values; }
         }
 
-        /// <summary>How many <see cref="Properties"/> there are.</summary>
-        internal int PropertyCount => _properties.Count;
+        // The same properties by ordinal (the index a TikSnapshot stores a value under), and the way back from a name.
+        private readonly TikEntityPropertyAccessor[] _propertyList;
+        private readonly Dictionary<string, int> _propertyOrdinals;
+
+        /// <summary><see cref="Properties"/> in a fixed order: a property's index here is its ordinal.</summary>
+        internal IReadOnlyList<TikEntityPropertyAccessor> PropertyList => _propertyList;
+
+        /// <summary>The ordinal of the property mapped to <paramref name="fieldName"/> (exact, case-sensitive name, as
+        /// the <see cref="Properties"/> are keyed).</summary>
+        internal bool TryGetPropertyOrdinal(string fieldName, out int ordinal)
+            => _propertyOrdinals.TryGetValue(fieldName, out ordinal);
 
         /// <summary>
         /// entity path in API notation (e.q. /system/resource), always absolute.
@@ -203,6 +212,10 @@ namespace tik4net.Objects
                 .Where(propInfo => propInfo.GetCustomAttribute<TikPropertyAttribute>(true) != null)
                 .Select(propInfo => new TikEntityPropertyAccessor(this, propInfo))
                 .ToDictionary(propDescriptor => propDescriptor.FieldName);
+            _propertyList = _properties.Values.ToArray();
+            _propertyOrdinals = new Dictionary<string, int>(_propertyList.Length, _properties.Comparer);
+            for (int i = 0; i < _propertyList.Length; i++)
+                _propertyOrdinals.Add(_propertyList[i].FieldName, i);
 
             DynamicProperty = _properties.TryGetValue("dynamic", out var dynamicProperty) ? dynamicProperty : null;
             HasFreeTextProperties = Properties.Any(p => p.IsFreeText);

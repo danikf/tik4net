@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -51,15 +50,23 @@ namespace tik4net.Objects.Tracking
         {
             // entity: TEntity is unconstrained here, so the compiler treats it as possibly null; callers
             // always pass an actual loaded instance.
-            // Taken for every loaded entity, so a plain loop into a dictionary sized up front.
-            var values = new Dictionary<string, string?>(metadata.PropertyCount, StringComparer.Ordinal);
-            foreach (var p in metadata.Properties)
+            // Taken for every loaded entity, so a plain loop into an array by property ordinal.
+            var properties = metadata.PropertyList;
+            var values = new string?[properties.Count];
+            bool[]? present = trackedFields == null ? null : new bool[properties.Count];
+            for (int i = 0; i < properties.Count; i++)
             {
-                if (trackedFields == null || trackedFields.Contains(p.FieldName))
-                    values[p.FieldName] = p.GetEntityValue(entity!);
+                var p = properties[i];
+                if (present == null)
+                    values[i] = p.GetEntityValue(entity!);
+                else if (trackedFields!.Contains(p.FieldName))
+                {
+                    values[i] = p.GetEntityValue(entity!);
+                    present[i] = true;
+                }
             }
 
-            var snapshot = new TikSnapshot(values, trackedFields);
+            var snapshot = new TikSnapshot(metadata, values, present, trackedFields);
 
             lock (_lock)
             {
@@ -86,13 +93,21 @@ namespace tik4net.Objects.Tracking
             }
 
             // A field outside a partial load that the save sent is known from now on.
-            var tracked = metadata.Properties
-                .Where(p => existing.IsTracked(p.FieldName) || (p.IsWrapped && !p.IsAbsent(entity!)))
-                .ToList();
-            var values = tracked.Select(p => new KeyValuePair<string, string?>(p.FieldName,
-                p.IsAbsent(entity!) && existing.TryGetValue(p.FieldName, out string? kept) ? kept : p.GetEntityValue(entity!)));
-            var snapshot = new TikSnapshot(values,
-                existing.TrackedFields == null ? null : tracked.Select(p => p.FieldName));
+            var properties = metadata.PropertyList;
+            var values = new string?[properties.Count];
+            var present = new bool[properties.Count];
+            var tracked = new List<string>(properties.Count);
+            for (int i = 0; i < properties.Count; i++)
+            {
+                var p = properties[i];
+                if (!(existing.IsTracked(p.FieldName) || (p.IsWrapped && !p.IsAbsent(entity!))))
+                    continue;
+                values[i] = p.IsAbsent(entity!) && existing.TryGetValue(p.FieldName, out string? kept) ? kept : p.GetEntityValue(entity!);
+                present[i] = true;
+                tracked.Add(p.FieldName);
+            }
+            var snapshot = new TikSnapshot(metadata, values, tracked.Count == properties.Count ? null : present,
+                existing.TrackedFields == null ? null : tracked);
 
             lock (_lock)
             {
