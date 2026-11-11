@@ -122,6 +122,10 @@ namespace tik4net.Objects
         /// <summary>
         /// Creates entity string description (for logging, etc.) by its fields.
         /// </summary>
+        /// <remarks>
+        /// A field marked <see cref="TikPropertyAttribute.IsSensitive"/> (a password, a passphrase, a private key, a shared
+        /// secret) prints as <c>***</c> when it has a value, and empty when it has none, so the text can go to a log.
+        /// </remarks>
         /// <typeparam name="TEntity">Type of entity.</typeparam>
         /// <param name="entity">Entity instance.</param>
         /// <returns>Readable description of entity and its fields.</returns>
@@ -133,7 +137,10 @@ namespace tik4net.Objects
 
             foreach (var property in metadata.Properties)
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "  {0}={1}", property.FieldName, property.GetEntityValue(entity!)));
+                string? value = property.GetEntityValue(entity!);
+                if (property.IsSensitive && !string.IsNullOrEmpty(value))
+                    value = "***";
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "  {0}={1}", property.FieldName, value));
             }
 
             return sb.ToString();
