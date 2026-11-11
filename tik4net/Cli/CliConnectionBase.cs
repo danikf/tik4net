@@ -126,7 +126,8 @@ namespace tik4net.Cli
             string modifier, bool includeFilters, CancellationToken cancellationToken)
             => _printDriver.RunMonitorSnapshotAsync(descriptor, modifier, includeFilters, cancellationToken);
         bool ICliCommandHost.SupportsStreamingRead => SupportsStreamingRead;
-        string ICliCommandHost.ExecuteStreaming(string cliText, Action<string> onLine) => ExecuteCliCommandStreaming(cliText, onLine);
+        string ICliCommandHost.ExecuteStreaming(string cliText, Action<string> onLine, CancellationToken interrupt)
+            => ExecuteCliCommandStreaming(cliText, onLine, interrupt);
 
         /// <inheritdoc/>
         public int CliReadPageSize
@@ -732,7 +733,8 @@ namespace tik4net.Cli
         /// produces it, and returns the full cleaned output once the command ends. The lines are raw — echo,
         /// header and prompt included — because the caller parses them positionally.
         /// </summary>
-        private protected string ExecuteCliCommandStreaming(string cliText, Action<string> onLine)
+        private protected string ExecuteCliCommandStreaming(string cliText, Action<string> onLine,
+            CancellationToken interrupt = default)
         {
             var terminal = _terminal is { SupportsLineStreaming: true } t ? t : throw new NotSupportedException(
                 $"{TransportName} does not support incremental reads.");
@@ -740,8 +742,39 @@ namespace tik4net.Cli
             try
             {
                 FireWriteRow(cliText);
-                string result = SendGuardedAsync(terminal, cliText, onLine, CancellationToken.None, CancellationToken.None)
-                    .GetAwaiter().GetResult();
+                string result;
+                // The monitor's Cancel interrupts the command with Ctrl-C, whatever the CancellationMode: that setting
+                // is about a token cancelling an awaited command, and the interrupt is the Cooperative path, which keeps
+                // the console in step — the read still ends at the prompt the interrupt brings (~50 ms, 7.21.5 and
+                // 6.49.21 over Telnet). Without it the router ran the ping to its count with the console held.
+                //
+                // A cancel that lands before the command is written is voided by the terminal, which starts each command
+                // with no interrupt pending. So when lines still arrive well after the cancel — the interrupt brings the
+                // prompt in ~50 ms — it is asked for once more.
+                long cancelledAt = 0;
+                bool reasserted = false;
+                Action<string> lines = !interrupt.CanBeCanceled ? onLine : line =>
+                {
+                    long at = Interlocked.Read(ref cancelledAt);
+                    if (at != 0 && !reasserted
+                        && System.Diagnostics.Stopwatch.GetTimestamp() - at > System.Diagnostics.Stopwatch.Frequency / 2)
+                    {
+                        reasserted = true;
+                        terminal.RequestInterrupt();
+                    }
+                    onLine(line);
+                };
+                using (interrupt.CanBeCanceled
+                    ? interrupt.Register(() =>
+                    {
+                        Interlocked.Exchange(ref cancelledAt, System.Diagnostics.Stopwatch.GetTimestamp());
+                        terminal.RequestInterrupt();
+                    })
+                    : default(CancellationTokenRegistration))
+                {
+                    result = SendGuardedAsync(terminal, cliText, lines, CancellationToken.None, interrupt)
+                        .GetAwaiter().GetResult();
+                }
                 FireReadRow(result);
                 return result;
             }

@@ -101,7 +101,11 @@ namespace tik4net.Cli
         /// <summary>Whether the terminal can report a command's output line by line as it arrives.</summary>
         bool SupportsStreamingRead { get; }
 
-        /// <summary>Runs a command, reporting each completed output line to <paramref name="onLine"/>.</summary>
-        string ExecuteStreaming(string cliText, Action<string> onLine);
+        /// <summary>
+        /// Runs a command, reporting each completed output line to <paramref name="onLine"/>. When
+        /// <paramref name="interrupt"/> is cancelled the command is interrupted with Ctrl-C, and the read ends at the
+        /// prompt that follows, so the console is left in step.
+        /// </summary>
+        string ExecuteStreaming(string cliText, Action<string> onLine, System.Threading.CancellationToken interrupt);
     }
 }

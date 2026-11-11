@@ -104,7 +104,12 @@ namespace tik4net.Cli
                             if (handle.CancelRequested) return;
                             TikRecordSentence? row = table.Feed(line);
                             if (row != null) onRow?.Invoke(row);
-                        });
+                        },
+                        // Cancel interrupts the read itself: the command holds the console for as long as it runs.
+                        handle.CancellationToken);
+                    // Interrupted before its header, an output is the interrupt's, not a refusal.
+                    if (handle.CancelRequested)
+                        return;
                     // The table's own header is the acceptance signal: RouterOS prints it before the first
                     // reading, so text that never produced one is the refusal instead. Keyed on the
                     // header rather than on the row count, because a monitor can legitimately be accepted and

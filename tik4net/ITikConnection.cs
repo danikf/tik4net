@@ -70,7 +70,10 @@ namespace tik4net
     /// own cadence, and a change you make over the <i>same</i> connection may then go unreported: measured
     /// on Telnet and WinBox CLI, a listen missed the change 3 times in 4, and triggering harder made
     /// it worse rather than better. <b>Drive the change from a second connection</b> when a monitor has to
-    /// observe it, or use the binary API, where the tag makes the two independent.
+    /// observe it, or use the binary API, where the tag makes the two independent. A finite monitor
+    /// that streams its rows there (<c>ping</c>, <c>traceroute</c>) takes one turn for its whole run, so a
+    /// command on another thread waits until it ends; <see cref="ITikCommand.Cancel"/> interrupts it with
+    /// Ctrl-C and frees the terminal within a few hundred milliseconds.
     /// </item>
     /// <item>
     /// <b>Closing does not wait for a running command.</b> <see cref="Close"/> and

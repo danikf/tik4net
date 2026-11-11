@@ -32,6 +32,9 @@ namespace tik4net.Connection
     internal sealed class TikMonitorHandle
     {
         private volatile bool _cancelRequested;
+        // Cancelled with the flag, for a worker blocked in one long read that has to be interrupted rather than polled
+        // (the CLI's streaming ping). Never disposed: it has no timer, and a callback registered late still runs.
+        private readonly CancellationTokenSource _cancel = new CancellationTokenSource();
         private Thread _thread = null!; // assigned by AttachThread() right after the transport starts the worker
 
         /// <summary>True once the caller has asked the worker loop to stop; the loop checks it each pass.</summary>
@@ -43,8 +46,24 @@ namespace tik4net.Connection
         /// <summary>True while the worker thread is still running.</summary>
         internal bool IsRunning => _thread != null && _thread.IsAlive;
 
+        /// <summary>
+        /// Cancelled when the caller asks the worker to stop: for a worker that is inside one long read rather than
+        /// between polls, so the read can be interrupted (<see cref="Cli.CliMonitorDriver"/>'s streaming ping).
+        /// </summary>
+        internal CancellationToken CancellationToken => _cancel.Token;
+
         /// <summary>Requests cancellation; the worker stops after its current poll pass and sends the cancel command.</summary>
-        internal void Cancel() => _cancelRequested = true;
+        internal void Cancel()
+        {
+            _cancelRequested = true;
+            RequestStop();
+        }
+
+        private void RequestStop()
+        {
+            try { _cancel.Cancel(); }
+            catch (AggregateException) { /* a registered interrupt failed: the flag above still stops the worker */ }
+        }
 
         /// <summary>Requests cancellation and waits up to <paramref name="millisecondsTimeout"/> for the worker
         /// to finish (negative = wait indefinitely). Returns true when the worker has stopped.</summary>
@@ -56,6 +75,7 @@ namespace tik4net.Connection
         internal bool Join(int millisecondsTimeout)
         {
             _cancelRequested = true;
+            RequestStop();
             var t = _thread;
             if (t == null || t == Thread.CurrentThread) return true;
             return millisecondsTimeout < 0 ? JoinForever(t) : t.Join(millisecondsTimeout);

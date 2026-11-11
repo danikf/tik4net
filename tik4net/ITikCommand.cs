@@ -401,6 +401,11 @@ namespace tik4net
         /// Asks the running async command to stop (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// It may return before the command has stopped; use <see cref="CancelAndJoin()"/> to wait until it has.
         /// </summary>
+        /// <remarks>
+        /// The router is asked to stop the command, on every transport: the binary API sends <c>/cancel</c>, WinBox
+        /// native the window's cancel command, a polled monitor stops before its next poll, and a monitor the CLI
+        /// transports stream (<c>ping</c>, <c>traceroute</c>) is interrupted with Ctrl-C.
+        /// </remarks>
         /// <seealso cref="ExecuteWithCallback"/>
         void Cancel();
 

@@ -208,6 +208,73 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// <c>CancelAndJoin</c> stops a streaming ping at once, and frees the connection for a command queued behind it.
+        /// </summary>
+        /// <remarks>
+        /// The CLI family streams a finite monitor (ping, traceroute) through one read that holds the console, and
+        /// <c>Cancel</c> used to stop only the delivery of rows: the router pinged on to its <c>count</c>, and a command on
+        /// another thread waited for all of it (measured on Telnet, CHR3 7.21.5: <c>CancelAndJoin</c> 11.5 s, the queued
+        /// command 12.2 s, against 3 ms on the API). Now the cancel interrupts the read with Ctrl-C. REST is not asked: the
+        /// router buffers a REST monitor's whole answer, and an abandoned REST command blocks REST for about a minute.
+        /// </remarks>
+        [TestMethod]
+        [TestLock(TestLockScope.Router)]   // timings
+        public void PingCancelAndJoinStopsAtOnceAndReleasesTheConnection()
+        {
+            EnsureCapability(TikConnectionCapability.Listen, "async ping");
+            if (!DeliversMonitorRowsLive())
+                Assert.Inconclusive("REST buffers a monitor's whole answer, so there is nothing to cancel mid-stream");
+            const int COUNT = 15;
+
+            int rows = 0;
+            Exception error = null;
+            var done = new ManualResetEventSlim(false);
+            ITikCommand ping = Connection.CreateCommand("/ping",
+                Connection.CreateParameter("address", "127.0.0.1"),
+                Connection.CreateParameter("count", COUNT.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            ping.ExecuteWithCallback(_ => Interlocked.Increment(ref rows),
+                trap => error = new Exception(trap.Message), () => done.Set());
+
+            long crudMs = -1;
+            Thread crud = null;
+            try
+            {
+                WaitUntil(() => Volatile.Read(ref rows) >= 2, TimeSpan.FromSeconds(8));
+                Assert.IsTrue(Volatile.Read(ref rows) >= 2, "the ping delivered no rows to cancel in the middle of");
+
+                // A command on another thread, queued behind the running ping on a console transport.
+                crud = new Thread(() =>
+                {
+                    var t = System.Diagnostics.Stopwatch.StartNew();
+                    Connection.CreateCommand("/system/identity/print").ExecuteScalar("name");
+                    crudMs = t.ElapsedMilliseconds;
+                }) { IsBackground = true };
+                crud.Start();
+                Thread.Sleep(200);
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                ping.CancelAndJoin();
+                long cancelMs = sw.ElapsedMilliseconds;
+                Assert.IsTrue(crud.Join(TimeSpan.FromSeconds(COUNT + 10)), "the queued command never finished");
+                int delivered = Volatile.Read(ref rows);
+                Console.WriteLine($"CancelAndJoin {cancelMs} ms; queued command {crudMs} ms; rows {delivered} of {COUNT}");
+
+                Assert.IsTrue(cancelMs < 1000, $"CancelAndJoin took {cancelMs} ms: the ping ran on after the cancel");
+                Assert.IsTrue(crudMs < 1200 + 1000,
+                    $"the queued command waited {crudMs} ms: the cancelled ping still held the connection");
+                Assert.IsTrue(delivered < COUNT, $"the ping ran to its count ({delivered} rows)");
+                Assert.IsTrue(done.Wait(2000), "a cancelled monitor ends in onDone");
+                Assert.IsNull(error, error?.Message);
+                Assert.IsFalse(ping.IsRunning);
+            }
+            finally
+            {
+                try { ping.Cancel(); } catch { }
+                crud?.Join(TimeSpan.FromSeconds(COUNT + 10));
+            }
+        }
+
         [TestMethod]
         public void PingLocalhostAsyncWithCloseWillNotFail()
         {
