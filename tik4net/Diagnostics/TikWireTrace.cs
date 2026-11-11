@@ -58,7 +58,8 @@ namespace tik4net.Diagnostics
     /// process sink is the correct and simplest model. Not intended for always-on production logging.
     /// <para>
     /// What a trace leaves out: the login credentials and the password words of the binary API (see
-    /// <see cref="IsSecretWord"/>), and the password a terminal transport types at login. Not every other secret a
+    /// <see cref="IsSecretWord"/>), the password a terminal transport types at login, and the password fields of the
+    /// WinBox terminal open and the RoMON link request in a rendered M2 message (<see cref="IsSecretM2Field"/>). Not every other secret a
     /// command can carry — <c>=secret=</c>, a pre-shared key, a private key, a password typed into a terminal
     /// command — so review a trace before you paste it anywhere.
     /// </para>
@@ -149,6 +150,42 @@ namespace tik4net.Diagnostics
         private static readonly string[] SecretWordNames =
         {
             "=password=", "=response=", "=new-password=", "=confirm-password=",
+        };
+
+        /// <summary>
+        /// True when user key <paramref name="key"/> of a WinBox M2 message to <paramref name="handlerPath"/> with
+        /// <paramref name="command"/> is a login credential, whose value a rendering of the message must never show —
+        /// the M2 counterpart of <see cref="IsSecretWord"/>.
+        /// </summary>
+        /// <remarks>
+        /// The mepty terminal open (handler <c>[76]</c>, command <c>0x0A0065</c>) carries the password in key 1, and a
+        /// RoMON link request (the agent's msg-proxy <c>[2]</c>, command 2001) the target's password in key 8. A message
+        /// relayed through a RoMON agent is addressed to the agent's proxy and link first (<c>[2, link, 76]</c>), so a
+        /// path matches by its end. Login credentials only, as for the API words.
+        /// </remarks>
+        internal static bool IsSecretM2Field(IList<uint>? handlerPath, long? command, int key)
+        {
+            if (handlerPath == null || command == null) return false;
+            foreach (var secret in SecretM2Fields)
+            {
+                if (secret.Key == key && secret.Command == command.Value && EndsWith(handlerPath, secret.Handler))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool EndsWith(IList<uint> path, uint[] tail)
+        {
+            if (path.Count < tail.Length) return false;
+            for (int i = 0; i < tail.Length; i++)
+                if (path[path.Count - tail.Length + i] != tail[i]) return false;
+            return true;
+        }
+
+        private static readonly (uint[] Handler, long Command, int Key)[] SecretM2Fields =
+        {
+            (new uint[] { 76 }, 0x0A0065, 1),   // mepty login: the terminal's password
+            (new uint[] { 2 }, 2001, 8),         // RoMON link request: the target's password
         };
 
         // Payload event. off/len bound the region of data to render; the buffer is not retained.

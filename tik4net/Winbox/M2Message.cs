@@ -307,10 +307,33 @@ namespace tik4net.Winbox
 
             var sb = new StringBuilder();
             sb.Append("M2[").Append(m2.Length).Append("B]");
-            foreach (var kv in ParseAllFields(m2))
+            var fields = ParseAllFields(m2);
+            IList<uint>? to = TraceHandlerPath(fields);
+            object? cmdValue = fields.TryGetValue(WinboxM2Protocol.SysKey.Command, out var cmd) ? cmd.Value : null;
+            long? command = cmdValue is uint c ? c : cmdValue is byte b ? b : (long?)null;
+            foreach (var kv in fields)
+            {
+                // A login credential is shown as <redacted> when it has a value (TikWireTrace.IsSecretM2Field); empty, it
+                // is shown empty, since "no password was sent" is the diagnosis then.
+                bool secret = kv.Value.Value is string s && s.Length > 0
+                              && Diagnostics.TikWireTrace.IsSecretM2Field(to, command, kv.Key);
                 sb.Append(' ').Append(RenderTraceKey(kv.Key)).Append('=')
-                  .Append(kv.Value.TraceName).Append(':').Append(RenderTraceValue(kv.Value.Value));
+                  .Append(kv.Value.TraceName).Append(':').Append(secret ? "<redacted>" : RenderTraceValue(kv.Value.Value));
+            }
             return sb.ToString();
+        }
+
+        // SYS_TO as the numbers it holds: ParseAllFields renders a u32[] as "[a,b,...]".
+        private static IList<uint>? TraceHandlerPath(M2Record fields)
+        {
+            if (!fields.TryGetValue(WinboxM2Protocol.SysKey.To, out var to) || !(to.Value is string text)) return null;
+            var path = new List<uint>();
+            foreach (string part in text.Trim('[', ']').Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!uint.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out uint n)) return null;
+                path.Add(n);
+            }
+            return path;
         }
 
         // A key the parser had to qualify (two fields, one key — see ParseAllFields) would otherwise print as

@@ -1256,5 +1256,66 @@ namespace tik4net.integrationtests
                 }
             }
         }
+
+        /// <summary>Records every trace event, its note included, as a reader of the trace would see it.</summary>
+        private sealed class NoteSink : tik4net.Diagnostics.ITikWireTraceSink
+        {
+            private readonly System.Collections.Concurrent.ConcurrentQueue<string> _lines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+
+            public void Emit(string channel, tik4net.Diagnostics.TikWireDir dir, byte[] data, int offset, int count, string note)
+                => _lines.Enqueue(channel + " " + dir + " [" + tik4net.Diagnostics.TikWireTrace.Escape(data, offset, count) + "] " + note);
+
+            public string[] Lines => _lines.ToArray();
+        }
+
+        /// <summary>
+        /// The trace of a WinBox CLI relay does not carry the target's password (security review X2). The relay traces
+        /// every message it carries as a note on <c>wbx.romon</c>, before the agent session encrypts it, and the terminal
+        /// open holds the password in its key 1: measured on the lab, <c>0x1=str:&lt;the password&gt;</c>. A throwaway
+        /// user with a password of its own on the target, since the lab's own login has none to leak.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.WinboxCli)]
+        [DataRow(TikConnectionType.WinboxCliMac)]
+        public void Relay_TheTraceOfTheTerminalLogin_DoesNotCarryThePassword(TikConnectionType agentTransport)
+        {
+            RequireTargetHost();
+            string user = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12);
+            string password = "t4n-" + Guid.NewGuid().ToString("N").Substring(0, 16);
+
+            using (var direct = OpenTargetDirect())
+            {
+                string id = direct.CreateCommandAndParameters("/user/add", "name", user, "group", "full", "password", password)
+                    .ExecuteScalar();
+                try
+                {
+                    var setup = RelaySetup(agentTransport);
+                    var asUser = new TikConnectionSetup(setup.Address, user, password) { RomonAgentSetup = setup.RomonAgentSetup };
+                    var sink = new NoteSink();
+                    string answer;
+                    using (tik4net.Diagnostics.TikWireTrace.Capture(sink))
+                    using (var relay = asUser.Create(agentTransport))
+                        answer = relay.LoadSingle<ToolRomon>().CurrentId.Value;
+
+                    Assert.AreEqual(TargetId, answer, true, "the relay did not reach the target");
+                    string[] lines = sink.Lines;
+                    string terminalOpen = lines.FirstOrDefault(l => l.StartsWith("wbx.romon", StringComparison.Ordinal)
+                                                                    && l.Contains("0xFF0001=u32[]:[76]") && l.Contains("0x2=str:vt102"));
+                    Console.WriteLine("[romon] terminal open: " + terminalOpen);
+                    Assert.IsNotNull(terminalOpen, "the trace holds no terminal open through the relay; channels seen: "
+                        + string.Join(", ", lines.Select(l => l.Split(' ')[0]).Distinct()));
+                    StringAssert.Contains(terminalOpen, "0x1=str:<redacted>");
+                    Assert.IsFalse(lines.Any(l => l.Contains(password)), "the trace carries the target's password:\n"
+                        + string.Join("\n", lines.Where(l => l.Contains(password))));
+                }
+                finally
+                {
+                    direct.CreateCommandAndParameters("/user/remove", TikSpecialProperties.Id, id).ExecuteNonQuery();
+                    // The relayed session can outlive the relay on the target until the agent reaps it (findings-romon §5).
+                    Assert.AreEqual(0, direct.CreateCommandAndParameters("/user/print", "name", user).ExecuteList().Count(),
+                        "the throwaway user " + user + " is still on the target");
+                }
+            }
+        }
     }
 }
