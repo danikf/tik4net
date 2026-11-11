@@ -627,7 +627,9 @@ namespace tik4net.Testing
         {
             var thread = _asyncThread;
             Cancel();
-            thread?.Join();
+            // From the command's own callback, as the real commands: the thread ends once the callback returns.
+            if (thread != Thread.CurrentThread)
+                thread?.Join();
         }
 
         /// <inheritdoc/>
@@ -639,6 +641,8 @@ namespace tik4net.Testing
                     "A wait budget is positive, or Timeout.InfiniteTimeSpan to wait without a bound.");
             var thread = _asyncThread;
             Cancel();
+            if (thread == Thread.CurrentThread)
+                return true;
             return thread?.Join(timeout) ?? true;
         }
 

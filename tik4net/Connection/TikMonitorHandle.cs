@@ -48,11 +48,16 @@ namespace tik4net.Connection
 
         /// <summary>Requests cancellation and waits up to <paramref name="millisecondsTimeout"/> for the worker
         /// to finish (negative = wait indefinitely). Returns true when the worker has stopped.</summary>
+        /// <remarks>
+        /// Called on the worker itself — from one of the command's own callbacks, which all run there — it only requests
+        /// the cancel and returns <c>true</c>: a thread cannot wait for itself to end, and the worker ends as soon as the
+        /// callback returns, which is the join the caller asked for.
+        /// </remarks>
         internal bool Join(int millisecondsTimeout)
         {
             _cancelRequested = true;
             var t = _thread;
-            if (t == null) return true;
+            if (t == null || t == Thread.CurrentThread) return true;
             return millisecondsTimeout < 0 ? JoinForever(t) : t.Join(millisecondsTimeout);
         }
 

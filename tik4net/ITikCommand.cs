@@ -408,6 +408,12 @@ namespace tik4net
         /// Cancels the running async command (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// Blocks the calling thread until the router has acknowledged the cancel and the command's reading worker has ended.
         /// </summary>
+        /// <remarks>
+        /// Called from one of the command's own callbacks, which run on that worker, it cancels and returns without
+        /// waiting: a thread cannot wait for itself, and the worker ends as soon as the callback returns. So
+        /// <c>CancelAndJoin()</c> in a row callback ("stop after the first N rows") or in <c>onDone</c> is safe, on every
+        /// transport.
+        /// </remarks>
         /// <seealso cref="ExecuteWithCallback"/>
         void CancelAndJoin();
 
@@ -429,6 +435,10 @@ namespace tik4net
         /// <see cref="TikConnectionReceiveTimeoutException"/> instead: that is not "it did not stop in time", it
         /// is the connection being in trouble, and collapsing it into <c>false</c> would hide it. Measured
         /// against a live router a healthy cancel round trip is 0-130 ms.
+        /// </para>
+        /// <para>
+        /// Called from one of the command's own callbacks, it cancels and returns <c>true</c> without waiting, as
+        /// <see cref="CancelAndJoin()"/> does: the worker ends as soon as the callback returns.
         /// </para>
         /// </remarks>
         /// <param name="timeout">Budget for the whole cancel — the round trip to the router and the join together.

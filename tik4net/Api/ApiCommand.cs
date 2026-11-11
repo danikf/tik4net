@@ -887,6 +887,11 @@ namespace tik4net.Api
                 cancelCommand.ExecuteNonQuery(
                     millisecondsTimeout > 0 ? millisecondsTimeout : Session.ReceiveTimeoutMs);
 
+                // From the command's own callback, which runs on the loading thread: a thread cannot join itself. The
+                // cancel is on its way, and the thread ends as soon as the callback returns, which is the join asked for.
+                if (joinLoadingThread && loadingThread == Thread.CurrentThread)
+                    return true;
+
                 if (joinLoadingThread)
                 {
                     if (loadingThread != null)
