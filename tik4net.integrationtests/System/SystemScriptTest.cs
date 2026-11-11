@@ -152,15 +152,15 @@ namespace tik4net.integrationtests
         /// Control characters and characters whose UTF-8 form holds a C1 byte reach the router as written (security
         /// review X3). Over a CLI transport the value is TYPED: a raw Ctrl-C dropped the line, and the 0x9B in UTF-8
         /// <c>ě</c> (C4 9B) and <c>Û</c> (C3 9B) was a CSI to the line editor. The stored copy is read back over the
-        /// binary API, so this asserts the write; the leg's own read is asserted after it, separately.
-        /// <para>U+009B itself is left out: it is stored correctly too, but the CLI read loses it (7.25.1, Telnet and
-        /// WinBox CLI), which is a defect of the read path, not of this write.</para>
+        /// binary API, so this asserts the write; the leg's own read is asserted after it, separately. On that read
+        /// U+009B is the UTF-8 C2 9B of the text, which a CLI read keeps although the editor takes the byte for a CSI;
+        /// the letter after it is the one an 8-bit CSI would end on.
         /// </summary>
         [TestMethod]
         public void ScriptSource_SurvivesControlCharactersAndNonAscii()
         {
             EnsureCommandAvailable("/system/script");
-            const string source = "# a\u0003:put T4NINJ ěÛ \u007f \u0001\n";
+            const string source = "# a\u0003:put T4NINJ ěÛ \u009bb \u007f \u0001\n";
             var entity = new SystemScript { Name = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12), Source = source };
             SaveTracked(entity);
             try

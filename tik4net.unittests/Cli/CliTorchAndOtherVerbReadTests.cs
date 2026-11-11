@@ -261,17 +261,15 @@ namespace tik4net.unittests.Cli
             Assert.IsFalse(tik4net.Connection.TikQueryStack.Matches(new TikRecordSentence(new Dictionary<string, string> { ["comment"] = "x" }), filter));
         }
 
-        // ── X15: the 8-bit CSI in a completion replay ──────────────────────────
+        // ── U+009B in a completion replay is text ──────────────────────────────
 
         [TestMethod]
-        public void AnEightBitCsiIsNotDrawnAsText()
+        public void AU009BIsDrawnAsText()
         {
-            string withSevenBit = "\x1b[36mip\x1b[m";
-            string withEightBit = "\u009b36mip\u009bm";
-
-            CollectionAssert.AreEqual(
-                CliCompletionParser.Items(withSevenBit, string.Empty).Select(i => i.Name + "/" + i.Kind).ToList(),
-                CliCompletionParser.Items(withEightBit, string.Empty).Select(i => i.Name + "/" + i.Kind).ToList());
+            // RouterOS writes its own sequences as 7-bit ESC [ only (7.25.1 and 6.49.21); a U+009B after decoding is a
+            // character of the text, the UTF-8 C2 9B of a stored value. Read as an 8-bit CSI, U+009B 3 took the
+            // following "3m" for a colour and dropped them.
+            Assert.AreEqual("a\u009B3mb", CliCompletionParser.Render("\x1b[32ma\u009B3mb\x1b[m"));
         }
 
         // ── X11: the end marker ────────────────────────────────────────────────

@@ -53,6 +53,19 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void AU009BInTheTextIsOneColumnNotACsi()
+        {
+            // RouterOS writes a stored U+009B as its UTF-8 bytes C2 9B and its own sequences as 7-bit ESC [ only
+            // (7.25.1 and 6.49.21), so after decoding U+009B is a character of the text. Read as an 8-bit CSI, U+009B 6
+            // swallowed the 6 and the n, and no cursor report was sent.
+            var vt = new Vt100State(80, 25);
+
+            List<string> replies = vt.Process("\x1B[Ha\u009B6n\x1B[6n");
+
+            CollectionAssert.AreEqual(new[] { "\x1B[1;5R" }, replies);
+        }
+
+        [TestMethod]
         public void TheAdvertisedWidthIsReachableByTheCursorForwardProbe()
         {
             Assert.IsTrue(Vt100State.RouterOsWidth <= 1 + 9999,

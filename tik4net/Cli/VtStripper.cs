@@ -14,18 +14,15 @@ namespace tik4net.Cli
     // already; this one was the odd one out rather than a deliberate public service.
     internal static class VtStripper
     {
-        // The 8-bit CSI (the C1 control 0x9B), one character for ESC [. RouterOS switches to it for a client that answers
-        // its UTF-8 cursor test as Latin-1, where the byte 0x9B decodes to exactly this character.
-        private const char Csi8Bit = '\u009B';
-
         /// <summary>
         /// Removes all ANSI/VT100 escape sequences from <paramref name="input"/>.
         /// Returns an empty string if <paramref name="input"/> is null.
         /// </summary>
         /// <remarks>
-        /// Covers CSI sequences (<c>ESC [ {params} {final}</c>, e.g. <c>ESC[32m</c>, <c>ESC[?25h</c>, and the same with
-        /// the 8-bit CSI <c>U+009B</c> in place of <c>ESC [</c>; a lone <c>U+009B</c> is dropped), OSC
-        /// sequences (<c>ESC ] {text} BEL</c>) and any other <c>ESC</c> + one character.
+        /// Covers CSI sequences (<c>ESC [ {params} {final}</c>, e.g. <c>ESC[32m</c>, <c>ESC[?25h</c>), OSC
+        /// sequences (<c>ESC ] {text} BEL</c>) and any other <c>ESC</c> + one character. RouterOS writes its own
+        /// sequences in this 7-bit form only, so a <c>U+009B</c> is text — a stored value's UTF-8 <c>C2 9B</c> — and is
+        /// kept (Docs/findings-cli.md §2).
         /// <para>
         /// Two of them are applied rather than dropped, within the current line only: cursor back
         /// (<c>ESC[nD</c>), after which text overwrites what is under the cursor, and erase to end of line
@@ -48,12 +45,9 @@ namespace tik4net.Cli
             for (int i = 0; i < input.Length; i++)
             {
                 char c = input[i];
-                bool escape = c == '\x1b' && i + 1 < input.Length && input[i + 1] != '\n';
-                if (escape || c == Csi8Bit)
+                if (c == '\x1b' && i + 1 < input.Length && input[i + 1] != '\n')
                 {
-                    int last = escape
-                        ? SequenceEnd(input, i, out char final, out string parameters)
-                        : CsiEnd(input, i + 1, i, out final, out parameters);
+                    int last = SequenceEnd(input, i, out char final, out string parameters);
                     if (final == 'D')
                     {
                         int n = int.TryParse(parameters, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed > 0 ? parsed : 1;

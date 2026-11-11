@@ -779,8 +779,19 @@ byte 0xFF (IAC) is doubled as well; UTF-8 never produces it, a single-byte encod
 
 The same values are inert on the API, REST and WinBox native, which send a value as data.
 
-A **stored** U+009B comes back without it on a CLI read (7.25.1, Telnet and WinBox CLI), although `ě` and `Û`,
-which carry the same byte, come back intact: the read path, not the write.
+### On a read, a 0x9B is text: RouterOS never writes an 8-bit CSI
+
+The byte 0x9B is a CSI to the line editor on the way **in** only. On the way **out** the router writes a stored
+value's bytes unchanged and its own sequences as 7-bit `ESC [` only. Measured over Telnet on 7.25.1 and 6.49.21 by
+a client independent of tik4net, which answers the UTF-8 test (`ESC[H ě H ESC[6n`) as UTF-8 (column 3) or
+as an 8-bit terminal (column 4). In both cases a `/system/script` source `a U+009B b ě c Û d` reads back as
+`61 C2 9B 62 C4 9B 63 C3 9B 64`, through `:put`, `print detail` and `print detail as-value`. A stored lone 0x9B
+(`:put "\9Bz"`) arrives as `9B 7A`. The editor's colour repaint and cursor moves are `ESC [` in both modes.
+
+So after decoding, a U+009B is a character of the value: the UTF-8 `C2 9B` under the default encoding, or the
+second half of `ě` under Latin-1. `VtStripper`, `Vt100State` and the completion replay all leave it as text. Read
+as an 8-bit CSI, `U+009B b` was a sequence ending in `b`: both characters vanished from the value, and the next
+letter after any U+009B was always at risk.
 
 ---
 

@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
 
@@ -274,25 +275,25 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void StripAnsi_RemovesEightBitCsiLikeEscBracket()
+        public void StripAnsi_KeepsAStoredU009BAsText()
         {
-            // U+009B is the one-character form of ESC [. RouterOS switches to it when a client answers its UTF-8 cursor
-            // test as Latin-1, where the byte 0x9B decodes to exactly this character.
-            Assert.AreEqual("ok", VtStripper.StripAnsi("\u009B32mok\u009B0m"));
-            Assert.AreEqual("x!y", VtStripper.StripAnsi("x\u009B!y"), "an unterminated 8-bit CSI is a control character: dropped alone");
-        }
+            // Captured over Telnet on 7.25.1: the DSV row of a /system/script whose source is a U+009B b ě c Û d. The router
+            // writes the stored bytes unchanged (U+009B is UTF-8 C2 9B) and its own sequences in 7-bit ESC [ only, with a
+            // client answering its UTF-8 test either way. Read as an 8-bit CSI, U+009B b became a sequence ending in 'b'
+            // and both characters were dropped.
+            byte[] wire =
+            {
+                0x2A, 0x32, 0x31, 0x7E, 0x5E, 0x7E, 0x30, 0x7E, 0x5E, 0x7E,       // *21~^~0~^~
+                0x61, 0xC2, 0x9B, 0x62, 0xC4, 0x9B, 0x63, 0xC3, 0x9B, 0x64,       // a U+009B b ě c Û d
+                0x0D, 0x0A, 0x23, 0x6E, 0x3D, 0x31, 0x2F, 0x6E, 0x75, 0x6D, 0x0D, 0x0A, // \r\n#n=1/num\r\n
+                0x0D, 0x0D, 0x0D, 0x1B, 0x5B, 0x39, 0x39, 0x39, 0x39, 0x42,       // \r\r\r ESC[9999B
+                0x5B, 0x61, 0x64, 0x6D, 0x69, 0x6E, 0x40, 0x43, 0x48, 0x52, 0x5D, 0x20, 0x3E, 0x20, // [admin@CHR] >
+            };
 
-        [TestMethod]
-        public void StripAnsi_AppliesTheColourRepaintInEightBitCsi()
-        {
-            const string sent = "/interface prnt";
-            string raw = "/interface prnt\x1b[15D\x1b[m\x1b[36m/interface\x1b[m \x1b[m\x1b[31mprnt\x1b[m\r\n"
-                       + "\rbad command name prnt (line 1 column 12)\r\n"
-                       + "\r\r\r\x1b[9999B\x1b[K[\x1b[m\x1b[36madmin\x1b[m@\x1b[m\x1b[32mCHR\x1b[m] > ";
-
-            Assert.AreEqual("bad command name prnt (line 1 column 12)",
-                CliOutputCleaner.CleanOutput(VtStripper.StripAnsi(raw.Replace("\x1b[", "\u009B")), sent),
-                "the cursor-back and erase are applied the same in their 8-bit form");
+            Assert.AreEqual("*21~^~0~^~a\u009BběcÛd\r\n#n=1/num\r\n\r\r\r[admin@CHR] > ",
+                VtStripper.StripAnsi(Encoding.UTF8.GetString(wire)));
+            Assert.AreEqual("x\u009B32my\u009B", VtStripper.StripAnsi("x\u009B32my\u009B"),
+                "U+009B is text wherever it stands, also before what would be CSI parameters");
         }
     }
 }

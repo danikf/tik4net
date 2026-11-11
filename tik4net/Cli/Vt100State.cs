@@ -99,8 +99,9 @@ namespace tik4net.Cli
                 switch (_st)
                 {
                     case St.Normal:
+                        // RouterOS writes its sequences as 7-bit ESC [ only: a U+009B is a character of the text
+                        // (UTF-8 C2 9B), not an 8-bit CSI (Docs/findings-cli.md §2).
                         if      (c == '\x1B')  { _st = St.Esc; }
-                        else if (c == '\x9B')  { _st = St.Csi; _param = ""; }  // 8-bit CSI
                         else if (c == '\r')    { Col = 1; }
                         else if (c == '\n')    { Row = Math.Min(Row + 1, Height); }
                         else if (c >= ' ')

@@ -61,6 +61,18 @@ conclusion skipped a question: does the menu's `print` take anything else? Tab c
 lists `show-sensitive`, and with it the value arrives. The V2 canonical-form sweep (every entity, every
 transport, against the API) found the gap as ten fields reading `null` on all five CLI transports only.
 
+### An 8-bit CSI the router was assumed to send ate a stored U+009B (2026-10-18 – 2026-11-12)
+
+Review D21 (2026-10-18) and X15 taught `VtStripper`, `Vt100State` and the completion replay to read U+009B as the
+8-bit CSI. The reason given was that RouterOS "switches to it for a client that answers its UTF-8 cursor test as
+Latin-1". That was never measured. tik4net answers UTF-8, so the change was described as a latent dependence on
+the decoder, and nothing contradicted it until a value held the character. The X3 fix (2026-11-11) stored a
+`/system/script` source with U+009B correctly, but Telnet and WinBox CLI read it back without the character,
+while `ě` and `Û`, which share its byte 0x9B, came back intact. The router was sending `61 C2 9B 62`. The
+stripper took `U+009B b` for a CSI with final `b`, so it dropped the next letter too. A probe independent of
+tik4net, answering the UTF-8 test both ways on 7.25.1 and 6.49.21, never saw a 0x9B used as an escape. The three
+sites now treat U+009B as text ([findings-cli.md §2](findings-cli.md)).
+
 ## Measurement traps
 
 ### A login refusal that timed out for 30 seconds looked like it was testing the right thing
