@@ -300,5 +300,68 @@ namespace tik4net.unittests.Mcp
             Assert.IsTrue(serverTask.Wait(10000), "the scripted peer did not finish");
             Assert.IsFalse(TikWireTrace.Enabled, "the sink is removed when the trace that holds it ends");
         }
+
+        // ── the router-log side channel follows the call's transport (security review X5) ─────
+
+        /// <summary>
+        /// An encrypted call's router log is read over an encrypted side connection: for ApiSsl, to the call's own
+        /// API-SSL port. It went to plain API on 8728, sending the password in clear next to a call that was not.
+        /// </summary>
+        /// <remarks>A listener that accepts and hangs up stands in for the router: it counts who dials the call's port.
+        /// The call and both side connections dial it; with the plain-API side channel only the call did.</remarks>
+        /// <summary>Every transport: plain API only beside a call that is in clear text already.</summary>
+        [TestMethod]
+        public void TheRouterLogSideChannel_IsNeverLessPrivateThanTheCall()
+        {
+            var clear = new[] { TikConnectionType.Api, TikConnectionType.Rest, TikConnectionType.Telnet, TikConnectionType.MacTelnet };
+            foreach (TikConnectionType call in Enum.GetValues(typeof(TikConnectionType)))
+            {
+                TikConnectionType side = MikroTikTools.SideTransportFor(call);
+                if (Array.IndexOf(clear, call) >= 0)
+                    Assert.AreEqual(TikConnectionType.Api, side, call.ToString());
+                else if (call == TikConnectionType.ApiSsl || call == TikConnectionType.RestSsl)
+                    Assert.AreEqual(TikConnectionType.ApiSsl, side, call.ToString());
+                else
+                    Assert.AreEqual(call, side, call + ": encrypted, and read over itself");
+            }
+        }
+
+        [TestMethod]
+        public void RouterLogOfAnApiSslCall_IsReadOverApiSsl_OnTheCallsPort()
+        {
+            var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            listener.Start();
+            int accepted = 0;
+            using var stop = new CancellationTokenSource();
+            var acceptLoop = Task.Run(async () =>
+            {
+                try
+                {
+                    while (!stop.IsCancellationRequested)
+                    {
+                        using var client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                        Interlocked.Increment(ref accepted);
+                    }
+                }
+                catch (Exception) { /* the listener stopped */ }
+            });
+            try
+            {
+                int port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+                string body = Body(Run(new MikroTikTools().MikrotikCall(command: "/system/identity/print",
+                    connectionString: "transport=ApiSsl;host=127.0.0.1;user=admin;password=pw;allowInvalidCertificate=true;"
+                                      + "port=" + port + ";connectTimeout=00:00:02;receiveTimeout=00:00:02",
+                    includeRouterLog: true)));
+
+                StringAssert.Contains(body, "--- ROUTER LOG ---");
+                Assert.AreEqual(3, Volatile.Read(ref accepted), "the call and both side connections dial the call's API-SSL port:\n" + body);
+            }
+            finally
+            {
+                stop.Cancel();
+                listener.Stop();
+                acceptLoop.Wait(5000);
+            }
+        }
     }
 }

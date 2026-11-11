@@ -43,7 +43,7 @@ rather than guessing.
 | `traceLevel`     | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame wire trace) — see [Wire tracing & router-log](#wire-tracing--router-log-debugging) |
 | `traceChannels`  | string[] | `bytes` only: keep just these emit-site channels (`wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`); omit = all |
 | `includeRawTrace`| bool     | Back-compat alias for `traceLevel='words'`, default false |
-| `includeRouterLog`| bool    | Also append the router's own `/log` lines emitted during the command (`--- ROUTER LOG ---`), read over a separate API connection; default false |
+| `includeRouterLog`| bool    | Also append the router's own `/log` lines emitted during the command (`--- ROUTER LOG ---`), read over a separate connection that is never less private than the call's (plain API only for a clear-text call, API-SSL for ApiSsl/RestSsl, the call's own transport for Ssh/Winbox*); default false |
 | `routerLogTail`  | int      | `includeRouterLog` only: cap on kept log lines, default 200 |
 | `executeMode`    | string   | `auto` (default) = verb dispatch over `ITikCommand`; `nonquery` = `ExecuteNonQuery()` — needed for action verbs (see below) |
 | `parameters`     | string[] | Extra API words (see below) |

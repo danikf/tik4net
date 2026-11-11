@@ -215,7 +215,7 @@ public sealed class MikroTikTools
         "another runs is refused. Use traceChannels to filter the byte trace to " +
         "specific emit sites (e.g. ['wbxcli.mepty']). (includeRawTrace=true is a back-compat alias for traceLevel='words'.) " +
         "Set includeRouterLog=true to also append the router's own /log lines emitted during the command (captured over " +
-        "a separate API connection), giving the device-side view next to the wire trace. " +
+        "a separate connection, never less private than the call's own), giving the device-side view next to the wire trace. " +
         "A call the client cancels cancels the running command. " +
         "Every answer ends with a '--- MCP SERVER ---' line naming the version, build timestamp and path of the " +
         "assembly that answered: this server can be replaced while a client is connected, so that line is how you " +
@@ -256,8 +256,11 @@ public sealed class MikroTikTools
         string[]? traceChannels = null,
         [Description("When true, also append the router's own /log lines that appeared DURING the command, as a " +
                      "'--- ROUTER LOG ---' section — the device-side story next to the wire trace. Captured over a " +
-                     "SEPARATE binary-API connection (TCP 8728, or the port given when the transport is Api; never " +
-                     "the session under test), so it does not perturb a CLI/terminal session being debugged and is " +
+                     "SEPARATE connection, never the session under test, and never less private than the call: the binary " +
+                     "API for a call already in clear text (Api, Rest, Telnet, MacTelnet; on the given port when the transport " +
+                     "is Api, else 8728), API-SSL for ApiSsl/RestSsl (with the call's certificate options; on the given port " +
+                     "when the transport is ApiSsl, else 8729), and the call's own transport for Ssh and the Winbox* " +
+                     "transports. So it does not perturb a CLI/terminal session being debugged and is " +
                      "not part of the wire trace; through a RoMON agent, over a second relayed session " +
                      "to the target. Note: log resolution is coarse and many actions " +
                      "log nothing by default (a successful /tool/wol is silent; a bad MAC or an ipsec error is logged). " +
@@ -315,7 +318,7 @@ public sealed class MikroTikTools
             var trace = wantWords ? new List<string>() : null;
             var wireCollector = wantBytes ? new WireTraceCollector(traceChannels) : null;
 
-            // Anchor the router-log window BEFORE the command runs (over a separate API connection so it never
+            // Anchor the router-log window BEFORE the command runs (over a separate connection, TryOpenSide, so it never
             // perturbs the transport under test). Remember the newest log .id; the window is everything after it.
             string? logAnchorId = includeRouterLog ? TryReadLogAnchorId(setup) : null;
 
@@ -840,32 +843,53 @@ public sealed class MikroTikTools
     }
 
     // ── Router-log correlation (includeRouterLog) ────────────────────────────────
-    // The window is captured over a dedicated binary-API connection (TCP 8728), deliberately NOT the
-    // transport under test: reading /log over a wedged mepty session would just hang, and injecting print
+    // The window is captured over a dedicated side connection (TryOpenSide), deliberately NOT the session
+    // under test: reading /log over a wedged mepty session would just hang, and injecting print
     // commands into the very stream being traced would corrupt it. The
     // window is an .id-diff — the newest log .id before the command, everything after it — which is exact
     // and independent of the router's log time format (which varies with /system/logging settings).
 
-    // Directly, the side channel is the binary API to the same host — on the port the call named when the call is over
-    // the binary API itself, and on 8728 otherwise. Through a RoMON agent the host is a RoMON id the API cannot dial, and the agent's log is not the target's: the side channel is then a second relayed session to
-    // the target, through the same agent and agent transport — a session of its own, so the one being traced is
-    // still left alone.
+    // The side channel is a session of its own, so the one being traced is left alone, and it is never less private than
+    // the call: it sends the same password (SideTransportFor). It carries the call's options — timeouts, TLS validation,
+    // the router's MAC — through the call's own setup; only a transport other than the call's leaves out the call's port,
+    // which belongs to the call's transport. Through a RoMON agent the host is a RoMON id the API cannot dial, and the
+    // agent's log is not the target's: the side channel is then a second relayed session to the target, through the same
+    // agent and agent transport.
     private static ITikConnection? TryOpenSide(TikConnectionSetup target)
     {
         try
         {
+            var call = target.ConnectionType!.Value;
             if (target.RomonAgentSetup != null)
-                return target.Create(target.ConnectionType!.Value);
-            var setup = new TikConnectionSetup(target.Address, target.User, target.Password);
-            if (target.ConnectionType == TikConnectionType.Api)
-                setup.Port = target.Port;
-            return setup.CreateApiConnection();
+                return target.Create(call);
+            var side = SideTransportFor(call);
+            if (side == call)
+                return target.Create(call);
+            // The setup is this call's own, and nothing else reads it while the side connection opens.
+            int? callPort = target.Port;
+            target.Port = null;
+            try { return target.Create(side); }
+            finally { target.Port = callPort; }
         }
         catch
         {
             return null;   // side channel is best-effort; caller degrades to "(router log unavailable)".
         }
     }
+
+    /// <summary>
+    /// The transport the router-log side channel reads over for a call over <paramref name="call"/>: the binary API for
+    /// a call that is in clear text anyway (Api, Rest, Telnet, MAC-Telnet), API-SSL for one over TLS (ApiSsl, RestSsl),
+    /// and the call's own transport for SSH and the WinBox family, which are encrypted and have no TLS API beside them
+    /// to fall back to without asking for another service.
+    /// </summary>
+    public static TikConnectionType SideTransportFor(TikConnectionType call) => call switch
+    {
+        TikConnectionType.Api or TikConnectionType.Rest or TikConnectionType.Telnet or TikConnectionType.MacTelnet
+            => TikConnectionType.Api,
+        TikConnectionType.ApiSsl or TikConnectionType.RestSsl => TikConnectionType.ApiSsl,
+        _ => call,
+    };
 
     // The /log rows, oldest first, with the named fields; the command layer translates the read for whichever
     // transport the side channel is.
