@@ -25,8 +25,19 @@ namespace tik4net.Connection
             ParameterFormat = format;
         }
 
+        /// <summary>
+        /// A login credential: its value is sent, but never rendered — <see cref="ToString"/> and every text that lists a
+        /// command's parameters (an exception's <c>Message</c> and <c>ToString()</c>) show <c>***</c> instead. Set only
+        /// on the login commands; a configured secret in an ordinary command is rendered like any value.
+        /// </summary>
+        internal bool IsSecret { get; set; }
+
+        /// <summary>The value as a text about the command may show it: <c>***</c> for a <see cref="IsSecret"/> parameter.</summary>
+        internal static string? Shown(ITikCommandParameter parameter)
+            => parameter is TikCommandParameter { IsSecret: true } ? "***" : parameter.Value;
+
         /// <inheritdoc/>
-        public override string ToString() => $"{Name}={Value}";
+        public override string ToString() => $"{Name}={Shown(this)}";
     }
 
     /// <summary>

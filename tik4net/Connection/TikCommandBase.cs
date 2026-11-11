@@ -158,7 +158,7 @@ namespace tik4net.Connection
         }
 
         public override string ToString()
-            => CommandText + " PARAMS: " + string.Join("; ", _parameters.Select(p => $"{p.Name}:{p.Value}"));
+            => CommandText + " PARAMS: " + string.Join("; ", _parameters.Select(p => $"{p.Name}:{TikCommandParameter.Shown(p)}"));
 
         // ── Execute: each class's own ─────────────────────────────────────────
 

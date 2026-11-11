@@ -363,8 +363,11 @@ namespace tik4net.Api
         {
             try
             {
+                // The credentials are IsSecret: a login that fails in any other way than a !trap leaves through
+                // TikOpenGuard with this command inside the exception, and the command's rendering would print them.
                 ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-                    new TikCommandParameter("name", user), new TikCommandParameter("password", password)); //parameters will be ignored with old login protocol
+                    new TikCommandParameter("name", user),
+                    new TikCommandParameter("password", password) { IsSecret = true }); //parameters will be ignored with old login protocol
 
                 var responseHashOrNull = await loginCommand.LoginScalarOrDefaultAsync().ConfigureAwait(false);
 
@@ -375,7 +378,7 @@ namespace tik4net.Api
                     // non-null inside the IsNullOrEmpty guard; netstandard2.0's BCL cannot tell the compiler so
                     string hashedPass = EncodePassword(password, responseHashOrNull!);
                     ApiCommand loginCommand2 = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-                        new TikCommandParameter("name", user), new TikCommandParameter("response", hashedPass));
+                        new TikCommandParameter("name", user), new TikCommandParameter("response", hashedPass) { IsSecret = true });
                     await loginCommand2.LoginNonQueryAsync().ConfigureAwait(false);
                 }
             }
