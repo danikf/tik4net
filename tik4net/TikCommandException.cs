@@ -9,6 +9,11 @@ namespace tik4net
     /// <summary>
     /// Exception thrown if any error is returned from mikrotik router call or if any command related error occurs.
     /// </summary>
+    /// <remarks>
+    /// The message and <see cref="ToString"/> include the command's parameters, configured secrets among them (a failed
+    /// <c>/ppp/secret/add</c> shows its <c>password=</c>): treat a logged exception like a wire trace. Only the login's
+    /// own password is rendered as <c>***</c>.
+    /// </remarks>
     public abstract class TikCommandException : TikConnectionException
     {
         /// <summary>

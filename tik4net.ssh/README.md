@@ -31,6 +31,11 @@ Tik4NetSsh.Register();   // then TikConnectionType.Ssh works through ConnectionF
 Logs in with the password or a private key (`TikConnectionSetup.SshPrivateKey`, applied through
 `ITikSshKeyConnection`); the key is read before connecting, so a bad one fails as itself, not as a refused login.
 
+**The router's host key is not verified unless `TikConnectionSetup.SshHostKeyFingerprint` is set** (the
+`SHA256:<base64>` of `/ip ssh print`'s `host-key-fingerprint`). Without it the session is encrypted but any host key
+is accepted, so a man in the middle receives the password. With it, `SshShellClient` checks the key in SSH.NET's
+`HostKeyReceived` and a mismatch is a `TikConnectionHostKeyMismatchException` before anything of the login is sent.
+
 It is a member of the CLI transport family, so it shares the command builder, output parser and VT100
 handling in `tik4net/Cli/` — a CLI-layer symptom here almost always affects Telnet, MAC-Telnet and both
 WinBox CLI transports too.
