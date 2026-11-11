@@ -55,6 +55,28 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
+        public void ARouterClosingBeforeItsFirstByte_IsTheSessionLimit_NotAMissingEcSrp5()
+        {
+            // RouterOS over its WinBox session limit accepts the connection and closes it at once. That is not "too old
+            // for EC-SRP5": the open must say the limit (and TikOpenRetry retries it), not suggest the legacy login.
+            // Before the opt-in, the fallback's reconnect hit the limit again and happened to report it.
+            using (var server = new FakeWinboxServer())
+            using (var session = new WinboxM2Session())
+            {
+                var serverTask = Task.Run(() =>
+                {
+                    server.AcceptClient();
+                    server.Dispose();
+                });
+
+                var ex = Assert.ThrowsException<WinboxSessionLimitException>(
+                    () => session.Open("127.0.0.1", server.Port, "admin", "", 5000, 5000));
+                StringAssert.Contains(ex.Message, "WinBox/Dude sessions");
+                serverTask.Wait(5000);
+            }
+        }
+
+        [TestMethod]
         public void WithTheOptIn_ARouterRefusingEcSrp5_GetsTheLegacyLogin()
         {
             using (var server = new FakeWinboxServer())

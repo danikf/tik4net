@@ -264,7 +264,9 @@ namespace tik4net.Winbox
             // basis for the legacy fallback — see the remarks on Authenticate for why it is not 3 s flat.
             byte[] hdr;
             try { hdr = _transport.WithReceiveTimeout(probeTimeoutMs, () => _transport.ReadExact(2)); }
-            catch (IOException ex)
+            // A connection closed before the router's first byte is its WinBox session limit, not an old router: it
+            // leaves as itself, which TikOpenRetry retries and which names the limit.
+            catch (IOException ex) when (!(ex is WinboxSessionLimitException))
             {
                 throw new WinboxEcSrp5UnsupportedException(
                     $"the router sent nothing within {probeTimeoutMs} ms of the client public key", ex);
