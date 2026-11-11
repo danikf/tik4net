@@ -43,7 +43,7 @@ The catalog is MikroTik's file, version-volatile and not redistributed with this
 is no fixed path to it. Obtain it one of these ways, in order of preference:
 
 - **Library runtime cache** — what `WinboxNativeConnection` actually parses, under
-  `%TEMP%/tik4net/<jgVersion>/*.jg`. The version subdirectory is the catalog's own version, not the
+  `%LOCALAPPDATA%/tik4net/<jgVersion>/*.jg`. The version subdirectory is the catalog's own version, not the
   RouterOS version; list the directory to find it rather than assuming. Delete a version directory to
   force a re-fetch.
 - **Dump one from a live router** with `WinboxDumpCatalogTest` in the integration test project.

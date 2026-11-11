@@ -100,9 +100,26 @@ namespace tik4net
         public string? CliFieldSeparator { get; set; } = DefaultCliFieldSeparator;
 
         /// <summary>
-        /// The default <see cref="CatalogCachePath"/>: <c>tik4net</c> under the user's temporary directory.
+        /// The default <see cref="CatalogCachePath"/>: <c>tik4net</c> under the user's local application data, on every OS —
+        /// <c>%LOCALAPPDATA%\tik4net</c> on Windows, <c>$XDG_DATA_HOME/tik4net</c> or <c>~/.local/share/tik4net</c> on
+        /// Linux, <c>~/.local/share/tik4net</c> on macOS (<see cref="Environment.SpecialFolder.LocalApplicationData"/>).
         /// </summary>
-        public static string DefaultCatalogCachePath => System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tik4net");
+        /// <remarks>
+        /// <para>A directory of the user's own, because the transports trust what they read there (the WinBox native
+        /// <c>.jg</c> catalog maps field names to M2 keys): on most Linux hosts the temporary directory is the shared
+        /// <c>/tmp</c>, where another local user could create the directory first. Under it are <c>plugins/</c> and
+        /// <c>lists/</c> (WinBox native) and <c>cli-schema/</c> (the terminal transports). Nothing secret is stored.</para>
+        /// <para>Only where the platform reports no local application data folder (no home directory) is it
+        /// <c>tik4net</c> under the temporary directory. MikroTik WinBox's own cache is never read or written.</para>
+        /// </remarks>
+        public static string DefaultCatalogCachePath
+        {
+            get
+            {
+                string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                return System.IO.Path.Combine(string.IsNullOrEmpty(local) ? System.IO.Path.GetTempPath() : local, "tik4net");
+            }
+        }
 
         /// <summary>
         /// The directory where a transport keeps what it learns about a router's menus for the next connection, or

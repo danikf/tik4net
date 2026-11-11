@@ -293,9 +293,9 @@ namespace tik4net.Cli
         public string? CatalogCachePath { get; set; } = DefaultCatalogCachePath;
 
         /// <summary>
-        /// What a new CLI connection starts with in <see cref="CatalogCachePath"/>: <c>%TEMP%/tik4net</c>, the WinBox
-        /// <c>.jg</c> cache's directory. The router-free unit tests clear it once for the whole assembly, so their fake
-        /// routers neither answer the build question nor touch the machine's cache.
+        /// What a new CLI connection starts with in <see cref="CatalogCachePath"/>:
+        /// <see cref="TikConnectionSetup.DefaultCatalogCachePath"/>, the WinBox <c>.jg</c> cache's directory. The router-free unit tests clear it once
+        /// for the whole assembly, so their fake routers neither answer the build question nor touch the machine's cache.
         /// </summary>
         internal static string? DefaultCatalogCachePath = TikConnectionSetup.DefaultCatalogCachePath;
 

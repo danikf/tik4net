@@ -304,7 +304,7 @@ namespace tik4net.Winbox
             catch { /* another process may hold it; the next connection tries again */ }
         }
 
-        // The cache directory is shared by every process on the machine (the default is %TEMP%\tik4net), and
+        // The cache directory is shared by every process of the user (the default is LocalApplicationData/tik4net), and
         // File.WriteAllText truncates the file before it writes. A process opening it in between would read part of
         // a plugin, and TryParseInto is tolerant by design, so a catalog missing half its windows would pass as
         // complete. So the file is written under a name of its own and moved into place: a reader sees the old file
