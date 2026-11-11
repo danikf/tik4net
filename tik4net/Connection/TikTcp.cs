@@ -56,6 +56,38 @@ namespace tik4net.Connection
             await connect.ConfigureAwait(false);
         }
 
+        /// <summary>The idle time before the first keepalive probe, the gap between probes, and how many go unanswered.</summary>
+        /// <remarks>A half-open connection is then found dead about 110 s after its last byte.</remarks>
+        internal const int KeepAliveIdleSeconds = 60;
+        internal const int KeepAliveIntervalSeconds = 10;
+        internal const int KeepAliveProbes = 5;
+
+        /// <summary>
+        /// Turns on TCP keepalive, so a connection whose peer has gone without a FIN or a reset (power cut, cable, a
+        /// NAT that forgot it) fails its blocked read rather than waiting on it for ever.
+        /// </summary>
+        /// <remarks>
+        /// The binary API reads its socket with no timeout (the deadline lives with each caller), and a callback monitor
+        /// waits with none at all, so on a half-open connection nothing else would ever end them. The timings are set
+        /// where the runtime has the options (net8.0); on netstandard2.0 keepalive is switched on with the operating
+        /// system's own timings. A platform that refuses the option is left as it was: keepalive is a safety net here,
+        /// not something a connection needs in order to work.
+        /// </remarks>
+        internal static void EnableKeepAlive(Socket socket)
+        {
+            try
+            {
+                socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+#if NET8_0_OR_GREATER
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, KeepAliveIdleSeconds);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, KeepAliveIntervalSeconds);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, KeepAliveProbes);
+#endif
+            }
+            catch (SocketException) { /* not supported here: the OS default (off, or its own timings) stands */ }
+            catch (PlatformNotSupportedException) { }
+        }
+
         // An abandoned connect that later fails must not surface as an unobserved task exception elsewhere.
         private static void Observe(Task t) => _ = t.ContinueWith(x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted);
     }

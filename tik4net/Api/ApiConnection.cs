@@ -240,6 +240,9 @@ namespace tik4net.Api
                     _tcpConnection.ReceiveTimeout = ReceiveTimeoutMs;
 
                 await TikTcp.ConnectAsync(_tcpConnection, host, port, ConnectTimeoutMs, cancellationToken).ConfigureAwait(false);
+                // A quiet monitor and the reader both wait on this socket with no deadline; keepalive is what ends them
+                // when the router vanishes without closing it.
+                TikTcp.EnableKeepAlive(_tcpConnection.Client);
 
                 var tcpStream = _tcpConnection.GetStream();
                 if (ReceiveTimeoutMs > 0)
@@ -1224,7 +1227,13 @@ namespace tik4net.Api
                     ITikSentence sentence;
                     do
                     {
-                        sentence = GetOne(tag);
+                        // No deadline. A monitor may legitimately say nothing for as long as it likes (a /listen on a
+                        // table nobody changes), and a deadline here ended it after ReceiveTimeout while the router
+                        // went on running it. What can end it: its own !done (Cancel), the caller's Close, or the
+                        // reader's !fatal when the socket dies (TCP keepalive covers a socket that dies silently).
+                        // A session that stays connected and stops answering is caught by the next ordinary command
+                        // on the connection, or by the caller's own Cancel.
+                        sentence = GetOne(tag, 0);
                         try
                         {
                             oneResponseCallback(sentence);
@@ -1241,9 +1250,9 @@ namespace tik4net.Api
                 }
                 catch (Exception ex)
                 {
-                    // Everything that can still land here is local (a receive timeout on this tag). Connection
-                    // loss arrives as the reader's !fatal, above. Either way the caller (ExecuteWithCallback) must be
-                    // told, or it never clears its running state — carry the reason.
+                    // Nothing should land here: the wait has no deadline, and connection loss arrives as the reader's
+                    // !fatal, above. Whatever does must still reach the caller (ExecuteWithCallback), or it never
+                    // clears its running state — carry the reason.
                     _dispatcher.Abandon(tag);
                     try
                     {

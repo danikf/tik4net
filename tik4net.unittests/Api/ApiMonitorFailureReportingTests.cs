@@ -137,10 +137,76 @@ namespace tik4net.unittests.Api
             }
         }
 
+        /// <summary>
+        /// A monitor that has nothing to report keeps running past <c>ReceiveTimeout</c>, as on the polled transports.
+        /// </summary>
+        /// <remarks>
+        /// A <c>/listen</c> on a table nobody changes, or a <c>monitor-traffic</c> with a long interval, is silent for as
+        /// long as it likes, and that silence is not a failure. The pump used to wait for each sentence with the
+        /// connection's <c>ReceiveTimeout</c>, so such a monitor died after 30 s with "connection lost", the router went on
+        /// running it, and its later replies were dropped. The pump now waits without a deadline: the caller's
+        /// <c>Cancel</c>, a <c>Close</c> or a dead socket end it (the next test).
+        /// </remarks>
         [TestMethod]
-        public void AMonitorThatTimesOutReportsItRatherThanStoppingSilently()
+        public void AQuietMonitorRunsOnPastTheReceiveTimeout()
         {
-            const int receiveTimeoutMs = 800;
+            const int receiveTimeoutMs = 500;
+
+            using (var server = new FakeRouterServer())
+            {
+                var cancelled = new ManualResetEventSlim(false);
+                var serverTask = Task.Run(() =>
+                {
+                    server.AcceptClient();
+                    server.ReadSentence();          // login
+                    server.WriteSentence("!done");
+                    server.ReadSentence();          // the monitor command: nothing changes, so nothing is sent…
+                    var cancel = server.ReadSentence();   // …until the caller cancels it
+                    cancelled.Set();
+                    string monitorTag = cancel.Find(w => w.StartsWith("=tag=", StringComparison.Ordinal)).Substring(5);
+                    server.WriteSentence("!trap", "=category=2", "=message=interrupted", ".tag=" + monitorTag);
+                    server.WriteSentence("!done", ".tag=" + monitorTag);
+                    server.WriteSentence("!done");   // the /cancel's own (echoed tag)
+                    try { server.ReadSentence(); } catch { }
+                });
+
+                using (var connection = new ApiConnection(false))
+                {
+                    connection.ReceiveTimeout = TimeSpan.FromMilliseconds(receiveTimeoutMs);
+                    connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                    var reported = new ManualResetEventSlim(false);
+                    var done = new ManualResetEventSlim(false);
+                    ITikTrapSentence trap = null;
+
+                    ITikCommand command = connection.CreateCommand("/interface/listen");
+                    command.ExecuteWithCallback(
+                        row => { },
+                        error => { trap = error; reported.Set(); },
+                        () => done.Set());
+
+                    Assert.IsFalse(reported.Wait(receiveTimeoutMs * 5),
+                        "a monitor with nothing to report was ended after the connection's ReceiveTimeout: " + trap?.Message);
+                    Assert.IsFalse(done.IsSet, "nothing ended the monitor, so nothing may report it done");
+                    Assert.IsTrue(command.IsRunning, "the quiet monitor must still be running");
+
+                    Assert.IsTrue(command.CancelAndJoin(TimeSpan.FromSeconds(5)), "the cancel did not stop it");
+                    Assert.IsTrue(cancelled.IsSet, "the router was never asked to stop the monitor");
+                    Assert.IsTrue(done.Wait(2000), "a cancelled monitor ends in onDone");
+                    Assert.IsNull(trap, "a cancel is not an error: " + trap?.Message);
+                }
+
+                Assert.IsTrue(serverTask.Wait(10000));
+            }
+        }
+
+        /// <summary>
+        /// Without the per-sentence deadline, a dead socket still ends the monitor and reaches its error callback.
+        /// </summary>
+        [TestMethod]
+        public void AQuietMonitorWhoseSocketDiesReportsIt()
+        {
+            const int receiveTimeoutMs = 500;
 
             using (var server = new FakeRouterServer())
             {
@@ -149,8 +215,9 @@ namespace tik4net.unittests.Api
                     server.AcceptClient();
                     server.ReadSentence();          // login
                     server.WriteSentence("!done");
-                    server.ReadSentence();          // the monitor command — deliberately never answered
-                    Thread.Sleep(6000);             // outlive the client's timeout without closing the socket
+                    server.ReadSentence();          // the monitor command — quiet…
+                    Thread.Sleep(receiveTimeoutMs * 3);
+                    server.CloseClientConnection(); // …and then the router goes away without a word
                 });
 
                 using (var connection = new ApiConnection(false))
@@ -168,23 +235,50 @@ namespace tik4net.unittests.Api
                         error => { trap = error; reported.Set(); },
                         () => { doneFired = true; reported.Set(); });
 
-                    // Generous: the point is that SOMETHING is reported, not how fast. A silent stop shows
-                    // up here as the wait running out with all three callbacks untouched.
-                    Assert.IsTrue(reported.Wait(receiveTimeoutMs * 5),
-                        $"the monitor stopped without telling anyone — no callback fired within "
-                        + $"{receiveTimeoutMs * 5} ms of a {receiveTimeoutMs} ms ReceiveTimeout. A caller has "
-                        + "no other way to find out, so it goes on believing it is listening.");
+                    Assert.IsTrue(reported.Wait(receiveTimeoutMs * 10),
+                        "the monitor stopped without telling anyone when its connection died. A caller has no other "
+                        + "way to find out, so it goes on believing it is listening.");
 
                     Assert.IsFalse(doneFired,
-                        "a timed-out monitor is not a completed one: !done means the router finished the "
-                        + "command, and nothing here did");
+                        "a lost monitor is not a completed one: !done means the router finished the command");
                     Assert.IsNotNull(trap, "the failure must arrive as a trap, as it does on the other transports");
-                    Assert.IsFalse(string.IsNullOrWhiteSpace(trap.Message),
-                        "an unattributed failure is barely better than a silent one");
+                    StringAssert.Contains(trap.Message, "connection lost");
                     Assert.IsNotNull(trap.CategoryCode, "ITikTrapSentence declares CategoryCode non-nullable");
+                    Assert.IsFalse(command.IsRunning);
                 }
 
                 Assert.IsTrue(serverTask.Wait(10000));
+            }
+        }
+
+        /// <summary>
+        /// A socket that dies without a FIN or a reset is what keepalive is for: with no deadline on a quiet monitor,
+        /// nothing else would end it.
+        /// </summary>
+        [TestMethod]
+        public void TheApiSocketHasTcpKeepAlive()
+        {
+            using (var server = new FakeRouterServer())
+            {
+                var serverTask = Task.Run(() =>
+                {
+                    server.AcceptClient();
+                    server.ReadSentence();          // login
+                    server.WriteSentence("!done");
+                    server.ReadSentence();          // /quit, sent by Close()
+                    server.WriteSentence("!fatal", "session terminated on request");
+                });
+
+                using (var connection = new ApiConnection(false))
+                {
+                    connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+                    var tcp = (System.Net.Sockets.TcpClient)typeof(ApiConnection)
+                        .GetField("_tcpConnection", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                        .GetValue(connection);
+                    var keepAlive = (int)tcp.Client.GetSocketOption(System.Net.Sockets.SocketOptionLevel.Socket,
+                        System.Net.Sockets.SocketOptionName.KeepAlive);
+                    Assert.AreNotEqual(0, keepAlive, "TCP keepalive is off on the API socket");
+                }
             }
         }
     }

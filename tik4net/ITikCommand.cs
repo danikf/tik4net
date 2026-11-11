@@ -334,6 +334,13 @@ namespace tik4net
         /// mapper's equivalents were renamed to <c>LoadWithCallback</c>/<c>LoadListenWithCallback</c>, which
         /// is the vocabulary to prefer when writing new code against either level.
         /// </para>
+        /// <para>
+        /// The command runs until it ends by itself, until <see cref="Cancel"/>, or until the connection ends, however long
+        /// it stays quiet: <see cref="ITikConnection.ReceiveTimeout"/> does not apply to it, on any transport. A
+        /// <c>/listen</c> on a table nobody changes keeps listening. A connection lost under it reaches
+        /// <paramref name="errorCallback"/>; on the binary API, TCP keepalive finds a router that went away without
+        /// closing the socket, about two minutes after its last byte.
+        /// </para>
         /// </remarks>
         /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>
         /// <param name="errorCallback">Callback called once when the command ends with an error: the router's error, or a lost
