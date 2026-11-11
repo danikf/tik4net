@@ -119,16 +119,17 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void QuoteIfNeeded_LineBreaks_AreEscaped_ATabIsNot()
+        public void QuoteIfNeeded_LineBreaks_AndATab_AreEscaped()
         {
             // A line break typed into an open quoted value is dropped by RouterOS 6 (a three-line script written
             // over Telnet was stored as one line, 6.49.13); \n and \r store the break on 6.49.13 and 7.24.4 alike.
-            // A real backslash-n cannot be mistaken for one: its backslash is doubled first. \t is not used: it
-            // stores a tab on 6.49.13 but four spaces on 7.24.4.
+            // A real backslash-n cannot be mistaken for one: its backslash is doubled first. A tab typed raw is stored
+            // as two spaces (6.49.21 and 7.25.1), so it is written as its hex escape like every control character
+            // (CliControlCharacterTests): \09 stores a tab on 6.49.21 and four spaces on 7.25.1, as \t does.
             Assert.AreEqual("\"a\\nb\"", CliCommandBuilder.QuoteIfNeeded("a\nb"));
             Assert.AreEqual("\"a\\r\\nb\"", CliCommandBuilder.QuoteIfNeeded("a\r\nb"));
             Assert.AreEqual("\"C:\\\\new\"", CliCommandBuilder.QuoteIfNeeded("C:\\new"));
-            Assert.AreEqual("\"a\tb\"", CliCommandBuilder.QuoteIfNeeded("a\tb"));
+            Assert.AreEqual("\"a\\09b\"", CliCommandBuilder.QuoteIfNeeded("a\tb"));
         }
 
         [TestMethod]

@@ -741,17 +741,46 @@ Full escape set (MikroTik docs, verified for `\$ \\ \" \t \n \_ \41`): `\"` `\\`
 
 `CliCommandBuilder.QuoteIfNeeded`/`QuoteForWhere` therefore quote any value that is not entirely
 `[A-Za-z0-9._-]` — which covers `$`, `\`, whitespace, `;`, `#` and `"` along with everything above — and
-escape inside the quotes in the order `\` → `"` → `$` (escaping the
-backslash first, or the pass that escapes `$` would double what the backslash pass already added). An
-actual newline inside a quoted value is left as a real character rather than rewritten to `\n` — RouterOS
-accepts a literal line break inside an open quote (that is how a multi-line script source round-trips),
-and rewriting it would be indistinguishable from a value that genuinely contains a backslash followed by
-`n`. CR/LF are still in the trigger set for the opposite reason: **unquoted**, they would terminate the
-command line and the remainder would be executed as a separate command.
+escape inside the quotes, the backslash first (or the later escapes would be doubled): `\` → `\\`, `"` → `\"`,
+`$` → `\$`, CR → `\r`, LF → `\n`, and every other control character as its hex escape (next section). A line
+break typed into an open quote is kept by RouterOS 7 but dropped by RouterOS 6, while `\r`/`\n` store it on both;
+a value that really holds a backslash and an `n` cannot be mistaken for one, since its backslash is doubled
+first. CR/LF are in the trigger set for the opposite reason too: **unquoted**, they would terminate the command
+line and the remainder would be executed as a separate command.
 
 A value read back that was written unescaped is corrupted **at the router**, not in transit — the add
 succeeds, the `.id` comes back, nothing complains, and every other transport agrees on the same wrong
 stored value.
+
+### The line is typed: a control byte edits it, even inside quotes
+
+A CLI transport does not send a command, it **types** it into the console's line editor, and the editor acts on
+keys whether or not they stand inside a quoted string. Measured over Telnet on 7.25.1 and 6.49.21, a `where`
+value in a read:
+
+| Value typed | What the router did |
+|---|---|
+| `x<03>:put T4NINJ` (Ctrl-C) | `expected end of command (line 1 column 12)`: the line typed so far was dropped, and `:put T4NINJ"]…` was parsed as a new command. A tail written to fit the rest of the line runs as the connection's user |
+| `x<C2 9B>:put T4NINJ` (U+009B) | echoed as `xut T4NINJ`: the byte 0x9B is a CSI, and it ate `:p` |
+| `xě:put T4NINJ` | the same: UTF-8 `ě` is `C4 9B`. Every character whose UTF-8 form holds a byte 0x80–0x9F is a C1 control to the editor (`Û` = `C3 9B` among them) |
+| `a<TAB>b` | stored as `a  b`, two spaces |
+
+The hex escape `\XX` stores the byte itself. Written over Telnet, read back over the API, on both versions:
+`\03 \1B \7F \01 \1F \00` are exactly those bytes, `\C4\9B` is `ě` in UTF-8, and `:len "a\FFb"` is 3. **Only
+uppercase digits parse**: `:put [:len "a\1bb"]` prints nothing. `\09`, like `\t`, stores a TAB on 6.49.21 and four
+spaces on 7.25.1, so a TAB cannot be written faithfully to 7.x over the CLI at all.
+
+So inside a quoted string only printable ASCII is typed. `CliCommandBuilder` writes every C0 control (TAB
+included) and DEL as `\XX`: they are the same byte in every encoding a terminal uses. `CliConsole` then types
+every line through `CliTerminalLine.ForTerminal`, which writes each remaining character outside printable ASCII
+inside quotes as the `\XX` of its bytes in the connection's `Encoding` — a raw command's quoted strings included,
+since the router reads the same string either way. Outside quotes a line is typed as written. On Telnet, a data
+byte 0xFF (IAC) is doubled as well; UTF-8 never produces it, a single-byte encoding does.
+
+The same values are inert on the API, REST and WinBox native, which send a value as data.
+
+A **stored** U+009B comes back without it on a CLI read (7.25.1, Telnet and WinBox CLI), although `ě` and `Û`,
+which carry the same byte, come back intact: the read path, not the write.
 
 ---
 

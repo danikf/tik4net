@@ -59,11 +59,13 @@ namespace tik4net.Cli
         /// </summary>
         /// <remarks>The prologue: the line with <c>without-paging</c> injected, the interrupt latch cleared (a request from
         /// before the call is void; one made from here on, the residue's drain included, is this command's), the residue of
-        /// the previous read dealt with, a carrier that has ended refused, the line and one Enter written.</remarks>
+        /// the previous read dealt with, a carrier that has ended refused, the line and one Enter written. Inside a quoted
+        /// string the line is typed as printable ASCII only (<see cref="CliTerminalLine.ForTerminal"/>): the router's line
+        /// editor acts on a control byte, and on a C1 byte inside a UTF-8 character, even there.</remarks>
         public async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            string cmd = CliEndMarker.InjectWithoutPaging(command);
+            string cmd = CliTerminalLine.ForTerminal(CliEndMarker.InjectWithoutPaging(command), _carrier.Encoding);
             _interrupt.Clear();
             await DealWithResidueAsync(cmd, beforeCommand: true, ct).ConfigureAwait(false);
             _carrier.ThrowIfEnded(cmd);

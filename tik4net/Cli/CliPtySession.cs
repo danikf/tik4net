@@ -35,6 +35,7 @@ namespace tik4net.Cli
         private readonly string _traceChannel;
         private readonly string _enter;
         private readonly CliInboundFilter? _inboundFilter;
+        private readonly Func<byte[], byte[]>? _outboundData;
         private readonly Action<bool> _closeCarrier;
         private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
         private readonly CliPasswordPromptGuard _passwordPrompt = new CliPasswordPromptGuard();
@@ -53,9 +54,11 @@ namespace tik4net.Cli
         /// up, then releases the carrier. Never throws.</param>
         /// <param name="inboundFilter">Strips carrier negotiation from each received chunk and gives its answer (Telnet
         /// IAC); null when the carrier has none.</param>
+        /// <param name="outboundData">Escapes what this session writes as data — every write except the answers
+        /// <paramref name="inboundFilter"/> gives — for the carrier (Telnet doubles an IAC byte); null when nothing needs it.</param>
         internal CliPtySession(ICliByteStream stream, Encoding encoding, Func<int> receiveTimeoutMs,
             string transportName, string traceChannel, string enter, Action<bool> closeCarrier,
-            CliInboundFilter? inboundFilter = null)
+            CliInboundFilter? inboundFilter = null, Func<byte[], byte[]>? outboundData = null)
         {
             _stream = stream ?? throw new ArgumentNullException(nameof(stream));
             _encoding = encoding ?? Encoding.UTF8;
@@ -64,6 +67,7 @@ namespace tik4net.Cli
             _traceChannel = traceChannel;
             _enter = enter;
             _inboundFilter = inboundFilter;
+            _outboundData = outboundData;
             _closeCarrier = closeCarrier ?? throw new ArgumentNullException(nameof(closeCarrier));
             Terminal = new CliConsole(this);
         }
@@ -245,7 +249,7 @@ namespace tik4net.Cli
             {
                 chunk = _inboundFilter(chunk, out byte[] reply);
                 if (reply.Length > 0)
-                    await SendBytesAsync(reply, CancellationToken.None).ConfigureAwait(false);
+                    await WriteAsync(reply, CancellationToken.None).ConfigureAwait(false);
             }
 
             string text = _encoding.GetString(chunk);
@@ -328,8 +332,13 @@ namespace tik4net.Cli
         internal Task SendLineAsync(string text, CancellationToken ct)
             => SendBytesAsync(_encoding.GetBytes(text + _enter), ct);
 
-        /// <summary>Writes <paramref name="bytes"/> as they are.</summary>
+        /// <summary>Writes <paramref name="bytes"/> as data: as they are, but for the carrier's own escaping
+        /// (<c>outboundData</c>, the Telnet IAC).</summary>
         internal Task SendBytesAsync(byte[] bytes, CancellationToken ct)
+            => WriteAsync(_outboundData != null ? _outboundData(bytes) : bytes, ct);
+
+        // The carrier's write, traced: data already escaped, or a negotiation answer, which must not be.
+        private Task WriteAsync(byte[] bytes, CancellationToken ct)
         {
             if (TikWireTrace.Enabled)
                 TikWireTrace.Emit(_traceChannel, TikWireDir.Send, bytes, 0, bytes.Length);

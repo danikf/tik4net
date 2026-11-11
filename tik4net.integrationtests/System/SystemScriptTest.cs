@@ -149,6 +149,61 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// Control characters and characters whose UTF-8 form holds a C1 byte reach the router as written (security
+        /// review X3). Over a CLI transport the value is TYPED: a raw Ctrl-C dropped the line, and the 0x9B in UTF-8
+        /// <c>ě</c> (C4 9B) and <c>Û</c> (C3 9B) was a CSI to the line editor. The stored copy is read back over the
+        /// binary API, so this asserts the write; the leg's own read is asserted after it, separately.
+        /// <para>U+009B itself is left out: it is stored correctly too, but the CLI read loses it (7.25.1, Telnet and
+        /// WinBox CLI), which is a defect of the read path, not of this write.</para>
+        /// </summary>
+        [TestMethod]
+        public void ScriptSource_SurvivesControlCharactersAndNonAscii()
+        {
+            EnsureCommandAvailable("/system/script");
+            const string source = "# a\u0003:put T4NINJ ěÛ \u007f \u0001\n";
+            var entity = new SystemScript { Name = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12), Source = source };
+            SaveTracked(entity);
+            try
+            {
+                string stored;
+                using (var api = LabSetup(TikConnectionType.Api).Create(TikConnectionType.Api))
+                    stored = api.LoadById<SystemScript>(entity.Id)?.Source.Value;
+                Assert.AreEqual(Escape(source), Escape(stored ?? "<no row>"), "the router stored something else");
+
+                Assert.AreEqual(Escape(source), Escape(Connection.LoadById<SystemScript>(entity.Id)?.Source.Value ?? "<no row>"),
+                    "stored correctly, but this transport reads it back differently");
+            }
+            finally
+            {
+                Connection.Delete(entity);
+            }
+        }
+
+        /// <summary>
+        /// A filter value cannot break out of its quoted string on a CLI transport (security review X3). Typed raw, the
+        /// Ctrl-C dropped the line typed so far and the router parsed <c>:put T4NINJ"]…</c> as a new command, answering
+        /// "expected end of command"; <c>ě</c> (UTF-8 C4 9B) and U+009B carry the byte 0x9B, a CSI to the line editor,
+        /// which ate the characters after it (7.25.1 and 6.49.21). On every transport this is an ordinary filter that
+        /// matches nothing.
+        /// </summary>
+        [TestMethod]
+        [SafeInParallelLegs]
+        public void AFilterValueHoldingControlBytes_MatchesNothing_AndRunsNothing()
+        {
+            EnsureCommandAvailable("/system/script");
+            foreach (string value in new[] { "x\u0003:put T4NINJ", "xě:put T4NINJ", "x\u009b:put T4NINJ", "x\u001b[2J\u007f" })
+            {
+                var cmd = Connection.CreateCommand("/system/script/print");
+                cmd.AddParameter("name", value, TikCommandParameterFormat.Filter);
+
+                Assert.AreEqual(0, cmd.ExecuteList().Count(), "a script named " + Escape(value));
+            }
+        }
+
+        private static string Escape(string s)
+            => string.Concat(s.Select(c => c < 0x20 || c >= 0x7F ? "\\u" + ((int)c).ToString("x4") : c.ToString()));
+
+        /// <summary>
         /// Writes <paramref name="source"/> to a throwaway script and asserts the router's stored
         /// copy is byte-for-byte what was sent. Shared by the two quoting tests above.
         /// </summary>

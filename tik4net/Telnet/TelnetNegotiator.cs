@@ -20,6 +20,29 @@ namespace tik4net.Telnet
         private const byte SE   = 240;  // sub-negotiation end
 
         /// <summary>
+        /// <paramref name="data"/> with every 0xFF doubled: in the data stream a single one is IAC, and the router's
+        /// Telnet server reads what follows it as a Telnet command. UTF-8 never produces the byte; a single-byte encoding
+        /// does (Latin-1 <c>ÿ</c>, windows-1250 <c>˙</c>), in a command or in the password typed at login.
+        /// </summary>
+        internal static byte[] EscapeData(byte[] data)
+        {
+            int iacs = 0;
+            foreach (byte b in data)
+                if (b == IAC) iacs++;
+            if (iacs == 0)
+                return data;
+
+            var escaped = new byte[data.Length + iacs];
+            int j = 0;
+            foreach (byte b in data)
+            {
+                escaped[j++] = b;
+                if (b == IAC) escaped[j++] = IAC;
+            }
+            return escaped;
+        }
+
+        /// <summary>
         /// Processes <paramref name="incoming"/> bytes: strips IAC sequences from the data
         /// and builds the negotiation reply bytes to send back to the server.
         /// </summary>

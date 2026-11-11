@@ -1127,9 +1127,11 @@ namespace tik4net.Cli
         /// typed into an open quoted value is kept by RouterOS 7 but DROPPED by RouterOS 6 — a three-line script written
         /// over Telnet was stored as one line on 6.49.13 — while the escapes store the same break on 6.49.13 and 7.24.4
         /// alike. They cannot be confused with a value that really carries a backslash and an <c>n</c>: its backslash is
-        /// doubled first, and <c>C:\\new</c> is stored as <c>C:\new</c> on both. A tab is left as it is: <c>\t</c> stores
-        /// a tab on 6.49.13 but four spaces on 7.24.4. CR/LF are in the trigger set for the opposite reason too —
-        /// *unquoted* they would end the command line and the tail would be executed as one.</para>
+        /// doubled first, and <c>C:\\new</c> is stored as <c>C:\new</c> on both. Every other control character, TAB
+        /// included, is written as its hex escape <c>\XX</c> (<see cref="EscapeInsideQuotes"/>): typed raw, a control key
+        /// edits the line. A TAB cannot be stored faithfully on 7.x either way: <c>\09</c> (like <c>\t</c>) stores a tab on
+        /// 6.49.21 and four spaces on 7.25.1, typed raw it is two spaces on both. CR/LF are in the trigger set for the
+        /// opposite reason too — *unquoted* they would end the command line and the tail would be executed as one.</para>
         /// </summary>
         internal static string? QuoteIfNeeded(string? value)
         {
@@ -1184,14 +1186,37 @@ namespace tik4net.Cli
         /// Shared by <see cref="QuoteIfNeeded"/> (name=value arguments) and
         /// <see cref="QuoteForWhere"/> (where-clause operands) so the two cannot drift apart.
         /// </summary>
+        /// <remarks>
+        /// Every other control character — C0 and DEL, TAB included — is written as RouterOS's hex escape <c>\XX</c>
+        /// (<see cref="CliTerminalLine.AppendHexEscape"/>). The line is TYPED into the router's line editor, which acts
+        /// on a control key inside a quoted string as anywhere else: Ctrl-C (0x03) drops what was typed so far and the
+        /// rest of the value is read as a new command (measured on 7.25.1 and 6.49.21: <c>where name="x&lt;03&gt;:put
+        /// T4NINJ"</c> was answered "expected end of command (line 1 column 12)"). A raw TAB is stored as two spaces.
+        /// The escape stores the byte itself on both versions (read back over the API); a control character is the same
+        /// byte in every encoding a terminal uses, so this needs no encoding. A non-ASCII character does, and the console
+        /// escapes it (<see cref="CliTerminalLine.ForTerminal"/>).
+        /// </remarks>
         private static string EscapeInsideQuotes(string value)
         {
-            return value
-                .Replace("\\", "\\\\")
-                .Replace("\"", "\\\"")
-                .Replace("$", "\\$")
-                .Replace("\r", "\\r")
-                .Replace("\n", "\\n");
+            var sb = new StringBuilder(value.Length + 8);
+            foreach (char c in value)
+            {
+                switch (c)
+                {
+                    case '\\': sb.Append("\\\\"); break;
+                    case '"':  sb.Append("\\\""); break;
+                    case '$':  sb.Append("\\$"); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    default:
+                        if (CliTerminalLine.IsControl(c))
+                            CliTerminalLine.AppendHexEscape(sb, (byte)c);
+                        else
+                            sb.Append(c);
+                        break;
+                }
+            }
+            return sb.ToString();
         }
     }
 }
