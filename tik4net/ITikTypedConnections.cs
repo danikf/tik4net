@@ -167,6 +167,7 @@ namespace tik4net
         /// version-matched <c>.jg</c> catalog, so this mapping keeps working across RouterOS upgrades. <b>Prefer
         /// this over <see cref="PathOverride"/></b>, which pins a handler number that may move.
         /// </summary>
+        /// <remarks>Configure it before sharing the connection between threads: commands read the mapping without a lock.</remarks>
         /// <param name="apiPath">RouterOS API path, e.g. <c>/ppp/secret</c>.</param>
         /// <param name="winboxMenuPath">WinBox menu-label path, e.g. <c>/ppp/ppp-secret</c>.</param>
         void PathAlias(string apiPath, string winboxMenuPath);
@@ -178,6 +179,7 @@ namespace tik4net
         /// GUI label is not usable (no window in the menu tree, or a wrong/ambiguous label); the numbers are
         /// version-specific, so re-verify them after a RouterOS upgrade.
         /// </summary>
+        /// <remarks>Configure it before sharing the connection between threads: commands read the mapping without a lock.</remarks>
         /// <param name="apiPath">RouterOS API path, e.g. <c>/tool/sniffer</c>.</param>
         /// <param name="handler">The M2 handler, e.g. <c>[27, 101]</c>.</param>
         void PathOverride(string apiPath, int[] handler);
@@ -191,6 +193,7 @@ namespace tik4net
         /// <c>unknown parameter &lt;name&gt;</c> <see cref="TikCommandTrapException"/>, with a
         /// <see cref="Winbox.WinboxFieldResolutionException"/> as its <see cref="System.Exception.InnerException"/>. When the
         /// router does have the field, the override supplies the key.
+        /// <para>Configure it before sharing the connection between threads: commands read the mapping without a lock.</para>
         /// </remarks>
         /// <param name="apiPath">API path, e.g. <c>/interface</c>.</param>
         /// <param name="apiName">RouterOS API field name, e.g. <c>mtu</c>.</param>

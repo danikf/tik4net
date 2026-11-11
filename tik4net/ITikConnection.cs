@@ -54,8 +54,8 @@ namespace tik4net
     /// a reply to its caller by its own means — the API by the <c>.tag</c> word, REST because every command
     /// is a separate HTTP request, native WinBox by the M2 request id — so several callers may have a
     /// command in flight at once and each gets its own reply.
-    /// <b>On the binary API this needs <see cref="ITikTaggedConnection.SendTagWithSyncCommand"/> set to
-    /// <c>true</c> first</b>; see that property.
+    /// On the binary API this rests on <see cref="ITikTaggedConnection.SendTagWithSyncCommand"/>, which is
+    /// <c>true</c> by default; turning it off makes concurrent callers receive each other's rows.
     /// </item>
     /// <item>
     /// <b>Commands queue</b> on the CLI family (Telnet, SSH, MAC-Telnet, and WinBox CLI over TCP or the MAC
@@ -90,6 +90,18 @@ namespace tik4net
     /// <b>Safe Mode is connection-wide state, not a per-command option</b> —
     /// <see cref="ITikSafeModeConnection.SafeModeTake"/> and its siblings must not be driven from two
     /// threads, and any command issued while it is held takes part in it.
+    /// </item>
+    /// <item>
+    /// <b>Configure the connection before sharing it.</b> The settings — <see cref="Encoding"/>, the timeouts,
+    /// <see cref="DebugEnabled"/>, and WinBox native's <c>PathAlias</c> / <c>PathOverride</c> /
+    /// <c>FieldOverride</c> — are plain values that commands on other threads read without a lock. Set them on one
+    /// thread, before other threads use the connection, as with <see cref="TikConnectionSetup"/>.
+    /// </item>
+    /// <item>
+    /// <b><see cref="OnReadRow"/> and <see cref="OnWriteRow"/> run on transport threads, concurrently.</b> On the
+    /// binary API a read row is raised on the reader thread while every caller raises its own written rows on its
+    /// own thread, so a handler sees the two directions interleaved, in no fixed order, and must be thread-safe.
+    /// The same holds for the <see cref="DebugEnabled"/> trace.
     /// </item>
     /// <item>
     /// <b>The O/R mapper follows the connection.</b> Its change tracking is per connection and safe for
@@ -129,6 +141,10 @@ namespace tik4net
         /// <c>Debugger.IsAttached</c>, so it is normally on while debugging and off in a shipped build;
         /// what it is never safe to do is route <see cref="System.Diagnostics.Debug"/> output to a file or
         /// a telemetry sink and leave this on.
+        /// <para>
+        /// The trace is written from the threads that read and write, concurrently, as <see cref="OnReadRow"/> and
+        /// <see cref="OnWriteRow"/> are raised. Set it before sharing the connection between threads.
+        /// </para>
         /// </remarks>
         bool DebugEnabled { get; set; }
 
@@ -178,7 +194,9 @@ namespace tik4net
         /// Gets or sets how long a command waits for its answer. Defaults to 30 s.
         /// </summary>
         /// <remarks>
-        /// <para>May be changed on an open connection: the next command waits by the new value, on every transport.</para>
+        /// <para>May be changed on an open connection: the next command waits by the new value, on every transport.
+        /// Change it from the thread that uses the connection, or before sharing it: the value is read without a lock
+        /// by commands on other threads.</para>
         /// <para>
         /// This bounds <b>one command waiting for its answer</b>, not the connection's right to exist: an
         /// idle connection with no command in flight is not subject to it and stays open. On the binary API
@@ -231,6 +249,11 @@ namespace tik4net
         /// built for capture instead — it redacts the credential — and it also covers the transports these
         /// events do not.
         /// </para>
+        /// <para>
+        /// The handler runs on whichever thread reads — on the binary API the connection's reader thread — and
+        /// concurrently with <see cref="OnWriteRow"/> handlers on the callers' threads, with no ordering between the
+        /// two directions. Make it thread-safe, and keep it short: on the binary API every reply waits for it.
+        /// </para>
         /// </remarks>
         /// <seealso cref="OnWriteRow"/>
         event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
@@ -252,6 +275,10 @@ namespace tik4net
         /// or a bug tracker unfiltered. <see cref="tik4net.Diagnostics.TikWireTrace"/> is the diagnostic
         /// built for capture instead — it redacts the credential — and it also covers the transports these
         /// events do not.
+        /// </para>
+        /// <para>
+        /// The handler runs on the thread of the caller whose command is written, so with several threads on one
+        /// connection it runs on several at once, and concurrently with <see cref="OnReadRow"/>. Make it thread-safe.
         /// </para>
         /// </remarks>
         /// <seealso cref="OnReadRow"/>
