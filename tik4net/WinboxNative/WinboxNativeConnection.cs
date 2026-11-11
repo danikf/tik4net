@@ -58,7 +58,7 @@ namespace tik4net.WinboxNative
     /// </remarks>
     public class WinboxNativeConnection : TikCommandConnectionBase, ITikWinboxNativeConnection,
         ITikMonitorTransport, IPollingMonitorHost, ITikMenuSchemaConnection, ITikCatalogCacheConnection,
-        ITikRomonConnection, IWinboxNativeHost
+        ITikRomonConnection, IWinboxNativeHost, ITikWinboxLegacyLoginConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly); the MAC-layer
         // subclass constructor is internal too and calls this one.
@@ -316,7 +316,12 @@ namespace tik4net.WinboxNative
         /// WinBox session (port 8291); <see cref="WinboxNativeMac.WinboxNativeMacConnection"/> overrides it
         /// to ride the MAC-layer channel (UDP 20561).
         /// </summary>
-        private protected virtual IWinboxM2Channel CreateCarrier() => new WinboxM2Session();
+        private protected virtual IWinboxM2Channel CreateCarrier() => new WinboxM2Session { AllowLegacyLogin = AllowLegacyWinboxLogin };
+
+        /// <inheritdoc/>
+        /// <remarks>The TCP carrier only, here and through a RoMON agent (where it is the agent's login).
+        /// <see cref="WinboxNativeMac.WinboxNativeMacConnection"/> has no legacy login and ignores it.</remarks>
+        public bool AllowLegacyWinboxLogin { get; set; }
 
         /// <summary>
         /// The router's MAC on a MAC-layer carrier, which names a RoMON agent opened by MAC alone; <c>null</c> on TCP.

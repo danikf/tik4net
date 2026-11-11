@@ -122,9 +122,10 @@ namespace tik4net
     /// opening comes from the callback, what you use afterwards is on this interface.
     /// </para>
     /// <para>
-    /// <b>Setting facets not on this type.</b> The connection also implements <see cref="ITikCatalogCacheConnection"/>,
-    /// which <see cref="TikConnectionSetup"/> applies when it creates the connection; a caller who needs it afterwards
-    /// casts: <c>((ITikCatalogCacheConnection)connection).CatalogCachePath</c>.
+    /// <b>Setting facets not on this type.</b> The connection also implements <see cref="ITikCatalogCacheConnection"/>
+    /// and <see cref="ITikWinboxLegacyLoginConnection"/>, which <see cref="TikConnectionSetup"/> applies when it creates
+    /// the connection; a caller who needs one afterwards casts:
+    /// <c>((ITikCatalogCacheConnection)connection).CatalogCachePath</c>.
     /// </para>
     /// <para>
     /// <b>Thread safety.</b> Safe from several threads, and commands genuinely overlap once the

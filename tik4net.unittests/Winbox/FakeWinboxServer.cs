@@ -16,7 +16,7 @@ namespace tik4net.unittests.Winbox
     /// </summary>
     /// <remarks>
     /// <para><b>How the auth shortcut works.</b> <c>WinboxM2Session.Authenticate</c> tries EC-SRP5 first and
-    /// falls back to legacy MD5 when the exception message contains "EC-SRP5". A server that answers the
+    /// falls back to legacy MD5 on WinboxEcSrp5UnsupportedException when the session opts in (AllowLegacyLogin, which every test using this fake sets). A server that answers the
     /// EC-SRP5 hello with any frame tag other than <c>0x06</c> triggers exactly that
     /// ("EC-SRP5 not supported by server (tag=…)"), so <see cref="RejectEcSrp5"/> gets us onto the scriptable
     /// legacy path instantly — without waiting out the client's 3 s probe window.</para>

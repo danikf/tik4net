@@ -93,6 +93,13 @@ namespace tik4net.unittests.Connection
             TikConnectionType.WinboxNative, TikConnectionType.WinboxNativeMac,
         };
 
+        private static readonly TikConnectionType[] LegacyWinboxLoginTransports =
+        {
+            // The TCP carrier's pre-6.43 MD5 login. WinBox native over MAC inherits the facet from the TCP class and
+            // has no legacy login to apply it to; the WinBox CLI transports cannot open a terminal on a clear session.
+            TikConnectionType.WinboxNative, TikConnectionType.WinboxNativeMac,
+        };
+
         [ClassInitialize]
         public static void RegisterSatelliteTransports(TestContext context)
             => Tik4NetSsh.Register();   // idempotent; makes TikConnectionType.Ssh creatable like a built-in
@@ -119,6 +126,7 @@ namespace tik4net.unittests.Connection
             CertificateFingerprint = CertificatePin,
             CertificateValidationCallback = new System.Net.Security.RemoteCertificateValidationCallback(CertCallback),
             SshHostKeyFingerprint = SshHostKeyPin,
+            AllowLegacyWinboxLogin = true,
         };
 
         private const string CertificatePin = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
@@ -320,6 +328,25 @@ namespace tik4net.unittests.Connection
                     if (conn is ITikSshKeyConnection ssh)
                         Assert.AreEqual(SshHostKeyPin, ssh.SshHostKeyFingerprint, type.ToString());
                 }
+            }
+        }
+
+        [TestMethod]
+        public void TheLegacyWinboxLoginOptInReachesExactlyTheWinboxNativeTransports_AndIsOffByDefault()
+        {
+            var setup = NonDefaultSetup();
+            foreach (var type in AllTransports)
+            {
+                using (var conn = setup.CreateUnopened(type))
+                {
+                    bool expected = LegacyWinboxLoginTransports.Contains(type);
+                    Assert.AreEqual(expected, conn is ITikWinboxLegacyLoginConnection, type + ": ITikWinboxLegacyLoginConnection");
+                    if (expected)
+                        Assert.IsTrue(((ITikWinboxLegacyLoginConnection)conn).AllowLegacyWinboxLogin, type.ToString());
+                }
+                using (var conn = new TikConnectionSetup("192.0.2.1", "user", "pwd").CreateUnopened(type))
+                    if (conn is ITikWinboxLegacyLoginConnection legacy)
+                        Assert.IsFalse(legacy.AllowLegacyWinboxLogin, type + ": the unencrypted login must be asked for");
             }
         }
 

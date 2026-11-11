@@ -290,6 +290,21 @@ namespace tik4net
         public string? SshPrivateKeyPassphrase { get; set; }
 
         /// <summary>
+        /// Opts the WinBox native transport in to the unencrypted pre-6.43 MD5 login, for a router that does not answer
+        /// EC-SRP5 (<see cref="ITikWinboxLegacyLoginConnection.AllowLegacyWinboxLogin"/>). Default <c>false</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The session after that login is in clear</b>, and its MD5 response can be cracked offline. The login
+        /// exists only on RouterOS before 6.43, below the 6.49 that tik4net supports. Without the option such a router,
+        /// or one that stays silent, fails the open with a <see cref="TikConnectionLoginException"/>, and nothing is
+        /// downgraded; with it, the same silence selects the clear-text login, so a man in the middle who drops the
+        /// EC-SRP5 reply reads the session.</para>
+        /// <para>Applied to WinBox native over TCP. The WinBox CLI transports have no use for it (the terminal needs an
+        /// encrypted session) and the MAC-layer carriers have no legacy login.</para>
+        /// </remarks>
+        public bool AllowLegacyWinboxLogin { get; set; }
+
+        /// <summary>
         /// The RoMON agent to reach this router through, or <c>null</c> to connect directly. When set,
         /// <see cref="Address"/> must be the router's RoMON id (<see cref="TikRouterAddress.FromRomonId"/>), and
         /// <see cref="User"/>/<see cref="Password"/> are the router's own; the connection logs in to the agent
@@ -396,7 +411,7 @@ namespace tik4net
         /// <c>password</c> (<c>pwd</c>), <c>port</c>, <c>connectTimeout</c> / <c>receiveTimeout</c> /
         /// <c>sendTimeout</c> (seconds, or a <see cref="TimeSpan"/> such as <c>00:00:15</c>), <c>encoding</c> (a name such
         /// as <c>utf-8</c>), <c>allowInvalidCertificate</c>, <c>certificateFingerprint</c>, <c>sshHostKeyFingerprint</c>,
-        /// <c>cancellationMode</c>, <c>cliReadPageSize</c>,
+        /// <c>allowLegacyWinboxLogin</c>, <c>cancellationMode</c>, <c>cliReadPageSize</c>,
         /// <c>cliFieldSeparator</c> (empty for none), <c>catalogCachePath</c> (empty for none), <c>validateWrites</c>,
         /// <c>sendTagWithSyncCommand</c>, <c>debug</c>,
         /// and for a router behind a RoMON agent <c>romon.host</c>, <c>romon.user</c>, <c>romon.password</c>,
@@ -538,6 +553,9 @@ namespace tik4net
                 ssh.SshPrivateKeyPassphrase = SshPrivateKeyPassphrase;
                 ssh.SshHostKeyFingerprint = SshHostKeyFingerprint;
             }
+
+            if (connection is ITikWinboxLegacyLoginConnection legacy)
+                legacy.AllowLegacyWinboxLogin = AllowLegacyWinboxLogin;
 
             if (connection is ITikMacLayerConnection mac)
                 mac.RouterMac = RomonAgentSetup != null ? RomonAgentSetup.Address.Mac : EffectiveRouterMac;

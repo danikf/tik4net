@@ -30,7 +30,7 @@ namespace tik4net.unittests.Winbox
             Action<WinboxM2Multiplexer, FakeWinboxServer> clientScript)
         {
             using (var server = new FakeWinboxServer())
-            using (var session = new WinboxM2Session())
+            using (var session = new WinboxM2Session { AllowLegacyLogin = true })   // the fake speaks the legacy login only
             {
                 var serverTask = Task.Run(() =>
                 {
@@ -54,7 +54,7 @@ namespace tik4net.unittests.Winbox
             Func<WinboxM2Multiplexer, FakeWinboxServer, Task> clientScript)
         {
             using (var server = new FakeWinboxServer())
-            using (var session = new WinboxM2Session())
+            using (var session = new WinboxM2Session { AllowLegacyLogin = true })   // the fake speaks the legacy login only
             {
                 var serverTask = Task.Run(() =>
                 {
@@ -191,7 +191,7 @@ namespace tik4net.unittests.Winbox
         public async Task ChannelClose_FaultsPendingRequests_RatherThanLettingThemTimeOut()
         {
             using (var server = new FakeWinboxServer())
-            using (var session = new WinboxM2Session())
+            using (var session = new WinboxM2Session { AllowLegacyLogin = true })   // the fake speaks the legacy login only
             {
                 var serverTask = Task.Run(() =>
                 {
@@ -539,7 +539,7 @@ namespace tik4net.unittests.Winbox
         public async Task WhenEveryIdIsOutstanding_AnotherRequestIsRefused_RatherThanReusingOne()
         {
             using (var server = new FakeWinboxServer())
-            using (var session = new WinboxM2Session())
+            using (var session = new WinboxM2Session { AllowLegacyLogin = true })   // the fake speaks the legacy login only
             {
                 var serverTask = Task.Run(() => server.RunFullLoginSequence());
                 await Task.Run(() => session.Open(Host, server.Port, "admin", "", TimeoutMs, TimeoutMs));

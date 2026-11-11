@@ -10,8 +10,8 @@ using tik4net.Diagnostics;
 namespace tik4net.Winbox
 {
     /// <summary>
-    /// Shared WinBox M2 protocol layer over TCP port 8291: EC-SRP5 (with legacy MD5 fallback)
-    /// authentication and AES-128-CBC MAC-then-Encrypt frame I/O. This is the transport-and-crypto
+    /// Shared WinBox M2 protocol layer over TCP port 8291: EC-SRP5 authentication (the legacy MD5 login only when
+    /// <see cref="AllowLegacyLogin"/> opts in) and AES-128-CBC MAC-then-Encrypt frame I/O. This is the transport-and-crypto
     /// layer only — it knows nothing about terminals or native handlers.
     /// </summary>
     /// <remarks>
@@ -36,6 +36,13 @@ namespace tik4net.Winbox
 
         /// <summary>True once an encrypted (EC-SRP5) channel is established. False for legacy MD5 auth.</summary>
         public bool IsEncrypted => _keys != null;
+
+        /// <summary>
+        /// Whether a router that shows no sign of EC-SRP5 is logged in to with the unencrypted pre-6.43 MD5 login
+        /// (<c>ITikWinboxLegacyLoginConnection.AllowLegacyWinboxLogin</c>). Off by default: the router's silence is the
+        /// evidence for "too old", and an attacker can produce it, so without the opt-in it fails the open instead.
+        /// </summary>
+        internal bool AllowLegacyLogin { get; set; }
 
         private WinboxStreamKeys Keys
             => _keys ?? throw new InvalidOperationException("The WinBox session is not encrypted (legacy MD5 login).");
@@ -73,8 +80,9 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
-        /// EC-SRP5 first, falling back to the pre-6.43 MD5 handshake only when the router shows no sign
-        /// of understanding EC-SRP5 at all.
+        /// EC-SRP5, falling back to the pre-6.43 MD5 handshake only when the router shows no sign of understanding
+        /// EC-SRP5 at all <b>and</b> <see cref="AllowLegacyLogin"/> opts in; without it that
+        /// <see cref="WinboxEcSrp5UnsupportedException"/> fails the open.
         /// </summary>
         /// <remarks>
         /// The fallback is decided on <see cref="WinboxEcSrp5UnsupportedException"/> and nothing else.
@@ -95,7 +103,7 @@ namespace tik4net.Winbox
             {
                 EcSrp5Auth(user, pass, Math.Max(MinEcSrp5ProbeMs, TikTimeouts.HandshakeBoundMs(connectTimeoutMs, ioTimeoutMs)));
             }
-            catch (WinboxEcSrp5UnsupportedException unsupported)
+            catch (WinboxEcSrp5UnsupportedException unsupported) when (AllowLegacyLogin)
             {
                 // Old RouterOS — reconnect and try legacy MD5 auth.
                 _transport.Dispose();

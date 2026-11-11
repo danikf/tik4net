@@ -26,7 +26,7 @@ namespace tik4net.unittests.Winbox
             Action<WinboxM2Session, FakeWinboxServer> clientScript)
         {
             using (var server = new FakeWinboxServer())
-            using (var session = new WinboxM2Session())
+            using (var session = new WinboxM2Session { AllowLegacyLogin = true })   // the fake speaks the legacy login only
             {
                 var serverTask = Task.Run(() =>
                 {

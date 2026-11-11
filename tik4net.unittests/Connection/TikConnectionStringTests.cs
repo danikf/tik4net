@@ -22,7 +22,7 @@ namespace tik4net.unittests.Connection
                 + "connectTimeout=7;receiveTimeout=00:00:11;sendTimeout=13.5;encoding=us-ascii;allowInvalidCertificate=true;"
                 + "cancellationMode=AbandonAndClose;cliReadPageSize=37;cliFieldSeparator=#|#;catalogCachePath=C:/t4n-cache;validateWrites=yes;"
                 + "sendTagWithSyncCommand=false;debug=true;certificateFingerprint=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855;"
-                + "sshHostKeyFingerprint=SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU");
+                + "sshHostKeyFingerprint=SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU;allowLegacyWinboxLogin=true");
 
             Assert.AreEqual(TikConnectionType.ApiSsl, setup.ConnectionType);
             Assert.AreEqual("192.0.2.1", setup.Host);
@@ -44,6 +44,7 @@ namespace tik4net.unittests.Connection
             Assert.AreEqual(true, setup.DebugEnabled);
             Assert.AreEqual("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", setup.CertificateFingerprint);
             Assert.AreEqual("SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU", setup.SshHostKeyFingerprint);
+            Assert.IsTrue(setup.AllowLegacyWinboxLogin);
         }
 
         [TestMethod]
@@ -69,6 +70,7 @@ namespace tik4net.unittests.Connection
                 nameof(TikConnectionSetup.ReceiveTimeout), nameof(TikConnectionSetup.SendTimeout), nameof(TikConnectionSetup.Encoding),
                 nameof(TikConnectionSetup.AllowInvalidCertificate), nameof(TikConnectionSetup.CancellationMode),
                 nameof(TikConnectionSetup.CertificateFingerprint), nameof(TikConnectionSetup.SshHostKeyFingerprint),
+                nameof(TikConnectionSetup.AllowLegacyWinboxLogin),
                 nameof(TikConnectionSetup.CliReadPageSize), nameof(TikConnectionSetup.CliFieldSeparator), nameof(TikConnectionSetup.CatalogCachePath),
                 nameof(TikConnectionSetup.ValidateWrites), nameof(TikConnectionSetup.SendTagWithSyncCommand),
                 nameof(TikConnectionSetup.DebugEnabled), nameof(TikConnectionSetup.RouterMac), nameof(TikConnectionSetup.RomonAgentSetup),

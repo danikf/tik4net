@@ -3,8 +3,9 @@ using System;
 namespace tik4net.Winbox
 {
     /// <summary>
-    /// Marks the one condition that justifies falling back from EC-SRP5 to the pre-6.43 MD5 handshake:
-    /// the router gave no sign of understanding the EC-SRP5 opening frame.
+    /// Marks the one condition under which the pre-6.43 MD5 handshake may be tried, when the caller opted in to it
+    /// (<c>AllowLegacyWinboxLogin</c>): the router gave no sign of understanding the EC-SRP5 opening frame. Without the
+    /// opt-in it is the open's failure, and its message says so.
     /// </summary>
     /// <remarks>
     /// It exists so the fallback is not selected by a substring test. Deciding it with
@@ -20,7 +21,9 @@ namespace tik4net.Winbox
         internal string Reason { get; }
 
         internal WinboxEcSrp5UnsupportedException(string reason, Exception? innerException = null)
-            : base("EC-SRP5 not supported by server: " + reason, innerException)
+            : base("EC-SRP5 not supported by server: " + reason + ". WinBox logs in with EC-SRP5 on RouterOS 6.43 and "
+                   + "later; an older router has only the unencrypted MD5 login, which is used only with "
+                   + "AllowLegacyWinboxLogin.", innerException)
         {
             Reason = reason;
         }

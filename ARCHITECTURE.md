@@ -424,6 +424,8 @@ Options split into two kinds:
     any other transport is refused at `CreateUnopened`, because it is a credential; the host-key pin is a setting and
     is skipped like the TLS options.
   - `ITikMacLayerConnection` (`RouterMac`) — MAC-Telnet, WinBox CLI MAC, WinBox native MAC.
+  - `ITikWinboxLegacyLoginConnection` (`AllowLegacyWinboxLogin`) — WinBox native; the TCP carrier's unencrypted
+    pre-6.43 MD5 login, off unless asked for. The MAC subclass inherits it and has no legacy login to apply it to.
   - `ITikCancellationModeConnection` (`CancellationMode`) — the CLI family (Telnet, SSH, MAC-Telnet,
     WinBox CLI, WinBox CLI MAC).
   - `ITikTaggedConnection` (`SendTagWithSyncCommand`) — binary API (`Api`/`ApiSsl`) only.

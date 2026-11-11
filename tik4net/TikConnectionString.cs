@@ -34,6 +34,7 @@ namespace tik4net
             ("allowInvalidCertificate", new string[0]),
             ("certificateFingerprint", new string[0]),
             ("sshHostKeyFingerprint", new string[0]),
+            ("allowLegacyWinboxLogin", new string[0]),
             ("cancellationMode", new string[0]),
             ("cliReadPageSize", new string[0]),
             ("cliFieldSeparator", new string[0]),
@@ -124,6 +125,7 @@ namespace tik4net
                 case "allowInvalidCertificate": setup.AllowInvalidCertificate = ParseBool(key, v); break;
                 case "certificateFingerprint": WithKeyNamed(key, () => setup.CertificateFingerprint = EmptyIsNull(v)); break;
                 case "sshHostKeyFingerprint": WithKeyNamed(key, () => setup.SshHostKeyFingerprint = EmptyIsNull(v)); break;
+                case "allowLegacyWinboxLogin": setup.AllowLegacyWinboxLogin = ParseBool(key, v); break;
                 case "cancellationMode": setup.CancellationMode = ParseEnum<TikCancellationMode>(key, v); break;
                 case "cliReadPageSize": setup.CliReadPageSize = ParseInt(key, v); break;
                 case "cliFieldSeparator": setup.CliFieldSeparator = EmptyIsNull(v); break;

@@ -137,14 +137,20 @@ shared unchanged across both carriers — only the channel implementation differ
 
 ---
 
-## 6. Legacy MD5 auth has no terminal support, and the fallback decision has a timeout floor
+## 6. Legacy MD5 auth is an opt-in, has no terminal support, and its decision has a timeout floor
 
-A mepty session only runs over the encrypted EC-SRP5 channel. `WinboxM2Session` keeps a legacy MD5 auth
-fallback for pre-6.43 RouterOS (used by native operations), but `WinboxCliClient.OpenTerminalSession`
+A mepty session only runs over the encrypted EC-SRP5 channel. `WinboxM2Session` keeps a legacy MD5 login
+for pre-6.43 RouterOS (used by native operations), but `WinboxCliClient.OpenTerminalSession`
 throws `NotSupportedException` when a session authenticated that way — the terminal path does not
 support it.
 
-Whether to fall back to legacy MD5 **at all** is decided exclusively by catching
+The legacy session is **unencrypted** (`_keys = null`) and its MD5 response can be cracked offline, so the
+fallback runs only when the caller opts in (`AllowLegacyWinboxLogin` → `WinboxM2Session.AllowLegacyLogin`,
+WinBox native over TCP only). Without it, `WinboxEcSrp5UnsupportedException` fails the open, and its message
+names 6.43 and the option. The reason is the evidence: an attacker who drops the EC-SRP5 reply produces exactly
+the silence an old router does, and would otherwise downgrade the session to clear text.
+
+Whether to fall back to legacy MD5 is decided exclusively by catching
 `WinboxEcSrp5UnsupportedException` — no other exception triggers it — and that type is thrown only when
 the router stays silent for the EC-SRP5 probe window, or answers with the wrong tag. The probe window is
 `max(MinEcSrp5ProbeMs = 3000, connectTimeoutMs)`: silence is the *only* evidence a router gives for
