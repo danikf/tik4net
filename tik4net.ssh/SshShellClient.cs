@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Renci.SshNet;
 using Renci.SshNet.Common;
 using tik4net.Cli;
+using tik4net.Connection;
 using tik4net.Diagnostics;
 
 namespace tik4net.Ssh
@@ -48,8 +49,12 @@ namespace tik4net.Ssh
         /// the host was unreachable, or the connection was not established within the timeout.</exception>
         /// <exception cref="TikConnectionLoginException">The router answered and refused the credentials (the
         /// <see cref="SshAuthenticationException"/> inside).</exception>
-        internal void Connect(string host, int port, string user, string password, IPrivateKeySource? key = null)
+        /// <exception cref="TikConnectionHostKeyMismatchException">A <paramref name="hostKeyPin"/> is set and the router's host
+        /// key has another fingerprint; refused in the key exchange, before anything of the login is sent.</exception>
+        internal void Connect(string host, int port, string user, string password, IPrivateKeySource? key = null,
+            string? hostKeyPin = null)
         {
+            _hostKeyPin = hostKeyPin;
             try
             {
                 _ssh = CreateClient(host, port, RouterOsCliLogin.WithTerminalLoginFlags(user), password, key);
@@ -109,7 +114,7 @@ namespace tik4net.Ssh
         // established in time as its own SshOperationTimeoutException. That one is turned into the
         // SocketException the binary API and Telnet throw for the same case, so a timeout is a network failure
         // on every transport rather than — wrapped by the connection's open — a login failure on this one.
-        private static void ConnectOrTimeOut(SshClient client)
+        private void ConnectOrTimeOut(SshClient client)
         {
             try
             {
@@ -120,6 +125,27 @@ namespace tik4net.Ssh
                 SafeDispose(client);
                 throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.TimedOut);
             }
+            catch (SshConnectionException ex) when (_refusedHostKey != null)
+            {
+                // SSH.NET ends the key exchange with "Key exchange negotiation failed" when CanTrust is false.
+                SafeDispose(client);
+                throw new TikConnectionHostKeyMismatchException("SSH", _hostKeyPin!, _refusedHostKey, ex);
+            }
+        }
+
+        // The pinned host-key fingerprint (canonical SHA256: form), or null to accept any host key; and the fingerprint
+        // of a host key it refused, for the exception.
+        private string? _hostKeyPin;
+        private string? _refusedHostKey;
+
+        // Decides in the key exchange, before the user name, the password or the key is sent.
+        private void CheckHostKey(object? sender, HostKeyEventArgs e)
+        {
+            string presented = TikFingerprint.OfSshHostKey(e.HostKey);
+            if (string.Equals(presented, _hostKeyPin, StringComparison.Ordinal))
+                return;
+            _refusedHostKey = presented;
+            e.CanTrust = false;
         }
 
         /// <summary>
@@ -156,7 +182,10 @@ namespace tik4net.Ssh
             {
                 Timeout = TimeSpan.FromMilliseconds(TikTimeouts.HandshakeBoundMs(_timeouts.ConnectMs, _timeouts.ReceiveMs())),
             };
-            return new SshClient(info);
+            var client = new SshClient(info);
+            if (_hostKeyPin != null)
+                client.HostKeyReceived += CheckHostKey;
+            return client;
         }
 
         /// <summary>

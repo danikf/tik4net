@@ -17,7 +17,8 @@ namespace tik4net
     /// <b>Every option here applies on every transport it can mean anything on</b>, and that is enforced by a
     /// unit-test matrix rather than by the property names lining up. The options that are not universal are
     /// the ones a transport declares an interest in by implementing an interface —
-    /// <see cref="ITikTlsConnection"/> (the certificate options), <see cref="ITikMacLayerConnection"/>
+    /// <see cref="ITikTlsConnection"/> (the certificate options), <see cref="ITikSshKeyConnection"/> (the SSH key and
+    /// host-key pin), <see cref="ITikMacLayerConnection"/>
     /// (<see cref="RouterMac"/>) and <see cref="ITikCancellationModeConnection"/>
     /// (<see cref="CancellationMode"/>) — so a transport either receives an option or provably has no use
     /// for it. There is no third case where a value is set here and quietly dropped.
@@ -210,11 +211,66 @@ namespace tik4net
         public bool AllowInvalidCertificate { get; set; }
 
         /// <summary>
+        /// The router's certificate pinned by its SHA-256 fingerprint, applied to both API-SSL and REST-SSL
+        /// (<see cref="ITikTlsConnection.CertificateFingerprint"/>), or <c>null</c> (the default) for no pin.
+        /// </summary>
+        /// <remarks>
+        /// <para>64 hex digits, colons optional, any case: the <c>fingerprint</c> that <c>/certificate print</c> shows for
+        /// the certificate on <c>/ip service</c> <c>api-ssl</c> / <c>www-ssl</c>. Read it once over a path you trust.</para>
+        /// <para>When set, the router's certificate must have exactly this fingerprint, and chain and name errors are ignored
+        /// — the way to trust a router's self-signed certificate, or one addressed by an IP it does not name, without
+        /// accepting every certificate. It overrides <see cref="AllowInvalidCertificate"/>; a
+        /// <see cref="CertificateValidationCallback"/> still wins over it. Another certificate fails the open with
+        /// <see cref="TikConnectionHostKeyMismatchException"/>. A value not in this form throws
+        /// <see cref="ArgumentException"/> here.</para>
+        /// </remarks>
+        /// <exception cref="ArgumentException">The value is not 32 bytes of hex.</exception>
+        public string? CertificateFingerprint
+        {
+            get => _certificateFingerprint;
+            set => _certificateFingerprint = value == null ? null
+                : Checked(value, v => TikFingerprint.NormalizeCertificate(v, nameof(CertificateFingerprint)));
+        }
+        private string? _certificateFingerprint;
+
+        /// <summary>
         /// Optional custom certificate validation, applied to both API-SSL and REST-SSL. When set, it
-        /// takes full control over accept/reject and <see cref="AllowInvalidCertificate"/> is ignored.
-        /// Useful for certificate pinning or trusting a private CA.
+        /// takes full control over accept/reject, and <see cref="CertificateFingerprint"/> and
+        /// <see cref="AllowInvalidCertificate"/> are ignored. Useful for trusting a private CA, or for a rule a
+        /// fingerprint cannot state.
         /// </summary>
         public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
+
+        /// <summary>
+        /// The router's SSH host key pinned by its SHA-256 fingerprint (<see cref="ITikSshKeyConnection.SshHostKeyFingerprint"/>),
+        /// or <c>null</c> (the default) to accept any host key. SSH only; the other transports have no SSH host key and do
+        /// not receive it.
+        /// </summary>
+        /// <remarks>
+        /// <para>The form <c>ssh-keygen -lf</c> prints and RouterOS 7 shows as <c>host-key-fingerprint</c> in
+        /// <c>/ip ssh print</c>: <c>SHA256:</c> and the unpadded base64 of the digest. The prefix may be left out. Read it
+        /// once over a path you trust.</para>
+        /// <para>When set, a host key with another fingerprint fails the open with
+        /// <see cref="TikConnectionHostKeyMismatchException"/>, before the password or the key is sent. <b>When
+        /// <c>null</c>, SSH encrypts the session but does not check who answers</b>: a man in the middle receives the
+        /// password. Through a RoMON agent the SSH session is the agent's, so this pins the agent's host key. A value not
+        /// in this form throws <see cref="ArgumentException"/> here.</para>
+        /// </remarks>
+        /// <exception cref="ArgumentException">The value is not the base64 of a SHA-256 digest.</exception>
+        public string? SshHostKeyFingerprint
+        {
+            get => _sshHostKeyFingerprint;
+            set => _sshHostKeyFingerprint = value == null ? null
+                : Checked(value, v => TikFingerprint.NormalizeSshHostKey(v, nameof(SshHostKeyFingerprint)));
+        }
+        private string? _sshHostKeyFingerprint;
+
+        // Kept as the caller wrote it; the check only refuses a value no router could ever match.
+        private static string Checked(string value, Func<string, string> normalize)
+        {
+            normalize(value);
+            return value;
+        }
 
         /// <summary>
         /// The SSH private key to log in with, as the text of the key file (OpenSSH or PEM), or <c>null</c> to log in
@@ -339,7 +395,8 @@ namespace tik4net
         /// (<c>server</c>, <c>address</c>), <c>routerMac</c> (<c>mac</c>), <c>user</c> (<c>username</c>, <c>uid</c>),
         /// <c>password</c> (<c>pwd</c>), <c>port</c>, <c>connectTimeout</c> / <c>receiveTimeout</c> /
         /// <c>sendTimeout</c> (seconds, or a <see cref="TimeSpan"/> such as <c>00:00:15</c>), <c>encoding</c> (a name such
-        /// as <c>utf-8</c>), <c>allowInvalidCertificate</c>, <c>cancellationMode</c>, <c>cliReadPageSize</c>,
+        /// as <c>utf-8</c>), <c>allowInvalidCertificate</c>, <c>certificateFingerprint</c>, <c>sshHostKeyFingerprint</c>,
+        /// <c>cancellationMode</c>, <c>cliReadPageSize</c>,
         /// <c>cliFieldSeparator</c> (empty for none), <c>catalogCachePath</c> (empty for none), <c>validateWrites</c>,
         /// <c>sendTagWithSyncCommand</c>, <c>debug</c>,
         /// and for a router behind a RoMON agent <c>romon.host</c>, <c>romon.user</c>, <c>romon.password</c>,
@@ -470,6 +527,7 @@ namespace tik4net
             if (connection is ITikTlsConnection tls)
             {
                 tls.AllowInvalidCertificate = AllowInvalidCertificate;
+                tls.CertificateFingerprint = CertificateFingerprint;
                 tls.CertificateValidationCallback = CertificateValidationCallback;
             }
 
@@ -478,6 +536,7 @@ namespace tik4net
             {
                 ssh.SshPrivateKey = SshPrivateKey;
                 ssh.SshPrivateKeyPassphrase = SshPrivateKeyPassphrase;
+                ssh.SshHostKeyFingerprint = SshHostKeyFingerprint;
             }
 
             if (connection is ITikMacLayerConnection mac)

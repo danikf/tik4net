@@ -292,6 +292,48 @@ namespace tik4net
     }
 
     /// <summary>
+    /// Thrown by <c>Open</c> when the router's identity does not match the pinned fingerprint: its SSH host key against
+    /// <see cref="TikConnectionSetup.SshHostKeyFingerprint"/>, or its TLS certificate (API-SSL, REST-SSL) against
+    /// <see cref="TikConnectionSetup.CertificateFingerprint"/>. Nothing was sent after the handshake, the password
+    /// included.
+    /// </summary>
+    /// <remarks>
+    /// Either the router's key or certificate was replaced (a reinstall, a new certificate, <c>/ip ssh
+    /// regenerate-host-key</c>), or something between this client and the router is answering in its place. The
+    /// exception cannot tell the two apart; compare <see cref="ActualFingerprint"/> with what the router itself shows
+    /// (<c>/ip ssh print</c>, <c>/certificate print</c>) over a path you trust. Both fingerprints are public values, so
+    /// the message carries them.
+    /// </remarks>
+    public class TikConnectionHostKeyMismatchException : TikConnectionException
+    {
+        /// <summary>The transport whose handshake was refused: <c>"SSH"</c>, <c>"API-SSL"</c> or <c>"REST-SSL"</c>.</summary>
+        public string Transport { get; }
+
+        /// <summary>The pinned fingerprint, in its canonical form (<c>SHA256:…</c> for SSH, lowercase hex for TLS).</summary>
+        public string ExpectedFingerprint { get; }
+
+        /// <summary>The fingerprint the peer presented, in the same form as <see cref="ExpectedFingerprint"/>.</summary>
+        public string ActualFingerprint { get; }
+
+        /// <summary>Creates the exception for a refused handshake.</summary>
+        /// <param name="transport">The transport whose handshake was refused.</param>
+        /// <param name="expectedFingerprint">The pinned fingerprint.</param>
+        /// <param name="actualFingerprint">The fingerprint the peer presented.</param>
+        /// <param name="innerException">The handshake failure the refusal caused, or <c>null</c>.</param>
+        public TikConnectionHostKeyMismatchException(string transport, string expectedFingerprint, string actualFingerprint,
+            Exception? innerException = null)
+            : base(transport + ": the router's " + (transport == "SSH" ? "host key" : "certificate") + " fingerprint is "
+                   + actualFingerprint + ", not the pinned " + expectedFingerprint
+                   + ". Either the router's " + (transport == "SSH" ? "host key" : "certificate")
+                   + " changed, or something else is answering in its place; nothing was sent.", innerException)
+        {
+            Transport = transport;
+            ExpectedFingerprint = expectedFingerprint;
+            ActualFingerprint = actualFingerprint;
+        }
+    }
+
+    /// <summary>
     /// Thrown when no response is received from the router within the configured
     /// <see cref="ITikConnection.ReceiveTimeout"/>. Distinct from a bare socket <see cref="System.IO.IOException"/>
     /// so callers can tell a stuck/unreachable peer apart from other I/O failures (e.g. connection reset).

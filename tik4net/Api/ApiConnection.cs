@@ -80,7 +80,15 @@ namespace tik4net.Api
         public bool AllowInvalidCertificate { get; set; }
 
         /// <inheritdoc/>
+        /// <remarks>Applies to API-SSL only.</remarks>
+        public string? CertificateFingerprint { get; set; }
+
+        /// <inheritdoc/>
         public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
+
+        // The fingerprint of a certificate the pin refused during this open's handshake, so the open reports the mismatch
+        // rather than SslStream's generic "rejected by the validation procedure".
+        private string? _pinRefusedFingerprint;
 
         public ApiConnection(bool isSsl) : base(isSsl ? TikConnectionType.ApiSsl : TikConnectionType.Api)
         {
@@ -222,8 +230,13 @@ namespace tik4net.Api
         // times in all (TikOpenRetry.IsApiLoginReset); every failed attempt has already disposed its resources.
         public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
-            => TikOpenRetry.RunAsync(() => OpenOnceAsync(host, port, user, password, cancellationToken),
+        {
+            // A pin no certificate could match is the caller's mistake, reported before anything connects.
+            if (_isSsl)
+                TikTlsValidation.PinnedFingerprint(this);
+            return TikOpenRetry.RunAsync(() => OpenOnceAsync(host, port, user, password, cancellationToken),
                 TikOpenRetry.IsApiLoginReset, cancellationToken);
+        }
 
         private async Task OpenOnceAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken)
@@ -232,6 +245,7 @@ namespace tik4net.Api
             try
             {
                 ResetSessionState();
+                _pinRefusedFingerprint = null;
                 //open connection
                 _tcpConnection = new TcpClient();
                 if (SendTimeoutMs > 0)
@@ -286,6 +300,9 @@ namespace tik4net.Api
                     }
                     catch (AuthenticationException ex)
                     {
+                        if (_pinRefusedFingerprint is string presented)
+                            throw new TikConnectionHostKeyMismatchException("API-SSL",
+                                TikTlsValidation.PinnedFingerprint(this)!, presented, ex);
                         throw new TikConnectionSSLErrorException(ex);
                     }
                     catch (IOException ex)
@@ -392,7 +409,8 @@ namespace tik4net.Api
         }
 
         internal bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
-            => (TikTlsValidation.For(this) ?? ((s, c, ch, e) => e == SslPolicyErrors.None))(sender, certificate, chain, sslPolicyErrors);
+            => (TikTlsValidation.For(this, presented => _pinRefusedFingerprint = presented)
+                ?? ((s, c, ch, e) => e == SslPolicyErrors.None))(sender, certificate, chain, sslPolicyErrors);
 
         public override void Dispose()
         {

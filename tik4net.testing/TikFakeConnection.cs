@@ -594,6 +594,9 @@ namespace tik4net.Testing
         /// <summary>TLS option. Settable so a test can assert configuration; no TLS is involved.</summary>
         public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
 
+        /// <summary>TLS option. Settable so a test can assert configuration; no TLS is involved.</summary>
+        public string? CertificateFingerprint { get; set; }
+
         /// <summary>What a mid-command cancel costs on a terminal. Settable; the fake has no terminal.</summary>
         public TikCancellationMode CancellationMode { get; set; } = TikCancellationMode.Cooperative;
 

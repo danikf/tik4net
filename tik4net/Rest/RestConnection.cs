@@ -140,7 +140,16 @@ namespace tik4net.Rest
         public bool AllowInvalidCertificate { get; set; }
 
         /// <inheritdoc/>
+        /// <remarks>Applies to HTTPS only (<see cref="TikConnectionType.RestSsl"/>), on every connection the client
+        /// opens to the router.</remarks>
+        public string? CertificateFingerprint { get; set; }
+
+        /// <inheritdoc/>
         public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
+
+        // The fingerprint of a certificate the pin refused, so the open probe reports the mismatch rather than
+        // HttpClient's generic TLS failure.
+        private string? _pinRefusedFingerprint;
 
         /// <summary>Creates a REST connection.</summary>
         /// <param name="useSsl">Use HTTPS (port 443) instead of HTTP (port 80).</param>
@@ -195,7 +204,8 @@ namespace tik4net.Rest
             var handler = new HttpClientHandler();
             if (_useSsl)
             {
-                var validate = TikTlsValidation.For(this);
+                _pinRefusedFingerprint = null;
+                var validate = TikTlsValidation.For(this, presented => _pinRefusedFingerprint = presented);
                 if (validate != null)
                     handler.ServerCertificateCustomValidationCallback =
                         (request, cert, chain, errors) => validate(request, cert, chain, errors);
@@ -247,6 +257,9 @@ namespace tik4net.Rest
                 for (Exception? inner = ex; inner != null; inner = inner.InnerException)
                     if (inner is System.Net.Sockets.SocketException socket)
                         throw socket;
+                if (_pinRefusedFingerprint is string presented)
+                    throw new TikConnectionHostKeyMismatchException("REST-SSL",
+                        TikTlsValidation.PinnedFingerprint(this)!, presented, ex);
                 throw TikOpenGuard.Translate(ex);
             }
             finally

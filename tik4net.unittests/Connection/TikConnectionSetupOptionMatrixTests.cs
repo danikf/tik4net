@@ -116,8 +116,13 @@ namespace tik4net.unittests.Connection
             CliFieldSeparator = "#|#",
             CatalogCachePath = "C:/t4n-matrix-cache",
             AllowInvalidCertificate = false,
+            CertificateFingerprint = CertificatePin,
             CertificateValidationCallback = new System.Net.Security.RemoteCertificateValidationCallback(CertCallback),
+            SshHostKeyFingerprint = SshHostKeyPin,
         };
+
+        private const string CertificatePin = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        private const string SshHostKeyPin = "SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU";
 
         // ── The universal options ─────────────────────────────────────────────
 
@@ -187,6 +192,7 @@ namespace tik4net.unittests.Connection
 
                     var tls = (ITikTlsConnection)conn;
                     Assert.IsFalse(tls.AllowInvalidCertificate, type + ": AllowInvalidCertificate");
+                    Assert.AreEqual(CertificatePin, tls.CertificateFingerprint, type + ": CertificateFingerprint");
                     Assert.AreSame(setup.CertificateValidationCallback, tls.CertificateValidationCallback,
                         type + ": CertificateValidationCallback");
                 }
@@ -297,6 +303,39 @@ namespace tik4net.unittests.Connection
                 }
                 var ex = Assert.ThrowsException<NotSupportedException>(() => setup.CreateUnopened(type).Dispose(), type.ToString());
                 StringAssert.Contains(ex.Message, "SshPrivateKey", type.ToString());
+            }
+        }
+
+        [TestMethod]
+        public void TheSshHostKeyPinReachesTheSshTransport_AndIsSkippedEverywhereElse()
+        {
+            // A setting, not a credential: a transport with no SSH host key has nothing to pin, and a setup shared across
+            // transports (a connection string) must still open them. The SSH transport is the only one with the facet.
+            var setup = NonDefaultSetup();
+            foreach (var type in AllTransports)
+            {
+                using (var conn = setup.CreateUnopened(type))
+                {
+                    Assert.AreEqual(type == TikConnectionType.Ssh, conn is ITikSshKeyConnection, type + ": ITikSshKeyConnection");
+                    if (conn is ITikSshKeyConnection ssh)
+                        Assert.AreEqual(SshHostKeyPin, ssh.SshHostKeyFingerprint, type.ToString());
+                }
+            }
+        }
+
+        [TestMethod]
+        public void ASetupWithoutPinsLeavesBothPinsUnset()
+        {
+            var setup = new TikConnectionSetup("192.0.2.1", "user", "pwd");
+            foreach (var type in AllTransports)
+            {
+                using (var conn = setup.CreateUnopened(type))
+                {
+                    if (conn is ITikTlsConnection tls)
+                        Assert.IsNull(tls.CertificateFingerprint, type.ToString());
+                    if (conn is ITikSshKeyConnection ssh)
+                        Assert.IsNull(ssh.SshHostKeyFingerprint, type.ToString());
+                }
             }
         }
 

@@ -21,7 +21,8 @@ namespace tik4net.unittests.Connection
                 "transport=ApiSsl;host=192.0.2.1;routerMac=AA:BB:CC:DD:EE:FF;user=admin;password=\"p;a=ss\";port=8730;"
                 + "connectTimeout=7;receiveTimeout=00:00:11;sendTimeout=13.5;encoding=us-ascii;allowInvalidCertificate=true;"
                 + "cancellationMode=AbandonAndClose;cliReadPageSize=37;cliFieldSeparator=#|#;catalogCachePath=C:/t4n-cache;validateWrites=yes;"
-                + "sendTagWithSyncCommand=false;debug=true");
+                + "sendTagWithSyncCommand=false;debug=true;certificateFingerprint=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855;"
+                + "sshHostKeyFingerprint=SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU");
 
             Assert.AreEqual(TikConnectionType.ApiSsl, setup.ConnectionType);
             Assert.AreEqual("192.0.2.1", setup.Host);
@@ -41,6 +42,16 @@ namespace tik4net.unittests.Connection
             Assert.IsTrue(setup.ValidateWrites);
             Assert.IsFalse(setup.SendTagWithSyncCommand);
             Assert.AreEqual(true, setup.DebugEnabled);
+            Assert.AreEqual("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", setup.CertificateFingerprint);
+            Assert.AreEqual("SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU", setup.SshHostKeyFingerprint);
+        }
+
+        [TestMethod]
+        public void AnEmptyFingerprintIsNoPin()
+        {
+            var setup = TikConnectionSetup.FromConnectionString("host=r;user=u;certificateFingerprint=;sshHostKeyFingerprint=");
+            Assert.IsNull(setup.CertificateFingerprint);
+            Assert.IsNull(setup.SshHostKeyFingerprint);
         }
 
         [TestMethod]
@@ -57,6 +68,7 @@ namespace tik4net.unittests.Connection
                 nameof(TikConnectionSetup.ConnectionType), nameof(TikConnectionSetup.Port), nameof(TikConnectionSetup.ConnectTimeout),
                 nameof(TikConnectionSetup.ReceiveTimeout), nameof(TikConnectionSetup.SendTimeout), nameof(TikConnectionSetup.Encoding),
                 nameof(TikConnectionSetup.AllowInvalidCertificate), nameof(TikConnectionSetup.CancellationMode),
+                nameof(TikConnectionSetup.CertificateFingerprint), nameof(TikConnectionSetup.SshHostKeyFingerprint),
                 nameof(TikConnectionSetup.CliReadPageSize), nameof(TikConnectionSetup.CliFieldSeparator), nameof(TikConnectionSetup.CatalogCachePath),
                 nameof(TikConnectionSetup.ValidateWrites), nameof(TikConnectionSetup.SendTagWithSyncCommand),
                 nameof(TikConnectionSetup.DebugEnabled), nameof(TikConnectionSetup.RouterMac), nameof(TikConnectionSetup.RomonAgentSetup),
@@ -113,6 +125,8 @@ namespace tik4net.unittests.Connection
         [DataRow("user=u", "host")]
         [DataRow("host=r;user=u;server=s", "host")]                      // one key under two names
         [DataRow("host=r;user=u;romon.user=a", "romon.host")]
+        [DataRow("host=r;user=u;certificateFingerprint=abc", "certificateFingerprint")]
+        [DataRow("host=r;user=u;sshHostKeyFingerprint=SHA256:abc", "sshHostKeyFingerprint")]
         public void AStringThatCannotBeReadIsRefused(string connectionString, string named)
         {
             var ex = Assert.ThrowsException<ArgumentException>(() => TikConnectionSetup.FromConnectionString(connectionString));

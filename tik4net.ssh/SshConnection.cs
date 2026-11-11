@@ -41,13 +41,17 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         public string? SshPrivateKeyPassphrase { get; set; }
 
+        /// <inheritdoc/>
+        public string? SshHostKeyFingerprint { get; set; }
+
         // ── Open (Close and the terminal plumbing live in CliConnectionBase) ──
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
             var key = ReadKey();
-            OpenTerminal(() => Attempt(host, port, user, password, key), retryRefusedLogin: false);
+            string? pin = ReadPin();
+            OpenTerminal(() => Attempt(host, port, user, password, key, pin), retryRefusedLogin: false);
         }
 
         /// <inheritdoc/>
@@ -55,16 +59,23 @@ namespace tik4net.Ssh
             CancellationToken cancellationToken = default)
         {
             var key = ReadKey();
-            return OpenTerminalAsync(() => Attempt(host, port, user, password, key), retryRefusedLogin: false, cancellationToken);
+            string? pin = ReadPin();
+            return OpenTerminalAsync(() => Attempt(host, port, user, password, key, pin), retryRefusedLogin: false, cancellationToken);
         }
 
         // Read before the open starts, so a key that cannot be read is an ArgumentException out of Open itself.
         private IPrivateKeySource? ReadKey()
             => SshPrivateKey == null ? null : SshShellClient.ReadPrivateKey(SshPrivateKey, SshPrivateKeyPassphrase);
 
+        // Checked before the open starts too, so a pin no key could match is an ArgumentException out of Open itself.
+        private string? ReadPin()
+            => SshHostKeyFingerprint == null ? null
+               : TikFingerprint.NormalizeSshHostKey(SshHostKeyFingerprint, nameof(SshHostKeyFingerprint));
+
         // One open attempt: a new SSH PTY-shell client (Renci.SshNet), and its connect plus settle (through a RoMON
         // agent, the relay too).
-        private CliTerminalOpen Attempt(string host, int port, string user, string password, IPrivateKeySource? key)
+        private CliTerminalOpen Attempt(string host, int port, string user, string password, IPrivateKeySource? key,
+            string? hostKeyPin)
         {
             var client = new SshShellClient(Encoding, ClientTimeouts);
             // Through a RoMON agent the SSH login is the agent's, with its password (the setup refuses a key there).
@@ -76,7 +87,7 @@ namespace tik4net.Ssh
                     // reusing the send budget for it was how this transport ignored the option entirely.
                     // A refusal is a TikConnectionLoginException; a port that refuses or never answers is a
                     // SocketException and leaves as one, through a RoMON agent as on a direct connection.
-                    client.Connect(host, port, user, password, loginKey);
+                    client.Connect(host, port, user, password, loginKey, hostKeyPin);
                     await client.SettleAfterConnectAsync(c).ConfigureAwait(false);
                 },
                 client.EnterRomonAsync, ct));

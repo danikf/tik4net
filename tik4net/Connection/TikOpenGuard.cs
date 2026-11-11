@@ -28,12 +28,15 @@ namespace tik4net.Connection
         /// <item>A peer that answered in another protocol (<see cref="TikConnectionProtocolMismatchException"/>,
         /// <see cref="TikConnectionSSLErrorException"/>): the wrong port or the wrong TLS setting, which a login failure
         /// would hide. Only the API's open raises them.</item>
+        /// <item>A peer whose identity is not the pinned one (<see cref="TikConnectionHostKeyMismatchException"/>): a
+        /// security answer, which a login failure would hide.</item>
         /// </list>
         /// </remarks>
         internal static bool PassesThrough(Exception ex)
             => ex is OperationCanceledException || ex is TikConnectionLoginException
                || ex is TikRomonRelayException || ex is SocketException
-               || ex is TikConnectionProtocolMismatchException || ex is TikConnectionSSLErrorException;
+               || ex is TikConnectionProtocolMismatchException || ex is TikConnectionSSLErrorException
+               || ex is TikConnectionHostKeyMismatchException;
 
         /// <summary>The exception an open throws for <paramref name="ex"/>: itself when it already says what happened, else a login failure wrapping it.</summary>
         internal static Exception Translate(Exception ex)

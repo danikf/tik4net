@@ -418,7 +418,11 @@ Options split into two kinds:
 - Transport-specific, applied only when the connection implements the interface that declares an
   interest in them — so a transport either receives an option or provably has no use for it, with no
   third case where a value is set and silently dropped:
-  - `ITikTlsConnection` (`AllowInvalidCertificate`, `CertificateValidationCallback`) — API-SSL, REST-SSL.
+  - `ITikTlsConnection` (`AllowInvalidCertificate`, `CertificateFingerprint`, `CertificateValidationCallback`) —
+    API-SSL, REST-SSL. The pin is checked in `TikTlsValidation`, which both transports share.
+  - `ITikSshKeyConnection` (`SshPrivateKey`, `SshPrivateKeyPassphrase`, `SshHostKeyFingerprint`) — SSH. A key set for
+    any other transport is refused at `CreateUnopened`, because it is a credential; the host-key pin is a setting and
+    is skipped like the TLS options.
   - `ITikMacLayerConnection` (`RouterMac`) — MAC-Telnet, WinBox CLI MAC, WinBox native MAC.
   - `ITikCancellationModeConnection` (`CancellationMode`) — the CLI family (Telnet, SSH, MAC-Telnet,
     WinBox CLI, WinBox CLI MAC).

@@ -32,6 +32,8 @@ namespace tik4net
             ("sendTimeout", new string[0]),
             ("encoding", new string[0]),
             ("allowInvalidCertificate", new string[0]),
+            ("certificateFingerprint", new string[0]),
+            ("sshHostKeyFingerprint", new string[0]),
             ("cancellationMode", new string[0]),
             ("cliReadPageSize", new string[0]),
             ("cliFieldSeparator", new string[0]),
@@ -61,6 +63,20 @@ namespace tik4net
         internal static TikConnectionSetup Parse(string connectionString)
         {
             Guard.ArgumentNotNullOrEmptyString(connectionString, nameof(connectionString));
+            var values = ReadKeys(connectionString);
+            string? Take(string key) => values.TryGetValue(key, out var v) ? v : null;
+
+            string user = Take("user") ?? throw new ArgumentException("The connection string has no 'user'.", nameof(connectionString));
+            var setup = new TikConnectionSetup(ReadAddress(Take), user, Take("password") ?? string.Empty);
+            foreach (var kv in values)
+                ApplyOption(setup, kv.Key, kv.Value);
+            ApplyRomonAgent(setup, Take);
+            return setup;
+        }
+
+        // Every key under its canonical spelling; a key named twice (under two of its names) is refused.
+        private static Dictionary<string, string> ReadKeys(string connectionString)
+        {
             var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (string key in builder.Keys)
@@ -70,67 +86,78 @@ namespace tik4net
                     throw new ArgumentException($"The connection string names '{canonical}' twice.", nameof(connectionString));
                 values[canonical] = Convert.ToString(builder[key], CultureInfo.InvariantCulture) ?? string.Empty;
             }
+            return values;
+        }
 
-            string? Take(string key) => values.TryGetValue(key, out var v) ? v : null;
-
-            string? host = Take("host");
-            string? mac = Take("routerMac");
-            string user = Take("user") ?? throw new ArgumentException("The connection string has no 'user'.", nameof(connectionString));
-            string? romonHost = Take("romon.host");
-
-            TikRouterAddress address;
+        private static TikRouterAddress ReadAddress(Func<string, string?> take)
+        {
+            string? host = take("host");
+            string? mac = take("routerMac");
+            string? romonHost = take("romon.host");
             if (romonHost != null && mac != null)
                 throw new ArgumentException("'routerMac' is not used through a RoMON agent: the MAC-layer session goes to "
-                    + "the agent, so give the agent's MAC as 'romon.host'.", nameof(connectionString));
+                    + "the agent, so give the agent's MAC as 'romon.host'.", "connectionString");
             if (romonHost != null)
-                address = TikRouterAddress.FromRomonId(host ?? throw new ArgumentException(
-                    "A RoMON connection string names the target's RoMON id as 'host'.", nameof(connectionString)));
-            else if (host != null && mac != null)
-                address = TikRouterAddress.FromHostAndMac(host, mac);
-            else if (host != null)
-                address = TikRouterAddress.FromHost(host);
-            else if (mac != null)
-                address = TikRouterAddress.FromMac(mac);
-            else
-                throw new ArgumentException("The connection string names neither 'host' nor 'routerMac'.", nameof(connectionString));
+                return TikRouterAddress.FromRomonId(host ?? throw new ArgumentException(
+                    "A RoMON connection string names the target's RoMON id as 'host'.", "connectionString"));
+            if (host != null && mac != null)
+                return TikRouterAddress.FromHostAndMac(host, mac);
+            if (host != null)
+                return TikRouterAddress.FromHost(host);
+            if (mac != null)
+                return TikRouterAddress.FromMac(mac);
+            throw new ArgumentException("The connection string names neither 'host' nor 'routerMac'.", "connectionString");
+        }
 
-            var setup = new TikConnectionSetup(address, user, Take("password") ?? string.Empty);
-            foreach (var kv in values)
+        // One key onto its option. host, routerMac with a host, user, password and the RoMON keys are read by the other
+        // stages; a MAC given with a host also goes into the address, as the RouterMac option does.
+        private static void ApplyOption(TikConnectionSetup setup, string key, string v)
+        {
+            switch (key)
             {
-                string v = kv.Value;
-                switch (kv.Key)
-                {
-                    case "transport": setup.ConnectionType = ParseEnum<TikConnectionType>(kv.Key, v); break;
-                    case "port": setup.Port = ParseInt(kv.Key, v); break;
-                    case "connectTimeout": setup.ConnectTimeout = ParseTime(kv.Key, v); break;
-                    case "receiveTimeout": setup.ReceiveTimeout = ParseTime(kv.Key, v); break;
-                    case "sendTimeout": setup.SendTimeout = ParseTime(kv.Key, v); break;
-                    case "encoding": setup.Encoding = ParseEncoding(v); break;
-                    case "allowInvalidCertificate": setup.AllowInvalidCertificate = ParseBool(kv.Key, v); break;
-                    case "cancellationMode": setup.CancellationMode = ParseEnum<TikCancellationMode>(kv.Key, v); break;
-                    case "cliReadPageSize": setup.CliReadPageSize = ParseInt(kv.Key, v); break;
-                    case "cliFieldSeparator": setup.CliFieldSeparator = v.Length == 0 ? null : v; break;
-                    case "catalogCachePath": setup.CatalogCachePath = v.Length == 0 ? null : v; break;
-                    case "validateWrites": setup.ValidateWrites = ParseBool(kv.Key, v); break;
-                    case "sendTagWithSyncCommand": setup.SendTagWithSyncCommand = ParseBool(kv.Key, v); break;
-                    case "debug": setup.DebugEnabled = ParseBool(kv.Key, v); break;
-                    // host, routerMac with a host, user, password and the RoMON keys are read above. A MAC given
-                    // with a host also goes into the address, as the RouterMac option does.
-                }
+                case "transport": setup.ConnectionType = ParseEnum<TikConnectionType>(key, v); break;
+                case "port": setup.Port = ParseInt(key, v); break;
+                case "connectTimeout": setup.ConnectTimeout = ParseTime(key, v); break;
+                case "receiveTimeout": setup.ReceiveTimeout = ParseTime(key, v); break;
+                case "sendTimeout": setup.SendTimeout = ParseTime(key, v); break;
+                case "encoding": setup.Encoding = ParseEncoding(v); break;
+                case "allowInvalidCertificate": setup.AllowInvalidCertificate = ParseBool(key, v); break;
+                case "certificateFingerprint": WithKeyNamed(key, () => setup.CertificateFingerprint = EmptyIsNull(v)); break;
+                case "sshHostKeyFingerprint": WithKeyNamed(key, () => setup.SshHostKeyFingerprint = EmptyIsNull(v)); break;
+                case "cancellationMode": setup.CancellationMode = ParseEnum<TikCancellationMode>(key, v); break;
+                case "cliReadPageSize": setup.CliReadPageSize = ParseInt(key, v); break;
+                case "cliFieldSeparator": setup.CliFieldSeparator = EmptyIsNull(v); break;
+                case "catalogCachePath": setup.CatalogCachePath = EmptyIsNull(v); break;
+                case "validateWrites": setup.ValidateWrites = ParseBool(key, v); break;
+                case "sendTagWithSyncCommand": setup.SendTagWithSyncCommand = ParseBool(key, v); break;
+                case "debug": setup.DebugEnabled = ParseBool(key, v); break;
             }
+        }
 
-            if (romonHost != null)
+        private static void ApplyRomonAgent(TikConnectionSetup setup, Func<string, string?> take)
+        {
+            if (take("romon.host") is string romonHost)
             {
                 setup.RomonAgentSetup = new TikRomonAgentSetup(romonHost,
-                    Take("romon.user") ?? throw new ArgumentException("A RoMON connection string needs 'romon.user'.", nameof(connectionString)),
-                    Take("romon.password") ?? string.Empty);
-                if (Take("romon.port") is string romonPort)
+                    take("romon.user") ?? throw new ArgumentException("A RoMON connection string needs 'romon.user'.", "connectionString"),
+                    take("romon.password") ?? string.Empty);
+                if (take("romon.port") is string romonPort)
                     setup.RomonAgentSetup.Port = ParseInt("romon.port", romonPort);
             }
-            else if (Take("romon.user") != null || Take("romon.password") != null || Take("romon.port") != null)
-                throw new ArgumentException("The RoMON keys need 'romon.host', the agent.", nameof(connectionString));
+            else if (take("romon.user") != null || take("romon.password") != null || take("romon.port") != null)
+                throw new ArgumentException("The RoMON keys need 'romon.host', the agent.", "connectionString");
+        }
 
-            return setup;
+        private static string? EmptyIsNull(string v) => v.Length == 0 ? null : v;
+
+        // The setter checks the value's form and names the option; the string's reader names the key as written.
+        private static void WithKeyNamed(string key, Action apply)
+        {
+            try { apply(); }
+            catch (ArgumentException ex)
+            {
+                throw new ArgumentException($"'{key}': {ex.Message}", "connectionString", ex);
+            }
         }
 
         // The setup as a connection string, the password masked: a setup written to a log must not carry it.
