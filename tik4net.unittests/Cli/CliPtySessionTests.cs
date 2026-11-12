@@ -16,6 +16,7 @@ namespace tik4net.unittests.Cli
     /// that closes, with and without a RoMON relay, and what is written.
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // the safe-mode close tests bound a 3 s quit wait with a Stopwatch
     public class CliPtySessionTests
     {
         private const string Prompt = "[admin@CHR2] > ";
