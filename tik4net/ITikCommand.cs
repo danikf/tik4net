@@ -69,8 +69,8 @@ namespace tik4net
         /// <remarks>
         /// A command that prints (a <c>print</c>, a script's output, the progress rows of
         /// <c>/system/package/update/download</c>) succeeds on every transport, and its output is dropped. A router error
-        /// is still the matching <see cref="TikCommandTrapException"/> subclass, even after rows. A command after which
-        /// the router ends the session itself (<c>/system/reboot</c>, <c>/system/shutdown</c>) counts as success.
+        /// is still the matching <see cref="TikCommandTrapException"/> subclass, even after rows. <c>/system/reboot</c>
+        /// succeeds: the router answers it before it closes the session.
         /// <para>
         /// A connection that ends under the command for any other reason does not: the write may never have reached
         /// the router. A <see cref="ITikConnection.Close"/> on another thread throws

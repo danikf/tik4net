@@ -993,8 +993,8 @@ namespace tik4net.Api
 
                 if (eofException != null)
                 {
-                    // Remote peer closed the TCP connection (e.g. router rebooted/shutdown after accepting the command).
-                    // Yield a synthetic !fatal so callers handle this uniformly.
+                    // Remote peer closed the TCP connection. A reboot reaches here only after its !done; under a running
+                    // command this is a lost connection. Yield a synthetic !fatal so callers handle this uniformly.
                     yield return new ApiFatalSentence(Array.Empty<string>());
                     yield break;
                 }

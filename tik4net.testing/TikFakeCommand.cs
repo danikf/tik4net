@@ -207,7 +207,7 @@ namespace tik4net.Testing
 
         private object? NonQuery(IList<ITikSentence> answer)
         {
-            // !fatal means the router closed the session after running the command (/system/reboot): success.
+            // !fatal means the router ended the session after running the command (/quit): success.
             if (answer.Any(s => s is TikFakeFatalSentence))
                 return null;
             ThrowOnError(answer);

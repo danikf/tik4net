@@ -94,7 +94,7 @@ namespace tik4net.Testing
     /// <remarks>
     /// The commands answer it as they answer the router's own <c>!fatal</c>: a read throws
     /// <see cref="TikCommandFatalException"/>, a bounded read ends in <see cref="TikCommandAbortException"/> carrying it,
-    /// <c>ExecuteNonQuery</c> takes it as success (a reboot ends the session that ran it), and <c>ExecuteWithCallback</c>
+    /// <c>ExecuteNonQuery</c> takes it as success (<c>/quit</c> ends the session that ran it), and <c>ExecuteWithCallback</c>
     /// reports <see cref="Message"/> to the error callback. A connection lost under a write is not this: on the binary API
     /// <c>ExecuteNonQuery</c> throws for it.
     /// </remarks>

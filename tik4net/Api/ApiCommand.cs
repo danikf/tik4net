@@ -283,8 +283,9 @@ namespace tik4net.Api
 
         private void InterpretNonQuery(ApiSentence[] responseArray)
         {
-            // A !fatal the ROUTER sent means it closed the session after running the command (/system/reboot,
-            // shutdown, poweroff): a success. The reader loop ends every wait with a !fatal of its own too, and those say
+            // A !fatal the ROUTER sent means it ended the session itself after the command (/quit): a success.
+            // /system/reboot needs no rule here: RouterOS answers it !done and closes the socket afterwards (7.25.1,
+            // 7.21.5, 6.49.21, tagged and not). The reader loop ends every wait with a !fatal of its own too, and those say
             // nothing of the kind — the write may never have reached the router — so they throw: the caller's own
             // Close() as ClosedWhileRunning, as on every other transport, and a lost connection with its cause.
             var fatal = responseArray.OfType<ApiFatalSentence>().FirstOrDefault();

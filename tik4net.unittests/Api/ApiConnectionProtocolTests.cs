@@ -215,9 +215,8 @@ namespace tik4net.unittests.Api
         }
 
         // A bare EOF is a lost connection, and a write it interrupts has an unknown fate, so ExecuteNonQuery throws
-        // (concurrency review D1a). Only a !fatal the router sent is a success (ApiNonQueryInterruptedTests). Whether
-        // RouterOS answers /system/reboot with a !fatal or a bare EOF is the measurement D1 (b) waits on: if it is a bare
-        // EOF, (b) keeps a lost connection as success for the reboot / shutdown / poweroff commands, and this test flips.
+        // (concurrency review D1a). Only a !fatal the router sent is a success (ApiNonQueryInterruptedTests). A reboot
+        // does not take this path: RouterOS answers it first (the next test).
         [TestMethod]
         public void UnexpectedEof_ExecuteNonQuery_IsALostConnection()
         {
@@ -228,8 +227,8 @@ namespace tik4net.unittests.Api
                 server.ReadSentence(); // login
                 server.WriteSentence("!done");
 
-                server.ReadSentence(); // /system/reboot
-                server.CloseClientConnection(); // router "reboots": connection drops instead of responding
+                server.ReadSentence(); // a write
+                server.CloseClientConnection(); // the connection drops before any answer
             });
 
             using (var connection = new ApiConnection(false))
@@ -237,8 +236,39 @@ namespace tik4net.unittests.Api
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
 
                 var ex = Assert.ThrowsException<TikCommandFatalException>(
-                    () => connection.CreateCommand("/system/reboot").ExecuteNonQuery());
+                    () => connection.CreateCommand("/system/identity/set").ExecuteNonQuery());
                 Assert.IsNotNull(ex.InnerException, "a lost connection carries its cause");
+            }
+
+            Assert.IsTrue(serverTask.Wait(5000));
+        }
+
+        // What RouterOS sends for /system/reboot, measured with a raw API client on 7.25.1, 7.21.5 and 6.49.21: !done
+        // (with the .tag when one was sent) within 2–150 ms, then the socket closes with no !fatal. So a reboot is an
+        // ordinary success, and the EOF after it belongs to no command.
+        [TestMethod]
+        public void Reboot_AnswersDoneThenCloses_ExecuteNonQuerySucceeds()
+        {
+            using var server = new FakeRouterServer();
+            var serverTask = Task.Run(() =>
+            {
+                server.AcceptClient();
+                server.ReadSentence(); // login
+                server.WriteSentence("!done");
+
+                var reboot = server.ReadSentence();
+                var tag = reboot.FirstOrDefault(w => w.StartsWith(".tag=", StringComparison.Ordinal));
+                if (tag != null)
+                    server.WriteSentence("!done", tag);
+                else
+                    server.WriteSentence("!done");
+                server.CloseClientConnection();
+            });
+
+            using (var connection = new ApiConnection(false))
+            {
+                connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+                connection.CreateCommand("/system/reboot").ExecuteNonQuery();
             }
 
             Assert.IsTrue(serverTask.Wait(5000));

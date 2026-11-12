@@ -207,8 +207,8 @@ namespace tik4net.Testing
         }
 
         /// <summary>
-        /// Registers a handler that answers with the router ending the session (<c>!fatal</c>), as a router does after
-        /// <c>/system/reboot</c>. See <see cref="TikFakeFatalSentence"/> for what each command makes of it.
+        /// Registers a handler that answers with the router ending the session (<c>!fatal</c>), as a router does for
+        /// <c>/quit</c>. See <see cref="TikFakeFatalSentence"/> for what each command makes of it.
         /// </summary>
         /// <param name="predicate">Matches the command rows to answer so.</param>
         /// <param name="message">Why the session ended.</param>
