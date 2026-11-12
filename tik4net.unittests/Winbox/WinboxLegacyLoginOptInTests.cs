@@ -11,6 +11,7 @@ namespace tik4net.unittests.Winbox
     /// otherwise downgrade the session to clear text (security review D2). Only <c>AllowLegacyWinboxLogin</c> opts in.
     /// </summary>
     [TestClass]
+    [DoNotParallelize]   // a fake peer answers within a receive timeout (1 s connect and probe windows)
     public class WinboxLegacyLoginOptInTests
     {
         [TestMethod]
