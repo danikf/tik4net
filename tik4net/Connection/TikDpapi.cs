@@ -30,13 +30,15 @@ namespace tik4net.Connection
         /// <exception cref="Win32Exception">The blob does not decrypt for this user on this machine.</exception>
         internal static byte[] Unprotect(byte[] blob) => Run(blob, CryptProtectUiForbidden, protect: false);
 
-        private static unsafe byte[] Run(byte[] input, int flags, bool protect)
+        // No unsafe code: the input is pinned with a GCHandle, the output copied out and wiped with Marshal.Copy.
+        private static byte[] Run(byte[] input, int flags, bool protect)
         {
             if (!IsSupported)
                 throw new PlatformNotSupportedException("DPAPI is Windows-only.");
-            fixed (byte* p = input)
+            var pin = GCHandle.Alloc(input, GCHandleType.Pinned);
+            try
             {
-                var inBlob = new DataBlob { cbData = input.Length, pbData = (IntPtr)p };
+                var inBlob = new DataBlob { cbData = input.Length, pbData = pin.AddrOfPinnedObject() };
                 var outBlob = default(DataBlob);
                 int ok = protect
                     ? NativeMethods.CryptProtectData(ref inBlob, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, flags, ref outBlob)
@@ -52,9 +54,13 @@ namespace tik4net.Connection
                 finally
                 {
                     // The plaintext of an unprotect is not left in freed native memory.
-                    new Span<byte>((void*)outBlob.pbData, outBlob.cbData).Clear();
+                    Marshal.Copy(new byte[outBlob.cbData], 0, outBlob.pbData, outBlob.cbData);
                     NativeMethods.LocalFree(outBlob.pbData);
                 }
+            }
+            finally
+            {
+                pin.Free();
             }
         }
 
