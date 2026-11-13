@@ -231,6 +231,7 @@ namespace tik4net.Api
         public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
         {
+            password = TikPassword.ResolveCredential(password, nameof(password));
             // A pin no certificate could match is the caller's mistake, reported before anything connects.
             if (_isSsl)
                 TikTlsValidation.PinnedFingerprint(this);

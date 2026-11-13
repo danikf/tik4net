@@ -179,6 +179,7 @@ namespace tik4net.Rest
         private async Task OpenInternalAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken)
         {
+            password = TikPassword.ResolveCredential(password, nameof(password));
             cancellationToken.ThrowIfCancellationRequested();
             string scheme = _useSsl ? "https" : "http";
             _baseUrl = $"{scheme}://{host}:{port}/rest";

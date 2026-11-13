@@ -71,12 +71,18 @@ namespace tik4net.MacTelnet
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-            => OpenTerminal(() => Attempt(host, user, password), retryRefusedLogin: true);
+        {
+            password = TikPassword.ResolveCredential(password, nameof(password));
+            OpenTerminal(() => Attempt(host, user, password), retryRefusedLogin: true);
+        }
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
-            => OpenTerminalAsync(() => Attempt(host, user, password), retryRefusedLogin: true, cancellationToken);
+        {
+            password = TikPassword.ResolveCredential(password, nameof(password));
+            return OpenTerminalAsync(() => Attempt(host, user, password), retryRefusedLogin: true, cancellationToken);
+        }
 
         // One open attempt: a console that rebuilds its session when RouterOS logs the idle console out. A refused login
         // ends with the router tearing the session down, so each attempt needs a new client and session key (see

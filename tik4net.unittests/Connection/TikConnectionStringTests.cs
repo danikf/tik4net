@@ -8,7 +8,7 @@ using tik4net;
 namespace tik4net.unittests.Connection
 {
     /// <summary>
-    /// <see cref="TikConnectionSetup.FromConnectionString"/>: every option the setup has can be said in the string, an
+    /// <see cref="TikConnectionSetup.FromConnectionString(string)"/>: every option the setup has can be said in the string, an
     /// unknown key is refused, and the transport travels with it.
     /// </summary>
     [TestClass]

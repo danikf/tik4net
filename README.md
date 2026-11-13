@@ -61,6 +61,7 @@ Step by step: [Getting started](https://github.com/danikf/tik4net/wiki/Getting-s
 * [TikField](https://github.com/danikf/tik4net/wiki/TikField) — a property knows whether the router printed the field, and never invents a default
 * [Describing menus](https://github.com/danikf/tik4net/wiki/Describing-menus) — `DescribeMenu` asks the router which commands, arguments and values a menu takes
 * [Connection string](https://github.com/danikf/tik4net/wiki/Connecting-to-a-router#from-a-connection-string) — router, credentials and transport from configuration
+* [Passwords out of config files](https://github.com/danikf/tik4net/wiki/Connecting-to-a-router#keeping-the-password-out-of-the-configuration) — `password=dpapi:…`, `env:…` or `file:…` instead of the password
 * [Negated matchers](https://github.com/danikf/tik4net/wiki/TikField#negated-matchers) and [value lists](https://github.com/danikf/tik4net/wiki/TikField#value-lists-tikvaluelistt) — `src-address=!10.0.0.0/8`, `dst-port=22,8291` as typed values
 * [Compile-time checks](https://github.com/danikf/tik4net/wiki/TikField#pitfalls) — analyzers TIK001–TIK003 catch `TikField` comparisons that can never match
 * [SSH private-key login](https://github.com/danikf/tik4net/wiki/SSH-connection#authentication)

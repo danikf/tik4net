@@ -53,12 +53,18 @@ namespace tik4net.WinboxCli
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-            => OpenTerminal(() => Attempt(host, port, user, password), retryRefusedLogin: true);
+        {
+            password = TikPassword.ResolveCredential(password, nameof(password));
+            OpenTerminal(() => Attempt(host, port, user, password), retryRefusedLogin: true);
+        }
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
-            => OpenTerminalAsync(() => Attempt(host, port, user, password), retryRefusedLogin: true, cancellationToken);
+        {
+            password = TikPassword.ResolveCredential(password, nameof(password));
+            return OpenTerminalAsync(() => Attempt(host, port, user, password), retryRefusedLogin: true, cancellationToken);
+        }
 
         // One open attempt: the WinBox-CLI client (mepty terminal over the TCP M2 channel) and its login. A refused
         // handshake leaves the client and its channel unusable, so each attempt builds new ones (TikOpenRetry).

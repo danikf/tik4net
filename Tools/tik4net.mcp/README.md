@@ -121,7 +121,7 @@ confusable.
 | `connectionString` | string | The whole connection as one connection string (`TikConnectionSetup.FromConnectionString`), in place of the connection parameters below: `transport=Ssh;host=192.168.88.1;user=admin;password=secret`. Without `transport` the tool's default is used; an unknown key is refused, and so is a connection parameter given beside it |
 | `host`            | string   | Router IP or hostname (required without `connectionString`) |
 | `username`        | string   | Login user (required without `connectionString`) |
-| `password`        | string   | Login password (may be empty) |
+| `password`        | string   | Login password (may be empty), or a reference read by the server: `env:TIK4NET_…` or `file:<any path>/TIK4NET_…` (only names starting with `TIK4NET_`; no `dpapi:`) — the same holds for `romonAgentPassword` and the passwords in `connectionString` |
 | `transport`       | string   | Transport (default `Api`): `Api`, `ApiSsl`, `Rest`, `RestSsl`, `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac`, `WinboxNative`, `WinboxNativeMac` |
 | `port`            | int      | TCP/UDP port; `0` = transport default |
 | `routerMac`       | string   | Router MAC — only the MAC-layer transports `MacTelnet` / `WinboxCliMac` / `WinboxNativeMac` (else MNDP discovery) |

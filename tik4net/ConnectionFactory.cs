@@ -102,7 +102,7 @@ namespace tik4net
         /// <param name="connectionType">Type of technology used to connect to mikrotik router.</param>
         /// <param name="host">The host (name or ip).</param>
         /// <param name="user">The user.</param>
-        /// <param name="password">The password.</param>
+        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
         /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
@@ -118,7 +118,7 @@ namespace tik4net
         /// <param name="host">The host (name or ip).</param>
         /// <param name="port">TCPIP port.</param>
         /// <param name="user">The user.</param>
-        /// <param name="password">The password.</param>
+        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
         /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
@@ -155,7 +155,7 @@ namespace tik4net
         /// <param name="connectionType">Type of technology used to connect to mikrotik router.</param>
         /// <param name="host">The host (name or ip).</param>
         /// <param name="user">The user.</param>
-        /// <param name="password">The password.</param>
+        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <param name="cancellationToken">Cancels the open; how far it reaches is the transport's answer.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
@@ -174,7 +174,7 @@ namespace tik4net
         /// <param name="host">The host (name or ip).</param>
         /// <param name="port">TCPIP port.</param>
         /// <param name="user">The user.</param>
-        /// <param name="password">The password.</param>
+        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <param name="cancellationToken">Cancels the open; how far it reaches is the transport's answer.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>

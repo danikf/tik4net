@@ -352,6 +352,7 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
+            password = TikPassword.ResolveCredential(password, nameof(password));
             _host = host;
             _port = port;
             _user = user;

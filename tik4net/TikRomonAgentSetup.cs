@@ -39,7 +39,8 @@ namespace tik4net
         /// <summary>RouterOS user name on the agent.</summary>
         public string User { get; }
 
-        /// <summary>Password for <see cref="User"/> on the agent (may be empty).</summary>
+        /// <summary>Password for <see cref="User"/> on the agent (may be empty) — the password itself, a
+        /// <c>plain:</c> or <c>dpapi:</c> prefix already read.</summary>
         public string Password { get; }
 
         /// <summary>The agent's port for the transport used, or <c>null</c> for the transport's default.</summary>
@@ -49,9 +50,13 @@ namespace tik4net
         /// <param name="address">Where the agent is — a host name or IP address for Telnet and SSH; a MAC
         /// (<see cref="TikRouterAddress.FromMac"/>) or a host for MAC-Telnet.</param>
         /// <param name="user">RouterOS user name on the agent.</param>
-        /// <param name="password">Password for <paramref name="user"/> (may be empty).</param>
+        /// <param name="password">Password for <paramref name="user"/> (may be empty). <c>plain:</c> and <c>dpapi:</c>
+        /// are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> are refused here — call
+        /// <see cref="TikPassword.Resolve(string)"/> first.</param>
         /// <exception cref="ArgumentException"><paramref name="address"/> is empty or is itself a RoMON id —
-        /// an agent is reached directly, never through another agent.</exception>
+        /// an agent is reached directly, never through another agent; or <paramref name="password"/> is written with
+        /// <c>env:</c> or <c>file:</c>, or a <c>dpapi:</c> blob that does not decrypt.</exception>
+        /// <exception cref="PlatformNotSupportedException"><paramref name="password"/> is <c>dpapi:</c> off Windows.</exception>
         public TikRomonAgentSetup(TikRouterAddress address, string user, string password)
         {
             if (address.IsEmpty)
@@ -66,7 +71,7 @@ namespace tik4net
             Guard.ArgumentNotNull(password, nameof(password));
             Address = address;
             User = user;
-            Password = password;
+            Password = TikPassword.ResolveCredential(password, nameof(password));
         }
 
         /// <summary>The agent's address and user, for diagnostics — never the password.</summary>

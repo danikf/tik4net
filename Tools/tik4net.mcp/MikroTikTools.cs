@@ -147,7 +147,14 @@ public sealed class MikroTikTools
         "host, routerMac, user, password, port, the timeouts, and romon.host/romon.user/romon.password/romon.port " +
         "for a router behind a RoMON agent (host is then its RoMON id). An unknown key is refused. Without " +
         "'transport' the tool's default transport is used. Giving it together with any of those parameters " +
-        "is refused.";
+        "is refused. " + PasswordReferenceRule;
+
+    // The rule for a password written as a reference (TikPassword), shared by the connection string and the separate
+    // password parameters.
+    private const string PasswordReferenceRule =
+        "A password may name where it is instead of holding it, so that it never appears here: " +
+        "'env:TIK4NET_LAB_PW' (an environment variable of this server) or 'file:<path>/TIK4NET_lab.txt' (a one-line file); " +
+        "only names starting with TIK4NET_ are read. 'plain:<text>' is the text as it is. dpapi: is not read here.";
 
     private const string HostDescription =
         "IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
@@ -157,7 +164,7 @@ public sealed class MikroTikTools
         "Username for authentication — on the router named by host (through RoMON: on the target, not the agent)";
 
     private const string PasswordDescription =
-        "Password for authentication — on the router named by host (through RoMON: the target's)";
+        "Password for authentication — on the router named by host (through RoMON: the target's). " + PasswordReferenceRule;
 
     private const string PortDescription = "TCP/UDP port. 0 = use the transport default";
 
@@ -181,7 +188,7 @@ public sealed class MikroTikTools
 
     private const string RomonAgentUsernameDescription = "RoMON: user name on the agent (required with romonAgentHost).";
 
-    private const string RomonAgentPasswordDescription = "RoMON: password on the agent (may be empty).";
+    private const string RomonAgentPasswordDescription = "RoMON: password on the agent (may be empty). " + PasswordReferenceRule;
 
     private const string RomonAgentPortDescription = "RoMON: the agent's port for the transport; 0 = transport default.";
 
@@ -783,6 +790,7 @@ public sealed class MikroTikTools
             if (given.Count > 0)
                 throw new ArgumentException("connectionString already names the connection; give "
                                             + string.Join(", ", given) + " inside it instead.");
+            CheckPasswordReferences(connectionString!);
             var fromString = TikConnectionSetup.FromConnectionString(connectionString!);
             fromString.ConnectionType ??= defaultTransport;
             return fromString;
@@ -794,11 +802,56 @@ public sealed class MikroTikTools
         if (transport != null && !Enum.TryParse(transport, ignoreCase: true, out type))
             throw new ArgumentException($"unknown transport '{transport}'.");
 
-        var setup = BuildSetup(host!, username, password ?? string.Empty, port, routerMac,
-            romonAgentHost, romonAgentUsername, romonAgentPassword, romonAgentPort);
+        var setup = BuildSetup(host!, username, ResolvePassword(password, "password") ?? string.Empty, port, routerMac,
+            romonAgentHost, romonAgentUsername, ResolvePassword(romonAgentPassword, "romonAgentPassword"), romonAgentPort);
         setup.AllowInvalidCertificate = allowInvalidCertificate;
         setup.ConnectionType = type;
         return setup;
+    }
+
+    // ── Password references ──────────────────────────────────────────────────────
+    // The library reads env:, file: and dpapi: in a connection string, because there it is configuration. Here the
+    // string is written by a model, which a prompt injection can steer, and which also chooses the host the password
+    // is sent to: env:GITHUB_TOKEN or file:~/.ssh/id_rsa would send that secret to a server of the injector's choosing.
+    // So only names this server's operator set up for it are read: a variable, or a file, whose name starts with
+    // TIK4NET_ (any directory, any extension). dpapi: is not read at all: the model could hand it any DPAPI blob this
+    // account can decrypt — a browser's key, for instance — and the decrypted text would go to that host.
+    private const string ReferencePrefix = "TIK4NET_";
+
+    // Every password key of a connection string, checked before the library parses (and reads) it.
+    public static void CheckPasswordReferences(string connectionString)
+    {
+        var builder = new System.Data.Common.DbConnectionStringBuilder { ConnectionString = connectionString };
+        foreach (string key in builder.Keys)
+        {
+            if (key.Equals("password", StringComparison.OrdinalIgnoreCase) || key.Equals("pwd", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("romon.password", StringComparison.OrdinalIgnoreCase))
+                CheckPasswordReference(Convert.ToString(builder[key], System.Globalization.CultureInfo.InvariantCulture) ?? "", key);
+        }
+    }
+
+    public static void CheckPasswordReference(string value, string key)
+    {
+        switch (TikPassword.Split(value, out string rest))
+        {
+            case TikPassword.Prefix.Env when !rest.StartsWith(ReferencePrefix, StringComparison.OrdinalIgnoreCase):
+                throw new ArgumentException($"{key}: env: reads only variables whose name starts with {ReferencePrefix} here.");
+            case TikPassword.Prefix.File when !System.IO.Path.GetFileName(rest).StartsWith(ReferencePrefix, StringComparison.OrdinalIgnoreCase):
+                throw new ArgumentException($"{key}: file: reads only files whose name starts with {ReferencePrefix} here.");
+            case TikPassword.Prefix.Dpapi:
+                throw new ArgumentException($"{key}: dpapi: is not read by this server; use env:{ReferencePrefix}… or "
+                                            + $"file:…/{ReferencePrefix}….");
+        }
+    }
+
+    // A separate password parameter: checked as above, read, and handed to the setup as plain text — the setup's
+    // constructor reads no env: or file: itself.
+    private static string? ResolvePassword(string? value, string parameter)
+    {
+        if (value == null)
+            return null;
+        CheckPasswordReference(value, parameter);
+        return TikPassword.Plain(TikPassword.Resolve(value, TikPasswordSources.Environment | TikPasswordSources.File));
     }
 
     // The tool parameters as one TikConnectionSetup, the way a library caller writes it. routerMac goes on

@@ -36,12 +36,18 @@ namespace tik4net.Telnet
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-            => OpenTerminal(() => Attempt(host, port, user, password), retryRefusedLogin: false);
+        {
+            password = TikPassword.ResolveCredential(password, nameof(password));
+            OpenTerminal(() => Attempt(host, port, user, password), retryRefusedLogin: false);
+        }
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
-            => OpenTerminalAsync(() => Attempt(host, port, user, password), retryRefusedLogin: false, cancellationToken);
+        {
+            password = TikPassword.ResolveCredential(password, nameof(password));
+            return OpenTerminalAsync(() => Attempt(host, port, user, password), retryRefusedLogin: false, cancellationToken);
+        }
 
         // One open attempt: a new Telnet client, and its connect plus login (through a RoMON agent, the relay too).
         private CliTerminalOpen Attempt(string host, int port, string user, string password)

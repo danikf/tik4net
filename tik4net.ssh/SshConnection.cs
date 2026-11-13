@@ -49,6 +49,7 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
+            password = TikPassword.ResolveCredential(password, nameof(password));
             var key = ReadKey();
             string? pin = ReadPin();
             OpenTerminal(() => Attempt(host, port, user, password, key, pin), retryRefusedLogin: false);
@@ -58,6 +59,7 @@ namespace tik4net.Ssh
         public override Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default)
         {
+            password = TikPassword.ResolveCredential(password, nameof(password));
             var key = ReadKey();
             string? pin = ReadPin();
             return OpenTerminalAsync(() => Attempt(host, port, user, password, key, pin), retryRefusedLogin: false, cancellationToken);

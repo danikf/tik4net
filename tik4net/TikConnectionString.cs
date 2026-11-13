@@ -9,7 +9,7 @@ namespace tik4net
 {
     /// <summary>
     /// The connection-string form of a <see cref="TikConnectionSetup"/> — see
-    /// <see cref="TikConnectionSetup.FromConnectionString"/> for the keys.
+    /// <see cref="TikConnectionSetup.FromConnectionString(string)"/> for the keys.
     /// </summary>
     /// <remarks>
     /// ADO.NET's syntax, parsed by <see cref="DbConnectionStringBuilder"/>: <c>key=value</c> pairs separated by <c>;</c>,
@@ -61,19 +61,26 @@ namespace tik4net
                 "connectionString");
         }
 
-        internal static TikConnectionSetup Parse(string connectionString)
+        internal static TikConnectionSetup Parse(string connectionString, TikPasswordSources sources)
         {
             Guard.ArgumentNotNullOrEmptyString(connectionString, nameof(connectionString));
             var values = ReadKeys(connectionString);
             string? Take(string key) => values.TryGetValue(key, out var v) ? v : null;
 
             string user = Take("user") ?? throw new ArgumentException("The connection string has no 'user'.", nameof(connectionString));
-            var setup = new TikConnectionSetup(ReadAddress(Take), user, Take("password") ?? string.Empty);
+            var setup = new TikConnectionSetup(ReadAddress(Take), user, ReadPassword(Take, "password", sources));
             foreach (var kv in values)
                 ApplyOption(setup, kv.Key, kv.Value);
-            ApplyRomonAgent(setup, Take);
+            ApplyRomonAgent(setup, Take, sources);
             return setup;
         }
+
+        // A password key read through its prefix (TikPassword), and handed on escaped so that the setup's constructor
+        // takes the result as it is rather than reading a prefix in it a second time.
+        private static string ReadPassword(Func<string, string?> take, string key, TikPasswordSources sources)
+            => take(key) is string value
+                ? TikPassword.Escape(TikPassword.Resolve(value, sources, key, "connectionString", credentialEntry: false))
+                : string.Empty;
 
         // Every key under its canonical spelling; a key named twice (under two of its names) is refused.
         private static Dictionary<string, string> ReadKeys(string connectionString)
@@ -136,13 +143,13 @@ namespace tik4net
             }
         }
 
-        private static void ApplyRomonAgent(TikConnectionSetup setup, Func<string, string?> take)
+        private static void ApplyRomonAgent(TikConnectionSetup setup, Func<string, string?> take, TikPasswordSources sources)
         {
             if (take("romon.host") is string romonHost)
             {
                 setup.RomonAgentSetup = new TikRomonAgentSetup(romonHost,
                     take("romon.user") ?? throw new ArgumentException("A RoMON connection string needs 'romon.user'.", "connectionString"),
-                    take("romon.password") ?? string.Empty);
+                    ReadPassword(take, "romon.password", sources));
                 if (take("romon.port") is string romonPort)
                     setup.RomonAgentSetup.Port = ParseInt("romon.port", romonPort);
             }

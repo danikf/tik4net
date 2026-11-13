@@ -289,7 +289,7 @@ namespace tik4net
         /// </summary>
         /// <param name="host">The host. On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="user">The user.</param>
-        /// <param name="password">The password.</param>
+        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <seealso cref="Close"/>
         /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
         /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
@@ -304,7 +304,7 @@ namespace tik4net
         /// <param name="host">The host (name or ip). On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="port">TCPIP port.</param>
         /// <param name="user">The user.</param>
-        /// <param name="password">The password.</param>
+        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <remarks>
         /// <para>A transient open failure is retried by the transport itself, on a new socket, up to three attempts in
         /// all, whichever overload or <see cref="TikConnectionSetup"/> method opens it: on <c>Api</c> and <c>ApiSsl</c> a
@@ -329,7 +329,7 @@ namespace tik4net
         /// </summary>
         /// <param name="host">The host. On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="user">The user.</param>
-        /// <param name="password">The password.</param>
+        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <seealso cref="Close"/>
         /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
         /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
@@ -364,7 +364,7 @@ namespace tik4net
         /// <param name="host">The host (name or ip). On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="port">TCPIP port.</param>
         /// <param name="user">The user.</param>
-        /// <param name="password">The password.</param>
+        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <seealso cref="Close"/>
         /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
         /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never

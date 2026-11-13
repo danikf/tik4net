@@ -64,7 +64,8 @@ namespace tik4net
 
         /// <summary>RouterOS user name used for authentication.</summary>
         public string User { get; }
-        /// <summary>Password for <see cref="User"/> (may be empty).</summary>
+        /// <summary>Password for <see cref="User"/> (may be empty) — the password itself, any prefix
+        /// (<see cref="TikPassword"/>) already read.</summary>
         public string Password { get; }
 
         /// <summary>Optional port override. When null the transport default is used (API=8728/8729, REST=80/443).</summary>
@@ -379,7 +380,12 @@ namespace tik4net
         /// <see cref="TikRouterAddress.FromHostAndMac"/>.
         /// </param>
         /// <param name="user">RouterOS user name.</param>
-        /// <param name="password">Password for <paramref name="user"/> (may be empty).</param>
+        /// <param name="password">Password for <paramref name="user"/> (may be empty). <c>plain:</c> and <c>dpapi:</c>
+        /// are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> are refused here — call
+        /// <see cref="TikPassword.Resolve(string)"/> first, or use <see cref="FromConnectionString(string)"/>.</param>
+        /// <exception cref="ArgumentException"><paramref name="password"/> is written with <c>env:</c> or <c>file:</c>,
+        /// or a <c>dpapi:</c> blob that does not decrypt.</exception>
+        /// <exception cref="PlatformNotSupportedException"><paramref name="password"/> is <c>dpapi:</c> off Windows.</exception>
         /// <remarks>
         /// A router behind a RoMON agent is addressed by <see cref="TikRouterAddress.FromRomonId"/>, with
         /// <paramref name="user"/> and <paramref name="password"/> its own, and the agent set as
@@ -400,7 +406,7 @@ namespace tik4net
             Guard.ArgumentNotNull(password, nameof(password));
             Address = address;
             User = user;
-            Password = password;
+            Password = TikPassword.ResolveCredential(password, nameof(password));
         }
 
         // ── The connection string ─────────────────────────────────────────────
@@ -440,13 +446,39 @@ namespace tik4net
         /// value of the wrong kind throws, rather than open a connection with a default the configuration did not ask
         /// for. The same spelling twice (<c>host=a;host=b</c>) is the ADO.NET parser's rule: the last one wins. <see cref="CertificateValidationCallback"/> is code and has no key: set it on
         /// the returned setup. <see cref="ToString"/> writes the setup back with the passwords masked.
+        /// <para>
+        /// <c>password</c> and <c>romon.password</c> may name where the password is rather than hold it:
+        /// <c>dpapi:BASE64</c> (Windows DPAPI), <c>env:NAME</c>, <c>file:PATH</c>, or <c>plain:TEXT</c> for a password that
+        /// itself begins with a prefix — see <see cref="TikPassword"/>. They are read here, once, and
+        /// <see cref="Password"/> holds the result. A string that comes from someone other than the application's
+        /// configuration (a tenant, a user, a model) is parsed with
+        /// <see cref="FromConnectionString(string, TikPasswordSources)"/> instead, so that it cannot name a variable or a
+        /// file and send its contents to a host of its choosing.
+        /// </para>
         /// </remarks>
-        /// <exception cref="ArgumentException">The string is empty, or names an unknown key, or a value it cannot read.</exception>
+        /// <exception cref="ArgumentException">The string is empty, or names an unknown key, or a value it cannot read —
+        /// a password's variable not set, its file not one line of text, its DPAPI blob not decrypting.</exception>
+        /// <exception cref="PlatformNotSupportedException">A password is <c>dpapi:</c> off Windows.</exception>
         public static TikConnectionSetup FromConnectionString(string connectionString)
-            => TikConnectionString.Parse(connectionString);
+            => TikConnectionString.Parse(connectionString, TikPasswordSources.All);
 
         /// <summary>
-        /// The setup as a connection string (<see cref="FromConnectionString"/>) with the passwords written as <c>***</c> —
+        /// A setup read from a connection string, the password prefixes limited to <paramref name="passwordSources"/> —
+        /// for a string that is input rather than configuration.
+        /// </summary>
+        /// <param name="connectionString">As <see cref="FromConnectionString(string)"/>.</param>
+        /// <param name="passwordSources">
+        /// The password prefixes read; any other one throws. <see cref="TikPasswordSources.None"/> accepts only
+        /// <c>plain:</c> and unprefixed passwords.
+        /// </param>
+        /// <exception cref="ArgumentException">As <see cref="FromConnectionString(string)"/>, and a password prefix
+        /// <paramref name="passwordSources"/> does not allow.</exception>
+        /// <exception cref="PlatformNotSupportedException">A password is <c>dpapi:</c> off Windows.</exception>
+        public static TikConnectionSetup FromConnectionString(string connectionString, TikPasswordSources passwordSources)
+            => TikConnectionString.Parse(connectionString, passwordSources);
+
+        /// <summary>
+        /// The setup as a connection string (<see cref="FromConnectionString(string)"/>) with the passwords written as <c>***</c> —
         /// safe to log. It carries the router, the user, the transport and the RoMON agent, not every option.
         /// </summary>
         public override string ToString() => TikConnectionString.Format(this);
@@ -731,7 +763,8 @@ namespace tik4net
         // separately (ApplyTo → ITikRomonConnection) and are used from the agent's shell.
         private int? PortArgument => RomonAgentSetup != null ? RomonAgentSetup.Port : Port;
         private string UserArgument => RomonAgentSetup?.User ?? User;
-        private string PasswordArgument => RomonAgentSetup?.Password ?? Password;
+        // Escaped so that Open takes the password as it is: the constructor has already read its prefix.
+        private string PasswordArgument => TikPassword.Escape(RomonAgentSetup?.Password ?? Password);
 
         /// <summary>
         /// Opens a connection this setup has already configured, using its address, port and credentials.
