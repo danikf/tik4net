@@ -12,7 +12,7 @@
         string Name { get; set; }
 
         /// <summary>
-        /// Parameter value (formated to string as expected by <see cref="ITikConnection"/>).
+        /// Parameter value (formatted to string as expected by <see cref="ITikConnection"/>).
         /// </summary>
         /// <remarks>
         /// <b>Null for a bare <c>?name</c> filter</b>, which asks whether the property is present at all and
@@ -22,7 +22,7 @@
         string? Value { get; set; }
 
         /// <summary>
-        /// Parameter specific format how will be parameter formated in mikrotik request.
+        /// Parameter specific format how will be parameter formatted in mikrotik request.
         /// REMARKS: This value is ignored if <see cref="Name"/> starts with one of ?= characters
         /// </summary>
         TikCommandParameterFormat ParameterFormat { get; set; }

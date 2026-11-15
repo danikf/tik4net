@@ -15,10 +15,8 @@ namespace tik4net.Connection
     /// </summary>
     /// <remarks>
     /// <para>
-    /// It deliberately does <b>not</b> implement <see cref="ITikRawSentenceConnection"/>. That interface's
-    /// contract is a command in the <i>connection-specific</i> format, and this class knows only the
-    /// transport-neutral one; a base-class implementation could only accept API-shaped rows and translate
-    /// them, which is what the O/R mapper already does and is the opposite of a raw call. Transports with a
+    /// It does <b>not</b> implement <see cref="ITikRawSentenceConnection"/>: that interface takes a command in the
+    /// <i>connection-specific</i> format, and this class knows only the transport-neutral one. Transports with a
     /// native dialect of their own implement it themselves — see <c>CliConnectionBase</c>.
     /// </para>
     /// <para>

@@ -15,7 +15,7 @@ namespace tik4net.Objects
     public static class TikEntityObjectsExtensions
     {
         /// <summary>
-        /// Creates clone of all entities in list by their fields. Usefull for storing state before list modification - <see cref="TikConnectionExtensions.SaveListDifferences"/>. 
+        /// Creates clone of all entities in list by their fields. Useful for storing state before list modification - <see cref="TikConnectionExtensions.SaveListDifferences"/>. 
         /// </summary>
         /// <typeparam name="TEntity">Type of entity in list</typeparam>
         /// <param name="originalList">Original list to be cloned</param>

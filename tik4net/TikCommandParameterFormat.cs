@@ -1,7 +1,7 @@
 ﻿namespace tik4net
 {
     /// <summary>
-    /// How parameter will be formated in mikrotik request
+    /// How parameter will be formatted in mikrotik request
     /// </summary>
     public enum TikCommandParameterFormat
     {

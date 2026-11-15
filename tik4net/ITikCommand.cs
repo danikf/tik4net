@@ -58,7 +58,7 @@ namespace tik4net
         IList<ITikCommandParameter> Parameters { get; }
 
         /// <summary>
-        /// Default value, how will be command parameters formated in mikrotik request. Could be overriden per parameter.
+        /// Default value, how will be command parameters formatted in mikrotik request. Could be overridden per parameter.
         /// </summary>
         TikCommandParameterFormat DefaultParameterFormat { get; set; }
 
@@ -86,7 +86,7 @@ namespace tik4net
         /// <exception cref="TikCommandUnexpectedResponseException">The answer did not end the way the protocol ends a command (no !done).</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
-        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
+        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicate item (a duplicate id, name, …). Mikrotik API message: 'already have such item'.</exception>
         void ExecuteNonQuery();
 
         /// <summary>
@@ -106,13 +106,13 @@ namespace tik4net
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.), or a row with more than one value field.</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
-        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
+        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicate item (a duplicate id, name, …). Mikrotik API message: 'already have such item'.</exception>
         /// <exception cref="TikCommandEmptyResponseException">Command succeeded but returned no value at all (bare !done without =ret=, or empty CLI output) - use <see cref="ExecuteNonQuery"/> for commands that print nothing.</exception>
         string ExecuteScalar();
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and ensures that operation returns single value (<paramref name="target"/> field) in single !re row, which is returned as result.
-        /// Usefull to return one value from one selected row (for example .id of searched record).
+        /// Useful to return one value from one selected row (for example .id of searched record).
         /// </summary>
         /// <param name="target">Name of returned field.</param>
         /// <returns>Value returned by router.</returns>
@@ -122,7 +122,7 @@ namespace tik4net
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
-        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
+        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicate item (a duplicate id, name, …). Mikrotik API message: 'already have such item'.</exception>
         /// <exception cref="TikCommandEmptyResponseException">Command succeeded but returned no value at all (bare !done without =ret=, or empty CLI output) - use <see cref="ExecuteNonQuery"/> for commands that print nothing.</exception>
         /// <exception cref="TikSentenceException">The row the router returned has no <paramref name="target"/> field (for example a field name the menu does not have), on every transport.</exception>
         string ExecuteScalar(string target);
@@ -142,7 +142,7 @@ namespace tik4net
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
-        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
+        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicate item (a duplicate id, name, …). Mikrotik API message: 'already have such item'.</exception>
         string? ExecuteScalarOrDefault();
 
         /// <summary>
@@ -155,17 +155,12 @@ namespace tik4net
         /// transport's, so name the field with <see cref="ExecuteScalar(string)"/>.
         /// </remarks>
         /// <returns>Value returned by router or <paramref name="defaultValue"/>.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
-        /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
-        /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
-        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
+        /// <inheritdoc cref="ExecuteScalarOrDefault()" path="/exception"/>
         string? ExecuteScalarOrDefault(string? defaultValue);
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <paramref name="defaultValue"/>.
-        /// Usefull to return one value from one selected row (for example .id of searched record).
+        /// Useful to return one value from one selected row (for example .id of searched record).
         /// </summary>
         /// <remarks>
         /// To name a field without a default, pass <c>null</c>: <c>ExecuteScalarOrDefault(null, target)</c>.
@@ -173,12 +168,7 @@ namespace tik4net
         /// <param name="defaultValue">Value returned when matching record was not found, or when the row the router returned has no <paramref name="target"/> field; <c>null</c> for none.</param>
         /// <param name="target">Name of returned field.</param>
         /// <returns>Value returned by router or <paramref name="defaultValue"/>.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
-        /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
-        /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
-        /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
+        /// <inheritdoc cref="ExecuteScalarOrDefault()" path="/exception"/>
         string? ExecuteScalarOrDefault(string? defaultValue, string target);
 
         /// <summary>
@@ -269,7 +259,7 @@ namespace tik4net
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="duration"/>.
         /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.
-        /// Don't throw any exception if command is aborted before <paramref name="duration"/>. Returns <paramref name="wasAborted"/>=true instead (usefull if incomplete result is still expected).
+        /// Don't throw any exception if command is aborted before <paramref name="duration"/>. Returns <paramref name="wasAborted"/>=true instead (useful if incomplete result is still expected).
         /// Returns data if command ends before <paramref name="duration"/> (!done received).
         /// </summary>
         /// <param name="duration">How long will method wait for results. A negative value is zero.</param>
@@ -362,7 +352,7 @@ namespace tik4net
         /// </summary>
         /// <param name="name">Parameter name.</param>
         /// <param name="value">Parameter value</param>
-        /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
+        /// <param name="parameterFormat">How will be parameter formatted in mikrotik command.</param>
         /// <returns>Instance of added parameter.</returns>
         /// <exception cref="ArgumentException"><paramref name="name"/> is empty; nothing is added.</exception>
         ITikCommandParameter AddParameter(string name, string? value, TikCommandParameterFormat parameterFormat);
@@ -380,7 +370,7 @@ namespace tik4net
         /// </summary>
         /// <param name="name">Parameter name.</param>
         /// <param name="value">Parameter value</param>
-        /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
+        /// <param name="parameterFormat">How will be parameter formatted in mikrotik command.</param>
         /// <returns>Command - builder pattern.</returns>
         ITikCommand WithParameter(string name, string value, TikCommandParameterFormat parameterFormat);
 

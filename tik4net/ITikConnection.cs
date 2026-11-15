@@ -41,7 +41,7 @@ namespace tik4net
     /// <b>There are no compatibility extension methods for these.</b> A facet member is reached by
     /// holding the facet type — <c>((ITikSafeModeConnection)connection).SafeModeTake()</c>, or better,
     /// a variable declared as the facet — so a transport that lacks the feature is a compile error
-    /// rather than a runtime one. That is the point: <c>connection.SafeModeTake()</c> on a plain
+    /// rather than a runtime one: <c>connection.SafeModeTake()</c> on a plain
     /// <see cref="ITikConnection"/> does not build. Ask <see cref="ITikConnectionCapabilities"/>
     /// (<c>connection.Supports(...)</c>) when the transport is only known at run time.
     /// <br/>
@@ -232,23 +232,15 @@ namespace tik4net
         TimeSpan ConnectTimeout { get; set; }
 
         /// <summary>
-        /// Event called when row (word) from mikrotik is read by connection.
+        /// Raised for each row (word) the connection reads from the router.
         /// </summary>
         /// <remarks>
-        /// <b>On the binary API these carry the login password in clear text.</b> The API login is an
-        /// ordinary command sentence, so the <c>=password=…</c> word goes through this event like any
-        /// other — with the real password in it, not a placeholder. Accepted rather than redacted: these
-        /// two events are a verbatim view of the wire, that is what makes them useful for diagnosing a
-        /// protocol problem, and filtering one word would make the view a half-truth without making the
-        /// credential any less present in the process. The other transports do not reach here with
-        /// credentials — the CLI family sends its password outside the row path, REST reports method and
-        /// path only, and native WinBox starts tracing after authentication.
-        /// <para>
-        /// So treat a handler on these as handling secrets: do not write it to a log file, a crash report
-        /// or a bug tracker unfiltered. <see cref="tik4net.Diagnostics.TikWireTrace"/> is the diagnostic
-        /// built for capture instead — it redacts the credential — and it also covers the transports these
-        /// events do not.
-        /// </para>
+        /// <b>On the binary API this and <see cref="OnWriteRow"/> carry the login password in clear text:</b> the API
+        /// login is an ordinary command sentence, so its <c>=password=…</c> word passes through like any other. The other
+        /// transports do not reach here with credentials — the CLI family sends its password outside the row path, REST
+        /// reports method and path only, and native WinBox starts tracing after authentication. Do not write a handler's
+        /// output to a log file, a crash report or a bug tracker unfiltered; <see cref="tik4net.Diagnostics.TikWireTrace"/>
+        /// redacts the credential and also covers the transports these events do not.
         /// <para>
         /// The handler runs on whichever thread reads — on the binary API the connection's reader thread — and
         /// concurrently with <see cref="OnWriteRow"/> handlers on the callers' threads, with no ordering between the
@@ -259,50 +251,20 @@ namespace tik4net
         event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
 
         /// <summary>
-        /// Event called when row (word) to mikrotik is written  by connection.
+        /// Raised for each row (word) the connection writes to the router.
         /// </summary>
         /// <remarks>
-        /// <b>On the binary API these carry the login password in clear text.</b> The API login is an
-        /// ordinary command sentence, so the <c>=password=…</c> word goes through this event like any
-        /// other — with the real password in it, not a placeholder. Accepted rather than redacted: these
-        /// two events are a verbatim view of the wire, that is what makes them useful for diagnosing a
-        /// protocol problem, and filtering one word would make the view a half-truth without making the
-        /// credential any less present in the process. The other transports do not reach here with
-        /// credentials — the CLI family sends its password outside the row path, REST reports method and
-        /// path only, and native WinBox starts tracing after authentication.
-        /// <para>
-        /// So treat a handler on these as handling secrets: do not write it to a log file, a crash report
-        /// or a bug tracker unfiltered. <see cref="tik4net.Diagnostics.TikWireTrace"/> is the diagnostic
-        /// built for capture instead — it redacts the credential — and it also covers the transports these
-        /// events do not.
-        /// </para>
-        /// <para>
+        /// <b>On the binary API it carries the login password in clear text</b>, as <see cref="OnReadRow"/> describes.
         /// The handler runs on the thread of the caller whose command is written, so with several threads on one
         /// connection it runs on several at once, and concurrently with <see cref="OnReadRow"/>. Make it thread-safe.
-        /// </para>
         /// </remarks>
         /// <seealso cref="OnReadRow"/>
         event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
 
         /// <summary>
-        /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
+        /// Opens a connection to the host on the transport's default port and logs in.
         /// </summary>
-        /// <param name="host">The host. On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
-        /// <param name="user">The user.</param>
-        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
-        /// <seealso cref="Close"/>
-        /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
-        /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
-        /// answered it (<see cref="TikConnectionLoginNoAnswerException"/>). Any other failure of the open arrives as this type, wrapping the cause.</exception>
-        /// <exception cref="TikConnectionProtocolMismatchException">Something other than this transport's protocol answered on the port.</exception>
-        /// <exception cref="TikConnectionSSLErrorException">The TLS handshake of an SSL transport failed.</exception>
-        void Open(string host, string user, string password);
-
-        /// <summary>
-        /// Opens connection to the specified mikrotik host on specified port and perform the logon operation.
-        /// </summary>
-        /// <param name="host">The host (name or ip). On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
-        /// <param name="port">TCPIP port.</param>
+        /// <param name="host">The host (name or IP). On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="user">The user.</param>
         /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
         /// <remarks>
@@ -318,25 +280,27 @@ namespace tik4net
         /// answered it (<see cref="TikConnectionLoginNoAnswerException"/>). Any other failure of the open arrives as this type, wrapping the cause.</exception>
         /// <exception cref="TikConnectionProtocolMismatchException">Something other than this transport's protocol answered on the port.</exception>
         /// <exception cref="TikConnectionSSLErrorException">The TLS handshake of an SSL transport failed.</exception>
+        void Open(string host, string user, string password);
+
+        /// <summary>
+        /// Opens a connection to the host on the given port and logs in.
+        /// </summary>
+        /// <param name="host"><inheritdoc cref="Open(string, string, string)" path="/param[@name='host']"/></param>
+        /// <param name="port">The port the transport listens on.</param>
+        /// <param name="user"><inheritdoc cref="Open(string, string, string)" path="/param[@name='user']"/></param>
+        /// <param name="password"><inheritdoc cref="Open(string, string, string)" path="/param[@name='password']"/></param>
+        /// <inheritdoc cref="Open(string, string, string)"/>
         void Open(string host, int port, string user, string password);
 
         /// <summary>
-        /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
-        /// Awaitable version. <see cref="ConnectTimeout"/> (default 15 s) bounds the connect and the login
-        /// exchange; what else falls inside it differs per transport — MNDP discovery on the MAC-layer
-        /// transports and the <c>.jg</c> catalog load on native WinBox are bounded separately, and each
+        /// Awaitable <see cref="Open(string, string, string)"/>. <see cref="ConnectTimeout"/> (default 15 s) bounds the
+        /// connect and the login exchange; what else falls inside it differs per transport — MNDP discovery on the
+        /// MAC-layer transports and the <c>.jg</c> catalog load on native WinBox are bounded separately, and each
         /// transport's own type documents which.
         /// </summary>
-        /// <param name="host">The host. On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
-        /// <param name="user">The user.</param>
-        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
-        /// <seealso cref="Close"/>
-        /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
-        /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
-        /// answered it (<see cref="TikConnectionLoginNoAnswerException"/>). Any other failure of the open arrives as this type, wrapping the cause.</exception>
-        /// <exception cref="TikConnectionProtocolMismatchException">Something other than this transport's protocol answered on the port.</exception>
-        /// <exception cref="TikConnectionSSLErrorException">The TLS handshake of an SSL transport failed.</exception>
-        /// <exception cref="System.OperationCanceledException"><paramref name="cancellationToken"/> was cancelled (see the parameter for how far it reaches).</exception>
+        /// <param name="host"><inheritdoc cref="Open(string, string, string)" path="/param[@name='host']"/></param>
+        /// <param name="user"><inheritdoc cref="Open(string, string, string)" path="/param[@name='user']"/></param>
+        /// <param name="password"><inheritdoc cref="Open(string, string, string)" path="/param[@name='password']"/></param>
         /// <param name="cancellationToken">
         /// Cancels the open. <b>How far it reaches depends on the transport, and it is never a promise that
         /// a connect can be torn out mid-handshake:</b>
@@ -354,44 +318,22 @@ namespace tik4net
         /// </list>
         /// Cancellation surfaces as <see cref="System.OperationCanceledException"/>, never wrapped.
         /// </param>
+        /// <exception cref="System.OperationCanceledException"><paramref name="cancellationToken"/> was cancelled (see the parameter for how far it reaches).</exception>
+        /// <inheritdoc cref="Open(string, string, string)"/>
         Task OpenAsync(string host, string user, string password,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Opens connection to the specified mikrotik host on specified port and perform the logon operation.
-        /// Awaitable version.
+        /// Awaitable <see cref="Open(string, int, string, string)"/>.
         /// </summary>
-        /// <param name="host">The host (name or ip). On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
-        /// <param name="port">TCPIP port.</param>
-        /// <param name="user">The user.</param>
-        /// <param name="password">The password. <c>plain:</c> and <c>dpapi:</c> are read as <see cref="TikPassword"/> describes; <c>env:</c> and <c>file:</c> throw <see cref="ArgumentException"/> here — call <see cref="TikPassword.Resolve(string)"/> first, or wrap a user's input in <see cref="TikPassword.Plain"/>.</param>
-        /// <seealso cref="Close"/>
-        /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the host is unreachable or nothing listens on the port.</exception>
-        /// <exception cref="TikConnectionLoginException">The router refused the login (<see cref="TikConnectionLoginRefusedException"/>) or never
-        /// answered it (<see cref="TikConnectionLoginNoAnswerException"/>). Any other failure of the open arrives as this type, wrapping the cause.</exception>
-        /// <exception cref="TikConnectionProtocolMismatchException">Something other than this transport's protocol answered on the port.</exception>
-        /// <exception cref="TikConnectionSSLErrorException">The TLS handshake of an SSL transport failed.</exception>
-        /// <exception cref="System.OperationCanceledException"><paramref name="cancellationToken"/> was cancelled (see the parameter for how far it reaches).</exception>
-        /// <param name="cancellationToken">
-        /// Cancels the open. <b>How far it reaches depends on the transport, and it is never a promise that
-        /// a connect can be torn out mid-handshake:</b>
-        /// <list type="bullet">
-        /// <item><c>Api</c>/<c>ApiSsl</c> and <c>Rest</c>/<c>RestSsl</c> honour it throughout — the TCP/TLS
-        /// connect and the login/probe exchange are all awaited, so cancelling aborts the attempt.</item>
-        /// <item>The CLI family (<c>Telnet</c>, <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c>,
-        /// <c>WinboxCliMac</c>) honours it during the <i>login exchange</i>, which is the part that waits on
-        /// the router. The socket connect ahead of it is synchronous and stays bounded by
-        /// <see cref="ConnectTimeout"/> alone.</item>
-        /// <item><c>WinboxNative</c>/<c>WinboxNativeMac</c> check it before starting and cannot honour it
-        /// after: the EC-SRP5 handshake and catalog fetch have no awaitable form (see the remarks on that
-        /// transport). <see cref="ConnectTimeout"/> bounds the connect and the handshake there, but
-        /// <b>not</b> the <c>.jg</c> catalog load that follows them.</item>
-        /// </list>
-        /// Cancellation surfaces as <see cref="System.OperationCanceledException"/>, never wrapped.
-        /// </param>
+        /// <param name="host"><inheritdoc cref="Open(string, string, string)" path="/param[@name='host']"/></param>
+        /// <param name="port">The port the transport listens on.</param>
+        /// <param name="user"><inheritdoc cref="Open(string, string, string)" path="/param[@name='user']"/></param>
+        /// <param name="password"><inheritdoc cref="Open(string, string, string)" path="/param[@name='password']"/></param>
+        /// <param name="cancellationToken"><inheritdoc cref="OpenAsync(string, string, string, CancellationToken)" path="/param[@name='cancellationToken']"/></param>
+        /// <inheritdoc cref="OpenAsync(string, string, string, CancellationToken)"/>
         Task OpenAsync(string host, int port, string user, string password,
             CancellationToken cancellationToken = default);
-
         /// <summary>
         /// Performs the logoff operation and closes connection. Called also via Dispose of connector.
         /// </summary>
@@ -399,56 +341,56 @@ namespace tik4net
         void Close();
 
         /// <summary>
-        /// Factory method - creates empty command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates empty command specific for connection type with assigned <see cref="ITikCommand.Connection"/>.
         /// </summary>
-        /// <returns>Commend with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        /// <returns>Command with assigned <see cref="ITikCommand.Connection"/>.</returns>
         ITikCommand CreateCommand();
 
         /// <summary>
-        /// Factory method - creates empty command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates empty command specific for connection type with assigned <see cref="ITikCommand.Connection"/>.
         /// </summary>
-        /// <param name="defaultParameterFormat">How will be parameter formated in mikrotik command - default value for command (could be overriden per parameter).</param>
-        /// <returns>Commend with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        /// <param name="defaultParameterFormat">How will be parameter formatted in mikrotik command - default value for command (could be overridden per parameter).</param>
+        /// <returns>Command with assigned <see cref="ITikCommand.Connection"/>.</returns>
         ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat);
 
         /// <summary>
-        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates command specific for connection type with assigned <see cref="ITikCommand.Connection"/>.
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
         /// <param name="parameters">Parameters to be added to newly created command.</param>
-        /// <returns>Commend with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        /// <returns>Command with assigned <see cref="ITikCommand.Connection"/>.</returns>
         /// <seealso cref="CreateParameter(string, string)"/>
         ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters);
 
         /// <summary>
-        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates command specific for connection type with assigned <see cref="ITikCommand.Connection"/>.
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
-        /// <param name="defaultParameterFormat">How will be parameter formated in mikrotik command - default value for command (could be overriden per parameter).</param>
+        /// <param name="defaultParameterFormat">How will be parameter formatted in mikrotik command - default value for command (could be overridden per parameter).</param>
         /// <param name="parameters">Parameters to be added to newly created command.</param>
-        /// <returns>Commend with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        /// <returns>Command with assigned <see cref="ITikCommand.Connection"/>.</returns>
         ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters);        
 
         /// <summary>
-        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates command specific for connection type with assigned <see cref="ITikCommand.Connection"/>.
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
-        /// <returns>Command with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        /// <returns>Command with assigned <see cref="ITikCommand.Connection"/>.</returns>
         /// <exception cref="ArgumentException">An unpaired last name (an odd number of items), or an empty name.</exception>
         ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues);
 
         /// <summary>
-        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates command specific for connection type with assigned <see cref="ITikCommand.Connection"/>.
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
-        /// <param name="defaultParameterFormat">How will be parameter formated in mikrotik command - default value for command (could be overriden per parameter).</param>
+        /// <param name="defaultParameterFormat">How will be parameter formatted in mikrotik command - default value for command (could be overridden per parameter).</param>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
-        /// <returns>Command with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        /// <returns>Command with assigned <see cref="ITikCommand.Connection"/>.</returns>
         /// <exception cref="ArgumentException">An unpaired last name (an odd number of items), or an empty name.</exception>
         ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues);        
 
@@ -467,7 +409,7 @@ namespace tik4net
         /// </summary>
         /// <param name="name">Name of the parameter (without '=')</param>
         /// <param name="value">Value of the parameter</param>
-        /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
+        /// <param name="parameterFormat">How will be parameter formatted in mikrotik command.</param>
         /// <returns>Created parameter with name and value.</returns>
         /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
         /// <seealso cref="ITikCommand.Parameters"/>

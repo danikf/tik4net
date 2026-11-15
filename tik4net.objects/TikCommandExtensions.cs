@@ -86,11 +86,7 @@ namespace tik4net.Objects
         /// <param name="duration">Loading period. A negative value is zero.</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
         /// <seealso cref="ITikCommand.ExecuteListWithDuration(TimeSpan)"/>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
-        /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
-        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
-        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
-        /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
+        /// <inheritdoc cref="LoadList{TEntity}(ITikCommand)" path="/exception"/>
         public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikCommand command, TimeSpan duration)
                     where TEntity : new()
         {
