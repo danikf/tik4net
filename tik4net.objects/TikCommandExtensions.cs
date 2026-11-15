@@ -18,14 +18,15 @@ namespace tik4net.Objects
         /// Loads entity list from given command.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
-        /// <returns>List (or empty list) of loaded entities.</returns>
+        /// <returns>The loaded entities, as a list (empty when nothing matched). The read is over when this returns:
+        /// enumerating the list again, or indexing it, sends nothing to the router.</returns>
         /// <seealso cref="LoadSingle{TEntity}(ITikCommand)"/>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
-        public static IEnumerable<TEntity> LoadList<TEntity>(this ITikCommand command)
+        public static IList<TEntity> LoadList<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
@@ -84,10 +85,11 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="command">Tik command executed to load.</param>
         /// <param name="duration">Loading period. A negative value is zero.</param>
-        /// <returns>List (or empty list) of loaded entities.</returns>
+        /// <returns>The loaded entities, as a list (empty when nothing matched). The read is over when this returns:
+        /// enumerating the list again, or indexing it, sends nothing to the router.</returns>
         /// <seealso cref="ITikCommand.ExecuteListWithDuration(TimeSpan)"/>
         /// <inheritdoc cref="LoadList{TEntity}(ITikCommand)" path="/exception"/>
-        public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikCommand command, TimeSpan duration)
+        public static IList<TEntity> LoadWithDuration<TEntity>(this ITikCommand command, TimeSpan duration)
                     where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));

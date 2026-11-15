@@ -29,7 +29,7 @@ public static class CrudSample
         connection.OnWriteRow += (_, args) => Write(ConsoleColor.Magenta, "> " + args.Word);
 
         Console.WriteLine($"-- reading /ip/address over {options.Transport}");
-        var existing = (await connection.LoadAllAsync<IpAddress>()).ToList();
+        var existing = await connection.LoadAllAsync<IpAddress>();
         foreach (var address in existing)
         {
             // Disabled is a TikField<bool?>: switch on its Value, which is null when the router did not print the field.

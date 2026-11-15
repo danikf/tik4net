@@ -56,13 +56,14 @@ namespace tik4net.Objects
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
-        /// <returns>Loaded list of entities.</returns>
+        /// <returns>The loaded entities, as a list (empty when nothing matched). The read is over when this returns:
+        /// enumerating the list again, or indexing it, sends nothing to the router.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
-        public static IEnumerable<TEntity> LoadAll<TEntity>(this ITikConnection connection)
+        public static IList<TEntity> LoadAll<TEntity>(this ITikConnection connection)
             where TEntity : new()
         {
             return LoadList<TEntity>(connection);
@@ -88,7 +89,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
-            var entities = command.LoadList<TEntity>().ToList();
+            var entities = command.LoadList<TEntity>();
 
             return ExactlyOne(connection, command, entities, metadata);
         }
@@ -108,7 +109,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
-            var entities = command.LoadList<TEntity>().ToList();
+            var entities = command.LoadList<TEntity>();
 
             return AtMostOne(connection, command, entities, metadata);
         }
@@ -127,7 +128,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id));
-            var candidates = command.LoadList<TEntity>().ToList();
+            var candidates = command.LoadList<TEntity>();
 
             return ExactlyOne(connection, command, candidates, metadata);
         }
@@ -146,7 +147,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter("name", name));
-            var candidates = command.LoadList<TEntity>().ToList();
+            var candidates = command.LoadList<TEntity>();
 
             return ExactlyOne(connection, command, candidates, metadata);
         }
@@ -157,7 +158,8 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
-        /// <returns>List (or empty list) of loaded entities.</returns>
+        /// <returns>The loaded entities, as a list (empty when nothing matched). The read is over when this returns:
+        /// enumerating the list again, or indexing it, sends nothing to the router.</returns>
         /// <seealso cref="TikCommandExtensions.LoadList{TEntity}(ITikCommand)"/>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
@@ -165,13 +167,13 @@ namespace tik4net.Objects
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
-        public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
+        public static IList<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
             Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
-            var entities = command.LoadList<TEntity>().ToList();
+            var entities = command.LoadList<TEntity>();
             RegisterSnapshots(connection, entities, metadata, command);
             return entities;
         }
@@ -186,17 +188,18 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="duration">Loading period. A negative value is zero.</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
-        /// <returns>List (or empty list) of loaded entities.</returns>
+        /// <returns>The loaded entities, as a list (empty when nothing matched). The read is over when this returns:
+        /// enumerating the list again, or indexing it, sends nothing to the router.</returns>
         /// <seealso cref="TikCommandExtensions.LoadWithDuration{TEntity}(ITikCommand, TimeSpan)"/>
         /// <inheritdoc cref="LoadAll{TEntity}(ITikConnection)" path="/exception"/>
-        public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, TimeSpan duration, params ITikCommandParameter[] parameters)
+        public static IList<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, TimeSpan duration, params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
             Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
-            var entities = command.LoadWithDuration<TEntity>(duration).ToList();
+            var entities = command.LoadWithDuration<TEntity>(duration);
             RegisterSnapshots(connection, entities, metadata, command);
             return entities;
         }
