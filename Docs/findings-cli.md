@@ -322,8 +322,8 @@ wireless and wifi security menus, `/snmp/community`, `/tool/e-mail`, `/tool/romo
 `/interface/bonding`, `/ip/ipsec/key/rsa` and `/system/ntp/server` do not. RouterOS 6.49.13 has no such word
 (`expected end of command`) and prints secrets without it.
 
-The O/R mapper marks each sensitive property (`[TikProperty(…, IsSensitive = true)]`), sends the
-`.cli-sensitive` marker for an entity that has one, and the CLI read adds `show-sensitive`. A menu that refuses
+The O/R mapper marks each sensitive property (`[TikProperty(…, IsSensitive = true)]`), sets the
+`ShowSensitive` transport hint for an entity that has one, and the CLI read adds `show-sensitive`. A menu that refuses
 the word is read without it and not asked again on that connection. What any transport returns still depends
 on the user's `sensitive` policy. A low-level print is sent as written, so it gets `show-sensitive` only if the
 caller writes it.
@@ -338,13 +338,12 @@ need both issue **two queries and merge by `.id`**.
 
 The O/R mapper controls this with the entity metadata flag `IncludeCliStats` (currently set on
 `Interface`, `FirewallFilter`/`Mangle`/`Nat`/`Raw`, `QueueSimple`/`Tree`), which
-`TikConnectionExtensions` renders as the CLI-only marker parameter `.cli-stats`
-(`TikSpecialProperties.CliStats`). `CliConnectionBase.RunPrint` sees the marker, runs
+the mapper hands the CLI transports as the `MergeStats` transport hint (`TikTransportHints`, beside the command's
+parameters, never a word). `CliPrintDriver` sees the hint, runs
 `CliCommandBuilder.BuildPrint` (config) and `CliCommandBuilder.BuildPrintStats` (counters), and merges
 the two record sets by `.id` — config fields win on a key collision, and a missing stats side falls
-back to config-only rather than dropping the record. The binary API and REST transports **ignore** the
-marker (`IsSpecialParam` in `ApiCommand`/`RestRequestBuilder`) — they already get counters from
-`detail`, and the marker never reaches the wire.
+back to config-only rather than dropping the record. The binary API and REST transports never see the
+hint — they already get counters from `detail` — and no transport sends it to the router.
 
 ### Flag fields are not in `as-value` before RouterOS 7.20
 
@@ -381,18 +380,18 @@ mid-print stall (`findings-romon.md` §4, "Large reads").
 `print as-value proplist=<names> where false` checks names without reading a row: empty answer = all
 known.
 
-tik4net's read path: the O/R mapper sends the entity's flag fields (`disabled` and the read-only `bool`
-properties) as the CLI-only marker `.cli-flags` (`TikSpecialProperties.CliFlags`). Once per connection
+tik4net's read path: the O/R mapper hands over the entity's flag fields (`disabled` and the read-only `bool`
+properties) as the `FlagFields` transport hint. Once per connection
 `CliConnectionBase` reads one `/ip service` row (`CliCommandBuilder.FlagsProbe`); when it carries no
-`disabled`, every mapped read with the marker gets a second `print … as-value proplist=<flags>` of the
+`disabled`, every mapped read with the hint gets a second `print … as-value proplist=<flags>` of the
 same rows — same filter, same windows — merged by `.id`. The names are checked once per menu first; a
 name the menu refuses is left out (the binary API does not send it either). On 7.20+ the probe is the
-only extra command. A read without the marker — a low-level `print` — gets what the router prints.
+only extra command. A read without the hint — a low-level `print` — gets what the router prints.
 
 **A singleton takes no `proplist=` at all**, on either version: `/system clock print as-value
 proplist=dst-active` answers `expected end of command` on 7.19.6 and `bad parameter proplist` on 7.24.4.
 It needs none — a singleton's plain `print as-value` carries its flags on both (`dst-active`,
-`/ip settings ipv4-fast-path-active`) — so the mapper sends no flags marker for an `IsSingleton` entity.
+`/ip settings ipv4-fast-path-active`) — so the mapper sets no flag fields for an `IsSingleton` entity.
 A flags read would have nothing to merge by either, the menu having no `.id`.
 
 **A low-level read gets the flags it NAMES.** A field listed in `.proplist` that no row of the plain read
@@ -550,8 +549,8 @@ Two distinct symptoms follow from that:
   (`failure: already have such address=…`), and `AreRecords` reports it as one.
 
 For fields marked `IsFreeText` on the O/R mapper side (currently `SystemScript.Source`,
-`File.Contents`, `SystemScheduler.OnEvent`, `SystemNote.Note`), the entity carries the CLI-only marker
-`.cli-json` (`TikSpecialProperties.CliJson`), which switches the read to
+`File.Contents`, `SystemScheduler.OnEvent`, `SystemNote.Note`), the entity's load carries the `SerializeRead`
+transport hint (and the fields, `FreeTextFields`), which switches the read to
 `:put [:serialize to=json [ /path print … as-value ]]`, parsed by `CliJsonParser` instead of
 `CliOutputParser`. JSON is escaped, so the read is exact. `CliJsonParser` converts JSON back to the
 string wire form the binary API would have produced (`true`/`false` as text, array elements joined with
@@ -568,9 +567,9 @@ serialisation: a paged window prints only when it holds ids (`:if ([:len $w] > 0
 window is no evidence either way — taken as evidence, an empty free-text menu on 6.49.13 marks the connection
 as supporting `:serialize`, and the next free-text menu with rows fails with `bad command name serialize`.
 On a pre-7.13 router the as-value read gives a free-text field with its line breaks read as `;`, so the
-typed read takes each field the marker names again, row by row, with
+typed read takes each field the hint names (`FreeTextFields`) again, row by row, with
 `:put ([/system script get *N source] . "\n#tik4net-end-of-value")`, which prints the value as stored
-(`CliPrintDriver.RereadFreeTextAsync`). A raw `print` carries no marker, and its free-text values keep
+(`CliPrintDriver.RereadFreeTextAsync`). A raw `print` carries no hint, and its free-text values keep
 the as-value form.
 
 ### `/tool/torch`: a different snapshot mechanism entirely

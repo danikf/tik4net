@@ -64,21 +64,13 @@ namespace tik4net.Api
             return (ApiConnection)value;
         }
 
-        /// <summary>
-        /// The parameters that never reach the binary API wire: the client-side markers
-        /// (<see cref="TikTransportMarkers.IsClientMarker"/>) and nothing more. The API understands <c>.proplist</c> and
-        /// <c>.tag</c> natively, so it sends both; it frames values and always sends the flags and the secrets, so it
-        /// needs none of the CLI's markers.
-        /// </summary>
-        private static bool IsSpecialParam(string name) => TikTransportMarkers.IsClientMarker(name);
-
         private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] additionalParameters)
         {
             EnsureCommandTextSet();
             if (Session != null)
                 TikFilterValidation.Check(Session, this, CommandText,
                     Parameters.Where(p => p.Name.StartsWith("?")
-                            || (!p.Name.StartsWith("=") && !IsSpecialParam(p.Name)
+                            || (!p.Name.StartsWith("=")
                                 && TikParameterFormat.Resolve(p, DefaultParameterFormat, defaultParameterFormat) == TikCommandParameterFormat.Filter))
                         .Select(p => p.Name),
                     null);
@@ -103,8 +95,9 @@ namespace tik4net.Api
             }
 
             //parameters
+            // Every parameter is a word: the API understands .proplist and .tag natively, and the O/R mapper's hints for
+            // the other transports travel outside the parameter list (TikTransportHints), so there is nothing to drop.
             result.AddRange(Parameters.Concat(additionalParameters)
-                .Where(p => !IsSpecialParam(p.Name))
                 .Select(p =>
             {
                 if (p.Name.StartsWith("=")) //NameValue format in parameter name

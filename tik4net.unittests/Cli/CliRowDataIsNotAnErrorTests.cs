@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
+using tik4net.unittests.Connection;
 
 namespace tik4net.unittests.Cli
 {
@@ -196,9 +197,7 @@ namespace tik4net.unittests.Cli
             }, pageSize: 20);
             var read = new Func<ITikCommand>(() =>
             {
-                var c = router.CreateCommand("/system/script/print");
-                c.AddParameter(TikSpecialProperties.CliJson, "source", TikCommandParameterFormat.NameValue);
-                return c;
+                return router.CreateCommand("/system/script/print").WithHints(TransportHintsTestExtensions.Serialize("source"));
             });
 
             Assert.ThrowsException<TikCommandTrapException>(() => read().ExecuteList());

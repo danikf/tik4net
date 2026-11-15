@@ -1,5 +1,5 @@
 // WinboxLabelHintTests.cs — router-free tests for the entity's WinBox labels (TikPropertyAttribute.WinboxLabel,
-// carried to the native transport by the .winbox-labels marker). Priority: session field override → label → the
+// carried to the native transport in the command's TikTransportHints). Priority: session field override → label → the
 // name heuristic; a label this catalog does not have falls through.
 
 #nullable enable
@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 using tik4net.Objects;
 using tik4net.Testing;
 using tik4net.Winbox;
@@ -29,12 +30,15 @@ namespace tik4net.unittests.Winbox
 
         private static readonly int[] Handler = { 9, 9 };
 
-        private static WinboxFieldResolver Resolver(string? marker, Dictionary<string, int>? overrides = null)
+        // labels: "api-name=Label|other=qualifier: Label", as the attributes would declare them.
+        private static WinboxFieldResolver Resolver(string? labels, Dictionary<string, int>? overrides = null)
         {
             var catalog = new WinboxJgCatalog();
             Assert.IsTrue(catalog.TryParseInto(Window));
+            var pairs = labels?.Split('|').Select(p => p.Split(new[] { '=' }, 2))
+                .Select(p => new KeyValuePair<string, string>(p[0], p[1]));
             return new WinboxFieldResolver("/box", Handler, catalog, overrides ?? new Dictionary<string, int>(),
-                labelHints: WinboxFieldResolver.ParseLabelHints(marker));
+                labelHints: WinboxFieldResolver.NormalizeLabelHints(pairs));
         }
 
         [TestMethod]
@@ -72,31 +76,36 @@ namespace tik4net.unittests.Winbox
             public TikField<string?> Name { get; set; }
         }
 
-        private static TikFakeConnection LoadAndAdd(TikConnectionCapability capabilities)
+        [TestMethod]
+        public void TheMapper_HandsTheLabels_ToTheLoadAndTheAdd()
         {
-            var connection = new TikFakeConnection { Capabilities = capabilities }
+            var connection = new TikFakeConnection();
+            var load = TikConnectionExtensions.CreateLoadCommandWithFilter<LabelledBox>(connection);
+            var add = TikConnectionExtensions.BuildCreateCommand(connection, new LabelledBox { Name = "x", Relay = true },
+                TikEntityMetadataCache.GetMetadata<LabelledBox>(), null);
+
+            foreach (var command in new[] { load, add })
+            {
+                var labels = ((ITikTransportHintsCommand)command).Hints.WinboxLabels;
+                Assert.IsNotNull(labels, command.CommandText);
+                Assert.AreEqual(WinboxFieldResolver.NormalizeLabel("Upstream Sync"), labels!["relay"], command.CommandText);
+                Assert.IsFalse(labels.ContainsKey("name"), "only a labelled property carries a label");
+            }
+        }
+
+        [TestMethod]
+        public void TheLabels_AreNeverSentAsAWord()
+        {
+            // A caller's own test double sees the same commands whether or not the entity carries labels.
+            var connection = new TikFakeConnection { Capabilities = new TikFakeConnection().Capabilities | TikConnectionCapability.FieldLabels }
                 .WithResponse(cmd => cmd.First() == "/box/print", _ => new ITikSentence[] { new TikFakeDoneSentence() })
                 .WithScalarResponse(cmd => cmd.First() == "/box/add", "*1");
             connection.LoadAll<LabelledBox>().ToList();
             connection.Save(new LabelledBox { Name = "x", Relay = true });
-            return connection;
-        }
 
-        [TestMethod]
-        public void TheMapper_SendsTheLabels_ToAConnectionThatDeclaresFieldLabels()
-        {
-            var connection = LoadAndAdd(new TikFakeConnection().Capabilities | TikConnectionCapability.FieldLabels);
-            foreach (var verb in new[] { "/box/print", "/box/add" })
-                CollectionAssert.Contains(connection.SentCommands.Single(c => c.First() == verb).ToArray(),
-                    "=.winbox-labels=relay=Upstream Sync", verb);
-        }
-
-        [TestMethod]
-        public void TheMapper_SendsNoLabels_ToAnyOtherConnection()
-        {
-            // A caller's own test double sees the same commands whether or not the entity carries labels.
-            var connection = LoadAndAdd(new TikFakeConnection().Capabilities);
-            Assert.IsFalse(connection.SentCommands.SelectMany(c => c).Any(w => w.Contains(".winbox-labels")));
+            Assert.AreEqual(2, connection.SentCommands.Count);
+            Assert.IsFalse(connection.SentCommands.SelectMany(c => c).Any(w => w.Contains("winbox") || w.Contains("Upstream")),
+                string.Join(" | ", connection.SentCommands.Select(c => string.Join(" ", c))));
         }
     }
 }

@@ -32,7 +32,7 @@ namespace tik4net.Objects
             TikMenuSchema schema;
             try
             {
-                schema = TikMenuSchemaExtensions.DescribeMenu(connection, metadata.EntityPath, metadata.WinboxLabelsMarker);
+                schema = TikMenuSchemaExtensions.DescribeMenu(connection, metadata.EntityPath, metadata.LabelHints);
             }
             catch (TikNoSuchCommandException)
             {
@@ -77,7 +77,7 @@ namespace tik4net.Objects
                 bool isUnsetName = verb == "unset" && parameter.Name == TikSpecialProperties.UnsetValueName;
                 string field = isUnsetName ? parameter.Value ?? string.Empty : parameter.Name;
                 if (!isUnsetName && field.StartsWith(".", StringComparison.Ordinal))
-                    continue;   // .id and the library's own markers
+                    continue;   // .id, .tag and the API's other dotted words
                 if (names.Contains(field) || AlwaysTaken.Contains(field))
                     continue;
 

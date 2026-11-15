@@ -127,7 +127,7 @@ namespace tik4net.Rest
 
         bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
-        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
+        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, TikTransportHints? hints)
             => MenuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 
         /// <inheritdoc/>
@@ -436,7 +436,7 @@ namespace tik4net.Rest
             {
                 new TikCommandParameter(name, value, TikCommandParameterFormat.NameValue),
             };
-            return new TikCommandDescriptor(descriptor.CommandText, parameters);
+            return descriptor.With(parameters: parameters);
         }
 
         // ── HTTP execution ─────────────────────────────────────────────────────
@@ -482,7 +482,7 @@ namespace tik4net.Rest
             RestTrailingSegment answer;
             try
             {
-                string body = await ExecuteAsync(new TikCommandDescriptor(ConsoleInspectPath, parameters),
+                string body = await ExecuteAsync(new TikCommandDescriptor(ConsoleInspectPath, parameters, false, false, TikTransportHints.None),
                     RestTrailingSegment.Command, cancellationToken).ConfigureAwait(false);
                 answer = RestResponseParser.TryReadRows(body, out var rows) && rows.Any(IsMenuNode)
                     ? RestTrailingSegment.Menu : RestTrailingSegment.Command;

@@ -497,7 +497,7 @@ the API's `<html>\n<head>…` comes back as `contents` twice, joined `<html>,<he
 The answer is `:put [:serialize to=json […]]`, which the CLI transports implement (`CliJsonParser`) and
 which an entity opts into by marking the property `IsFreeText`. Thirteen properties are marked today — a
 file body, script sources and `on-event`/`up-script` handlers, two regexps. The audit reads through the
-same marker, so it measures the request the library actually makes rather than one it never sends.
+same hint (`SerializeRead`), so it measures the request the library actually makes rather than one it never sends.
 
 **The JSON read is not a free upgrade**, which is why it is per-entity rather than the default: it renders
 a duration as a date counted from the Unix epoch and truncates sub-second precision

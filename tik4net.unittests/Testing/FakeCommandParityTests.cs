@@ -68,8 +68,6 @@ namespace tik4net.unittests.Testing
                     NoSetup, c => c.ExecuteScalar("address"), Row("=address=a"), Done),
                 new Case("a print argument makes a scalar's parameters values", "/ip/address/print",
                     c => c.AddParameter("count-only", ""), c => c.ExecuteScalar(), Done.Concat(new[] { "=ret=3" }).ToArray()),
-                new Case("a client marker is not sent", "/ip/address/print",
-                    c => c.AddParameter(TikSpecialProperties.CliFlags, "disabled"), c => Rows(c.ExecuteList()), Done),
 
                 // What an answer means.
                 new Case("scalar: !done with =ret=", "/ip/address/add",

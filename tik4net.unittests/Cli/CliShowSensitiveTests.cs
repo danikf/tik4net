@@ -35,6 +35,19 @@ namespace tik4net.unittests.Cli
             public TikField<string?> Secret { get; set; }
         }
 
+        [TikEntity("/box", IncludeCliStats = true)]
+        private sealed class SecretCountedBox
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string? Id { get; set; }
+
+            [TikProperty("name")]
+            public TikField<string?> Name { get; set; }
+
+            [TikProperty("secret", IsSensitive = true)]
+            public TikField<string?> Secret { get; set; }
+        }
+
         [TikEntity("/box")]
         private sealed class PlainBox
         {
@@ -102,6 +115,38 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void TheReadWithoutDetail_KeepsShowSensitive()
+        {
+            // A menu that refuses 'detail' is read again without it: the retry is a new descriptor, and the hint has
+            // to survive it or the secret reads absent.
+            using (var conn = new SecretRouter(knowsShowSensitive: true) { RefuseDetail = true })
+            {
+                conn.OpenScripted();
+
+                var rows = conn.LoadAll<SecretBox>().ToList();
+
+                Assert.IsTrue(conn.Reads.Any(s => s.Contains(" detail")), string.Join(" | ", conn.Reads));
+                CollectionAssert.AreEqual(new[] { "s0", "s1" }, rows.Select(r => r.Secret.Value).ToList());
+                Assert.IsTrue(conn.Reads.Where(s => !s.Contains(" detail")).All(s => s.Contains(" show-sensitive")),
+                    string.Join(" | ", conn.Reads));
+            }
+        }
+
+        [TestMethod]
+        public void RouterOs6_TheReadWithoutTheWord_StillMergesTheStats()
+        {
+            // The refusal drops show-sensitive and nothing else: the stats merge still runs.
+            using (var conn = new SecretRouter(knowsShowSensitive: false))
+            {
+                conn.OpenScripted();
+
+                conn.LoadAll<SecretCountedBox>().ToList();
+
+                Assert.IsTrue(conn.Reads.Any(s => s.Contains("/box print stats")), string.Join(" | ", conn.Reads));
+            }
+        }
+
+        [TestMethod]
         public void ASyntaxErrorTheWordDidNotCause_StillReachesTheCaller()
         {
             using (var conn = new SecretRouter(knowsShowSensitive: true) { AlwaysSyntaxError = true })
@@ -134,6 +179,7 @@ namespace tik4net.unittests.Cli
             public readonly List<string> Sent = new List<string>();
             public IEnumerable<string> Reads => Sent.Where(s => s.Contains("/box print"));
             public bool AlwaysSyntaxError;
+            public bool RefuseDetail;
 
             public SecretRouter(bool knowsShowSensitive)
             {
@@ -155,6 +201,8 @@ namespace tik4net.unittests.Cli
                     return Task.FromResult(SyntaxError);
                 if (AlwaysSyntaxError || (!_knowsShowSensitive && cliText.Contains("show-sensitive")))
                     return Task.FromResult(SyntaxError);
+                if (RefuseDetail && cliText.Contains(" detail"))
+                    return Task.FromResult("bad parameter detail (line 1 column 27)");
 
                 bool showSecret = !_knowsShowSensitive || cliText.Contains("show-sensitive");
                 var rows = Enumerable.Range(0, 2)

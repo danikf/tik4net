@@ -53,20 +53,6 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void BuildPrint_NeverEmitsTheMarkerItselfAsACliWord()
-        {
-            var parameters = new ITikCommandParameter[]
-            {
-                new FakeParameter(TikSpecialProperties.CliJson, "", TikCommandParameterFormat.NameValue),
-            };
-
-            string built = CliCommandBuilder.BuildPrint("/file/print", parameters, asJson: true);
-
-            Assert.IsFalse(built.Contains(TikSpecialProperties.CliJson),
-                "The .cli-json marker is a client-side signal and must never reach the router: " + built);
-        }
-
-        [TestMethod]
         public void FileEntity_AsksForJson_BecauseContentsIsFreeText()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<File>();

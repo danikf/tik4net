@@ -16,7 +16,7 @@ namespace tik4net.Objects
         public static TikMenuSchema DescribeMenu<TEntity>(this ITikConnection connection)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            return TikMenuSchemaExtensions.DescribeMenu(connection, metadata.EntityPath, metadata.WinboxLabelsMarker);
+            return TikMenuSchemaExtensions.DescribeMenu(connection, metadata.EntityPath, metadata.LabelHints);
         }
     }
 }

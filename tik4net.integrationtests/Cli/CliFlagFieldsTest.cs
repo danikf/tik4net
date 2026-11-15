@@ -1,7 +1,7 @@
 // CliFlagFieldsTest.cs — every transport reports the same flags as the binary API.
 //
 // RouterOS before 7.20 leaves every flag field (disabled, dynamic, running, invalid, active, …) out of the CLI's
-// 'print as-value'; the CLI transports ask for them by name there (TikSpecialProperties.CliFlags). A flag that
+// 'print as-value'; the CLI transports ask for them by name there (TikTransportHints.FlagFields). A flag that
 // went missing does not throw: the property keeps its CLR default, so an interface that is up reads
 // Running = false. This test compares the flags row by row against the binary API, which always sends them, so
 // it holds on any version — run it against a pre-7.20 router to cover the by-name read, and against the lab

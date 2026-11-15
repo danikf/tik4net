@@ -176,8 +176,8 @@ Transports differ in what they can physically do, so features are gated by
 `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
 `CancelInFlight`, and three that describe how a transport handles fields rather than what it can run:
 
-- `FieldLabels` — the transport resolves entity fields through their WinBox labels, which the O/R mapper sends
-  only to a connection declaring it (WinBox native only).
+- `FieldLabels` — the transport resolves entity fields through their WinBox labels, which the O/R mapper hands
+  over in the command's transport hints (WinBox native only).
 - `MenuSchema` — the transport can describe a menu from the router's own grammar (`DescribeMenu`):
   `/console/inspect` on the API, REST and the CLI family, Tab completion on the CLI family on RouterOS 6, the
   `.jg` catalog on WinBox native.
@@ -326,10 +326,38 @@ transport written outside), and its name in messages and its RoMON agent type ar
 `ApiCommand` and `TikGenericCommand` derive from the internal `TikCommandBase`, which holds what a command is
 (connection, command text, parameters, default format), the one-run-at-a-time guard and the parameter builders. They
 decide an answer by the same rules (`TikCommandResult`: the read verbs, an empty scalar, the single row) and resolve
-an unformatted parameter by the same function (`TikParameterFormat.Resolve`); what each sends is its own. The
-`TikSpecialProperties` markers that only the mapper adds for one transport's own handling (`.cli-stats`, `.cli-json`,
-`.cli-flags`, `.cli-sensitive`, `.winbox-labels`) are listed once, in `TikTransportMarkers.IsClientMarker`. The API,
-REST and CLI builders strip them all, and each one adds its own transport's exceptions on top of that list.
+an unformatted parameter by the same function (`TikParameterFormat.Resolve`); what each sends is its own.
+
+**A command's parameter list holds only words for the router.** What tells one of tik4net's own transports *how* to
+read or write an entity travels beside it, typed, from the mapper to the transport and nowhere else:
+`TikTransportHints` (`Connection/`, internal) — the CLI's stats merge (`MergeStats`), its `:serialize` read and the
+free-text fields re-read before 7.13 (`SerializeRead`, `FreeTextFields`), the flag fields asked for by name before 7.20
+(`FlagFields`), `show-sensitive` (`ShowSensitive`), and WinBox native's labels, normalised to catalog names, with the
+menu-schema cache key built from them (`WinboxLabels`, `WinboxLabelsKey`).
+
+```
+mapper   TikEntityMetadata: ReadHints (everything — loads) and LabelHints (labels only — add, set, unset,
+         listen, DescribeMenu), built once per entity type; command-level loads (command.LoadList<T>()) set
+         ReadHints too, unconditionally
+           │  ((ITikTransportHintsCommand)command).Hints = …   — TikGenericCommand and TikFakeCommand implement it;
+           │                                                     ApiCommand does not, and the API needs none
+command  TikGenericCommand: every structured descriptor it builds carries them; a raw one carries None
+           │
+base     descriptor.Hints (internal) → CheckFilters, the menu schema (labels)
+           │
+hooks    REST: parameters only · CLI: CliPrintDriver / CliFlagSupplier read d.Hints, CliCommandBuilder gets
+         show-sensitive as an argument · WinBox native: d.Hints.WinboxLabels → WinboxFieldResolver, the writer
+         · a transport written outside tik4net: parameters only — Hints is internal and never in its view
+```
+
+A descriptor derived from another one (a retry without `detail`, the listen's poll, a `.proplist` read, a native
+canonical path) is built with `descriptor.With(...)`, which keeps the hints; the internal constructor takes them with
+no default, and a descriptor with no parent names `TikTransportHints.None`. A dropped hint fails silently — counters,
+secrets or flags read absent — so `TransportHintsTests` covers every derivation path, and its source scan
+(`EveryDescriptorBuiltWithoutAParent_SaysSo`) fails when shipping code calls the hint-less public constructor.
+`TransportExtensionPointTests` holds that an outside transport is handed the command's words and nothing else. The
+four 4.0 marker constants on `TikSpecialProperties` (`CliStats`, `CliFlags`, `CliJson`, `CliSensitive`) are
+`[Obsolete(error: true)]`; nothing reads a parameter of those names.
 
 The one thing deliberately **not** offered here is `ITikRawSentenceConnection`: see the contract section
 above for why a transport-neutral base cannot have a connection-specific format.

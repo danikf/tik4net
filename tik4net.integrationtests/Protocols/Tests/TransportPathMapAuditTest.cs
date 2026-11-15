@@ -28,6 +28,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using tik4net.Connection;
 using tik4net.Objects;
 
 namespace tik4net.integrationtests
@@ -267,24 +268,25 @@ namespace tik4net.integrationtests
 
         private static List<ITikReSentence> PrintRows(ITikConnection conn, string path)
         {
-            // Harmless on the transports that do not need it: API and REST both drop '.cli-json' rather
-            // than putting it on the wire.
-            var extra = new List<ITikCommandParameter>();
-            if (FreeTextPaths.Contains(path))
-                extra.Add(conn.CreateParameter(TikSpecialProperties.CliJson, "",
-                                               TikCommandParameterFormat.NameValue));
+            // A free-text menu is read through ':serialize' on the CLI transports, as its entity's load is; the hint
+            // goes beside the command (the binary API's command carries none and needs none).
+            bool serialize = FreeTextPaths.Contains(path);
             try
             {
-                var withDetail = new List<ITikCommandParameter>(extra)
-                {
-                    conn.CreateParameter("detail", "", TikCommandParameterFormat.NameValue)
-                };
-                return conn.CreateCommand(path + "/print", withDetail.ToArray()).ExecuteList().ToList();
+                return Hinted(conn.CreateCommand(path + "/print",
+                    conn.CreateParameter("detail", "", TikCommandParameterFormat.NameValue)), serialize).ExecuteList().ToList();
             }
             catch (Exception)
             {
-                return conn.CreateCommand(path + "/print", extra.ToArray()).ExecuteList().ToList();
+                return Hinted(conn.CreateCommand(path + "/print"), serialize).ExecuteList().ToList();
             }
+        }
+
+        private static ITikCommand Hinted(ITikCommand command, bool serialize)
+        {
+            if (serialize && command is ITikTransportHintsCommand carrier)
+                carrier.Hints = TikTransportHints.None.WithSerializeRead();
+            return command;
         }
 
         private static Reading Read(ITikConnection conn, string path)

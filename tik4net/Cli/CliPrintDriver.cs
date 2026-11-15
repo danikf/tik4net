@@ -30,7 +30,7 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Executes a <c>print as-value</c> command and returns parsed sentences.
-        /// When the <c>.cli-stats</c> marker is present in the descriptor's parameters,
+        /// When the descriptor's hints ask for the stats merge (<see cref="TikTransportHints.MergeStats"/>),
         /// performs two queries (detail + stats) and merges the results by <c>.id</c>
         /// so that config fields and live counter fields are combined in each record.
         /// </summary>
@@ -106,11 +106,12 @@ namespace tik4net.Cli
                 var rest = descriptor.Parameters.Where(p => p.Name != TikSpecialProperties.Proplist).ToList();
                 // A field the caller named that the plain read leaves out — a flag, on RouterOS before 7.20 — is
                 // read by name, as the API returns it (SupplyFlagsAsync; it asks only for names no row carries).
-                string named = string.Join(",", (proplist.Value ?? string.Empty).Split(',')
-                    .Select(n => n.Trim()).Where(n => n.Length > 0 && n[0] != '.'));
-                if (named.Length > 0 && !rest.Any(p => p.Name == TikSpecialProperties.CliFlags))
-                    rest.Add(new TikCommandParameter(TikSpecialProperties.CliFlags, named, TikCommandParameterFormat.NameValue));
-                var plain = new TikCommandDescriptor(descriptor.CommandText, rest);
+                string[] named = (proplist.Value ?? string.Empty).Split(',')
+                    .Select(n => n.Trim()).Where(n => n.Length > 0 && n[0] != '.').ToArray();
+                var hints = descriptor.Hints;
+                if (named.Length > 0 && hints.FlagFields.Count == 0)
+                    hints = hints.WithFlagFields(named);
+                var plain = descriptor.With(parameters: rest, hints: hints);
                 return await RunPrintCoreAsync(plain, cancellationToken).ConfigureAwait(false);   // the base trims them to .proplist (TikProplist)
             }
 
@@ -127,7 +128,7 @@ namespace tik4net.Cli
             };
             try
             {
-                return await RunTablePrintAsync(new TikCommandDescriptor(descriptor.CommandText, withDetail), cancellationToken).ConfigureAwait(false);
+                return await RunTablePrintAsync(descriptor.With(parameters: withDetail), cancellationToken).ConfigureAwait(false);
             }
             catch (TikConnectionResponseIncompleteException ex) when (CliErrorParser.IsDetailRefusal(ex.PartialResponse))
             {
@@ -146,17 +147,17 @@ namespace tik4net.Cli
 
         private async Task<IList<TikRecordSentence>> RunTablePrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
-            bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
+            bool needStats = descriptor.Hints.MergeStats;
+            bool wantJson = descriptor.Hints.SerializeRead;
 
             // show-sensitive: RouterOS 7 hides secrets from a terminal print unless asked. RouterOS 6 has no such
             // word ("expected end of command", 6.49.13) and prints them anyway, so a menu that refuses it is read
             // without it — and not asked again on this connection. Remembered only once the plain read succeeds:
             // a syntax error the word did not cause fails that read too, and is the caller's to see.
-            bool wantSensitive = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliSensitive);
+            bool wantSensitive = descriptor.Hints.ShowSensitive;
             if (wantSensitive && _host.Knowledge.MenuFacts.ShowSensitiveRefused.Contains(descriptor.CommandText))
             {
-                descriptor = WithoutParameter(descriptor, TikSpecialProperties.CliSensitive);
+                descriptor = descriptor.With(hints: descriptor.Hints.WithoutShowSensitive());
                 wantSensitive = false;
             }
 
@@ -171,7 +172,8 @@ namespace tik4net.Cli
             try
             {
                 records = await RunPrintQueryAsync(descriptor, wantJson,
-                    (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from),
+                    (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from,
+                        showSensitive: wantSensitive),
                     cancellationToken).ConfigureAwait(false);
             }
             catch (TikCommandTrapException ex) when (CliErrorParser.RefusedArgumentLine.IsMatch(ex.Message.Trim())
@@ -190,7 +192,7 @@ namespace tik4net.Cli
             }
             catch (TikCommandTrapException ex) when (wantSensitive && CliErrorParser.SyntaxErrorLine.IsMatch(ex.Message.Trim()))
             {
-                var plain = WithoutParameter(descriptor, TikSpecialProperties.CliSensitive);
+                var plain = descriptor.With(hints: descriptor.Hints.WithoutShowSensitive());
                 records = await RunPrintQueryAsync(plain, wantJson,
                     (pars, from) => CliCommandBuilder.BuildPrintExpression(plain.CommandText, pars, from),
                     cancellationToken).ConfigureAwait(false);
@@ -214,8 +216,8 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// On a router without <c>:serialize</c> (before 7.13) the free-text fields the <see cref="TikSpecialProperties.CliJson"/>
-        /// marker names are read again, row by row, with <c>get</c>: the <c>as-value</c> read cut a script source at its
+        /// On a router without <c>:serialize</c> (before 7.13) the free-text fields the hints name
+        /// (<see cref="TikTransportHints.FreeTextFields"/>) are read again, row by row, with <c>get</c>: the <c>as-value</c> read cut a script source at its
         /// first <c>;</c> and ran the rest into further fields (<c>:local a 1</c> for a three-line source, 6.49.13).
         /// <c>get</c> prints the value as stored, <c>;</c>, <c>=</c>, <c>$</c> and <c>\</c> included, and a marker behind it
         /// keeps its trailing line breaks, which the terminal read would otherwise trim
@@ -229,8 +231,7 @@ namespace tik4net.Cli
         private async Task<IList<TikRecordSentence>> RereadFreeTextAsync(TikCommandDescriptor descriptor,
             IList<TikRecordSentence> records, CancellationToken cancellationToken)
         {
-            string[] fields = (descriptor.Parameters.First(p => p.Name == TikSpecialProperties.CliJson).Value ?? string.Empty)
-                .Split(',').Select(f => f.Trim()).Where(f => f.Length > 0).ToArray();
+            string[] fields = descriptor.Hints.FreeTextFields.Select(f => f.Trim()).Where(f => f.Length > 0).ToArray();
             if (fields.Length == 0 || records.Count == 0)
                 return records;
 
@@ -302,9 +303,6 @@ namespace tik4net.Cli
         private static bool IsUnfiltered(TikCommandDescriptor descriptor)
             => descriptor.Parameters.All(p => p.Name.StartsWith(".", StringComparison.Ordinal)
                                               || (p.ParameterFormat != TikCommandParameterFormat.Filter && p.Name == "detail"));
-
-        private static TikCommandDescriptor WithoutParameter(TikCommandDescriptor descriptor, string name)
-            => new TikCommandDescriptor(descriptor.CommandText, descriptor.Parameters.Where(p => p.Name != name).ToList());
 
         // An action the binary API answers with an empty '!re' row (/tool/wol): consumers reach it through a read method
         // (ToolWol uses ExecuteSingleRowOrDefault), so it is run and answers no rows. Silent when it succeeds, and what it

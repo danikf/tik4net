@@ -30,6 +30,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            SetReadHints<TEntity>(command);
 
             var responseSentences = command.ExecuteList();
 
@@ -53,6 +54,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            SetReadHints<TEntity>(command);
 
             return ExactlyOneRow(command, Materialize<TEntity>(command, command.ExecuteList()));
         }
@@ -73,6 +75,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            SetReadHints<TEntity>(command);
 
             return AtMostOneRow(command, Materialize<TEntity>(command, command.ExecuteList()));
         }
@@ -93,6 +96,7 @@ namespace tik4net.Objects
                     where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            SetReadHints<TEntity>(command);
 
             var responseSentences = command.ExecuteListWithDuration(duration);
 
@@ -119,6 +123,7 @@ namespace tik4net.Objects
                     where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            SetReadHints<TEntity>(command);
             Guard.ArgumentNotNull(onLoadItemCallback, nameof(onLoadItemCallback));
 
             command.ExecuteWithCallback(
@@ -162,6 +167,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            TikConnectionExtensions.SetHints(command, TikEntityMetadataCache.GetMetadata<TEntity>().LabelHints);
             Guard.ArgumentNotNull(onChangeCallback, nameof(onChangeCallback));
 
             command.ExecuteWithCallback(
@@ -184,6 +190,12 @@ namespace tik4net.Objects
                         onExceptionCallback(TikTrapClassifier.ToException(TikTrapClassifier.Classify(trapSentence.Message), command, trapSentence));
                 });
         }
+
+        // The entity's read hints on a load command (TikEntityMetadata.ReadHints), set unconditionally: hints are a
+        // function of the entity type, so a command reused for a second entity type gets that type's, and a hand-built
+        // command loaded here reads over the CLI transports as connection.LoadList<TEntity>() does.
+        internal static void SetReadHints<TEntity>(ITikCommand command)
+            => TikConnectionExtensions.SetHints(command, TikEntityMetadataCache.GetMetadata<TEntity>().ReadHints);
 
         // The row-count rule of every single-row load, the command-level ones here and in
         // TikObjectsCommandAsyncExtensions as well as TikConnectionExtensions.ExactlyOne / AtMostOne, which add

@@ -39,8 +39,8 @@ namespace tik4net.Winbox
         private readonly IReadOnlyDictionary<string, WinboxJgField>? _actionFields;
         // Lazily computed by the JgFields getter; null means "not yet computed", not "no fields".
         private IReadOnlyDictionary<string, WinboxJgField>? _fields;
-        // The entity's WinBox labels for this command (TikPropertyAttribute.WinboxLabel, carried by the
-        // .winbox-labels marker): apiName → catalog name. Second in priority, after the session overrides and
+        // The entity's WinBox labels for this command (TikPropertyAttribute.WinboxLabel, carried in the command's
+        // TikTransportHints): apiName → catalog name. Second in priority, after the session overrides and
         // before every heuristic; a label this version's catalog does not have is ignored.
         private readonly IReadOnlyDictionary<string, string>? _labelHints;
         // API path → the handler it resolves to: whether an ancestor's alias set describes this path's rows at all.
@@ -251,27 +251,20 @@ namespace tik4net.Winbox
         // ── Deck panes: the kind prefix (stable text) ──────────────────────────
 
         /// <summary>
-        /// The name a pane field is filed under: the kind and the field's own label joined with '-', unless
-        /// the label already begins with the kind (WinBox writes 'Remote Port' inside the remote pane and
-        /// 'PFIFO Queue Size' inside the pfifo one, where the API says <c>remote-port</c> and
-        /// <c>pfifo-limit</c> — not <c>remote-remote-port</c>).
+        /// The entity's WinBox labels (<c>api-name → WinBox Label</c>, or <c>qualifier: Label</c>) as
+        /// <c>apiName → catalog name</c>. A label written <c>qualifier: Label</c> names a field whose label repeats in
+        /// its window, by the deck pane's kind or the tab it sits on (the same qualified name the catalog files it
+        /// under). <c>null</c> for no label. Run once per entity type, when its <see cref="TikTransportHints"/> are built.
         /// </summary>
-        /// <summary>
-        /// Parses the <c>.winbox-labels</c> marker the O/R mapper puts on its commands —
-        /// <c>api-name=WinBox Label|other=memory: Stop on Full</c> — into <c>apiName → catalog name</c>. A label
-        /// written <c>qualifier: Label</c> names a field whose label repeats in its window, by the deck pane's kind or
-        /// the tab it sits on (the same qualified name the catalog files it under). <c>null</c> for no marker.
-        /// </summary>
-        internal static IReadOnlyDictionary<string, string>? ParseLabelHints(string? marker)
+        internal static IReadOnlyDictionary<string, string>? NormalizeLabelHints(IEnumerable<KeyValuePair<string, string>>? labels)
         {
-            if (string.IsNullOrEmpty(marker)) return null;
+            if (labels == null) return null;
             var hints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (string pair in marker!.Split('|'))
+            foreach (var pair in labels)
             {
-                int eq = pair.IndexOf('=');
-                if (eq <= 0 || eq == pair.Length - 1) continue;
-                string apiName = pair.Substring(0, eq).Trim();
-                string label = pair.Substring(eq + 1).Trim();
+                string apiName = (pair.Key ?? string.Empty).Trim();
+                string label = (pair.Value ?? string.Empty).Trim();
+                if (apiName.Length == 0 || label.Length == 0) continue;
                 int colon = label.IndexOf(':');
                 string name = colon > 0
                     ? PrefixWithKind(NormalizeLabel(label.Substring(0, colon)), NormalizeLabel(label.Substring(colon + 1)))
@@ -290,6 +283,12 @@ namespace tik4net.Winbox
                 && _labelHints.TryGetValue(apiName, out string? name) && jg.TryGetValue(name, out field!);
         }
 
+        /// <summary>
+        /// The name a pane field is filed under: the kind and the field's own label joined with '-', unless
+        /// the label already begins with the kind (WinBox writes 'Remote Port' inside the remote pane and
+        /// 'PFIFO Queue Size' inside the pfifo one, where the API says <c>remote-port</c> and
+        /// <c>pfifo-limit</c> — not <c>remote-remote-port</c>).
+        /// </summary>
         internal static string PrefixWithKind(string? kind, string apiName)
         {
             if (string.IsNullOrEmpty(kind) || string.IsNullOrEmpty(apiName)) return apiName;

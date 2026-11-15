@@ -8,11 +8,9 @@ using tik4net.Rest;
 namespace tik4net.unittests.Rest
 {
     /// <summary>
-    /// The client-side markers (<c>.cli-flags</c>, <c>.cli-stats</c>, <c>.cli-json</c>, <c>.cli-sensitive</c>,
-    /// <c>.winbox-labels</c>, <c>detail</c>) are
-    /// instructions to a transport, not data words: REST has to drop every one of them whatever request shape
-    /// the command turns into. RouterOS refuses the ones it does not know — <c>Bad Request: unknown parameter
-    /// .cli-flags</c> — so a marker that survives into a body fails the whole call.
+    /// <c>detail</c> is a print modifier REST has no use for (it returns every field anyway): REST has to drop it
+    /// whatever request shape the command turns into, since RouterOS refuses a parameter it does not know
+    /// (<c>Bad Request: unknown parameter</c>) and one that survives into a body fails the whole call.
     /// </summary>
     [TestClass]
     public class RestRequestBuilderSpecialParamTests
@@ -22,19 +20,14 @@ namespace tik4net.unittests.Rest
                 .Select(i => (ITikCommandParameter)new TikCommandParameter(i.Name, i.Value, TikCommandParameterFormat.NameValue))
                 .Concat(new[]
                 {
-                    (ITikCommandParameter)new TikCommandParameter(TikSpecialProperties.CliFlags, "disabled,running", TikCommandParameterFormat.NameValue),
-                    new TikCommandParameter(TikSpecialProperties.CliStats, "yes", TikCommandParameterFormat.NameValue),
-                    new TikCommandParameter(TikSpecialProperties.CliJson, "yes", TikCommandParameterFormat.NameValue),
-                    new TikCommandParameter(TikSpecialProperties.CliSensitive, "", TikCommandParameterFormat.NameValue),
-                    new TikCommandParameter(TikSpecialProperties.WinboxLabels, "passthrough=Passthrough", TikCommandParameterFormat.NameValue),
-                    new TikCommandParameter("detail", string.Empty, TikCommandParameterFormat.NameValue),
+                    (ITikCommandParameter)new TikCommandParameter("detail", string.Empty, TikCommandParameterFormat.NameValue),
                 })
                 .ToList();
 
         private static void AssertNoMarkers(RestRequestBuilder.RestRequest req, string because)
         {
             string body = req.JsonBody ?? string.Empty;
-            foreach (string marker in new[] { "cli-flags", "cli-stats", "cli-json", "cli-sensitive", "winbox-labels", "detail" })
+            foreach (string marker in new[] { "detail" })
             {
                 Assert.IsFalse(body.Contains(marker), because + " body: " + body);
                 Assert.IsFalse(req.RelativePath.Contains(marker), because + " path: " + req.RelativePath);

@@ -42,11 +42,11 @@ namespace tik4net.Cli
         /// </para>
         /// </summary>
         /// <param name="apiPath">API-style path of the printed menu.</param>
-        /// <param name="parameters">Command parameters (filters, flags, markers).</param>
+        /// <param name="parameters">Command parameters (filters and words).</param>
         /// <param name="asJson">
         /// When set, the print is wrapped in <c>:serialize to=json [ … ]</c> so the result comes back as
         /// escaped JSON instead of the separator-ambiguous <c>as-value</c> form — see
-        /// <see cref="CliJsonParser"/> for why that matters and <see cref="TikSpecialProperties.CliJson"/>
+        /// <see cref="CliJsonParser"/> for why that matters and <see cref="TikTransportHints.SerializeRead"/>
         /// for how a command asks for it. Requires RouterOS 7.13+; <see cref="CliConnectionBase"/> owns
         /// the fallback for older routers.
         /// </param>
@@ -63,15 +63,19 @@ namespace tik4net.Cli
         /// <c>:put</c> around it — so a caller can bind it to a variable instead (<see cref="BuildCountedRead"/>).
         /// </summary>
         /// <param name="apiPath">API-style path of the printed menu.</param>
-        /// <param name="parameters">Command parameters (filters, flags, markers).</param>
+        /// <param name="parameters">Command parameters (filters and words).</param>
         /// <param name="fromIndices">The <c>from=</c> row selector of a window, or <c>null</c>.</param>
         /// <param name="proplist">
         /// Field names for the CLI's own <c>proplist=</c>, or <c>null</c> for every field. Only for names known to
         /// the menu: one unknown name refuses the whole read ("input does not match any value of value-name") —
-        /// see <see cref="BuildProplistCheck"/> and <see cref="TikSpecialProperties.CliFlags"/>.
+        /// see <see cref="BuildProplistCheck"/> and <see cref="TikTransportHints.FlagFields"/>.
         /// </param>
+        /// <param name="showSensitive">Adds <c>show-sensitive</c>: RouterOS 7 leaves secrets out of a terminal print
+        /// unless asked (<see cref="TikTransportHints.ShowSensitive"/>). The caller leaves it off for a menu that refused
+        /// the word (RouterOS 6 has none and prints secrets anyway).</param>
         internal static string BuildPrintExpression(string apiPath, IList<ITikCommandParameter> parameters,
-                                                    string? fromIndices = null, string? proplist = null)
+                                                    string? fromIndices = null, string? proplist = null,
+                                                    bool showSensitive = false)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder();
@@ -82,12 +86,9 @@ namespace tik4net.Cli
             // (e.g. /interface omits default-name, mtu, rx-byte…); 'print detail as-value' returns all.
             if (HasNameValueFlag(parameters, "detail"))
                 sb.Append(" detail");
-            // RouterOS 7 leaves secrets out of a terminal print unless asked; the API returns them. The connection
-            // drops the marker for a menu that refused the word (RouterOS 6 has none and prints secrets anyway).
-            if (HasNameValueFlag(parameters, TikSpecialProperties.CliSensitive))
+            // RouterOS 7 leaves secrets out of a terminal print unless asked; the API returns them.
+            if (showSensitive)
                 sb.Append(" show-sensitive");
-            // NOTE: '.cli-stats' is a CLI-layer signal — it is not a print modifier and must be
-            // ignored here (it never becomes a CLI word or a where-clause predicate).
 
             // Some commands (e.g. /interface/ethernet/monitor) require a 'numbers=<name>' NameValue
             // parameter to identify the target interface, and a flag-style 'once' parameter to take a
@@ -476,7 +477,7 @@ namespace tik4net.Cli
         /// in RouterOS CLI (adding both yields only the stats columns).
         /// </summary>
         /// <param name="apiPath">API-style path of the printed menu.</param>
-        /// <param name="parameters">Command parameters (filters, flags, markers).</param>
+        /// <param name="parameters">Command parameters (filters and words).</param>
         /// <param name="asJson">
         /// Applies the same <c>:serialize to=json</c> wrapping as <see cref="BuildPrint"/>, so an entity
         /// asking for both the stats merge and JSON gets JSON for both halves of it.
@@ -946,10 +947,7 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Parameters that must NEVER be emitted as a CLI word — they are stripped from where-clauses and from
-        /// name=value lists: the client-side markers (<see cref="TikTransportMarkers.IsClientMarker"/>; this class and
-        /// <see cref="CliConnectionBase"/> act on them by name before the line is built: the stats merge, the
-        /// <c>:serialize</c> read, the flag read and the <c>show-sensitive</c> word in <see cref="BuildPrintExpression"/>),
-        /// plus the CLI's own two:
+        /// name=value lists, the CLI's own two:
         ///   <c>.proplist</c> — honoured by trimming the rows client-side (<see cref="CliConnectionBase"/>), never as
         ///                    the CLI's own <c>proplist=</c>: that refuses the whole read when one name is
         ///                    unknown ("input does not match any value of value-name", 7.24), where the API
@@ -961,8 +959,7 @@ namespace tik4net.Cli
         /// </summary>
         private static bool IsSpecialParam(string name)
             => name == TikSpecialProperties.Proplist
-            || name == TikSpecialProperties.Tag
-            || TikTransportMarkers.IsClientMarker(name);
+            || name == TikSpecialProperties.Tag;
 
         /// <summary>
         /// Returns true when a non-Filter "consumed flag" parameter with the given name is present

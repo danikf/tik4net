@@ -183,9 +183,8 @@ namespace tik4net.Rest
             => p.Name.StartsWith("?", StringComparison.Ordinal) || p.ParameterFormat == TikCommandParameterFormat.Filter;
 
         /// <summary>
-        /// Parameters that are NOT emitted as plain data words: the client-side markers
-        /// (<see cref="TikTransportMarkers.IsClientMarker"/>; REST answers in JSON with the flags and the secrets, so
-        /// it needs none of them), plus REST's own three:
+        /// Parameters that are NOT emitted as plain data words, REST's own three (REST answers in JSON with the flags
+        /// and the secrets, so it needs none of the O/R mapper's transport hints either):
         ///   <c>.proplist</c> — picked up separately by <see cref="BuildPrint"/>.
         ///   <c>.tag</c>      — no tag protocol over REST.
         ///   <c>detail</c>    — no-op in REST (full details are returned by default).
@@ -194,7 +193,6 @@ namespace tik4net.Rest
         {
             return bareName == TikSpecialProperties.Tag
                 || bareName == TikSpecialProperties.Proplist
-                || TikTransportMarkers.IsClientMarker(bareName)
                 || string.Equals(bareName, "detail", StringComparison.OrdinalIgnoreCase);
         }
 

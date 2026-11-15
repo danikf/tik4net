@@ -85,7 +85,7 @@ namespace tik4net.Connection
                                                TikCommandParameterFormat.NameValue);
             }
 
-            // An API sentence marker — '.tag', '.proplist', the CLI-layer signals. Words of the API's own
+            // An API sentence marker — '.tag', '.proplist'. Words of the API's own
             // protocol, which these transports cannot express and are documented as ignoring.
             if (row[0] == '.')
                 return null;

@@ -27,8 +27,8 @@ namespace tik4net.Cli
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// On a router whose <c>print as-value</c> leaves the flag fields out, reads the ones the command names in
-        /// <see cref="TikSpecialProperties.CliFlags"/> — the mapper's flag fields, or the fields a caller named in
+        /// On a router whose <c>print as-value</c> leaves the flag fields out, reads the ones the command's hints name in
+        /// <see cref="TikTransportHints.FlagFields"/> — the mapper's flag fields, or the fields a caller named in
         /// <c>.proplist</c> — with a second print of the same rows and merges them in.
         /// </summary>
         /// <remarks>
@@ -45,15 +45,14 @@ namespace tik4net.Cli
         internal async Task<IList<TikRecordSentence>> SupplyFlagsAsync(
             TikCommandDescriptor descriptor, IList<TikRecordSentence> records, CancellationToken cancellationToken)
         {
-            var hint = descriptor.Parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.CliFlags);
-            if (hint == null || records.Count == 0)
+            var hint = descriptor.Hints.FlagFields;
+            if (hint.Count == 0 || records.Count == 0)
                 return records;
 
             // Only names no row carries: on 7.20 and later, or for a field the plain read already has, that is none,
             // and nothing more is sent. The flags read is merged by .id, so a menu without one (a singleton, whose
             // plain read carries its flags anyway) is left as it is.
-            string[] wanted = (hint.Value ?? string.Empty)
-                .Split(',').Select(n => n.Trim()).Where(n => n.Length > 0)
+            string[] wanted = hint.Select(n => n.Trim()).Where(n => n.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Where(n => !records.Any(r => r.Words.ContainsKey(n)))
                 .ToArray();
@@ -73,7 +72,8 @@ namespace tik4net.Cli
 
             string proplist = string.Join(",", known);
             IList<TikRecordSentence> flagRecords = await _host.RunPrintQueryAsync(descriptor, false,
-                (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from, proplist),
+                (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from, proplist,
+                    descriptor.Hints.ShowSensitive),
                 cancellationToken).ConfigureAwait(false);
             return CliPrintDriver.MergeById(records, flagRecords);
         }

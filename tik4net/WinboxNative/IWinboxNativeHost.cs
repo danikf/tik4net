@@ -29,7 +29,7 @@ namespace tik4net.WinboxNative
         /// <summary>API path → M2 handler.</summary>
         WinboxHandlerMap HandlerMap { get; }
 
-        /// <summary>The WinBox labels the running command carries (<see cref="TikSpecialProperties.WinboxLabels"/>).</summary>
+        /// <summary>The WinBox labels the running command carries (its <see cref="TikTransportHints.WinboxLabels"/>).</summary>
         IReadOnlyDictionary<string, string>? LabelHints { get; }
 
         /// <summary>Whether WinBox GUI names resolve (<see cref="WinboxNativeConnection.UseGuiNames"/>).</summary>

@@ -191,7 +191,7 @@ namespace tik4net.Objects
             TikEntityMetadata metadata, IEnumerable<string>? usedFieldsFilter)
         {
             ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add", TikCommandParameterFormat.NameValue);
-            AddWinboxLabels(createCmd, metadata);
+            SetHints(createCmd, metadata.LabelHints);
 
             foreach (var property in metadata.Properties
                 .Where(pm => !pm.IsReadOnly)
@@ -340,7 +340,7 @@ namespace tik4net.Objects
             IEnumerable<string>? usedFieldsFilter, string? id)
         {
             ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set", TikCommandParameterFormat.NameValue);
-            AddWinboxLabels(setCmd, metadata);
+            SetHints(setCmd, metadata.LabelHints);
             List<string> fieldsToUnset = new List<string>();
             var clearedFields = ResolveClearedFields(connection, entity, metadata);
 
@@ -383,7 +383,7 @@ namespace tik4net.Objects
             foreach (string fld in fieldsToUnset)
             {
                 ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset", TikCommandParameterFormat.NameValue);
-                AddWinboxLabels(unsetCmd, metadata);
+                SetHints(unsetCmd, metadata.LabelHints);
                 // non-null: BuildUpdateCommands is only reached past Save's IsCreate check, which already requires a
                 // non-empty id for every non-singleton entity.
                 if (!metadata.IsSingleton)

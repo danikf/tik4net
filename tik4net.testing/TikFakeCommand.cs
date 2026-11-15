@@ -16,7 +16,8 @@ namespace tik4net.Testing
     /// <remarks>
     /// <para>The rows follow the binary API: a parameter without a format of its own takes the command's default, then the
     /// method's — a filter (<c>?name=value</c>) for a read, a value (<c>=name=value</c>) for a write; <c>.tag</c> is sent as
-    /// a tag; the client-side markers (<c>.cli-flags</c>, …) are not sent; a path gets its leading <c>/</c>.
+    /// a tag; a path gets its leading <c>/</c>. Every parameter is recorded: the O/R mapper's transport hints travel
+    /// beside the parameter list and are not rows.
     /// <c>ExecuteList(fields)</c> and <c>ExecuteScalar(target)</c> add <c>=.proplist=</c>.</para>
     /// <para>The answers follow the shared rules every transport uses: an empty answer is <see cref="TikNoSuchItemException"/>
     /// after a read, <see cref="TikCommandEmptyResponseException"/> after any other verb, and
@@ -28,7 +29,7 @@ namespace tik4net.Testing
     /// <para>The fake has no wire and nothing to wait for: a bounded read whose script never ends in <c>!done</c> returns
     /// its rows at once, as if its duration had passed.</para>
     /// </remarks>
-    public sealed class TikFakeCommand : ITikCommand, ITikCommandAsync
+    public sealed class TikFakeCommand : ITikCommand, ITikCommandAsync, ITikTransportHintsCommand
 #if NET8_0_OR_GREATER
         , ITikStreamingCommand
 #endif
@@ -40,6 +41,15 @@ namespace tik4net.Testing
         private int _running;                  // 1 while a run holds the command
         private volatile string? _asyncTag;    // set while ExecuteWithCallback runs
         private volatile Thread? _asyncThread;
+
+        // The O/R mapper's hints, held so a unit test can read what the mapper set; never recorded as rows, as no
+        // transport sends them to the router.
+        TikTransportHints ITikTransportHintsCommand.Hints
+        {
+            get => _hints;
+            set => _hints = value ?? TikTransportHints.None;
+        }
+        private TikTransportHints _hints = TikTransportHints.None;
 
         internal TikFakeCommand(TikFakeConnection connection)
         {
@@ -118,7 +128,7 @@ namespace tik4net.Testing
                 ? text.Split('\n').Select(row => row.Trim()).ToList()
                 : new List<string> { text };
 
-            foreach (var p in _parameters.Concat(additional).Where(p => !IsUnsentMarker(p.Name)))
+            foreach (var p in _parameters.Concat(additional))
             {
                 if (p.Name.StartsWith("=", StringComparison.Ordinal) || p.Name.StartsWith("?", StringComparison.Ordinal))
                 {
@@ -137,12 +147,6 @@ namespace tik4net.Testing
             }
             return rows.ToArray();
         }
-
-        // The client-side markers stay off the wire, as on the binary API — except the WinBox labels on a fake that declares
-        // FieldLabels: it then stands in for WinBox native, the transport that reads them.
-        private bool IsUnsentMarker(string name)
-            => TikTransportMarkers.IsClientMarker(name)
-               && !(name == TikSpecialProperties.WinboxLabels && _fakeConnection.Supports(TikConnectionCapability.FieldLabels));
 
         private ITikCommandParameter? FieldList(string[]? fields)
         {

@@ -404,7 +404,7 @@ namespace tik4net.unittests.Objects
 
             bool ITikMenuSchemaConnection.ValidateWrites { get => true; set { } }
 
-            public TikMenuSchema DescribeMenu(string path, string winboxLabels)
+            public TikMenuSchema DescribeMenu(string path, TikTransportHints hints)
                 => new TikMenuSchema(path, TikMenuSchemaSource.ConsoleInspect,
                     _unsetFields == null ? new[] { "add", "set", "remove" } : new[] { "add", "set", "remove", "unset" },
                     new[] { "comment", "name" },

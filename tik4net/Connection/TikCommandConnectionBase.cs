@@ -99,9 +99,9 @@ namespace tik4net.Connection
         /// <summary>
         /// Executes a read (<c>print</c>) command and returns the matching records. When the command carries
         /// <c>.proplist</c>, the base keeps only the listed fields of what this returns, as the binary API does, so
-        /// returning more is harmless. The O/R mapper's client markers (parameters named <c>.cli-*</c> or
-        /// <c>.winbox-labels</c>, which only tik4net's own transports read) are removed before this is called, so every
-        /// parameter it receives is the command's data.
+        /// returning more is harmless. Every parameter it receives is a word for the router: what tells tik4net's own
+        /// transports how to read an entity (the stats merge, secrets, flags, WinBox labels) travels outside the
+        /// parameter list, and never reaches a transport written outside tik4net.
         /// </summary>
         protected abstract IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor);
 
@@ -188,7 +188,7 @@ namespace tik4net.Connection
         {
             descriptor = Canonical(descriptor);
             CheckFilters(descriptor);
-            return TikProplist.Apply(descriptor, RunPrint(ForTransport(descriptor)));
+            return TikProplist.Apply(descriptor, RunPrint(descriptor));
         }
 
         // Every read over this base goes through the two InvokeRunPrint*: the one place a filter on a field the menu
@@ -197,26 +197,7 @@ namespace tik4net.Connection
         private void CheckFilters(TikCommandDescriptor descriptor)
             => TikFilterValidation.Check(this, null, descriptor.CommandText,
                 descriptor.Parameters.Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter).Select(p => p.Name),
-                descriptor.Parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.WinboxLabels)?.Value);
-
-        /// <summary>
-        /// True for tik4net's own transports, which read the O/R mapper's client markers (<see cref="TikTransportMarkers"/>):
-        /// every one that names a <see cref="TikConnectionType"/>, and the CLI family, whose base only this assembly and its
-        /// friends can derive. False for a transport written outside tik4net, which is handed reads without them.
-        /// </summary>
-        internal virtual bool ReadsClientMarkers => ConnectionType != null;
-
-        // The descriptor a read hook is handed. The mapper adds client markers for the built-in transports, which read
-        // them; a transport written outside tik4net has no way to know the names, so it gets the command without them
-        // rather than forwarding them to a router as words.
-        private TikCommandDescriptor ForTransport(TikCommandDescriptor descriptor)
-        {
-            if (ReadsClientMarkers || !descriptor.Parameters.Any(p => TikTransportMarkers.IsClientMarker(p.Name)))
-                return descriptor;
-            return new TikCommandDescriptor(descriptor.CommandText,
-                descriptor.Parameters.Where(p => !TikTransportMarkers.IsClientMarker(p.Name)).ToList(),
-                descriptor.IsRaw, descriptor.WrapAsValue);
-        }
+                descriptor.Hints);
 
         internal string InvokeRunAdd(TikCommandDescriptor descriptor)
         {
@@ -232,7 +213,7 @@ namespace tik4net.Connection
         {
             descriptor = Canonical(descriptor);
             CheckFilters(descriptor);
-            return TikProplist.Apply(descriptor, await RunPrintAsync(ForTransport(descriptor), cancellationToken).ConfigureAwait(false));
+            return TikProplist.Apply(descriptor, await RunPrintAsync(descriptor, cancellationToken).ConfigureAwait(false));
         }
 
         /// <summary>As <see cref="InvokeRunPrintAsync"/>, through <see cref="RunPrintUntilDoneAsync"/>.</summary>
@@ -241,7 +222,7 @@ namespace tik4net.Connection
         {
             descriptor = Canonical(descriptor);
             CheckFilters(descriptor);
-            return TikProplist.Apply(descriptor, await RunPrintUntilDoneAsync(ForTransport(descriptor), cancellationToken).ConfigureAwait(false));
+            return TikProplist.Apply(descriptor, await RunPrintUntilDoneAsync(descriptor, cancellationToken).ConfigureAwait(false));
         }
 
         internal async Task<string> InvokeRunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)

@@ -71,9 +71,9 @@ namespace tik4net.Objects
         /// <b>1</b> over every CLI transport. Marking the property makes the O/R mapper read the entity through
         /// <c>:serialize to=json</c> on CLI transports, where the escaping is exact. Other transports are unaffected —
         /// they frame values themselves and never had the ambiguity.</para>
-        /// <para>The JSON read needs RouterOS 7.13+; on older routers the CLI transports detect the refusal and fall back
-        /// to <c>as-value</c>, i.e. to the shredding this flag exists to avoid — so on such a router, do not read these
-        /// entities over a CLI transport.</para>
+        /// <para>The JSON read needs RouterOS 7.13+; on older routers the CLI transports detect the refusal once per
+        /// connection, read with <c>as-value</c>, and then re-read each marked field row by row with <c>get</c>, which
+        /// prints the text as stored — so the value survives there too, except that a CRLF line ending reads as LF.</para>
         /// <para><b>It costs something, so mark only what needs it.</b> <c>:serialize to=json</c> fixes the framing and
         /// changes the VALUES: a duration comes back as a date counted from the Unix epoch (<c>ttl=1d</c> arrives as
         /// <c>1970-01-02 00:00:00</c>, <c>52w1d</c> as <c>1971-01-01 00:00:00</c>) and sub-second precision is truncated —
@@ -82,7 +82,6 @@ namespace tik4net.Objects
         /// marked automatically even though a comment carrying a <c>;</c> does shred: it would put every entity on the
         /// lossy path to fix a rare case.</para>
         /// </remarks>
-        /// <seealso cref="tik4net.TikSpecialProperties.CliJson"/>
         public bool IsFreeText { get; set; }
 
         /// <summary>
@@ -108,8 +107,9 @@ namespace tik4net.Objects
         /// The field's label in WinBox (its <c>.jg</c> catalog name) — <c>"New Packet Mark"</c> for
         /// <c>new-packet-mark</c>. The WinBox-native transport resolves the field through this label in the router's
         /// own catalog before any name heuristic; a session field override still wins, and a label this RouterOS
-        /// version's catalog does not have is ignored (the heuristic then decides). The mapper sends labels only to a
-        /// connection declaring <see cref="TikConnectionCapability.FieldLabels"/>; other transports never see them.
+        /// version's catalog does not have is ignored (the heuristic then decides). The mapper hands the labels to
+        /// tik4net's own transports beside the command, on reads and writes, never as a word; only a connection declaring
+        /// <see cref="TikConnectionCapability.FieldLabels"/> acts on them.
         /// </summary>
         /// <remarks>
         /// A label that repeats within one window — two deck panes' <c>Stop on Full</c>, two tabs' <c>Port</c> — is

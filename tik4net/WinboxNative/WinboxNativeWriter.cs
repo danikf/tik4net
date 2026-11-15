@@ -88,7 +88,7 @@ namespace tik4net.WinboxNative
                     // changes nothing, so it goes through the action that writes it (FieldAliasSet.SetByAction).
                     var byAction = descriptor.Parameters.Where(p => resolver.ActionSetting(p.Name) != null).ToList();
                     var plain = byAction.Count == 0 ? descriptor
-                        : new TikCommandDescriptor(descriptor.CommandText, descriptor.Parameters.Except(byAction).ToList());
+                        : descriptor.With(parameters: descriptor.Parameters.Except(byAction).ToList());
                     if (byAction.Count == 0 || plain.Parameters.Any(p => p.Name != TikSpecialProperties.Id))
                         await WriteFieldsAsync(handler, resolver, plain,
                             () => EncodeNameValueFieldsAsync(handler, plain, resolver, skipId: true, cancellationToken),
@@ -102,7 +102,7 @@ namespace tik4net.WinboxNative
                         arguments.Add(new TikCommandParameter(action.Item2, parameter.Value, TikCommandParameterFormat.NameValue));
                         arguments.Add(new TikCommandParameter(action.Item3, parameter.Value, TikCommandParameterFormat.NameValue));
                         await _host.DispatchActionVerbAsync(action.Item1, apiPath, handler, resolver,
-                            new TikCommandDescriptor(apiPath + "/" + action.Item1, arguments), cancellationToken).ConfigureAwait(false);
+                            descriptor.With(commandText: apiPath + "/" + action.Item1, parameters: arguments), cancellationToken).ConfigureAwait(false);
                     }
                     break;
                 }

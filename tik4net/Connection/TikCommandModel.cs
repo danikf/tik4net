@@ -233,19 +233,46 @@ namespace tik4net.Connection
         /// </summary>
         public bool WrapAsValue { get; }
 
-        /// <summary>Creates a descriptor for one command.</summary>
+        /// <summary>
+        /// How tik4net's own transports read or write the entity the command is for — facts the O/R mapper takes from
+        /// the entity's attributes, carried beside <see cref="Parameters"/> so that every parameter is a word for the
+        /// router. <see cref="TikTransportHints.None"/> for a raw command and for a descriptor built with the public
+        /// constructor.
+        /// </summary>
+        internal TikTransportHints Hints { get; }
+
+        /// <summary>Creates a descriptor for one command. It carries no transport hints.</summary>
         /// <param name="commandText">The command path/verb in API form.</param>
         /// <param name="parameters">The command's parameters; may be empty, never null.</param>
         /// <param name="isRaw">See <see cref="IsRaw"/>.</param>
         /// <param name="wrapAsValue">See <see cref="WrapAsValue"/>.</param>
         public TikCommandDescriptor(string commandText, IList<ITikCommandParameter> parameters,
             bool isRaw = false, bool wrapAsValue = false)
+            : this(commandText, parameters, isRaw, wrapAsValue, TikTransportHints.None)
+        {
+        }
+
+        // No default for the hints: a descriptor derived from another one is built with With(...), and one with no
+        // parent names TikTransportHints.None (DescriptorHintsSourceScanTests holds shipping code to that).
+        internal TikCommandDescriptor(string commandText, IList<ITikCommandParameter> parameters,
+            bool isRaw, bool wrapAsValue, TikTransportHints hints)
         {
             CommandText = commandText;
             Parameters = parameters;
             IsRaw = isRaw;
             WrapAsValue = wrapAsValue;
+            Hints = hints ?? TikTransportHints.None;
         }
+
+        /// <summary>
+        /// This descriptor with the given parts replaced and the rest — <see cref="IsRaw"/>, <see cref="WrapAsValue"/>
+        /// and the hints included — kept. The one way a descriptor is derived from another, so a rebuild cannot drop
+        /// the hints.
+        /// </summary>
+        internal TikCommandDescriptor With(string? commandText = null, IList<ITikCommandParameter>? parameters = null,
+            TikTransportHints? hints = null)
+            => new TikCommandDescriptor(commandText ?? CommandText, parameters ?? Parameters, IsRaw, WrapAsValue,
+                hints ?? Hints);
     }
 
     /// <summary>

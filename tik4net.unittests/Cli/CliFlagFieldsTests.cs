@@ -20,7 +20,7 @@ namespace tik4net.unittests.Cli
     /// <summary>
     /// Flag fields (<c>disabled</c>, <c>running</c>, <c>dynamic</c>, …) on a router whose <c>print as-value</c>
     /// leaves them out — RouterOS before 7.20. The router double answers the way 7.19.6 and 7.24.4 were measured
-    /// to: see <see cref="TikSpecialProperties.CliFlags"/> and Docs/findings-cli.md.
+    /// to: see <see cref="TikTransportHints.FlagFields"/> and Docs/findings-cli.md.
     /// </summary>
     [TestClass]
     [DoNotParallelize]   // a fake peer answers within a receive timeout
@@ -489,31 +489,7 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void TheMarkerNeverBecomesACliWord()
-        {
-            var pars = new List<ITikCommandParameter>
-            {
-                new TikCommandParameter(TikSpecialProperties.CliFlags, "disabled,running", TikCommandParameterFormat.NameValue),
-                new TikCommandParameter("name", "e1", TikCommandParameterFormat.Filter),
-            };
-
-            Assert.AreEqual(":put [/iface print as-value where name=e1]", CliCommandBuilder.BuildPrint("/iface/print", pars));
-        }
-
-        [TestMethod]
-        public void RestNeverSendsTheMarker()
-        {
-            var req = RestRequestBuilder.Build("/interface/print", new List<ITikCommandParameter>
-            {
-                new TikCommandParameter(TikSpecialProperties.CliFlags, "disabled,running", TikCommandParameterFormat.NameValue),
-            });
-
-            Assert.IsFalse(req.RelativePath.Contains("cli-flags"), req.RelativePath);
-            Assert.IsFalse((req.JsonBody ?? string.Empty).Contains("cli-flags"), req.JsonBody);
-        }
-
-        [TestMethod]
-        public void TheBinaryApiNeverSendsTheMarker()
+        public void TheBinaryApiNeverSendsTheFlagFields()
         {
             using var server = new FakeRouterServer();
             List<string>? command = null;

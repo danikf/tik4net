@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using tik4net.Connection;
 using tik4net.Objects.Tracking;
 
 namespace tik4net.Objects
@@ -309,11 +310,11 @@ namespace tik4net.Objects
             return command;
         }
 
-        private static ITikCommand CreateListenCommandWithFilter<TEntity>(ITikConnection connection, params ITikCommandParameter[] parameters)
+        internal static ITikCommand CreateListenCommandWithFilter<TEntity>(ITikConnection connection, params ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             ITikCommand command = connection.CreateCommand(metadata.EntityPath + "/listen", metadata.LoadDefaultParameterFormat);
-            AddWinboxLabels(command, metadata);
+            SetHints(command, metadata.LabelHints);
 
             if (parameters != null)
             {
@@ -382,14 +383,13 @@ namespace tik4net.Objects
             return isFullLoad ? null : (IEnumerable<string>)fields;
         }
 
-        // WinBox-native marker: the entity's WinBox labels (TikPropertyAttribute.WinboxLabel), which the native
-        // transport resolves in the router's own catalog before its name heuristic. Sent only to a connection that
-        // declares FieldLabels, so every other connection - a test double included - sees the same command as before.
-        private static void AddWinboxLabels(ITikCommand command, TikEntityMetadata metadata)
+        // The entity's transport hints (TikEntityMetadata.ReadHints / LabelHints) on a command of tik4net's own: what the
+        // CLI transports and WinBox native need to read or write the entity, beside the command's words. A command that
+        // carries none — the binary API's, which needs none, or a caller's own — is left as it is.
+        internal static void SetHints(ITikCommand command, TikTransportHints hints)
         {
-            string? labels = metadata.WinboxLabelsMarker;
-            if (labels != null && command.Connection.Supports(TikConnectionCapability.FieldLabels))
-                command.AddParameter(TikSpecialProperties.WinboxLabels, labels, TikCommandParameterFormat.NameValue);
+            if (command is ITikTransportHintsCommand carrier)
+                carrier.Hints = hints;
         }
 
         internal static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, params ITikCommandParameter[] parameters)
@@ -401,28 +401,9 @@ namespace tik4net.Objects
             // =detail=
             if (metadata.IncludeDetails)
                 command.AddParameter("detail", "", TikCommandParameterFormat.NameValue);
-            // CLI-only marker: two-query (detail + stats) merge for entities with live counters.
-            // API/REST transports must silently ignore this parameter (never send it on the wire).
-            if (metadata.IncludeCliStats)
-                command.AddParameter(TikSpecialProperties.CliStats, "", TikCommandParameterFormat.NameValue);
-            // CLI-only marker: read via ':serialize to=json' because at least one field holds free-form
-            // text, which the unescaped as-value format cannot represent unambiguously.
-            // Its value names those fields, for a router without ':serialize' to re-read them one by one.
-            if (metadata.HasFreeTextProperties)
-                command.AddParameter(TikSpecialProperties.CliJson,
-                    string.Join(",", metadata.Properties.Where(p => p.IsFreeText).Select(p => p.FieldName)),
-                    TikCommandParameterFormat.NameValue);
-            // CLI-only marker: 'print show-sensitive', because RouterOS 7 leaves secrets out of a terminal print.
-            if (metadata.HasSensitiveProperties)
-                command.AddParameter(TikSpecialProperties.CliSensitive, "", TikCommandParameterFormat.NameValue);
-            AddWinboxLabels(command, metadata);
-            // CLI-only marker: the flag fields, which RouterOS before 7.20 leaves out of 'print as-value'. The CLI
-            // transports then ask for them by name; every other transport drops the marker. Not for a singleton: its
-            // plain print as-value carries its flags on every version, it takes no proplist= at all (7.19.6 refuses the
-            // name check with "expected end of command"), and a flags read has no .id to be merged by.
-            string cliFlags = string.Join(",", metadata.CliFlagFields.ToArray());
-            if (cliFlags.Length > 0 && !metadata.IsSingleton)
-                command.AddParameter(TikSpecialProperties.CliFlags, cliFlags, TikCommandParameterFormat.NameValue);
+            // How tik4net's own transports read the entity (the CLI's stats merge, :serialize, show-sensitive and flag
+            // fields; WinBox native's labels): beside the words, never one of them.
+            SetHints(command, metadata.ReadHints);
             //.proplist
             if (metadata.IncludeProplist)
                 command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties

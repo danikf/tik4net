@@ -84,9 +84,9 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void MarkersAndTheArgumentsEveryMenuTakes_PassUnlisted()
+        public void DottedWordsAndTheArgumentsEveryMenuTakes_PassUnlisted()
         {
-            var add = Command("add", ("dst-address", "203.0.113.7/32"), ("place-before", "*2"), (".winbox-labels", "x=X"));
+            var add = Command("add", ("dst-address", "203.0.113.7/32"), ("place-before", "*2"), (".tag", "7"));
 
             TikWriteValidation.Check(add, Route, RouterOs6Route());
         }

@@ -65,7 +65,7 @@ namespace tik4net.Api
 
         bool ITikMenuSchemaConnection.ValidateWrites { get => ValidateWrites; set => ValidateWrites = value; }
 
-        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
+        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, TikTransportHints? hints)
             => MenuSchemas.GetOrAdd(path, p => ConsoleInspectSchemaReader.Read(this, p));
 
         // On since 4.0: the router echoes the tag back, and that is the only thing tying a reply to the

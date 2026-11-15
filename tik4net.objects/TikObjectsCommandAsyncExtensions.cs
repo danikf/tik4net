@@ -38,6 +38,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            TikCommandExtensions.SetReadHints<TEntity>(command);
 
             var responseSentences = await command.ExecuteListAsync(cancellationToken).ConfigureAwait(false);
             return TikCommandExtensions.Materialize<TEntity>(command, responseSentences);
@@ -104,6 +105,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            TikCommandExtensions.SetReadHints<TEntity>(command);
 
             var sentences = command.ExecuteListWithDurationAsync(duration, cancellationToken);
             return MaterializeStream<TEntity>(command, sentences, null, cancellationToken);
@@ -131,6 +133,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, nameof(command));
+            TikCommandExtensions.SetReadHints<TEntity>(command);
 
             var sentences = command.ExecuteListUntilDoneAsync(timeout, cancellationToken);
             return MaterializeStream<TEntity>(command, sentences, null, cancellationToken);

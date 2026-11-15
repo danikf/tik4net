@@ -276,7 +276,7 @@ namespace tik4net.Cli
         /// <c>/console/inspect</c> where the router has it (RouterOS 7), Tab completion where it does not (RouterOS 6):
         /// whether it does is asked by the first menu described and remembered for the open.
         /// </summary>
-        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
+        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, TikTransportHints? hints)
             => MenuSchemas.GetOrAdd(path, p =>
             {
                 var store = _knowledge.SchemaStore();
@@ -344,9 +344,6 @@ namespace tik4net.Cli
         // The open console (ICliTerminal), set by a successful open and taken away by Close; every reader below goes
         // through it. A leaf builds a new terminal and its login per open attempt (CliTerminalOpen) and opens through
         // OpenTerminal.
-
-        /// <summary>The CLI builder reads the mapper's client markers, its test doubles (no connection type) included.</summary>
-        internal override bool ReadsClientMarkers => true;
 
         /// <summary>Derived inside tik4net and its friend assemblies only; see the class remarks.</summary>
         /// <param name="connectionType">The transport this is; <c>null</c> only for a test double.</param>

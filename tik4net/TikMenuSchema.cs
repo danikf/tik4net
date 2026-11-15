@@ -247,9 +247,9 @@ namespace tik4net
     internal interface ITikMenuSchemaConnection
     {
         /// <param name="path">Normalized menu path.</param>
-        /// <param name="winboxLabels">An entity's API-name → WinBox-label pairs (<see cref="TikSpecialProperties.WinboxLabels"/>'s
-        /// format), which WinBox native names its fields by; ignored elsewhere. <c>null</c> for a path alone.</param>
-        TikMenuSchema DescribeMenu(string path, string? winboxLabels);
+        /// <param name="hints">An entity's transport hints, whose WinBox labels name WinBox native's fields as the API
+        /// does; ignored elsewhere. <c>null</c> for a path alone.</param>
+        TikMenuSchema DescribeMenu(string path, TikTransportHints? hints);
 
         /// <summary><see cref="TikConnectionSetup.ValidateWrites"/>, read by the O/R mapper before an entity write.</summary>
         bool ValidateWrites { get; set; }
@@ -276,11 +276,11 @@ namespace tik4net
         }
 
         // The entity overload's way in (tik4net.objects): the entity's WinBox labels name native's fields as the API does.
-        internal static TikMenuSchema DescribeMenu(ITikConnection connection, string path, string? winboxLabels)
+        internal static TikMenuSchema DescribeMenu(ITikConnection connection, string path, TikTransportHints? hints)
         {
             Guard.ArgumentNotNull(connection, nameof(connection));
             connection.Require(TikConnectionCapability.MenuSchema, "DescribeMenu");
-            return ((ITikMenuSchemaConnection)connection).DescribeMenu(SchemaPath(path), winboxLabels);
+            return ((ITikMenuSchemaConnection)connection).DescribeMenu(SchemaPath(path), hints);
         }
 
         // The path a menu is described and cached under: every slash at either end goes ("//ip/route/" → "/ip/route"),

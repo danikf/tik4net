@@ -115,9 +115,9 @@ namespace tik4net
         CancelInFlight = 256,
         /// <summary>
         /// The transport resolves entity fields through their WinBox labels (<c>TikPropertyAttribute.WinboxLabel</c>),
-        /// which the O/R mapper sends — as <see cref="TikSpecialProperties.WinboxLabels"/> — only to a connection
-        /// declaring this flag. WinBox native only: its M2 fields are numbered, and a label in the router's own
-        /// catalog names one where the API name has to be matched by heuristic.
+        /// which the O/R mapper hands to tik4net's own transports beside the command. WinBox native only: its M2
+        /// fields are numbered, and a label in the router's own catalog names one where the API name has to be matched
+        /// by heuristic.
         /// </summary>
         FieldLabels = 512,
         /// <summary>

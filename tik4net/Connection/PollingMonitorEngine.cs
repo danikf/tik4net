@@ -60,7 +60,7 @@ namespace tik4net.Connection
             if (verb == "listen")
             {
                 string listPath = TikPath.Parent(descriptor.CommandText);
-                return StartListen(namePrefix + "-listen", host, new TikCommandDescriptor(TikPath.Child(listPath, "print"), descriptor.Parameters),
+                return StartListen(namePrefix + "-listen", host, descriptor.With(commandText: TikPath.Child(listPath, "print")),
                     volatileFieldsOf?.Invoke(listPath), ListenPollIntervalMs, onRow, onError, onDone);
             }
             if (verb == "print" || verb == "getall")
@@ -124,7 +124,7 @@ namespace tik4net.Connection
                     .Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter).ToList();
                 var nonFilter = descriptor.Parameters
                     .Where(p => p.ParameterFormat != TikCommandParameterFormat.Filter).ToList();
-                var printDescriptor = new TikCommandDescriptor(descriptor.CommandText, nonFilter);
+                var printDescriptor = descriptor.With(parameters: nonFilter);
 
                 Emit(host.PollSnapshot(printDescriptor).Where(row => filters.Count == 0 || TikQueryStack.Matches(row, filters)),
                     handle, onRow);

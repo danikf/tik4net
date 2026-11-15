@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
+using tik4net.unittests.Connection;
 
 namespace tik4net.unittests.Cli
 {
@@ -144,8 +145,7 @@ namespace tik4net.unittests.Cli
         {
             using (var conn = Open("[{\".id\":\"*1\",\"name\":\"a\"}]" + Lf + "#n=2/num"))
             {
-                var cmd = conn.CreateCommand("/probe/print");
-                cmd.AddParameter(TikSpecialProperties.CliJson, "", TikCommandParameterFormat.NameValue);
+                var cmd = conn.CreateCommand("/probe/print").WithHints(TransportHintsTestExtensions.Serialize());
 
                 Assert.ThrowsException<TikConnectionResponseIncompleteException>(() => cmd.ExecuteList().ToList());
                 StringAssert.Contains(conn.Sent.Single(), ":serialize to=json $d");

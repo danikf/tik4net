@@ -11,7 +11,7 @@ namespace tik4net.Connection
     /// owning <see cref="TikCommandConnectionBase"/> CRUD hooks (RunPrint/RunAdd/RunNonQuery);
     /// it does not itself build any transport-specific (CLI text / native M2) payload.
     /// </summary>
-    internal class TikGenericCommand : TikCommandBase, ITikRawCommand, ITikCommandAsync
+    internal class TikGenericCommand : TikCommandBase, ITikRawCommand, ITikTransportHintsCommand, ITikCommandAsync
     {
         private TikMonitorHandle? _monitorHandle; // only set once ExecuteWithCallback has been called; see Cancel/CancelAndJoin's null-conditional use
 
@@ -24,7 +24,17 @@ namespace tik4net.Connection
         private bool _wrapAsValue;
 
         private TikCommandDescriptor BuildRawDescriptor()
-            => new TikCommandDescriptor(CommandText, new List<ITikCommandParameter>(), isRaw: true, wrapAsValue: _wrapAsValue);
+            => new TikCommandDescriptor(CommandText, new List<ITikCommandParameter>(), true, _wrapAsValue, TikTransportHints.None);
+
+        // ── Transport hints (ITikTransportHintsCommand) ──────────────────────
+        // Set by the O/R mapper from the entity's attributes; every descriptor a structured run builds carries them.
+        // A raw command carries none.
+        TikTransportHints ITikTransportHintsCommand.Hints
+        {
+            get => _hints;
+            set => _hints = value ?? TikTransportHints.None;
+        }
+        private TikTransportHints _hints = TikTransportHints.None;
 
         /// <summary>The connection, as the transport base the setter accepted.</summary>
         private TikCommandConnectionBase Transport => (TikCommandConnectionBase)Connection;
@@ -231,7 +241,7 @@ namespace tik4net.Connection
             if (fieldList == null)
                 return descriptor;
             var parameters = new List<ITikCommandParameter>(descriptor.Parameters) { fieldList };
-            return new TikCommandDescriptor(descriptor.CommandText, parameters);
+            return descriptor.With(parameters: parameters);
         }
 
         /// <summary>
@@ -467,7 +477,7 @@ namespace tik4net.Connection
             // Normalize a multi-line command (e.g. "/interface/print\n?type=ether\n?#|") into a clean command
             // path plus parsed Filter parameters, exactly like the synchronous read paths do.
             var (cmdText, allParams) = NormalizeMultilineCommand(CommandText, Parameters);
-            var descriptor = new TikCommandDescriptor(cmdText, allParams);
+            var descriptor = BuildCommand(cmdText, allParams);
             BeginRun();
             // the run ends (EndRun) on every ending, the running guard depends on it; the caller's onDone only
             // when no error was reported. The engine reports no error when the caller cancelled, so a cancel still
@@ -504,10 +514,8 @@ namespace tik4net.Connection
         /// <summary>
         /// Converts a normalized (command, params) pair into a <see cref="TikCommandDescriptor"/> used by RunPrint/RunNonQuery etc.
         /// </summary>
-        private static TikCommandDescriptor BuildCommand(string commandText, IList<ITikCommandParameter> parameters)
-        {
-            return new TikCommandDescriptor(commandText, parameters);
-        }
+        private TikCommandDescriptor BuildCommand(string commandText, IList<ITikCommandParameter> parameters)
+            => new TikCommandDescriptor(commandText, parameters, false, false, _hints);
 
         // ── Multi-line normalization ──────────────────────────────────────────
 

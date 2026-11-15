@@ -108,7 +108,7 @@ namespace tik4net.unittests.Connection
         {
             // '.tag' and '.proplist' are words of the API's own protocol which these transports cannot
             // express, and are documented as ignored — not a row anyone got wrong.
-            foreach (string marker in new[] { ".tag=7", ".proplist=name,comment", ".cli-stats=" })
+            foreach (string marker in new[] { ".tag=7", ".proplist=name,comment" })
                 Assert.AreEqual(0, TikCommandRow.ParseParameters(new List<string> { marker }, 0).Count, marker);
         }
 

@@ -163,13 +163,13 @@ namespace tik4net.WinboxNative
         private WinboxM2Multiplexer? _mux;   // null until open starts the reader loop (every carrier runs one, MAC included)
         private WinboxNativeM2Operations _ops = null!;
         private WinboxRecordCodec _codec = null!;   // M2 record → API field decoder (see WinboxRecordCodec)
-        // The WinBox labels the O/R mapper sent with the command being run (TikSpecialProperties.WinboxLabels).
+        // The WinBox labels of the command being run (its TikTransportHints, set by the O/R mapper).
         // Set at each command entry — an async method, so the value never outlives the command — and handed to
         // every resolver the command builds.
         private readonly AsyncLocal<IReadOnlyDictionary<string, string>?> _labelHints = new AsyncLocal<IReadOnlyDictionary<string, string>?>();
 
         private void TakeLabelHints(TikCommandDescriptor descriptor)
-            => _labelHints.Value = WinboxFieldResolver.ParseLabelHints(FindParam(descriptor, TikSpecialProperties.WinboxLabels));
+            => _labelHints.Value = descriptor.Hints.WinboxLabels;
 
         /// <summary>
         /// A menu-label path becomes the API path it stands for (<c>/Interfaces/Interface/print</c> →
@@ -210,7 +210,7 @@ namespace tik4net.WinboxNative
 
             return ReferenceEquals(commandText, text) && ReferenceEquals(parameters, descriptor.Parameters)
                 ? descriptor
-                : new TikCommandDescriptor(commandText, parameters, descriptor.IsRaw, descriptor.WrapAsValue);
+                : descriptor.With(commandText: commandText, parameters: parameters);
         }
 
         // The filter with its caption replaced by the API name; an operator prefix ('?', '-', '<', '>', '=') stays.
@@ -670,7 +670,7 @@ namespace tik4net.WinboxNative
             // M2 has no find, and a getall holds what it answers: the ids of the rows, as the API's =ret=*1;*2.
             if (string.Equals(TikPath.Verb(descriptor.CommandText), "find", StringComparison.Ordinal))
             {
-                var found = await RunPrintCoreAsync(new TikCommandDescriptor(TikPath.Child(TikPath.Parent(descriptor.CommandText), "print"), descriptor.Parameters),
+                var found = await RunPrintCoreAsync(descriptor.With(commandText: TikPath.Child(TikPath.Parent(descriptor.CommandText), "print")),
                     cancellationToken).ConfigureAwait(false);
                 if (found.Count == 0)
                     return found;
@@ -911,7 +911,7 @@ namespace tik4net.WinboxNative
                 .ToList();
             return kept.Count == descriptor.Parameters.Count
                 ? descriptor
-                : new TikCommandDescriptor(descriptor.CommandText, kept);
+                : descriptor.With(parameters: kept);
         }
 
         /// <summary>
@@ -1037,14 +1037,14 @@ namespace tik4net.WinboxNative
         /// one can be a gap in the mapping (<see cref="TikMenuSchemaSource.WinboxCatalog"/>). A path with no WinBox window
         /// throws <see cref="TikPathNotMappedException"/>.
         /// </summary>
-        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, string? winboxLabels)
+        TikMenuSchema ITikMenuSchemaConnection.DescribeMenu(string path, TikTransportHints? hints)
             => MenuSchemas.GetOrAdd(path, p =>
             {
                 EnsureNativeOpen();
                 // The hints name the fields: set them for this call alone. Left as the previous command's, a path
                 // described after an entity read got that entity's names, and one described first did not.
                 var previous = _labelHints.Value;
-                _labelHints.Value = WinboxFieldResolver.ParseLabelHints(winboxLabels);
+                _labelHints.Value = hints?.WinboxLabels;
                 WinboxHandler handler;
                 WinboxFieldResolver resolver;
                 try { (handler, resolver) = ResolveHandlerAndFields(p); }
@@ -1077,7 +1077,7 @@ namespace tik4net.WinboxNative
                 return new TikMenuSchema(p, TikMenuSchemaSource.WinboxCatalog, Array.Empty<string>(),
                     singleton ? null : writable, writable, readable,
                     (verb, argument) => words.TryGetValue(argument, out var w) ? w : Array.Empty<string>());
-            }, winboxLabels);
+            }, hints?.WinboxLabelsKey);
 
         // ── Safe Mode (system handler [17]) ──────────────────────────────────────
         // Take/release map to the webfig toggleSafeMode() M2 commands. WebFig exposes no in-place

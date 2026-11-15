@@ -201,13 +201,13 @@ namespace tik4net.unittests.Connection
         }
 
         /// <summary>
-        /// The mapper adds client markers (<c>.cli-stats</c>, <c>.cli-json</c>, <c>.cli-flags</c>, <c>.cli-sensitive</c>,
-        /// <c>.winbox-labels</c>) for the built-in transports that read them. A transport written outside tik4net
-        /// forwards what it is handed, so the base removes them before <c>RunPrint</c>, <c>RunPrintAsync</c> and the
-        /// until-done read: such a transport sees the command's data and nothing else.
+        /// What the mapper tells tik4net's own transports about an entity (the CLI's stats merge, <c>:serialize</c>,
+        /// flags and <c>show-sensitive</c>; WinBox native's labels) travels beside the parameters. A transport written
+        /// outside tik4net forwards what it is handed, so <c>RunPrint</c>, <c>RunPrintAsync</c> and the until-done read
+        /// must hand it the command's words and nothing else.
         /// </summary>
         [TestMethod]
-        public void AForeignTransportIsNeverHandedTheMappersClientMarkers()
+        public void AForeignTransportIsHandedOnlyTheCommandsWords()
         {
             using (var foreign = new RecordingTransport())
             {
@@ -217,16 +217,19 @@ namespace tik4net.unittests.Connection
                 foreign.LoadAll<tik4net.Objects.Ppp.PppSecret>();
                 foreign.LoadAll<tik4net.Objects.Ip.IpAddress>();
                 foreign.LoadAllAsync<tik4net.Objects.Ip.Firewall.FirewallFilter>().GetAwaiter().GetResult();
-                foreign.CreateCommand("/interface/print", foreign.CreateParameter(TikSpecialProperties.CliStats, ""))
+                foreign.CreateCommand("/interface/print")
+                    .WithHints(TikEntityMetadataCache.GetMetadata<tik4net.Objects.Interface.Interface>().ReadHints)
                     .ExecuteListUntilDone(TimeSpan.FromSeconds(1)).ToList();
 
                 Assert.AreEqual(6, foreign.Seen.Count, "every read reached the transport");
                 var markers = foreign.Seen
                     .SelectMany(d => d.Parameters.Where(p => p.Name.StartsWith(".cli-", StringComparison.Ordinal)
-                                                         || p.Name == TikSpecialProperties.WinboxLabels)
+                                                         || p.Name.StartsWith(".winbox-", StringComparison.Ordinal))
                         .Select(p => d.CommandText + " " + p.Name))
                     .ToList();
                 Assert.AreEqual(0, markers.Count, "client markers reached a foreign transport: " + string.Join(", ", markers));
+                CollectionAssert.AreEqual(new[] { "detail" }, foreign.Seen[1].Parameters.Select(p => p.Name).ToArray(),
+                    "FirewallFilter's load: IncludeDetails is a word; its stats merge and flags are not");
             }
         }
 

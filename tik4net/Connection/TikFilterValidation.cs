@@ -24,9 +24,9 @@ namespace tik4net.Connection
         /// <param name="command">The command, for the exception; <c>null</c> to create one from <paramref name="commandText"/>.</param>
         /// <param name="commandText">The read's command text (<c>/ip/route/print</c>).</param>
         /// <param name="filterNames">The field names of the read's filters, as sent.</param>
-        /// <param name="winboxLabels">The entity's WinBox labels, when the read carries them (WinBox native names by them).</param>
+        /// <param name="hints">The read's transport hints: their WinBox labels name WinBox native's fields as the API does.</param>
         internal static void Check(ITikConnection connection, ITikCommand? command, string commandText,
-            IEnumerable<string> filterNames, string? winboxLabels)
+            IEnumerable<string> filterNames, TikTransportHints? hints)
         {
             if (!string.Equals(TikPath.Verb(commandText), "print", StringComparison.Ordinal))
                 return;
@@ -39,7 +39,7 @@ namespace tik4net.Connection
             TikMenuSchema schema;
             try
             {
-                schema = described.DescribeMenu(TikMenuSchemaExtensions.SchemaPath(TikPath.Parent(commandText)), winboxLabels);
+                schema = described.DescribeMenu(TikMenuSchemaExtensions.SchemaPath(TikPath.Parent(commandText)), hints);
             }
             catch (TikNoSuchCommandException)
             {

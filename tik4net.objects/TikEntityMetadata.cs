@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Reflection;
+using tik4net.Connection;
 
 namespace tik4net.Objects
 {
@@ -144,16 +145,10 @@ namespace tik4net.Objects
         public bool HasSensitiveProperties { get; private set; }
 
         /// <summary>
-        /// The entity's WinBox labels as the <see cref="TikSpecialProperties.WinboxLabels"/> marker value
-        /// (<c>api-name=Label|…</c>, every name a property is read under), or <c>null</c> when no property declares one.
-        /// </summary>
-        internal string? WinboxLabelsMarker { get; private set; }
-
-        /// <summary>
         /// The field names of the entity's flags — <c>disabled</c> and every read-only <c>bool</c> property
         /// (<c>dynamic</c>, <c>running</c>, <c>invalid</c>, …). RouterOS before 7.20 leaves them out of the CLI's
-        /// <c>print as-value</c>; the list goes to the CLI transports as <see cref="TikSpecialProperties.CliFlags"/>
-        /// so they can ask for them by name.
+        /// <c>print as-value</c>; the list goes to the CLI transports in <see cref="ReadHints"/> so they can ask for
+        /// them by name.
         /// </summary>
         /// <remarks>
         /// A writable <c>bool</c> other than <c>disabled</c> is an ordinary field that every version prints
@@ -161,6 +156,23 @@ namespace tik4net.Objects
         /// value, never <c>true</c>/<c>false</c>.
         /// </remarks>
         internal IEnumerable<string> CliFlagFields { get; private set; }
+
+        /// <summary>
+        /// What tik4net's own transports are told when they load the entity, built once from its attributes: the CLI's
+        /// stats merge (<see cref="IncludeCliStats"/>), its <c>:serialize</c> read and the free-text fields
+        /// (<see cref="TikPropertyAttribute.IsFreeText"/>), the flag fields (<see cref="CliFlagFields"/>; not for a
+        /// singleton, whose plain print carries its flags and takes no <c>proplist=</c>), <c>show-sensitive</c>
+        /// (<see cref="TikPropertyAttribute.IsSensitive"/>), and the WinBox labels (<see cref="TikPropertyAttribute.WinboxLabel"/>).
+        /// Set on every load command of the entity, the command-level loads included.
+        /// </summary>
+        internal TikTransportHints ReadHints { get; private set; }
+
+        /// <summary>
+        /// The WinBox labels alone: what an add, set, unset or listen of the entity, and a menu schema described for it,
+        /// are told. A listen does not get the read hints, which would make the CLI's polled listen run the stats,
+        /// sensitive and flag reads on every tick.
+        /// </summary>
+        internal TikTransportHints LabelHints { get; private set; }
 
         /// <summary>
         /// If entity exists in single instance.
@@ -224,10 +236,20 @@ namespace tik4net.Objects
                 .Where(p => p.ValueType == typeof(bool) && !p.IsPresenceFlag && (p.IsReadOnly || p.FieldName == "disabled"))
                 .Select(p => p.FieldName)
                 .ToList();
+            // Every name a labelled property is read under carries its label.
             var labels = Properties.Where(p => p.WinboxLabel != null)
-                .SelectMany(p => new[] { p.FieldName }.Concat(p.AlternateNames).Select(name => name + "=" + p.WinboxLabel))
+                .SelectMany(p => new[] { p.FieldName }.Concat(p.AlternateNames)
+                    .Select(name => new KeyValuePair<string, string>(name, p.WinboxLabel!)))
                 .ToList();
-            WinboxLabelsMarker = labels.Count > 0 ? string.Join("|", labels) : null;
+            var freeText = Properties.Where(p => p.IsFreeText).Select(p => p.FieldName).ToList();
+            ReadHints = new TikTransportHints(
+                mergeStats: IncludeCliStats,
+                serializeRead: HasFreeTextProperties,
+                freeTextFields: freeText,
+                flagFields: IsSingleton ? new List<string>() : CliFlagFields.ToList(),
+                showSensitive: HasSensitiveProperties,
+                winboxLabels: labels);
+            LabelHints = new TikTransportHints(false, false, new List<string>(), new List<string>(), false, labels);
         }
     }
 }
