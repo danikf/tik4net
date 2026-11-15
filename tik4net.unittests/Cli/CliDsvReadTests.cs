@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 // CliDsvReadTests.cs — the CLI read that keeps a ';' inside a value.
 //
 // as-value separates fields with ';' and writes values raw, so 'comment=a; b' reads as a list and 'a;b=c' as a comment

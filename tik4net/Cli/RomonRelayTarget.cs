@@ -1,4 +1,4 @@
-﻿namespace tik4net.Cli
+namespace tik4net.Cli
 {
     /// <summary>
     /// The router a connection continues into through the agent it logged in to — over RoMON SSH for the CLI

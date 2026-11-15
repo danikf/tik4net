@@ -1,4 +1,4 @@
-﻿// WinboxCliLatencyProbeTest.cs — where does a WinboxCliMac round trip actually spend its time?
+// WinboxCliLatencyProbeTest.cs — where does a WinboxCliMac round trip actually spend its time?
 //
 // A full winboxclimac run takes ~1 h 22 m and ends with a handful of failures; the same CLI engine over
 // TCP (winboxcli) is green in ~8 min. Two earlier measurements narrowed the question and are what this

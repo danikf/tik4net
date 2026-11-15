@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects
+namespace tik4net.Objects
 {
     /// <summary>Save behavior when calling <see cref="TikConnectionExtensions.Save{TEntity}"/>.</summary>
     public enum TikSaveMode

@@ -1,4 +1,4 @@
-﻿// RawCliDialectTest.cs — the low-level API in the terminal transports' own language.
+// RawCliDialectTest.cs — the low-level API in the terminal transports' own language.
 //
 // CallCommandSync takes a command in the connection's format and sends it unchanged. On Api/ApiSsl that is
 // API sentence words (CrudTest's *_With_LowLevel_API tests cover those); on the five CLI transports it is

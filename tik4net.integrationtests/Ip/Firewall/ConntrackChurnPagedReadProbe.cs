@@ -1,4 +1,4 @@
-﻿// ConntrackChurnPagedReadProbe — does a paged CLI read of a table that changes under it fail?
+// ConntrackChurnPagedReadProbe — does a paged CLI read of a table that changes under it fail?
 //
 // A window is ':local w [:pick [/path find] a b]; … print from=$w'. An id that vanishes between the find and
 // the print answers 'no such item' and aborts the line (measured, Docs/findings-cli.md §1), so a paged read of

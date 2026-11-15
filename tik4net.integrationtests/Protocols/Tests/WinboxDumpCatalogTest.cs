@@ -1,4 +1,4 @@
-﻿// WinboxDumpCatalogTest.cs — Phase B: download all /home/web/webfig/ files to disk
+// WinboxDumpCatalogTest.cs — Phase B: download all /home/web/webfig/ files to disk
 // Run manually from Test Explorer when a live router is reachable.
 // Output goes to the App.config "catalogDumpDir" directory (default .\.tik4net).
 

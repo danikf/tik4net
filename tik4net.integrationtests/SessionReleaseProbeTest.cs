@@ -1,4 +1,4 @@
-﻿// SessionReleaseProbeTest.cs — does every connection type end its router-side session when it is disposed?
+// SessionReleaseProbeTest.cs — does every connection type end its router-side session when it is disposed?
 //
 // Filed 2026-09-30: during a full matrix, CHR2 (6.49.13, the RoMON target) stopped answering every login — API 0
 // bytes, Telnet an empty reply, MAC-Telnet no packets — while still answering ping; its native console took ~20 s

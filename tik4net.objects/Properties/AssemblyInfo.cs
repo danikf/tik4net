@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // AssemblyVersion/FileVersion/etc. are generated from the project's <Version> property.

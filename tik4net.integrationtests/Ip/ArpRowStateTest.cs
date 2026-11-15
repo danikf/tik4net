@@ -1,4 +1,4 @@
-﻿// ArpRowStateTest.cs — the row-state flags the router computes and the catalog never names.
+// ArpRowStateTest.cs — the row-state flags the router computes and the catalog never names.
 //
 // `dynamic` is the field that says whether a row was learned by the router or configured by hand, and no
 // .jg window declares it on any handler — so over WinBox native it reached no caller at all, on every table

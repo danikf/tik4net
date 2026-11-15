@@ -1,4 +1,4 @@
-﻿// RunLease.cs — who owns a test row on the router, and whether that owner is still running.
+// RunLease.cs — who owns a test row on the router, and whether that owner is still running.
 //
 // Each test process (one leg) draws a short run tag at start and holds a lease file for as long as it lives.
 // A row created under TestNames.Unique carries the tag, so the orphan cleaner can tell a row whose run died

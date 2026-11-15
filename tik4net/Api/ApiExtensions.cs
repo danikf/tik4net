@@ -1,4 +1,4 @@
-﻿namespace tik4net.Api
+namespace tik4net.Api
 {
     /// <summary>
     /// Connection/command extensions for the <c>.proplist</c> parameter. Works on every transport; each honours

@@ -1,4 +1,4 @@
-﻿// TransportAuditFixtures.cs — rows for the tables a stock router leaves empty.
+// TransportAuditFixtures.cs — rows for the tables a stock router leaves empty.
 //
 // The path-map audit passes a path it can read. On a freshly provisioned CHR only 61 of its 155 paths
 // have any rows at all; the other 94 are compared as 0 rows against 0 rows and reported OK having

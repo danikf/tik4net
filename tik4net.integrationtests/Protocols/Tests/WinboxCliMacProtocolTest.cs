@@ -1,4 +1,4 @@
-﻿// WinboxCliMacProtocolTest.cs — WinBox CLI over MAC smoke tests via ITikConnection.
+// WinboxCliMacProtocolTest.cs — WinBox CLI over MAC smoke tests via ITikConnection.
 // Drives the production WinboxCliMacConnection (UDP 20561, client_type=0x0f90, mepty terminal)
 // through the shared WinBox CLI engine + CLI Layer.
 // Full CRUD parity is verified by the TestBase-based suite via winboxclimac.runsettings.

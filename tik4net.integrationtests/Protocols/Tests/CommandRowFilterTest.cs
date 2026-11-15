@@ -1,4 +1,4 @@
-﻿// CommandRowFilterTest.cs — the two low-level filter forms that used to be dropped before they were sent.
+// CommandRowFilterTest.cs — the two low-level filter forms that used to be dropped before they were sent.
 //
 // The rows go in as a multi-line CommandText — the whole sentence, one word per line — which is where a
 // caller hands these transports raw API rows and where they are parsed (TikCommandRow) into the query the

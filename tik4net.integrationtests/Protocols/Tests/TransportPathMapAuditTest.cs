@@ -1,4 +1,4 @@
-﻿// TransportPathMapAuditTest.cs — diagnostic: does the transport under test reach everything the binary
+// TransportPathMapAuditTest.cs — diagnostic: does the transport under test reach everything the binary
 // API reaches, and does it come back with the SAME table?
 //
 // Every transport promises the same contract over a different wire, and each has its own way of getting a

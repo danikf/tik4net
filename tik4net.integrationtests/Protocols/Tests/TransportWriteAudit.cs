@@ -1,4 +1,4 @@
-﻿// TransportWriteAudit.cs — the half of the contract the path-map audit never measured.
+// TransportWriteAudit.cs — the half of the contract the path-map audit never measured.
 //
 // The path-map audit is a READ, all 154 paths of it. Every mapping it checks is exercised in one
 // direction only, and the direction it skips is the one where a wrong mapping does damage rather than

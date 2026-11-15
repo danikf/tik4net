@@ -1,4 +1,4 @@
-﻿// WinboxNativeGetallTest.cs — Phase 3 BREAKTHROUGH: native M2 CRUD via the
+// WinboxNativeGetallTest.cs — Phase 3 BREAKTHROUGH: native M2 CRUD via the
 // webfig (/jsproxy) protocol, reverse-engineered from master-d53cd8ec58cb.js.
 //
 // Earlier RE failed for three reasons (all fixed here):

@@ -1,4 +1,4 @@
-﻿// TabPrefixedFieldNamesTest.cs — fields RouterOS names after the WinBox tab they sit on.
+// TabPrefixedFieldNamesTest.cs — fields RouterOS names after the WinBox tab they sit on.
 //
 // The .jg puts three interface fields on a tab called 'Loop Protect' and labels them 'Send Interval',
 // 'Disable Time' and 'Status'; RouterOS calls them loop-protect-send-interval, loop-protect-disable-time

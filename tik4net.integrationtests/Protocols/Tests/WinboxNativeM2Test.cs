@@ -1,4 +1,4 @@
-﻿// WinboxNativeM2Test.cs — Phase 3: native M2 object calls (no mepty console).
+// WinboxNativeM2Test.cs — Phase 3: native M2 object calls (no mepty console).
 // Goal: list interfaces + set/restore ether1 comment via structured M2 messages.
 // Reference working native read: GetSystemInfo handler [13,4] cmd=7.
 // Catalog format: Docs/jg-catalog-format.md (interface handler [20,0], Name=key 0x10006).

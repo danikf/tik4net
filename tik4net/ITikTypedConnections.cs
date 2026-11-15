@@ -1,4 +1,4 @@
-﻿using tik4net.Cli;
+using tik4net.Cli;
 
 namespace tik4net
 {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace tik4net.Objects.Routing.Bgp
 {

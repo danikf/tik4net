@@ -1,4 +1,4 @@
-﻿// Nullable-enabled on its own: the test project as a whole is not (see the note in
+// Nullable-enabled on its own: the test project as a whole is not (see the note in
 // Directory.Build.props), but this file implements ITikWireTraceSink, whose signature is annotated.
 #nullable enable
 

@@ -1,4 +1,4 @@
-﻿// QueueTypePcqMaskTest.cs — an all-ones netmask is /32, not "not set".
+// QueueTypePcqMaskTest.cs — an all-ones netmask is /32, not "not set".
 //
 // A .jg field that declares 4294967295 as its default is normally the router saying "not set" — a logging
 // action's Syslog Severity arrives that way on a row the API prints nothing for. A `netmask` is the

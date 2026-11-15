@@ -1,4 +1,4 @@
-﻿namespace tik4net
+namespace tik4net
 {
     /// <summary>
     /// How parameter will be formatted in mikrotik request

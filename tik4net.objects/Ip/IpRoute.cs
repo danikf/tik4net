@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip
+namespace tik4net.Objects.Ip
 {
     /// <summary>
     /// Access to the data provided by

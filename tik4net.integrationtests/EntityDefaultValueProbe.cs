@@ -1,4 +1,4 @@
-﻿// EntityDefaultValueProbe.cs — probe: which fields carrying a DefaultValue does the router leave out of a row?
+// EntityDefaultValueProbe.cs — probe: which fields carrying a DefaultValue does the router leave out of a row?
 // Audit for the 5.0 entity value model (TikField<T>), before the mass conversion.
 //
 // WHY THIS EXISTS. In 4.x a field the router did not print read as the property's DefaultValue (or the type

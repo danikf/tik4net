@@ -1,4 +1,4 @@
-﻿// QueueRatePairTest.cs — a paired rate field must mean the same thing on every transport.
+// QueueRatePairTest.cs — a paired rate field must mean the same thing on every transport.
 //
 // /queue/simple max-limit reads 1000000/2000000 over the binary API and 1M/2M over the CLI transports,
 // which read `print as-value`. While the property was a string that difference reached the caller: the

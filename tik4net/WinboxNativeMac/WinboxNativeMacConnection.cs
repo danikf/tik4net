@@ -1,4 +1,4 @@
-﻿using tik4net.Winbox;
+using tik4net.Winbox;
 using tik4net.MacTelnet;
 using tik4net.WinboxNative;
 

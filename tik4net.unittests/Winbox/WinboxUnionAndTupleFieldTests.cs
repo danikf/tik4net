@@ -1,4 +1,4 @@
-﻿// WinboxUnionAndTupleFieldTests.cs — a declaration whose label is on the parent and whose ids are on the
+// WinboxUnionAndTupleFieldTests.cs — a declaration whose label is on the parent and whose ids are on the
 // children.
 //
 // A field's key is taken from its own `id`. A `union` and a `tuple` have none: the NAME is on the node and

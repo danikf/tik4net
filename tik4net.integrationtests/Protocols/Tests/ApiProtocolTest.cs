@@ -1,4 +1,4 @@
-﻿// ApiProtocolTest.cs — MikroTik API protocol: login + list interfaces + set/restore comment on ether1
+// ApiProtocolTest.cs — MikroTik API protocol: login + list interfaces + set/restore comment on ether1
 // Uses the production tik4net + tik4net.objects library (ConnectionFactory + O/R mapper).
 // DataTestMethod variant covers all 4 transports (Api / ApiSsl / Rest / RestSsl) in one run.
 

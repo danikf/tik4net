@@ -1,4 +1,4 @@
-﻿// WinboxCliProtocolTest.cs — WinBox CLI smoke tests via ITikConnection.
+// WinboxCliProtocolTest.cs — WinBox CLI smoke tests via ITikConnection.
 // Drives the production WinboxCliConnection (TCP 8291, mepty terminal) through the CLI Layer.
 // Full CRUD parity is verified by the TestBase-based suite via winboxcli.runsettings.
 

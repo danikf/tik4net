@@ -1,4 +1,4 @@
-﻿// WinboxMacProtocolTest.cs — Winbox/MAC M2 protocol tests (EXPERIMENTAL)
+// WinboxMacProtocolTest.cs — Winbox/MAC M2 protocol tests (EXPERIMENTAL)
 // Scenario: login + list interfaces + set/restore comment on ether1.
 // Uses UDP 20561 with client_type=0x0f90.
 //

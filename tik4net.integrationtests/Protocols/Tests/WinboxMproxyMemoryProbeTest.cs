@@ -1,4 +1,4 @@
-﻿// WinboxMproxyMemoryProbeTest.cs — does an mproxy file open cost the router memory it never gets back?
+// WinboxMproxyMemoryProbeTest.cs — does an mproxy file open cost the router memory it never gets back?
 //
 // An earlier investigation established that mproxy file handles cannot be released: the handle id is a plain sequential
 // counter and there is no close/release verb (cmds 8–11 answer 0xFE0009 not-implemented). That was noted

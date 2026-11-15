@@ -1,4 +1,4 @@
-﻿// WinboxNativeFieldNameTest.cs — a handful of fields RouterOS names differently from the WinBox window.
+// WinboxNativeFieldNameTest.cs — a handful of fields RouterOS names differently from the WinBox window.
 //
 // The path-map audit measures the whole vocabulary at once, but it is [Ignore]d and runs by hand. These are
 // the individual pairings that were established by MOVING the value, kept as tests so a change to the alias

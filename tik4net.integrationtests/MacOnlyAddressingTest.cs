@@ -1,4 +1,4 @@
-﻿// MacOnlyAddressingTest.cs — can the MAC transports reach the router with no IP address at all?
+// MacOnlyAddressingTest.cs — can the MAC transports reach the router with no IP address at all?
 //
 // That is what they exist for: a freshly reset device, or one whose addressing you are about to lock
 // yourself out of. Until this test the library could not do it — every MAC session sent its DATA and ACK

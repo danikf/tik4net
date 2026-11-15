@@ -4,8 +4,11 @@
 #   * end_of_line — .gitattributes already owns line endings (`* text=auto`,
 #     normalized to LF in the repo, CRLF in a Windows working tree). Declaring it
 #     here too would just give the two tools a chance to disagree.
-#   * charset — the tree is a mix of BOM/no-BOM UTF-8 (~117/169 files). Forcing
-#     either one would rewrite half the repo on the next save for no benefit.
+#
+# C# sources are UTF-8 without a BOM (`charset = utf-8` below). A tool that guesses
+# a BOM-less file's encoding from the system code page (Windows PowerShell 5.1's
+# Get-Content / Set-Content, cp1250 here) mangles every non-ASCII character in it:
+# read and write these files as UTF-8 explicitly.
 #
 # Style rules below are set to `suggestion` on purpose: they guide new code
 # without turning the existing ~18k LOC into a wall of warnings. Only the rules
@@ -31,6 +34,7 @@ indent_size = 2
 trim_trailing_whitespace = false
 
 [*.cs]
+charset = utf-8
 # --- Namespaces / usings -----------------------------------------------------
 # The codebase uses block-scoped namespaces throughout; file-scoped would be a
 # netstandard2.0-compatible but repo-wide reformat, so keep the existing shape.

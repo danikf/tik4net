@@ -1,4 +1,4 @@
-﻿// WinboxTcpProtocolTest.cs — Winbox/TCP M2 protocol tests
+// WinboxTcpProtocolTest.cs — Winbox/TCP M2 protocol tests
 // Scenario: login + list interfaces + set/restore comment on ether1.
 // Terminal access via mepty handler [76].
 

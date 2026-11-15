@@ -1,4 +1,4 @@
-﻿// SshAuthProbeTest.cs — what does RouterOS actually do with a WRONG SSH password?
+// SshAuthProbeTest.cs — what does RouterOS actually do with a WRONG SSH password?
 //
 // The login-failure work established that `admin` with an EMPTY password authenticates over SSH with method "none",
 // so a wrong password is accepted. That says nothing about an account that HAS a password, which is

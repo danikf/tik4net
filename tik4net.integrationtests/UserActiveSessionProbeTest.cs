@@ -1,4 +1,4 @@
-﻿// UserActiveSessionProbeTest.cs — does closing a connection actually end the router-side session?
+// UserActiveSessionProbeTest.cs — does closing a connection actually end the router-side session?
 //
 // The session-accumulation report was filed on an observation, not a measurement: the lab router once held 164 entries
 // in /user/active (109 api, 55 rest-api) dating back to the previous day, from test processes long since

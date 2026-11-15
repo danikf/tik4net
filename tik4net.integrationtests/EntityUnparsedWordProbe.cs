@@ -1,4 +1,4 @@
-﻿// EntityUnparsedWordProbe.cs — probe: when a value does not parse into the property's type, is the word each
+// EntityUnparsedWordProbe.cs — probe: when a value does not parse into the property's type, is the word each
 // transport keeps the word the API prints? Validation run V3 of the 5.0 entity value model (TikField<T>).
 //
 // WHY THIS EXISTS. The model reads such a value as Unparsed(raw) and writes the raw word back unchanged, so the

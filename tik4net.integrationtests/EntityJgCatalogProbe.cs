@@ -1,4 +1,4 @@
-﻿// EntityJgCatalogProbe.cs — probe: what the router's own WinBox catalog (.jg) says about every entity property.
+// EntityJgCatalogProbe.cs — probe: what the router's own WinBox catalog (.jg) says about every entity property.
 // Audit for the 5.0 entity value model, companion of EntityDefaultValueProbe.
 //
 // WHY THIS EXISTS. The lab routers hold rows of few kinds, so a sweep of printed rows cannot say which fields apply

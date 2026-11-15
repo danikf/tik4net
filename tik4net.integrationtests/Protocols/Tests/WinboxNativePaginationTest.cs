@@ -1,4 +1,4 @@
-﻿// WinboxNativePaginationTest.cs — live proof that a MULTI-PAGE getall over WinBox native
+// WinboxNativePaginationTest.cs — live proof that a MULTI-PAGE getall over WinBox native
 // returns every page, and a report of which continuation key the router actually used.
 //
 // The deterministic side lives in tik4net.unittests (WinboxM2PaginationTests, scripted peer).

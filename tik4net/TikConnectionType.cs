@@ -1,4 +1,4 @@
-﻿namespace tik4net
+namespace tik4net
 {
     /// <summary>
     /// Connection type used to access mikrotik router. Default is <see cref="TikConnectionType.Api"/>.

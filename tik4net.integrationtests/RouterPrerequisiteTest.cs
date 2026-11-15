@@ -1,4 +1,4 @@
-﻿// RouterPrerequisiteTest.cs — verifies that the test router has all necessary services
+// RouterPrerequisiteTest.cs — verifies that the test router has all necessary services
 // enabled before the rest of the test suite runs. Uses the API (port 8728) — always available.
 //
 // Run this first to understand why other tests might fail.

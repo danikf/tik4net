@@ -1,4 +1,4 @@
-﻿// TestLocks.cs — the locks that let the suite run several legs (and several routers) at once.
+// TestLocks.cs — the locks that let the suite run several legs (and several routers) at once.
 //
 // Every test holds a set of reader/writer locks from TestInitialize to TestCleanup (LockedTestBase). By default
 // the set is all SHARED — the whole run, the router, the leg — plus one EXCLUSIVE lock on the test's own name,

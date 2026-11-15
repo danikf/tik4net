@@ -1,4 +1,4 @@
-﻿// EntityCanonicalFormProbe.cs — probe: does an entity loaded and saved unchanged send nothing, on every
+// EntityCanonicalFormProbe.cs — probe: does an entity loaded and saved unchanged send nothing, on every
 // transport? Validation run V2 of the 5.0 entity value model (TikField<T>).
 //
 // WHY THIS EXISTS. In the 5.0 model a property is "changed" when its canonical wire string —

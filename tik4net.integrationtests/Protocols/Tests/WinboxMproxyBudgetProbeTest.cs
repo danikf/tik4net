@@ -1,4 +1,4 @@
-﻿// WinboxMproxyBudgetProbeTest.cs — does mproxy really degrade under load, or were we reading the
+// WinboxMproxyBudgetProbeTest.cs — does mproxy really degrade under load, or were we reading the
 // channel out of step?
 //
 // The earlier finding is written as ROUTER-side behaviour: "mproxy degrades under back-to-back M2 sessions and stays

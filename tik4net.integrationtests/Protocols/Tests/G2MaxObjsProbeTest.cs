@@ -1,4 +1,4 @@
-﻿// G2MaxObjsProbeTest.cs — probe: what does the router do with ufe0018 (maxObjs) on a getall?
+// G2MaxObjsProbeTest.cs — probe: what does the router do with ufe0018 (maxObjs) on a getall?
 //
 // The paging finding was written as "paging (maxObjs with the cursor) is the real fix". The .jg says something else:
 // maxobjs is a CAP, declared on three windows only (routes, connections, proxy cache) and paired with a

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects.Ip;
 using tik4net.Objects;

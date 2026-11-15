@@ -1,4 +1,4 @@
-﻿// FirewallConnectionIcmpTypeTest.cs — /ip/firewall/connection's icmp-type must read as the API prints it.
+// FirewallConnectionIcmpTypeTest.cs — /ip/firewall/connection's icmp-type must read as the API prints it.
 //
 // The .jg catalog names the value because that is what the WinBox window shows: the wire carries 8 (M2
 // key 0x10) and the catalog calls it 'echo-request'. RouterOS does not — /ip/firewall/connection/print

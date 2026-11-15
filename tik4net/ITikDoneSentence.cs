@@ -1,4 +1,4 @@
-﻿namespace tik4net
+namespace tik4net
 {
     /// <summary>
     /// Response sentence (<see cref="ITikSentence"/>) from mikrotik router with !done status. 

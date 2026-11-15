@@ -1,4 +1,4 @@
-﻿// DnsForwarderListFieldsTest.cs — a list-valued field must be writable, not only readable.
+// DnsForwarderListFieldsTest.cs — a list-valued field must be writable, not only readable.
 //
 // /ip/dns/forwarders carries two of the list shapes on one row:
 //   dns-servers  a list of ADDRESSES — on the wire a message array whose elements are `addr` compounds.

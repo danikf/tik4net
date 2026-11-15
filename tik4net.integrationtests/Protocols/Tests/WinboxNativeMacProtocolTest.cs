@@ -1,4 +1,4 @@
-﻿// WinboxNativeMacProtocolTest.cs — WinBox native-M2 CRUD over the MAC layer, via ITikConnection.
+// WinboxNativeMacProtocolTest.cs — WinBox native-M2 CRUD over the MAC layer, via ITikConnection.
 // Drives the production WinboxNativeMacConnection (UDP 20561, client_type=0x0f90, structured M2 —
 // NOT a terminal) through the shared native-M2 engine (.jg resolver, encode/decode, Safe Mode).
 // Mirrors WinboxCliMacProtocolTest; sets RouterMac from App.config to bypass MNDP discovery.

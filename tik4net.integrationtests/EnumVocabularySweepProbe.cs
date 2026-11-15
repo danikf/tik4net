@@ -1,4 +1,4 @@
-﻿// EnumVocabularySweepProbe.cs — probe: what values does the router accept for every enum-typed
+// EnumVocabularySweepProbe.cs — probe: what values does the router accept for every enum-typed
 // [TikProperty] in the mapper, and which of them can the entity not read?
 //
 // WHY THIS EXISTS. One value the mapper does not know does not cost a property: TikEnumMetadata.Parse

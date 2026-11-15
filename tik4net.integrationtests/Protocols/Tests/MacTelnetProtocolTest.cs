@@ -1,4 +1,4 @@
-﻿// MacTelnetProtocolTest.cs — MAC-Telnet smoke tests via ITikConnection
+// MacTelnetProtocolTest.cs — MAC-Telnet smoke tests via ITikConnection
 // Router prerequisites are checked by RouterPrerequisiteTest (uses API).
 // Full CRUD parity is verified by the TestBase-based suite via mactelnet.runsettings.
 

@@ -1,4 +1,4 @@
-﻿// QueueTreeU64WriteTest.cs — a plain 64-bit field must survive a write.
+// QueueTreeU64WriteTest.cs — a plain 64-bit field must survive a write.
 //
 // /queue/tree max-limit is a single value, not a pair, and it is `u64` on the wire (.jg type bigunit).
 // Over WinBox native every u64 used to be encoded in the 32-bit form, which RouterOS accepts and ignores

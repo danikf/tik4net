@@ -1,4 +1,4 @@
-﻿// MangleNativeLegProbe.cs — step 1 of the WinBox M2 paging-stall trace plan: do BOTH native legs stall?
+// MangleNativeLegProbe.cs — step 1 of the WinBox M2 paging-stall trace plan: do BOTH native legs stall?
 //
 // The stall under investigation: /ip/firewall/mangle with a few thousand rules over WinboxNative (TCP 8291)
 // delivers ~12 pages at ~120 ms/page and then gets nothing for ~28.5 s, and the read fails. The candidates

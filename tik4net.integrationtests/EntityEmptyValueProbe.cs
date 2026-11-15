@@ -1,4 +1,4 @@
-﻿// EntityEmptyValueProbe.cs — probe: what does each transport deliver for a field that is EMPTY? Validation run V4
+// EntityEmptyValueProbe.cs — probe: what does each transport deliver for a field that is EMPTY? Validation run V4
 // of the 5.0 entity value model (TikField<T>).
 //
 // WHY THIS EXISTS. The model reads a field the row lacks as Absent and a field printed empty as Present(""), and

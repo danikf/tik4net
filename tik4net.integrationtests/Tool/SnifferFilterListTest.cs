@@ -1,4 +1,4 @@
-﻿// SnifferFilterListTest.cs — a list element that carries its own negation flag.
+// SnifferFilterListTest.cs — a list element that carries its own negation flag.
 //
 // /tool/sniffer's filters are the live shape of a `not`-WRAPPED message-array element: the element is a
 // submessage holding a bool beside the value, and the API renders it as a '!' in front of that ONE entry

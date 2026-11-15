@@ -1,4 +1,4 @@
-﻿// RomonRelayTest.cs — a router reached THROUGH another one over RoMON, written to and read back.
+// RomonRelayTest.cs — a router reached THROUGH another one over RoMON, written to and read back.
 //
 // Two lab routers: the agent is the router the whole suite talks to (host/user/pass/routerMac in App.config),
 // the target is the second one (romonTarget* in App.config). The relays over /tool romon ssh may have a target of

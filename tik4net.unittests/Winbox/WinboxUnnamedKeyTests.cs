@@ -1,4 +1,4 @@
-﻿// WinboxUnnamedKeyTests.cs — fields the router sends that no .jg window names, or names differently.
+// WinboxUnnamedKeyTests.cs — fields the router sends that no .jg window names, or names differently.
 //
 // Each pairing was measured on RouterOS 7.24.2 by setting the value over the API and naming the one M2 key that
 // moved, or by the one key holding the API's value on every row. Router-free: the catalog, the resolver and the

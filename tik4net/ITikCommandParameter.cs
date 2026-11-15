@@ -1,4 +1,4 @@
-﻿namespace tik4net
+namespace tik4net
 {
     /// <summary>
     /// Named parameter used by <see cref="ITikCommand"/>.

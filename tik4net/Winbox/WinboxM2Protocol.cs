@@ -1,4 +1,4 @@
-﻿namespace tik4net.Winbox
+namespace tik4net.Winbox
 {
     /// <summary>
     /// Single source of truth for the WinBox M2 (nv/jsproxy) protocol constants used by tik4net's

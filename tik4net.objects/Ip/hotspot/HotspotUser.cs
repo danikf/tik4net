@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip.Hotspot
+namespace tik4net.Objects.Ip.Hotspot
 {
     /// <summary>
     /// ip/hotspot/user

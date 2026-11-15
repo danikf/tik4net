@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 
 namespace tik4net.Cli

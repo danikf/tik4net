@@ -1,4 +1,4 @@
-﻿// MacSiblingSessionProbeTest.cs — does a second MAC session's teardown kill the first?
+// MacSiblingSessionProbeTest.cs — does a second MAC session's teardown kill the first?
 //
 // The reopen + retry makes the WinBox-CLI-MAC wedge survivable without explaining it. Three traced
 // full runs pin the shape of the thing precisely: exactly THREE sessions are dropped per suite run, in

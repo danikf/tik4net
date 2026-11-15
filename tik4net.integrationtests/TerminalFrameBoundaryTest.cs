@@ -1,4 +1,4 @@
-﻿// TerminalFrameBoundaryTest.cs — terminal answers sized across the WinBox chunk boundary.
+// TerminalFrameBoundaryTest.cs — terminal answers sized across the WinBox chunk boundary.
 //
 // RouterOS writes an encrypted WinBox frame in 255-byte chunks and sends no empty chunk after a frame that
 // ends on a full one — the one reachable size is 3570 bytes, and a terminal answer of ~3.4 KB lands on it.

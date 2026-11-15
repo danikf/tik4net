@@ -1,4 +1,4 @@
-﻿// QueueTargetTest.cs — the list field whose element is a union of families.
+// QueueTargetTest.cs — the list field whose element is a union of families.
 //
 // /queue/simple `target` is a list, and one element may be an IPv4 network, an IPv6 network or an
 // interface — webfig declares it as `union single:1` over {network, network6, enm→interface table}. It is
