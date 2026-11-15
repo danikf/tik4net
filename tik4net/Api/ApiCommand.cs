@@ -335,7 +335,7 @@ namespace tik4net.Api
                     if (target != null)
                         return TikCommandResult.FieldOfRow(reResponse, target, allowReturnDefault, defaultValue);
 
-                    // No target: the row's one value field (D18).
+                    // No target: the row's one value field.
                     return TikCommandResult.ScalarOfRow(this, reResponse, tik4net.Connection.TikPath.Verb(CommandText),
                         allowReturnDefault, defaultValue);
                 }
@@ -523,7 +523,7 @@ namespace tik4net.Api
             Action<ITikTrapSentence>? errorCallback = null,
             Action? onDoneCallback = null)
         {
-            // D21: the caller's onDone only when no error was reported in this run. A trap is followed by !done, so
+            // the caller's onDone only when no error was reported in this run. A trap is followed by !done, so
             // ExecuteAsyncCore's own onDone (which the bounded reads rely on) still fires after one. The caller's
             // own cancel ends in the swallowed 'interrupted' trap and !done, so it still ends in onDone.
             var ending = new TikCallbackEnding();

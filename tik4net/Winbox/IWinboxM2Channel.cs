@@ -137,7 +137,7 @@ namespace tik4net.Winbox
         /// per-request registrations instead (design §4.2a). Returns <c>null</c> when the channel is closed.
         /// </summary>
         /// <remarks>
-        /// Every channel implements it, so every native connection multiplexes after its open (review D4). The MAC
+        /// Every channel implements it, so every native connection multiplexes after its open. The MAC
         /// one can because <c>MacLayerTransport</c> survives sends from two threads, see
         /// <c>Docs/winbox-m2-multiplexing-design.md</c> §4.5.
         /// </remarks>

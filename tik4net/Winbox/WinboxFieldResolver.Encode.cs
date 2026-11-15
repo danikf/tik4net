@@ -633,7 +633,7 @@ namespace tik4net.Winbox
         // WinboxJgField.ExtraRegistrations) answers false so its other families get their turn. A field with no other
         // family refuses it, as webfig's types.ipaddr / types.network fromstr do: the generic fallback put the text on
         // the u32 key as a string, the router stored it, and /ip/firewall/filter printed src-address="" (7.25), where
-        // the API refuses the same set (WinBox review D7).
+        // the API refuses the same set.
         private static bool NotIpv4(WinboxJgField? jg, string apiName)
         {
             if (jg?.ExtraRegistrations != null && jg.ExtraRegistrations.Count > 0) return false;

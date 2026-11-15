@@ -80,7 +80,7 @@ namespace tik4net.Connection
         }
 
         /// <summary>
-        /// The scalar of a one-row answer when no field is named (D18, strict): the row's one field other than
+        /// The scalar of a one-row answer when no field is named (strict): the row's one field other than
         /// <c>.id</c> and <c>.tag</c>; with none, the <c>.id</c>, or the empty-answer rule of <see cref="EmptyScalar"/>
         /// when the row has no <c>.id</c> either; with more than one, <see cref="TikCommandUnexpectedResponseException"/>
         /// naming them.

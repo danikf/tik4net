@@ -454,7 +454,7 @@ namespace tik4net.Winbox
             // An ancestor's synthetic names a key of the ANCESTOR's records. A subtype on the same handler reads those
             // records (an /interface/vlan row is an /interface row); a child menu on a handler of its own reads others,
             // where the key is something else: /interface/bridge/settings ([20,17]) reported the bridge's auto-mac
-            // (0x65), a field its API menu does not have (WinBox review F11).
+            // (0x65), a field its API menu does not have.
             if (!exact && foundPath != null && _pathHandler?.Invoke(foundPath) is WinboxHandler ancestor
                 && ancestor != _handler)
                 inherited = null;
@@ -772,7 +772,7 @@ namespace tik4net.Winbox
                     continue;
                 // A `nonpublic:1` declaration is a slot WinBox reads and never paints, and the API does not print
                 // it either: the identity window's 'Version' (sd) made /system/identity/print answer
-                // {version, name}, and ExecuteScalar() the RouterOS version (WinBox review D6). A shipped
+                // {version, name}, and ExecuteScalar() the RouterOS version. A shipped
                 // synthetic field over such a key (/system/package's bundle) is declared public and still names it,
                 // and so does a key another window of the handler paints (see WinboxJgCatalog.IsDeclaredPublic).
                 if (kv.Value.NonPublic && !_catalog.IsDeclaredPublic(_handler, kv.Value.Key)) continue;

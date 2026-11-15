@@ -14,8 +14,7 @@ namespace tik4net.Cli
     /// </summary>
     /// <remarks>
     /// The read ends by the one rule (<see cref="CliPromptSettle"/>), asked before the carrier's end is: a counted answer
-    /// whose count line and prompt arrived with the end is whole, and the end is the next command's to report (D2 of the
-    /// terminal clients review). The Safe Mode quit wait stays each carrier's (<see cref="CliSafeModeQuitWait"/> over its own
+    /// whose count line and prompt arrived with the end is whole, and the end is the next command's to report. The Safe Mode quit wait stays each carrier's (<see cref="CliSafeModeQuitWait"/> over its own
     /// poll): what "ended" means there differs by carrier — the PTY reads without answering, MAC-Telnet counts an end from
     /// before the wait, the WinBox terminal falls back on quiet.
     /// </remarks>
@@ -132,8 +131,7 @@ namespace tik4net.Cli
         /// prompt inside that repaint leaves the echoed command text behind: the next command would read it as its own
         /// answer, and because the stale echo carries <c>name=value</c> text it parses as a record with no <c>.id</c>.
         /// Before a key the same residue ends the read early: its prompt settles a Safe Mode key's read before the router's
-        /// question to it arrives, and it starts a Tab's quiet window before the listing does (X4 of the terminal clients
-        /// review). Residue that lands as the key goes out cannot be told from its answer, on any carrier. A relay that
+        /// question to it arrives, and it starts a Tab's quiet window before the listing does. Residue that lands as the key goes out cannot be told from its answer, on any carrier. A relay that
         /// ended while the connection was idle shows in the residue: the agent's session is gone, and nothing may be sent
         /// into it.
         /// </remarks>
@@ -236,7 +234,7 @@ namespace tik4net.Cli
                     // The relay ended mid-command: no prompt will follow, the agent's session is over.
                     RouterOsCliLogin.ThrowIfRomonRelayEnded(Transport, _carrier.RomonTarget, sentCommand, stripped, commandSent: true);
 
-                    // Asked before the end is (D2): a counted answer whose count line and prompt came with the end is whole.
+                    // Asked before the end is: a counted answer whose count line and prompt came with the end is whole.
                     switch (settle.Observe(stripped, poll.Received, sw.ElapsedMilliseconds, raw.Length))
                     {
                         case CliPromptSettle.Outcome.Complete:

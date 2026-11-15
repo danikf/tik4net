@@ -517,8 +517,7 @@ namespace tik4net.Winbox
         /// </summary>
         /// <remarks>
         /// A nonpublic field is not decoded into a row: the API does not print it either (the identity window's
-        /// <c>Version</c>, <c>/system/resource</c>'s <c>jiffies</c>, <c>/file</c>'s <c>container</c> — WinBox
-        /// review D6). It still takes part in the catalog, where it matters when two declarations of one window
+        /// <c>Version</c>, <c>/system/resource</c>'s <c>jiffies</c>, <c>/file</c>'s <c>container</c>). It still takes part in the catalog, where it matters when two declarations of one window
         /// claim the same API name. The visible one is
         /// the field the API is talking about, because the pairing is built on what WinBox SHOWS; a
         /// <c>nonpublic</c> declaration is an internal slot that happens to be spelled the same. <c>/file</c>

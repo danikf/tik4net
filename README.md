@@ -35,19 +35,16 @@ using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
 
 var setup = new TikConnectionSetup("192.168.88.1", "admin", "");
+
 using (ITikConnection connection = setup.Create(TikConnectionType.Api))   // or Rest, Ssh, MacTelnet, WinboxCli, …
 {
-    ITikCommand cmd = connection.CreateCommand("/system/identity/print");
-    Console.WriteLine("Identity: " + cmd.ExecuteScalar());
+    Console.WriteLine(connection.CreateCommand("/system/identity/print").ExecuteScalar());
 
-    foreach (Log log in connection.LoadList<Log>())
-        Console.WriteLine("{0}[{1}]: {2}", log.Time, log.Topics, log.Message);
+    // Adds an entry to the address list "blocked"; remove it with /ip firewall address-list remove [find list=blocked]
+    connection.Save(new FirewallAddressList { Address = "10.20.30.40", List = "blocked", Comment = "tik4net quick start" });
 
-    connection.Save(new FirewallFilter()
-    {
-        Chain = FirewallFilter.ChainType.Forward,
-        Action = FirewallFilter.ActionType.Accept,
-    });
+    foreach (var entry in connection.LoadList<FirewallAddressList>(connection.CreateParameter("list", "blocked")))
+        Console.WriteLine(entry.Address);
 }
 ```
 
@@ -63,7 +60,7 @@ Step by step: [Getting started](https://github.com/danikf/tik4net/wiki/Getting-s
 * [Connection string](https://github.com/danikf/tik4net/wiki/Connecting-to-a-router#from-a-connection-string) — router, credentials and transport from configuration
 * [Passwords out of config files](https://github.com/danikf/tik4net/wiki/Connecting-to-a-router#keeping-the-password-out-of-the-configuration) — `password=dpapi:…`, `env:…` or `file:…` instead of the password
 * [Negated matchers](https://github.com/danikf/tik4net/wiki/TikField#negated-matchers) and [value lists](https://github.com/danikf/tik4net/wiki/TikField#value-lists-tikvaluelistt) — `src-address=!10.0.0.0/8`, `dst-port=22,8291` as typed values
-* [Compile-time checks](https://github.com/danikf/tik4net/wiki/TikField#pitfalls) — analyzers TIK001–TIK003 catch `TikField` comparisons that can never match
+* [Compile-time checks](https://github.com/danikf/tik4net/wiki/TikField#pitfalls) — analyzers TIK001–TIK003 catch `TikField` comparisons that can never match, and [TIK004](https://github.com/danikf/tik4net/wiki/High-level-API-custom-entities#compile-time-check-tik004) a mapper call with a class that is not an entity
 * [SSH private-key login](https://github.com/danikf/tik4net/wiki/SSH-connection#authentication)
 * [List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge) — ordered menus reordered with minimal moves
 * [Filtered CLI reads run on the router](https://github.com/danikf/tik4net/wiki/CLI-transports#same-code-as-over-the-api)

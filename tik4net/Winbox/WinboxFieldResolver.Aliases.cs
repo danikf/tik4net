@@ -111,7 +111,7 @@ namespace tik4net.Winbox
             public readonly ISet<int>? NotReportedKeys;
 
             /// <summary>
-            /// API names the window decodes and the API's menu does not have, left out of the decode (WinBox review F11).
+            /// API names the window decodes and the API's menu does not have, left out of the decode.
             /// </summary>
             /// <remarks>
             /// Each is measured with the API's <c>get value-name=</c>, which answers "input does not match any value of
@@ -130,7 +130,7 @@ namespace tik4net.Winbox
 
             /// <summary>
             /// Tabs of the path's own window whose fields the API prints from another command, left out of the decode
-            /// (WinBox review F11), as normalized labels.
+            ///, as normalized labels.
             /// </summary>
             /// <remarks>
             /// The <c>/system/clock</c> window's 'Manual Time Zone' tab is the API's <c>/system/clock/manual</c>,
@@ -142,7 +142,7 @@ namespace tik4net.Winbox
 
             /// <summary>
             /// API name → the text the field decodes to while it is unset: the API leaves such a field out of the row
-            /// until it holds something else (WinBox review F11).
+            /// until it holds something else.
             /// </summary>
             /// <remarks>
             /// Not a rule the catalog can give: an <c>opt:1</c> field at its zero is printed on some menus
@@ -401,7 +401,7 @@ namespace tik4net.Winbox
             notReportedKeys: new[] { WinboxM2Protocol.RecordKey.Id, 0x4 });
 
         /// <summary>
-        /// The generic Interface window's fields that an interface subtype's API menu does not print (WinBox review F11).
+        /// The generic Interface window's fields that an interface subtype's API menu does not print.
         /// </summary>
         /// <remarks>
         /// A subtype (Ethernet, VRRP) is read on the generic <c>[20,0]</c> handler and its rows carry the generic window's
@@ -796,7 +796,7 @@ namespace tik4net.Winbox
                 // so it does not inherit /ip/dhcp-server's above. `blocked` is the lease's 'Block Access' box as
                 // a flag: the catalog declares both on b7e, one key can carry one name, and block-access=yes set
                 // the key and the API's blocked=true together.
-                // …and the window's plural 'DHCP Options' (U11) is the API's singular dhcp-option: clearing it moved
+                // …and the window's plural 'DHCP Options' is the API's singular dhcp-option: clearing it moved
                 // the list [1] → [].
                 ["/ip/dhcp-server/lease"] = new FieldAliasSet(
                     both: Ci(("address-lists", "address-list"), ("dhcp-option", "dhcp-options")),

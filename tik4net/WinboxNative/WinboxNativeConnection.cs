@@ -480,7 +480,7 @@ namespace tik4net.WinboxNative
         /// version probe and the <c>.jg</c> catalog fetch all read the channel directly and would race the
         /// reader loop. Those run once, so leaving them on the open-phase round trip costs nothing (design §4.2).
         /// <para>Every channel runs a reader loop (<see cref="IWinboxM2Channel.ReceiveNextFrame"/>), so every command
-        /// after the open is multiplexed; there is no lockstep path after it (review D4).</para>
+        /// after the open is multiplexed; there is no lockstep path after it.</para>
         /// </remarks>
         private void StartMultiplexer(IWinboxM2Channel session)
         {

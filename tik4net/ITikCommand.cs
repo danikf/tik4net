@@ -323,17 +323,12 @@ namespace tik4net
         /// you should use some kind of synchronization like BeginInvoke in WinForms or SynchronizationContext. You can not touch UI controls directly without it.
         /// </summary>
         /// <remarks>
-        /// <b>This is not the awaitable surface, despite the name.</b> It returns <c>void</c>: it starts the
-        /// command on a background thread and calls you back, and you stop it with <see cref="Cancel"/> or
-        /// <see cref="CancelAndJoin()"/>. The Task-based commands are the <c>Execute*Async</c> extension
-        /// methods (<c>ExecuteListAsync</c>, <c>ExecuteScalarAsync</c>, … — see <c>ITikCommandAsync</c>),
-        /// each taking a <see cref="System.Threading.CancellationToken"/> and gated on
-        /// <see cref="TikConnectionCapability.AsyncCommands"/>.
-        /// <para>
-        /// The name is kept because this member is on a public interface that callers implement; the O/R
-        /// mapper's equivalents were renamed to <c>LoadWithCallback</c>/<c>LoadListenWithCallback</c>, which
-        /// is the vocabulary to prefer when writing new code against either level.
-        /// </para>
+        /// It returns <c>void</c>: it starts the command on a background thread and calls you back, and you stop it
+        /// with <see cref="Cancel"/> or <see cref="CancelAndJoin()"/>. The Task-based commands are the
+        /// <c>Execute*Async</c> extension methods (<c>ExecuteListAsync</c>, <c>ExecuteScalarAsync</c>, … — see
+        /// <c>ITikCommandAsync</c>), each taking a <see cref="System.Threading.CancellationToken"/> and gated on
+        /// <see cref="TikConnectionCapability.AsyncCommands"/>. The O/R mapper's equivalents are
+        /// <c>LoadWithCallback</c> / <c>LoadListenWithCallback</c>.
         /// <para>
         /// The command runs until it ends by itself, until <see cref="Cancel"/>, or until the connection ends, however long
         /// it stays quiet: <see cref="ITikConnection.ReceiveTimeout"/> does not apply to it, on any transport. A
@@ -398,7 +393,7 @@ namespace tik4net
         IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues);
 
         /// <summary>
-        /// Asks the running async command to stop (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
+        /// Asks the running command to stop (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// It may return before the command has stopped; use <see cref="CancelAndJoin()"/> to wait until it has.
         /// </summary>
         /// <remarks>
@@ -410,7 +405,7 @@ namespace tik4net
         void Cancel();
 
         /// <summary>
-        /// Cancels the running async command (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
+        /// Cancels the running command (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// Blocks the calling thread until the router has acknowledged the cancel and the command's reading worker has ended.
         /// </summary>
         /// <remarks>
@@ -423,7 +418,7 @@ namespace tik4net
         void CancelAndJoin();
 
         /// <summary>
-        /// Cancels the running async command (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
+        /// Cancels the running command (call it on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// Blocks the calling thread until the router has acknowledged the cancel and the command's reading worker has ended,
         /// or until <paramref name="timeout"/> elapses.
         /// </summary>

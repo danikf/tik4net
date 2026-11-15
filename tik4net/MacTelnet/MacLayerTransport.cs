@@ -1304,7 +1304,7 @@ namespace tik4net.MacTelnet
 
             // Another session's packet: another MikroTik's on the segment, or a session that held this ephemeral port
             // before. Taking it appended its data to ours, acknowledged it in our stream, and let its PKT_END end this
-            // session (review F9). The router puts our key in every packet of the session, as in the open race.
+            // session. The router puts our key in every packet of the session, as in the open race.
             if (reply.SessionKey != _sessionKey)
             {
                 if (Diagnostics.TikWireTrace.Enabled)

@@ -163,8 +163,8 @@ namespace tik4net.WinboxNative
         }
 
         // The one add, for ExecuteScalar's RunAddAsync and ExecuteNonQuery's RunVerbAsync alike: encode, the subtype
-        // discriminator, place-before, add, forget the reference names. Two copies of this had already drifted once
-        // (X1: the non-query add lost the discriminator). Returns the new row's id, if the router sent one.
+        // discriminator, place-before, add, forget the reference names. One copy, so neither caller can lose a step (a non-query
+        // add without the discriminator creates the wrong subtype). Returns the new row's id, if the router sent one.
         private async Task<int?> AddRowAsync(WinboxHandler handler, string apiPath, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {

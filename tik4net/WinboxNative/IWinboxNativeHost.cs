@@ -65,7 +65,7 @@ namespace tik4net.WinboxNative
 
         /// <summary>
         /// A refusal the client makes before sending anything, as the trap the router would raise over the API. The one
-        /// place such a refusal is classified (review D7). <paramref name="innerException"/> is the client-side reason, when
+        /// place such a refusal is classified. <paramref name="innerException"/> is the client-side reason, when
         /// there is one to hand on.
         /// </summary>
         TikCommandException TrapFor(string commandText, string message, Exception? innerException = null);

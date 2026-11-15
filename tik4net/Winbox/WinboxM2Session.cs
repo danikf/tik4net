@@ -147,7 +147,7 @@ namespace tik4net.Winbox
         /// means. Before the first byte of a frame the stream is still on a frame boundary, so the timeout is "nothing
         /// arrived" and the channel is as usable as before. Once part of a frame has been read it is not: the next read
         /// would start inside that frame, so the timeout keeps throwing, as does a frame that does not decrypt
-        /// (<see cref="DecryptOrThrow"/>) — review D9.
+        /// (<see cref="DecryptOrThrow"/>).
         /// </remarks>
         public byte[]? Receive(int timeoutMs)
         {

@@ -311,7 +311,7 @@ namespace tik4net.Winbox
         /// <remarks>
         /// A handler's record carries the keys of every window on it — <c>/ip/settings</c>, connection tracking and
         /// neighbour discovery share one handler, NTP client and server another — and a decode by the handler's map
-        /// names all of them (WinBox review D6). Only handler-backed windows count: an interface subtype
+        /// names all of them. Only handler-backed windows count: an interface subtype
         /// window's fields never went into the handler map, so they are nothing a decode of <c>/interface</c> has to
         /// leave out.
         /// </remarks>

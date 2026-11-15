@@ -128,7 +128,7 @@ namespace tik4net.Winbox
         /// Only the multiplexed path is genuinely asynchronous, and that is the only path an async command can
         /// reach: the open-phase branch runs while the connection is still opening (auth, version probe,
         /// <c>.jg</c> catalog), before <c>IsOpened</c> is set and therefore
-        /// before any command — sync or async — is accepted. Every connection multiplexes once open (review D4).
+        /// before any command — sync or async — is accepted. Every connection multiplexes once open.
         /// </remarks>
         /// <param name="request">The built M2 message.</param>
         /// <param name="cancellationToken">Cancels the wait (not the router's work).</param>
@@ -156,7 +156,7 @@ namespace tik4net.Winbox
         }
 
         // The open phase's round trip: version probe and .jg catalog, before the multiplexer owns the read side. Every
-        // connection multiplexes once open, so no command after the open comes through here (review D4).
+        // connection multiplexes once open, so no command after the open comes through here.
         private byte[] OpenPhaseSendReceive(byte[] request)
         {
             // Discard any frame already buffered on the shared channel before issuing a synchronous
@@ -185,7 +185,7 @@ namespace tik4net.Winbox
             }
 
             // No reply is a timeout, not an empty reply: the interpreters would read null as a reply carrying no
-            // field, and a stale reply to another request as this one's (review F4).
+            // field, and a stale reply to another request as this one's.
             if (response == null || (expected >= 0 && M2Message.ParseSysReqId(response) != expected))
                 throw new TikConnectionReceiveTimeoutException(TimeSpan.FromMilliseconds(_timeoutMs),
                     "No WinBox M2 reply for request id " + expected + " while the connection was opening: "

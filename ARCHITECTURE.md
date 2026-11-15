@@ -1,4 +1,4 @@
-﻿# tik4net architecture (4.0)
+﻿# tik4net architecture
 
 A map of the codebase for contributors. For *usage* documentation see the [wiki](https://github.com/danikf/tik4net/wiki); for agent-facing working rules see [AGENTS.md](AGENTS.md).
 

@@ -103,8 +103,8 @@ namespace tik4net.Crypto
         // Decrypt [enc_len 2B BE][IV 16B][ciphertext], strip padding, check + strip the HMAC, return plaintext.
         // Returns null on error (wrong key, padding fault, truncated frame, an HMAC that does not match).
         // The HMAC is checked with the receive-side key: RouterOS HMACs every frame the way Encrypt does (measured on
-        // 7.25, 7.21.5 and 6.49.21, over TCP and the MAC layer — review D5), so a frame whose HMAC does not match is not
-        // the router's, or did not arrive whole, and decrypting it anyway handed garbage on as a message (X11).
+        // 7.25, 7.21.5 and 6.49.21, over TCP and the MAC layer), so a frame whose HMAC does not match is not
+        // the router's, or did not arrive whole, and decrypting it anyway handed garbage on as a message.
         internal static byte[]? Decrypt(byte[]? assembled, byte[] aesKey, byte[] hmacKey)
         {
             if (assembled == null || assembled.Length < 18) return null;

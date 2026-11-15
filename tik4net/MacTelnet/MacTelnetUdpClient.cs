@@ -209,7 +209,7 @@ namespace tik4net.MacTelnet
         /// <summary>
         /// The smallest answer, in characters, that <see cref="ThrowIfResponseLostDatagrams(int,string,string)"/>
         /// condemns. RouterOS drops part of its own output only past about 70 KB of an answer, so a shorter one that
-        /// ends at a prompt is whole however many datagrams it lost on the way (X27, D33).
+        /// ends at a prompt is whole however many datagrams it lost on the way.
         /// </summary>
         internal const int MinimumCondemnedLength = 32 * 1024;
 
