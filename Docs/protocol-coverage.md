@@ -272,7 +272,7 @@ Kept out of the core `tik4net` package specifically so consumers who don't need 
 | CLI access via `CliConnectionBase` (`ITikConnection`) | ✅ |
 | `Crud`, `Listen` (poll-emulated), `SafeMode`, `RawCommand`, `AsyncCommands` | ✅ |
 | Streaming (`ExecuteListWithDuration`) | ❌ not supported (CLI family, not binary API) |
-| Registration via `ConnectionFactory` | requires one-time `tik4net.Ssh.Tik4NetSsh.Register()` |
+| Registration via `ConnectionFactory` | none: core loads the package by name the first time `Ssh` is asked for |
 
 ### Key classes
 
@@ -285,9 +285,8 @@ tik4net.ssh/Tik4NetSsh.cs         — ConnectionFactory registration helper
 ### Usage
 
 ```csharp
-using tik4net.Ssh;
-Tik4NetSsh.Register(); // once at startup, to use TikConnectionType.Ssh via ConnectionFactory
-// or: var connection = setup.CreateSshConnection();
+using ITikConnection connection = setup.Create(TikConnectionType.Ssh);   // the package referenced is enough
+// or, typed: using tik4net.Ssh; var connection = setup.CreateSshConnection();
 ```
 
 Requires the `ssh` service to be enabled on the router (`/ip/service set ssh disabled=no`).

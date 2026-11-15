@@ -36,12 +36,12 @@ namespace tik4net
     public static class ConnectionFactory
     {
         /// <summary>
-        /// Registers a factory for a connection type whose implementation lives in a satellite package
-        /// (one core cannot reference, e.g. <c>tik4net.ssh</c> with its <c>Renci.SshNet</c> dependency).
-        /// Call once at startup before opening that connection type; thereafter
+        /// Registers a factory for <see cref="TikConnectionType.Ssh"/>, the one type implemented in a satellite package
+        /// (<c>tik4net.ssh</c>, which core cannot reference because of its <c>Renci.SshNet</c> dependency); thereafter
         /// <see cref="CreateConnection(TikConnectionType)"/> /
         /// <see cref="OpenConnection(TikConnectionType, string, string, string)"/>
-        /// can create it like any built-in type. Re-registering the same type replaces the previous factory.
+        /// create it like any built-in type. Re-registering the same type replaces the previous factory. The package
+        /// registers itself the first time the type is asked for, so a call is needed only to replace its factory.
         /// </summary>
         /// <remarks>
         /// <see cref="TikConnectionType"/> is a closed enum, and every value except
@@ -74,6 +74,10 @@ namespace tik4net
         /// tagged sync commands), so the two routes agree today — but only
         /// <see cref="CreateConnection(TikConnectionType, TikConnectionSetup)"/> promises they will.
         /// </remarks>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="connectionType"/> is <see cref="TikConnectionType.Ssh"/> and the <c>tik4net.ssh</c> package
+        /// is not part of the application, or the value is not a declared <see cref="TikConnectionType"/>.
+        /// </exception>
         /// <seealso cref="ITikConnection.Open(string, string, string)"/>
         public static ITikConnection CreateConnection(TikConnectionType connectionType)
             => TikConnectionRegistry.Create(connectionType);

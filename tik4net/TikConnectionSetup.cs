@@ -510,10 +510,10 @@ namespace tik4net
         /// Creates a connection of the given type with every option of this setup applied, and opens it.
         /// </summary>
         /// <param name="connectionType">Which transport to open.</param>
-        /// <exception cref="NotImplementedException">
-        /// The type lives in a satellite package that has not been registered — call
-        /// <c>tik4net.Ssh.Tik4NetSsh.Register()</c> (or the package's own equivalent) once at startup, or use
-        /// that package's <c>Create…Connection</c> extension method instead.
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="connectionType"/> is <see cref="TikConnectionType.Ssh"/> and the <c>tik4net.ssh</c> package
+        /// is not part of the application (it is loaded by name the first time it is asked for, so referencing it is
+        /// enough), or the value is not a declared <see cref="TikConnectionType"/>.
         /// </exception>
         public ITikConnection Create(TikConnectionType connectionType)
             => Create(connectionType, null);

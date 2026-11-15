@@ -577,12 +577,12 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void AnUnregisteredSatelliteTransportSaysHowToRegisterIt()
+        public void AnUndeclaredTransportIsRefusedAsAConfigurationMistake()
         {
             var setup = NonDefaultSetup();
-            var ex = Assert.ThrowsException<NotImplementedException>(
+            var ex = Assert.ThrowsException<InvalidOperationException>(
                 () => setup.CreateUnopened((TikConnectionType)9999));
-            StringAssert.Contains(ex.Message, "RegisterConnectionFactory");
+            StringAssert.Contains(ex.Message, "not a declared TikConnectionType");
         }
 
         [TestMethod]

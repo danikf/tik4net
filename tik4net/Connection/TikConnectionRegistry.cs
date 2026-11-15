@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Reflection;
 using tik4net.Api;
 using tik4net.MacTelnet;
 using tik4net.Rest;
@@ -20,9 +21,10 @@ namespace tik4net.Connection
     /// </summary>
     internal static class TikConnectionRegistry
     {
-        // Factories for connection types implemented in satellite packages (e.g. tik4net.ssh), which core
-        // cannot reference directly. Registered at startup via ConnectionFactory.RegisterConnectionFactory.
-        // ConcurrentDictionary keeps registration thread-safe without locking the hot path.
+        // Factories for connection types implemented in a satellite package (Ssh, by tik4net.ssh), which core
+        // cannot reference directly. Filled by the package's Tik4NetSsh.Register, which Create calls itself the
+        // first time the slot is asked for. ConcurrentDictionary keeps registration thread-safe without locking the
+        // hot path.
         private static readonly ConcurrentDictionary<TikConnectionType, Func<ITikConnection>> _externalFactories
             = new ConcurrentDictionary<TikConnectionType, Func<ITikConnection>>();
 
@@ -49,8 +51,13 @@ namespace tik4net.Connection
         }
 
         /// <summary>Creates a fresh, unopened, unconfigured connection of the given type.</summary>
-        /// <exception cref="NotImplementedException">
-        /// The type is neither built in nor registered by a satellite package.
+        /// <remarks>
+        /// <see cref="TikConnectionType.Ssh"/> needs no registration when <c>tik4net.ssh</c> is referenced: the first
+        /// time the empty slot is asked for, its <c>Tik4NetSsh.Register</c> is found by name and called, once.
+        /// </remarks>
+        /// <exception cref="InvalidOperationException">
+        /// The type is <see cref="TikConnectionType.Ssh"/> and the <c>tik4net.ssh</c> package cannot be loaded, or the
+        /// value is not a declared <see cref="TikConnectionType"/>.
         /// </exception>
         internal static ITikConnection Create(TikConnectionType connectionType)
         {
@@ -59,10 +66,48 @@ namespace tik4net.Connection
                 return builtIn();
             if (_externalFactories.TryGetValue(connectionType, out var external))
                 return external();
-            throw new NotImplementedException(string.Format(CultureInfo.InvariantCulture, 
-                "Connection type '{0}' not supported. If it is implemented in a satellite package "
-                + "(e.g. tik4net.ssh), call ConnectionFactory.RegisterConnectionFactory(...) first.",
-                connectionType));
+            if (connectionType == TikConnectionType.Ssh)
+            {
+                var loadFailure = _sshSatellite.Value;
+                if (_externalFactories.TryGetValue(connectionType, out external))
+                    return external();
+                throw new InvalidOperationException(
+                    "TikConnectionType.Ssh is implemented in the tik4net.ssh package, which could not be loaded. "
+                    + "Add it (dotnet add package tik4net.ssh), then create the connection with "
+                    + "setup.CreateSshConnection(), or call tik4net.Ssh.Tik4NetSsh.Register() once at startup if the "
+                    + "package is loaded in a way that cannot be found by name.", loadFailure);
+            }
+            throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture,
+                "Connection type '{0}' is not a declared TikConnectionType value.", connectionType));
+        }
+
+        // The satellite's entry point, by name: core cannot reference tik4net.ssh. A constant type name is visible to
+        // the trimmer, so the type and its Register survive trimming whenever the package is part of the application.
+        private const string SshSatelliteType = "tik4net.Ssh.Tik4NetSsh, tik4net.ssh";
+
+        // Loaded at most once per process. The value is why the load failed (null when it worked, or when the package
+        // is simply absent), kept as the refusal's inner exception.
+        private static readonly Lazy<Exception?> _sshSatellite = new Lazy<Exception?>(LoadSshSatellite);
+
+        private static Exception? LoadSshSatellite()
+        {
+            try
+            {
+                Type.GetType(SshSatelliteType, throwOnError: false)
+                    ?.GetMethod("Register", BindingFlags.Public | BindingFlags.Static, null, Type.EmptyTypes, null)
+                    ?.Invoke(null, null);
+                return null;
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                return ex.InnerException;
+            }
+            // A package that is present but cannot be loaded (a version mismatch, a load context that refuses it)
+            // ends in the same refusal as an absent one; the reason rides along as the inner exception.
+            catch (Exception ex)
+            {
+                return ex;
+            }
         }
 
         // The one list of what core implements — Create and Register both read it, so the refusal to

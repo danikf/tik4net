@@ -146,8 +146,8 @@ namespace tik4net.examples
                 AllowInvalidCertificate = true,
             };
 
-            // TikConnectionType.Ssh additionally needs tik4net.Ssh.Tik4NetSsh.Register() once at startup —
-            // it lives in the separate tik4net.ssh package, which this project does not reference.
+            // TikConnectionType.Ssh lives in the separate tik4net.ssh package, which this project does not
+            // reference, so Create refuses it with InvalidOperationException naming the package.
             return setup.Create(connectionType);
         }
 

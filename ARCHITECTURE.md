@@ -204,7 +204,7 @@ throws `TikConnectionCapabilityNotSupportedException`.
 | `Api` / `ApiSsl` | TCP 8728 / 8729, binary sentences | `Api/` | Reference impl; legacy + v6.43 challenge-response login; the only transport with `Streaming` and `Tagging` |
 | `Rest` / `RestSsl` | HTTP 80 / HTTPS 443, JSON | `Rest/` | RouterOS 7.1+. `Crud` only — stateless, so no Safe Mode |
 | `Telnet` | TCP 23, PTY CLI | `Telnet/`, `Cli/` | `print as-value` driven |
-| `Ssh` | TCP 22, PTY CLI | `tik4net.ssh/` | Satellite package; register via `Tik4NetSsh.Register()` to use it through `ConnectionFactory` |
+| `Ssh` | TCP 22, PTY CLI | `tik4net.ssh/` | Satellite package; the registry loads it by name (`Tik4NetSsh.Register()`) the first time `Ssh` is asked for |
 | `MacTelnet` | UDP 20561, MAC layer | `MacTelnet/` | EC-SRP5 auth; router MAC found via MNDP unless preset. Like both MAC siblings, reaches a router that has **no IP address** — address the setup with `TikRouterAddress.FromMac(...)` |
 | `WinboxCli` / `WinboxCliMac` | TCP 8291 / UDP 20561 | `WinboxCli/`, `WinboxCliMac/` | Encrypted WinBox channel driving the `mepty` terminal |
 | `WinboxNative` / `WinboxNativeMac` | TCP 8291 / UDP 20561 | `WinboxNative/`, `WinboxNativeMac/` | Structured M2 `getall`/`get-one`/`set`/`add`/`remove`/`move`; numeric field keys mapped to API names via a version-matched `.jg` catalog |
@@ -309,7 +309,9 @@ makes it usable, and opens through `OpenTerminal`, which keeps the terminal unti
 way. It is keyed by `TikConnectionType`, a closed enum whose every value but `Ssh` is built into
 `TikConnectionRegistry` — so the one slot a registration can fill is `Ssh`, which is exactly what
 `tik4net.ssh` does, and registering a built-in or undeclared value throws `ArgumentException`. Both
-`Create` and `Register` read the same built-in list, so the refusal cannot drift from what `Create` answers. That satellite is a friend
+`Create` and `Register` read the same built-in list, so the refusal cannot drift from what `Create` answers. When the
+`Ssh` slot is empty, `Create` loads `tik4net.Ssh.Tik4NetSsh, tik4net.ssh` once by `Type.GetType` (a constant name the
+trimmer sees) and calls its `Register`; without the package the refusal is `InvalidOperationException` naming it. That satellite is a friend
 assembly for *other* reasons (it reuses the internal CLI/PTY helpers), not because the hooks require it.
 
 The registry is the factory; `TikTransportInfo` is the facts. It holds one row per `TikConnectionType` (SSH

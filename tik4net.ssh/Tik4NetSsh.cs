@@ -5,18 +5,18 @@ namespace tik4net.Ssh
 {
     /// <summary>
     /// Entry points for the SSH transport. <see cref="SshConnection"/>'s constructor is internal — like
-    /// every other tik4net connection type, it is created only via the <see cref="TikConnectionSetup"/>
-    /// extension methods (<see cref="SshConnectionSetupExtensions.CreateSshConnection"/>) or — after calling
-    /// <see cref="Register"/> once — through the standard <see cref="ConnectionFactory"/> using
-    /// <see cref="TikConnectionType.Ssh"/>.
+    /// every other tik4net connection type, it is created through <see cref="TikConnectionSetup"/>
+    /// (<see cref="SshConnectionSetupExtensions.CreateSshConnection"/>, or <c>Create(TikConnectionType.Ssh)</c>) or
+    /// the standard <see cref="ConnectionFactory"/>. Referencing this package is enough for the last two: tik4net
+    /// finds <see cref="Register"/> by name the first time <see cref="TikConnectionType.Ssh"/> is asked for.
     /// </summary>
     public static class Tik4NetSsh
     {
         /// <summary>
-        /// Registers the SSH transport with <see cref="ConnectionFactory"/> so that
-        /// <c>ConnectionFactory.CreateConnection(TikConnectionType.Ssh)</c> /
-        /// <c>ConnectionFactory.OpenConnection(TikConnectionType.Ssh, …)</c> work like any built-in type.
-        /// Idempotent — safe to call more than once. Call once at application startup.
+        /// Registers the SSH transport, so that <see cref="TikConnectionType.Ssh"/> works through
+        /// <see cref="TikConnectionSetup"/> and <see cref="ConnectionFactory"/> like any built-in type. tik4net calls it
+        /// itself the first time the type is asked for, so a call is needed only where this assembly cannot be found
+        /// by name (a custom load context). Idempotent — safe to call more than once.
         /// </summary>
         public static void Register()
             => ConnectionFactory.RegisterConnectionFactory(TikConnectionType.Ssh, () => new SshConnection());

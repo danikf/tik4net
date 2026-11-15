@@ -20,11 +20,9 @@ whose only runtime dependency is `System.Text.Json`.
 
 ## Registering it
 
-The transport plugs into the classic entry point at runtime:
-
-```csharp
-Tik4NetSsh.Register();   // then TikConnectionType.Ssh works through ConnectionFactory
-```
+None needed: the first time `TikConnectionType.Ssh` is asked for, `tik4net` loads this assembly by name
+(`tik4net.Ssh.Tik4NetSsh, tik4net.ssh`, visible to the trimmer) and calls `Tik4NetSsh.Register()`, which stays public
+and idempotent for an application that loads assemblies in a way a name cannot find.
 
 ## Notes
 
