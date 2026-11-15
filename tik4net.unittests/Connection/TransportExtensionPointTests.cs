@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Connection;
+using tik4net.Objects;
 
 namespace tik4net.unittests.Connection
 {
@@ -197,6 +198,62 @@ namespace tik4net.unittests.Connection
                 var all = foreign.CreateCommand("/ip/address/print").ExecuteList().Single();
                 Assert.AreEqual(3, all.Words.Count, "without .proplist every field stays");
             }
+        }
+
+        /// <summary>
+        /// The mapper adds client markers (<c>.cli-stats</c>, <c>.cli-json</c>, <c>.cli-flags</c>, <c>.cli-sensitive</c>,
+        /// <c>.winbox-labels</c>) for the built-in transports that read them. A transport written outside tik4net
+        /// forwards what it is handed, so the base removes them before <c>RunPrint</c>, <c>RunPrintAsync</c> and the
+        /// until-done read: such a transport sees the command's data and nothing else.
+        /// </summary>
+        [TestMethod]
+        public void AForeignTransportIsNeverHandedTheMappersClientMarkers()
+        {
+            using (var foreign = new RecordingTransport())
+            {
+                foreign.Open("192.0.2.1", 0, "u", "p");
+                foreign.LoadAll<tik4net.Objects.System.SystemScript>();
+                foreign.LoadAll<tik4net.Objects.Ip.Firewall.FirewallFilter>();
+                foreign.LoadAll<tik4net.Objects.Ppp.PppSecret>();
+                foreign.LoadAll<tik4net.Objects.Ip.IpAddress>();
+                foreign.LoadAllAsync<tik4net.Objects.Ip.Firewall.FirewallFilter>().GetAwaiter().GetResult();
+                foreign.CreateCommand("/interface/print", foreign.CreateParameter(TikSpecialProperties.CliStats, ""))
+                    .ExecuteListUntilDone(TimeSpan.FromSeconds(1)).ToList();
+
+                Assert.AreEqual(6, foreign.Seen.Count, "every read reached the transport");
+                var markers = foreign.Seen
+                    .SelectMany(d => d.Parameters.Where(p => p.Name.StartsWith(".cli-", StringComparison.Ordinal)
+                                                         || p.Name == TikSpecialProperties.WinboxLabels)
+                        .Select(p => d.CommandText + " " + p.Name))
+                    .ToList();
+                Assert.AreEqual(0, markers.Count, "client markers reached a foreign transport: " + string.Join(", ", markers));
+            }
+        }
+
+        // Records what each read is handed and answers with no rows.
+        private sealed class RecordingTransport : TikCommandConnectionBase
+        {
+            public List<TikCommandDescriptor> Seen { get; } = new List<TikCommandDescriptor>();
+            public override TikConnectionCapability Capabilities
+                => TikConnectionCapability.Crud | TikConnectionCapability.AsyncCommands;
+            public override void Open(string host, int port, string user, string password) => SetOpened();
+            public override System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
+                System.Threading.CancellationToken cancellationToken = default)
+            {
+                SetOpened();
+                return System.Threading.Tasks.Task.CompletedTask;
+            }
+            public override void Close() => SetClosed();
+            protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+            {
+                Seen.Add(descriptor);
+                return new List<TikRecordSentence>();
+            }
+            protected override System.Threading.Tasks.Task<IList<TikRecordSentence>> RunPrintAsync(
+                TikCommandDescriptor descriptor, System.Threading.CancellationToken cancellationToken)
+                => System.Threading.Tasks.Task.FromResult(RunPrint(descriptor));
+            protected override string RunAdd(TikCommandDescriptor descriptor) => "*1";
+            protected override void RunNonQuery(TikCommandDescriptor descriptor) { }
         }
 
         // A foreign transport that writes only what is abstract: no parameterless Open.

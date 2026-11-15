@@ -345,6 +345,9 @@ namespace tik4net.Cli
         // through it. A leaf builds a new terminal and its login per open attempt (CliTerminalOpen) and opens through
         // OpenTerminal.
 
+        /// <summary>The CLI builder reads the mapper's client markers, its test doubles (no connection type) included.</summary>
+        internal override bool ReadsClientMarkers => true;
+
         /// <summary>Derived inside tik4net and its friend assemblies only; see the class remarks.</summary>
         /// <param name="connectionType">The transport this is; <c>null</c> only for a test double.</param>
         private protected CliConnectionBase(TikConnectionType? connectionType = null) : base(connectionType)
