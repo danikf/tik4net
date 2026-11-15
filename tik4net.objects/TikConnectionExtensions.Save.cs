@@ -91,7 +91,7 @@ namespace tik4net.Objects
             TikSaveMode saveMode = TikSaveMode.Default)
             where TEntity:new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             string? id = ResolveSaveId(entity, metadata);
 

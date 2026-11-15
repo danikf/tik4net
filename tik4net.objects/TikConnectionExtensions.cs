@@ -85,7 +85,7 @@ namespace tik4net.Objects
         public static TEntity LoadSingle<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = command.LoadList<TEntity>().ToList();
@@ -105,7 +105,7 @@ namespace tik4net.Objects
         public static TEntity? LoadSingleOrDefault<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = command.LoadList<TEntity>().ToList();
@@ -124,7 +124,7 @@ namespace tik4net.Objects
         public static TEntity LoadById<TEntity>(this ITikConnection connection, string id)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id));
             var candidates = command.LoadList<TEntity>().ToList();
@@ -143,7 +143,7 @@ namespace tik4net.Objects
         public static TEntity LoadByName<TEntity>(this ITikConnection connection, string name)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter("name", name));
             var candidates = command.LoadList<TEntity>().ToList();
@@ -168,7 +168,7 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = command.LoadList<TEntity>().ToList();
@@ -192,7 +192,7 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, TimeSpan duration, params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
@@ -250,8 +250,8 @@ namespace tik4net.Objects
             params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
-            Guard.ArgumentNotNull(onLoadItemCallback, "onLoadItemCallback");
+            Guard.ArgumentNotNull(connection, nameof(connection));
+            Guard.ArgumentNotNull(onLoadItemCallback, nameof(onLoadItemCallback));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
@@ -298,8 +298,8 @@ namespace tik4net.Objects
             params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
-            Guard.ArgumentNotNull(onChangeCallback, "onChangeCallback");
+            Guard.ArgumentNotNull(connection, nameof(connection));
+            Guard.ArgumentNotNull(onChangeCallback, nameof(onChangeCallback));
 
             var command = CreateListenCommandWithFilter<TEntity>(connection, parameters);
             command.LoadListenWithCallback<TEntity>(onChangeCallback, onDeletedCallback, onExceptionCallback);

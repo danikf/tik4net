@@ -27,7 +27,7 @@ namespace tik4net.Objects
             CancellationToken cancellationToken = default(CancellationToken))
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var plan = TikConnectionExtensions.PlanListDifferences(modifiedList, unmodifiedList);
             TikConnectionExtensions.ValidateListDifferences(connection, plan);
@@ -83,7 +83,7 @@ namespace tik4net.Objects
         public static Task MoveAsync<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             return TikConnectionExtensions.BuildMoveCommand(connection, entityToMove, entityToMoveBefore)
                 .ExecuteNonQueryAsync(cancellationToken);
@@ -100,7 +100,7 @@ namespace tik4net.Objects
         public static Task MoveToEndAsync<TEntity>(this ITikConnection connection, TEntity entityToMove,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             return TikConnectionExtensions.BuildMoveCommand(connection, entityToMove, default(TEntity))
                 .ExecuteNonQueryAsync(cancellationToken);

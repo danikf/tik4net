@@ -23,7 +23,7 @@ namespace tik4net.Mndp
         //https://stackoverflow.com/questions/40616911/c-sharp-udp-broadcast-and-receive-example
         //https://forum.mikrotik.com/viewtopic.php?t=130551
 
-        private const int MNDP_UDP_PORT = 5678;
+        private const int MndpUdpPort = 5678;
 
         /// <summary>
         /// Discovers the MAC address of the router at <paramref name="host"/> (IPv4 string) via MNDP, as
@@ -107,7 +107,7 @@ namespace tik4net.Mndp
             using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true })
             {
                 SharePort(socket);
-                socket.Bind(new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT));
+                socket.Bind(new IPEndPoint(IPAddress.Any, MndpUdpPort));
 
                 var buffer = new byte[ushort.MaxValue];
                 var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -194,7 +194,7 @@ namespace tik4net.Mndp
                     using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
                     {
                         socket.Bind(new IPEndPoint(nic.Key, 0));
-                        socket.SendTo(dataToBroadcast, new IPEndPoint(nic.Value, MNDP_UDP_PORT));
+                        socket.SendTo(dataToBroadcast, new IPEndPoint(nic.Value, MndpUdpPort));
                         sent++;
                     }
                 }
@@ -210,7 +210,7 @@ namespace tik4net.Mndp
                 {
                     using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
                     {
-                        socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
+                        socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MndpUdpPort));
                     }
                 }
                 catch (SocketException)
@@ -229,7 +229,7 @@ namespace tik4net.Mndp
                         // Which interface an ff02:: datagram leaves by is this socket option, not the route.
                         socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.MulticastInterface,
                             IPAddress.HostToNetworkOrder(interfaceIndex));
-                        socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Parse("ff02::1"), MNDP_UDP_PORT));
+                        socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Parse("ff02::1"), MndpUdpPort));
                     }
                 }
                 catch (SocketException)

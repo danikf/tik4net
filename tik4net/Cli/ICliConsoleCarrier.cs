@@ -126,7 +126,7 @@ namespace tik4net.Cli
         /// <summary>Something arrived: the settle window restarts, the drain's quiet window too.</summary>
         internal bool Received { get; }
 
-        /// <summary>The router ended the session during this read (the carrier closed, <c>PKT_END</c>,
+        /// <summary>The router ended the session during this read (the carrier closed, <c>PktEnd</c>,
         /// <c>Mepty.Close</c>): no prompt will follow.</summary>
         internal bool Ended { get; }
 

@@ -12,7 +12,7 @@ namespace tik4net.Objects
     /// </summary>
     public class MacAddress
     {
-        private const string DEFAULT_MAC = "00:00:00:00:00:00";
+        private const string DefaultMac = "00:00:00:00:00:00";
         private string _address;
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace tik4net.Objects
         /// </summary>
         public MacAddress()
         {
-            _address = DEFAULT_MAC;
+            _address = DefaultMac;
         }
 
         /// <summary>

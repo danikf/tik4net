@@ -7,7 +7,7 @@ namespace tik4net.MacTelnet
     /// <remarks>
     /// RouterOS refuses about one valid EC-SRP5 login in a hundred, and on the MAC layer the refusal is one datagram the
     /// router does not resend: MAC-Telnet's <c>Login failed, incorrect username or password</c>, followed by
-    /// <c>PKT_END</c> 1–4 ms later without waiting for its acknowledgement (measured on 7.24); WinBox's
+    /// <c>PktEnd</c> 1–4 ms later without waiting for its acknowledgement (measured on 7.24); WinBox's
     /// <c>invalid user name or password (6)</c> in place of the confirmation, followed by the session's end. A session
     /// that ends with that datagram missing is therefore a refusal whose text was lost, and <c>TikOpenRetry</c> retries
     /// it as it retries a refusal. WinBox over MAC also raises it when the router ends the session while the terminal

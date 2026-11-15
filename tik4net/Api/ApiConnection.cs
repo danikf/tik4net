@@ -17,8 +17,8 @@ namespace tik4net.Api
 {  
     internal sealed class ApiConnection : TikConnectionBase, ITikApiConnection, ITikMenuSchemaConnection
     {
-        private const int API_DEFAULT_PORT = 8728;
-        private const int APISSL_DEFAULT_PORT = 8729;
+        private const int ApiDefaultPort = 8728;
+        private const int ApiSslDefaultPort = 8729;
 
         // Serializes writes: sentences must not interleave on the wire. A SemaphoreSlim rather than a lock
         // because the async path holds it across an await, which C# does not allow for a monitor — and two
@@ -106,10 +106,8 @@ namespace tik4net.Api
         public override void Close()
         {
             // Before /quit, not after: the router answers /quit with a !fatal and then closes the socket, so
-            // the reader's very next read fails while _readerStopRequested is still false — and a monitor
-            // running on another tag was told "connection lost" for a shutdown its own caller asked for
-            // (intermittent PingLocalhostAsyncWithCloseWillNotFail; whether the router's FIN or our own
-            // Dispose won the race decided which it saw).
+            // the reader's next read fails at once. Set first, the reader takes that as the shutdown the caller
+            // asked for, and a monitor running on another tag is not told "connection lost".
             _closeInitiated = true;
             try
             {
@@ -215,13 +213,9 @@ namespace tik4net.Api
         public bool SafeModeGet() => SafeModeHeld;
 
         // Open and OpenAsync are ONE implementation, the async one, with the synchronous entry point
-        // blocking on it (the same inversion the CLI, REST and WinBox-native CRUD paths use).
-        // They used to be two near-identical copies, and they had already drifted where it mattered: the
-        // synchronous copy negotiated TLS with `AuthenticateAsClientAsync(host, null, SslProtocols.None,
-        // false)` and translated a handshake failure into TikConnectionSSLErrorException, while the async
-        // copy called the one-argument overload and let a raw AuthenticationException out. So the same
-        // ApiSsl connection reported a certificate problem differently depending on which method opened it.
-        // Every await below carries ConfigureAwait(false), which is what keeps the blocking entry point
+        // blocking on it (the same inversion the CLI, REST and WinBox-native CRUD paths use), so the TLS
+        // negotiation and the translation of a handshake failure into TikConnectionSSLErrorException cannot
+        // differ between the two. Every await below carries ConfigureAwait(false), which is what keeps the blocking entry point
         // safe under a UI / ASP.NET-classic SynchronizationContext.
         public override void Open(string host, int port, string user, string password)
             => OpenAsync(host, port, user, password).GetAwaiter().GetResult();
@@ -290,7 +284,7 @@ namespace tik4net.Api
                                 TaskContinuationOptions.OnlyOnFaulted);
                             cancellationToken.ThrowIfCancellationRequested();
                             throw new TikConnectionProtocolMismatchException(port, true,
-                                API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
+                                ApiDefaultPort, ApiSslDefaultPort,
                                 "The peer on port " + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
                                 + " never answered the TLS handshake within "
                                 + handshakeMs.ToString(System.Globalization.CultureInfo.InvariantCulture)
@@ -314,7 +308,7 @@ namespace tik4net.Api
                         // ("Received an unexpected EOF or 0 bytes from the transport stream"), which used
                         // to escape Open unwrapped and name nothing.
                         throw new TikConnectionProtocolMismatchException(port, true,
-                            API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
+                            ApiDefaultPort, ApiSslDefaultPort,
                             "The peer on port " + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
                             + " closed the connection during the TLS handshake, so it is not serving API-SSL.",
                             ex);
@@ -335,7 +329,7 @@ namespace tik4net.Api
                     // words replies with an alert record and closes, which we read as a truncated sentence.
                     // A router that dislikes the CREDENTIALS answers !trap and never reaches here.
                     throw new TikConnectionProtocolMismatchException(port, false,
-                        API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
+                        ApiDefaultPort, ApiSslDefaultPort,
                         "The router closed the connection during the API login handshake on port "
                         + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
                         + " without answering.", ex);
@@ -425,9 +419,9 @@ namespace tik4net.Api
 
             // Not open is NOT the same as nothing to release. A reader that faulted — router rebooted, peer
             // hung up, cable pulled — marks the connection closed from its own thread and leaves the socket
-            // exactly where it was. Trusting the flag here meant a caller who did everything right, inside a
-            // using block, still held the handle until the finalizer, and the router still saw a connected
-            // peer. Idempotent, so the Close() path above and a second Dispose cost nothing.
+            // exactly where it was, so Dispose releases it whatever the flag says; otherwise the handle lives
+            // until the finalizer and the router still sees a connected peer. Idempotent, so the Close() path
+            // above and a second Dispose cost nothing.
             try { DisposeConnectionResources(); } catch { /* Dispose must not throw */ }
         }
 
@@ -1230,7 +1224,7 @@ namespace tik4net.Api
         internal Thread CallCommandCallbackThread(IEnumerable<string> commandRows, string tag,
             Action<ITikSentence> oneResponseCallback)
         {
-            Guard.ArgumentNotNullOrEmptyString(tag, "tag");
+            Guard.ArgumentNotNullOrEmptyString(tag, nameof(tag));
             EnsureOpened();
 
             commandRows = commandRows.Concat(new string[] { string.Format(CultureInfo.InvariantCulture, "{0}={1}", TikSpecialProperties.Tag, tag) }); // .tag=1234

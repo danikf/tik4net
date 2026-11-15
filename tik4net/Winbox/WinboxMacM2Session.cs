@@ -14,7 +14,7 @@ namespace tik4net.Winbox
     /// WinBox M2 channel over the MAC layer (UDP 20561, <c>client_type=0x0f90</c>). Uses
     /// <see cref="MacLayerTransport"/> for the MAC-layer packets, ACK/PING handling and retransmission, runs the
     /// WinBox EC-SRP5 handshake over it, and carries each encrypted M2 message in the same chunked framing as the
-    /// TCP carrier, inside <c>PKT_DATA</c> payloads.
+    /// TCP carrier, inside <c>PktData</c> payloads.
     /// </summary>
     /// <remarks>
     /// Shared between the CLI/terminal MAC mode (<c>WinboxCliMac</c>) and the native MAC mode
@@ -96,7 +96,7 @@ namespace tik4net.Winbox
         {
             RecvAvailable((type, payload, counter) =>
             {
-                if (type == PKT_END) { _routerEnded = true; return false; }
+                if (type == PktEnd) { _routerEnded = true; return false; }
                 if (!TryAcceptData(type, payload, counter)) return false;
                 if (IsControlPacket(payload)) return false;
                 _rxBuf.AddRange(payload);
@@ -196,7 +196,7 @@ namespace tik4net.Winbox
 
         // A handshake frame, or null on timeout. The router ending the session before its confirmation is a refusal whose
         // one datagram was lost (WinBox's "invalid user name or password (6)" comes in its place, and the session's
-        // PKT_END after it), so it is retried as MAC-Telnet's empty-screen closure is (MacLayerLoginClosedSilentlyException).
+        // PktEnd after it), so it is retried as MAC-Telnet's empty-screen closure is (MacLayerLoginClosedSilentlyException).
         private byte[]? RecvHandshakeFrame(int timeoutMs)
         {
             try { return RecvFrame(timeoutMs); }
@@ -207,10 +207,10 @@ namespace tik4net.Winbox
         }
 
         private void SendHandshakeFrame(byte[] payload)
-            => Send(PKT_DATA, WinboxChunkFraming.Chunk(payload, WinboxChunkFraming.EncryptedTag));
+            => Send(PktData, WinboxChunkFraming.Chunk(payload, WinboxChunkFraming.EncryptedTag));
 
         // Receives the next DATA packet payload (acking, ponging; skipping control packets), or null on timeout. The
-        // router ending the session (PKT_END with our key) throws: no frame follows it.
+        // router ending the session (PktEnd with our key) throws: no frame follows it.
         private byte[]? RecvDataPayload(int timeoutMs)
         {
             ThrowIfRouterEnded();
@@ -219,7 +219,7 @@ namespace tik4net.Winbox
             {
                 RecvUntil(timeoutMs, (type, payload, counter) =>
                 {
-                    if (type == PKT_END) { _routerEnded = true; return true; }
+                    if (type == PktEnd) { _routerEnded = true; return true; }
                     if (!TryAcceptData(type, payload, counter)) return false;
                     if (IsControlPacket(payload)) return false;
                     result = payload;
@@ -231,8 +231,8 @@ namespace tik4net.Winbox
             return result;
         }
 
-        // Set when the router sends PKT_END for this session: it has ended it, and nothing sent into it is answered.
-        // The carrier used not to look at PKT_END at all, so a read waited out its whole deadline on a session that
+        // Set when the router sends PktEnd for this session: it has ended it, and nothing sent into it is answered.
+        // The carrier used not to look at PktEnd at all, so a read waited out its whole deadline on a session that
         // was already gone. Reported as TCP reports the router's FIN, an IOException: the stream is broken, and whether
         // a command in flight ran is not known (so not TikConnectionSessionClosedException, which says it did not).
         private volatile bool _routerEnded;
@@ -296,7 +296,7 @@ namespace tik4net.Winbox
                 // Null is the interface's "channel closed".
                 catch (ObjectDisposedException) { return null; }   // socket closed under us — normal shutdown
                 catch (System.Net.Sockets.SocketException) { return null; }
-                catch (System.IO.IOException) { return null; }   // the router ended the session (PKT_END)
+                catch (System.IO.IOException) { return null; }   // the router ended the session (PktEnd)
 
                 // A slice that expires is not an error and must not surface as one: partial chunks stay in
                 // the receive buffer and the next slice resumes reassembly where this one stopped.
@@ -383,7 +383,7 @@ namespace tik4net.Winbox
         // MAC DATA packets — NOT a bare encrypted blob. The encrypted frame is chunk-wrapped on send and
         // reassembled on receive before AES decryption.
         public void Send(byte[] m2)
-            => Send(PKT_DATA, WinboxChunkFraming.Chunk(Keys.Encrypt(m2),
+            => Send(PktData, WinboxChunkFraming.Chunk(Keys.Encrypt(m2),
                 WinboxChunkFraming.EncryptedTag));
 
         public byte[]? SendReceive(byte[] m2, int timeoutMs)
@@ -478,7 +478,7 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// Tells the router the session is over before the socket goes away, by sending the MAC-layer
-        /// <c>PKT_END</c> — the same courtesy <c>MacTelnetUdpClient.TryCloseSession</c> pays.
+        /// <c>PktEnd</c> — the same courtesy <c>MacTelnetUdpClient.TryCloseSession</c> pays.
         /// </summary>
         /// <remarks>
         /// Closing a UDP socket signals nothing: there is no FIN, so a router that is not told keeps the
@@ -496,7 +496,7 @@ namespace tik4net.Winbox
         {
             _closed = true;   // stops the reader loop before the socket it polls is disposed
             StopIdlePump();   // and the idle pump, for the same reason
-            try { Send(PKT_END, null); } catch { /* ignore — see remarks */ }
+            try { Send(PktEnd, null); } catch { /* ignore — see remarks */ }
         }
     }
 }

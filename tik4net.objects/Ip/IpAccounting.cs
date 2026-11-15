@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 
 namespace tik4net.Objects.Ip
 {
@@ -13,7 +11,7 @@ namespace tik4net.Objects.Ip
     [Obsolete("RouterOS 7 removed /ip/accounting (7.24.4: 'no such command'). Kept for RouterOS 6.")]
     public class IpAccounting
     {
-        private const string DEFAULT_TRESHOLD = "256";
+        private const string DefaultThreshold = "256";
 
         /// <summary>
         /// account-local-traffic: whether to account the traffic to/from the router itself
@@ -30,7 +28,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// threshold: maximum number of IP pairs in the accounting table (maximal value is 8192)
         /// </summary>
-        [TikProperty("threshold", DefaultValue = DEFAULT_TRESHOLD)]
+        [TikProperty("threshold", DefaultValue = DefaultThreshold)]
         public TikField<int?> Threshold { get; set; }
 
     }

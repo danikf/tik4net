@@ -4,8 +4,6 @@ using System.Threading;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 
 namespace tik4net.Objects.Tool
 {
@@ -16,15 +14,6 @@ namespace tik4net.Objects.Tool
     [TikEntity("/ping", LoadCommand ="", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, SupportedOperations = TikEntityOperations.None, IncludeProplist = false)]
     public class ToolPing
     {
-        //    [TikProperty("address", IsReadOnly = true)]
-        //    public string Address { get; set; }
-
-        //    [TikProperty("count", IsReadOnly = true)]
-        //    public string Count { get; set; }
-
-        //    [TikProperty("size", IsReadOnly = true)]
-        //    public string Size { get; set; }
-
         /// <summary>
         /// Sequence number
         /// </summary>

@@ -11,7 +11,7 @@ namespace tik4net.Winbox
     /// </summary>
     /// <remarks>
     /// Over TCP (<see cref="WinboxTcpTransport"/>) the chunks are the byte stream; over the MAC layer
-    /// (<see cref="WinboxMacM2Session"/>) they ride inside <c>PKT_DATA</c> payloads and are reassembled from a
+    /// (<see cref="WinboxMacM2Session"/>) they ride inside <c>PktData</c> payloads and are reassembled from a
     /// datagram buffer (<see cref="TryTakeChunkedFrame"/>). Pure functions over bytes; no I/O.
     /// </remarks>
     internal static class WinboxChunkFraming

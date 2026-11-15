@@ -27,7 +27,7 @@ namespace tik4net.Objects
             CancellationToken cancellationToken = default(CancellationToken))
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             string? id = TikConnectionExtensions.ResolveSaveId(entity, metadata);
@@ -81,7 +81,7 @@ namespace tik4net.Objects
         public static Task DeleteAsync<TEntity>(this ITikConnection connection, TEntity entity,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             return TikConnectionExtensions.BuildDeleteCommand(connection, entity)
                 .ExecuteNonQueryAsync(cancellationToken);

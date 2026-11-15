@@ -28,7 +28,7 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(command, nameof(command));
 
             var responseSentences = command.ExecuteList();
 
@@ -51,7 +51,7 @@ namespace tik4net.Objects
         public static TEntity LoadSingle<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(command, nameof(command));
 
             return ExactlyOneRow(command, Materialize<TEntity>(command, command.ExecuteList()));
         }
@@ -71,7 +71,7 @@ namespace tik4net.Objects
         public static TEntity? LoadSingleOrDefault<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(command, nameof(command));
 
             return AtMostOneRow(command, Materialize<TEntity>(command, command.ExecuteList()));
         }
@@ -90,7 +90,7 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikCommand command, TimeSpan duration)
                     where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(command, nameof(command));
 
             var responseSentences = command.ExecuteListWithDuration(duration);
 
@@ -116,8 +116,8 @@ namespace tik4net.Objects
                     Action? onDoneCallback = null)
                     where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
-            Guard.ArgumentNotNull(onLoadItemCallback, "onLoadItemCallback");
+            Guard.ArgumentNotNull(command, nameof(command));
+            Guard.ArgumentNotNull(onLoadItemCallback, nameof(onLoadItemCallback));
 
             command.ExecuteWithCallback(
                 reSentence => onLoadItemCallback(MaterializeOne<TEntity>(command, reSentence)),
@@ -159,8 +159,8 @@ namespace tik4net.Objects
             Action<Exception>? onExceptionCallback = null)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
-            Guard.ArgumentNotNull(onChangeCallback, "onChangeCallback");
+            Guard.ArgumentNotNull(command, nameof(command));
+            Guard.ArgumentNotNull(onChangeCallback, nameof(onChangeCallback));
 
             command.ExecuteWithCallback(
                 reSentence =>

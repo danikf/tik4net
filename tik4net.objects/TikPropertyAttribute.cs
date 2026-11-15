@@ -198,7 +198,7 @@ namespace tik4net.Objects
         /// <param name="fieldName">Name of the property (on mikrotik).</param>
         public TikPropertyAttribute(string fieldName)
         {
-            Guard.ArgumentNotNullOrEmptyString(fieldName, "fieldName");
+            Guard.ArgumentNotNullOrEmptyString(fieldName, nameof(fieldName));
             FieldName = fieldName;
         }
     }

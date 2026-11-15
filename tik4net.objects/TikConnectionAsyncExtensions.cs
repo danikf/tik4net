@@ -89,7 +89,7 @@ namespace tik4net.Objects
             params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
@@ -121,7 +121,7 @@ namespace tik4net.Objects
             params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
@@ -151,7 +151,7 @@ namespace tik4net.Objects
             params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
@@ -174,7 +174,7 @@ namespace tik4net.Objects
             CancellationToken cancellationToken = default(CancellationToken))
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection,
@@ -198,7 +198,7 @@ namespace tik4net.Objects
             CancellationToken cancellationToken = default(CancellationToken))
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection,

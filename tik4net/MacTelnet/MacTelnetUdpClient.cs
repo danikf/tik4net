@@ -25,7 +25,7 @@ namespace tik4net.MacTelnet
     /// </remarks>
     internal sealed class MacTelnetUdpClient : MacLayerTransport, ICliConsoleCarrier
     {
-        private const ushort CLIENT_TYPE = 0x0015;
+        private const ushort ClientType = 0x0015;
         // The transport's name in every message this client raises.
         private const string Transport   = "MAC-Telnet";
         private const int    SettleMs    = 150;
@@ -64,7 +64,7 @@ namespace tik4net.MacTelnet
         private readonly AsyncSignal           _rxSignal = new AsyncSignal();
         private readonly TikBackgroundLoop _pump = new TikBackgroundLoop();
         private volatile Exception? _pumpFault;
-        // The router sent PKT_END: it has ended the session (see TryCloseSession).
+        // The router sent PktEnd: it has ended the session (see TryCloseSession).
         private volatile bool     _routerEnded;
 
         // The target's RoMON id once EnterRomonAsync has relayed this terminal; null for a direct session.
@@ -125,7 +125,7 @@ namespace tik4net.MacTelnet
         {
             return Task.Run(() =>
             {
-                BaseConnect(host, CLIENT_TYPE);
+                BaseConnect(host, ClientType);
                 Authenticate(user, pass);       // EC-SRP5 auth (sync, in base class)
                 WaitForPromptSync();
                 DrainSync(RouterOsCliLogin.PostLoginDrainMs);
@@ -247,18 +247,18 @@ namespace tik4net.MacTelnet
 
         /// <summary>
         /// Sends a graceful session-end sequence: first asks RouterOS to exit the console
-        /// (<c>/quit</c>), then sends the MAC-layer <c>PKT_END</c>. Errors are ignored.
+        /// (<c>/quit</c>), then sends the MAC-layer <c>PktEnd</c>. Errors are ignored.
         /// </summary>
         /// <param name="answerSafeModeQuestion">The session holds Safe Mode. RouterOS then answers <c>/quit</c> with
         /// "You are in Safe Mode. Quitting will unroll changes. Quit? [y/N]" (7.24.4) instead of quitting, so <c>y</c> is
         /// typed after it: the unroll a session ending without a release is owed anyway, done now. Left unanswered, the
         /// console waits on a terminal that is gone - over WinBox CLI that wedged RouterOS 6.49.13's console until a
         /// reboot.</param>
-        /// <remarks>The <c>y</c> must be read by the console before the session ends. With <c>PKT_END</c> sent in
+        /// <remarks>The <c>y</c> must be read by the console before the session ends. With <c>PktEnd</c> sent in
         /// the same instant, RouterOS 6.49.13 sometimes ended the session inside the question, and its console then
         /// stopped serving new Telnet, SSH and API logins until a reboot (once in 34 closes). The answer is therefore
         /// typed while the receive pump still acknowledges and retransmits, and the close waits for the router's own
-        /// <c>PKT_END</c> — at most <see cref="RouterOsCliLogin.SafeModeQuitWaitMs"/> — before ending the session itself.</remarks>
+        /// <c>PktEnd</c> — at most <see cref="RouterOsCliLogin.SafeModeQuitWaitMs"/> — before ending the session itself.</remarks>
         internal void TryCloseSession(bool answerSafeModeQuestion = false)
         {
             if (answerSafeModeQuestion && _pump.IsRunning)
@@ -270,12 +270,12 @@ namespace tik4net.MacTelnet
             else
             {
                 StopPump();
-                try { Send(PKT_DATA, _encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, CliTerminalText.Enter))); } catch { /* ignore */ }
+                try { Send(PktData, _encoding.GetBytes(RouterOsCliLogin.QuitKeys(answerSafeModeQuestion, CliTerminalText.Enter))); } catch { /* ignore */ }
             }
-            try { Send(PKT_END, null); } catch { /* ignore */ }
+            try { Send(PktEnd, null); } catch { /* ignore */ }
         }
 
-        // The quit wait's poll (CliSafeModeQuitWait): over on the router's PKT_END or a dead pump; the pump reads and
+        // The quit wait's poll (CliSafeModeQuitWait): over on the router's PktEnd or a dead pump; the pump reads and
         // acknowledges meanwhile, so the poll only waits for its signal.
         private void WaitForRouterToEndSession()
             => CliSafeModeQuitWait.RunAsync(async () =>
@@ -319,7 +319,7 @@ namespace tik4net.MacTelnet
                         if (!TryReceive(PumpPollMs, out byte type, out uint counter, out byte[] payload))
                             continue;
 
-                        if (type == PKT_END)  { _routerEnded = true; _rxSignal.Set(); continue; }
+                        if (type == PktEnd)  { _routerEnded = true; _rxSignal.Set(); continue; }
                         if (!TryAcceptData(type, payload, counter)) continue;
                         if (IsControlPacket(payload))               continue;
 
@@ -378,7 +378,7 @@ namespace tik4net.MacTelnet
                 "RouterOS logs an idle MAC-Telnet console out after about 30 s (its own log records it as a normal "
                 + "logout), and the UDP socket stays open, so the session goes silent rather than reporting an error.");
 
-        // A session the router has ended (PKT_END) takes nothing more: what is sent into it is never acknowledged, so a
+        // A session the router has ended (PktEnd) takes nothing more: what is sent into it is never acknowledged, so a
         // read after it would only run the deadline out. A relay's agent session too: a read the end came during reports
         // the relay's end, but a control key's read returns its text (CliPromptSettle.EndWithoutPrompt), and the next
         // write is then refused here, as a PTY carrier the agent closed refuses it. The relay's end line, when it
@@ -479,12 +479,12 @@ namespace tik4net.MacTelnet
         /// dead pump is rethrown as it is.
         /// </summary>
         /// <remarks>
-        /// The router ending the session (<c>PKT_END</c>: <c>/quit</c> typed, the console logged out, or the relay's agent
+        /// The router ending the session (<c>PktEnd</c>: <c>/quit</c> typed, the console logged out, or the relay's agent
         /// session over without its end line reaching us — the line is a datagram the router can drop, the end is not) is
         /// this read's only when it arrives during it, and it is reported one look after the look that first saw it: "the
         /// same poll" on a carrier a pump fills. The flag is read before the text, so everything the pump appended before
-        /// it set the flag is in that look's snapshot, and what the router sent around its <c>PKT_END</c>, already in the
-        /// socket, is appended and judged by the next: a <c>PKT_END</c> the pump takes just ahead of the answer's last
+        /// it set the flag is in that look's snapshot, and what the router sent around its <c>PktEnd</c>, already in the
+        /// socket, is appended and judged by the next: a <c>PktEnd</c> the pump takes just ahead of the answer's last
         /// DATA (the two leave the router within a millisecond) does not cut a complete answer.
         /// </remarks>
         private sealed class PumpRead : ICliCarrierRead
@@ -531,7 +531,7 @@ namespace tik4net.MacTelnet
 
         // ── Terminal writes (every key, the login's and the commands') ───────
 
-        private void SendTerminalBytes(byte[] data) => Send(PKT_DATA, data);
+        private void SendTerminalBytes(byte[] data) => Send(PktData, data);
 
         private void SendTerminalText(string text) => SendTerminalBytes(_encoding.GetBytes(text));
 
@@ -557,10 +557,10 @@ namespace tik4net.MacTelnet
                         continue;
 
                     // The router closing the session is an answer, and waiting out the rest of the login
-                    // timeout after it cannot produce a better one. It sends PKT_END repeatedly, and on a
+                    // timeout after it cannot produce a better one. It sends PktEnd repeatedly, and on a
                     // refused login it sends the refusal text first — so whatever is already on screen is
                     // the reason, and it is worth more than the fact that the session is gone.
-                    if (type == PKT_END)
+                    if (type == PktEnd)
                         throw RefusalOrClosure(VtStripper.StripAnsi(sb.ToString()));
 
                     if (!TryAcceptData(type, payload, counter)) continue;
@@ -594,12 +594,12 @@ namespace tik4net.MacTelnet
 
         // Whatever the router said before it hung up: a refusal if it said one, otherwise the plain fact
         // that the session was closed during login. With nothing on screen it is a refusal whose one data
-        // packet was lost: RouterOS sends the refusal and its PKT_END 1-4 ms apart and never resends the text
+        // packet was lost: RouterOS sends the refusal and its PktEnd 1-4 ms apart and never resends the text
         // (7.24, measured by dropping it), so TikOpenRetry retries that case as it retries a refusal.
         internal static Exception RefusalOrClosure(string stripped)
         {
             // RouterOS refuses a MAC-Telnet login with "Login failed, …" on its own, AFTER the EC-SRP5 exchange has
-            // ended in CTRL_END_AUTH (CliLoginScreen.IsRefusal says why the match is that narrow).
+            // ended in CtrlEndAuth (CliLoginScreen.IsRefusal says why the match is that narrow).
             if (CliLoginScreen.IsRefusal(stripped))
                 return new TikConnectionLoginRefusedException(Transport, CliLoginScreen.FirstLine(stripped));
             if (string.IsNullOrEmpty(stripped.Trim()))
@@ -622,7 +622,7 @@ namespace tik4net.MacTelnet
                     if (!TryReceive(50, out byte type, out uint counter, out byte[] payload))
                         continue;
                     // The router ending the session ends the drain; the next read reports it, as after the pump.
-                    if (type == PKT_END) { _routerEnded = true; _rxSignal.Set(); break; }
+                    if (type == PktEnd) { _routerEnded = true; _rxSignal.Set(); break; }
                     if (TryAcceptData(type, payload, counter) && !IsControlPacket(payload))
                         _vt100.ProcessAndAnswer(_encoding.GetString(payload), _passwordPrompt, SendTerminalText);
                     // Reset quiet window — keep draining while data arrives.

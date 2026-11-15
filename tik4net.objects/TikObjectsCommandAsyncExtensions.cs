@@ -37,7 +37,7 @@ namespace tik4net.Objects
             CancellationToken cancellationToken = default(CancellationToken))
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(command, nameof(command));
 
             var responseSentences = await command.ExecuteListAsync(cancellationToken).ConfigureAwait(false);
             return TikCommandExtensions.Materialize<TEntity>(command, responseSentences);
@@ -103,7 +103,7 @@ namespace tik4net.Objects
             TimeSpan duration, CancellationToken cancellationToken = default)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(command, nameof(command));
 
             var sentences = command.ExecuteListWithDurationAsync(duration, cancellationToken);
             return MaterializeStream<TEntity>(command, sentences, null, cancellationToken);
@@ -130,7 +130,7 @@ namespace tik4net.Objects
             TimeSpan? timeout = null, CancellationToken cancellationToken = default)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(command, nameof(command));
 
             var sentences = command.ExecuteListUntilDoneAsync(timeout, cancellationToken);
             return MaterializeStream<TEntity>(command, sentences, null, cancellationToken);

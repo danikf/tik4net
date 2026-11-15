@@ -68,7 +68,7 @@ namespace tik4net.Objects
         public static void SaveListDifferences<TEntity>(this ITikConnection connection, IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             var plan = PlanListDifferences(modifiedList, unmodifiedList);
             ValidateListDifferences(connection, plan);
 
@@ -188,7 +188,7 @@ namespace tik4net.Objects
                 .Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity!)))
                 .ToDictionaryEx(entity => idProperty.GetEntityValue(entity!)!); //all entities from modified list with ids
             Dictionary<string, TEntity> unmodifiedEntities = unmodifiedItems
-                //.Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity))) - entity in unmodified list has id (is loaded from miktrotik)
+                // no id filter: every entity of the unmodified list was loaded from the router, so has an id
                 .ToDictionaryEx(entity => idProperty.GetEntityValue(entity!)!); //all entities from unmodified list with ids
 
             //DELETE — a row the router made itself (dynamic) is not the caller's to delete: RouterOS refuses it

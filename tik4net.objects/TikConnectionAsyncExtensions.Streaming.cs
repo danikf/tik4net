@@ -40,7 +40,7 @@ namespace tik4net.Objects
             params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection, parameters);
@@ -72,7 +72,7 @@ namespace tik4net.Objects
             params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = TikConnectionExtensions.CreateLoadCommandWithFilter<TEntity>(connection, parameters);

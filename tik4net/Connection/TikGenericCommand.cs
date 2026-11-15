@@ -37,7 +37,7 @@ namespace tik4net.Connection
 
         private protected override ITikConnection AcceptConnection(ITikConnection value)
         {
-            Guard.ArgumentNotNull(value, "value");
+            Guard.ArgumentNotNull(value, nameof(value));
             Guard.ArgumentOfType<TikCommandConnectionBase>(value, "value");
             return (TikCommandConnectionBase)value;
         }

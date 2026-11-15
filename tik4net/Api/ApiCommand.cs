@@ -59,7 +59,7 @@ namespace tik4net.Api
 
         private protected override ITikConnection AcceptConnection(ITikConnection value)
         {
-            Guard.ArgumentNotNull(value, "value");
+            Guard.ArgumentNotNull(value, nameof(value));
             Guard.ArgumentOfType<ApiConnection>(value, "value");
             return (ApiConnection)value;
         }

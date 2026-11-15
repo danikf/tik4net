@@ -24,7 +24,7 @@ namespace tik4net.integrationtests
     /// </summary>
     internal sealed class WinboxMacClient : tik4net.MacTelnet.MacLayerTransport
     {
-        private const ushort CLIENT_TYPE = 0x0f90;
+        private const ushort ClientType = 0x0f90;
         private const int    SRC_ID      = 8;
         private int          _reqId;
         private string       _pass;
@@ -33,7 +33,7 @@ namespace tik4net.integrationtests
         public void Connect(string host, string user, string pass)
         {
             _pass = pass;
-            BaseConnect(host, CLIENT_TYPE);
+            BaseConnect(host, ClientType);
             _keys = WinboxStreamKeys.Derive(Authenticate(user, pass).Secret);
         }
 
@@ -41,14 +41,14 @@ namespace tik4net.integrationtests
         private byte[] SendRecvM2(byte[] m2, int timeoutMs = 5000)
         {
             byte[] frame = _keys.Encrypt(m2);
-            Send(PKT_DATA, frame);
+            Send(PktData, frame);
 
             byte[] result = null;
             RecvUntil(timeoutMs, (type, payload, counter) =>
             {
-                if (type == PKT_ACK) return false;
-                if (type == PKT_PING) { SendPong(counter); return false; }
-                if (type != PKT_DATA) return false;
+                if (type == PktAck) return false;
+                if (type == PktPing) { SendPong(counter); return false; }
+                if (type != PktData) return false;
                 SendAck(counter);
                 if (IsControlPacket(payload) || payload.Length < 18) return false;
                 byte[] dec = TryDecrypt(payload);
@@ -62,7 +62,7 @@ namespace tik4net.integrationtests
         private void SendM2(byte[] m2)
         {
             byte[] frame = _keys.Encrypt(m2);
-            Send(PKT_DATA, frame);
+            Send(PktData, frame);
         }
 
         private byte[] TryDecrypt(byte[] payload)
@@ -133,9 +133,9 @@ namespace tik4net.integrationtests
                                     ((uint)pkt[20] <<  8) |  pkt[21];
                     byte[] payload = pkt.Length > 22 ? pkt.Skip(22).ToArray() : new byte[0];
 
-                    if (type == PKT_ACK) continue;
-                    if (type == PKT_PING) { SendPong(ackCtr); continue; }
-                    if (type != PKT_DATA) continue;
+                    if (type == PktAck) continue;
+                    if (type == PktPing) { SendPong(ackCtr); continue; }
+                    if (type != PktData) continue;
                     SendAck(ackCtr);
 
                     if (IsControlPacket(payload)) continue;
@@ -179,9 +179,9 @@ namespace tik4net.integrationtests
                                     ((uint)pkt[20] <<  8) |  pkt[21];
                     byte[] payload = pkt.Length > 22 ? pkt.Skip(22).ToArray() : new byte[0];
 
-                    if (type == PKT_ACK) continue;
-                    if (type == PKT_PING) { SendPong(ackCtr); continue; }
-                    if (type != PKT_DATA) continue;
+                    if (type == PktAck) continue;
+                    if (type == PktPing) { SendPong(ackCtr); continue; }
+                    if (type != PktData) continue;
                     SendAck(ackCtr);
                     if (IsControlPacket(payload)) continue;
 

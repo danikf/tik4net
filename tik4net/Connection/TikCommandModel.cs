@@ -19,7 +19,7 @@ namespace tik4net.Connection
         /// nameless word. A bare <c>?name</c> filter has a null <paramref name="value"/>, not an empty name.</exception>
         internal TikCommandParameter(string name, string? value, TikCommandParameterFormat format = TikCommandParameterFormat.Default)
         {
-            Guard.ArgumentNotNullOrEmptyString(name, "name");
+            Guard.ArgumentNotNullOrEmptyString(name, nameof(name));
             Name = name;
             Value = value;
             ParameterFormat = format;

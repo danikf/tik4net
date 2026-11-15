@@ -81,7 +81,7 @@ namespace tik4net
         /// </summary>
         private static ITikCommandAsync AsAsync(this ITikCommand command)
         {
-            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(command, nameof(command));
             if (command.Connection == null)
                 throw new System.InvalidOperationException("Connection is not assigned.");
 

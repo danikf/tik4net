@@ -528,7 +528,7 @@ namespace tik4net.unittests.MacTelnet
                 _routerMac = new byte[] { 0x02, 0, 0, 0, 0, 0x02 };
             }
 
-            internal void SendData(byte[] payload) => Send(PKT_DATA, payload);
+            internal void SendData(byte[] payload) => Send(PktData, payload);
             internal bool Deliver(uint counter, int payloadLen) => AckData(counter, payloadLen);
             internal int  Holes => DataHoles;
             internal void ClearHoles() => ResetDataHoles();

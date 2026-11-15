@@ -21,7 +21,7 @@ namespace tik4net.Objects
         /// <inheritdoc cref="Save{TEntity}(ITikConnection, TEntity, IEnumerable{string}, TikSaveMode)" path="/exception"/>
         public static void Move<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore)
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             BuildMoveCommand(connection, entityToMove, entityToMoveBefore).ExecuteNonQuery();
         }
 
@@ -50,7 +50,7 @@ namespace tik4net.Objects
         /// <inheritdoc cref="Save{TEntity}(ITikConnection, TEntity, IEnumerable{string}, TikSaveMode)" path="/exception"/>
         public static void MoveToEnd<TEntity>(this ITikConnection connection, TEntity entityToMove)
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             Move(connection, entityToMove, default(TEntity));
         }
     }

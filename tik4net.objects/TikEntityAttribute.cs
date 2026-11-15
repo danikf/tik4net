@@ -130,7 +130,7 @@ namespace tik4net.Objects
         /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>
         public TikEntityAttribute(string entityPath)
         {
-            Guard.ArgumentNotNullOrEmptyString(entityPath, "entityPath");
+            Guard.ArgumentNotNullOrEmptyString(entityPath, nameof(entityPath));
             EntityPath = entityPath;
             LoadCommand = "/print";
             LoadDefaultParameterFormat = TikCommandParameterFormat.Filter;

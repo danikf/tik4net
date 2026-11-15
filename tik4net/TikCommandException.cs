@@ -380,7 +380,7 @@ namespace tik4net
 
         private static string FormatMessage(string message, ITikCommand command, IEnumerable<ITikSentence> responseList)
         {
-            Guard.ArgumentNotNull(message, "message");
+            Guard.ArgumentNotNull(message, nameof(message));
             StringBuilder result = new StringBuilder();
             result.AppendLine(message);
             if (command != null)

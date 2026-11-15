@@ -39,38 +39,38 @@ namespace tik4net.MacTelnet
 
         /// <summary>Opens a session. Sent to the subnet broadcast, because at this point the router's IP is
         /// not necessarily known — only its MAC.</summary>
-        protected const byte PKT_SESSIONSTART = 0;
+        protected const byte PktSessionStart = 0;
         /// <summary>Carries session payload: the control packets of the handshake, then the terminal or M2
         /// stream. The only type whose counter advances.</summary>
-        protected const byte PKT_DATA         = 1;
+        protected const byte PktData         = 1;
         /// <summary>Acknowledges received payload. Its counter is the stream offset <b>past</b> what is being
         /// acknowledged — payload bytes received so far, not a packet number.</summary>
-        protected const byte PKT_ACK          = 2;
+        protected const byte PktAck          = 2;
         /// <summary>Liveness probe from the router.</summary>
-        protected const byte PKT_PING         = 4;
-        /// <summary>The answer to <see cref="PKT_PING"/>, echoing its counter.</summary>
-        protected const byte PKT_PONG         = 5;
+        protected const byte PktPing         = 4;
+        /// <summary>The answer to <see cref="PktPing"/>, echoing its counter.</summary>
+        protected const byte PktPong         = 5;
         /// <summary>Ends the session; the router frees its side on receipt.</summary>
-        protected const byte PKT_END          = 255;
+        protected const byte PktEnd          = 255;
 
         // ── Control packet type constants ────────────────────────────────────────
         /// <summary>Client opens the authentication exchange.</summary>
-        protected const byte CTRL_BEGINAUTH   = 0;
+        protected const byte CtrlBeginAuth   = 0;
         /// <summary>The router's salt/challenge, from which the password proof is derived.</summary>
-        protected const byte CTRL_PASSSALT    = 1;
+        protected const byte CtrlPassSalt    = 1;
         /// <summary>The client's password proof — never the password itself.</summary>
-        protected const byte CTRL_PASSWORD    = 2;
+        protected const byte CtrlPassword    = 2;
         /// <summary>The user name being authenticated.</summary>
-        protected const byte CTRL_USERNAME    = 3;
+        protected const byte CtrlUsername    = 3;
         /// <summary>Terminal type the client emulates (terminal sessions only).</summary>
-        protected const byte CTRL_TERM_TYPE   = 4;
+        protected const byte CtrlTermType   = 4;
         /// <summary>Terminal width in columns (terminal sessions only).</summary>
-        protected const byte CTRL_TERM_WIDTH  = 5;
+        protected const byte CtrlTermWidth  = 5;
         /// <summary>Terminal height in rows (terminal sessions only).</summary>
-        protected const byte CTRL_TERM_HEIGHT = 6;
+        protected const byte CtrlTermHeight = 6;
         /// <summary>Closes the authentication exchange. A refusal can arrive <i>after</i> this rather than in
         /// place of it, so reaching it is not by itself a successful login.</summary>
-        protected const byte CTRL_END_AUTH    = 9;
+        protected const byte CtrlEndAuth    = 9;
 
         // ── Transport state ──────────────────────────────────────────────────────
         // All five are assigned in BaseConnect (not the constructor) — subclasses must call it before use.
@@ -342,7 +342,7 @@ namespace tik4net.MacTelnet
 
             internal void SendSessionStart(byte[] routerMac, ushort clientType)
             {
-                byte[] pkt = MacLayerPacket.Build(PKT_SESSIONSTART, LocalMac, routerMac, SessionKey, clientType, 0);
+                byte[] pkt = MacLayerPacket.Build(PktSessionStart, LocalMac, routerMac, SessionKey, clientType, 0);
                 // A NIC that refuses to send is simply not the one; the others are still being tried.
                 try
                 {
@@ -376,7 +376,7 @@ namespace tik4net.MacTelnet
                                   + " srcMac=" + TikMacText.Format(reply.SrcMac)
                                 : ""));
 
-                        if (!parsed || reply.Type != PKT_ACK) continue;
+                        if (!parsed || reply.Type != PktAck) continue;
 
                         // The session key rules out an ACK meant for another probe, and the source MAC
                         // rules out another MikroTik on the segment answering our broadcast. A reply carries
@@ -626,16 +626,16 @@ namespace tik4net.MacTelnet
         /// a duplicate, holding the ACK at a hole) — and whether the packet is NEW session data for the caller.
         /// </summary>
         /// <remarks>
-        /// What stays the caller's: <see cref="PKT_END"/> (this answers false for it) and whether the new data is a
+        /// What stays the caller's: <see cref="PktEnd"/> (this answers false for it) and whether the new data is a
         /// control packet.
         /// </remarks>
         protected bool TryAcceptData(byte type, byte[] payload, uint counter)
         {
             switch (type)
             {
-                case PKT_ACK:  NoteAck(counter);  return false;
-                case PKT_PING: SendPong(counter); return false;
-                case PKT_DATA: return AckData(counter, payload.Length);
+                case PktAck:  NoteAck(counter);  return false;
+                case PktPing: SendPong(counter); return false;
+                case PktData: return AckData(counter, payload.Length);
                 default:       return false;
             }
         }
@@ -865,8 +865,8 @@ namespace tik4net.MacTelnet
         // ── EC-SRP5 authentication ───────────────────────────────────────────────
 
         /// <summary>
-        /// Performs MAC-Telnet's EC-SRP5 authentication over control packets (<c>CTRL_PASSSALT</c> /
-        /// <c>CTRL_PASSWORD</c>, then <c>CTRL_END_AUTH</c>), synchronously. Used by <c>MacTelnetUdpClient</c> and by the
+        /// Performs MAC-Telnet's EC-SRP5 authentication over control packets (<c>CtrlPassSalt</c> /
+        /// <c>CtrlPassword</c>, then <c>CtrlEndAuth</c>), synchronously. Used by <c>MacTelnetUdpClient</c> and by the
         /// integration suite's reference client <c>WinboxMacClient</c>; the WinBox-over-MAC carrier
         /// (<c>WinboxMacM2Session</c>) runs the WinBox handshake instead.
         /// </summary>
@@ -880,9 +880,9 @@ namespace tik4net.MacTelnet
 
             StartSession();
 
-            Send(PKT_DATA,
-                BuildCtrl(CTRL_BEGINAUTH, new byte[0])
-                .Concat(BuildCtrl(CTRL_PASSSALT, client.Hello)).ToArray());
+            Send(PktData,
+                BuildCtrl(CtrlBeginAuth, new byte[0])
+                .Concat(BuildCtrl(CtrlPassSalt, client.Hello)).ToArray());
 
             byte[]? challenge = null;
             var seen = new HashSet<byte>();
@@ -891,12 +891,12 @@ namespace tik4net.MacTelnet
                 if (!TryAcceptData(type, payload, counter)) return false;
                 foreach (var (ct, cd) in ParseCtrl(payload))
                 {
-                    if (ct == CTRL_PASSSALT && cd.Length == EcSrp5Client.ChallengeLength)
+                    if (ct == CtrlPassSalt && cd.Length == EcSrp5Client.ChallengeLength)
                     {
                         challenge = cd;
                         return true;
                     }
-                    if (ct == CTRL_PASSSALT && cd.Length == 16)
+                    if (ct == CtrlPassSalt && cd.Length == 16)
                         throw new NotSupportedException("Legacy MD5 auth not supported for MAC layer");
                 }
                 return false;
@@ -912,7 +912,7 @@ namespace tik4net.MacTelnet
         /// </summary>
         internal byte[]? EcSrp5PrivateKeyOverride { get; set; }
 
-        // Shared EC-SRP5 completion: compute shared secret, send CTRL_PASSWORD, wait for END_AUTH.
+        // Shared EC-SRP5 completion: compute shared secret, send CtrlPassword, wait for END_AUTH.
         private EcSrp5Proof FinishAuth(string user, string pass, EcSrp5Client client, byte[] challenge)
         {
             // The validator is built from the account name alone (EcSrp5.AccountName), as on the WinBox carriers: RouterOS
@@ -926,19 +926,19 @@ namespace tik4net.MacTelnet
             // of the typed line: ~65 KB of echo for one 180-character window command, a volume under which the
             // router's MAC-Telnet server retransmits packets we had acknowledged and then drops its own output —
             // 21 of 425 reads of a one-session entity sweep stalled for 30 s at 19 KB. With +c: none (6.49.13).
-            Send(PKT_DATA,
-                BuildCtrl(CTRL_PASSWORD,     proof.ClientConfirmation)
-                .Concat(BuildCtrl(CTRL_USERNAME,    Encoding.UTF8.GetBytes(tik4net.Cli.RouterOsCliLogin.WithTerminalLoginFlags(user))))
-                .Concat(BuildCtrl(CTRL_TERM_TYPE,   Encoding.ASCII.GetBytes("vt102")))
-                .Concat(BuildCtrl(CTRL_TERM_WIDTH,  BitConverter.GetBytes((ushort)80)))
-                .Concat(BuildCtrl(CTRL_TERM_HEIGHT, BitConverter.GetBytes((ushort)25)))
+            Send(PktData,
+                BuildCtrl(CtrlPassword,     proof.ClientConfirmation)
+                .Concat(BuildCtrl(CtrlUsername,    Encoding.UTF8.GetBytes(tik4net.Cli.RouterOsCliLogin.WithTerminalLoginFlags(user))))
+                .Concat(BuildCtrl(CtrlTermType,   Encoding.ASCII.GetBytes("vt102")))
+                .Concat(BuildCtrl(CtrlTermWidth,  BitConverter.GetBytes((ushort)80)))
+                .Concat(BuildCtrl(CtrlTermHeight, BitConverter.GetBytes((ushort)25)))
                 .ToArray());
 
             RecvUntil(10000, (type, payload, counter) =>
             {
                 if (!TryAcceptData(type, payload, counter)) return false;
                 foreach (var (ctype, _) in ParseCtrl(payload))
-                    if (ctype == CTRL_END_AUTH) return true;
+                    if (ctype == CtrlEndAuth) return true;
                 return false;
             });
             return proof;
@@ -1009,7 +1009,7 @@ namespace tik4net.MacTelnet
             {
                 if (DateTime.UtcNow >= resendAt)
                 {
-                    Send(PKT_SESSIONSTART, null);
+                    Send(PktSessionStart, null);
                     resendAt = DateTime.UtcNow.AddMilliseconds(SessionStartRetryMs);
                 }
 
@@ -1017,7 +1017,7 @@ namespace tik4net.MacTelnet
                 while (_udp.Available > 0 && !acked)
                     acked = ReceiveOne((type, payload, counter) =>
                     {
-                        if (type != PKT_ACK) return false;
+                        if (type != PktAck) return false;
                         NoteAck(counter);
                         return true;
                     });
@@ -1077,7 +1077,7 @@ namespace tik4net.MacTelnet
         /// <summary>Sends one packet, taking <see cref="SendGate"/> first.</summary>
         /// <param name="type">One of the <c>PKT_*</c> constants.</param>
         /// <param name="payload">Payload bytes, or null for a type that carries none. For
-        /// <see cref="PKT_DATA"/> this advances <see cref="_outCounter"/>, and the packet is retained for
+        /// <see cref="PktData"/> this advances <see cref="_outCounter"/>, and the packet is retained for
         /// possible retransmission until the router acknowledges past it.</param>
         protected void Send(byte type, byte[]? payload)
         {
@@ -1087,9 +1087,9 @@ namespace tik4net.MacTelnet
 
         private void SendCore(byte type, byte[]? payload)
         {
-            uint counter = (type == PKT_DATA) ? _outCounter : 0u;
+            uint counter = (type == PktData) ? _outCounter : 0u;
             byte[] pkt = MacLayerPacket.Build(type, _localMac, _routerMac, _sessionKey, _clientType, counter, payload);
-            _udp.Send(pkt, pkt.Length, (type == PKT_SESSIONSTART) ? _routerEp : Dst);
+            _udp.Send(pkt, pkt.Length, (type == PktSessionStart) ? _routerEp : Dst);
 
             // The counter belongs in the note: it is the stream offset this packet claims, and the
             // router's ACK counter is what it must be compared against. Without it the trace cannot
@@ -1099,7 +1099,7 @@ namespace tik4net.MacTelnet
                     payload, 0, payload?.Length ?? 0,
                     "type=0x" + type.ToString("x2", CultureInfo.InvariantCulture) + " counter=" + counter + TraceTag);
 
-            if (type == PKT_DATA && payload != null && payload.Length > 0)
+            if (type == PktData && payload != null && payload.Length > 0)
             {
                 _outCounter += (uint)payload.Length;
                 // Hold it for retransmission until the router's ACK reaches past it. Appended, not
@@ -1119,11 +1119,11 @@ namespace tik4net.MacTelnet
         /// <summary>Acknowledges received payload, taking <see cref="SendGate"/> first.</summary>
         /// <param name="ackCounter">The stream offset past the data being acknowledged — the received
         /// packet's counter <b>plus its payload length</b>, not the counter alone.</param>
-        protected void SendAck(uint ackCounter) => SendControl(PKT_ACK, ackCounter);
+        protected void SendAck(uint ackCounter) => SendControl(PktAck, ackCounter);
 
-        /// <summary>Answers a router <see cref="PKT_PING"/>, taking <see cref="SendGate"/> first.</summary>
+        /// <summary>Answers a router <see cref="PktPing"/>, taking <see cref="SendGate"/> first.</summary>
         /// <param name="counter">The counter from the ping, echoed back unchanged.</param>
-        protected void SendPong(uint counter) => SendControl(PKT_PONG, counter);
+        protected void SendPong(uint counter) => SendControl(PktPong, counter);
 
         // A header-only packet whose counter is the caller's (an ACK's offset, a PONG's echo) rather than the
         // outbound stream's, sent to the router under SendGate.
@@ -1137,7 +1137,7 @@ namespace tik4net.MacTelnet
                 // Traced because a regressing ACK cannot be seen from the receive side alone - the router's
                 // reaction (a retransmit burst) reads as router misbehaviour until you can see what we told
                 // it.
-                if (type == PKT_ACK && Diagnostics.TikWireTrace.Enabled)
+                if (type == PktAck && Diagnostics.TikWireTrace.Enabled)
                     Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
                         "type=0x02 ack=" + counter + TraceTag);
             }
@@ -1278,7 +1278,7 @@ namespace tik4net.MacTelnet
         /// timeout: on Windows a UDP receive that times out loses a datagram that arrives as it does (measured on
         /// loopback: 328 of 3000 on .NET 8 and 402 of 3000 on .NET Framework against a 5 ms <c>ReceiveTimeout</c>, none
         /// with a poll). The router resends DATA we have not acknowledged, so a lost one cost a resend interval; a lost
-        /// ACK or PKT_END cost more. The unit test <c>MacLayerReceiveTests</c> holds it.
+        /// ACK or PktEnd cost more. The unit test <c>MacLayerReceiveTests</c> holds it.
         /// <para>The receive timeout stays set as a bound, for a poll that reports readable without a datagram.</para>
         /// </remarks>
         internal static byte[] ReceiveWithin(UdpClient udp, int timeoutMs, ref IPEndPoint ep)
@@ -1303,7 +1303,7 @@ namespace tik4net.MacTelnet
             if (srcMac.SequenceEqual(_localMac)) return false;  // skip own echo
 
             // Another session's packet: another MikroTik's on the segment, or a session that held this ephemeral port
-            // before. Taking it appended its data to ours, acknowledged it in our stream, and let its PKT_END end this
+            // before. Taking it appended its data to ours, acknowledged it in our stream, and let its PktEnd end this
             // session. The router puts our key in every packet of the session, as in the open race.
             if (reply.SessionKey != _sessionKey)
             {
@@ -1342,7 +1342,7 @@ namespace tik4net.MacTelnet
         /// </summary>
         /// <param name="ctrlType">One of the <c>CTRL_*</c> constants.</param>
         /// <param name="data">The control packet's payload; may be empty.</param>
-        /// <returns>The framed packet, to be sent as a <see cref="PKT_DATA"/> payload.</returns>
+        /// <returns>The framed packet, to be sent as a <see cref="PktData"/> payload.</returns>
         protected static byte[] BuildCtrl(byte ctrlType, byte[] data)
         {
             uint len = (uint)(data?.Length ?? 0);
@@ -1453,7 +1453,7 @@ namespace tik4net.MacTelnet
 
         /// <summary>
         /// Lets the subclass end its own protocol first (<c>OnDisposing</c> — normally a
-        /// <see cref="PKT_END"/>), then closes the socket.
+        /// <see cref="PktEnd"/>), then closes the socket.
         /// </summary>
         public void Dispose()
         {

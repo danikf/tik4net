@@ -20,7 +20,7 @@ namespace tik4net.Objects
         /// <inheritdoc cref="Save{TEntity}(ITikConnection, TEntity, IEnumerable{string}, TikSaveMode)" path="/exception"/>
         public static void Delete<TEntity>(this ITikConnection connection, TEntity entity)
         {
-            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(connection, nameof(connection));
             BuildDeleteCommand(connection, entity).ExecuteNonQuery();
         }
 
