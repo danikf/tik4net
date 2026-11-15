@@ -133,6 +133,12 @@ namespace tik4net.Objects
             return FromPresent((T)value, negated);
         }
 
+        /// <summary>The console's spelling of the value, <c>!</c> included, parsed as <see cref="Parse"/> parses it — see <see cref="Tik.Wire"/>.</summary>
+        /// <exception cref="FormatException">As <see cref="Parse"/>.</exception>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
+        public static implicit operator TikNegatableField<T>(TikWireString text) => Parse(text.Text);
+
         /// <summary><see cref="Parse"/> without the exception: false for text <see cref="Parse"/> refuses, <c>null</c> included.</summary>
         [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
         [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]

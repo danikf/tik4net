@@ -157,6 +157,88 @@ namespace tik4net.Objects
         public static TikField<T> FromWire(string word) => new TikField<T>(TikValue<T>.FromWire(word));
 
         /// <summary>
+        /// The value a text spells, the way the router writes it — <c>TikField&lt;TikDuration?&gt;.Parse("1d")</c>,
+        /// <c>TikField&lt;TikValueList&lt;TikPortRange&gt;?&gt;.Parse("22,8291")</c> — as a <see cref="TikFieldState.Present"/> field.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Unlike <see cref="FromWire"/>, which keeps any word as it is and reads back <see cref="TikFieldState.Unparsed"/>,
+        /// this reads the text as <typeparamref name="T"/> and refuses what <typeparamref name="T"/> cannot hold. A leading
+        /// <c>!</c> is part of the text, as everywhere on a <see cref="TikField{T}"/>: a <c>string?</c> keeps it, any other type
+        /// refuses it. A negated matcher is a <see cref="TikNegatableField{T}"/>, whose <see cref="TikNegatableField{T}.Parse"/>
+        /// reads the <c>!</c>.
+        /// </para>
+        /// <para>
+        /// A list is read as <see cref="TikValueList{T}.Parse"/> reads it: items separated by <c>,</c>, a <c>!</c> in front of
+        /// an item negating it on a list of <see cref="TikNegatableValue{T}"/>.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="text"/> is <c>null</c>.</exception>
+        /// <exception cref="FormatException">
+        /// The text is not a value of <typeparamref name="T"/> — an empty text on a type with no empty value included. A word
+        /// an enum has no member for goes in as <see cref="FromWire"/>.
+        /// </exception>
+        /// <seealso cref="Tik.Wire"/>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
+        public static TikField<T> Parse(string text)
+        {
+            if (text == null)
+                throw new ArgumentNullException(nameof(text));
+            Type valueType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+            if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(TikValueList<>))
+                return ParseList(valueType)(text);
+            object? value;
+            try
+            {
+                value = new TikWireConverter(valueType, "TikField<" + valueType.Name + ">", "Parse").ConvertFromString(text);
+            }
+            catch (FormatException e)
+            {
+                throw new FormatException("\"" + text + "\" is not a " + valueType.Name
+                    + (valueType.IsEnum ? "; a word from another RouterOS version goes in as TikField<" + valueType.Name + "?>.FromWire(\"" + text + "\")." : "."), e);
+            }
+            if (value == null)
+                throw new FormatException("\"\" is not a " + valueType.Name + ".");
+            return (T)value;
+        }
+
+        /// <summary><see cref="Parse"/> without the exception: false for text <see cref="Parse"/> refuses, <c>null</c> included.</summary>
+        /// <param name="text">The router's spelling of the value.</param>
+        /// <param name="result">The parsed field; <see cref="Absent"/> when the text is refused.</param>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
+        public static bool TryParse(string? text, out TikField<T> result)
+        {
+            result = default;
+            if (text == null)
+                return false;
+            try
+            {
+                result = Parse(text);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        // T's TikValueList<>.Parse, bound once per list type: a delegate rather than an Invoke, so its exceptions arrive as they are.
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        private static Func<string, T> ParseList(Type listType)
+            => _parseList ??= (Func<string, T>)listType.GetMethod(nameof(TikValueList<int>.Parse), new[] { typeof(string) })!
+                .CreateDelegate(typeof(Func<string, T>));
+
+        private static Func<string, T>? _parseList;
+
+        /// <summary>The console's spelling of the value, parsed as <see cref="Parse"/> parses it — see <see cref="Tik.Wire"/>.</summary>
+        /// <exception cref="FormatException">As <see cref="Parse"/>.</exception>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
+        public static implicit operator TikField<T>(TikWireString text) => Parse(text.Text);
+
+        /// <summary>
         /// True when <paramref name="a"/> is present and holds <paramref name="b"/>. Compared with <c>null</c> it means "has
         /// no value": true when absent or present with <c>null</c>, never when unparsed (the router printed something).
         /// </summary>

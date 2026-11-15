@@ -247,8 +247,12 @@ namespace tik4net.unittests.Objects
             Assert.IsNull(field.GetMethod("WithoutNegation"));
             Assert.IsNull(field.GetMethod("Not", BindingFlags.Public | BindingFlags.Static));
             Assert.IsFalse(field.GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .Any(m => m.Name == "op_Implicit" && m.GetParameters()[0].ParameterType != typeof(string)),
-                "the only conversion is from T: no TikValue<T>, no TikNegatableField<T>");
+                .Any(m => m.Name == "op_Implicit" && m.GetParameters()[0].ParameterType != typeof(string)
+                          && m.GetParameters()[0].ParameterType != typeof(TikWireString)),
+                "the conversions are from T and from Tik.Wire's text: no TikValue<T>, no TikNegatableField<T>");
+            // Tik.Wire's text is parsed for the field, where a '!' is text on a string and refused on anything else.
+            Assert.AreEqual("!a", ((TikField<string?>)Tik.Wire("!a")).Value);
+            Assert.ThrowsException<FormatException>(() => (TikField<int?>)Tik.Wire("!22"));
         }
 
         [TestMethod]
