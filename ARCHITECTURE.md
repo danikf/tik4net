@@ -527,7 +527,9 @@ reaches `TikConnectionExtensions`, the `…ConnectionExtensions` helper classes 
 `Execute` shortcuts on the monitor entities. Adding a mapper entry point means annotating it; the build says
 so.
 
-CRUD via `TikConnectionExtensions`:
+CRUD via `TikConnectionExtensions`, one partial class in files by concern (`TikConnectionExtensions.cs` for
+the loads and the change tracker, then `.Save`, `.ListSync`, `.Delete`, `.Move`, `.Merge`, `.Execute`); the async
+twin is split the same way (`.Save`, `.ListAndMove`, `.Streaming`):
 
 - Load: `LoadAll<T>`, `LoadList<T>`, `LoadSingle<T>`, `LoadSingleOrDefault<T>`, `LoadById<T>`,
   `LoadByName<T>`, `LoadWithDuration<T>`
