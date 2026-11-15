@@ -16,6 +16,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- the service sample's generic host; the library itself has no dependency on it -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\tik4net\tik4net.csproj" />
     <ProjectReference Include="..\..\tik4net.objects\tik4net.objects.csproj" />
   </ItemGroup>

@@ -59,7 +59,7 @@ Step by step: [Getting started](https://github.com/danikf/tik4net/wiki/Getting-s
 * [Describing menus](https://github.com/danikf/tik4net/wiki/Describing-menus) — `DescribeMenu` asks the router which commands, arguments and values a menu takes
 * [Connection string](https://github.com/danikf/tik4net/wiki/Connecting-to-a-router#from-a-connection-string) — router, credentials and transport from configuration
 * [Passwords out of config files](https://github.com/danikf/tik4net/wiki/Connecting-to-a-router#keeping-the-password-out-of-the-configuration) — `password=dpapi:…`, `env:…` or `file:…` instead of the password
-* [Negated matchers](https://github.com/danikf/tik4net/wiki/TikField#negated-matchers) and [value lists](https://github.com/danikf/tik4net/wiki/TikField#value-lists-tikvaluelistt) — `src-address=!10.0.0.0/8`, `dst-port=22,8291` as typed values
+* [Negated matchers](https://github.com/danikf/tik4net/wiki/Value-lists-and-negated-matchers#negated-matchers) and [value lists](https://github.com/danikf/tik4net/wiki/Value-lists-and-negated-matchers#value-lists-tikvaluelistt) — `src-address=!10.0.0.0/8`, `dst-port=22,8291` as typed values
 * [Compile-time checks](https://github.com/danikf/tik4net/wiki/TikField#pitfalls) — analyzers TIK001–TIK003 catch `TikField` comparisons that can never match, and [TIK004](https://github.com/danikf/tik4net/wiki/High-level-API-custom-entities#compile-time-check-tik004) a mapper call with a class that is not an entity
 * [SSH private-key login](https://github.com/danikf/tik4net/wiki/SSH-connection#authentication)
 * [List sync with the fewest moves](https://github.com/danikf/tik4net/wiki/TikListMerge) — ordered menus reordered with minimal moves
@@ -113,7 +113,8 @@ What the table does not say, one line each — the
 
 ## Help and examples
 
-* [Example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs), including monitors such as `/tool/torch`
+* [Sample app](samples/tik4net.samples/README.md) — a runnable `net8.0` program: a raw-sentence console, a `/tool/torch` monitor, O/R-mapper CRUD, and a long-running service on the .NET generic host
+* [Building an application](https://github.com/danikf/tik4net/wiki/Building-an-application) — one connection per router in a service, reconnecting, logging
 * [Support forum](http://forum.mikrotik.com/viewtopic.php?t=99954) · [issues](https://github.com/danikf/tik4net/issues)
 * MikroTik's own [API manual](https://help.mikrotik.com/docs/display/ROS/API)
 * Related: **[tiktop](https://github.com/danikf/tiktop)** — a MikroTik traffic monitor inspired by `iftop`

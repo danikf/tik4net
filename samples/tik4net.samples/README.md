@@ -1,18 +1,20 @@
 # tik4net.samples
 
-One runnable demo app, three subcommands. Not shipped (`IsPackable=false`), not run by CI, and it needs a
+One runnable demo app, four subcommands. Not shipped (`IsPackable=false`), not run by CI, and it needs a
 router you are willing to write to.
 
 ```bash
 dotnet run --project samples/tik4net.samples -- console --host 192.168.88.1 --user admin
 dotnet run --project samples/tik4net.samples -- torch   --host 192.168.88.1 --interface ether1
 dotnet run --project samples/tik4net.samples -- crud    --host 192.168.88.1 --transport Rest
+dotnet run --project samples/tik4net.samples -- service --connection "transport=Api;host=192.168.88.1;user=admin;password=env:ROUTER_PW"
 ```
 
 | Command | Shows |
 |---|---|
 | `console` | Raw API sentences typed at a prompt, with every word echoed in both directions. The level to drop to when a higher layer surprises you — it answers "what does the router actually reply to this?" |
 | `torch` | A streaming read (`/tool/torch`): rows arrive on a callback and the caller ends it by cancelling the loading context. Every streaming feature works this way. |
+| `service` | A long-running service on the .NET generic host (`BackgroundService`): the setup as a singleton built from a connection string (`--connection`, `password=env:…`), one connection kept open, a reading every 10 s through `ILogger`, and a new connection when the old one is lost. The pattern of the wiki's [Building an application](https://github.com/danikf/tik4net/wiki/Building-an-application). |
 | `crud` | The O/R mapper end to end, with the outgoing words echoed — so the `/set` visibly carries **only the field that changed**, which is the mapper's most surprising property and is invisible from the result. |
 
 Router coordinates come from `--host` / `--user` / `--pass` (or `TIK4NET_HOST` / `TIK4NET_USER` /

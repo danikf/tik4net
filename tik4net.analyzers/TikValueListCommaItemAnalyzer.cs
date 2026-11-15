@@ -41,7 +41,7 @@ namespace tik4net.Analyzers
                 + "constructor and With refuse such an item with an ArgumentException. Pass one argument per item "
                 + "(new TikValueList<string>(\"a\", \"b\")), or parse text in the router's spelling with "
                 + "TikValueList<T>.Parse(\"a,b\").",
-            helpLinkUri: "https://github.com/danikf/tik4net/wiki/TikField#value-lists-tikvaluelistt");
+            helpLinkUri: "https://github.com/danikf/tik4net/wiki/Value-lists-and-negated-matchers#value-lists-tikvaluelistt");
 
         /// <inheritdoc/>
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Rule);

@@ -21,9 +21,9 @@ public static class Program
         string command = args[0];
         var options = SampleOptions.Parse(args.Skip(1));
 
-        if (options.Host is null)
+        if (options.Host is null && options.ConnectionString is null)
         {
-            Console.Error.WriteLine("No router address. Pass --host, or set TIK4NET_HOST.");
+            Console.Error.WriteLine("No router address. Pass --host or --connection, or set TIK4NET_HOST.");
             return 1;
         }
 
@@ -41,6 +41,10 @@ public static class Program
 
                 case "crud":
                     await CrudSample.RunAsync(options);
+                    return 0;
+
+                case "service":
+                    await ServiceSample.RunAsync(options);
                     return 0;
 
                 default:
@@ -75,18 +79,23 @@ public static class Program
                         until you cancel it.
               crud      Load, create, modify and delete an /ip/address row through the O/R
                         mapper, printing the commands the mapper decided to send.
+              service   A .NET generic-host service: one long-lived connection, a reading every
+                        10 s through ILogger, and a new connection when the old one is lost.
 
             options:
               --host <address>      router IP or hostname          (env TIK4NET_HOST)
               --user <name>         login user, default 'admin'    (env TIK4NET_USER)
               --pass <password>     login password, default empty  (env TIK4NET_PASS)
               --transport <type>    Api (default), ApiSsl, Rest, Telnet, WinboxNative, …
+              --connection <text>   a connection string instead of the four above (env TIK4NET_CONNECTION),
+                                    e.g. "transport=Api;host=192.168.88.1;user=admin;password=env:ROUTER_PW"
               --interface <name>    torch only, default 'ether1'
 
             examples:
               tik4net.samples console --host 192.168.88.1 --user admin
               tik4net.samples torch   --host 192.168.88.1 --interface ether1
               tik4net.samples crud    --host 192.168.88.1 --transport Rest
+              tik4net.samples service --connection "transport=Api;host=192.168.88.1;user=admin;password="
             """);
     }
 }
@@ -105,6 +114,9 @@ public sealed class SampleOptions
 
     /// <summary>Transport to open.</summary>
     public TikConnectionType Transport { get; private set; } = TikConnectionType.Api;
+
+    /// <summary>A connection string, which replaces host, user, password and transport when given.</summary>
+    public string? ConnectionString { get; private set; } = Environment.GetEnvironmentVariable("TIK4NET_CONNECTION");
 
     /// <summary>Interface name, for the torch sample.</summary>
     public string InterfaceName { get; private set; } = "ether1";
@@ -129,6 +141,7 @@ public sealed class SampleOptions
                 case "--user": options.User = arg; break;
                 case "--pass": options.Password = arg; break;
                 case "--interface": options.InterfaceName = arg; break;
+                case "--connection": options.ConnectionString = arg; break;
                 case "--transport":
                     if (!Enum.TryParse<TikConnectionType>(arg, ignoreCase: true, out var transport))
                         throw new ArgumentException($"Unknown transport '{arg}'.");
@@ -159,9 +172,17 @@ public sealed class SampleOptions
     /// policy would have to be set on the connection object afterwards.
     /// </para>
     /// </remarks>
-    public ITikConnection Open()
+    public ITikConnection Open() => Setup().Create();
+
+    /// <summary>The setup these options describe: the connection string when one was given, else the switches.</summary>
+    public TikConnectionSetup Setup()
     {
-        var setup = new TikConnectionSetup(TikRouterAddress.FromHost(Host!), User, Password);
-        return setup.Create(Transport);
+        if (ConnectionString != null)
+        {
+            var fromString = TikConnectionSetup.FromConnectionString(ConnectionString);
+            fromString.ConnectionType ??= Transport;
+            return fromString;
+        }
+        return new TikConnectionSetup(TikRouterAddress.FromHost(Host!), User, Password) { ConnectionType = Transport };
     }
 }
