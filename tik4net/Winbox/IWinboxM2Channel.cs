@@ -85,7 +85,7 @@ namespace tik4net.Winbox
         /// <param name="ioTimeoutMs">Default socket receive/send timeout for the established session.</param>
         /// <param name="sendTimeoutMs">
         /// How long a write may block, when the carrier can bound one. Zero means "use
-        /// <paramref name="ioTimeoutMs"/>", which is what every caller did before this parameter existed.
+        /// <paramref name="ioTimeoutMs"/>".
         /// The MAC carrier ignores it: a UDP datagram is handed to the stack and does not block.
         /// </param>
         void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs,
