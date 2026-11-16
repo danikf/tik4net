@@ -333,7 +333,7 @@ namespace tik4net.Cli
                     default:
                         // A read that returns text none of its predicates accepts gave up: the receive deadline passed or
                         // the session ended. That is not a refusal — the router may only have been slow to draw the banner —
-                        // and reporting it as "login failed" sent a diagnosis after wrong credentials.
+                        // and reporting it as "login failed" would send the diagnosis after wrong credentials.
                         throw PromptNeverArrived(result, watch.ElapsedMilliseconds);
                 }
             }
