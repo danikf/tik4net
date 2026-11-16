@@ -749,7 +749,7 @@ namespace tik4net.Winbox
                 foreach (var hint in _labelHints)
                     if (TryLabelHint(hint.Key, out var hinted)) Put(hinted.Key, hint.Key);
             // A paired field's composite name has to win over the upload half's own, and Put is first-wins,
-            // so it goes in before the catalog. Without this the joined value came out under the HALF's
+            // so it goes in before the catalog. Without this the joined value would come out under the HALF's
             // name — 'upload-max-limit = 1000000/2000000' — which is the right value answering to a name
             // no other transport uses, and so still not the field the caller asked for.
             foreach (var kv in PairedCompositeNames()) Put(kv.Key, kv.Value);
