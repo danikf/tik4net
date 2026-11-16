@@ -1,6 +1,6 @@
 using tik4net.Connection;
 
-namespace tik4net
+namespace tik4net.Connection
 {
     /// <summary>
     /// The one <see cref="TikAddIdNotReadException"/> every transport throws for an <c>add</c> the router answered without

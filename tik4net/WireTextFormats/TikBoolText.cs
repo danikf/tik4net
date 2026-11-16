@@ -1,6 +1,6 @@
 using System;
 
-namespace tik4net
+namespace tik4net.WireTextFormats
 {
     /// <summary>The RouterOS boolean word: <c>true</c>/<c>yes</c> and <c>false</c>/<c>no</c>, in any case.</summary>
     /// <remarks>

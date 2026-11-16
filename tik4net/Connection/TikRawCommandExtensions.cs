@@ -1,3 +1,5 @@
+using tik4net.Helpers;
+
 namespace tik4net
 {
     /// <summary>

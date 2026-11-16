@@ -1,4 +1,4 @@
-namespace tik4net
+namespace tik4net.WireTextFormats
 {
     /// <summary>A byte run as unseparated hexadecimal digits, two to a byte: <c>0A0B</c>.</summary>
     /// <remarks>

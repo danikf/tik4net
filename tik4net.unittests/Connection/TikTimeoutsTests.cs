@@ -1,5 +1,6 @@
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Connection;
 
 namespace tik4net.unittests.Connection
 {

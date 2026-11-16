@@ -3,6 +3,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Connection;
+using tik4net.Helpers;
+using tik4net.WireTextFormats;
 
 namespace tik4net.Objects
 {

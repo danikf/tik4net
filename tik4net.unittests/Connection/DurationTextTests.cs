@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.WireTextFormats;
 
 namespace tik4net.unittests.Connection
 {

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using tik4net.Cli;
 using tik4net.Diagnostics;
 using tik4net.Winbox;
+using tik4net.Connection;
 
 namespace tik4net.WinboxCli
 {

@@ -5,6 +5,7 @@ using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
 using tik4net.Winbox;
+using tik4net.WireTextFormats;
 
 namespace tik4net.unittests.Connection
 {

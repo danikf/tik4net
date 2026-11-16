@@ -2,6 +2,8 @@ using System;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using tik4net.Helpers;
+using tik4net.WireTextFormats;
 
 namespace tik4net
 {

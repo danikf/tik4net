@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 using tik4net.Connection;
 using tik4net.Crypto;
 using tik4net.Mndp;
+using tik4net.WireTextFormats;
 
 namespace tik4net.MacTelnet
 {

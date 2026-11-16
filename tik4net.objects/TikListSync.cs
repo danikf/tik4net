@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.WireTextFormats;
 
 namespace tik4net.Objects
 {

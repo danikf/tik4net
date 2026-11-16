@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using tik4net.WireTextFormats;
 
 using static tik4net.Winbox.WinboxValueFormat;
 

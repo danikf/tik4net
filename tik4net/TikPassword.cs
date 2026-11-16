@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Text;
 using tik4net.Connection;
+using tik4net.Helpers;
 
 namespace tik4net
 {

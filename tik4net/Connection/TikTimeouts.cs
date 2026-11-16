@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 
-namespace tik4net
+namespace tik4net.Connection
 {
     /// <summary>A public <see cref="TimeSpan"/> timeout in the milliseconds the sockets and read loops count in.</summary>
     internal static class TikTimeouts

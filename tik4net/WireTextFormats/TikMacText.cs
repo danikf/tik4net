@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 
-namespace tik4net
+namespace tik4net.WireTextFormats
 {
     /// <summary>A MAC address as RouterOS spells it: six hex pairs, upper case, separated by colons.</summary>
     /// <remarks>

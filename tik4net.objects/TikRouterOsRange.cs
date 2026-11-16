@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
+using tik4net.Helpers;
 
 namespace tik4net.Objects
 {

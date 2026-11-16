@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using tik4net.Connection;
+using tik4net.Helpers;
 
 namespace tik4net
 {

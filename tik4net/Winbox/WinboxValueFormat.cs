@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using tik4net.WireTextFormats;
 
 namespace tik4net.Winbox
 {

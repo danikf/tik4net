@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using tik4net.Objects.Tracking;
+using tik4net.Connection;
+using tik4net.Helpers;
 
 namespace tik4net.Objects
 {

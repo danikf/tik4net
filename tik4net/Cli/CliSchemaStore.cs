@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Threading;
 using tik4net.Connection;
 using tik4net.Diagnostics;
+using tik4net.WireTextFormats;
 
 namespace tik4net.Cli
 {

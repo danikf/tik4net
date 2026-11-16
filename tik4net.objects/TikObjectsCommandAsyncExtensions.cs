@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Helpers;
 #if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
 #endif

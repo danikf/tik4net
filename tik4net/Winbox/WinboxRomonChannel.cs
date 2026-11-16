@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using tik4net.Cli;
+using tik4net.WireTextFormats;
 
 namespace tik4net.Winbox
 {

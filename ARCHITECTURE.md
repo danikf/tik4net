@@ -53,6 +53,15 @@ net8.0). All SDK-style.
 
 ## Layer 1 — `tik4net` core
 
+**The project root is the public contract.** Every file in `tik4net/` itself holds a public type in the `tik4net`
+namespace: the connection interfaces and facets, the setup, the exceptions, the value types. Internal types live in
+folders and take the folder's namespace — `Connection/` (`tik4net.Connection`: the transport base, the command model,
+the connection string, timeouts, trap classification), `Helpers/` (`tik4net.Helpers`: `Guard`, `LinqEx`),
+`WireTextFormats/` (`tik4net.WireTextFormats`: the router's text spelling of each wire type — bools, durations, hex,
+MACs, ranges, special words — as the API, REST and the CLI write it, against WinBox native's binary M2 encoding), and
+one folder per transport. A public type in a folder keeps the `tik4net` namespace (`Connection/TikRawCommandExtensions.cs`),
+so moving a file never changes a public name.
+
 ### The contract
 
 `ITikConnection` (`tik4net/ITikConnection.cs`) covers lifecycle (`Open`/`OpenAsync` ×4, `Close`,

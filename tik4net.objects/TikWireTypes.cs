@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using tik4net.WireTextFormats;
 
 namespace tik4net.Objects
 {

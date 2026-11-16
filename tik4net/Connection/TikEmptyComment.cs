@@ -1,6 +1,6 @@
 using System;
 
-namespace tik4net
+namespace tik4net.Connection
 {
     /// <summary>
     /// RouterOS has no empty comment: <c>set comment=""</c> clears it, and the binary API and REST then leave the word

@@ -1,5 +1,7 @@
 using System;
 using System.Globalization;
+using tik4net.Helpers;
+using tik4net.WireTextFormats;
 
 namespace tik4net
 {

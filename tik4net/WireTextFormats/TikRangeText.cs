@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace tik4net
+namespace tik4net.WireTextFormats
 {
     /// <summary>The text of a <see cref="TikPortRange"/> and a <see cref="TikNumberRange"/>: <c>22</c> or <c>1000-2000</c>.</summary>
     internal static class TikRangeText

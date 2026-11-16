@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Text;
 
-namespace tik4net
+namespace tik4net.WireTextFormats
 {
     /// <summary>
     /// The compact RouterOS duration as the router writes it: the non-zero units only, largest first, with no separators —

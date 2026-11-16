@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Api;
+using tik4net.Connection;
 
 namespace tik4net.unittests.Api
 {

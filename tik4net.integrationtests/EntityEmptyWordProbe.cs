@@ -22,6 +22,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using tik4net.Objects;
+using tik4net.WireTextFormats;
 
 namespace tik4net.integrationtests
 {

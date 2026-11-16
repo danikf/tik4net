@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using tik4net.Connection;
+using tik4net.WireTextFormats;
 
 namespace tik4net.Cli
 {

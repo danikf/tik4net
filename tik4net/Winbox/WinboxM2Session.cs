@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using tik4net.Crypto;
 using tik4net.Diagnostics;
+using tik4net.Connection;
 
 namespace tik4net.Winbox
 {

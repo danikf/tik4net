@@ -1,4 +1,4 @@
-namespace tik4net
+namespace tik4net.Connection
 {
     /// <summary>
     /// Well-known outcomes a RouterOS trap/error message classifies into, shared across every transport.

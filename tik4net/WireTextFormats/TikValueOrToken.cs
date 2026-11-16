@@ -1,6 +1,6 @@
 using System;
 
-namespace tik4net
+namespace tik4net.WireTextFormats
 {
     /// <summary>
     /// What <see cref="TikDuration"/> and <see cref="TikDataRate"/> share: a value, or the word the router used in place of

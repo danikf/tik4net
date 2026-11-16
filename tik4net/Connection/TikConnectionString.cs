@@ -4,8 +4,10 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using tik4net.Helpers;
+using tik4net.WireTextFormats;
 
-namespace tik4net
+namespace tik4net.Connection
 {
     /// <summary>
     /// The connection-string form of a <see cref="TikConnectionSetup"/> — see

@@ -10,6 +10,7 @@ using tik4net.Objects;
 using tik4net.Objects.Ip;
 using tik4net.Testing;
 using tik4net.Winbox;
+using tik4net.WireTextFormats;
 
 namespace tik4net.unittests.Connection
 {

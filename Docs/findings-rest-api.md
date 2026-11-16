@@ -221,7 +221,7 @@ anything added there would have no effect on this.
 - `Open` probes `GET /rest/system/resource`, and an answer that is not a JSON object or array, whatever its status, →
   `TikConnectionProtocolMismatchException`: RouterOS before 7.1 (✅ an HTML 404 on 6.49.21) or something else on the port.
 
-Source: `tik4net/Rest/RestResponseParser.cs`, `tik4net/Rest/RestConnection.cs`, `tik4net/TikTrapClassifier.cs`.
+Source: `tik4net/Rest/RestResponseParser.cs`, `tik4net/Rest/RestConnection.cs`, `tik4net/Connection/TikTrapClassifier.cs`.
 
 ---
 

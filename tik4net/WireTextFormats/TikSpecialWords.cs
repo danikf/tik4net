@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace tik4net
+namespace tik4net.WireTextFormats
 {
     /// <summary>
     /// Maps the words RouterOS writes in place of a value to and from the per-type <c>*Special</c> enums.

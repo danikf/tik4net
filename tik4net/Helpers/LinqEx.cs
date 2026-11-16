@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace tik4net
+namespace tik4net.Helpers
 {
     /// <summary>
     /// IEnumerable extensions.

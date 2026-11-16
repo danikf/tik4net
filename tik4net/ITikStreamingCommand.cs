@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using tik4net.Helpers;
 
 namespace tik4net
 {

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Diagnostics;
+using tik4net.WireTextFormats;
 
 using static tik4net.Winbox.WinboxValueFormat;
 
