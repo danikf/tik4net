@@ -1649,12 +1649,10 @@ namespace tik4net.Winbox
         // WinBox spells the DH GROUP NUMBER out in the label — 'modp1024 (2)' — while the API calls it
         // 'modp1024'. The suffix is display decoration and is always dropped.
         //
-        // It used to be dropped only when the number equalled the field's bit KEY, on the theory that a label
-        // genuinely ending in a parenthesised number should survive. Two things settled that: the number is the
-        // DH group, which merely COINCIDES with the bit key for the classic MODP groups, so 'x25519 (31)' at
-        // bit 22 kept its suffix and read as 'x25519-(31)' where the API says 'x25519'; and a sweep of the whole
-        // 7.23.2 catalog finds exactly twelve labels of this shape, all of them DH groups. The case the old
-        // rule protected does not exist.
+        // It is not tied to the field's bit KEY: the number is the DH group, which merely COINCIDES with the bit
+        // key for the classic MODP groups, so 'x25519 (31)' sits at bit 22 and must still read as 'x25519', as the
+        // API says. A label genuinely ending in a parenthesised number does not occur: a sweep of the whole 7.23.2
+        // catalog finds exactly twelve labels of this shape, all of them DH groups.
         private static string StripValueSuffix(string label)
         {
             if (string.IsNullOrEmpty(label) || label[label.Length - 1] != ')') return label;
