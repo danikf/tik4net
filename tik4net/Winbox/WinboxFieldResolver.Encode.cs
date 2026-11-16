@@ -455,10 +455,10 @@ namespace tik4net.Winbox
                     else result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
                     break;
                 case M2Type.U64:
-                    // A u64 must go out as a u64. Narrowing it to the u32 form — which is what this case
-                    // used to share — sends the wrong TYPE BYTE, and the router answers success and ignores
-                    // the field: /queue/simple's rate fields resolved to their keys, were encoded, and never
-                    // moved. Suffixes are accepted here because the API accepts them (max-limit=1M).
+                    // A u64 must go out as a u64. Narrowing it to the u32 form sends the wrong TYPE BYTE, and
+                    // the router answers success and ignores the field (/queue/simple's rate fields resolve to
+                    // their keys, are encoded, and never move). Suffixes are accepted here because the API
+                    // accepts them (max-limit=1M).
                     //
                     // Only a number goes out as a u64: a word like 'auto' or 'unlimited' has to go out as a string, and
                     // a 64-bit integer in its place is accepted by the router and then ignored, the same silent no-op
@@ -536,8 +536,8 @@ namespace tik4net.Winbox
         private bool EncodeDateAndTime(int key, string value, string apiName, string? uiType, List<byte[]> result)
         {
             // Unix epoch seconds, the inverse of WinboxRecordCodec's decode. The API spells the value
-            // 2026-11-21 (7.x) or nov/21/2026 (6.x, and what the mapper writes); as text it reached the
-            // generic u32 branch and went out as a string the router answers OK to and ignores
+            // 2026-11-21 (7.x) or nov/21/2026 (6.x, and what the mapper writes); as text it would reach the
+            // generic u32 branch and go out as a string the router answers OK to and ignores
             // (/system/scheduler start-date, 7.24.5 and 6.49.13).
             if (value.Length == 0) return true;
             if (!TikDateTimeHelper.TryFromTikDateTime(value, out DateTime when))
