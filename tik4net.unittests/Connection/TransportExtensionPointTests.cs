@@ -228,8 +228,8 @@ namespace tik4net.unittests.Connection
                         .Select(p => d.CommandText + " " + p.Name))
                     .ToList();
                 Assert.AreEqual(0, markers.Count, "client markers reached a foreign transport: " + string.Join(", ", markers));
-                CollectionAssert.AreEqual(new[] { "detail" }, foreign.Seen[1].Parameters.Select(p => p.Name).ToArray(),
-                    "FirewallFilter's load: IncludeDetails is a word; its stats merge and flags are not");
+                CollectionAssert.AreEqual(new string[0], foreign.Seen[1].Parameters.Select(p => p.Name).ToArray(),
+                    "FirewallFilter's load carries no word: its stats merge and flags are hints, not parameters");
             }
         }
 

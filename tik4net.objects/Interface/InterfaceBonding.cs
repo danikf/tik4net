@@ -9,7 +9,7 @@ namespace tik4net.Objects.Interface
     /// single virtual link, thus getting higher data rates and providing failover.
     /// See https://help.mikrotik.com/docs/display/ROS/Bonding
     /// </summary>
-    [TikEntity("/interface/bonding", IncludeDetails = true)]
+    [TikEntity("/interface/bonding")]
     public class InterfaceBonding
     {
         /// <summary>.id — primary key</summary>

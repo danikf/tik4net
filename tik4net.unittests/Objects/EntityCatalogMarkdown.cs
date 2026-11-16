@@ -18,8 +18,7 @@ namespace tik4net.unittests.Objects
     /// <see cref="EntityCatalogTests"/> fails when the tracked copy no longer matches.
     /// <para>
     /// Only what the attributes actually say is generated. The prose a reader needs but reflection cannot
-    /// know — why the four <c>*-server</c> singletons refuse <c>=detail=</c>, that wireless and wifi are
-    /// two drivers — is hand-written around the generated block on the wiki page.
+    /// know — that wireless and wifi are two drivers — is hand-written around the generated block on the wiki page.
     /// </para>
     /// </remarks>
     internal static class EntityCatalogMarkdown

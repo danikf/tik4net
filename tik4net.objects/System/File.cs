@@ -10,7 +10,7 @@ namespace tik4net.Objects.System
     /// architecture, build time, name, and version fields. File contents can be read and written for
     /// text files up to 60 KB; larger files require the API <c>read</c> command with offset/chunk-size.
     /// </summary>
-    [TikEntity("/file", IncludeDetails = true)]
+    [TikEntity("/file")]
     public class File
     {
         /// <summary>

@@ -9,7 +9,7 @@ namespace tik4net.Objects.Tool.Graphing
     /// Each entry controls who may view the resource graphs and whether data is saved to disk.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/Graphing</para>
     /// </summary>
-    [TikEntity("/tool/graphing/resource", IncludeDetails = true)]
+    [TikEntity("/tool/graphing/resource")]
     public class GraphingResource
     {
         /// <summary>.id — primary key of the row.</summary>

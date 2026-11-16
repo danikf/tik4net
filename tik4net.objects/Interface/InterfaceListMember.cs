@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface
     /// /interface/list/member — assigns an interface to an <see cref="InterfaceList"/>. One row binds a
     /// single interface to a single named list (an interface may be a member of several lists).
     /// </summary>
-    [TikEntity("/interface/list/member", IncludeDetails = true)]
+    [TikEntity("/interface/list/member")]
     public class InterfaceListMember
     {
         /// <summary>

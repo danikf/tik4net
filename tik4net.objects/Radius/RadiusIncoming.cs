@@ -7,7 +7,6 @@ namespace tik4net.Objects.Radius
     /// CoA (Change of Authorization) requests a RADIUS server sends to end or change a session (RFC 3576).
     /// https://help.mikrotik.com/docs/display/ROS/RADIUS
     /// </summary>
-    // IncludeDetails omitted — detail= is rejected by this singleton (7.24.5 and 6.49.13).
     [TikEntity("/radius/incoming", IsSingleton = true)]
     public class RadiusIncoming
     {

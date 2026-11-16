@@ -11,7 +11,7 @@ namespace tik4net.Objects.Radius
     /// implements a RADIUS client for PPP, HotSpot, Wireless, DHCP, IPsec, and other services.
     /// https://help.mikrotik.com/docs/display/ROS/RADIUS
     /// </summary>
-    [TikEntity("/radius", IncludeDetails = true)]
+    [TikEntity("/radius")]
     public class Radius
     {
         /// <summary>

@@ -9,10 +9,8 @@ namespace tik4net.Objects.System
     /// The watchdog can reboot the router if a target host becomes unreachable (ping
     /// watchdog) and can automatically generate and optionally e-mail a supout file
     /// after unexpected reboots.
-    /// <para>Note: <c>=detail=</c> is rejected by this menu; plain print is used.</para>
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/Watchdog</para>
     /// </summary>
-    // IncludeDetails omitted — detail= is rejected by this singleton.
     [TikEntity("/system/watchdog", IsSingleton = true)]
     public class SystemWatchdog
     {

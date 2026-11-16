@@ -11,7 +11,7 @@ namespace tik4net.Objects.System
     /// and forwards matching messages to the named <c>action</c> (see /system/logging/action).
     /// Default rules ship with RouterOS and are marked <see cref="Default"/> = true / <see cref="Invalid"/> = false.
     /// </summary>
-    [TikEntity("/system/logging", IncludeDetails = true)]
+    [TikEntity("/system/logging")]
     public class SystemLogging
     {
         /// <summary>

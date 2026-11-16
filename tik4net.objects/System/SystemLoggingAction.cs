@@ -10,7 +10,7 @@ namespace tik4net.Objects.System
     /// and the target-specific parameters. Built-in actions (memory, disk, echo, remote) are
     /// marked read-only via the <see cref="Default"/> flag and cannot be deleted.
     /// </summary>
-    [TikEntity("/system/logging/action", IncludeDetails = true)]
+    [TikEntity("/system/logging/action")]
     public class SystemLoggingAction
     {
         /// <summary>Target type for a logging action.</summary>

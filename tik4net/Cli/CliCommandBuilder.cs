@@ -82,8 +82,8 @@ namespace tik4net.Cli
             var sb = new StringBuilder();
             sb.Append(cliBase);
 
-            // The O/R mapper requests the full field set via a 'detail' NameValue parameter
-            // (metadata.IncludeDetails). Bare 'print as-value' returns only the summary columns
+            // A table read asks for the full field set with a 'detail' NameValue parameter, which the print
+            // driver adds itself (CliPrintDriver). Bare 'print as-value' returns only the summary columns
             // (e.g. /interface omits default-name, mtu, rx-byte…); 'print detail as-value' returns all.
             if (HasNameValueFlag(parameters, "detail"))
                 sb.Append(" detail");

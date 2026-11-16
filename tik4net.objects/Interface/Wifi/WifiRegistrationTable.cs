@@ -15,7 +15,7 @@ namespace tik4net.Objects.Interface.Wifi
     /// read-only.
     /// </para>
     /// </summary>
-    [TikEntity("/interface/wifi/registration-table", SupportedOperations = TikEntityOperations.Remove, IncludeDetails = true, MinRouterOs = "7")]
+    [TikEntity("/interface/wifi/registration-table", SupportedOperations = TikEntityOperations.Remove, MinRouterOs = "7")]
     public class WifiRegistrationTable
     {
         // ── Primary key ───────────────────────────────────────────────────────

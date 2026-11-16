@@ -10,7 +10,7 @@ namespace tik4net.Objects.Interface.Tunnel
     /// Adds 24 bytes of overhead per packet.
     /// See https://help.mikrotik.com/docs/display/ROS/GRE
     /// </summary>
-    [TikEntity("/interface/gre", IncludeDetails = true)]
+    [TikEntity("/interface/gre")]
     public class InterfaceGre
     {
         /// <summary>.id — primary key</summary>

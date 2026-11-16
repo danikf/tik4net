@@ -6,7 +6,7 @@ namespace tik4net.Objects.Queue
     /// <summary>
     /// /queue/type
     /// </summary>
-    [TikEntity("/queue/type", IncludeDetails = true)]
+    [TikEntity("/queue/type")]
     public class QueueType
     {
         /// <summary>

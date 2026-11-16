@@ -12,7 +12,7 @@ namespace tik4net.Objects.Interface.Vpn
     /// Use <see cref="TikConnectionExtensions.LoadAll{T}"/> / <see cref="TikConnectionExtensions.Save{T}"/>
     /// for CRUD operations.
     /// </summary>
-    [TikEntity("/interface/ovpn-client", IncludeDetails = true)]
+    [TikEntity("/interface/ovpn-client")]
     public class OvpnClient
     {
         // ---- Enums ----

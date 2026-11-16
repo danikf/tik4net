@@ -16,7 +16,7 @@ namespace tik4net.Objects.CapsMan
     /// fields can be overridden inline via dotted notation (e.g. channel.band, datapath.local-forwarding).
     /// This entity maps the profile-reference string fields and the most common inline dotted overrides.
     /// </summary>
-    [TikEntity("/caps-man/configuration", IncludeDetails = true)]
+    [TikEntity("/caps-man/configuration")]
     public class CapsManConfiguration
     {
         // ── Operating mode ────────────────────────────────────────────────────

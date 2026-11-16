@@ -15,7 +15,7 @@ namespace tik4net.Objects.CapsMan
     /// Supported authentication types: open (empty), wpa-psk, wpa2-psk, wpa-eap, wpa2-eap.
     /// Supported unicast ciphers: aes-ccm, tkip (comma-separated multi-select).
     /// </summary>
-    [TikEntity("/caps-man/security", IncludeDetails = true)]
+    [TikEntity("/caps-man/security")]
     public class CapsManSecurity
     {
         // ── TLS mode ──────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ namespace tik4net.Objects.System
     /// /system/scheduler — the scheduler can trigger script execution at a particular time moment,
     /// after a specified time interval, or both.
     /// </summary>
-    [TikEntity("/system/scheduler", IncludeDetails = true)]
+    [TikEntity("/system/scheduler")]
     public class SystemScheduler
     {
         /// <summary>

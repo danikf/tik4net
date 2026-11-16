@@ -9,7 +9,6 @@ namespace tik4net.Objects.System
     /// On physical RouterBOARD hardware this menu also lists per-sensor readings
     /// (temperature, voltage, fan speed). The <see cref="StateAfterReboot"/> field
     /// controls whether health monitoring is enabled after the next restart.
-    /// <para>Note: <c>=detail=</c> is rejected by this menu; plain print is used.</para>
     /// <para>
     /// Over <c>WinboxNative</c> both states read and write, though no WinBox window names them: the router
     /// sends them at <c>[24,14]</c> keys <c>0x8</c>/<c>0x9</c> and tik4net supplies the names. The
@@ -17,7 +16,6 @@ namespace tik4net.Objects.System
     /// </para>
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/Health</para>
     /// </summary>
-    // IncludeDetails omitted — detail= is rejected by this singleton.
     [TikEntity("/system/health", IsSingleton = true)]
     public class SystemHealth
     {

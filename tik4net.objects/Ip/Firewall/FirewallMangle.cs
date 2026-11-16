@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// /ip/firewall/mangle — rules that mark, change or redirect packets: the filter's matchers, plus what an action
     /// writes (<see cref="NewPacketMark"/>, <see cref="NewConnectionMark"/>, <see cref="NewRoutingMark"/>, …).
     /// </summary>
-    [TikEntity("/ip/firewall/mangle", IncludeDetails = true, IsOrdered = true, IncludeCliStats = true)]
+    [TikEntity("/ip/firewall/mangle", IsOrdered = true, IncludeCliStats = true)]
     public class FirewallMangle
     {
         /// <summary>

@@ -11,7 +11,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
     /// support template-based records controlled by <see cref="V9TemplateRefresh"/> and
     /// <see cref="V9TemplateTimeout"/>.
     /// </summary>
-    [TikEntity("/ip/traffic-flow/target", IncludeDetails = true)]
+    [TikEntity("/ip/traffic-flow/target")]
     public class IpTrafficFlowTarget
     {
         /// <summary>Enumeration of NetFlow/IPFIX export protocol versions.</summary>

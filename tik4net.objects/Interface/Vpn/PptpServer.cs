@@ -13,7 +13,7 @@ namespace tik4net.Objects.Interface.Vpn
     /// configured authentication methods.
     /// This is a singleton menu — use <see cref="TikConnectionExtensions.LoadSingle{T}"/> to load it.
     /// </summary>
-    [TikEntity("/interface/pptp-server/server", IsSingleton = true)] // no =detail= — this server singleton rejects it
+    [TikEntity("/interface/pptp-server/server", IsSingleton = true)]
     public class PptpServer
     {
         // ---- Writable properties ----

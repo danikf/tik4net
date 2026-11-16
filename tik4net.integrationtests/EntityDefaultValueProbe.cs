@@ -185,8 +185,6 @@ namespace tik4net.integrationtests
             // The mapper's own load over the API (TikConnectionExtensions.CreateLoadCommandWithFilter): the CLI-only
             // markers are dropped by the API transport anyway.
             var command = connection.CreateCommand(metadata.EntityPath + metadata.LoadCommand, metadata.LoadDefaultParameterFormat);
-            if (metadata.IncludeDetails)
-                command.AddParameter("detail", "", TikCommandParameterFormat.NameValue);
             if (metadata.IncludeProplist)
                 command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties
                     .SelectMany(prop => new[] { prop.FieldName }.Concat(prop.AlternateNames)).ToArray()), TikCommandParameterFormat.NameValue);

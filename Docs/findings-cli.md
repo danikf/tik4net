@@ -263,8 +263,9 @@ Two alternatives that do **not** work, both measured rather than reasoned about:
 
 `:put [/path print as-value]` alone returns only **summary columns** — e.g. `/interface` omits
 `default-name`, `mtu`, `rx-byte`. The full field set (parity with the binary API) requires
-`print detail as-value`. The O/R mapper's `IncludeDetails` metadata flag controls this; the builder
-translates it into the `detail` modifier.
+`print detail as-value`, so the print driver (`CliPrintDriver`) adds `detail` to every table read itself and
+reads a menu that refuses the word (many singletons do) without it, remembering that per menu. The binary API
+has no such split: it prints every field with or without `=detail=`.
 
 ### `as-value` spells values the router's way, not the API's
 

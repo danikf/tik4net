@@ -11,7 +11,7 @@ namespace tik4net.Objects.Tool.Romon
     /// A default catch-all entry for "all" interfaces is created automatically.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/RoMON</para>
     /// </summary>
-    [TikEntity("/tool/romon/port", IncludeDetails = true)]
+    [TikEntity("/tool/romon/port")]
     public class ToolRomonPort
     {
         /// <summary>.id — primary key of the row.</summary>

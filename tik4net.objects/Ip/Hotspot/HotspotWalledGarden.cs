@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Hotspot
     /// matched against HTTP requests from unauthenticated clients; matching "allow" rules let
     /// requests through without login. Evaluated in order (first match wins).
     /// </summary>
-    [TikEntity("/ip/hotspot/walled-garden", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/ip/hotspot/walled-garden", IsOrdered = true)]
     public class HotspotWalledGarden
     {
         /// <summary>.id — primary key of the rule.</summary>

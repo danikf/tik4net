@@ -11,7 +11,6 @@ namespace tik4net.Objects.Tool.Romon
     /// devices. Requires the <c>romon</c> package.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/RoMON</para>
     /// </summary>
-    // IncludeDetails omitted — detail= is rejected by this singleton.
     [TikEntity("/tool/romon", IsSingleton = true)]
     public class ToolRomon
     {

@@ -10,7 +10,6 @@ namespace tik4net.Objects.Ip.Proxy
     /// objects closer to users to accelerate browsing speeds, and enabling content filtering and
     /// access control via /ip/proxy/access rules.
     /// This is a singleton menu — use <see cref="TikConnectionExtensions.LoadSingle{T}"/> to load it.
-    /// Note: this menu rejects =detail=, so IncludeDetails is omitted.
     /// </summary>
     [TikEntity("/ip/proxy", IsSingleton = true)]
     public class IpProxy

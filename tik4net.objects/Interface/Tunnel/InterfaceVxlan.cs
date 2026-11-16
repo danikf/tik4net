@@ -10,7 +10,7 @@ namespace tik4net.Objects.Interface.Tunnel
     /// Requires RouterOS 7.1+.
     /// See https://help.mikrotik.com/docs/display/ROS/VXLAN
     /// </summary>
-    [TikEntity("/interface/vxlan", IncludeDetails = true, MinRouterOs = "7")]
+    [TikEntity("/interface/vxlan", MinRouterOs = "7")]
     public class InterfaceVxlan
     {
         /// <summary>.id — primary key</summary>

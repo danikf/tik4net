@@ -6,7 +6,7 @@ namespace tik4net.Objects.Ip
     /// <summary>
     /// /ip/pool: IP pools containing address pools for DHCP and PPP
     /// </summary>
-    [TikEntity("/ip/pool", IncludeDetails = true)]
+    [TikEntity("/ip/pool")]
     public class IpPool
     {
         /// <summary>

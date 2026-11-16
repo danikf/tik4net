@@ -9,7 +9,7 @@ namespace tik4net.Objects.Routing.Ospf
     /// OSPF settings (hello/dead intervals, cost, type, auth, etc.) to matching interfaces based
     /// on the first matching template in the ordered list.
     /// </summary>
-    [TikEntity("/routing/ospf/interface-template", IncludeDetails = true, IsOrdered = true, MinRouterOs = "7")]
+    [TikEntity("/routing/ospf/interface-template", IsOrdered = true, MinRouterOs = "7")]
     public class OspfInterfaceTemplate
     {
         /// <summary>OSPF network/interface type.</summary>

@@ -7,7 +7,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// and the IKE exchange parameters (profile, exchange mode, local address, port) used when
     /// establishing an IPsec Security Association with that peer.
     /// </summary>
-    [TikEntity("/ip/ipsec/peer", IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/peer")]
     public class IpsecPeer
     {
         /// <summary>Possible IKE exchange modes for Phase 1 negotiation (RFC 2408).</summary>

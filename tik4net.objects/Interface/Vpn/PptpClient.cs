@@ -13,7 +13,7 @@ namespace tik4net.Objects.Interface.Vpn
     /// Use <see cref="TikConnectionExtensions.LoadAll{T}"/> / <see cref="TikConnectionExtensions.Save{T}"/>
     /// for CRUD operations.
     /// </summary>
-    [TikEntity("/interface/pptp-client", IncludeDetails = true)]
+    [TikEntity("/interface/pptp-client")]
     public class PptpClient
     {
         // ---- Primary key ----

@@ -10,7 +10,7 @@ namespace tik4net.Objects.Interface
     /// and VRRPv3 (RFC 5798).
     /// See https://help.mikrotik.com/docs/display/ROS/VRRP
     /// </summary>
-    [TikEntity("/interface/vrrp", IncludeDetails = true)]
+    [TikEntity("/interface/vrrp")]
     public class InterfaceVrrp
     {
         /// <summary>.id — primary key</summary>

@@ -10,7 +10,6 @@ namespace tik4net.Objects.Tool.MacServer
     /// connection (no IP required). Separate from the MAC-Telnet server setting.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/MAC+server</para>
     /// </summary>
-    // IncludeDetails omitted — detail= is rejected by this singleton.
     [TikEntity("/tool/mac-server/mac-winbox", IsSingleton = true)]
     public class ToolMacServerWinbox
     {

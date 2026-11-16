@@ -10,7 +10,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// high-performance packet filtering or bypass of the conntrack engine (notrack action).
     /// Chains: prerouting (all incoming), output (locally originated).
     /// </summary>
-    [TikEntity("/ip/firewall/raw", IncludeDetails = true, IsOrdered = true, IncludeCliStats = true)]
+    [TikEntity("/ip/firewall/raw", IsOrdered = true, IncludeCliStats = true)]
     public class FirewallRaw
     {
         /// <summary>

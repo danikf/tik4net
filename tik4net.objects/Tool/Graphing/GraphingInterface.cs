@@ -10,7 +10,7 @@ namespace tik4net.Objects.Tool.Graphing
     /// the collected data is persisted to disk.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/Graphing</para>
     /// </summary>
-    [TikEntity("/tool/graphing/interface", IncludeDetails = true)]
+    [TikEntity("/tool/graphing/interface")]
     public class GraphingInterface
     {
         /// <summary>.id — primary key of the row.</summary>

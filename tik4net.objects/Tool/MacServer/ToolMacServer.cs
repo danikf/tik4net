@@ -10,7 +10,6 @@ namespace tik4net.Objects.Tool.MacServer
     /// configured. Restricts access to a named interface list.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/MAC+server</para>
     /// </summary>
-    // IncludeDetails omitted — detail= is rejected by this singleton.
     [TikEntity("/tool/mac-server", IsSingleton = true)]
     public class ToolMacServer
     {

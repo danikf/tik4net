@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Hotspot
     /// interface and references a server profile that controls authentication, HTML pages, and
     /// RADIUS settings. Use <see cref="TikConnectionExtensions.LoadAll{T}"/> to enumerate servers.
     /// </summary>
-    [TikEntity("/ip/hotspot", IncludeDetails = true)]
+    [TikEntity("/ip/hotspot")]
     public class HotspotServer
     {
         /// <summary>.id — primary key of the server entry.</summary>

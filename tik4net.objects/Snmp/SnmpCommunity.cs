@@ -10,7 +10,7 @@ namespace tik4net.Objects.Snmp
     /// and optional source-address filtering; use SNMPv3 (security != none) for
     /// production environments.
     /// </summary>
-    [TikEntity("/snmp/community", IncludeDetails = true)]
+    [TikEntity("/snmp/community")]
     public class SnmpCommunity
     {
         // ------------------------------------------------------------------ enums

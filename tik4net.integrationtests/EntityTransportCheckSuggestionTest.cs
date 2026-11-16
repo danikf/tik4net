@@ -16,7 +16,7 @@ namespace tik4net.integrationtests
     public class EntityTransportCheckSuggestionTest : LockedTestBase
     {
         // /interface without IncludeCliStats: a terminal print leaves its counters out.
-        [TikEntity("/interface", IncludeDetails = true)]
+        [TikEntity("/interface")]
         public class InterfaceWithoutStats
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]

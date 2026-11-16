@@ -13,7 +13,7 @@ namespace tik4net.Objects.System
     /// through the regular <c>set</c> command (which accepts no parameters).
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/Packages</para>
     /// </summary>
-    [TikEntity("/system/package", IncludeDetails = true, SupportedOperations = TikEntityOperations.None)]
+    [TikEntity("/system/package", SupportedOperations = TikEntityOperations.None)]
     public class SystemPackage
     {
         /// <summary>.id — primary key of the row.</summary>

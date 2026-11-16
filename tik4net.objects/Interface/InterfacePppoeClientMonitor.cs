@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface
     /// /interface/pppoe-client/monitor
     /// Read-only snapshot of the runtime state of a PPPoE client interface, as reported by the "monitor" command.
     /// </summary>
-    [TikEntity("/interface/pppoe-client/monitor", LoadCommand ="", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, SupportedOperations = TikEntityOperations.None)]
+    [TikEntity("/interface/pppoe-client/monitor", LoadCommand ="", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, SupportedOperations = TikEntityOperations.None)]
     public class InterfacePppoeClientMonitor
     {
         /// <summary>status — Current connection status of the PPPoE client (read-only).</summary>

@@ -7,7 +7,7 @@ namespace tik4net.Objects.Ppp
     /// ppp/secret: PPP User Database stores PPP user access records with PPP user profile assigned to each user. 
     /// https://wiki.mikrotik.com/wiki/Manual:PPP_AAA
     /// </summary>
-    [TikEntity("/ppp/secret", IncludeDetails = true)]
+    [TikEntity("/ppp/secret")]
     public class PppSecret
     {
         /// <summary>

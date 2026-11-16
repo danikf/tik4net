@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// authentication and encryption algorithms are allowed for the resulting IPsec SAs, the SA lifetime,
     /// and the Diffie-Hellman group used for Perfect Forward Secrecy (PFS).
     /// </summary>
-    [TikEntity("/ip/ipsec/proposal", IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/proposal")]
     public class IpsecProposal
     {
         /// <summary>Allowed PFS Diffie-Hellman groups.</summary>

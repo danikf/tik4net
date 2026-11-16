@@ -12,7 +12,7 @@ namespace tik4net.Objects.Interface.Vpn
     /// can optionally enforce IPSec encryption. L2TPv3 additionally supports Ethernet pseudowires.
     /// This is a singleton menu — use <see cref="TikConnectionExtensions.LoadSingle{T}"/> to load it.
     /// </summary>
-    [TikEntity("/interface/l2tp-server/server", IsSingleton = true)] // no =detail= — this server singleton rejects it
+    [TikEntity("/interface/l2tp-server/server", IsSingleton = true)]
     public class L2tpServer
     {
         // ---- Enums ----

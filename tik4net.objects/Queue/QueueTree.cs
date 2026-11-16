@@ -6,7 +6,7 @@ namespace tik4net.Objects.Queue
     /// <summary>
     /// /queue/tree
     /// </summary>
-    [TikEntity("/queue/tree", IncludeDetails = true, IncludeCliStats = true)]
+    [TikEntity("/queue/tree", IncludeCliStats = true)]
     public class QueueTree
     {
         /// <summary>

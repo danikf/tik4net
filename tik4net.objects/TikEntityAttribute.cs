@@ -86,8 +86,16 @@ namespace tik4net.Objects
         public bool IsOrdered { get; set; }
 
         /// <summary>
-        /// If entity should be loaded with =detail= option.
+        /// Sends <c>detail</c> with every load of the entity. No transport needs it, and no built-in entity sets it.
         /// </summary>
+        /// <remarks>
+        /// The binary API prints every field of a row with or without <c>=detail=</c> (measured on RouterOS 7.25.1,
+        /// 7.21.5 and 6.49.21 over every built-in table menu that has rows). The CLI transports add <c>detail</c> to a
+        /// table print themselves and read a menu that refuses the word without it; REST strips it, and WinBox
+        /// native does not read it. Setting it still sends the word, so a menu that refuses <c>detail</c> (many
+        /// singletons such as <c>/system/note</c> do) then fails to load over the binary API.
+        /// </remarks>
+        [Obsolete("No transport needs it: the binary API prints every field with or without =detail=, the CLI transports add detail themselves, and REST and WinBox native ignore it. Remove the setting.")]
         public bool IncludeDetails { get; set; }
 
         /// <summary>
@@ -126,7 +134,7 @@ namespace tik4net.Objects
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class.
-        /// SupportedOperations = <see cref="TikEntityOperations.All"/>, IncludeDetails = false.
+        /// SupportedOperations = <see cref="TikEntityOperations.All"/>.
         /// </summary>
         /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>
         public TikEntityAttribute(string entityPath)
@@ -138,7 +146,6 @@ namespace tik4net.Objects
 
             SupportedOperations = TikEntityOperations.All;
             IsOrdered = false;
-            IncludeDetails = false;
             IncludeProplist = false;
             IsSingleton = false;
         }

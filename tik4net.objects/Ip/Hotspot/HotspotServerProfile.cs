@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.Hotspot
     /// (HTML pages, login methods, RADIUS, cookie lifetime) shared by one or more HotSpot server instances.
     /// Not to be confused with user profiles (/ip/hotspot/user/profile → <see cref="HotspotUserProfile"/>).
     /// </summary>
-    [TikEntity("/ip/hotspot/profile", IncludeDetails = true)]
+    [TikEntity("/ip/hotspot/profile")]
     public class HotspotServerProfile
     {
         /// <summary>.id — primary key of the profile.</summary>

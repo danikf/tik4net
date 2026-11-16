@@ -10,7 +10,7 @@ namespace tik4net.Objects.Certificate
     /// signed; after signing most template fields become read-only on the resulting certificate.
     /// Only name, trusted, and trust-store remain writable on an already-signed certificate.
     /// </summary>
-    [TikEntity("/certificate", IncludeDetails = true)]
+    [TikEntity("/certificate")]
     public class Certificate
     {
         /// <summary>.id — primary key of the certificate row.</summary>

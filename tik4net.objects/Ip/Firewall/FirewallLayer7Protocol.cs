@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// data (NBAR-style regexp matching). Each entry defines a name and a regular expression
     /// that is tested against the first 10 packets or 2 KB of a TCP/UDP stream.
     /// </summary>
-    [TikEntity("/ip/firewall/layer7-protocol", IncludeDetails = true)]
+    [TikEntity("/ip/firewall/layer7-protocol")]
     public class FirewallLayer7Protocol
     {
         /// <summary>.id — primary key of row</summary>

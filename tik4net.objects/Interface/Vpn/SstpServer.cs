@@ -13,7 +13,7 @@ namespace tik4net.Objects.Interface.Vpn
     /// validates them using the configured certificate and authentication methods.
     /// This is a singleton menu — use <see cref="TikConnectionExtensions.LoadSingle{T}"/> to load it.
     /// </summary>
-    [TikEntity("/interface/sstp-server/server", IsSingleton = true)] // no =detail= — this server singleton rejects it
+    [TikEntity("/interface/sstp-server/server", IsSingleton = true)]
     public class SstpServer
     {
         // ---- Enums ----

@@ -9,7 +9,7 @@ namespace tik4net.Objects.Interface.Tunnel
     /// a tunnel between two routers, enabling Intranet traffic to traverse the Internet.
     /// See https://help.mikrotik.com/docs/display/ROS/IPIP
     /// </summary>
-    [TikEntity("/interface/ipip", IncludeDetails = true)]
+    [TikEntity("/interface/ipip")]
     public class InterfaceIpip
     {
         /// <summary>.id — primary key</summary>

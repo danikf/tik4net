@@ -112,9 +112,9 @@ namespace tik4net.Objects
         public bool IsOrdered { get; private set; }
 
         /// <summary>
-        /// If =detail= option should be used during entity load.
+        /// Whether a load sends <c>detail</c>: the entity's <see cref="TikEntityAttribute.IncludeDetails"/>.
         /// </summary>
-        /// <seealso cref="TikEntityAttribute.IncludeDetails"/>
+        [Obsolete("No transport needs it: the binary API prints every field with or without =detail=, the CLI transports add detail themselves, and REST and WinBox native ignore it. Remove the setting.")]
         public bool IncludeDetails { get; private set; }
 
         /// <summary>
@@ -214,7 +214,9 @@ namespace tik4net.Objects
             LoadDefaultParameterFormat = entityAttribute.LoadDefaultParameterFormat;
             SupportedOperations = entityAttribute.SupportedOperations;
             IsOrdered = entityAttribute.IsOrdered;
+#pragma warning disable CS0618 // the obsolete option is still honoured for an entity that sets it
             IncludeDetails = entityAttribute.IncludeDetails;
+#pragma warning restore CS0618
             IncludeCliStats = entityAttribute.IncludeCliStats;
             IncludeProplist = entityAttribute.IncludeProplist;
             IsSingleton = entityAttribute.IsSingleton;

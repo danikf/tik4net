@@ -13,7 +13,7 @@ namespace tik4net.Objects.Interface.Vpn
     /// Use <see cref="TikConnectionExtensions.LoadAll{T}"/> / <see cref="TikConnectionExtensions.Save{T}"/>
     /// for CRUD operations.
     /// </summary>
-    [TikEntity("/interface/sstp-client", IncludeDetails = true)]
+    [TikEntity("/interface/sstp-client")]
     public class SstpClient
     {
         // ---- Enums ----

@@ -7,7 +7,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// Diffie-Hellman group, lifetime, NAT traversal, DPD, proposal-check) applied during
     /// Phase 1 SA establishment. Referenced by /ip/ipsec/peer entries via the "profile" field.
     /// </summary>
-    [TikEntity("/ip/ipsec/profile", IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/profile")]
     public class IpsecProfile
     {
         /// <summary>Hashing algorithms for IKE Phase 1 authentication.</summary>

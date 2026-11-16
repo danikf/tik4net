@@ -6,7 +6,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// <summary>
     /// /ip/firewall/address-list
     /// </summary>
-    [TikEntity("/ip/firewall/address-list", IncludeDetails = true)]
+    [TikEntity("/ip/firewall/address-list")]
     public class FirewallAddressList
     {
         /// <summary>

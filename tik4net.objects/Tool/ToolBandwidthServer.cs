@@ -10,7 +10,6 @@ namespace tik4net.Objects.Tool
     /// (BTest) for measuring throughput between two RouterOS devices.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/Bandwidth+Test</para>
     /// </summary>
-    // IncludeDetails omitted — plain print returns the full field set.
     [TikEntity("/tool/bandwidth-server", IsSingleton = true)]
     public class ToolBandwidthServer
     {

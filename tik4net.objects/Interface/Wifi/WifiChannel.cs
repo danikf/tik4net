@@ -12,7 +12,7 @@ namespace tik4net.Objects.Interface.Wifi
     /// "widest supported") — leaving the corresponding fields empty lets the router
     /// apply the best value for the radio hardware.
     /// </summary>
-    [TikEntity("/interface/wifi/channel", IncludeDetails = true, MinRouterOs = "7")]
+    [TikEntity("/interface/wifi/channel", MinRouterOs = "7")]
     public class WifiChannel
     {
         // ── Skip-DFS mode ─────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ namespace tik4net.Objects.Routing.Ospf
     /// written.
     /// </para>
     /// </summary>
-    [TikEntity("/routing/ospf/neighbor", SupportedOperations = TikEntityOperations.Set, IncludeDetails = true)]
+    [TikEntity("/routing/ospf/neighbor", SupportedOperations = TikEntityOperations.Set)]
     public class OspfNeighbor
     {
         /// <summary>OSPF neighbor finite-state-machine states.</summary>

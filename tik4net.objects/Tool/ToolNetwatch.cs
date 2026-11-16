@@ -11,7 +11,7 @@ namespace tik4net.Objects.Tool
     /// RouterOS 7: simple, icmp, tcp-conn, http-get, https-get, dns.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/Netwatch</para>
     /// </summary>
-    [TikEntity("/tool/netwatch", IncludeDetails = true, IncludeCliStats = true)]
+    [TikEntity("/tool/netwatch", IncludeCliStats = true)]
     public class ToolNetwatch
     {
         /// <summary>.id — primary key of the netwatch entry.</summary>

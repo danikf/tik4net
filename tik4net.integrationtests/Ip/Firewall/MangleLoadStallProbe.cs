@@ -85,17 +85,16 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// The same read WITHOUT <c>detail</c>, to see whether that modifier is what the router chokes on.
+        /// The same read WITH <c>detail</c>, to see whether that modifier changes what the router chokes on.
         /// </summary>
         /// <remarks>
-        /// <c>FirewallMangle</c> is declared <c>IncludeDetails = true</c>, so the mapper sends <c>=detail=</c>
-        /// and every row comes back with every field. If the stall follows the modifier rather than the row
-        /// count, a caller has a workaround (a proplist, or an entity without the flag) and the router has a
-        /// narrower bug.
+        /// The mapper's load is a plain <c>print</c>; the binary API returns every field with or without
+        /// <c>=detail=</c>, so the two reads carry the same rows. If the stall follows the modifier rather than
+        /// the row count, the router has a narrower bug.
         /// </remarks>
         [TestMethod]
         [Ignore] // manual probe: needs a router carrying a few thousand mangle rules
-        public void MeasureMangleLoadGapsWithoutDetail()
+        public void MeasureMangleLoadGapsWithDetail()
         {
             for (int attempt = 1; attempt <= Attempts; attempt++)
             {
@@ -119,17 +118,19 @@ namespace tik4net.integrationtests
                     long openedAt = sw.ElapsedMilliseconds;
                     try
                     {
-                        var rows = connection.CreateCommand("/ip/firewall/mangle/print").ExecuteList();
-                        Report(attempt, "OK-nodetail", rows.Count(), sw, openedAt, gapTicks, null);
+                        var command = connection.CreateCommand("/ip/firewall/mangle/print");
+                        command.AddParameter("detail", "", TikCommandParameterFormat.NameValue);
+                        var rows = command.ExecuteList();
+                        Report(attempt, "OK-detail", rows.Count(), sw, openedAt, gapTicks, null);
                     }
                     catch (TikConnectionReceiveTimeoutException ex)
                     {
                         int partialRows = ex.PartialResponse == null
                             ? 0
                             : ex.PartialResponse.Split('\n').Length;
-                        Report(attempt, "TIMEOUT-nodetail", partialRows, sw, openedAt, gapTicks, ex);
+                        Report(attempt, "TIMEOUT-detail", partialRows, sw, openedAt, gapTicks, ex);
                         Console.WriteLine("            socket at timeout: " + DescribeSocket(connection));
-                        Assert.Fail($"attempt {attempt} stalled without detail after {partialRows} sentence(s)");
+                        Assert.Fail($"attempt {attempt} stalled with detail after {partialRows} sentence(s)");
                     }
                 }
             }

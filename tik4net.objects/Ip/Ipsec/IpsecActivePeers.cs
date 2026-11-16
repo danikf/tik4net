@@ -16,7 +16,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// <c>set</c> answers the same rather than <i>no such item</i>. <c>remove</c> behaves normally.
     /// </para>
     /// </summary>
-    [TikEntity("/ip/ipsec/active-peers", SupportedOperations = TikEntityOperations.Remove, IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/active-peers", SupportedOperations = TikEntityOperations.Remove)]
     public class IpsecActivePeers
     {
         /// <summary>Possible sides for IKE Phase 1 negotiation.</summary>

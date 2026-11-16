@@ -8,7 +8,7 @@ namespace tik4net.Objects.Routing.Ospf
     /// must exist for multi-area OSPF. Stub and NSSA area types reduce LSA flooding by limiting
     /// external route advertisements.
     /// </summary>
-    [TikEntity("/routing/ospf/area", IncludeDetails = true)]
+    [TikEntity("/routing/ospf/area")]
     public class OspfArea
     {
         /// <summary>OSPF area type.</summary>

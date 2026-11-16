@@ -9,7 +9,7 @@ namespace tik4net.Objects.Tool.Graphing
     /// Each entry selects a simple queue whose traffic statistics are graphed.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/Graphing</para>
     /// </summary>
-    [TikEntity("/tool/graphing/queue", IncludeDetails = true)]
+    [TikEntity("/tool/graphing/queue")]
     public class GraphingQueue
     {
         /// <summary>.id — primary key of the row.</summary>

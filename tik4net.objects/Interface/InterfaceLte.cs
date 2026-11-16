@@ -10,7 +10,7 @@ namespace tik4net.Objects.Interface
     /// added manually. Use LoadAll to enumerate available modems; use Save to update settings.
     /// See https://help.mikrotik.com/docs/display/ROS/LTE
     /// </summary>
-    [TikEntity("/interface/lte", IncludeDetails = true)]
+    [TikEntity("/interface/lte")]
     public class InterfaceLte
     {
         /// <summary>.id — primary key</summary>

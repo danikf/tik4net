@@ -170,7 +170,7 @@ namespace tik4net.integrationtests
             string pass = LabConfig.Get("pass") ?? "";
 
             // A CLI print without 'detail' is the summary columns, which do not include arp-timeout; the API
-            // prints every field either way. 'detail' is what the O/R mapper sends (IncludeDetails).
+            // prints every field either way. 'detail' is what the CLI print driver adds to a table read.
             ITikReSentence Row(ITikConnection conn)
             {
                 var cmd = conn.CreateCommandAndParameters("/interface/ethernet/print", "name", TestConstants.Interface);

@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// Each entry defines either a responder-side pool configuration or an initiator-side request
     /// profile. Entries are referenced from /ip/ipsec/peer via the mode-config parameter.
     /// </summary>
-    [TikEntity("/ip/ipsec/mode-config", IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/mode-config")]
     public class IpsecModeConfig
     {
         /// <summary>Possible values for the use-responder-dns property.</summary>

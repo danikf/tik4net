@@ -19,7 +19,7 @@ namespace tik4net.Objects.CapsMan
     ///
     /// The list is ordered — use Move() / MoveToEnd() to reorder rules.
     /// </summary>
-    [TikEntity("/caps-man/access-list", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/caps-man/access-list", IsOrdered = true)]
     public class CapsManAccessList
     {
         // ── Action ────────────────────────────────────────────────────────────

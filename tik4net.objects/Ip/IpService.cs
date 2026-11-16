@@ -10,7 +10,7 @@ namespace tik4net.Objects.Ip
     /// services cannot be added or removed, only modified (port, address restriction,
     /// certificate, TLS version, max-sessions, VRF, and enabled/disabled state).
     /// </summary>
-    [TikEntity("/ip/service", IncludeDetails = true)]
+    [TikEntity("/ip/service")]
     public class IpService
     {
         /// <summary>.id — primary key of the row.</summary>

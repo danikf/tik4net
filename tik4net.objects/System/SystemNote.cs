@@ -7,10 +7,8 @@ namespace tik4net.Objects.System
     /// <summary>
     /// /system/note — login banner / MOTD (Message of the Day) settings (singleton).
     /// The note text can be displayed at router login via the console or WinBox.
-    /// <para>Note: <c>=detail=</c> is rejected by this menu; plain print is used.</para>
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/System+Notes</para>
     /// </summary>
-    // IncludeDetails omitted — detail= is rejected by this singleton.
     [TikEntity("/system/note", IsSingleton = true)]
     public class SystemNote
     {

@@ -11,7 +11,7 @@ namespace tik4net.Objects.CapsMan
     /// read-only; manual/master entries can be pre-created and have configuration assigned.
     /// Flags: M=master, D=dynamic, B=bound, X=disabled, I=inactive, R=running.
     /// </summary>
-    [TikEntity("/caps-man/interface", IncludeDetails = true)]
+    [TikEntity("/caps-man/interface")]
     public class CapsManInterface
     {
         // ── ARP mode ──────────────────────────────────────────────────────────

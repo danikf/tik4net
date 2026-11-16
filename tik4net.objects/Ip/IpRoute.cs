@@ -8,11 +8,7 @@ namespace tik4net.Objects.Ip
     /// Please note that even though many properties are not tagged &quot;readonly&quot; they still might be
     /// read-only for non-static routes (e.g. routes that are inserted by routing protocols).
     /// </remarks>
-    // IncludeDetails: a bare CLI `print as-value` returns only the summary columns — scope,
-    // target-scope, immediate-gw, local-address and vrf-interface are detail-only, so without this the
-    // five CLI transports read them as the CLR default while the API reports them. `/ip/route print`
-    // accepts `detail` (asked, not assumed).
-    [TikEntity("/ip/route", IncludeDetails = true)]
+    [TikEntity("/ip/route")]
     public class IpRoute
     {
         /// <summary>

@@ -8,7 +8,7 @@ namespace tik4net.Objects.Routing.Ospf
     /// router-id, route redistribution policy, default-route origination, VRF binding, and
     /// optional MPLS-TE and route-filter chains.
     /// </summary>
-    [TikEntity("/routing/ospf/instance", IncludeDetails = true)]
+    [TikEntity("/routing/ospf/instance")]
     public class OspfInstance
     {
         /// <summary>OSPF protocol version.</summary>

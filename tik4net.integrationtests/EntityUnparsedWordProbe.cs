@@ -34,7 +34,7 @@ namespace tik4net.integrationtests
         public enum OneAction { [TikEnum("accept")] Accept }
         public enum OneChain { [TikEnum("input")] Input }
 
-        [TikEntity("/interface", IncludeDetails = true, SupportedOperations = TikEntityOperations.None)]
+        [TikEntity("/interface", SupportedOperations = TikEntityOperations.None)]
         public class V3Interface
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string Id { get; private set; }
@@ -55,7 +55,7 @@ namespace tik4net.integrationtests
             [TikProperty("target")] public TikField<OneTarget?> Target { get; set; }
         }
 
-        [TikEntity("/ip/firewall/filter", IncludeDetails = true, SupportedOperations = TikEntityOperations.None)]
+        [TikEntity("/ip/firewall/filter", SupportedOperations = TikEntityOperations.None)]
         public class V3Filter
         {
             [TikProperty(".id", IsReadOnly = true, IsMandatory = true)] public string Id { get; private set; }

@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Proxy
     /// decides whether the request is allowed, denied, or redirected. Use <see cref="TikConnectionExtensions.LoadAll{T}"/>
     /// to load and <see cref="TikConnectionExtensions.Save{T}"/> / <see cref="TikConnectionExtensions.Delete{T}"/> to modify.
     /// </summary>
-    [TikEntity("/ip/proxy/access", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/ip/proxy/access", IsOrdered = true)]
     public class IpProxyAccess
     {
         /// <summary>.id — primary key of the rule.</summary>

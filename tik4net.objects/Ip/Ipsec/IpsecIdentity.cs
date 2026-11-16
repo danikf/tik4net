@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// IKE peer entry and carries the authentication credentials (pre-shared key, certificate, EAP
     /// credentials) as well as optional policy generation settings and mode-config parameters.
     /// </summary>
-    [TikEntity("/ip/ipsec/identity", IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/identity")]
     public class IpsecIdentity
     {
         /// <summary>Authentication methods for IPsec peer identity verification.</summary>

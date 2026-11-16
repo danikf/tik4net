@@ -12,7 +12,7 @@ namespace tik4net.Objects.CapsMan
     /// name from a /caps-man/configuration profile (via the "channel" field) or overridden
     /// inline using dotted notation (e.g. channel.band, channel.frequency).
     /// </summary>
-    [TikEntity("/caps-man/channel", IncludeDetails = true)]
+    [TikEntity("/caps-man/channel")]
     public class CapsManChannel
     {
         // ── Extension-channel position ────────────────────────────────────────

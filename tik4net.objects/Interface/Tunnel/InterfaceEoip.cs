@@ -9,7 +9,7 @@ namespace tik4net.Objects.Interface.Tunnel
     /// that creates an Ethernet tunnel between two routers on top of an IP connection.
     /// See https://help.mikrotik.com/docs/display/ROS/EoIP
     /// </summary>
-    [TikEntity("/interface/eoip", IncludeDetails = true)]
+    [TikEntity("/interface/eoip")]
     public class InterfaceEoip
     {
         /// <summary>.id — primary key</summary>

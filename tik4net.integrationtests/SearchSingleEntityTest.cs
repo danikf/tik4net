@@ -22,7 +22,6 @@ namespace tik4net.integrationtests
 
             /*
                 > /interface/print
-                > =detail=
                 > ?name=ether1
                 < !re
                 < =.id=*1
@@ -41,7 +40,6 @@ namespace tik4net.integrationtests
 
             /*
                 > /interface/print
-                > =detail=
                 > ?name=ether1
                 < !re
                 < =.id=*1
@@ -62,7 +60,6 @@ namespace tik4net.integrationtests
 
             /*
                 > /interface/print
-                > =detail=
                 > ?.id=ether1
 
                 < !done

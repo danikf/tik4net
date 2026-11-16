@@ -12,7 +12,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// (<see cref="Group"/>) and instantiated dynamically by IKE when a peer negotiates SAs;
     /// non-template policies are static entries matched directly against traffic.
     /// </summary>
-    [TikEntity("/ip/ipsec/policy", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/ip/ipsec/policy", IsOrdered = true)]
     public class IpsecPolicy
     {
         // ── Enums ────────────────────────────────────────────────────────────────

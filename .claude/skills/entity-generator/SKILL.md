@@ -66,7 +66,7 @@ Use `mcp__tik4net-mcp__mikrotik_call` (the `mikrotik` skill). Read the test rout
 
 ```
 command: /ip/dhcp-server/lease/print
-parameters: ["=detail="]          # add detail to get the full field set, mirrors IncludeDetails
+parameters: []                    # the API prints every field; =detail= adds nothing
 ```
 
 - Take the **union of field keys across all returned rows** — different rows expose different optional fields.
@@ -83,7 +83,7 @@ parameters: ["=detail="]          # add detail to get the full field set, mirror
 could only talk plain API.** The MCP runs the *same* `command`/`parameters` over 9 transports, so run the
 print over several and diff the JSON to learn things one transport alone won't tell you:
 
-- **`Api` + `=detail=`** — baseline field set and live values (type/R-O inference). Source of truth for names.
+- **`Api`** — baseline field set and live values (type/R-O inference). Source of truth for names.
 - **`WinboxNative`** (with `includeRawTrace: true`) — gives you the **WinBox GUI names** for free (Step 6):
   the `.jg`-mapped field names in the trace are exactly the GUI labels. Diffing WinboxNative vs Api also
   surfaces fields WinBox exposes under a different key. (Singletons/ordered lists are the usual mismatch
@@ -258,7 +258,6 @@ re-ask with that prefix, and never prepend it to the values the listing then giv
 | Situation                                                              | Set |
 |-----------------------------------------------------------------------|-----|
 | Default list menu                                                      | `[TikEntity("/path")]` |
-| Full field set needed (almost always, when using detail)              | `IncludeDetails = true` |
 | Ordered list where `move` is meaningful (firewall rules, queues)      | `IsOrdered = true` |
 | Single-instance menu, no `.id` (`/system/resource`, `/ip/dns`)        | `IsSingleton = true` |
 | Whole menu is read-only (`/log`, monitor outputs)                     | `SupportedOperations = TikEntityOperations.None` |
@@ -268,12 +267,10 @@ re-ask with that prefix, and never prepend it to the values the listing then giv
 | Action-style command, not a list (ping, monitor, torch)              | `LoadCommand = "", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, SupportedOperations = TikEntityOperations.None, IncludeProplist = false` (see `ToolPing`) |
 | Need explicit `.proplist` field list                                  | `IncludeProplist = true` |
 
-> **`IncludeDetails` exception — some singletons/legacy menus reject `=detail=`.** A few paths trap
-> `=detail=` with `unknown parameter detail` (seen on the l2tp/sstp/pptp/ovpn **server singletons** and on
-> **`/caps-man/manager`**). Their plain `print` already returns the full field set, so just **omit
-> `IncludeDetails`** for these. If a `LoadAll`/`LoadSingle` smoke test traps on `detail`, drop `IncludeDetails`
-> and add a one-line `//` note on the `[TikEntity]`. Relatedly, some singletons return `!empty` (no `!re`
-> row) from `print` on certain ROS versions — `LoadSingle` then throws "no such item"; fall back to `LoadAll`
+> **Never set `IncludeDetails`** — it is `[Obsolete]`. The binary API prints every field with or without
+> `=detail=` (measured over every built-in table menu on 7.25.1, 7.21.5 and 6.49.21), the CLI transports add
+> `detail` themselves, and many singletons trap the word (`unknown parameter detail`). Some singletons
+> return `!empty` (no `!re` row) from `print` on certain ROS versions — `LoadSingle` then throws "no such item"; fall back to `LoadAll`
 > (assert non-null) in the test and document why (see `Interface/Vpn/OvpnServer.cs`).
 
 ### Which RouterOS releases have it — `MinRouterOs` / `MaxRouterOs`
@@ -394,7 +391,7 @@ namespace tik4net.Objects.<Domain>
     /// <summary>
     /// <wiki summary, multi-line ok>
     /// </summary>
-    [TikEntity("/<api/path>", IncludeDetails = true /*, IsOrdered/IsSingleton/SupportedOperations as needed */)]
+    [TikEntity("/<api/path>" /*, IsOrdered/IsSingleton/SupportedOperations as needed */)]
     public class <EntityName>
     {
         /// <summary>.id — primary key of row</summary>

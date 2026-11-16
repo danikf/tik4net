@@ -11,7 +11,7 @@ namespace tik4net.Objects.System
     /// Hardware-backed: on Cloud Hosted Routers (CHR) the list is always empty.
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/LEDs</para>
     /// </summary>
-    [TikEntity("/system/leds", IncludeDetails = true)]
+    [TikEntity("/system/leds")]
     public class SystemLeds
     {
         /// <summary>.id — primary key of the row.</summary>

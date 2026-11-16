@@ -8,10 +8,8 @@ namespace tik4net.Objects.System
     /// /system/ntp/server — NTP server settings (singleton). RouterOS 7 NTP server
     /// can serve time over unicast, broadcast, multicast, and manycast. Requires the
     /// NTP client to be synchronized (or use-local-clock enabled) before serving time.
-    /// <para>Note: <c>=detail=</c> is rejected by this menu; plain print is used.</para>
     /// <para>See also: https://help.mikrotik.com/docs/display/ROS/NTP</para>
     /// </summary>
-    // IncludeDetails omitted — detail= is rejected by this singleton.
     [TikEntity("/system/ntp/server", IsSingleton = true, MinRouterOs = "7")]
     public class SystemNtpServer
     {

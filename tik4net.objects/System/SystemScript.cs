@@ -10,7 +10,7 @@ namespace tik4net.Objects.System
     /// run manually via console or WinBox. Only scripts with equal or higher permission rights
     /// can execute other scripts.
     /// </summary>
-    [TikEntity("/system/script", IncludeDetails = true)]
+    [TikEntity("/system/script")]
     public class SystemScript
     {
         /// <summary>

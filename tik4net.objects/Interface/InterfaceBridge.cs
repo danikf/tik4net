@@ -17,7 +17,7 @@ namespace tik4net.Objects.Interface
     /// <see cref="VlanFiltering"/> is on or <see cref="ProtocolMode"/> is <c>mstp</c>; on other rows they
     /// read back as <c>null</c>.
     /// </remarks>
-    [TikEntity("/interface/bridge", IncludeDetails = true)]
+    [TikEntity("/interface/bridge")]
     public class InterfaceBridge
     {
         /// <summary>

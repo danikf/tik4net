@@ -15,7 +15,7 @@ namespace tik4net.Objects.CapsMan
     /// Profiles are referenced by name from /caps-man/configuration (datapath field) or can be
     /// specified inline using dotted notation (e.g. datapath.bridge, datapath.local-forwarding).
     /// </summary>
-    [TikEntity("/caps-man/datapath", IncludeDetails = true)]
+    [TikEntity("/caps-man/datapath")]
     public class CapsManDatapath
     {
         // ── ARP mode ──────────────────────────────────────────────────────────

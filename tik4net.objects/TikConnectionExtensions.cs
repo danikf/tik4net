@@ -411,9 +411,11 @@ namespace tik4net.Objects
 
             ITikCommand command = connection.CreateCommand(metadata.EntityPath + metadata.LoadCommand, metadata.LoadDefaultParameterFormat);
 
-            // =detail=
+            // =detail=, for an entity that still sets the obsolete option
+#pragma warning disable CS0618
             if (metadata.IncludeDetails)
                 command.AddParameter("detail", "", TikCommandParameterFormat.NameValue);
+#pragma warning restore CS0618
             // How tik4net's own transports read the entity (the CLI's stats merge, :serialize, show-sensitive and flag
             // fields; WinBox native's labels): beside the words, never one of them.
             SetHints(command, metadata.ReadHints);

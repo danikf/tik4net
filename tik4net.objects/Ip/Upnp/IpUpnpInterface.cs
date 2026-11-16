@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Upnp
     /// either <c>external</c> (WAN-facing, public IP) or <c>internal</c> (LAN-facing, client side).
     /// At least one external and one internal interface must be configured for UPnP to operate.
     /// </summary>
-    [TikEntity("/ip/upnp/interfaces", IncludeDetails = true)]
+    [TikEntity("/ip/upnp/interfaces")]
     public class IpUpnpInterface
     {
         /// <summary>.id — primary key of the entry.</summary>

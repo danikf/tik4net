@@ -5,7 +5,7 @@ namespace tik4net.Objects.Ip.Hotspot
     /// 
     /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
     /// </summary>
-    [TikEntity("/ip/hotspot/user", IncludeDetails = true)]
+    [TikEntity("/ip/hotspot/user")]
     public class HotspotUser
     {
         /// <summary>

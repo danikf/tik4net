@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Hotspot
     /// /ip/hotspot/walled-garden (HTTP-layer), these rules match at the IP/transport layer and apply
     /// to all protocols, enabling access to non-HTTP services (e.g. DNS, ICMP) for unauthenticated clients.
     /// </summary>
-    [TikEntity("/ip/hotspot/walled-garden/ip", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/ip/hotspot/walled-garden/ip", IsOrdered = true)]
     public class HotspotWalledGardenIp
     {
         /// <summary>.id — primary key of the rule.</summary>

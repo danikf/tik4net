@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface
     /// rules, neighbor discovery, MAC server and other features so a set of interfaces can be managed
     /// as a single named entity. Members are managed via <see cref="InterfaceListMember"/>.
     /// </summary>
-    [TikEntity("/interface/list", IncludeDetails = true)]
+    [TikEntity("/interface/list")]
     public class InterfaceList
     {
         /// <summary>
