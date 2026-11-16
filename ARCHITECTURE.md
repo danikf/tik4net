@@ -371,7 +371,10 @@ four 4.0 marker constants on `TikSpecialProperties` (`CliStats`, `CliFlags`, `Cl
 The entity options that feed the hints fail silently when left out, so they are checked rather than reasoned
 about: `TikEntityTransportCheck` (`tik4net.testing`) reads an entity over several live connections and names the
 option a transport needs, and `EntityTransportCheckTest` runs it over every built-in entity against the binary API
-(REST, Telnet, SSH, WinBox CLI, WinBox native; the MAC variants share their siblings' code).
+(REST, Telnet, SSH, WinBox CLI, WinBox native; the MAC variants share their siblings' code). It measures its CLI
+suggestion by re-reading with one hint switched on (`TikTransportHints.WithMergeStats` / `WithShowSensitive`, through
+the internal `TikConnectionExtensions.LoadSentencesWithHints`), which is why `tik4net.testing` is a friend of
+`tik4net.objects` as well as of core.
 
 The one thing deliberately **not** offered here is `ITikRawSentenceConnection`: see the contract section
 above for why a transport-neutral base cannot have a connection-specific format.

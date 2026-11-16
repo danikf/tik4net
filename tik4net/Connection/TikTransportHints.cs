@@ -113,6 +113,18 @@ namespace tik4net.Connection
                 ? new TikTransportHints(MergeStats, SerializeRead, FreeTextFields, FlagFields, false, WinboxLabels)
                 : this;
 
+        /// <summary>These hints with <see cref="MergeStats"/> on: the stats read the CLI adds for counters.</summary>
+        internal TikTransportHints WithMergeStats()
+            => MergeStats
+                ? this
+                : new TikTransportHints(true, SerializeRead, FreeTextFields, FlagFields, ShowSensitive, WinboxLabels);
+
+        /// <summary>These hints with <see cref="ShowSensitive"/> on: the print that includes secrets.</summary>
+        internal TikTransportHints WithShowSensitive()
+            => ShowSensitive
+                ? this
+                : new TikTransportHints(MergeStats, SerializeRead, FreeTextFields, FlagFields, true, WinboxLabels);
+
         /// <summary>These hints with <see cref="SerializeRead"/> on and no field to re-read.</summary>
         internal TikTransportHints WithSerializeRead()
             => new TikTransportHints(MergeStats, true, FreeTextFields, FlagFields, ShowSensitive, WinboxLabels);

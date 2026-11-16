@@ -393,6 +393,18 @@ namespace tik4net.Objects
                 carrier.Hints = hints;
         }
 
+        // The rows of the entity's full load as the transport sent them, read with the entity's hints adjusted: what
+        // TikEntityTransportCheck (tik4net.testing) uses to measure which option a field needs, and to look for a field
+        // read under another name. Nothing is materialized, tracked or reported to a diagnostics sink.
+        internal static IList<ITikReSentence> LoadSentencesWithHints<TEntity>(ITikConnection connection,
+            Func<TikTransportHints, TikTransportHints> adjustHints)
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            var command = CreateLoadCommandWithFilter<TEntity>(connection);
+            SetHints(command, adjustHints(metadata.ReadHints));
+            return command.ExecuteList().ToList();
+        }
+
         internal static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, params ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();

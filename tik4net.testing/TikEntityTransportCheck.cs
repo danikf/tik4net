@@ -26,7 +26,13 @@ namespace tik4net.Testing
     /// row; an entity without <c>.id</c> gets the presence findings only. Presence is compared for every field, values only
     /// for writable fields that do not change on their own, and as typed values (the binary API's <c>10s</c> and the CLI's
     /// <c>00:00:10</c> are equal). A secret's value is never printed.</para>
-    /// <para>A suggestion follows from the finding's kind and the transport family, never from the field's name.</para>
+    /// <para>A suggestion follows from the finding's kind and the transport family, never from the field's name, and is
+    /// measured where a read can settle it. A field absent only on a CLI transport is read again over that connection,
+    /// once with the stats read and once with <c>show-sensitive</c>, and the option whose read brings it back is named
+    /// (<c>IncludeCliStats</c> or <c>IsSensitive</c>); those are at most two more reads per connection, for all its
+    /// findings together. A field absent only on WinBox native is looked for under another name: a field the window
+    /// sends, which no property maps, whose value matches the reference's on every paired row is named as the
+    /// <c>WinboxLabel</c> to give.</para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -64,6 +70,7 @@ namespace tik4net.Testing
                 ExceptionDispatchInfo.Capture(referenceRead.Error).Throw();
 
             var findings = new List<TikEntityTransportFinding>();
+            var referenceProbe = new ReadProbe<TEntity>(reference, metadata, referenceRead);
             foreach (var other in others)
             {
                 var read = Read<TEntity>(other, metadata);
@@ -76,7 +83,8 @@ namespace tik4net.Testing
                             : "the transport could not read the entity: see the message") { Exception = read.Error });
                     continue;
                 }
-                Compare(metadata, referenceRead, read, findings);
+                Compare(metadata, referenceRead, read, findings, referenceProbe,
+                    new ReadProbe<TEntity>(other, metadata, referenceRead));
             }
 
             return new TikEntityTransportReport(typeof(TEntity), metadata.EntityPath, referenceRead.Name,
@@ -133,7 +141,7 @@ namespace tik4net.Testing
         // ── The comparison ────────────────────────────────────────────────────
 
         private static void Compare(TikEntityMetadata metadata, EntityRead reference, EntityRead other,
-            List<TikEntityTransportFinding> findings)
+            List<TikEntityTransportFinding> findings, ReadProbe referenceProbe, ReadProbe otherProbe)
         {
             var referenceAbsent = AbsentSet(reference);
             var otherAbsent = AbsentSet(other);
@@ -151,7 +159,7 @@ namespace tik4net.Testing
                 {
                     findings.Add(new TikEntityTransportFinding(other.Name, other.Type, field, property.PropertyName,
                         TikEntityTransportFindingKind.AbsentFromEveryRow, null, null, null,
-                        AbsentSuggestion(metadata, property, other)));
+                        AbsentSuggestion(metadata, property, other, otherProbe)));
                 }
                 else if (bothHaveRows && referenceAbsent.Contains(field) && !otherAbsent.Contains(field)
                          && !(property.IsPresenceFlag && FamilyOf(reference.Type) == Family.Api))
@@ -160,7 +168,7 @@ namespace tik4net.Testing
                     findings.Add(new TikEntityTransportFinding(reference.Name, reference.Type, field, property.PropertyName,
                         TikEntityTransportFindingKind.AbsentOnTheReferenceOnly, null, null, null,
                         "read by " + other.Name + " but by no row of the reference: "
-                            + AbsentSuggestion(metadata, property, reference)));
+                            + AbsentSuggestion(metadata, property, reference, referenceProbe)));
                 }
 
                 if (otherUnparsed.TryGetValue(field, out var unparsed) && !referenceUnparsed.ContainsKey(field))
@@ -250,6 +258,140 @@ namespace tik4net.Testing
         private static string? Mask(TikEntityPropertyAccessor property, string? value)
             => value == null ? null : property.IsSensitive ? "***" : value;
 
+        // ── Measuring a suggestion: reads of its own over the same connection ─
+
+        private enum Hint { Stats, Sensitive }
+
+        // What a suggestion can measure instead of guess, read lazily: nothing is read unless a finding asks.
+        private abstract class ReadProbe
+        {
+            // Whether the field appears when the entity is read again with the hint on; null when not measured (the
+            // read failed). One read per hint, for every field that asks.
+            internal abstract bool? AppearsWith(Hint hint, TikEntityPropertyAccessor property);
+
+            // The fields the transport sends under a name no property maps whose value matches the reference's value
+            // of the property on every paired row that has one.
+            internal abstract IReadOnlyList<string> SameValueUnderAnotherName(TikEntityPropertyAccessor property);
+        }
+
+        private sealed class ReadProbe<TEntity> : ReadProbe
+            where TEntity : new()
+        {
+            private readonly ITikConnection _connection;
+            private readonly TikEntityMetadata _metadata;
+            private readonly EntityRead _reference;
+            private readonly Dictionary<Hint, IList<ITikReSentence>?> _hinted = new Dictionary<Hint, IList<ITikReSentence>?>();
+            private IList<ITikReSentence>? _plain;
+
+            internal ReadProbe(ITikConnection connection, TikEntityMetadata metadata, EntityRead reference)
+            {
+                _connection = connection;
+                _metadata = metadata;
+                _reference = reference;
+            }
+
+            internal override bool? AppearsWith(Hint hint, TikEntityPropertyAccessor property)
+            {
+                if (!_hinted.TryGetValue(hint, out var rows))
+                {
+                    rows = TryRead(hint == Hint.Stats
+                        ? (Func<TikTransportHints, TikTransportHints>)(h => h.WithMergeStats())
+                        : h => h.WithShowSensitive());
+                    _hinted[hint] = rows;
+                }
+                return rows == null ? (bool?)null : rows.Any(row => property.NameInSentence(row) != null);
+            }
+
+            internal override IReadOnlyList<string> SameValueUnderAnotherName(TikEntityPropertyAccessor property)
+            {
+                if (_plain == null)
+                    _plain = TryRead(h => h) ?? new List<ITikReSentence>();
+                var pairs = Pair(_plain);
+                if (pairs.Count == 0)
+                    return Array.Empty<string>();
+
+                var mapped = new HashSet<string>(_metadata.Properties.SelectMany(p => new[] { p.FieldName }.Concat(p.AlternateNames)),
+                    StringComparer.Ordinal);
+                var names = _plain.SelectMany(row => row.Words.Keys)
+                    .Where(name => !name.StartsWith(".", StringComparison.Ordinal) && !mapped.Contains(name))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(name => name, StringComparer.Ordinal);
+                return names.Where(name => MatchesOnEveryRow(property, name, pairs)).ToList();
+            }
+
+            private IList<ITikReSentence>? TryRead(Func<TikTransportHints, TikTransportHints> adjust)
+            {
+                try
+                {
+                    return TikConnectionExtensions.LoadSentencesWithHints<TEntity>(_connection, adjust);
+                }
+                catch (Exception)
+                {
+                    return null;   // not measured: the suggestion falls back to naming every candidate
+                }
+            }
+
+            // The reference's rows with this transport's raw rows: by .id, or a singleton's one row with the other's.
+            private List<(object Reference, ITikReSentence Row)> Pair(IList<ITikReSentence> rows)
+            {
+                var pairs = new List<(object, ITikReSentence)>();
+                if (_metadata.IsSingleton)
+                {
+                    if (_reference.Rows.Count == 1 && rows.Count == 1)
+                        pairs.Add((_reference.Rows[0], rows[0]));
+                    return pairs;
+                }
+                var idProperty = _metadata.IdProperty;
+                if (idProperty == null)
+                    return pairs;
+                var byId = new Dictionary<string, ITikReSentence>(StringComparer.OrdinalIgnoreCase);
+                foreach (var row in rows)
+                {
+                    if (row.Words.TryGetValue(TikSpecialProperties.Id, out var id))
+                        byId[id] = row;
+                }
+                foreach (var entity in _reference.Rows)
+                {
+                    string? id = idProperty.GetEntityValue(entity);
+                    if (id != null && byId.TryGetValue(id, out var match))
+                        pairs.Add((entity, match));
+                }
+                return pairs;
+            }
+
+            // An empty value matches too much to count; a row without one is no evidence either way.
+            private static bool MatchesOnEveryRow(TikEntityPropertyAccessor property, string name,
+                List<(object Reference, ITikReSentence Row)> pairs)
+            {
+                int matched = 0;
+                foreach (var (reference, row) in pairs)
+                {
+                    string? expected = property.GetEntityValue(reference);
+                    if (string.IsNullOrEmpty(expected))
+                        continue;
+                    if (!row.Words.TryGetValue(name, out var word) || !string.Equals(AsProperty(property, word), expected, StringComparison.Ordinal))
+                        return false;
+                    matched++;
+                }
+                return matched > 0;
+            }
+
+            // The word read as the property reads it, so the binary API's 10s and the window's 00:00:10 are equal.
+            private static string? AsProperty(TikEntityPropertyAccessor property, string word)
+            {
+                try
+                {
+                    var probe = new TEntity();
+                    property.SetEntityValue(probe!, word);
+                    return property.GetEntityValue(probe!);
+                }
+                catch (Exception)
+                {
+                    return word;
+                }
+            }
+        }
+
         // ── Suggestions: from the finding's kind and the transport family ─────
 
         private enum Family { Api, Cli, WinboxNative, Other }
@@ -277,7 +419,11 @@ namespace tik4net.Testing
             }
         }
 
-        private static string AbsentSuggestion(TikEntityMetadata metadata, TikEntityPropertyAccessor property, EntityRead read)
+        private const string StatsOption = "IncludeCliStats = true on [TikEntity] (a counter)";
+        private const string SensitiveOption = "IsSensitive = true on the property (a secret)";
+
+        private static string AbsentSuggestion(TikEntityMetadata metadata, TikEntityPropertyAccessor property, EntityRead read,
+            ReadProbe probe)
         {
             switch (FamilyOf(read.Type))
             {
@@ -286,25 +432,59 @@ namespace tik4net.Testing
                         return property.IsReadOnly || property.FieldName == "disabled"
                             ? "a flag already read by name on the CLI transports: a transport gap to report"
                             : "a status flag the router sets: IsReadOnly = true on the property (flags are read by name before RouterOS 7.20)";
-                    var options = new List<string>();
-                    if (!metadata.IncludeCliStats)
-                        options.Add("IncludeCliStats = true on [TikEntity] (a counter)");
-                    if (!property.IsSensitive)
-                        options.Add("IsSensitive = true on the property (a secret)");
-                    return options.Count > 0
-                        ? "only on the CLI transports: " + string.Join(", or ", options)
-                        : "IncludeCliStats and IsSensitive are both declared: a transport gap to report";
+                    return CliAbsentSuggestion(metadata, property, probe);
                 case Family.WinboxNative:
-                    return property.WinboxLabel == null
-                        ? "only on WinBox native: WinboxLabel = \"<its WinBox label>\" on the property"
-                        : "only on WinBox native, and the property's WinboxLabel \"" + property.WinboxLabel
-                            + "\" is not in this RouterOS version's catalog, or names another field";
+                    return NativeAbsentSuggestion(property, probe);
                 default:
                     var unmapped = read.Report?.UnmappedFields;
                     return "this transport reports no such field: a version range (MinRouterOs / MaxRouterOs) or a rename "
                         + "(AlternateNames)"
                         + (unmapped != null && unmapped.Count > 0 ? "; it reports, unmapped: " + string.Join(", ", unmapped) : string.Empty);
             }
+        }
+
+        // Either option can make a field appear on the CLI; a read with each one's hint on says which does.
+        private static string CliAbsentSuggestion(TikEntityMetadata metadata, TikEntityPropertyAccessor property, ReadProbe probe)
+        {
+            var hints = metadata.ReadHints;
+            bool statsCandidate = !hints.MergeStats;
+            // show-sensitive is entity-wide: with another property declared IsSensitive it is sent already.
+            bool sensitiveCandidate = !property.IsSensitive && !hints.ShowSensitive;
+            if (!statsCandidate && !sensitiveCandidate)
+                return "the stats read and show-sensitive are both sent already: a transport gap to report";
+
+            bool? stats = statsCandidate ? probe.AppearsWith(Hint.Stats, property) : null;
+            if (stats == true)
+                return "only on the CLI transports; measured: the stats read brings it back: " + StatsOption;
+            bool? sensitive = sensitiveCandidate ? probe.AppearsWith(Hint.Sensitive, property) : null;
+            if (sensitive == true)
+                return "only on the CLI transports; measured: show-sensitive brings it back: " + SensitiveOption;
+
+            if ((!statsCandidate || stats == false) && (!sensitiveCandidate || sensitive == false))
+                return "only on the CLI transports, and neither the stats read nor show-sensitive brings it back (measured): "
+                    + "a transport gap to report";
+
+            var options = new List<string>();
+            if (statsCandidate)
+                options.Add(StatsOption);
+            if (sensitiveCandidate)
+                options.Add(SensitiveOption);
+            return "only on the CLI transports (not measured: the re-read failed): " + string.Join(", or ", options);
+        }
+
+        private static string NativeAbsentSuggestion(TikEntityPropertyAccessor property, ReadProbe probe)
+        {
+            var candidates = probe.SameValueUnderAnotherName(property);
+            string seen = candidates.Count == 0
+                ? string.Empty
+                : "; WinBox native reads the reference's value under "
+                    + string.Join(" and under ", candidates.Select(c => "'" + c + "'")) + " on every paired row";
+            if (property.WinboxLabel != null)
+                return "only on WinBox native, and the property's WinboxLabel \"" + property.WinboxLabel
+                    + "\" is not in this RouterOS version's catalog, or names another field" + seen;
+            return candidates.Count == 1
+                ? "only on WinBox native: WinboxLabel = \"" + candidates[0] + "\" on the property" + seen
+                : "only on WinBox native: WinboxLabel = \"<its WinBox label>\" on the property" + seen;
         }
 
         private static string UnparsedSuggestion(TikEntityPropertyAccessor property, string? rawValue)
