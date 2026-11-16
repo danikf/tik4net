@@ -597,9 +597,9 @@ namespace tik4net.Api
                                                     // A !fatal has to reach the caller by exactly ONE route.
                                                     // The bounded readers below pass an onTerminalCallback and
                                                     // take it from there; ExecuteWithCallback has no such hook,
-                                                    // and without this none of its three callbacks fired at all —
-                                                    // an idle /listen simply stopped at ReceiveTimeout and the
-                                                    // caller went on believing it was listening. Reported as a
+                                                    // and without this none of its three callbacks fires at all —
+                                                    // an idle /listen simply stops at ReceiveTimeout and the
+                                                    // caller goes on believing it is listening. Reported as a
                                                     // trap, which is how the other ten transports report the
                                                     // same failure (Connection/PollingMonitorEngine).
                                                     if (response is ApiFatalSentence fatal && !fatal.ClientInitiated
