@@ -306,8 +306,8 @@ namespace tik4net.Api
                         // Not a TLS error — a TLS NON-error: the peer closed the socket instead of
                         // answering the ClientHello, which is what a plain-API port (or an api-ssl service
                         // with no certificate) does. SslStream reports that as a bare IOException
-                        // ("Received an unexpected EOF or 0 bytes from the transport stream"), which used
-                        // to escape Open unwrapped and name nothing.
+                        // ("Received an unexpected EOF or 0 bytes from the transport stream"), which would
+                        // escape Open unwrapped and name nothing.
                         throw new TikConnectionProtocolMismatchException(port, true,
                             ApiDefaultPort, ApiSslDefaultPort,
                             "The peer on port " + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
@@ -632,8 +632,8 @@ namespace tik4net.Api
                 }
                 else
                 {
-                    // Rented, not allocated: every word of every row of every read used to leave a byte[]
-                    // behind, and a 1000-row load is tens of thousands of them. The buffer never escapes
+                    // Rented, not allocated: allocating leaves a byte[] behind for every word of every row of
+                    // every read, and a 1000-row load is tens of thousands of them. The buffer never escapes
                     // this block - the string is materialized before it goes back to the pool.
                     int length = (int)wordLength;
                     byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(length);
@@ -1215,13 +1215,12 @@ namespace tik4net.Api
         }
 
         // Internal since 4.0: it hands back a Thread nobody can await, cancel or observe a failure on, so it
-        // is no longer offered to callers (ITikCommand.ExecuteWithCallback and the Task-based Execute*Async
+        // is not offered to callers (ITikCommand.ExecuteWithCallback and the Task-based Execute*Async
         // extensions are). ApiCommand still drives the callback form through it — the Thread it returns is
         // what ApiCommand.Cancel joins.
         //
         // NOT called CallCommandAsync: that name now belongs to the awaitable ITikRawSentenceConnection
-        // member, and a second method wearing it while returning a Thread is the exact confusion the
-        // LoadAsync rename was about.
+        // member, and a second method wearing it while returning a Thread would pass for the awaitable one.
         internal Thread CallCommandCallbackThread(IEnumerable<string> commandRows, string tag,
             Action<ITikSentence> oneResponseCallback)
         {
@@ -1261,8 +1260,8 @@ namespace tik4net.Api
                         }
                     } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence)); // read this tag's sentences via GetOne until !done or !fatal
                     //NOTE: Should be ended via !done or !trap+!done (called via Cancel() command for specific tag)
-                    // The loop no longer tests IsOpened: a closed connection reaches the callback as the
-                    // reader's synthetic !fatal, which ends it. Testing the flag instead ended the pump
+                    // The loop does not test IsOpened: a closed connection reaches the callback as the
+                    // reader's synthetic !fatal, which ends it. Testing the flag instead would end the pump
                     // silently, leaving ExecuteWithCallback's caller with a monitor that simply stopped.
                 }
                 catch (Exception ex)
