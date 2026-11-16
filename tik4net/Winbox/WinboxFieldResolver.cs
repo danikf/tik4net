@@ -164,9 +164,9 @@ namespace tik4net.Winbox
                 => layers.Any(l => l.Layer != FieldLayer.OwnSynthetic && l.Layer != FieldLayer.Fallback
                                    && l.Fields.ContainsKey(apiName));
 
-            // The keys another window of this handler declares and the path's own window does not (WinBox review
-            // D6). The handler's map is every window's, and its record carries every window's keys: /ip/settings
-            // decoded connection tracking's and neighbour discovery's fields into its row. With a window to go by,
+            // The keys another window of this handler declares and the path's own window does not. The handler's
+            // map is every window's, and its record carries every window's keys: /ip/settings would decode
+            // connection tracking's and neighbour discovery's fields into its row. With a window to go by,
             // the handler layer keeps only what no other window claims. A path reached by PathOverride (no window)
             // keeps the whole handler.
             var otherWindows = layers.Any(l => l.Layer == FieldLayer.Window)
