@@ -487,7 +487,7 @@ namespace tik4net.WinboxNative
             // Discard anything the open phase left buffered BEFORE the reader loop starts.
             // A leftover frame is not merely noise here: the multiplexer restarts request ids from 1, so a
             // stale frame carrying, say, id 3 could be delivered to a *new* request that later gets id 3 —
-            // turning the old "reply shifted by one" desync into a silent wrong-reply. Draining is safe at
+            // turning a "reply shifted by one" desync into a silent wrong reply. Draining is safe at
             // this exact point because every init exchange has already completed.
             _ops.DrainBufferedFrames();
 
@@ -500,9 +500,9 @@ namespace tik4net.WinboxNative
         {
             // Mark closed BEFORE tearing anything down. A running monitor decides whether an exception is a
             // real error or a clean shutdown by asking PollingMonitorEngine.Stopping → !IsOpen, and the
-            // multiplexer fails pending requests the instant it is disposed. Faulting first left a window
-            // where the monitor thread saw the failure while the connection still looked open and reported it
-            // as an error (intermittent PingLocalhostAsyncWithCloseWillNotFail).
+            // multiplexer fails pending requests the instant it is disposed. Faulting first would leave a
+            // window where the monitor thread sees the failure while the connection still looks open and
+            // reports it as an error.
             SetClosed();
             // A session that ends in Safe Mode is rolled back by the router: nothing is held any more.
             SafeModeHeld = false;
@@ -567,10 +567,9 @@ namespace tik4net.WinboxNative
         // thread to look asynchronous). Every await carries ConfigureAwait(false), which is also what keeps
         // the blocking wrappers safe under a UI / ASP.NET-classic SynchronizationContext.
         //
-        // That includes the name→id round trips field encoding and record decoding need, which used to be the
-        // one blocking hole left in an awaited command. They are still issued by SYNCHRONOUS code —
-        // WinboxFieldResolver.EncodeField takes a plain Func resolveRef, and DecodeRecord returns a dictionary
-        // — but no longer from this thread: the round trips are hoisted out and awaited first, and the
+        // That includes the name→id round trips field encoding and record decoding need. They are issued by
+        // SYNCHRONOUS code — WinboxFieldResolver.EncodeField takes a plain Func resolveRef, and DecodeRecord
+        // returns a dictionary — but not from this thread: the round trips are hoisted out and awaited first, and the
         // synchronous pass then reads answers that are already in memory.
         //   • encode: EncodeNameValueFieldsAsync runs the encoder twice, the first time with a delegate that
         //     collects the lookups instead of performing them (so the ENCODER decides what needs resolving, not
@@ -869,11 +868,11 @@ namespace tik4net.WinboxNative
             if (!TryFindAction(handler, verb, out int cmd, out string actionLabel))
             {
                 var actions = _catalog.GetHandlerActions(handler);
-                // Say WHAT was looked for and WHAT the handler actually offers. The old message named only
-                // the verb, so every reader had to re-derive whether the verb was missing from the catalog
-                // or merely spelled differently by its GUI label — the two need opposite fixes (a genuine
+                // Say WHAT was looked for and WHAT the handler actually offers. A message naming only the
+                // verb leaves every reader to re-derive whether the verb is missing from the catalog or
+                // merely spelled differently by its GUI label — the two need opposite fixes (a genuine
                 // protocol gap vs. an ActionMatchesVerb/override problem), and only the catalog can tell
-                // them apart. '/log/error' turned out to be the first kind: the router's
+                // them apart. '/log/error' is the first kind: the router's
                 // own .jg declares no log-writing action on ANY handler, so WinBox itself cannot write a
                 // log line.
                 string offered = (actions == null || actions.Count == 0)
