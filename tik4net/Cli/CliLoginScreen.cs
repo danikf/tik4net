@@ -113,7 +113,7 @@ namespace tik4net.Cli
         /// The exception for a login that never reached the prompt. What it was waiting for is only half the story; the
         /// other half is what it had already been given, and without that the failure cannot tell "the router said nothing
         /// at all" (a lost session start, a dead path) from "the router is mid-negotiation and one packet went missing" (a
-        /// stalled VT100 probe exchange). One diagnosis spent nine reproduction runs on a message that carried neither.
+        /// stalled VT100 probe exchange).
         /// </summary>
         /// <param name="transport">Named in the message.</param>
         /// <param name="elapsedMs">How long the login waited.</param>
