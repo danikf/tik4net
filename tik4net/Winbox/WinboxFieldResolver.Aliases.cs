@@ -1207,9 +1207,9 @@ namespace tik4net.Winbox
                              ("wins-server", "wins-servers"), ("caps-manager", "caps-managers"),
                              ("dhcp-option", "dhcp-options"), ("dns-none", "no-dns"), ("ntp-none", "no-ntp"))),
 
-                // Three fields the WRITE audit found and no read could: each is empty on a stock row, so
-                // the two transports agreed on an empty vocabulary and the path passed. They surfaced the
-                // moment something tried to WRITE them — the resolver could not name the field at all.
+                // Three fields only a WRITE shows and no read can: each is empty on a stock row, so a read
+                // comparison sees the two transports agree on an empty vocabulary and the path pass. Writing
+                // them is what fails without the pairing — the resolver cannot name the field at all.
                 //
                 // Each pairing was then confirmed by value, not by resemblance: with the API asked to set
                 // it, native reports the same value under its own name.
