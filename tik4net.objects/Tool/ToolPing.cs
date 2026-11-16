@@ -95,9 +95,9 @@ namespace tik4net.Objects.Tool
         /// </summary>
         public override string ToString()
         {
-            // Time is not IsMandatory: a row without it (a ping that timed out) leaves it null, and saying
-            // so beats the old formatting, which ran the value through a whole-seconds conversion — every
-            // round trip under a second printed as 0.
+            // Time is not IsMandatory: a row without it (a ping that timed out) leaves it null, and that is
+            // said as such. The value is printed as it is: a whole-seconds conversion would print every round
+            // trip under a second as 0.
             return string.Format(CultureInfo.InvariantCulture, "{0} ....... {1}", Host, (Time.TryGetValue(out var time) ? time?.ToString() : null) ?? "(timeout)");
         }
 
