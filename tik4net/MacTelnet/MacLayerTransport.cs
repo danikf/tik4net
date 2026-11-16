@@ -108,12 +108,13 @@ namespace tik4net.MacTelnet
         // Without a resend driven by those ACKs a lost outbound datagram is unrecoverable: the router
         // waits for bytes that never arrive, we wait for a reply that cannot come.
         //
-        // NOTE, so this is not mis-read as a cure: retransmission does NOT fix the MAC-layer suite wedge.
-        // Measured - at the wedge the router re-ACKs the offset BEFORE our command and then ignores 8
-        // byte-identical resends, and the failure is deterministic across runs (same test, same point),
-        // which loss is not. Whatever stops the router consuming our stream there is still unidentified.
-        // It is here because the ACK is a real signal and a genuinely lost packet must be recoverable; it
-        // is not the answer to the wedge.
+        // NOTE, so this is not mis-read as a cure: retransmission does NOT revive a session the router has
+        // stopped servicing (Docs/findings-winbox.md §16-§18). There the router re-ACKs the offset BEFORE our
+        // command and ignores every byte-identical resend. That state follows a session left unserviced
+        // between commands - router writes nobody acknowledged (§18, StartIdleServicing) - or the router's own
+        // ~30 s idle logout of a MAC console, and it is recovered by reopen + retry (§16, LastSendAbandoned),
+        // not by resending. Retransmission is here because the ACK is a real signal and a genuinely lost
+        // packet must be recoverable.
         //
         // A QUEUE, not one slot. While every caller was lockstep, one outstanding DATA packet at a
         // time was all there could be, so holding only the most recent one was enough. A multiplexed channel
