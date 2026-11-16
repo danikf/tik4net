@@ -796,8 +796,8 @@ namespace tik4net.Cli
         {
             // The filters are a postfix STACK, not a list of things to AND: the API's query words
             // '?#|', '?#&' and '?#!' combine the two (or one) predicates before them. Joining everything
-            // with '&&' answered a different question — '?type=ether ?type=loopback ?#|' asks for either
-            // and was sent as 'where type=ether && type=loopback', which no row can satisfy. RouterOS
+            // with '&&' answers a different question — '?type=ether ?type=loopback ?#|' asks for either,
+            // and 'where type=ether && type=loopback' is a condition no row can satisfy. RouterOS
             // spells the combinations '(a || b)', '(a && b)' and '!(a)'; all three verified on 7.24.
             //
             // The same evaluation the WinBox-native transport does in memory (TikQueryStack), rendered as
