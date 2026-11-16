@@ -8,7 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <PackageId>tik4net.testing</PackageId>
-    <Description>Unit-testing support for tik4net: write tests against RouterOS logic with no router involved. TikFakeConnection implements the same ITikConnection contract as a real transport, answers scripted rows through TikFakeReSentence / TikFakeDoneSentence / TikFakeTrapSentence, and records what was sent so a test can assert on it. Works at all three API levels, including the O/R mapper. TikEntityTransportCheck, the one class that needs live connections, reads an entity over several transports and names the entity option that fixes each field one of them misses.
+    <Description>Unit-testing support for tik4net: write tests against RouterOS logic with no router involved. TikFakeConnection implements the same ITikConnection contract as a real transport, answers scripted rows through TikFakeReSentence / TikFakeDoneSentence / TikFakeTrapSentence, and records what was sent so a test can assert on it. Works at all three API levels, including the O/R mapper. TikEntityTransportCheck, the one class that needs live connections, reads an entity over several transports and names the entity option that fixes each field one of them misses.</Description>
     <PackageTags>Mikrotik RouterOS Testing UnitTesting Fake Mock CSharp .NET</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>
     <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>
