@@ -114,7 +114,7 @@ namespace tik4net.Winbox
         /// The one place the chunk rule is written down: both the encrypted and the raw send path go through
         /// it, because a length of exactly <c>0xFF</c> means "255 bytes and more to come" to
         /// <see cref="WinboxTcpTransport.RecvChunked"/> and to the router. A payload of 255 bytes or more written unchunked is
-        /// unparseable by either — which is what the raw path did until this was factored out. A body whose
+        /// unparseable by either. A body whose
         /// length is an exact multiple of 255 therefore ends with an explicit zero-length final chunk.
         /// </remarks>
         internal static byte[] Chunk(byte[] data, byte firstTag)
