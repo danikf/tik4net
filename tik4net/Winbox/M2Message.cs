@@ -863,9 +863,8 @@ namespace tik4net.Winbox
         // 0 bool, 1 u32, 2 u64, 3 addr6, 4 string, 5 message, 6 raw, and the same +16 for the array forms.
         // EVERY ftype must have a case here even when ParseAllFields has no decoder for it: an unhandled type
         // is null, and Walk stops there — the rest of the message is lost rather than decoded into garbage keys,
-        // which is what an unhandled type did while the walkers stepped over it as if it had no value. That is how
-        // the 0xA0 str_array bug behaved before it was found, and 0x18 (addr6) was the same trap waiting on any
-        // handler with an IPv6 field.
+        // which is what a walker that steps over an unhandled type as if it had no value produces. 0xA0
+        // (str_array) and 0x18 (addr6, on any handler with an IPv6 field) are both that trap.
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1502:Avoid excessive complexity",
             Justification = "A type byte to its value width, one case per ftype and size form; every ftype must have a case here.")]
         private static int? ValueBytes(int type, byte[] data, int pos)
