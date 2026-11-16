@@ -734,7 +734,7 @@ namespace tik4net.Api
         /// <remarks>
         /// <see cref="IOException"/> alone cannot be the test. It is also the base of
         /// <see cref="FileLoadException"/> and <see cref="FileNotFoundException"/>, which is what an assembly
-        /// that fails to bind throws — and that was reported as "the router closed the connection during the
+        /// that fails to bind throws — and that would be reported as "the router closed the connection during the
         /// API login handshake", with advice about <c>/ip/service</c>. The stream raises the exact type (a
         /// <see cref="SocketException"/> inside it on a reset), plus end-of-stream, so only those count.
         /// </remarks>
