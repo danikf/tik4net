@@ -30,6 +30,8 @@ namespace tik4net.Cli
 
         private readonly ICliByteStream _stream;
         private readonly Encoding _encoding;
+        // One per receive stream: a character split across two chunks is decoded whole (CliStreamDecoder).
+        private readonly CliStreamDecoder _decoder;
         private readonly Func<int> _receiveTimeout;
         private readonly string _transportName;
         private readonly string _traceChannel;
@@ -62,6 +64,7 @@ namespace tik4net.Cli
         {
             _stream = stream ?? throw new ArgumentNullException(nameof(stream));
             _encoding = encoding ?? Encoding.UTF8;
+            _decoder = new CliStreamDecoder(_encoding);
             _receiveTimeout = receiveTimeoutMs;
             _transportName = transportName;
             _traceChannel = traceChannel;
@@ -252,7 +255,7 @@ namespace tik4net.Cli
                     await WriteAsync(reply, CancellationToken.None).ConfigureAwait(false);
             }
 
-            string text = _encoding.GetString(chunk);
+            string text = _decoder.Decode(chunk);
 
             // The cursor model is fed every chunk; its replies are keystrokes, never sent into a change-password prompt.
             await _vt100.ProcessAndAnswerAsync(text, _passwordPrompt,

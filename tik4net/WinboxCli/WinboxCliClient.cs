@@ -61,6 +61,8 @@ namespace tik4net.WinboxCli
         private readonly CliPasswordPromptGuard _passwordPrompt = new CliPasswordPromptGuard();
         private readonly IWinboxM2Channel _session;
         private readonly Encoding _encoding;
+        // One per receive stream: a character split across two chunks is decoded whole (CliStreamDecoder).
+        private readonly CliStreamDecoder _decoder;
         private readonly Func<int> _receiveTimeout;
         // Read at each use rather than taken once: ITikConnection.ReceiveTimeout may change on an open connection,
         // and the API and REST honour that per command.
@@ -96,6 +98,7 @@ namespace tik4net.WinboxCli
             _transportName    = transportName;
             _traceChannel     = traceChannel;
             _encoding         = encoding ?? Encoding.UTF8;
+            _decoder = new CliStreamDecoder(_encoding);
             _receiveTimeout = timeouts.ReceiveMs;
             _loginTimeoutMs   = TikTimeouts.HandshakeBoundMs(timeouts.ConnectMs, timeouts.ReceiveMs());
             _sendTimeoutMs    = timeouts.SendMs;
@@ -193,7 +196,7 @@ namespace tik4net.WinboxCli
                     catch (IOException) { return true; }
                     if (chunk != null)
                     {
-                        string text = _encoding.GetString(chunk);
+                        string text = _decoder.Decode(chunk);
                         received += text.Length;
                         _vt100.ProcessAndAnswer(text, _passwordPrompt, SendText);
                     }
@@ -403,7 +406,7 @@ namespace tik4net.WinboxCli
                 if (chunk == null) continue;
 
                 textFrames++;
-                string text = _encoding.GetString(chunk);
+                string text = _decoder.Decode(chunk);
                 sb.Append(text);
 
                 // The cursor model is fed unconditionally (Process is eager; only sending the replies is
@@ -547,7 +550,7 @@ namespace tik4net.WinboxCli
                     catch (IOException ex) { return Task.FromResult(new CliCarrierPoll(false, false, midFrame: ex)); }
                     if (chunk != null)
                     {
-                        string text = _client._encoding.GetString(chunk);
+                        string text = _client._decoder.Decode(chunk);
                         _sb.Append(text);
                         // Guarded on every read: a caller's /password puts the change-password prompt on screen.
                         _client._vt100.ProcessAndAnswer(text, _client._passwordPrompt, _client.SendText);

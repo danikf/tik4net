@@ -738,7 +738,9 @@ namespace tik4net.WinboxNative
                             untilDone).ConfigureAwait(false);
             }
 
-            var plan = MakeResolver(apiPath, handler).DecodePlan();
+            var readResolver = MakeResolver(apiPath, handler);
+            var plan = readResolver.DecodePlan();
+            int extraReadFlags = readResolver.ExtraReadFlags;   // a field sent only with a bit webfig never sets (/file contents)
 
             // Singleton tables (type:'item' window, e.g. /system/resource, /ip/dns) expose a single record
             // read via get-singleton; everything else lists via getall.
@@ -749,7 +751,7 @@ namespace tik4net.WinboxNative
                 {
                     _catalog.GetSingletonCommands(_handlerMap.ResolveDerivedKey(apiPath), out int? getCommand, out _);
                     var one = await _ops.GetSingletonAsync(handler, cancellationToken,
-                            WinboxM2Protocol.GetAllFlags | _catalog.GetWindowReadFlags(handler), getCommand)
+                            WinboxM2Protocol.GetAllFlags | _catalog.GetWindowReadFlags(handler) | extraReadFlags, getCommand)
                         .ConfigureAwait(false);
                     records = (one != null && one.Count > 0)
                         ? new List<M2Record> { one }
@@ -759,7 +761,7 @@ namespace tik4net.WinboxNative
                 {
                     // The window's own refreshfilter/refetchonopen bits (6.x routes send scope and routing-mark
                     // only with them), plus the stats bit on autorefresh windows for the runtime counters.
-                    int flags = _catalog.GetReadFlags(handler);
+                    int flags = _catalog.GetReadFlags(handler) | extraReadFlags;
                     records = await _ops.GetAllAsync(handler, cancellationToken, flags).ConfigureAwait(false);
                 }
             }

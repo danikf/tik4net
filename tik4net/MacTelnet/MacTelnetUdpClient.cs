@@ -46,6 +46,8 @@ namespace tik4net.MacTelnet
         // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
         private readonly Vt100State     _vt100 = Vt100State.ForRouterOs();
         private readonly Encoding       _encoding;
+        // One per receive stream: a character split across two chunks is decoded whole (CliStreamDecoder).
+        private readonly Cli.CliStreamDecoder _decoder;
         private readonly Func<int> _receiveTimeout;
         // Read at each use rather than taken once: ITikConnection.ReceiveTimeout may change on an open connection,
         // and the API and REST honour that per command.
@@ -95,6 +97,7 @@ namespace tik4net.MacTelnet
         internal MacTelnetUdpClient(Encoding encoding, CliClientTimeouts timeouts, string? routerMac)
         {
             _encoding         = encoding ?? Encoding.UTF8;
+            _decoder = new Cli.CliStreamDecoder(_encoding);
             _receiveTimeout = timeouts.ReceiveMs;
             _loginTimeoutMs   = TikTimeouts.HandshakeBoundMs(timeouts.ConnectMs, timeouts.ReceiveMs());
             // Opening the session is part of opening the connection, so it gets the connect budget.
@@ -323,7 +326,7 @@ namespace tik4net.MacTelnet
                         if (!TryAcceptData(type, payload, counter)) continue;
                         if (IsControlPacket(payload))               continue;
 
-                        string text = _encoding.GetString(payload);
+                        string text = _decoder.Decode(payload);
                         lock (_rxLock)
                             _rx.Append(text);
                         _rxSignal.Set();
@@ -568,7 +571,7 @@ namespace tik4net.MacTelnet
                         continue;
 
                     dataPackets++;
-                    string text = _encoding.GetString(payload);
+                    string text = _decoder.Decode(payload);
                     sb.Append(text);
 
                     // See the pump loop for why the cursor-probe reply must not be delayed. Never sent into a
@@ -624,7 +627,7 @@ namespace tik4net.MacTelnet
                     // The router ending the session ends the drain; the next read reports it, as after the pump.
                     if (type == PktEnd) { _routerEnded = true; _rxSignal.Set(); break; }
                     if (TryAcceptData(type, payload, counter) && !IsControlPacket(payload))
-                        _vt100.ProcessAndAnswer(_encoding.GetString(payload), _passwordPrompt, SendTerminalText);
+                        _vt100.ProcessAndAnswer(_decoder.Decode(payload), _passwordPrompt, SendTerminalText);
                     // Reset quiet window — keep draining while data arrives.
                     quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
                 }

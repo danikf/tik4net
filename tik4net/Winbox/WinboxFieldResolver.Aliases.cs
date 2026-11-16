@@ -188,6 +188,14 @@ namespace tik4net.Winbox
             /// </summary>
             public readonly IReadOnlyDictionary<string, Tuple<string, string, string>>? SetByAction;
 
+            /// <summary>
+            /// Bits OR'd into the read flags (<see cref="WinboxM2Protocol.RecordKey.Flags"/>) of this path's getall and
+            /// get, beyond webfig's base and the window's own <c>refreshfilter</c>/<c>refetchonopen</c>: a field the API
+            /// prints that the router sends only when asked with a bit webfig never sets. <c>0</c> for none. Measured per
+            /// path; never inferred.
+            /// </summary>
+            public readonly int ExtraReadFlags;
+
             /// <param name="both">API name → <c>.jg</c> label pairs that rename one value in both directions — "one name
             /// for one value": each goes into <see cref="ApiToJg"/> as written and into <see cref="JgToApi"/> reversed.</param>
             /// <param name="apiToJgOnly">Encode-only spellings, laid over <paramref name="both"/>: an API name a write may
@@ -213,6 +221,7 @@ namespace tik4net.Winbox
             /// <param name="renames">See <see cref="Renames"/>.</param>
             /// <param name="confirmedBy">See <see cref="ConfirmedBy"/>.</param>
             /// <param name="setByAction">See <see cref="SetByAction"/>.</param>
+            /// <param name="extraReadFlags">See <see cref="ExtraReadFlags"/>.</param>
             public FieldAliasSet(IReadOnlyDictionary<string, string>? both = null,
                 IReadOnlyDictionary<string, string>? apiToJgOnly = null, IReadOnlyDictionary<string, string>? jgToApiOnly = null,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
@@ -231,7 +240,7 @@ namespace tik4net.Winbox
                 IReadOnlyList<FieldRename>? renames = null,
                 IReadOnlyDictionary<string, string>? confirmedBy = null,
                 IReadOnlyDictionary<string, Tuple<string, string, string>>? setByAction = null,
-                IReadOnlyList<VersionedOmission>? omittedThrough = null)
+                IReadOnlyList<VersionedOmission>? omittedThrough = null, int extraReadFlags = 0)
             {
                 var apiToJg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var jgToApi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -263,6 +272,7 @@ namespace tik4net.Winbox
                 Renames = renames;
                 ConfirmedBy = confirmedBy;
                 SetByAction = setByAction;
+                ExtraReadFlags = extraReadFlags;
             }
         }
 
@@ -483,9 +493,14 @@ namespace tik4net.Winbox
                 // /file: the Files window labels the record's name 'File Name' (it is the window's
                 // nameval), while the API calls it 'name'. Without the alias every file row came back
                 // without a 'name' and the entity read threw "Missing field 'name'".
+                // contents: the window shows its 'Contents' (sd) only in the new-file dialog (cond 'invalidfile': no id
+                // yet, type 0), and webfig reads the list and a row with 0x10000005 only — a record without 0xD. The
+                // router sends it when the read carries 0x10000 as well (7.25.1, get and getall on [72]; a bisect of every
+                // bit over 0x10000005), which webfig never sets.
                 ["/file"] = new FieldAliasSet(
                     both: Ci(("name", "file-name")),
-                    writtenDespiteMark: new[] { "type" }),
+                    writtenDespiteMark: new[] { "type" },
+                    extraReadFlags: 0x10000),
 
                 ["/interface/wireguard"] = new FieldAliasSet(writtenDespiteMark: new[] { "vrf" }),
                 ["/ip/ipsec/policy"] = new FieldAliasSet(writtenDespiteMark: new[] { "sa-src-address", "sa-dst-address" }),
@@ -1211,9 +1226,18 @@ namespace tik4net.Winbox
                 // field that has one.
                 // input.filter / output.filter-chain: the API's names for the window's Input Filter / Output Filter,
                 // confirmed by value (both lab-bgp-in on the lab's connection, 7.25).
+                // remote.as: the window's 'Remote AS' is {opt,c:[{tuple,separate:1,c:[{name:'AS',opt → as u2c2011},
+                // {name:'Sub AS',opt → as u2c2012}]}]}, and its parts' names are the LOCAL AS's ('AS' u2c3005, 'Sub AS'
+                // u2c3006), which claim them first: the remote AS reached no name at all. The key is the same in every
+                // 7.x catalog at hand (7.24, 7.25) and reads 65002 where the API prints remote.as=65002 (7.25.1). Its
+                // Sub AS is left out: no lab connection carries one, so the API's spelling of the pair is unmeasured.
                 ["/routing/bgp/connection"] = new FieldAliasSet(
                     both: Ci(("remote.address", "remote-address"), ("local.role", "local-role"),
                              ("input.filter", "input-filter"), ("output.filter-chain", "output-filter")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["remote.as"] = new WinboxJgField("remote.as", 0x2C2011, M2Type.U32, false, uiType: "as"),
+                    },
                     // The state flag, as the routing tables name it (see RoutingInactive): a connection with no
                     // local address reads inactive=true over the API and 0xFE0008=true natively (7.24.2).
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),

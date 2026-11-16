@@ -225,6 +225,38 @@ namespace tik4net.unittests.Winbox
             Assert.IsFalse(row.ContainsKey("address4"), "address4=" + (row.TryGetValue("address4", out var v) ? v : null));
         }
 
+        // The 7.25 'Connections' window's two AS options, cut down: each is a separate:1 tuple whose parts are named
+        // 'AS' and 'Sub AS', the local one first.
+        private const string BgpConnectionWindow =
+            "{name:'Connection',title:'Connections',type:'map',path:[ 44,34 ],c:[{name:'Name',type:'string',id:'sfe0010'}," +
+            "{name:'AS',type:'opt',width:60,c:[{type:'tuple',separate:1,c:[{name:'AS',type:'opt',c:[{type:'as',id:'u2c3005'}]}," +
+              "{name:'Sub AS',type:'opt',opt:1,c:[{type:'as',id:'u2c3006'}]}]}]}," +
+            "{name:'Remote Address',type:'addr',id:'m2c2202',allow:'46i/',req:1}," +
+            "{name:'Remote AS',type:'opt',width:60,c:[{type:'tuple',separate:1,c:[{name:'AS',type:'opt',c:[{type:'as',id:'u2c2011'}]}," +
+              "{name:'Sub AS',type:'opt',opt:1,c:[{type:'as',id:'u2c2012'}]}]}]}]}";
+
+        [TestMethod]
+        public void ABgpConnectionsRemoteAs_ReadsBesideItsLocalAs()
+        {
+            // The remote parts' names are the local ones', which claim them first: remote.as reached no name (7.25.1).
+            var row = Decode("/routing/bgp/connection", new[] { 44, 34 }, BgpConnectionWindow,
+                (0xFE0010, M2Type.String, "lab"), (0x2C3005, M2Type.U32, 65001u), (0x2C2011, M2Type.U32, 65002u));
+
+            Assert.AreEqual("65001", row["as"]);
+            Assert.AreEqual("65002", row["remote.as"]);
+        }
+
+        [TestMethod]
+        public void TheFileList_IsReadWithTheBitThatCarriesContents()
+        {
+            // webfig never asks for /file contents; the router sends them with 0x10000 (7.25.1). Only /file asks.
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto("[{name:'M',title:'M',group:'M',c:[{name:'File',title:'File',type:'map'," +
+                "path:[ 72,5 ],c:[{name:'File Name',type:'string',id:'s1'}]}]}]"));
+            Assert.AreEqual(0x10000, new WinboxFieldResolver("/file", new[] { 72, 5 }, catalog, new Dictionary<string, int>()).ExtraReadFlags);
+            Assert.AreEqual(0, new WinboxFieldResolver("/ip/service", new[] { 68, 1 }, catalog, new Dictionary<string, int>()).ExtraReadFlags);
+        }
+
         private const string EmailWindow =
             "{title:'Email Settings',type:'item',path:[ 40 ],c:[{name:'Server',type:'union',single:1,c:[" +
             "{type:'ipaddr',id:'u1'},{type:'string',id:'se',min:1}]},{name:'Port',type:'number',id:'u7'}]}";

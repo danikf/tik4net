@@ -501,7 +501,8 @@ namespace tik4net.Winbox
                 writtenDespiteMark: (child.WrittenDespiteMark ?? Enumerable.Empty<string>())
                     .Union(parent.WrittenDespiteMark ?? Enumerable.Empty<string>()),
                 shownOnlyWith: child.ShownOnlyWith, renames: child.Renames, confirmedBy: child.ConfirmedBy,
-                setByAction: child.SetByAction, omittedThrough: child.OmittedThrough);
+                setByAction: child.SetByAction, omittedThrough: child.OmittedThrough,
+                extraReadFlags: child.ExtraReadFlags | parent.ExtraReadFlags);
         }
 
         /// <summary>
@@ -599,6 +600,9 @@ namespace tik4net.Winbox
         /// <summary>The other spellings this path's fields are also reported under (see
         /// <see cref="FieldAliasSet.AlsoKnownAs"/>).</summary>
         internal IReadOnlyDictionary<string, string[]>? ExtraSpellings => Aliases?.AlsoKnownAs;
+
+        /// <summary>The read-flag bits this path's reads add (see <see cref="FieldAliasSet.ExtraReadFlags"/>).</summary>
+        internal int ExtraReadFlags => Aliases?.ExtraReadFlags ?? 0;
 
         /// <summary>
         /// Everything a decode of this path's records needs, built once per command (see <see cref="WinboxDecodePlan"/>).

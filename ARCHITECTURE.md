@@ -383,7 +383,7 @@ transport query translation), `PollingMonitorEngine` + `TikMonitorHandle` (poll+
 
 CLI specifics live in `Cli/`: `CliCommandBuilder`, `CliVerbs` (what a verb is: which address a row, what shape a read
 of each takes), `CliOutputParser`, `CliTorchParser`, `CliTableParser`, `CliDsvParser`, `CliJsonParser`, `CliErrorParser`,
-`CliMonitorVerbs`, `CliSafeModeParser`, `VtStripper`/`Vt100State` (terminal emulation), `RouterOsCliLogin` (its RoMON relay
+`CliMonitorVerbs`, `CliSafeModeParser`, `CliStreamDecoder` (a terminal's bytes decoded as one stream, so a character split across two received chunks reads whole — every CLI carrier uses it), `VtStripper`/`Vt100State` (terminal emulation), `RouterOsCliLogin` (its RoMON relay
 in `RouterOsCliLogin.Romon.cs`), `CliLoginScreen` (the one rule for the screen a login lands on), `ITikCliCompletion`.
 
 Under the base, every console is one `ICliTerminal`, a `CliConsole` — the command prologue, the interrupt latch, the
