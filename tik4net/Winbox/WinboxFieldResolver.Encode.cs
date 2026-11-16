@@ -357,7 +357,7 @@ namespace tik4net.Winbox
             // EXACT match first, case-insensitive only as a fallback. Case is not always decoration: a
             // wireless security profile's 'MAC Format' lists the same seven formats twice, upper then lower,
             // and the case is what selects how the MAC reaches the RADIUS server. Matching case-insensitively
-            // in one pass returns whichever member comes FIRST, so every lowercase value was written as its
+            // in one pass returns whichever member comes FIRST, so every lowercase value would be written as its
             // uppercase twin. The fallback keeps every other map working, where the API's spelling and the
             // label differ only in case.
             if (jg?.EnumMap != null)
@@ -522,7 +522,7 @@ namespace tik4net.Winbox
         {
             // A time of day, as seconds since midnight: webfig types.clocktime.fromstr is
             // string2interval(str), and the API prints and accepts it as 23:20:32. Without this the
-            // text reached the generic u32 branch and went out as a string the router ignores.
+            // text would reach the generic u32 branch and go out as a string the router ignores.
             if (value.Length == 0) return true;
             if (!TryParseDuration(value, 1, out long secondsOfDay))
                 throw new WinboxFieldValueException(
