@@ -35,7 +35,7 @@ namespace tik4net.Winbox
                     "ipaddrandport" => FormatIpAddrAndPort(jf, value, rec),
                     // types.netmask.tostr is netmask2len(val).toString() — the LENGTH, not the mask,
                     // and RouterOS agrees: a pcq queue type prints pcq-src-address-mask=32 for the
-                    // 4294967295 on the wire. Without this the raw u32 reached the caller.
+                    // 4294967295 on the wire. Without this the raw u32 would reach the caller.
                     "netmask" => WinboxValueFormat.MaskToPrefix(value).ToString(CultureInfo.InvariantCulture),
                     "network" => FormatNetwork(jf, value, rec),
                     "network6" => FormatNetwork6(jf, value, rec),
@@ -106,7 +106,7 @@ namespace tik4net.Winbox
                 if (joined != null) return joined;
             }
             // The same list shape with LITERAL elements — a number (/ip/proxy 'Port' u32[8080] → "8080")
-            // or a static enum (/ip/ssh 'Ciphers' u32[0] → "auto"). Without this the wire form reached the
+            // or a static enum (/ip/ssh 'Ciphers' u32[0] → "auto"). Without this the wire form would reach the
             // caller verbatim as "[8080]"/"[0]"; the API prints one value per element, comma-joined.
             if (IsMultiNumberList(jf.UiType))
                 return FormatNumberList(value, jf.EnumMap, jf.ElementScale);
@@ -138,7 +138,7 @@ namespace tik4net.Winbox
             // A list whose elements may each be negated (webfig 'multitristatearray', today only
             // /system/logging 'topics'): the plain members ride in this key and the negated ones in the
             // OffKey sibling, and the API prints them as one comma-joined list with a '!' on the negated
-            // ones. Without this the field reached the caller as the raw handle list "[1]".
+            // ones. Without this the field would reach the caller as the raw handle list "[1]".
             if (jf.OffKey != 0 && IsTriStateList(jf.UiType))
             {
                 string on = FormatListElements(jf, value, collectRefTables);
@@ -477,7 +477,7 @@ namespace tik4net.Winbox
         {
             // types.interval.tostr: `enum2string(attrs.values,val) || interval2string(val,
             // attrs.scale||1)` — a named value wins, otherwise the number is a DURATION in
-            // 1/scale-second units. Without this every interval reached the caller as its raw
+            // 1/scale-second units. Without this every interval would reach the caller as its raw
             // count: /ip/dns cache-max-ttl as 604800 where the API prints 1w, and
             // /system/watchdog ping-start-after-boot as 30000 (scale:100) where it prints 5m.
             // webfig's own '1d 02:03:04' rendering is not used — our contract is the text
@@ -578,7 +578,7 @@ namespace tik4net.Winbox
             // A set whose members come from a TABLE instead of a static map is the same bitmask
             // with the member names one round trip away: /user/group's policies, a script's or a
             // scheduler entry's policy, all reading the policy table [13,3] where the bit index
-            // is the row's id. Without this they reached the caller as the raw number 654958.
+            // is the row's id. Without this they would reach the caller as the raw number 654958.
             var members = jf.EnumMap;
             if (members == null && jf.RefHandler != null)
             {
@@ -985,7 +985,7 @@ namespace tik4net.Winbox
         /// <para>Live on 7.24: <c>/ip/pool</c>'s <c>ranges</c> is the flattened, ranged form — a pool of
         /// <c>192.168.251.10-192.168.251.20,192.168.252.5,192.168.253.0/24</c> arrives as six u32s — and the
         /// API re-collapses an exact block to its prefix form, which <see cref="WinboxValueFormat.
-        /// FormatV4Range"/> does too. Without this the whole field reached the caller as the raw
+        /// FormatV4Range"/> does too. Without this the whole field would reach the caller as the raw
         /// <c>[184264896,352037056,…]</c>.</para>
         /// </remarks>
         private string FormatMultiNetwork(WinboxJgField jf, object value,
