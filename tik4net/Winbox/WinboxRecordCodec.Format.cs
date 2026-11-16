@@ -425,8 +425,8 @@ namespace tik4net.Winbox
             }
             // ... unless the declaration says `relative:1`, in which case the same wire type
             // carries a moment on the router's UPTIME clock instead (see WinboxJgField.Relative).
-            // /interface's last-link-up-time read 1970-02-28 before this: the value is a distance
-            // from boot in hundredths (scale:100), not seconds since 1970.
+            // /interface's last-link-up-time is one: the value is a distance from boot in hundredths
+            // (scale:100), not seconds since 1970, and read as an epoch it lands on 1970-02-28.
             if (jf.Relative)
             {
                 long? bootHundredths = RouterBootEpochHundredths();
@@ -736,8 +736,8 @@ namespace tik4net.Winbox
             word = null;
             // Either the window says the value may be absent, or it declares a minimum that excludes zero:
             // both are the window saying a zero here is not a quantity. /interface's own MTU declaration is
-            // the second kind — no `opt:1`, but `min:64` — and without it the generic menu went on reporting
-            // 0 for a bridge row the API prints `auto` for, while every subtype menu had been corrected.
+            // the second kind — no `opt:1`, but `min:64` — and without it the generic menu would report 0 for
+            // a bridge row the API prints `auto` for, while every subtype menu reports `auto`.
             if ((!jf.IsOptional && jf.Min <= 0) || jf.ApiName == null) return false;
             if (!ZeroSpelledAsWord.TryGetValue(jf.ApiName, out word)) { word = null; return false; }
             if (WinboxValueFormat.TryToInt64(value, out long n) && n == 0) return true;
