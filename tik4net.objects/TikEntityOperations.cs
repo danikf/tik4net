@@ -12,7 +12,7 @@ namespace tik4net.Objects
     /// RouterOS decides this per verb and per menu, not per menu alone: <c>/ppp/active</c> has
     /// <c>remove</c> and no <c>add</c>/<c>set</c>, <c>/routing/ospf/neighbor</c> has <c>set</c> and no
     /// <c>add</c>/<c>remove</c>. A single "the entity is read-only" flag cannot express either, which is
-    /// why one is no longer the model — see
+    /// why it is not the model — see
     /// <see href="https://github.com/danikf/tik4net/issues/84">issue #84</see>.
     /// </para>
     /// <para>
