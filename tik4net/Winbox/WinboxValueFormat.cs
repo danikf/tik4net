@@ -423,7 +423,7 @@ namespace tik4net.Winbox
         }
 
         // Numeric read on a path whose fallback would be INDISTINGUISHABLE from a real answer: an unreadable
-        // ipaddr used to render 0.0.0.0 and an unreadable netmask prefix /0, both of which reach the caller
+        // ipaddr would render 0.0.0.0 and an unreadable netmask prefix /0, both of which reach the caller
         // looking like something the router said. There is no honest substitute, so this throws — and
         // it means our .jg UI type and the value the router sent disagree, which is our bug to fix, not the
         // caller's to work around.
