@@ -556,9 +556,9 @@ namespace tik4net.Winbox
         {
             // The inverse of WinboxRecordCodec's interval decode, and it has to exist for the same
             // reason the decode does: the wire carries a COUNT of 1/scale-second units, while the API
-            // spells the same value "5m" / "1w" / "500ms". Without this, "5m" failed long.TryParse in
-            // the generic u32 branch and went out as the STRING "5m" — which the router accepts,
-            // answers with status 0, and ignores, so the write silently did nothing.
+            // spells the same value "5m" / "1w" / "500ms". Without this, "5m" would fail long.TryParse in
+            // the generic u32 branch and go out as the STRING "5m" — which the router accepts,
+            // answers with status 0, and ignores, so the write silently does nothing.
             if (value.Length == 0) return true;
             // A named value wins, exactly as on the way back (e.g. 'immediately' / 'never').
             if (jg?.EnumMap != null)
