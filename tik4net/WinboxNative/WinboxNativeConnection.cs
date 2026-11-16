@@ -809,9 +809,9 @@ namespace tik4net.WinboxNative
                 rows = rows.Where(r => TikQueryStack.Matches(r, filters)).ToList();
 
             // `get` is a narrowing of this same read: native has no get of its own, so the window is read
-            // and the row and field are picked here. Without it value-name was ignored entirely and the
-            // scalar layer returned whichever field happened to come first — /system/identity/get
-            // value-name=name answered "7.24", the RouterOS version. A wrong answer, with no error.
+            // and the row and field are picked here. Without it value-name would be ignored entirely and the
+            // scalar layer would return whichever field happens to come first — /system/identity/get
+            // value-name=name answering "7.24", the RouterOS version. A wrong answer, with no error.
             return TikGetResult.Shape(descriptor, rows);
         }
 
