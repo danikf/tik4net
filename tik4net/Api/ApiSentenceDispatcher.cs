@@ -9,18 +9,18 @@ namespace tik4net.Api
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Replaces the model where each caller took a read lock and pulled from the socket itself, shelving
-    /// whatever belonged to someone else. That model did not withhold replies — the lock holder read for
-    /// everyone — but it did make a caller's <c>ReceiveTimeout</c> depend on what else was in flight: a
-    /// caller queued on the read lock had not started its deadline yet, so two silent commands failed at 1×
-    /// and 2× the timeout and N of them at N×. Here every caller waits on its own tag with its own
-    /// deadline, because nobody has to become a reader to be answered.
+    /// Every caller waits on its own tag with its own deadline, because nobody has to become a reader to be
+    /// answered. The alternative — each caller taking a read lock and pulling from the socket itself, shelving
+    /// whatever belongs to someone else — does not withhold replies (the lock holder reads for everyone), but
+    /// it makes a caller's <c>ReceiveTimeout</c> depend on what else is in flight: a caller queued on the read
+    /// lock has not started its deadline yet, so two silent commands fail at 1× and 2× the timeout and N of
+    /// them at N×.
     /// </para>
     /// <para>
     /// One monitor guards everything and <see cref="System.Threading.Monitor.PulseAll(object)"/> wakes
     /// waiters: a connection has a handful of concurrent commands, not thousands, and one lock that is never
-    /// held across a socket operation is easier to reason about than per-tag events. Note the difference from
-    /// the old lock — this one is only ever held for a dictionary operation, never while reading.
+    /// held across a socket operation is easier to reason about than per-tag events. It is only ever held for
+    /// a dictionary operation, never while reading.
     /// </para>
     /// </remarks>
     internal sealed class ApiSentenceDispatcher
