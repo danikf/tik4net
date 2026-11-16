@@ -87,5 +87,26 @@ namespace tik4net.Objects
             return TikConnectionExtensions.BuildDeleteCommand(connection, entity)
                 .ExecuteNonQueryAsync(cancellationToken);
         }
+
+        /// <summary>
+        /// Deletes the row with the given <c>.id</c>, without loading it first. Async counterpart of
+        /// <see cref="TikConnectionExtensions.DeleteById{TEntity}(ITikConnection, string)"/>.
+        /// </summary>
+        /// <typeparam name="TEntity">Entity type whose menu the row is in.</typeparam>
+        /// <param name="connection">Tik connection used to delete.</param>
+        /// <param name="id">The row's <c>.id</c>.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="connection"/> or <paramref name="id"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="id"/> is empty.</exception>
+        /// <exception cref="InvalidOperationException">The entity's menu has no <c>remove</c>, or the entity has no
+        /// <c>.id</c> property (a singleton).</exception>
+        public static Task DeleteByIdAsync<TEntity>(this ITikConnection connection, string id,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            Guard.ArgumentNotNull(connection, nameof(connection));
+
+            return TikConnectionExtensions.BuildDeleteByIdCommand<TEntity>(connection, id)
+                .ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 }

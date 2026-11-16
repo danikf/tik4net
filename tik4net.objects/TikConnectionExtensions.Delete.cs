@@ -25,6 +25,28 @@ namespace tik4net.Objects
             BuildDeleteCommand(connection, entity).ExecuteNonQuery();
         }
 
+        /// <summary>
+        /// Deletes the row with the given <c>.id</c> on the router, without loading it first. Sends the same
+        /// <c>remove</c> as <see cref="Delete{TEntity}(ITikConnection, TEntity)"/> does for a loaded entity.
+        /// </summary>
+        /// <remarks>
+        /// The type argument is required: it names the menu (<c>connection.DeleteById&lt;FirewallFilter&gt;("*1A")</c>).
+        /// An <c>.id</c> no row has is the router's refusal, as for <see cref="Delete{TEntity}(ITikConnection, TEntity)"/>.
+        /// </remarks>
+        /// <typeparam name="TEntity">Entity type whose menu the row is in.</typeparam>
+        /// <param name="connection">Tik connection used to delete.</param>
+        /// <param name="id">The row's <c>.id</c>, as <see cref="LoadById{TEntity}(ITikConnection, string)"/> takes it.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="connection"/> or <paramref name="id"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="id"/> is empty.</exception>
+        /// <exception cref="InvalidOperationException">The entity's menu has no <c>remove</c>, or the entity has no
+        /// <c>.id</c> property (a singleton).</exception>
+        /// <inheritdoc cref="Save{TEntity}(ITikConnection, TEntity, IEnumerable{string}, TikSaveMode)" path="/exception"/>
+        public static void DeleteById<TEntity>(this ITikConnection connection, string id)
+        {
+            Guard.ArgumentNotNull(connection, nameof(connection));
+            BuildDeleteByIdCommand<TEntity>(connection, id).ExecuteNonQuery();
+        }
+
         /// <summary>Shared with <c>DeleteAsync</c> — see the note on <see cref="ResolveSaveId"/>.</summary>
         internal static ITikCommand BuildDeleteCommand<TEntity>(ITikConnection connection, TEntity entity)
         {
@@ -39,9 +61,22 @@ namespace tik4net.Objects
 
             // `!`: string.IsNullOrEmpty isn't NotNullWhen-annotated on netstandard2.0, so the compiler can't
             // narrow through the throw above even though it guarantees id is non-empty here.
-            return connection.CreateCommandAndParameters(metadata.EntityPath + "/remove", TikCommandParameterFormat.NameValue,
-                TikSpecialProperties.Id, id!);
+            return RemoveCommand(connection, metadata, id!);
         }
+
+        /// <summary>Shared with <c>DeleteByIdAsync</c>.</summary>
+        internal static ITikCommand BuildDeleteByIdCommand<TEntity>(ITikConnection connection, string id)
+        {
+            Guard.ArgumentNotNullOrEmptyString(id, nameof(id));
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            EnsureSupported(metadata, TikEntityOperations.Remove);
+            EnsureHasIdProperty(metadata);
+            return RemoveCommand(connection, metadata, id);
+        }
+
+        private static ITikCommand RemoveCommand(ITikConnection connection, TikEntityMetadata metadata, string id)
+            => connection.CreateCommandAndParameters(metadata.EntityPath + "/remove", TikCommandParameterFormat.NameValue,
+                TikSpecialProperties.Id, id);
 
         /// <summary>
         /// Deletes all entities of given type on mikrotik router.

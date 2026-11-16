@@ -322,6 +322,20 @@ namespace tik4net.integrationtests
             var address = Connection.LoadById<Objects.Ip.IpAddress>(id);
             Connection.Delete(address);
         }
+
+        [TestMethod]
+        public void Delete_IpAddress_ById_With_Highlevel_API()
+        {
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
+            Cleanup_DeteleAddressByIp(IP);
+            var id = Init_CreateAddress(IP, INTERFACE);
+
+            Connection.DeleteById<Objects.Ip.IpAddress>(id);
+
+            Assert.IsNull(Connection.LoadSingleOrDefault<Objects.Ip.IpAddress>(Connection.CreateParameter(".id", id)),
+                "the row must be gone after DeleteById");
+        }
         #endregion
 
 

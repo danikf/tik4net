@@ -167,6 +167,13 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        public void DeletingByAnIdNoRowHasRaisesNoSuchItemOnEveryTransport()
+        {
+            // DeleteById sends what Delete sends, so it must fail the same way for a row that is not there.
+            Assert.ThrowsException<TikNoSuchItemException>(() => Connection.DeleteById<FirewallFilter>(NonexistentId));
+        }
+
+        [TestMethod]
         public void SavingARowThatIsNotThereRaisesNoSuchItemOnEveryTransport()
         {
             // Same for the update half. An .id the caller supplies takes Save down the /set path, so this

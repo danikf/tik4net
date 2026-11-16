@@ -38,6 +38,7 @@ namespace tik4net.unittests.Objects
         [DataRow("LoadByName")]
         [DataRow("Save")]
         [DataRow("Delete")]
+        [DataRow("DeleteById")]
         [DataRow("DeleteAll")]
         [DataRow("SaveListDifferences")]
         [DataRow("Move")]
@@ -55,6 +56,7 @@ namespace tik4net.unittests.Objects
                 "LoadByName" => () => connection.LoadByName<GuardRow>("a"),
                 "Save" => () => connection.Save(Row(null, "a")),
                 "Delete" => () => connection.Delete(Row("*1", "a")),
+                "DeleteById" => () => connection.DeleteById<GuardRow>("*1"),
                 "DeleteAll" => () => connection.DeleteAll<GuardRow>(),
                 "SaveListDifferences" => () => connection.SaveListDifferences(new[] { Row(null, "n") }, new[] { Row("*1", "a") }),
                 "Move" => () => connection.Move(Row("*1", "a"), Row("*2", "b")),
