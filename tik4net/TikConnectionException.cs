@@ -419,7 +419,7 @@ namespace tik4net
     /// <para>The case this exists for is an idle MAC-layer session: RouterOS logs an idle terminal session
     /// out after roughly 30 seconds and says so in its own log (<c>user … logged out via mac-telnet</c>). It
     /// does not close the UDP socket and it sends no error, so from the client side the session simply
-    /// stops answering — and before this type existed that surfaced as a full <see cref="ITikConnection.ReceiveTimeout"/>
+    /// stops answering — and without this type that surfaces as a full <see cref="ITikConnection.ReceiveTimeout"/>
     /// worth of waiting followed by "nothing was received", which names the symptom and not the cause.
     /// The same happens to a WinBox-MAC session carrying structured M2 rather than a terminal.</para>
     /// <para>It is only thrown when the router <b>never acknowledged the command's bytes</b>, which is what
