@@ -105,15 +105,15 @@ namespace tik4net.MacTelnet
 
         // Outbound reliability. The MAC layer is UDP with no delivery guarantee, and RouterOS
         // answers a DATA packet with an ACK whose counter is the offset PAST it (send 148+7 -> ack 155).
-        // We used to discard every ACK and never resend, so a lost outbound datagram was unrecoverable:
-        // the router waits for bytes that never arrive, we wait for a reply that cannot come.
+        // Without a resend driven by those ACKs a lost outbound datagram is unrecoverable: the router
+        // waits for bytes that never arrive, we wait for a reply that cannot come.
         //
         // NOTE, so this is not mis-read as a cure: retransmission does NOT fix the MAC-layer suite wedge.
         // Measured - at the wedge the router re-ACKs the offset BEFORE our command and then ignores 8
         // byte-identical resends, and the failure is deterministic across runs (same test, same point),
         // which loss is not. Whatever stops the router consuming our stream there is still unidentified.
-        // This stays because the ACK is a real signal we were throwing away and a genuinely lost packet
-        // must be recoverable; it is not the answer to the wedge.
+        // It is here because the ACK is a real signal and a genuinely lost packet must be recoverable; it
+        // is not the answer to the wedge.
         //
         // A QUEUE, not one slot. While every caller was lockstep, one outstanding DATA packet at a
         // time was all there could be, so holding only the most recent one was enough. A multiplexed channel
@@ -249,13 +249,13 @@ namespace tik4net.MacTelnet
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Asking them one at a time does not work, and the way it fails is instructive. Each candidate got
-        /// one 300 ms round and was then rebound — which <em>closes the socket the answer is coming back
-        /// to</em>. Measured inside a full suite run: the correct NIC's ACK took longer than 300 ms because
-        /// the router was busy, so it arrived at a socket that no longer existed; the probe then alternated
-        /// between two NICs six times and gave up. The session key was the same throughout, so the router
-        /// also saw one session arriving from two different source MACs. Nothing about that is specific to
-        /// slow routers: a sequential probe races the answer against its own timer and can always lose.
+        /// Asking them one at a time does not work. A sequential probe gives each candidate one round (300 ms)
+        /// and then rebinds — which <em>closes the socket the answer is coming back to</em>. Measured inside
+        /// a full suite run: the correct NIC's ACK took longer than 300 ms because the router was busy, so it
+        /// arrived at a socket that no longer existed, and the probe alternated between two NICs six times and
+        /// gave up. The session key is the same throughout, so the router also sees one session arriving from
+        /// two different source MACs. Nothing about that is specific to slow routers: a sequential probe races
+        /// the answer against its own timer and can always lose.
         /// </para>
         /// <para>
         /// Probing in parallel also costs one round instead of N, and each probe carries its own session
@@ -969,12 +969,12 @@ namespace tik4net.MacTelnet
         /// it is not DATA, so it never enters the unacknowledged queue — and that queue is inert until the
         /// first ACK arrives (<c>_haveAck</c>), which is the very thing SESSIONSTART is waiting for. It is
         /// also the one packet that is <em>always</em> sent to broadcast, whatever the session has since
-        /// learned about where the router lives. Before this, a single lost SESSIONSTART cost the full
-        /// authentication timeout with no retry at all; the previous code waited a blind 80 ms and sent the
-        /// auth request into a session the router might never have created.
+        /// learned about where the router lives. Without the retry a single lost SESSIONSTART costs the full
+        /// authentication timeout, and a blind wait (80 ms) before the auth request sends it into a session the
+        /// router may never have created.
         /// <para>
         /// Measured on 7.23.2 across five traced suite runs: 76 of 76 SESSIONSTARTs were acknowledged, all
-        /// of them before the old blind sleep was over — so on a healthy link this waits less, not more.
+        /// of them within 80 ms — so on a healthy link this waits less than a blind sleep would, not more.
         /// </para>
         /// <para>
         /// It is also where a MAC-only session works out which local NIC to use: with nothing naming one,
