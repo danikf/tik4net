@@ -303,8 +303,7 @@ namespace tik4net.MacTelnet
         /// the session. RouterOS pushes console output whenever it feels like it and expects the byte ACK
         /// back; measured on 7.23.2, one console-echoed log line left unacknowledged during a 15 s idle is
         /// enough for the router to stop answering the session permanently, and a plain 30 s idle does the
-        /// same on its own (25 s still survives). Both are unremarkable gaps inside a test run, which is
-        /// why the wedge looked like it needed "accumulated state" to reproduce.
+        /// same on its own (25 s still survives). Both are unremarkable gaps inside a test run.
         /// </para>
         /// </summary>
         private void StartPump() => _pump.Start("tik4net MAC-Telnet pump", PumpLoop);
