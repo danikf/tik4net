@@ -957,7 +957,7 @@ namespace tik4net.Winbox
                         optInverted = cur.TryGetValue("inv", out var invv) && invv is int invi && invi != 0;
                     // RouterOS 6 spells the `not` of a group as a SIBLING of the value: 6.49.13's 'Src. Address
                     // Type' is {group b1aa, c:[{name:'Address Type',multibits u49}, {name:'Invert',bool bcc}]},
-                    // where 7.x nests the same keys as opt b1aa → not bcc → multibits. Without this the '!' read
+                    // where 7.x nests the same keys as opt b1aa → not bcc → multibits. Without this the '!' would read
                     // as its own field ('invert', 'extra-invert') and src-address-type=!local as 'local'.
                     if (ty == "group" && notKey == 0 && InvertSibling(cur) is { } invert)
                     {
