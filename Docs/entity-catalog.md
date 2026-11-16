@@ -262,7 +262,7 @@ Namespace `tik4net.Objects.Tool`.
 | `/tool/graphing/resource` | `GraphingResource` |  |
 | `/tool/mac-server` | `ToolMacServer` | ¹ |
 | `/tool/mac-server/mac-winbox` | `ToolMacServerWinbox` | ¹ |
-| `/tool/netwatch` | `ToolNetwatch` |  |
+| `/tool/netwatch` | `ToolNetwatch` | ⁵ |
 | `/tool/romon` | `ToolRomon` | ¹ |
 | `/tool/romon/discover` | `ToolRomonDiscover` | ² ⁶ |
 | `/tool/romon/ping` | `ToolRomonPing` | ² ⁶ |

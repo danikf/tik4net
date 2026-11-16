@@ -191,6 +191,40 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(0x6, resolver.ResolveKey("available-from"));
         }
 
+        private const string NeighbourWindow =
+            "{name:'Neighbour',title:'Neighbors',type:'map',path:[ 10,1 ],c:[{name:'Identity',type:'string',id:'s6'}," +
+            "{name:'IP Address',type:'ipaddr',id:'u3',zeroinvalid:1},{name:'IPv6 Address',type:'ip6addr',id:'ae',opt:1,ro:1}]}";
+
+        private static byte[] LinkLocal()
+        {
+            var v6 = new byte[16];
+            v6[0] = 0xfe; v6[1] = 0x80; v6[15] = 0x01;
+            return v6;
+        }
+
+        [TestMethod]
+        public void ANeighboursIpv4AddressIsReportedAsAddress4Too()
+        {
+            // 7.25.1: the API prints address=address4=192.168.4.237 on a neighbour with an IPv4 address.
+            var row = Decode("/ip/neighbor", new[] { 10, 1 }, NeighbourWindow,
+                (0x6, M2Type.String, "CHR2"), (0x3, M2Type.U32, 0x0100000Au), (0xE, M2Type.Addr6, LinkLocal()));
+
+            Assert.AreEqual("10.0.0.1", row["address"]);
+            Assert.AreEqual("10.0.0.1", row["address4"]);
+        }
+
+        [TestMethod]
+        public void AnIpv6OnlyNeighbourHasNoAddress4()
+        {
+            // Its `address` is the IPv6 one (the fallback below it in the alias table), which the API never prints
+            // as `address4`: the IPv4 spelling is filled first, from the IPv4 key alone.
+            var row = Decode("/ip/neighbor", new[] { 10, 1 }, NeighbourWindow,
+                (0x6, M2Type.String, "CHR3"), (0xE, M2Type.Addr6, LinkLocal()));
+
+            Assert.AreEqual(row["address6"], row["address"]);
+            Assert.IsFalse(row.ContainsKey("address4"), "address4=" + (row.TryGetValue("address4", out var v) ? v : null));
+        }
+
         private const string EmailWindow =
             "{title:'Email Settings',type:'item',path:[ 40 ],c:[{name:'Server',type:'union',single:1,c:[" +
             "{type:'ipaddr',id:'u1'},{type:'string',id:'se',min:1}]},{name:'Port',type:'number',id:'u7'}]}";

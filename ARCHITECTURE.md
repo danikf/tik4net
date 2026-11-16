@@ -28,7 +28,7 @@ ITikConnection / ITikCommand  — transport-neutral contract + capability model
 |---|---|---|---|
 | `tik4net` | `tik4net/` + `tik4net.objects/`, packed by `tik4net.package/` | `netstandard2.0;net8.0` | Core **and** O/R mapper — two assemblies, one package, plus the compile-time analyzers of `tik4net.analyzers/` in `analyzers/dotnet/cs/`. Runtime dep on the `netstandard2.0` leg only: `System.Text.Json` (net8.0 has it in the shared framework, so that leg has no dependencies at all) |
 | `tik4net.ssh` | `tik4net.ssh/` | `netstandard2.0;net8.0` | Satellite — isolates the `Renci.SshNet` dependency |
-| `tik4net.testing` | `tik4net.testing/` | `netstandard2.0;net8.0` | `TikFakeConnection` for router-free consumer tests |
+| `tik4net.testing` | `tik4net.testing/` | `netstandard2.0;net8.0` | `TikFakeConnection` for router-free consumer tests; `TikEntityTransportCheck`, the one live-router class, for an entity author |
 | `tik4net.mcp` | `Tools/tik4net.mcp/` | .NET tool | Dev/debug MCP helper, not a user-facing library |
 
 `tik4net/` and `tik4net.objects/` are both `IsPackable=false` — they build assemblies, but the
@@ -358,6 +358,11 @@ secrets or flags read absent — so `TransportHintsTests` covers every derivatio
 `TransportExtensionPointTests` holds that an outside transport is handed the command's words and nothing else. The
 four 4.0 marker constants on `TikSpecialProperties` (`CliStats`, `CliFlags`, `CliJson`, `CliSensitive`) are
 `[Obsolete(error: true)]`; nothing reads a parameter of those names.
+
+The entity options that feed the hints fail silently when left out, so they are checked rather than reasoned
+about: `TikEntityTransportCheck` (`tik4net.testing`) reads an entity over several live connections and names the
+option a transport needs, and `EntityTransportCheckTest` runs it over every built-in entity against the binary API
+(REST, Telnet, SSH, WinBox CLI, WinBox native; the MAC variants share their siblings' code).
 
 The one thing deliberately **not** offered here is `ITikRawSentenceConnection`: see the contract section
 above for why a transport-neutral base cannot have a connection-specific format.

@@ -606,9 +606,13 @@ namespace tik4net.Winbox
                     },
                     // A neighbour heard only over IPv6 has no IPv4 key, and the API's `address` is then its IPv6
                     // address: 6.49.13 prints address=address6=fe80::… for CHR3 on ether2. Reported under both names
-                    // only where `address` is absent, so a row with an IPv4 address keeps it.
+                    // only where `address` is absent, so a row with an IPv4 address keeps it. The API prints the IPv4
+                    // address as `address4` as well (7.25.1: address=address4=192.168.4.237), so it is reported under
+                    // both names — first, from the IPv4 key alone: the entries are applied in this order, and after the
+                    // IPv6 fallback `address` may hold an IPv6 address, which the API never prints as `address4`.
                     alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
+                        ["address"] = new[] { "address4" },
                         ["address6"] = new[] { "address" },
                     }),
 
@@ -748,7 +752,10 @@ namespace tik4net.Winbox
                 // The router's note on the row, which the API prints on a list row (/ip/dhcp-server) and on neither of
                 // these singletons, whose notes say PPTP is unsafe and that cloud is not on a CHR free licence (7.25).
                 ["/interface/pptp-server/server"] = new FieldAliasSet(notReportedNames: new[] { WinboxRecordCodec.AboutField }),
-                ["/ip/cloud"] = new FieldAliasSet(notReportedNames: new[] { WinboxRecordCodec.AboutField }),
+                // dns-name: the record carries it empty until the cloud service assigns a name; the API and the CLI leave
+                // it out of the row then (7.25.1, a CHR with no cloud licence: dns-name="" natively, absent on both).
+                ["/ip/cloud"] = new FieldAliasSet(notReportedNames: new[] { WinboxRecordCodec.AboutField },
+                    omittedWhen: Ci(("dns-name", ""))),
 
                 // Each pairing below was confirmed by MOVING the value on a seeded row over the API and naming
                 // the one native field that changed (7.24.2) — never by the two names looking alike.

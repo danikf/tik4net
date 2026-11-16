@@ -22,6 +22,12 @@ and assert on what it sent.
 See [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Unit-testing-without-a-router)
 in the wiki for usage.
 
+`TikEntityTransportCheck` is the one class here that needs a **live router**: it reads an entity over several real
+connections, compares each with a reference, and names the entity option a transport needs (`IncludeCliStats`,
+`IsSensitive`, `IsFreeText`, `WinboxLabel`, …). Read-only. See
+[Custom entities](https://github.com/danikf/tik4net/wiki/High-level-API-custom-entities#checking-an-entity-on-every-transport).
+`EntityTransportCheckTest` in `tik4net.integrationtests` runs it over every built-in entity.
+
 ## Not to be confused with
 
 - [`tik4net.unittests`](../tik4net.unittests/README.md) — this repository's **own** router-free tests,

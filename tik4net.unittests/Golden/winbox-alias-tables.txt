@@ -455,7 +455,7 @@ ShippedFieldAliases[/ip/cloud].NotReportedNames = ci{'.about'}
 ShippedFieldAliases[/ip/cloud].NotReportedTabs = null
 ShippedFieldAliases[/ip/cloud].NumFlagMembers = null
 ShippedFieldAliases[/ip/cloud].OmittedThrough = null
-ShippedFieldAliases[/ip/cloud].OmittedWhen = null
+ShippedFieldAliases[/ip/cloud].OmittedWhen = ci{'dns-name'=''}
 ShippedFieldAliases[/ip/cloud].PairedFields = null
 ShippedFieldAliases[/ip/cloud].Renames = null
 ShippedFieldAliases[/ip/cloud].SetByAction = null
@@ -967,7 +967,7 @@ ShippedFieldAliases[/ip/ipsec/proposal].ShownOnlyWith = null
 ShippedFieldAliases[/ip/ipsec/proposal].SyntheticFields = null
 ShippedFieldAliases[/ip/ipsec/proposal].WrittenDespiteMark = null
 ShippedFieldAliases[/ip/neighbor].AddrPortPairs = null
-ShippedFieldAliases[/ip/neighbor].AlsoKnownAs = ci{'address6'=['address']}
+ShippedFieldAliases[/ip/neighbor].AlsoKnownAs = ci{'address'=['address4'], 'address6'=['address']}
 ShippedFieldAliases[/ip/neighbor].ApiToJg = ci{'address'='ip-address', 'address6'='ipv6-address', 'board'='board-name', 'unpack'='unpacking'}
 ShippedFieldAliases[/ip/neighbor].ConfirmedBy = null
 ShippedFieldAliases[/ip/neighbor].DerivedBools = null
