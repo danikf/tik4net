@@ -129,8 +129,8 @@ namespace tik4net.WinboxNative
                 case "comment":
                 {
                     // A real RouterOS menu command, and on the M2 layer simply a write of the comment
-                    // field — WinBox has no separate comment operation. Without this it reached
-                    // DispatchActionVerb and threw "not an action verb".
+                    // field — WinBox has no separate comment operation. Without this it would reach
+                    // DispatchActionVerb and throw "not an action verb".
                     await WriteFieldsAsync(handler, resolver, descriptor,
                         () => EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true, cancellationToken),
                         cancellationToken).ConfigureAwait(false);
