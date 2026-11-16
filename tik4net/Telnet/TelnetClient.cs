@@ -43,10 +43,9 @@ namespace tik4net.Telnet
 
         private readonly int _connectTimeoutMs;
 
-        // Separate from ReceiveTimeoutMs, which is what the write side used to be given. They are two
-        // different questions - how long the router may take to answer, and how long a write may block -
-        // and ITikConnection exposes them as two properties, so honouring one with the other made
-        // SendTimeout a setting the caller could change with no effect.
+        // Separate from ReceiveTimeoutMs. They are two different questions - how long the router may take
+        // to answer, and how long a write may block - and ITikConnection exposes them as two properties, so
+        // honouring one with the other would make SendTimeout a setting the caller can change with no effect.
         private readonly int _sendTimeoutMs;
 
         // ── Connect ───────────────────────────────────────────────────────────
