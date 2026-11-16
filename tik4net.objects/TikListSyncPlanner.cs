@@ -72,9 +72,8 @@ namespace tik4net.Objects
     /// </para>
     /// <para>
     /// The plan is checked before it is returned: it is replayed on a <see cref="TikOrderTracker"/> and must
-    /// produce exactly the desired order. A plausible command sequence that lands the rows elsewhere is how an
-    /// earlier version of this pass shipped (3 of 7 moves, an order matching neither input), so a planner defect
-    /// throws here rather than reaching the router.
+    /// produce exactly the desired order. A plausible command sequence can still land the rows elsewhere (3 of 7
+    /// moves, an order matching neither input), so a planner defect throws here rather than reaching the router.
     /// </para>
     /// </remarks>
     internal static class TikListSyncPlanner
