@@ -544,7 +544,7 @@ namespace tik4net.Testing
             try
             {
                 string tag = Guid.NewGuid().ToString();
-                var ending = new TikCallbackEnding();   // onDone only when no error was reported (command-layer D21)
+                var ending = new TikCallbackEnding();   // onDone only when no error was reported
                 _asyncTag = tag;
                 _asyncThread = _fakeConnection.CallCommandAsync(Rows(TikCommandParameterFormat.NameValue), tag, sentence =>
                 {
