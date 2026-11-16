@@ -1324,8 +1324,8 @@ namespace tik4net.WinboxNative
         /// nothing, a duration the router would refuse), raised as the trap the router raises for it over the API.
         /// </summary>
         /// <remarks>
-        /// Every client-side refusal comes through here, so how they are classified is decided in one place (review
-        /// D7, which measures each against the API).
+        /// Every client-side refusal comes through here, so how they are classified (as the API classifies the same
+        /// refusal) is decided in one place.
         /// </remarks>
         private static TikCommandException TrapFor(ITikCommand command, string message, Exception? innerException = null)
             => new TikCommandTrapException(command, new TikTrapSentenceResult(message), innerException);
