@@ -918,7 +918,7 @@ namespace tik4net.Cli
         /// <para>A value containing a <c>.</c> is quoted as well, although every character is in the safe set: RouterOS
         /// before 7.20 parses a bare operand by the field's type, and an address:port field refuses a bare IPv4.</para>
         /// <para>The safe set is <see cref="IsSafeUnquoted"/>, shared with <see cref="QuoteIfNeeded"/>:
-        /// a name=value argument turned out to need exactly the same treatment, for a different reason —
+        /// a name=value argument needs exactly the same treatment, for a different reason —
         /// there the router parses the value by the PARAMETER'S type, and a script-typed one reads
         /// punctuation as code. Two contexts, one rule, so they cannot drift apart.</para>
         /// <para>
